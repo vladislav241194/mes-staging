@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.0.6";
+const APP_VERSION = "v.1.9";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -38,8 +38,8 @@ const STORAGE_KEYS = [
   CALCULATOR_STORAGE_KEY,
   AUTH_STORAGE_KEY,
 ];
-const LEFT_WIDTH = 420;
-const TIMELINE_HEIGHT = 56;
+const LEFT_WIDTH = 360;
+const TIMELINE_HEIGHT = 48;
 const PROJECT_ROW_HEIGHT = 66;
 const WORK_ROW_HEIGHT = 58;
 const WEEK_SLOT_HEIGHT = 18;
@@ -71,9 +71,12 @@ const EMPLOYEE_DEPARTMENT_MIGRATION = {
 const app = document.querySelector("#app");
 
 const defaultUiState = {
-  activeModule: "planning",
+  activeModule: "reports",
   activeDirectory: "projects",
-  activeReport: "production",
+  activeReport: "dashboard",
+  activeProjectId: "",
+  activeSpecificationId: "",
+  activeBomId: "",
   calculatorStep: "inputs",
   debugOverlay: null,
   confirmDialog: null,
@@ -135,9 +138,6 @@ let ui = loadUiState();
 let authState = loadAuthState();
 
 const directorySections = [
-  { id: "projects", label: "Проекты", description: "Заказы, партии и сроки", count: () => planningState.projects.length },
-  { id: "specifications", label: "Спецификации изделий", description: "Состав изделия и привязка к проекту", count: () => directoryState.specifications.length },
-  { id: "bomLists", label: "BOM-листы", description: "Компонентный состав смонтированных плат", count: () => directoryState.bomLists.length },
   { id: "departments", label: "Отделы", description: "Подразделения и зоны ответственности", count: () => directoryState.departments.length },
   { id: "roles", label: "Роли", description: "Гибкая настройка доступа к модулям и справочникам", count: () => directoryState.roles.length },
   { id: "resources", label: "Ресурсы", description: "Производственные мощности", count: () => directoryState.resources.length },
@@ -145,12 +145,12 @@ const directorySections = [
   { id: "employees", label: "Сотрудники", description: "Планировщики, мастера, операторы", count: () => directoryState.employees.length },
   { id: "equipment", label: "Оборудование", description: "Линии, установки и стенды", count: () => directoryState.equipment.length },
   { id: "workCenters", label: "Участки", description: "Производственные участки MES", count: () => planningState.workCenters.length },
-  { id: "routes", label: "Маршруты", description: "Технологические цепочки", count: () => planningState.routes.length },
   { id: "statuses", label: "Статусы", description: "Состояния проектов и операций", count: () => directoryState.statuses.length },
   { id: "norms", label: "Нормативы", description: "Смены, длительности и ограничения", count: () => directoryState.norms.length },
 ];
 
 const reportSections = [
+  { id: "dashboard", label: "Дашборд", description: "Операционный обзор цеха", count: () => getSlotWarnings(planningState).warnings.length },
   { id: "production", label: "Сводка производства", description: "Статусы, объем и готовность", count: () => planningState.slots.length },
   { id: "workload", label: "Загрузка участков", description: "Операции и часы по участкам", count: () => planningState.workCenters.length },
   { id: "deadlines", label: "Сроки и отклонения", description: "Сроки проектов и риски", count: () => planningState.projects.length },
@@ -158,15 +158,15 @@ const reportSections = [
   { id: "warehouse", label: "Склад и выпуск", description: "Финальные складские операции", count: () => planningState.slots.filter((slot) => slot.workCenterId === "warehouse").length },
 ];
 
-const chartColors = ["#276ef1", "#118ab2", "#2f8f5b", "#b26b00", "#6b4cc2", "#b8325c", "#64748b", "#84cc16"];
+const chartColors = ["#2563eb", "#0284c7", "#16a34a", "#d97706", "#dc2626", "#7c3aed", "#64748b"];
 
 const statusReportColors = {
   planned: "#64748b",
-  in_progress: "#118ab2",
-  paused: "#b26b00",
-  completed: "#2f8f5b",
-  overdue: "#c73535",
-  problem: "#b8325c",
+  in_progress: "#2563eb",
+  paused: "#64748b",
+  completed: "#16a34a",
+  overdue: "#dc2626",
+  problem: "#d97706",
 };
 
 function handleDevResetParams() {
@@ -205,10 +205,10 @@ function createDefaultDirectoryState() {
   ],
   roles: [
     { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, debug, admin", status: "Активен" },
-    { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "dashboard, planning, calculator, directories, reports", directories: "projects, specifications, bomLists, resources, componentTypes, employees, equipment, workCenters, routes, norms", permissions: "create, read, update, schedule, approve", status: "Активен" },
-    { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "dashboard, calculator, directories, reports", directories: "specifications, bomLists, resources, componentTypes, equipment, workCenters, routes, norms", permissions: "read, update, calculate", status: "Активен" },
-    { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "dashboard, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
-    { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "dashboard, reports", directories: "projects, statuses", permissions: "read", status: "Активен" },
+    { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "reports, planning, calculator, projects, specifications, directories", directories: "resources, componentTypes, employees, equipment, workCenters, norms", permissions: "create, read, update, schedule, approve", status: "Активен" },
+    { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "reports, calculator, projects, specifications, directories", directories: "resources, componentTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
+    { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "reports, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
+    { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "reports, projects, specifications", directories: "statuses", permissions: "read", status: "Активен" },
   ],
   resources: [
     { id: "res-smt-1", name: "Линия SMT-1 · Hanwha S2/L2", type: "Линия", workCenter: "SMT-монтаж", capacity: "1 партия / смена", baseCph: 32000, efficiency: 88, changeoverMin: 18, status: "Доступен" },
@@ -440,6 +440,9 @@ function persistUiState() {
       activeModule: ui.activeModule,
       activeDirectory: ui.activeDirectory,
       activeReport: ui.activeReport,
+      activeProjectId: ui.activeProjectId,
+      activeSpecificationId: ui.activeSpecificationId,
+      activeBomId: ui.activeBomId,
       calculatorStep: ui.calculatorStep,
       selectedDirectoryRows: ui.selectedDirectoryRows,
     scale: ui.scale,
@@ -500,14 +503,39 @@ function normalizeDirectoryRow(sectionId, row) {
     return {
       ...row,
       accessLevel: Math.max(0, Math.min(100, Number(row.accessLevel || 0))),
-      modules: row.modules || "dashboard, reports",
-      directories: row.directories || "projects, statuses",
+      modules: normalizeRoleModuleList(row),
+      directories: normalizeRoleDirectoryList(row.directories || "statuses"),
       permissions: row.permissions || "read",
       status: row.status || "Активен",
     };
   }
 
   return row;
+}
+
+function normalizeRoleModuleList(row) {
+  const rawModules = String(row.modules || "reports").trim();
+  if (rawModules === "*") return "*";
+  const modules = parseAccessList(rawModules);
+  if (modules.has("dashboard")) {
+    modules.delete("dashboard");
+    modules.add("reports");
+  }
+  if (roleAllowsValue(row.directories, "projects")) modules.add("projects");
+  if (roleAllowsValue(row.directories, "specifications") || roleAllowsValue(row.directories, "bomLists")) {
+    modules.add("specifications");
+  }
+  const order = ["reports", "planning", "calculator", "projects", "specifications", "directories", "debug"];
+  return order.filter((moduleId) => modules.has(moduleId)).join(", ") || "reports";
+}
+
+function normalizeRoleDirectoryList(value) {
+  const rawDirectories = String(value || "statuses").trim();
+  if (rawDirectories === "*") return "*";
+  const directories = parseAccessList(rawDirectories);
+  ["projects", "specifications", "bomLists", "routes"].forEach((sectionId) => directories.delete(sectionId));
+  const order = ["departments", "roles", "resources", "componentTypes", "employees", "equipment", "workCenters", "statuses", "norms"];
+  return order.filter((sectionId) => directories.has(sectionId)).join(", ") || "statuses";
 }
 
 function isBlankDirectoryRow(row) {
@@ -846,23 +874,11 @@ function render() {
 
   ensureAuthorizedModule();
 
-  if (ui.activeModule === "dashboard") {
-    app.innerHTML = `
-      <main class="app-shell dashboard-app-shell">
-        ${renderModuleMenu()}
-        ${renderDashboardPage()}
-        ${renderConfirmModal()}
-      </main>
-    `;
-    bindGlobalNavigation();
-    bindConfirmEvents();
-    return;
-  }
-
   if (ui.activeModule === "directories") {
     app.innerHTML = `
-      <main class="app-shell directory-app-shell">
+      <main class="app-shell directory-app-shell" data-layout="app-shell" data-layout-page="directories">
         ${renderModuleMenu()}
+        ${renderAppTopbar()}
         ${renderDirectoryPage()}
         ${renderConfirmModal()}
       </main>
@@ -876,8 +892,9 @@ function render() {
   if (ui.activeModule === "calculator") {
     calculatorState = normalizeCalculatorState(calculatorState);
     app.innerHTML = `
-      <main class="app-shell calculator-app-shell">
+      <main class="app-shell calculator-app-shell" data-layout="app-shell" data-layout-page="calculator">
         ${renderModuleMenu()}
+        ${renderAppTopbar()}
         ${renderCalculatorPage()}
         ${renderProjectModal()}
         ${renderConfirmModal()}
@@ -889,10 +906,41 @@ function render() {
     return;
   }
 
+  if (ui.activeModule === "projects") {
+    app.innerHTML = `
+      <main class="app-shell project-app-shell" data-layout="app-shell" data-layout-page="projects">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderProjectsPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindProjectsEvents();
+    bindConfirmEvents();
+    return;
+  }
+
+  if (ui.activeModule === "specifications") {
+    app.innerHTML = `
+      <main class="app-shell specification-app-shell" data-layout="app-shell" data-layout-page="specifications">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderSpecificationsPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindSpecificationsEvents();
+    bindConfirmEvents();
+    return;
+  }
+
   if (ui.activeModule === "reports") {
     app.innerHTML = `
-      <main class="app-shell report-app-shell">
+      <main class="app-shell report-app-shell" data-layout="app-shell" data-layout-page="reports">
         ${renderModuleMenu()}
+        ${renderAppTopbar()}
         ${renderReportsPage()}
         ${renderConfirmModal()}
       </main>
@@ -905,8 +953,9 @@ function render() {
 
   if (ui.activeModule === "debug") {
     app.innerHTML = `
-      <main class="app-shell debug-app-shell">
+      <main class="app-shell debug-app-shell" data-layout="app-shell" data-layout-page="debug">
         ${renderModuleMenu()}
+        ${renderAppTopbar()}
         ${renderDebugPage()}
         ${renderConfirmModal()}
       </main>
@@ -925,13 +974,14 @@ function render() {
   const stats = buildStats(warningsContext.warnings);
 
   app.innerHTML = `
-    <main class="app-shell planning-app-shell">
+    <main class="app-shell planning-app-shell" data-layout="app-shell" data-layout-page="planning">
       ${renderModuleMenu()}
+      ${renderAppTopbar()}
       ${renderToolbar(scaleInfo, stats)}
       ${renderPlanningDirectorCommand(warningsContext, stats, scaleInfo)}
-      <section class="planner-workspace" aria-label="Рабочая область планирования">
+      <section class="planner-workspace" data-layout="planning-page" aria-label="Рабочая область планирования">
         <section class="planner-frame" aria-label="Производственный план">
-          <div class="gantt-shell" data-gantt-shell>
+          <div class="gantt-shell" data-layout="gantt" data-gantt-shell>
             <div class="gantt-canvas" style="--left-width:${LEFT_WIDTH}px; --timeline-width:${scaleInfo.width}px; --total-height:${rowLayout.totalHeight}px;">
               ${renderTimeline(scaleInfo)}
               <div class="rows-layer" style="top:${TIMELINE_HEIGHT}px;">
@@ -986,31 +1036,55 @@ function roleAllowsValue(listValue, value) {
 
 function getModuleDefinitions() {
   return [
-    { id: "dashboard", label: "Дашборд", icon: "monitor" },
+    { id: "reports", label: "Отчеты", icon: "chart" },
     { id: "planning", label: "Планирование", icon: "calendar" },
     { id: "calculator", label: "Калькулятор", icon: "calculator" },
+    { id: "projects", label: "Проекты", icon: "book" },
+    { id: "specifications", label: "Спецификации", icon: "book" },
     { id: "directories", label: "Справочники", icon: "book" },
-    { id: "reports", label: "Отчеты", icon: "chart" },
     { id: "debug", label: "Отладка", icon: "bug" },
   ];
 }
 
+function getModuleGroups(modules) {
+  const groupMap = [
+    { label: "Аналитика", ids: ["reports"] },
+    { label: "Производство", ids: ["planning", "projects"] },
+    { label: "Технологии", ids: ["calculator", "specifications"] },
+    { label: "Система", ids: ["directories", "debug"] },
+  ];
+
+  return groupMap
+    .map((group) => ({
+      ...group,
+      modules: group.ids.map((id) => modules.find((moduleItem) => moduleItem.id === id)).filter(Boolean),
+    }))
+    .filter((group) => group.modules.length);
+}
+
 function getAvailableModules(role = getEmployeeRole()) {
-  const modules = getModuleDefinitions().filter((moduleItem) => roleAllowsValue(role?.modules, moduleItem.id));
-  return modules.length ? modules : getModuleDefinitions().filter((moduleItem) => moduleItem.id === "dashboard");
+  const modules = getModuleDefinitions().filter((moduleItem) => (
+    roleAllowsValue(role?.modules, moduleItem.id)
+    || (moduleItem.id === "reports" && roleAllowsValue(role?.modules, "dashboard"))
+  ));
+  return modules.length ? modules : getModuleDefinitions().filter((moduleItem) => moduleItem.id === "reports");
 }
 
 function ensureAuthorizedModule() {
+  if (ui.activeModule === "dashboard") {
+    ui.activeModule = "reports";
+    ui.activeReport = "dashboard";
+  }
   const availableModules = getAvailableModules();
   if (!availableModules.some((moduleItem) => moduleItem.id === ui.activeModule)) {
-    ui.activeModule = availableModules[0]?.id || "dashboard";
+    ui.activeModule = availableModules[0]?.id || "reports";
   }
 }
 
 function getVisibleDirectorySections() {
   const role = getEmployeeRole();
   const visibleSections = directorySections.filter((section) => roleAllowsValue(role?.directories, section.id));
-  return visibleSections.length ? visibleSections : directorySections.filter((section) => section.id === "projects");
+  return visibleSections.length ? visibleSections : directorySections.filter((section) => section.id === "departments");
 }
 
 function renderAuthPage() {
@@ -1054,22 +1128,27 @@ function renderModuleMenu() {
   const employee = getAuthEmployee();
   const role = getEmployeeRole(employee);
   const modules = getAvailableModules(role);
+  const groups = getModuleGroups(modules);
 
   return `
-    <nav class="module-menu" aria-label="Основное меню">
+    <nav class="module-menu" data-layout="sidebar" aria-label="Основное меню">
       <div class="module-menu-brand">
         <strong>MES</strong>
         <span>${APP_VERSION}</span>
       </div>
       <div class="module-tabs" role="tablist">
-        ${modules.map((moduleItem) => `
-          <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button">
-            ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>
-          </button>
+        ${groups.map((group) => `
+          <div class="module-group">
+            <span class="module-group-title">${escapeHtml(group.label)}</span>
+            ${group.modules.map((moduleItem) => `
+              <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button">
+                ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>
+              </button>
+            `).join("")}
+          </div>
         `).join("")}
       </div>
       <div class="module-menu-meta auth-menu-meta">
-        <span data-clock>${formatDateTime(ui.now)}</span>
         <div class="auth-user-chip">
           ${icon("lock")}
           <span><strong>${escapeHtml(employee?.name || "Пользователь")}</strong><small>${escapeHtml(role?.name || "Роль не задана")}</small></span>
@@ -1080,10 +1159,47 @@ function renderModuleMenu() {
   `;
 }
 
-function renderDashboardPage() {
+function renderAppTopbar() {
+  const employee = getAuthEmployee();
+  const role = getEmployeeRole(employee);
+  const activeModule = getModuleDefinitions().find((moduleItem) => moduleItem.id === ui.activeModule) || getModuleDefinitions()[0];
+  const activeContext = ui.activeModule === "reports"
+    ? reportSections.find((section) => section.id === ui.activeReport)?.label || "Дашборд"
+    : ui.activeModule === "directories"
+      ? directorySections.find((section) => section.id === ui.activeDirectory)?.label || "Справочники"
+      : activeModule.label;
+
+  return `
+    <header class="app-topbar" data-layout="header" aria-label="Верхняя панель MES">
+      <div class="app-breadcrumbs">
+        <span>MES</span>
+        <i>/</i>
+        <strong>${escapeHtml(activeModule.label)}</strong>
+        ${activeContext && activeContext !== activeModule.label ? `<i>/</i><span>${escapeHtml(activeContext)}</span>` : ""}
+      </div>
+      <div class="app-topbar-title">
+        <h1>${escapeHtml(activeModule.label)}</h1>
+        <p>${escapeHtml(activeContext)}</p>
+      </div>
+      <label class="app-global-search">
+        ${icon("search")}
+        <input type="search" placeholder="Поиск по проектам, операциям, справочникам" aria-label="Глобальный поиск" />
+      </label>
+      <div class="app-topbar-actions">
+        <span class="app-time" data-clock>${formatDateTime(ui.now)}</span>
+        <div class="app-topbar-user">
+          <strong>${escapeHtml(employee?.name || "Пользователь")}</strong>
+          <span>${escapeHtml(role?.name || "Роль не задана")}</span>
+        </div>
+      </div>
+    </header>
+  `;
+}
+
+function renderDashboardPage({ embedded = false } = {}) {
   const data = getDashboardData();
   return `
-    <section class="dashboard-page" aria-label="Дашборд производства">
+    <section class="dashboard-page ${embedded ? "is-embedded" : ""}" aria-label="Дашборд производства">
       <div class="dashboard-control-room">
         <header class="dashboard-header">
           <div>
@@ -1398,8 +1514,8 @@ function renderCalculatorPage() {
   const visibleAttr = (blockId) => isCalculatorBlockVisible(activeCalculatorStep, blockId) ? "" : " hidden";
 
   return `
-    <section class="calculator-page" aria-label="Маршрутная карта и калькулятор операций">
-      <div class="calculator-workspace">
+    <section class="calculator-page" data-layout="main-content" aria-label="Маршрутная карта и калькулятор операций">
+      <div class="calculator-workspace" data-layout="page-workspace">
         <header class="calculator-header">
           <div>
             <span class="eyebrow">До планирования Gantt</span>
@@ -1507,7 +1623,7 @@ function renderCalculatorPage() {
               <strong>04 · Маршрутная карта</strong>
               <span>${routeReady ? "операции, участки и расчет времени" : "сначала сформируйте маршрут по выбранным вводным"}</span>
             </div>
-            <div class="directory-table-wrap">
+            <div class="directory-table-wrap" data-layout="table">
               <table class="directory-table calculator-table">
                 <thead>
                   <tr>
@@ -1628,7 +1744,7 @@ function renderCalculatorPage() {
                 <small>${escapeHtml(bomOperationResult?.resource?.name || "ресурс не выбран")}</small>
               </article>
             </div>
-            <div class="directory-table-wrap">
+            <div class="directory-table-wrap" data-layout="table">
               <table class="directory-table calculator-table bom-table">
                 <thead>
                   <tr>
@@ -2506,6 +2622,350 @@ function formatSecondsDuration(seconds) {
   return formatDuration(ms);
 }
 
+function getActiveProjectForModule() {
+  if (ui.activeProjectId === "__new__") return null;
+  return planningState.projects.find((project) => project.id === ui.activeProjectId)
+    || planningState.projects[0]
+    || null;
+}
+
+function getActiveSpecificationForModule() {
+  if (ui.activeSpecificationId === "__new__") return null;
+  return (directoryState.specifications || []).find((specification) => specification.id === ui.activeSpecificationId)
+    || (directoryState.specifications || [])[0]
+    || null;
+}
+
+function getActiveBomForModule(activeSpecification = null) {
+  if (ui.activeBomId === "__new__") return null;
+  const specBom = activeSpecification ? getBomList(activeSpecification.bomListA) : null;
+  return (directoryState.bomLists || []).find((bom) => bom.id === ui.activeBomId)
+    || specBom
+    || (directoryState.bomLists || [])[0]
+    || null;
+}
+
+function getProjectModuleContext(project) {
+  if (!project) {
+    return {
+      specification: null,
+      boms: [],
+      routeSteps: [],
+      batches: [],
+      slots: [],
+      warnings: [],
+      progress: 0,
+      plannedHours: 0,
+      warehouseQuantity: 0,
+    };
+  }
+
+  const specification = getProjectSpecification(project.id);
+  const boms = (directoryState.bomLists || []).filter((bom) => bom.projectId === project.id);
+  const routeSteps = getProjectRouteSteps(project.id, planningState);
+  const batches = planningState.batches.filter((batch) => batch.projectId === project.id);
+  const slots = planningState.slots.filter((slot) => slot.projectId === project.id);
+  const warnings = getSlotWarnings(planningState).warnings.filter((warning) => warning.projectId === project.id);
+  return {
+    specification,
+    boms,
+    routeSteps,
+    batches,
+    slots,
+    warnings,
+    progress: calculateProjectProgress(project, planningState),
+    plannedHours: Math.round(slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0) * 10) / 10,
+    warehouseQuantity: slots.filter((slot) => slot.workCenterId === "warehouse").reduce((sum, slot) => sum + Number(slot.quantity || 0), 0),
+  };
+}
+
+function renderProjectsPage() {
+  const selectedProject = getActiveProjectForModule();
+  const isNewProject = ui.activeProjectId === "__new__" || !selectedProject;
+  const project = selectedProject || {
+    id: "",
+    name: "",
+    orderNumber: "",
+    customer: "",
+    totalQuantity: "",
+    dueDate: toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000)),
+    status: "planned",
+  };
+  const context = getProjectModuleContext(selectedProject);
+
+  return `
+    <section class="projects-page module-data-page" data-layout="main-content" aria-label="Проекты MES">
+      <aside class="directory-sidebar module-data-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Заказы и связки</span>
+          <h1>Проекты</h1>
+        </div>
+        <div class="module-sidebar-actions">
+          <button class="primary-button" data-project-create type="button">${icon("plus")}<span>Новый проект</span></button>
+        </div>
+        <div class="module-entity-list">
+          ${isNewProject ? `
+            <button class="module-entity-item is-active" type="button">
+              <span><strong>Новый проект</strong><small>заполните карточку справа</small></span>
+              <em>new</em>
+            </button>
+          ` : ""}
+          ${planningState.projects.map((item) => {
+            const itemContext = getProjectModuleContext(item);
+            return `
+              <button class="module-entity-item ${item.id === selectedProject?.id ? "is-active" : ""}" data-project-open="${item.id}" type="button">
+                <span>
+                  <strong>${escapeHtml(item.name)}</strong>
+                  <small>${escapeHtml(item.orderNumber)} · ${escapeHtml(item.customer || "заказчик не задан")}</small>
+                </span>
+                <em>${itemContext.progress}%</em>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">Проект</span>
+            <h2>${escapeHtml(isNewProject ? "Новый проект" : project.name)}</h2>
+            <p>${escapeHtml(isNewProject ? "Создайте заказ, чтобы связать его со спецификацией, BOM и маршрутной картой." : `${project.orderNumber} · ${project.customer || "заказчик не задан"} · срок ${formatDate(project.dueDate)}`)}</p>
+          </div>
+          <div class="directory-actions">
+            <button class="secondary-button" data-project-to-calculator type="button" ${selectedProject ? "" : "disabled"}>${icon("calculator")}<span>В калькулятор</span></button>
+            <button class="primary-button" data-project-to-planning type="button" ${selectedProject ? "" : "disabled"}>${icon("calendar")}<span>В план</span></button>
+          </div>
+        </header>
+
+        <div class="module-data-content project-module-content">
+          <section class="module-panel project-editor-panel">
+            <div class="report-card-head">
+              <strong>01 · Карточка проекта</strong>
+              <span>${isNewProject ? "создание нового заказа" : "редактирование параметров заказа"}</span>
+            </div>
+            <form id="projectModuleForm" class="module-form">
+              <input type="hidden" name="projectId" value="${escapeAttribute(project.id)}" />
+              <input type="hidden" name="isNew" value="${isNewProject ? "yes" : "no"}" />
+              <input type="hidden" name="status" data-project-status-input value="${escapeAttribute(project.status || "planned")}" />
+              <label class="form-field full"><span>Название проекта</span><input name="name" value="${escapeAttribute(project.name)}" placeholder="Например: Контроллер питания V3" /></label>
+              <label class="form-field"><span>Номер заказа</span><input name="orderNumber" value="${escapeAttribute(project.orderNumber)}" placeholder="№0000" /></label>
+              <label class="form-field"><span>Заказчик</span><input name="customer" value="${escapeAttribute(project.customer)}" placeholder="Компания" /></label>
+              <label class="form-field"><span>Количество изделий</span><input name="totalQuantity" type="number" min="1" step="1" value="${escapeAttribute(project.totalQuantity)}" /></label>
+              <label class="form-field"><span>Срок сдачи</span><input name="dueDate" type="date" value="${escapeAttribute(project.dueDate)}" /></label>
+              <label class="form-field ${isNewProject ? "" : "readonly"}">
+                <span>Шаблон маршрута</span>
+                <select name="routeTemplate" ${isNewProject ? "" : "disabled"}>
+                  ${routeTemplateOptions.map((option) => `<option value="${option.value}">${escapeHtml(option.label)}</option>`).join("")}
+                </select>
+              </label>
+              <div class="module-status-field full">
+                <span>Статус проекта</span>
+                <div class="module-status-segments" data-project-status-group>
+                  ${PROJECT_STATUSES.map((status) => `
+                    <button class="${status === project.status ? "is-active" : ""}" data-project-status-option="${status}" type="button">${escapeHtml(PROJECT_STATUS_LABELS[status] || status)}</button>
+                  `).join("")}
+                </div>
+              </div>
+              <div class="module-form-actions full">
+                <button class="primary-button" type="submit">${icon("save")}<span>${isNewProject ? "Создать проект" : "Сохранить проект"}</span></button>
+              </div>
+            </form>
+          </section>
+
+          <section class="module-panel project-relations-panel">
+            <div class="report-card-head">
+              <strong>02 · Связи проекта</strong>
+              <span>спецификация, BOM, партии и маршрут</span>
+            </div>
+            <div class="module-kpi-grid">
+              <article><span>Готовность</span><strong>${context.progress}%</strong><small>по закрытым обязательным операциям</small></article>
+              <article><span>Плановые часы</span><strong>${formatReportNumber(context.plannedHours)}</strong><small>${context.slots.length} операций в Gantt</small></article>
+              <article><span>Склад</span><strong>${context.warehouseQuantity.toLocaleString("ru-RU")}</strong><small>финальный выпуск</small></article>
+              <article><span>Риски</span><strong>${context.warnings.length}</strong><small>предупреждений по проекту</small></article>
+            </div>
+            <div class="project-relation-grid">
+              <article>
+                <span>Спецификация</span>
+                <strong>${escapeHtml(context.specification?.name || "Не привязана")}</strong>
+                <small>${escapeHtml(context.specification ? `${context.specification.outputItem} · рев. ${context.specification.revision}` : "создайте в модуле Спецификации")}</small>
+                <button class="secondary-button" data-open-project-specification type="button" ${selectedProject ? "" : "disabled"}>${icon("book")}<span>Открыть</span></button>
+              </article>
+              <article>
+                <span>BOM-листы</span>
+                <strong>${context.boms.length}</strong>
+                <small>${escapeHtml(context.boms.map((bom) => bom.name).join(" · ") || "нет BOM для проекта")}</small>
+                <button class="secondary-button" data-open-project-boms type="button" ${selectedProject ? "" : "disabled"}>${icon("book")}<span>Открыть BOM</span></button>
+              </article>
+              <article>
+                <span>Маршрут</span>
+                <strong>${context.routeSteps.length} операций</strong>
+                <small>${escapeHtml(context.routeSteps.map((step) => step.operationName).join(" → ") || "маршрут не сформирован")}</small>
+                <button class="secondary-button" data-project-to-calculator type="button" ${selectedProject ? "" : "disabled"}>${icon("calculator")}<span>Рассчитать</span></button>
+              </article>
+              <article>
+                <span>Партии</span>
+                <strong>${context.batches.length}</strong>
+                <small>${escapeHtml(context.batches.map((batch) => `${batch.batchNumber}: ${Number(batch.quantity || 0).toLocaleString("ru-RU")}`).join(" · ") || "партии не созданы")}</small>
+                <button class="secondary-button" data-project-to-planning type="button" ${selectedProject ? "" : "disabled"}>${icon("calendar")}<span>Гант</span></button>
+              </article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderSpecificationsPage() {
+  const activeSpecification = getActiveSpecificationForModule();
+  const activeBom = getActiveBomForModule(activeSpecification);
+  const isNewSpecification = ui.activeSpecificationId === "__new__" || !activeSpecification;
+  const isNewBom = ui.activeBomId === "__new__" || !activeBom;
+  const defaultProjectId = activeSpecification?.projectId || activeBom?.projectId || getActiveProjectForModule()?.id || planningState.projects[0]?.id || "";
+  const specification = activeSpecification || {
+    id: "",
+    name: "",
+    projectId: defaultProjectId,
+    revision: "A",
+    outputItem: "",
+    bomListA: activeBom?.id || "",
+    bomQtyA: 1,
+    bomListB: "",
+    bomQtyB: 0,
+    extraItems: "",
+    status: "Черновик",
+  };
+  const bom = activeBom || {
+    id: "",
+    name: "",
+    projectId: defaultProjectId,
+    boardCode: "",
+    revision: "A.0",
+    resultItem: "",
+    status: "Черновик",
+    ...Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, 0])),
+  };
+  const bomEntries = getSpecificationBomEntries(activeSpecification?.id);
+  const activeProject = getProject(specification.projectId);
+
+  return `
+    <section class="specifications-page module-data-page" data-layout="main-content" aria-label="Спецификации и BOM">
+      <aside class="directory-sidebar module-data-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Состав изделия</span>
+          <h1>Спецификации</h1>
+        </div>
+        <div class="module-sidebar-actions two">
+          <button class="primary-button" data-specification-create type="button">${icon("plus")}<span>Спецификация</span></button>
+          <button class="secondary-button" data-bom-create type="button">${icon("plus")}<span>BOM</span></button>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Спецификации изделий</div>
+          ${isNewSpecification ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая спецификация</strong><small>заполните форму справа</small></span><em>new</em></button>` : ""}
+          ${(directoryState.specifications || []).map((item) => `
+            <button class="module-entity-item ${item.id === activeSpecification?.id ? "is-active" : ""}" data-specification-open="${item.id}" type="button">
+              <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(getProject(item.projectId)?.name || "без проекта")} · рев. ${escapeHtml(item.revision || "-")}</small></span>
+              <em>${escapeHtml(item.status || "-")}</em>
+            </button>
+          `).join("")}
+          <div class="module-list-label">BOM SMT</div>
+          ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новый BOM</strong><small>компонентный состав платы</small></span><em>new</em></button>` : ""}
+          ${(directoryState.bomLists || []).map((item) => `
+            <button class="module-entity-item ${item.id === activeBom?.id ? "is-active" : ""}" data-bom-open="${item.id}" type="button">
+              <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.boardCode || "-")} · ${escapeHtml(item.resultItem || "результат не задан")}</small></span>
+              <em>${Object.values(getBomComponentCounts(item)).reduce((sum, count) => sum + Number(count || 0), 0)}</em>
+            </button>
+          `).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">Конструктор состава</span>
+            <h2>${escapeHtml(isNewSpecification ? "Новая спецификация изделия" : specification.name)}</h2>
+            <p>${escapeHtml(activeProject ? `${activeProject.name}: BOM отвечает за смонтированную плату, спецификация за полный состав проекта.` : "Выберите проект и соберите структуру изделия.")}</p>
+          </div>
+          <div class="directory-actions">
+            <button class="secondary-button" data-specification-to-calculator type="button" ${activeSpecification ? "" : "disabled"}>${icon("calculator")}<span>В калькулятор</span></button>
+          </div>
+        </header>
+
+        <div class="module-data-content specification-module-content">
+          <section class="module-panel specification-editor-panel">
+            <div class="report-card-head">
+              <strong>01 · Спецификация изделия</strong>
+              <span>${isNewSpecification ? "создание структуры проекта" : "из чего собрать проект"}</span>
+            </div>
+            <form id="specificationModuleForm" class="module-form">
+              <input type="hidden" name="specificationId" value="${escapeAttribute(specification.id)}" />
+              <input type="hidden" name="isNew" value="${isNewSpecification ? "yes" : "no"}" />
+              <label class="form-field"><span>Проект</span><select name="projectId">${planningState.projects.map((project) => `<option value="${project.id}" ${selected(specification.projectId, project.id)}>${escapeHtml(project.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Название</span><input name="name" value="${escapeAttribute(specification.name)}" placeholder="СП изделия" /></label>
+              <label class="form-field"><span>Ревизия</span><input name="revision" value="${escapeAttribute(specification.revision)}" /></label>
+              <label class="form-field full"><span>Итоговое изделие</span><input name="outputItem" value="${escapeAttribute(specification.outputItem)}" placeholder="Готовое изделие / узел" /></label>
+              <label class="form-field"><span>BOM A</span><select name="bomListA"><option value="">Не выбран</option>${(directoryState.bomLists || []).map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Кол-во A</span><input name="bomQtyA" type="number" min="0" step="1" value="${Number(specification.bomQtyA || 0)}" /></label>
+              <label class="form-field"><span>BOM B</span><select name="bomListB"><option value="">Не выбран</option>${(directoryState.bomLists || []).map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Кол-во B</span><input name="bomQtyB" type="number" min="0" step="1" value="${Number(specification.bomQtyB || 0)}" /></label>
+              <label class="form-field full"><span>Дополнительный состав</span><input name="extraItems" value="${escapeAttribute(specification.extraItems)}" placeholder="Корпус; кабель; крепеж; маркировка" /></label>
+              <label class="form-field"><span>Статус</span><input name="status" value="${escapeAttribute(specification.status)}" /></label>
+              <div class="module-form-actions full">
+                <button class="primary-button" type="submit">${icon("save")}<span>${isNewSpecification ? "Создать спецификацию" : "Сохранить спецификацию"}</span></button>
+              </div>
+            </form>
+          </section>
+
+          <section class="module-panel spec-structure-panel">
+            <div class="report-card-head">
+              <strong>02 · Визуальная структура</strong>
+              <span>проект → спецификация → BOM → компоненты</span>
+            </div>
+            <div class="spec-module-tree">
+              <article class="is-project"><strong>${escapeHtml(activeProject?.name || "Проект не выбран")}</strong><small>${escapeHtml(activeProject?.orderNumber || "сначала привяжите проект")}</small></article>
+              <article class="is-output"><strong>${escapeHtml(specification.outputItem || "Итоговое изделие не задано")}</strong><small>${escapeHtml(specification.extraItems || "дополнительный состав не задан")}</small></article>
+              ${bomEntries.length ? bomEntries.map((entry) => `
+                <article class="is-bom">
+                  <strong>${escapeHtml(entry.bom.name)}</strong>
+                  <small>${entry.quantity}x · ${escapeHtml(entry.bom.resultItem || entry.bom.boardCode || "")}</small>
+                </article>
+              `).join("") : `
+                <article class="is-warning"><strong>BOM не привязан</strong><small>добавьте хотя бы один BOM-лист для SMT-операции</small></article>
+              `}
+            </div>
+          </section>
+
+          <section class="module-panel bom-editor-panel">
+            <div class="report-card-head">
+              <strong>03 · BOM SMT</strong>
+              <span>${isNewBom ? "создание компонентного состава" : "покомпонентный расчет платы"}</span>
+            </div>
+            <form id="bomModuleForm" class="module-form">
+              <input type="hidden" name="bomId" value="${escapeAttribute(bom.id)}" />
+              <input type="hidden" name="isNew" value="${isNewBom ? "yes" : "no"}" />
+              <label class="form-field"><span>Проект</span><select name="projectId">${planningState.projects.map((project) => `<option value="${project.id}" ${selected(bom.projectId, project.id)}>${escapeHtml(project.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Название BOM</span><input name="name" value="${escapeAttribute(bom.name)}" placeholder="BOM PCB" /></label>
+              <label class="form-field"><span>Код платы</span><input name="boardCode" value="${escapeAttribute(bom.boardCode)}" placeholder="PCB-..." /></label>
+              <label class="form-field"><span>Ревизия</span><input name="revision" value="${escapeAttribute(bom.revision)}" /></label>
+              <label class="form-field full"><span>Результат BOM</span><input name="resultItem" value="${escapeAttribute(bom.resultItem)}" placeholder="Смонтированная печатная плата" /></label>
+              <label class="form-field"><span>Статус</span><input name="status" value="${escapeAttribute(bom.status)}" /></label>
+              <div class="bom-component-grid full">
+                ${BOM_COMPONENT_FIELDS.map((field) => `
+                  <label><span>${escapeHtml(field.label)}</span><input name="${field.key}" type="number" min="0" step="1" value="${Number(bom[field.key] || 0)}" /></label>
+                `).join("")}
+              </div>
+              <div class="module-form-actions full">
+                <button class="primary-button" type="submit">${icon("save")}<span>${isNewBom ? "Создать BOM" : "Сохранить BOM"}</span></button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderDirectoryPage() {
   const visibleSections = getVisibleDirectorySections();
   const activeSection = visibleSections.find((section) => section.id === ui.activeDirectory) || visibleSections[0];
@@ -2513,7 +2973,7 @@ function renderDirectoryPage() {
   const directoryData = getDirectoryData(activeSection.id);
 
   return `
-    <section class="directories-page" aria-label="Справочники MES">
+    <section class="directories-page" data-layout="main-content" aria-label="Справочники MES">
       <aside class="directory-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Мастер-данные</span>
@@ -2532,7 +2992,7 @@ function renderDirectoryPage() {
         </div>
       </aside>
 
-      <div class="directory-workspace">
+      <div class="directory-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
             <span class="eyebrow">Справочник</span>
@@ -2566,10 +3026,11 @@ function renderDirectoryPage() {
 
 function renderReportsPage() {
   const activeReport = reportSections.find((section) => section.id === ui.activeReport) || reportSections[0];
-  const reportData = getReportData(activeReport.id);
+  const isDashboardReport = activeReport.id === "dashboard";
+  const reportData = isDashboardReport ? null : getReportData(activeReport.id);
 
   return `
-    <section class="reports-page" aria-label="Отчеты MES">
+    <section class="reports-page" data-layout="main-content" aria-label="Отчеты MES">
       <aside class="report-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Аналитика</span>
@@ -2588,51 +3049,53 @@ function renderReportsPage() {
         </div>
       </aside>
 
-      <div class="report-workspace">
-        <header class="directory-header">
-          <div>
-            <span class="eyebrow">Отчет</span>
-            <h2>${escapeHtml(reportData.title)}</h2>
-            <p>${escapeHtml(reportData.description)}</p>
-          </div>
-          <div class="directory-actions">
-            <button class="secondary-button" data-report-refresh type="button">${icon("refresh")}<span>Обновить</span></button>
-            <button class="primary-button" type="button">${icon("download")}<span>Экспорт</span></button>
-          </div>
-        </header>
+      <div class="report-workspace ${isDashboardReport ? "report-dashboard-workspace" : ""}" data-layout="page-workspace">
+        ${isDashboardReport ? renderDashboardPage({ embedded: true }) : `
+          <header class="directory-header">
+            <div>
+              <span class="eyebrow">Отчет</span>
+              <h2>${escapeHtml(reportData.title)}</h2>
+              <p>${escapeHtml(reportData.description)}</p>
+            </div>
+            <div class="directory-actions">
+              <button class="secondary-button" data-report-refresh type="button">${icon("refresh")}<span>Обновить</span></button>
+              <button class="primary-button" type="button">${icon("download")}<span>Экспорт</span></button>
+            </div>
+          </header>
 
-        <div class="report-content">
-          <section class="report-main">
-            <div class="kpi-row">
-              ${reportData.kpis.map((kpi) => `
-                <article class="kpi-card">
-                  <span>${escapeHtml(kpi.label)}</span>
-                  <strong>${escapeHtml(kpi.value)}</strong>
-                  <small>${escapeHtml(kpi.caption)}</small>
-                </article>
-              `).join("")}
-            </div>
-            <div class="report-chart-grid">
-              ${reportData.charts.map((chart) => renderReportChart(chart)).join("")}
-            </div>
-            ${renderReportTable(reportData.table)}
-          </section>
+          <div class="report-content">
+            <section class="report-main">
+              <div class="kpi-row">
+                ${reportData.kpis.map((kpi) => `
+                  <article class="kpi-card">
+                    <span>${escapeHtml(kpi.label)}</span>
+                    <strong>${escapeHtml(kpi.value)}</strong>
+                    <small>${escapeHtml(kpi.caption)}</small>
+                  </article>
+                `).join("")}
+              </div>
+              <div class="report-chart-grid">
+                ${reportData.charts.map((chart) => renderReportChart(chart)).join("")}
+              </div>
+              ${renderReportTable(reportData.table)}
+            </section>
 
-          <aside class="report-insights">
-            <div class="detail-card-head">
-              <span class="eyebrow">Итоги</span>
-              <h3>${escapeHtml(reportData.insightTitle)}</h3>
-            </div>
-            <div class="insight-list">
-              ${reportData.insights.map((insight) => `
-                <div class="insight-item ${insight.tone || ""}">
-                  ${icon(insight.icon || "info")}
-                  <span>${escapeHtml(insight.text)}</span>
-                </div>
-              `).join("")}
-            </div>
-          </aside>
-        </div>
+            <aside class="report-insights">
+              <div class="detail-card-head">
+                <span class="eyebrow">Итоги</span>
+                <h3>${escapeHtml(reportData.insightTitle)}</h3>
+              </div>
+              <div class="insight-list">
+                ${reportData.insights.map((insight) => `
+                  <div class="insight-item ${insight.tone || ""}">
+                    ${icon(insight.icon || "info")}
+                    <span>${escapeHtml(insight.text)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </aside>
+          </div>
+        `}
       </div>
     </section>
   `;
@@ -2640,7 +3103,7 @@ function renderReportsPage() {
 
 function renderDebugPage() {
   return `
-    <section class="debug-page" aria-label="Отладка интерфейса">
+    <section class="debug-page" data-layout="main-content" aria-label="Отладка интерфейса">
       <aside class="debug-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">UI Playground</span>
@@ -2656,7 +3119,7 @@ function renderDebugPage() {
         </div>
       </aside>
 
-      <div class="debug-workspace">
+      <div class="debug-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
             <span class="eyebrow">Отладка визуальных паттернов</span>
@@ -3522,7 +3985,7 @@ function renderReportTable(table) {
         <strong>${escapeHtml(table.title)}</strong>
         <span>${escapeHtml(table.caption)}</span>
       </div>
-      <div class="directory-table-wrap">
+      <div class="directory-table-wrap" data-layout="table">
         <table class="directory-table">
           <thead>
             <tr>${table.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>
@@ -3705,7 +4168,7 @@ function buildWorkloadRows() {
       count: slots.length,
       hours: Math.round(slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0) * 10) / 10,
       quantity: slots.reduce((sum, slot) => sum + Number(slot.quantity || 0), 0),
-      color: center.id === "warehouse" ? "#84cc16" : chartColors[index % chartColors.length],
+      color: center.id === "warehouse" ? "#16a34a" : chartColors[index % chartColors.length],
     };
   }).filter((row) => row.count || row.label === "Склад")
     .sort((left, right) => right.hours - left.hours);
@@ -3730,7 +4193,7 @@ function buildDeadlineRows() {
         due: formatDate(project.dueDate),
         status: PROJECT_STATUS_LABELS[project.status],
         progress,
-        color: progress >= 70 ? "#2f8f5b" : progress >= 35 ? "#118ab2" : chartColors[index % chartColors.length],
+        color: progress >= 70 ? "#16a34a" : progress >= 35 ? "#2563eb" : chartColors[index % chartColors.length],
       };
     });
 }
@@ -3754,16 +4217,16 @@ function buildProjectStatusItems() {
 
 function buildWarningTypeItems(warnings) {
   const types = [
-    { type: "capacity", label: "Загрузка", color: "#c73535" },
-    { type: "route", label: "Маршрут", color: "#b26b00" },
-    { type: "quantity", label: "Количество", color: "#118ab2" },
-    { type: "duration", label: "Длительность", color: "#6b4cc2" },
+    { type: "capacity", label: "Загрузка", color: "#dc2626" },
+    { type: "route", label: "Маршрут", color: "#d97706" },
+    { type: "quantity", label: "Количество", color: "#0284c7" },
+    { type: "duration", label: "Длительность", color: "#7c3aed" },
   ];
   const items = types.map((item) => ({
     ...item,
     value: warnings.filter((warning) => warning.type === item.type).length,
   })).filter((item) => item.value > 0);
-  return items.length ? items : [{ label: "Нет предупреждений", value: 1, color: "#2f8f5b" }];
+  return items.length ? items : [{ label: "Нет предупреждений", value: 1, color: "#16a34a" }];
 }
 
 function buildWarningProjectItems(warnings) {
@@ -3790,7 +4253,7 @@ function buildWarehouseProjectItems(warehouseSlots) {
       label: project.name,
       rawValue: quantity,
       value: `${quantity} шт.`,
-      color: index === 0 ? "#84cc16" : chartColors[index % chartColors.length],
+      color: index === 0 ? "#16a34a" : chartColors[index % chartColors.length],
     };
   }).filter((row) => row.rawValue > 0);
   const maxValue = Math.max(1, ...rows.map((row) => row.rawValue));
@@ -3945,7 +4408,7 @@ function renderDirectoryTable(directoryData) {
       <strong>${directoryData.rows.length} записей</strong>
       <span>${escapeHtml(directoryData.caption)}</span>
     </div>
-    <div class="directory-table-wrap">
+    <div class="directory-table-wrap" data-layout="table">
       <table class="directory-table">
         <thead>
           <tr>
@@ -4345,7 +4808,7 @@ function createEmptyDirectoryRow(directoryData) {
     if (key === "shift") row[key] = "08:00-20:00";
     if (key === "roleId") row[key] = directoryState.roles?.[0]?.id || "role-admin";
     if (key === "password") row[key] = "";
-    if (directoryData.sectionId === "roles" && key === "modules") row[key] = "dashboard, reports";
+    if (directoryData.sectionId === "roles" && key === "modules") row[key] = "reports";
     if (directoryData.sectionId === "roles" && key === "directories") row[key] = "projects, statuses";
     if (directoryData.sectionId === "roles" && key === "permissions") row[key] = "read";
     if (key === "default") row[key] = "no";
@@ -4689,6 +5152,299 @@ function bindReportEvents() {
   app.querySelector("[data-report-refresh]")?.addEventListener("click", () => {
     render();
   });
+}
+
+function bindProjectsEvents() {
+  app.querySelector("[data-project-create]")?.addEventListener("click", () => {
+    ui.activeProjectId = "__new__";
+    persistUiState();
+    render();
+  });
+
+  app.querySelectorAll("[data-project-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const projectId = button.dataset.projectOpen;
+      const specification = getProjectSpecification(projectId);
+      const bom = (directoryState.bomLists || []).find((item) => item.projectId === projectId);
+      ui.activeProjectId = projectId;
+      ui.activeSpecificationId = specification?.id || ui.activeSpecificationId || "";
+      ui.activeBomId = bom?.id || ui.activeBomId || "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-project-status-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const root = button.closest("[data-project-status-group]");
+      const input = app.querySelector("[data-project-status-input]");
+      if (!root || !input) return;
+      root.querySelectorAll("[data-project-status-option]").forEach((item) => item.classList.toggle("is-active", item === button));
+      input.value = button.dataset.projectStatusOption || "planned";
+    });
+  });
+
+  app.querySelector("#projectModuleForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveProjectModuleForm(event.currentTarget);
+  });
+
+  app.querySelectorAll("[data-project-to-calculator]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const project = getActiveProjectForModule();
+      if (!project) return;
+      openProjectInCalculator(project.id);
+    });
+  });
+
+  app.querySelectorAll("[data-project-to-planning]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const project = getActiveProjectForModule();
+      if (!project) return;
+      ui.activeModule = "planning";
+      persistUiState();
+      focusProject(project.id);
+    });
+  });
+
+  app.querySelector("[data-open-project-specification]")?.addEventListener("click", () => {
+    const project = getActiveProjectForModule();
+    if (!project) return;
+    const specification = getProjectSpecification(project.id);
+    ui.activeModule = "specifications";
+    ui.activeProjectId = project.id;
+    ui.activeSpecificationId = specification?.id || "__new__";
+    ui.activeBomId = specification?.bomListA || (directoryState.bomLists || []).find((bom) => bom.projectId === project.id)?.id || "";
+    persistUiState();
+    render();
+  });
+
+  app.querySelector("[data-open-project-boms]")?.addEventListener("click", () => {
+    const project = getActiveProjectForModule();
+    if (!project) return;
+    ui.activeModule = "specifications";
+    ui.activeProjectId = project.id;
+    ui.activeBomId = (directoryState.bomLists || []).find((bom) => bom.projectId === project.id)?.id || "__new__";
+    ui.activeSpecificationId = getProjectSpecification(project.id)?.id || ui.activeSpecificationId || "";
+    persistUiState();
+    render();
+  });
+}
+
+function saveProjectModuleForm(form) {
+  const data = new FormData(form);
+  const isNew = data.get("isNew") === "yes";
+  const name = String(data.get("name") || "").trim();
+  const orderNumber = String(data.get("orderNumber") || "").trim();
+  const totalQuantity = normalizeOptionalPositiveInteger(data.get("totalQuantity"));
+  if (!name || !orderNumber || !totalQuantity) {
+    alert("Заполните название проекта, номер заказа и количество изделий.");
+    return;
+  }
+
+  const stamp = new Date().toISOString();
+  if (isNew) {
+    const bundle = createProjectBundle({
+      name,
+      orderNumber,
+      customer: String(data.get("customer") || "").trim(),
+      totalQuantity,
+      dueDate: String(data.get("dueDate") || toDateInput(addMs(new Date(), 14 * 24 * 60 * 60 * 1000))),
+      status: PROJECT_STATUSES.includes(data.get("status")) ? data.get("status") : "planned",
+      routeTemplate: String(data.get("routeTemplate") || "full"),
+    });
+    planningState.projects = [...planningState.projects, bundle.project];
+    planningState.batches = [...planningState.batches, bundle.batch];
+    planningState.routes = [...planningState.routes, bundle.route];
+    planningState.routeSteps = [...planningState.routeSteps, ...bundle.routeSteps];
+    planningState = normalizePlanningState(planningState);
+    ui.activeProjectId = bundle.project.id;
+  } else {
+    const projectId = String(data.get("projectId") || "");
+    planningState.projects = planningState.projects.map((project) => project.id === projectId ? {
+      ...project,
+      name,
+      orderNumber,
+      customer: String(data.get("customer") || "").trim(),
+      totalQuantity,
+      dueDate: String(data.get("dueDate") || project.dueDate),
+      status: PROJECT_STATUSES.includes(data.get("status")) ? data.get("status") : project.status,
+      updatedAt: stamp,
+    } : project);
+    ui.activeProjectId = projectId;
+  }
+
+  persistState();
+  persistUiState();
+  render();
+}
+
+function bindSpecificationsEvents() {
+  app.querySelector("[data-specification-create]")?.addEventListener("click", () => {
+    ui.activeSpecificationId = "__new__";
+    persistUiState();
+    render();
+  });
+
+  app.querySelector("[data-bom-create]")?.addEventListener("click", () => {
+    ui.activeBomId = "__new__";
+    persistUiState();
+    render();
+  });
+
+  app.querySelectorAll("[data-specification-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const specification = (directoryState.specifications || []).find((item) => item.id === button.dataset.specificationOpen);
+      if (!specification) return;
+      ui.activeSpecificationId = specification.id;
+      ui.activeProjectId = specification.projectId;
+      ui.activeBomId = specification.bomListA || specification.bomListB || ui.activeBomId || "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-bom-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const bom = getBomList(button.dataset.bomOpen);
+      if (!bom) return;
+      ui.activeBomId = bom.id;
+      ui.activeProjectId = bom.projectId || ui.activeProjectId || "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelector("#specificationModuleForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveSpecificationModuleForm(event.currentTarget);
+  });
+
+  app.querySelector("#bomModuleForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveBomModuleForm(event.currentTarget);
+  });
+
+  app.querySelector("[data-specification-to-calculator]")?.addEventListener("click", () => {
+    const specification = getActiveSpecificationForModule();
+    if (!specification) return;
+    openProjectInCalculator(specification.projectId, specification.id);
+  });
+}
+
+function saveSpecificationModuleForm(form) {
+  const data = new FormData(form);
+  const isNew = data.get("isNew") === "yes";
+  const id = isNew ? makeId("spec") : String(data.get("specificationId") || makeId("spec"));
+  const name = String(data.get("name") || "").trim();
+  const projectId = String(data.get("projectId") || "");
+  if (!name || !projectId) {
+    alert("Заполните название спецификации и проект.");
+    return;
+  }
+
+  const row = {
+    id,
+    name,
+    projectId,
+    revision: String(data.get("revision") || "A").trim(),
+    outputItem: String(data.get("outputItem") || "").trim(),
+    bomListA: String(data.get("bomListA") || ""),
+    bomQtyA: Math.max(0, Number(data.get("bomQtyA") || 0)),
+    bomListB: String(data.get("bomListB") || ""),
+    bomQtyB: Math.max(0, Number(data.get("bomQtyB") || 0)),
+    extraItems: String(data.get("extraItems") || "").trim(),
+    status: String(data.get("status") || "Черновик").trim(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  directoryState.specifications = isNew
+    ? [...(directoryState.specifications || []), row]
+    : (directoryState.specifications || []).map((item) => item.id === id ? { ...item, ...row } : item);
+  directoryState = normalizeDirectoryState(directoryState);
+  ui.activeSpecificationId = id;
+  ui.activeProjectId = projectId;
+  if (row.bomListA) ui.activeBomId = row.bomListA;
+  persistDirectoryState();
+  persistUiState();
+  render();
+}
+
+function saveBomModuleForm(form) {
+  const data = new FormData(form);
+  const isNew = data.get("isNew") === "yes";
+  const id = isNew ? makeId("bom") : String(data.get("bomId") || makeId("bom"));
+  const name = String(data.get("name") || "").trim();
+  const projectId = String(data.get("projectId") || "");
+  if (!name || !projectId) {
+    alert("Заполните название BOM и проект.");
+    return;
+  }
+
+  const row = {
+    id,
+    name,
+    projectId,
+    boardCode: String(data.get("boardCode") || "").trim(),
+    revision: String(data.get("revision") || "A.0").trim(),
+    resultItem: String(data.get("resultItem") || "").trim(),
+    status: String(data.get("status") || "Черновик").trim(),
+    updatedAt: new Date().toISOString(),
+  };
+  for (const field of BOM_COMPONENT_FIELDS) {
+    row[field.key] = Math.max(0, Number(data.get(field.key) || 0));
+  }
+
+  directoryState.bomLists = isNew
+    ? [...(directoryState.bomLists || []), row]
+    : (directoryState.bomLists || []).map((item) => item.id === id ? { ...item, ...row } : item);
+
+  const activeSpecification = getActiveSpecificationForModule();
+  if (isNew && activeSpecification && activeSpecification.projectId === projectId && !activeSpecification.bomListA) {
+    directoryState.specifications = (directoryState.specifications || []).map((specification) => (
+      specification.id === activeSpecification.id
+        ? { ...specification, bomListA: id, bomQtyA: 1, updatedAt: row.updatedAt }
+        : specification
+    ));
+    ui.activeSpecificationId = activeSpecification.id;
+  }
+
+  directoryState = normalizeDirectoryState(directoryState);
+  ui.activeBomId = id;
+  ui.activeProjectId = projectId;
+  persistDirectoryState();
+  persistUiState();
+  render();
+}
+
+function openProjectInCalculator(projectId, specificationId = "") {
+  const project = planningState.projects.find((item) => item.id === projectId);
+  if (!project) return;
+  const specification = specificationId
+    ? (directoryState.specifications || []).find((item) => item.id === specificationId)
+    : getProjectSpecification(project.id);
+  const bom = specification
+    ? getSpecificationBomEntries(specification.id)[0]?.bom
+    : (directoryState.bomLists || []).find((item) => item.projectId === project.id);
+  calculatorState = normalizeCalculatorState({
+    ...calculatorState,
+    projectId: project.id,
+    specificationId: specification?.id || "",
+    noSpecification: !specification,
+    bomListId: bom?.id || "",
+    boardQuantity: normalizeOptionalPositiveInteger(project.totalQuantity),
+    routeOperations: [],
+    selectedOperationId: "",
+    componentCounts: bom ? getBomComponentCounts(bom) : {},
+    componentCountsByOperation: {},
+    inputsSavedAt: "",
+    lastSavedAt: "",
+  });
+  ui.activeModule = "calculator";
+  ui.calculatorStep = "inputs";
+  persistCalculatorState();
+  persistUiState();
+  render();
 }
 
 function bindCalculatorEvents() {
