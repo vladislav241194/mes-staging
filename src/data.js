@@ -1,0 +1,437 @@
+const nowStamp = "2026-05-30T10:30:00";
+
+export const workCenters = [
+  {
+    id: "smt",
+    name: "SMT-монтаж",
+    code: "SMT",
+    description: "Автоматический поверхностный монтаж компонентов",
+    isActive: true,
+  },
+  {
+    id: "aoi",
+    name: "AOI-контроль",
+    code: "AOI",
+    description: "Автоматическая оптическая инспекция",
+    isActive: true,
+  },
+  {
+    id: "wash",
+    name: "Отмывка",
+    code: "WASH",
+    description: "Отмывка печатных плат после пайки",
+    isActive: true,
+  },
+  {
+    id: "manual",
+    name: "Ручной монтаж",
+    code: "MAN",
+    description: "Ручная установка компонентов и доработка",
+    isActive: true,
+  },
+  {
+    id: "test",
+    name: "Тестирование",
+    code: "TEST",
+    description: "Функциональный и электрический контроль",
+    isActive: true,
+  },
+  {
+    id: "coating",
+    name: "Лакировка",
+    code: "COAT",
+    description: "Нанесение защитного покрытия",
+    isActive: true,
+  },
+  {
+    id: "mechanic",
+    name: "Слесарный участок",
+    code: "MECH",
+    description: "Механическая подготовка корпусов и крепежа",
+    isActive: true,
+  },
+  {
+    id: "assembly",
+    name: "Сборка",
+    code: "ASM",
+    description: "Финальная сборка готового изделия",
+    isActive: true,
+  },
+];
+
+const routeTemplates = {
+  full: [
+    ["smt", "SMT-монтаж", true],
+    ["aoi", "AOI-контроль", true],
+    ["wash", "Отмывка", true],
+    ["manual", "Ручной монтаж", true],
+    ["test", "Тестирование", true],
+    ["coating", "Лакировка", false],
+    ["assembly", "Сборка", true],
+  ],
+  controller: [
+    ["smt", "SMT-монтаж", true],
+    ["aoi", "AOI-контроль", true],
+    ["manual", "Ручной монтаж", true],
+    ["test", "Тестирование", true],
+    ["assembly", "Сборка", true],
+  ],
+  device: [
+    ["smt", "SMT-монтаж", true],
+    ["aoi", "AOI-контроль", true],
+    ["wash", "Отмывка", true],
+    ["manual", "Ручной монтаж", true],
+    ["test", "Тестирование", true],
+    ["coating", "Лакировка", true],
+    ["mechanic", "Слесарный участок", true],
+    ["assembly", "Сборка", true],
+  ],
+  service: [
+    ["manual", "Ручной монтаж", true],
+    ["test", "Тестирование", true],
+    ["assembly", "Сборка", true],
+  ],
+};
+
+const projects = [
+  {
+    id: "p-x100",
+    name: "Плата управления X100",
+    orderNumber: "№1452",
+    customer: "НПП Импульс",
+    totalQuantity: 1000,
+    dueDate: "2026-06-20",
+    status: "in_progress",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "p-v2",
+    name: "Контроллер питания V2",
+    orderNumber: "№1488",
+    customer: "ЭнергоКонтур",
+    totalQuantity: 650,
+    dueDate: "2026-06-14",
+    status: "problem",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "p-mes",
+    name: "Готовое изделие MES-001",
+    orderNumber: "№1503",
+    customer: "Северные системы",
+    totalQuantity: 240,
+    dueDate: "2026-07-03",
+    status: "planned",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "p-t40",
+    name: "Датчик телеметрии T-40",
+    orderNumber: "№1511",
+    customer: "ТехноПолюс",
+    totalQuantity: 1200,
+    dueDate: "2026-06-28",
+    status: "paused",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+];
+
+const batches = [
+  { id: "b-x100-1", projectId: "p-x100", batchNumber: "1", quantity: 300, status: "in_progress", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-x100-2", projectId: "p-x100", batchNumber: "2", quantity: 300, status: "planned", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-x100-3", projectId: "p-x100", batchNumber: "3", quantity: 400, status: "planned", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-v2-1", projectId: "p-v2", batchNumber: "1", quantity: 250, status: "problem", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-v2-2", projectId: "p-v2", batchNumber: "2", quantity: 400, status: "planned", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-mes-1", projectId: "p-mes", batchNumber: "1", quantity: 120, status: "planned", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-mes-2", projectId: "p-mes", batchNumber: "2", quantity: 120, status: "planned", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-t40-1", projectId: "p-t40", batchNumber: "1", quantity: 600, status: "paused", createdAt: nowStamp, updatedAt: nowStamp },
+  { id: "b-t40-2", projectId: "p-t40", batchNumber: "2", quantity: 600, status: "planned", createdAt: nowStamp, updatedAt: nowStamp },
+];
+
+function makeRoute(projectId, templateName) {
+  const routeId = `r-${projectId}`;
+  const steps = routeTemplates[templateName].map(([workCenterId, operationName, isRequired], index) => ({
+    id: `rs-${projectId}-${index + 1}`,
+    routeId,
+    workCenterId,
+    operationName,
+    stepOrder: index + 1,
+    isRequired,
+  }));
+
+  return {
+    route: {
+      id: routeId,
+      projectId,
+      name: "Основной маршрут",
+      isDefault: true,
+    },
+    steps,
+  };
+}
+
+const routeBundles = [
+  makeRoute("p-x100", "full"),
+  makeRoute("p-v2", "controller"),
+  makeRoute("p-mes", "device"),
+  makeRoute("p-t40", "service"),
+];
+
+const routes = routeBundles.map((bundle) => bundle.route);
+const routeSteps = routeBundles.flatMap((bundle) => bundle.steps);
+
+function stepId(projectId, order) {
+  return `rs-${projectId}-${order}`;
+}
+
+const operationSlots = [
+  {
+    id: "s-x100-1-smt",
+    projectId: "p-x100",
+    batchId: "b-x100-1",
+    workCenterId: "smt",
+    routeStepId: stepId("p-x100", 1),
+    operationName: "SMT-монтаж",
+    quantity: 300,
+    plannedStart: "2026-06-01T08:00:00",
+    plannedEnd: "2026-06-01T14:00:00",
+    actualStart: "2026-06-01T08:20:00",
+    status: "in_progress",
+    comment: "Линия 2, приоритет высокий.",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-x100-1-aoi",
+    projectId: "p-x100",
+    batchId: "b-x100-1",
+    workCenterId: "aoi",
+    routeStepId: stepId("p-x100", 2),
+    operationName: "AOI-контроль",
+    quantity: 300,
+    plannedStart: "2026-06-01T15:00:00",
+    plannedEnd: "2026-06-01T18:00:00",
+    status: "planned",
+    comment: "Проверить новую библиотеку компонентов.",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-x100-1-wash",
+    projectId: "p-x100",
+    batchId: "b-x100-1",
+    workCenterId: "wash",
+    routeStepId: stepId("p-x100", 3),
+    operationName: "Отмывка",
+    quantity: 300,
+    plannedStart: "2026-06-02T09:00:00",
+    plannedEnd: "2026-06-02T11:00:00",
+    status: "planned",
+    comment: "",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-x100-1-man",
+    projectId: "p-x100",
+    batchId: "b-x100-1",
+    workCenterId: "manual",
+    routeStepId: stepId("p-x100", 4),
+    operationName: "Ручной монтаж",
+    quantity: 300,
+    plannedStart: "2026-06-02T12:00:00",
+    plannedEnd: "2026-06-03T12:00:00",
+    status: "planned",
+    comment: "",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-x100-2-smt",
+    projectId: "p-x100",
+    batchId: "b-x100-2",
+    workCenterId: "smt",
+    routeStepId: stepId("p-x100", 1),
+    operationName: "SMT-монтаж",
+    quantity: 300,
+    plannedStart: "2026-06-02T08:00:00",
+    plannedEnd: "2026-06-02T14:00:00",
+    status: "planned",
+    comment: "Можно переносить после согласования с диспетчером.",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-x100-2-aoi",
+    projectId: "p-x100",
+    batchId: "b-x100-2",
+    workCenterId: "aoi",
+    routeStepId: stepId("p-x100", 2),
+    operationName: "AOI-контроль",
+    quantity: 300,
+    plannedStart: "2026-06-02T15:00:00",
+    plannedEnd: "2026-06-02T18:30:00",
+    status: "planned",
+    comment: "",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-v2-1-smt",
+    projectId: "p-v2",
+    batchId: "b-v2-1",
+    workCenterId: "smt",
+    routeStepId: stepId("p-v2", 1),
+    operationName: "SMT-монтаж",
+    quantity: 250,
+    plannedStart: "2026-06-01T11:00:00",
+    plannedEnd: "2026-06-01T17:00:00",
+    actualStart: "2026-06-01T11:15:00",
+    status: "problem",
+    comment: "Пересечение с X100 оставлено как демо конфликта загрузки.",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-v2-1-man",
+    projectId: "p-v2",
+    batchId: "b-v2-1",
+    workCenterId: "manual",
+    routeStepId: stepId("p-v2", 3),
+    operationName: "Ручной монтаж",
+    quantity: 250,
+    plannedStart: "2026-06-03T09:00:00",
+    plannedEnd: "2026-06-03T17:00:00",
+    status: "planned",
+    comment: "",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-v2-1-test",
+    projectId: "p-v2",
+    batchId: "b-v2-1",
+    workCenterId: "test",
+    routeStepId: stepId("p-v2", 4),
+    operationName: "Тестирование",
+    quantity: 260,
+    plannedStart: "2026-06-03T12:00:00",
+    plannedEnd: "2026-06-03T19:00:00",
+    status: "planned",
+    comment: "Количество намеренно больше предыдущего шага для проверки предупреждений.",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-mes-1-smt",
+    projectId: "p-mes",
+    batchId: "b-mes-1",
+    workCenterId: "smt",
+    routeStepId: stepId("p-mes", 1),
+    operationName: "SMT-монтаж",
+    quantity: 120,
+    plannedStart: "2026-06-04T08:00:00",
+    plannedEnd: "2026-06-04T13:00:00",
+    status: "planned",
+    comment: "",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-mes-1-aoi",
+    projectId: "p-mes",
+    batchId: "b-mes-1",
+    workCenterId: "aoi",
+    routeStepId: stepId("p-mes", 2),
+    operationName: "AOI-контроль",
+    quantity: 120,
+    plannedStart: "2026-06-04T14:00:00",
+    plannedEnd: "2026-06-04T17:00:00",
+    status: "planned",
+    comment: "",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+  {
+    id: "s-t40-1-man",
+    projectId: "p-t40",
+    batchId: "b-t40-1",
+    workCenterId: "manual",
+    routeStepId: stepId("p-t40", 1),
+    operationName: "Ручной монтаж",
+    quantity: 600,
+    plannedStart: "2026-06-05T10:00:00",
+    plannedEnd: "2026-06-06T10:00:00",
+    status: "paused",
+    comment: "Ожидаем комплектующие.",
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  },
+];
+
+export function createDefaultPlanningState() {
+  return {
+    version: 1,
+    projects: structuredClone(projects),
+    batches: structuredClone(batches),
+    workCenters: structuredClone(workCenters),
+    routes: structuredClone(routes),
+    routeSteps: structuredClone(routeSteps),
+    slots: structuredClone(operationSlots),
+  };
+}
+
+export function createProjectBundle({ name, orderNumber, customer, totalQuantity, dueDate, status, routeTemplate }) {
+  const stamp = new Date().toISOString();
+  const projectId = `p-${crypto.randomUUID().slice(0, 8)}`;
+  const routeId = `r-${projectId}`;
+  const template = routeTemplates[routeTemplate] || routeTemplates.full;
+
+  return {
+    project: {
+      id: projectId,
+      name,
+      orderNumber,
+      customer,
+      totalQuantity,
+      dueDate,
+      status,
+      createdAt: stamp,
+      updatedAt: stamp,
+    },
+    batch: {
+      id: `b-${projectId}-1`,
+      projectId,
+      batchNumber: "1",
+      quantity: totalQuantity,
+      status: "planned",
+      createdAt: stamp,
+      updatedAt: stamp,
+    },
+    route: {
+      id: routeId,
+      projectId,
+      name: "Основной маршрут",
+      isDefault: true,
+    },
+    routeSteps: template.map(([workCenterId, operationName, isRequired], index) => ({
+      id: `rs-${projectId}-${index + 1}`,
+      routeId,
+      workCenterId,
+      operationName,
+      stepOrder: index + 1,
+      isRequired,
+    })),
+  };
+}
+
+export const routeTemplateOptions = [
+  { value: "full", label: "Платы с отмывкой и лакировкой" },
+  { value: "controller", label: "Контроллер без отмывки" },
+  { value: "device", label: "Готовое изделие с механикой" },
+  { value: "service", label: "Ручная сборка и тестирование" },
+];
