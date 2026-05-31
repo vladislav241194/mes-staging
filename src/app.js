@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.14";
+const APP_VERSION = "v.1.15";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -3396,7 +3396,7 @@ function renderBomListsPage() {
             <div class="bom-link-list">
               <div class="bom-import-note">
                 <strong>Импорт BOM из Excel</strong>
-                <span>Загрузите `.xlsx`: название файла станет названием BOM, строки читаются от A до I, импорт остановится на первой пустой ячейке A.</span>
+                <span>Загрузите XLSX: название файла станет названием BOM, строки читаются от A до I, импорт остановится на первой пустой ячейке A.</span>
                 <div class="bom-import-controls">
                   <label class="form-field">
                     <span>Проект для BOM</span>
