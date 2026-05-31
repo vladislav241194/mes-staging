@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.10";
+const APP_VERSION = "v.1.11";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -205,10 +205,10 @@ function createDefaultDirectoryState() {
   ],
   roles: [
     { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, debug, admin", status: "Активен" },
-    { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "reports, planning, calculator, projects, specifications, directories", directories: "resources, componentTypes, employees, equipment, workCenters, norms", permissions: "create, read, update, schedule, approve", status: "Активен" },
-    { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "reports, calculator, projects, specifications, directories", directories: "resources, componentTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
+    { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "reports, planning, calculator, projects, bomLists, specifications, directories", directories: "resources, componentTypes, employees, equipment, workCenters, norms", permissions: "create, read, update, schedule, approve", status: "Активен" },
+    { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "reports, calculator, projects, bomLists, specifications, directories", directories: "resources, componentTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
     { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "reports, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
-    { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "reports, projects, specifications", directories: "statuses", permissions: "read", status: "Активен" },
+    { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "reports, projects, bomLists, specifications", directories: "statuses", permissions: "read", status: "Активен" },
   ],
   resources: [
     { id: "res-smt-1", name: "Линия SMT-1 · Hanwha S2/L2", type: "Линия", workCenter: "SMT-монтаж", capacity: "1 партия / смена", baseCph: 32000, efficiency: 88, changeoverMin: 18, status: "Доступен" },
@@ -522,10 +522,13 @@ function normalizeRoleModuleList(row) {
     modules.add("reports");
   }
   if (roleAllowsValue(row.directories, "projects")) modules.add("projects");
-  if (roleAllowsValue(row.directories, "specifications") || roleAllowsValue(row.directories, "bomLists")) {
+  if (roleAllowsValue(row.directories, "specifications")) {
     modules.add("specifications");
   }
-  const order = ["reports", "planning", "calculator", "projects", "specifications", "directories", "debug"];
+  if (roleAllowsValue(row.directories, "bomLists") || modules.has("specifications")) {
+    modules.add("bomLists");
+  }
+  const order = ["reports", "planning", "calculator", "projects", "bomLists", "specifications", "directories", "debug"];
   return order.filter((moduleId) => modules.has(moduleId)).join(", ") || "reports";
 }
 
@@ -921,6 +924,21 @@ function render() {
     return;
   }
 
+  if (ui.activeModule === "bomLists") {
+    app.innerHTML = `
+      <main class="app-shell bom-list-app-shell" data-layout="app-shell" data-layout-page="bomLists">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderBomListsPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindBomListsEvents();
+    bindConfirmEvents();
+    return;
+  }
+
   if (ui.activeModule === "specifications") {
     app.innerHTML = `
       <main class="app-shell specification-app-shell" data-layout="app-shell" data-layout-page="specifications">
@@ -1040,6 +1058,7 @@ function getModuleDefinitions() {
     { id: "planning", label: "Планирование", icon: "calendar" },
     { id: "calculator", label: "Калькулятор", icon: "calculator" },
     { id: "projects", label: "Проекты", icon: "book" },
+    { id: "bomLists", label: "BOM-листы", icon: "book" },
     { id: "specifications", label: "Спецификации", icon: "book" },
     { id: "directories", label: "Справочники", icon: "book" },
     { id: "debug", label: "Отладка", icon: "bug" },
@@ -1050,7 +1069,7 @@ function getModuleGroups(modules) {
   const groupMap = [
     { label: "Аналитика", ids: ["reports"] },
     { label: "Производство", ids: ["planning", "projects"] },
-    { label: "Технологии", ids: ["calculator", "specifications"] },
+    { label: "Технологии", ids: ["calculator", "bomLists", "specifications"] },
     { label: "Система", ids: ["directories", "debug"] },
   ];
 
@@ -2645,6 +2664,13 @@ function getActiveBomForModule(activeSpecification = null) {
     || null;
 }
 
+function getBomLinkedSpecifications(bomId) {
+  if (!bomId) return [];
+  return (directoryState.specifications || []).filter((specification) => (
+    specification.bomListA === bomId || specification.bomListB === bomId
+  ));
+}
+
 function getProjectModuleContext(project) {
   if (!project) {
     return {
@@ -2819,46 +2845,40 @@ function renderProjectsPage() {
 
 function renderSpecificationsPage() {
   const activeSpecification = getActiveSpecificationForModule();
-  const activeBom = getActiveBomForModule(activeSpecification);
   const isNewSpecification = ui.activeSpecificationId === "__new__" || !activeSpecification;
-  const isNewBom = ui.activeBomId === "__new__" || !activeBom;
-  const defaultProjectId = activeSpecification?.projectId || activeBom?.projectId || getActiveProjectForModule()?.id || planningState.projects[0]?.id || "";
+  const defaultProjectId = activeSpecification?.projectId || getActiveProjectForModule()?.id || planningState.projects[0]?.id || "";
   const specification = activeSpecification || {
     id: "",
     name: "",
     projectId: defaultProjectId,
     revision: "A",
     outputItem: "",
-    bomListA: activeBom?.id || "",
+    bomListA: "",
     bomQtyA: 1,
     bomListB: "",
     bomQtyB: 0,
     extraItems: "",
     status: "Черновик",
   };
-  const bom = activeBom || {
-    id: "",
-    name: "",
-    projectId: defaultProjectId,
-    boardCode: "",
-    revision: "A.0",
-    resultItem: "",
-    status: "Черновик",
-    ...Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, 0])),
-  };
   const bomEntries = getSpecificationBomEntries(activeSpecification?.id);
   const activeProject = getProject(specification.projectId);
+  const projectBoms = (directoryState.bomLists || []).filter((item) => item.projectId === specification.projectId);
+  const specificationBomOptions = [
+    ...projectBoms,
+    ...[getBomList(specification.bomListA), getBomList(specification.bomListB)]
+      .filter(Boolean)
+      .filter((bom) => !projectBoms.some((item) => item.id === bom.id)),
+  ];
 
   return `
-    <section class="specifications-page module-data-page" data-layout="main-content" aria-label="Спецификации и BOM">
+    <section class="specifications-page module-data-page" data-layout="main-content" aria-label="Спецификации изделий">
       <aside class="directory-sidebar module-data-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Состав изделия</span>
           <h1>Спецификации</h1>
         </div>
-        <div class="module-sidebar-actions two">
-          <button class="primary-button" data-specification-create type="button">${icon("plus")}<span>Спецификация</span></button>
-          <button class="secondary-button" data-bom-create type="button">${icon("plus")}<span>BOM</span></button>
+        <div class="module-sidebar-actions">
+          <button class="primary-button" data-specification-create type="button">${icon("plus")}<span>Новая спецификация</span></button>
         </div>
         <div class="module-entity-list">
           <div class="module-list-label">Спецификации изделий</div>
@@ -2867,14 +2887,6 @@ function renderSpecificationsPage() {
             <button class="module-entity-item ${item.id === activeSpecification?.id ? "is-active" : ""}" data-specification-open="${item.id}" type="button">
               <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(getProject(item.projectId)?.name || "без проекта")} · рев. ${escapeHtml(item.revision || "-")}</small></span>
               <em>${escapeHtml(item.status || "-")}</em>
-            </button>
-          `).join("")}
-          <div class="module-list-label">BOM SMT</div>
-          ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новый BOM</strong><small>компонентный состав платы</small></span><em>new</em></button>` : ""}
-          ${(directoryState.bomLists || []).map((item) => `
-            <button class="module-entity-item ${item.id === activeBom?.id ? "is-active" : ""}" data-bom-open="${item.id}" type="button">
-              <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.boardCode || "-")} · ${escapeHtml(item.resultItem || "результат не задан")}</small></span>
-              <em>${Object.values(getBomComponentCounts(item)).reduce((sum, count) => sum + Number(count || 0), 0)}</em>
             </button>
           `).join("")}
         </div>
@@ -2888,6 +2900,7 @@ function renderSpecificationsPage() {
             <p>${escapeHtml(activeProject ? `${activeProject.name}: BOM отвечает за смонтированную плату, спецификация за полный состав проекта.` : "Выберите проект и соберите структуру изделия.")}</p>
           </div>
           <div class="directory-actions">
+            <button class="secondary-button" data-open-spec-boms type="button">${icon("book")}<span>BOM-листы</span></button>
             <button class="secondary-button" data-specification-to-calculator type="button" ${activeSpecification ? "" : "disabled"}>${icon("calculator")}<span>В калькулятор</span></button>
           </div>
         </header>
@@ -2905,9 +2918,9 @@ function renderSpecificationsPage() {
               <label class="form-field"><span>Название</span><input name="name" value="${escapeAttribute(specification.name)}" placeholder="СП изделия" /></label>
               <label class="form-field"><span>Ревизия</span><input name="revision" value="${escapeAttribute(specification.revision)}" /></label>
               <label class="form-field full"><span>Итоговое изделие</span><input name="outputItem" value="${escapeAttribute(specification.outputItem)}" placeholder="Готовое изделие / узел" /></label>
-              <label class="form-field"><span>BOM A</span><select name="bomListA"><option value="">Не выбран</option>${(directoryState.bomLists || []).map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>BOM A</span><select name="bomListA"><option value="">Не выбран</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во A</span><input name="bomQtyA" type="number" min="0" step="1" value="${Number(specification.bomQtyA || 0)}" /></label>
-              <label class="form-field"><span>BOM B</span><select name="bomListB"><option value="">Не выбран</option>${(directoryState.bomLists || []).map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>BOM B</span><select name="bomListB"><option value="">Не выбран</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во B</span><input name="bomQtyB" type="number" min="0" step="1" value="${Number(specification.bomQtyB || 0)}" /></label>
               <label class="form-field full"><span>Дополнительный состав</span><input name="extraItems" value="${escapeAttribute(specification.extraItems)}" placeholder="Корпус; кабель; крепеж; маркировка" /></label>
               <label class="form-field"><span>Статус</span><input name="status" value="${escapeAttribute(specification.status)}" /></label>
@@ -2936,9 +2949,76 @@ function renderSpecificationsPage() {
             </div>
           </section>
 
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderBomListsPage() {
+  const activeBom = getActiveBomForModule();
+  const isNewBom = ui.activeBomId === "__new__" || !activeBom;
+  const defaultProjectId = activeBom?.projectId || getActiveProjectForModule()?.id || planningState.projects[0]?.id || "";
+  const bom = activeBom || {
+    id: "",
+    name: "",
+    projectId: defaultProjectId,
+    boardCode: "",
+    revision: "A.0",
+    resultItem: "",
+    status: "Черновик",
+    ...Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, 0])),
+  };
+  const activeProject = getProject(bom.projectId);
+  const componentCounts = getBomComponentCounts(bom);
+  const componentTotal = Object.values(componentCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+  const linkedSpecifications = getBomLinkedSpecifications(bom.id);
+
+  return `
+    <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="BOM-листы SMT">
+      <aside class="directory-sidebar module-data-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Печатные платы</span>
+          <h1>BOM-листы</h1>
+        </div>
+        <div class="module-sidebar-actions">
+          <button class="primary-button" data-bom-create type="button">${icon("plus")}<span>Новый BOM</span></button>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">BOM SMT</div>
+          ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новый BOM</strong><small>компонентный состав платы</small></span><em>new</em></button>` : ""}
+          ${(directoryState.bomLists || []).map((item) => {
+            const total = Object.values(getBomComponentCounts(item)).reduce((sum, count) => sum + Number(count || 0), 0);
+            return `
+              <button class="module-entity-item ${item.id === activeBom?.id ? "is-active" : ""}" data-bom-open="${item.id}" type="button">
+                <span>
+                  <strong>${escapeHtml(item.name)}</strong>
+                  <small>${escapeHtml(getProject(item.projectId)?.name || "без проекта")} · ${escapeHtml(item.boardCode || "-")}</small>
+                </span>
+                <em>${total}</em>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">BOM SMT</span>
+            <h2>${escapeHtml(isNewBom ? "Новый BOM-лист" : bom.name)}</h2>
+            <p>${escapeHtml(activeProject ? `${activeProject.name}: BOM описывает смонтированную печатную плату и используется калькулятором SMT.` : "Выберите проект и заполните компонентный состав платы.")}</p>
+          </div>
+          <div class="directory-actions">
+            <button class="secondary-button" data-bom-to-specifications type="button" ${activeBom ? "" : "disabled"}>${icon("book")}<span>Спецификации</span></button>
+            <button class="secondary-button" data-bom-to-calculator type="button" ${activeBom ? "" : "disabled"}>${icon("calculator")}<span>В калькулятор</span></button>
+          </div>
+        </header>
+
+        <div class="module-data-content bom-module-content">
           <section class="module-panel bom-editor-panel">
             <div class="report-card-head">
-              <strong>03 · BOM SMT</strong>
+              <strong>01 · Карточка BOM</strong>
               <span>${isNewBom ? "создание компонентного состава" : "покомпонентный расчет платы"}</span>
             </div>
             <form id="bomModuleForm" class="module-form">
@@ -2959,6 +3039,37 @@ function renderSpecificationsPage() {
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewBom ? "Создать BOM" : "Сохранить BOM"}</span></button>
               </div>
             </form>
+          </section>
+
+          <section class="module-panel bom-summary-panel">
+            <div class="report-card-head">
+              <strong>02 · Связи и импорт</strong>
+              <span>проект, спецификации и будущий Excel-шаблон</span>
+            </div>
+            <div class="module-kpi-grid bom-kpi-grid">
+              <article><span>Компонентов</span><strong>${componentTotal.toLocaleString("ru-RU")}</strong><small>на одну плату</small></article>
+              <article><span>Типов</span><strong>${Object.values(componentCounts).filter((count) => Number(count || 0) > 0).length}</strong><small>заполненных категорий</small></article>
+              <article><span>Спецификаций</span><strong>${linkedSpecifications.length}</strong><small>используют этот BOM</small></article>
+              <article><span>Импорт</span><strong>Excel</strong><small>ожидает шаблон</small></article>
+            </div>
+            <div class="bom-link-list">
+              <div class="module-list-label">Где используется</div>
+              ${linkedSpecifications.length ? linkedSpecifications.map((specification) => `
+                <button class="module-entity-item" data-bom-linked-spec="${specification.id}" type="button">
+                  <span><strong>${escapeHtml(specification.name)}</strong><small>${escapeHtml(getProject(specification.projectId)?.name || "без проекта")} · ${escapeHtml(specification.outputItem || "итог не задан")}</small></span>
+                  <em>${escapeHtml(specification.revision || "-")}</em>
+                </button>
+              `).join("") : `
+                <article class="module-empty-note">
+                  <strong>BOM пока не включен в спецификации</strong>
+                  <span>После сохранения BOM откройте модуль «Спецификации» и выберите его как BOM A или BOM B.</span>
+                </article>
+              `}
+              <div class="bom-import-note">
+                <strong>Импорт Excel будет добавлен после шаблона</strong>
+                <span>Пока вручную задаем проект, код платы, ревизию, результат BOM и агрегированные типы компонентов. Когда будет готов Excel-шаблон, сюда добавим загрузку файла и сопоставление колонок.</span>
+              </div>
+            </div>
           </section>
         </div>
       </div>
@@ -5222,10 +5333,9 @@ function bindProjectsEvents() {
   app.querySelector("[data-open-project-boms]")?.addEventListener("click", () => {
     const project = getActiveProjectForModule();
     if (!project) return;
-    ui.activeModule = "specifications";
+    ui.activeModule = "bomLists";
     ui.activeProjectId = project.id;
     ui.activeBomId = (directoryState.bomLists || []).find((bom) => bom.projectId === project.id)?.id || "__new__";
-    ui.activeSpecificationId = getProjectSpecification(project.id)?.id || ui.activeSpecificationId || "";
     persistUiState();
     render();
   });
@@ -5286,22 +5396,45 @@ function bindSpecificationsEvents() {
     render();
   });
 
-  app.querySelector("[data-bom-create]")?.addEventListener("click", () => {
-    ui.activeBomId = "__new__";
-    persistUiState();
-    render();
-  });
-
   app.querySelectorAll("[data-specification-open]").forEach((button) => {
     button.addEventListener("click", () => {
       const specification = (directoryState.specifications || []).find((item) => item.id === button.dataset.specificationOpen);
       if (!specification) return;
       ui.activeSpecificationId = specification.id;
       ui.activeProjectId = specification.projectId;
-      ui.activeBomId = specification.bomListA || specification.bomListB || ui.activeBomId || "";
       persistUiState();
       render();
     });
+  });
+
+  app.querySelector("#specificationModuleForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveSpecificationModuleForm(event.currentTarget);
+  });
+
+  app.querySelector("[data-specification-to-calculator]")?.addEventListener("click", () => {
+    const specification = getActiveSpecificationForModule();
+    if (!specification) return;
+    openProjectInCalculator(specification.projectId, specification.id);
+  });
+
+  app.querySelector("[data-open-spec-boms]")?.addEventListener("click", () => {
+    const specification = getActiveSpecificationForModule();
+    ui.activeModule = "bomLists";
+    if (specification) {
+      ui.activeProjectId = specification.projectId;
+      ui.activeBomId = specification.bomListA || specification.bomListB || (directoryState.bomLists || []).find((bom) => bom.projectId === specification.projectId)?.id || "__new__";
+    }
+    persistUiState();
+    render();
+  });
+}
+
+function bindBomListsEvents() {
+  app.querySelector("[data-bom-create]")?.addEventListener("click", () => {
+    ui.activeBomId = "__new__";
+    persistUiState();
+    render();
   });
 
   app.querySelectorAll("[data-bom-open]").forEach((button) => {
@@ -5315,20 +5448,52 @@ function bindSpecificationsEvents() {
     });
   });
 
-  app.querySelector("#specificationModuleForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveSpecificationModuleForm(event.currentTarget);
-  });
-
   app.querySelector("#bomModuleForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     saveBomModuleForm(event.currentTarget);
   });
 
-  app.querySelector("[data-specification-to-calculator]")?.addEventListener("click", () => {
-    const specification = getActiveSpecificationForModule();
-    if (!specification) return;
-    openProjectInCalculator(specification.projectId, specification.id);
+  app.querySelector("[data-bom-to-calculator]")?.addEventListener("click", () => {
+    const bom = getActiveBomForModule();
+    if (!bom) return;
+    calculatorState = normalizeCalculatorState({
+      ...calculatorState,
+      projectId: bom.projectId,
+      specificationId: "",
+      noSpecification: true,
+      bomListId: bom.id,
+      componentCounts: getBomComponentCounts(bom),
+    });
+    persistCalculatorState();
+    ui.activeModule = "calculator";
+    ui.calculatorStep = "inputs";
+    ui.activeProjectId = bom.projectId;
+    persistUiState();
+    render();
+  });
+
+  app.querySelector("[data-bom-to-specifications]")?.addEventListener("click", () => {
+    const bom = getActiveBomForModule();
+    if (!bom) return;
+    const linkedSpecification = getBomLinkedSpecifications(bom.id)[0]
+      || (directoryState.specifications || []).find((specification) => specification.projectId === bom.projectId);
+    ui.activeModule = "specifications";
+    ui.activeProjectId = bom.projectId;
+    ui.activeSpecificationId = linkedSpecification?.id || "__new__";
+    persistUiState();
+    render();
+  });
+
+  app.querySelectorAll("[data-bom-linked-spec]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const specification = (directoryState.specifications || []).find((item) => item.id === button.dataset.bomLinkedSpec);
+      if (!specification) return;
+      ui.activeModule = "specifications";
+      ui.activeProjectId = specification.projectId;
+      ui.activeSpecificationId = specification.id;
+      persistUiState();
+      render();
+    });
   });
 }
 
@@ -5399,7 +5564,10 @@ function saveBomModuleForm(form) {
     ? [...(directoryState.bomLists || []), row]
     : (directoryState.bomLists || []).map((item) => item.id === id ? { ...item, ...row } : item);
 
-  const activeSpecification = getActiveSpecificationForModule();
+  const attachToSpecificationId = String(data.get("attachToSpecificationId") || "");
+  const activeSpecification = attachToSpecificationId
+    ? (directoryState.specifications || []).find((specification) => specification.id === attachToSpecificationId)
+    : null;
   if (isNew && activeSpecification && activeSpecification.projectId === projectId && !activeSpecification.bomListA) {
     directoryState.specifications = (directoryState.specifications || []).map((specification) => (
       specification.id === activeSpecification.id

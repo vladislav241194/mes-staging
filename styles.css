@@ -10321,8 +10321,16 @@ body {
   grid-template-columns: minmax(420px, 1fr) minmax(320px, 0.72fr);
 }
 
+.bom-module-content {
+  grid-template-columns: minmax(460px, 1fr) minmax(320px, 0.72fr);
+}
+
 .bom-editor-panel {
   grid-column: 1 / -1;
+}
+
+.bom-module-content .bom-editor-panel {
+  grid-column: auto;
 }
 
 .module-panel {
@@ -10655,9 +10663,56 @@ body {
   white-space: nowrap;
 }
 
+.bom-link-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+
+.bom-link-list .module-entity-item {
+  width: 100%;
+}
+
+.module-empty-note,
+.bom-import-note {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid #e3e9f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.bom-import-note {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.module-empty-note strong,
+.bom-import-note strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 860;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-empty-note span,
+.bom-import-note span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 @media (max-width: 1180px) {
   .project-module-content,
-  .specification-module-content {
+  .specification-module-content,
+  .bom-module-content {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -13649,6 +13704,7 @@ textarea:focus,
   .directory-content,
   .report-content,
   .project-module-content,
+  .bom-module-content,
   .specification-module-content {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -13793,13 +13849,15 @@ textarea:focus,
   min-height: 0;
 }
 
-.specification-module-content {
+.specification-module-content,
+.bom-module-content {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.68fr);
   grid-auto-rows: max-content;
   align-items: start;
 }
 
-.specification-module-content .module-panel {
+.specification-module-content .module-panel,
+.bom-module-content .module-panel {
   align-self: start;
   height: auto;
   grid-template-rows: auto auto;
@@ -13890,7 +13948,8 @@ textarea:focus,
 }
 
 @media (max-width: 1500px) {
-  .specification-module-content {
+  .specification-module-content,
+  .bom-module-content {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -13982,6 +14041,7 @@ textarea:focus,
   .directory-content,
   .report-content,
   .project-module-content,
+  .bom-module-content,
   .specification-module-content {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -14188,6 +14248,7 @@ body {
 .report-content,
 .module-data-content,
 .project-module-content,
+.bom-module-content,
 .specification-module-content,
 .calculator-grid,
 .calculator-stack,
@@ -14403,6 +14464,7 @@ button,
   .report-content,
   .module-data-content,
   .project-module-content,
+  .bom-module-content,
   .specification-module-content,
   .calculator-grid,
   .calculator-stack {
@@ -14444,6 +14506,7 @@ button,
   .report-content,
   .directory-content,
   .project-module-content,
+  .bom-module-content,
   .specification-module-content,
   .debug-card-grid,
   .debug-modal-grid,
@@ -14488,6 +14551,7 @@ button,
 .directory-content,
 .module-data-content,
 .project-module-content,
+.bom-module-content,
 .specification-module-content,
 .debug-content {
   min-width: 0;
