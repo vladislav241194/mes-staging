@@ -4639,6 +4639,7 @@ body {
 .calculator-input-panel {
   grid-column: 1 / -1;
   grid-row: 1;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .route-card-panel,
@@ -4730,6 +4731,44 @@ body {
   font-weight: 760;
 }
 
+.calculator-checkbox-field > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 7px;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid #d7e0ea;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 5px 8px;
+}
+
+.calculator-checkbox-field input {
+  grid-row: 1 / span 2;
+  width: 15px;
+  height: 15px;
+}
+
+.calculator-checkbox-field strong,
+.calculator-checkbox-field small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calculator-checkbox-field strong {
+  color: #111827;
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.calculator-checkbox-field small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .calculator-kpis {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4787,6 +4826,19 @@ body {
   border-top: 1px solid #e3e9f0;
   background: #f8fafc;
   padding: 8px 10px;
+}
+
+.calculator-input-actions {
+  justify-content: space-between;
+}
+
+.calculator-input-actions > span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .route-actions {
@@ -6763,6 +6815,12 @@ body {
 
 .scada-projects {
   grid-column: 3;
+  grid-row: 2;
+}
+
+.scada-alarms {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 
 .scada-metrics {
@@ -7343,8 +7401,10 @@ body {
   .scada-overview,
   .scada-mimic-panel,
   .scada-workcenters,
+  .scada-alarms,
   .scada-projects {
     grid-column: auto;
+    grid-row: auto;
   }
 
   .scada-metrics,
@@ -7890,6 +7950,7 @@ body {
     linear-gradient(90deg, rgba(37, 99, 235, 0.035) 1px, transparent 1px),
     #f8fafc;
   background-size: 22px 22px;
+  grid-template-rows: auto minmax(420px, 1.25fr) minmax(260px, 0.8fr) auto;
 }
 
 .scada-panel {
@@ -7938,11 +7999,50 @@ body {
 .scada-equipment-mimic {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-auto-rows: minmax(0, auto);
+  grid-auto-rows: minmax(168px, auto);
   gap: 8px;
   min-height: 0;
   overflow: auto;
   padding: 8px;
+}
+
+.scada-mimic-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 420px;
+}
+
+.scada-workcenters {
+  grid-column: 1 / 3;
+  grid-row: 3;
+}
+
+.scada-projects {
+  grid-column: 3;
+  grid-row: 3;
+}
+
+.scada-alarms {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  min-height: 0;
+}
+
+.scada-alarms > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.scada-alarms > summary::-webkit-details-marker {
+  display: none;
+}
+
+.scada-alarms:not([open]) {
+  align-self: start;
+}
+
+.scada-alarms:not([open]) .scada-panel-head {
+  border-bottom: 0;
 }
 
 .smt-line-card {
@@ -8018,7 +8118,7 @@ body {
 
 .smt-line-rail {
   display: grid;
-  grid-template-columns: repeat(7, minmax(90px, 1fr));
+  grid-template-columns: repeat(var(--station-count, 6), minmax(118px, 1fr));
   gap: 7px;
   min-width: 0;
   overflow: auto;
@@ -8165,6 +8265,22 @@ body {
   background: #dbeafe;
 }
 
+.smt-station.conveyor .smt-machine-figure i {
+  left: 0;
+  right: 0;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.smt-station.conveyor .smt-machine-figure b {
+  left: 8px;
+  top: 16px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  box-shadow: 12px 0 0 #ffffff, 24px 0 0 #ffffff, 36px 0 0 #ffffff;
+}
+
 .smt-station.spi .smt-machine-figure b,
 .smt-station.aoi .smt-machine-figure b {
   left: 23px;
@@ -8228,6 +8344,173 @@ body {
   margin: 0;
 }
 
+.employee-constructor-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 260px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.employee-department-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.employee-department-column {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 216px;
+  border: 1px solid #d7e0ea;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.employee-department-column.is-drop-target {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.employee-department-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  border-bottom: 1px solid #d7e0ea;
+  padding: 7px 8px;
+}
+
+.employee-department-head strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 860;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-department-head span {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.employee-card-list {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.employee-assignment-card {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid #d7e0ea;
+  border-left: 3px solid #2563eb;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 8px;
+  cursor: grab;
+}
+
+.employee-assignment-card.is-dragging {
+  opacity: 0.55;
+}
+
+.employee-assignment-main strong,
+.employee-assignment-main small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-assignment-main strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 860;
+}
+
+.employee-assignment-main small,
+.employee-position-field span,
+.employee-assignment-controls .field > span {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 820;
+}
+
+.employee-position-field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.employee-position-field input {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #d7e0ea;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  padding: 0 8px;
+  outline: none;
+}
+
+.employee-position-field input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.employee-assignment-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.employee-assignment-controls .field.compact {
+  display: grid;
+  gap: 3px;
+}
+
+.employee-dense-select .dense-inline-options {
+  max-height: 154px;
+}
+
+.employee-drop-empty {
+  display: grid;
+  place-items: center;
+  min-height: 74px;
+  border: 1px dashed #adc0d6;
+  border-radius: 7px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 760;
+  text-align: center;
+}
+
 @media (max-width: 1200px) {
   .planner-workspace {
     grid-template-columns: minmax(0, 1fr);
@@ -8274,8 +8557,10 @@ body {
   .scada-overview,
   .scada-mimic-panel,
   .scada-workcenters,
+  .scada-alarms,
   .scada-projects {
     grid-column: auto;
+    grid-row: auto;
   }
 
   .scada-metrics,
@@ -8465,6 +8750,8 @@ body {
 }
 
 .dense-inline-select {
+  position: relative;
+  display: block;
   min-width: 0;
 }
 
@@ -8534,6 +8821,11 @@ body {
 }
 
 .dense-inline-options {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
   display: grid;
   gap: 2px;
   max-height: 190px;
@@ -8543,6 +8835,8 @@ body {
   border-radius: 7px;
   background: #ffffff;
   padding: 4px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+  contain: paint;
 }
 
 .dense-inline-options button {
@@ -8562,6 +8856,28 @@ body {
 
 .dense-inline-options button.is-selected strong {
   color: #2563eb;
+}
+
+.dense-inline-options button.is-command {
+  border-top: 1px solid #e3e9f0;
+  background: #f8fafc;
+}
+
+.dense-inline-options button.is-command strong {
+  color: #0f766e;
+}
+
+.calculator-input-panel,
+.operation-editor-panel {
+  overflow: visible;
+}
+
+.calculator-input-panel {
+  z-index: 6;
+}
+
+.operation-editor-panel {
+  z-index: 5;
 }
 
 .route-operation-row,
@@ -9135,28 +9451,28 @@ body {
 }
 
 .calculator-stack > .spec-bom-plan-panel {
-  order: 3;
+  order: 2;
   min-height: 156px;
 }
 
 .calculator-stack > .component-matrix-panel {
-  order: 4;
+  order: 3;
 }
 
 .calculator-stack > .calculator-result-panel {
-  order: 5;
+  order: 4;
 }
 
 .calculator-stack > .route-card-panel {
-  order: 6;
+  order: 5;
 }
 
 .calculator-stack > .operation-editor-panel {
-  order: 7;
+  order: 6;
 }
 
 .calculator-stack > .project-bindings-panel {
-  order: 8;
+  order: 7;
 }
 
 @media (max-width: 680px) {
@@ -9352,5 +9668,611 @@ body {
   .debug-spec-grid,
   .debug-usage-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .module-menu-brand span {
+    display: inline;
+    font-size: 10px;
+  }
+}
+
+/* Director production planning cockpit */
+.planning-app-shell {
+  grid-template-rows: 42px auto auto minmax(0, 1fr);
+}
+
+.director-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  border-bottom: 1px solid #cbd5e1;
+  background:
+    linear-gradient(180deg, #f8fbff 0%, #eef4f8 100%);
+  padding: 8px 10px;
+}
+
+.director-command-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.director-command-head strong {
+  display: block;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 880;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.director-command-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.director-command-actions .secondary-button {
+  height: 32px;
+  padding: 0 10px;
+}
+
+.director-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+
+.director-flow-step {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 54px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.director-flow-step b {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #e7eef7;
+  color: #41546a;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.director-flow-step strong,
+.director-flow-step span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.director-flow-step strong {
+  color: #111827;
+  font-size: 12px;
+  font-weight: 860;
+}
+
+.director-flow-step span {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.director-flow-step em {
+  min-width: 34px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  text-align: center;
+}
+
+.director-flow-step.ok b,
+.director-flow-step.ok em {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.director-flow-step.warning b,
+.director-flow-step.warning em {
+  background: #fff7ed;
+  color: #b26b00;
+}
+
+.director-flow-step.critical {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.director-flow-step.critical b,
+.director-flow-step.critical em {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.director-flow-step.active b,
+.director-flow-step.active em {
+  background: #dff7fb;
+  color: #0c526d;
+}
+
+.director-project-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+
+.director-project-chip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 7px 8px;
+  color: #0f172a;
+  text-align: left;
+}
+
+.director-project-chip:hover {
+  border-color: #93c5fd;
+  background: #f8fbff;
+}
+
+.director-project-chip strong,
+.director-project-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.director-project-chip strong {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.director-project-chip span {
+  grid-column: 1;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.director-project-chip em {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 4px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.director-project-chip.warning em {
+  background: #fff7ed;
+  color: #b26b00;
+}
+
+.director-project-chip.critical {
+  border-color: #fecaca;
+}
+
+.director-project-chip.critical em {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.toolbar-grid .dense-inline-select {
+  min-width: 0;
+}
+
+.toolbar-grid .dense-inline-select summary {
+  height: 36px;
+}
+
+.toolbar-grid .dense-inline-options {
+  z-index: 140;
+}
+
+.planner-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(326px, 376px);
+}
+
+.planner-workspace .planner-frame {
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.gantt-shell {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.timeline-row {
+  background: #eef4f8;
+}
+
+.timeline-corner,
+.timeline-cell {
+  background: #eef4f8;
+}
+
+.timeline-corner span {
+  font-size: 12px;
+}
+
+.gantt-row.project-row {
+  background: #f8fafc;
+}
+
+.project-label {
+  grid-template-columns: 30px minmax(0, 1fr) 74px;
+  padding-right: 8px;
+}
+
+.project-side {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+}
+
+.project-progress-value {
+  color: #334155;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.project-route-mini {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.project-route-mini span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 16px;
+  border: 1px solid #d7e0ea;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.project-route-mini span.is-planned {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.project-route-mini span.is-active {
+  border-color: #67e8f9;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.project-route-mini span.is-done,
+.project-route-mini span.is-warehouse.is-planned {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.project-route-mini span.is-warning {
+  border-color: #f59e0b;
+  background: #fff7ed;
+  color: #b26b00;
+}
+
+.workcenter-label {
+  padding-left: 50px;
+}
+
+.operation-slot {
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.12);
+}
+
+.operation-slot:hover {
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.16);
+}
+
+.operation-slot.aggregate-slot {
+  opacity: 0.72;
+}
+
+.slot-line {
+  gap: 6px;
+}
+
+.slot-step-chip,
+.week-slot-line b {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  color: color-mix(in srgb, var(--slot-text), #000000 14%);
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.week-slot-line b {
+  min-width: 24px;
+  height: 14px;
+  font-size: 8px;
+}
+
+.slot-footer {
+  gap: 6px;
+}
+
+.dependencies-layer {
+  z-index: 10;
+}
+
+.dependency-path {
+  stroke-width: 1.8px;
+}
+
+.assistant-panel-actions {
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid #e2e8f0;
+  padding: 7px;
+}
+
+.assistant-panel-actions .secondary-button {
+  width: 100%;
+  height: 32px;
+}
+
+.drawer-route-sequence {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #d7e0ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 8px;
+}
+
+.drawer-route-sequence > strong {
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 860;
+}
+
+.drawer-route-sequence > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+  gap: 5px;
+}
+
+.drawer-route-sequence button {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid #d7e0ea;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #64748b;
+  padding: 5px 3px;
+}
+
+.drawer-route-sequence button:disabled {
+  opacity: 0.62;
+}
+
+.drawer-route-sequence button.is-planned {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.drawer-route-sequence button.is-active {
+  border-color: #67e8f9;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.drawer-route-sequence button.is-done,
+.drawer-route-sequence button.is-warehouse.is-planned {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.drawer-route-sequence button.is-current {
+  outline: 2px solid rgba(37, 99, 235, 0.24);
+}
+
+.drawer-route-sequence b {
+  font-size: 10px;
+  font-weight: 920;
+}
+
+.drawer-route-sequence span {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 9px;
+  font-weight: 820;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planning-app-shell .slot-drawer {
+  right: 394px;
+}
+
+@media (max-width: 1180px) {
+  .director-flow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .director-project-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planner-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .planner-workspace .planning-assistant-dock {
+    grid-template-rows: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .planning-app-shell .slot-drawer {
+    right: 18px;
+  }
+}
+
+@media (max-width: 680px) {
+  .planning-app-shell {
+    grid-template-rows: auto auto auto minmax(460px, 1fr);
+  }
+
+  .director-command-head,
+  .director-project-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .director-flow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .director-project-strip {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-gutter: stable;
+  }
+
+  .director-project-chip {
+    flex: 0 0 214px;
+  }
+
+  .director-command-actions {
+    justify-content: stretch;
+  }
+
+  .director-command-actions .secondary-button {
+    flex: 1 1 150px;
+  }
+
+  .director-flow-step {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 6px;
+    min-height: 48px;
+  }
+
+  .director-flow-step strong,
+  .director-flow-step span {
+    white-space: normal;
+  }
+
+  .director-flow-step b {
+    width: 26px;
+    height: 26px;
+  }
+
+  .director-flow-step em {
+    min-width: 28px;
+    padding: 4px 6px;
+  }
+
+  .planner-workspace {
+    padding: 8px;
+  }
+
+  .planner-workspace .planning-assistant-dock,
+  .planner-workspace .assistant-dock-head,
+  .planner-workspace .assistant-panel,
+  .planner-workspace .assistant-list,
+  .planner-workspace .assistant-item {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .planner-workspace .planning-assistant-dock {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .planner-workspace .planner-frame {
+    min-height: 460px;
+  }
+
+  .topbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .brand-block {
+    grid-row: auto;
+  }
+
+  .toolbar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar-grid .search-field,
+  .toolbar-grid .segmented,
+  .toolbar-grid .row-mode {
+    grid-column: 1 / -1;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .status-strip {
+    justify-content: flex-start;
   }
 }
