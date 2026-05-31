@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.15";
+const APP_VERSION = "v.1.17";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -84,6 +84,7 @@ const defaultUiState = {
   activeProjectId: "",
   activeSpecificationId: "",
   activeBomId: "",
+  activeRouteId: "",
   calculatorStep: "inputs",
   debugOverlay: null,
   confirmDialog: null,
@@ -225,10 +226,10 @@ function createDefaultDirectoryState() {
   ],
   roles: [
     { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, debug, admin", status: "Активен" },
-    { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "reports, planning, calculator, projects, bomLists, specifications, directories", directories: "resources, componentTypes, employees, equipment, workCenters, norms", permissions: "create, read, update, schedule, approve", status: "Активен" },
-    { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "reports, calculator, projects, bomLists, specifications, directories", directories: "resources, componentTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
+    { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "reports, planning, calculator, projects, routes, bomLists, specifications, directories", directories: "resources, componentTypes, employees, equipment, workCenters, norms", permissions: "create, read, update, schedule, approve", status: "Активен" },
+    { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "reports, calculator, projects, routes, bomLists, specifications, directories", directories: "resources, componentTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
     { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "reports, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
-    { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "reports, projects, bomLists, specifications", directories: "statuses", permissions: "read", status: "Активен" },
+    { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "reports, projects, routes, bomLists, specifications", directories: "statuses", permissions: "read", status: "Активен" },
   ],
   resources: [
     { id: "res-smt-1", name: "Линия SMT-1 · Hanwha S2/L2", type: "Линия", workCenter: "SMT-монтаж", capacity: "1 партия / смена", baseCph: 32000, efficiency: 88, changeoverMin: 18, status: "Доступен" },
@@ -467,6 +468,7 @@ function persistUiState() {
       activeProjectId: ui.activeProjectId,
       activeSpecificationId: ui.activeSpecificationId,
       activeBomId: ui.activeBomId,
+      activeRouteId: ui.activeRouteId,
       calculatorStep: ui.calculatorStep,
       selectedDirectoryRows: ui.selectedDirectoryRows,
     scale: ui.scale,
@@ -558,10 +560,13 @@ function normalizeRoleModuleList(row) {
   if (roleAllowsValue(row.directories, "specifications")) {
     modules.add("specifications");
   }
+  if (modules.has("calculator") || modules.has("projects") || modules.has("specifications")) {
+    modules.add("routes");
+  }
   if (roleAllowsValue(row.directories, "bomLists") || modules.has("specifications")) {
     modules.add("bomLists");
   }
-  const order = ["reports", "planning", "calculator", "projects", "bomLists", "specifications", "directories", "debug"];
+  const order = ["reports", "planning", "calculator", "projects", "routes", "bomLists", "specifications", "directories", "debug"];
   return order.filter((moduleId) => modules.has(moduleId)).join(", ") || "reports";
 }
 
@@ -1028,6 +1033,21 @@ function render() {
     return;
   }
 
+  if (ui.activeModule === "routes") {
+    app.innerHTML = `
+      <main class="app-shell route-app-shell" data-layout="app-shell" data-layout-page="routes">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderRoutesPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindRoutesEvents();
+    bindConfirmEvents();
+    return;
+  }
+
   if (ui.activeModule === "specifications") {
     app.innerHTML = `
       <main class="app-shell specification-app-shell" data-layout="app-shell" data-layout-page="specifications">
@@ -1147,6 +1167,7 @@ function getModuleDefinitions() {
     { id: "planning", label: "Планирование", icon: "calendar" },
     { id: "calculator", label: "Калькулятор", icon: "calculator" },
     { id: "projects", label: "Проекты", icon: "book" },
+    { id: "routes", label: "Маршруты", icon: "split" },
     { id: "bomLists", label: "BOM-листы", icon: "book" },
     { id: "specifications", label: "Спецификации", icon: "book" },
     { id: "directories", label: "Справочники", icon: "book" },
@@ -1158,7 +1179,7 @@ function getModuleGroups(modules) {
   const groupMap = [
     { label: "Аналитика", ids: ["reports"] },
     { label: "Производство", ids: ["planning", "projects"] },
-    { label: "Технологии", ids: ["calculator", "bomLists", "specifications"] },
+    { label: "Технологии", ids: ["calculator", "routes", "bomLists", "specifications"] },
     { label: "Система", ids: ["directories", "debug"] },
   ];
 
@@ -2144,11 +2165,15 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
   const selectedItem = items.find((item) => String(item.value) === String(value))
     || items[0]
     || { value: "", label: "Не выбрано", meta: "" };
-  const rootAttribute = options.type === "route"
-    ? `data-dense-route-op-field="${escapeAttribute(name)}"`
-    : options.type === "toolbar"
-      ? `data-dense-toolbar-select="${escapeAttribute(name)}"`
-      : `data-dense-calc-select="${escapeAttribute(name)}"`;
+  const rootAttribute = options.type === "routeStep"
+    ? `data-dense-route-step-field="${escapeAttribute(name)}" data-route-step-id="${escapeAttribute(options.stepId || "")}"`
+    : options.type === "routeModule"
+      ? `data-dense-route-field="${escapeAttribute(name)}"`
+      : options.type === "route"
+        ? `data-dense-route-op-field="${escapeAttribute(name)}"`
+        : options.type === "toolbar"
+          ? `data-dense-toolbar-select="${escapeAttribute(name)}"`
+          : `data-dense-calc-select="${escapeAttribute(name)}"`;
   const actionClass = items.some((item) => item.action) ? " has-actions" : "";
 
   return `
@@ -3166,7 +3191,7 @@ function renderProjectsPage() {
                 <span>Маршрут</span>
                 <strong>${context.routeSteps.length} операций</strong>
                 <small>${escapeHtml(context.routeSteps.map((step) => step.operationName).join(" → ") || "маршрут не сформирован")}</small>
-                <button class="secondary-button" data-project-to-calculator type="button" ${selectedProject ? "" : "disabled"}>${icon("calculator")}<span>Рассчитать</span></button>
+                <button class="secondary-button" data-open-project-route type="button" ${selectedProject ? "" : "disabled"}>${icon("split")}<span>Открыть маршрут</span></button>
               </article>
               <article>
                 <span>Партии</span>
@@ -3462,6 +3487,257 @@ function renderBomImportTable(headers, rows) {
           `).join("")}
         </tbody>
       </table>
+    </div>
+  `;
+}
+
+function getRoutesForModule() {
+  return [...(planningState.routes || [])].sort((left, right) => {
+    const leftProject = getProject(left.projectId)?.name || "";
+    const rightProject = getProject(right.projectId)?.name || "";
+    return leftProject.localeCompare(rightProject, "ru") || String(left.name || "").localeCompare(String(right.name || ""), "ru");
+  });
+}
+
+function getRouteStepsForModule(routeId) {
+  return (planningState.routeSteps || [])
+    .filter((step) => step.routeId === routeId)
+    .sort((left, right) => Number(left.stepOrder || 0) - Number(right.stepOrder || 0));
+}
+
+function getProjectRouteForModule(projectId) {
+  return (planningState.routes || []).find((route) => route.projectId === projectId && route.isDefault)
+    || (planningState.routes || []).find((route) => route.projectId === projectId)
+    || null;
+}
+
+function getActiveRouteForModule() {
+  if (ui.activeRouteId === "__new__") return null;
+  const routes = getRoutesForModule();
+  return routes.find((route) => route.id === ui.activeRouteId)
+    || getProjectRouteForModule(ui.activeProjectId)
+    || routes[0]
+    || null;
+}
+
+function getRouteModuleStats(route) {
+  if (!route) {
+    return { steps: [], required: 0, slots: [], warnings: [], hours: 0 };
+  }
+  const steps = getRouteStepsForModule(route.id);
+  const stepIds = new Set(steps.map((step) => step.id));
+  const slots = planningState.slots.filter((slot) => stepIds.has(slot.routeStepId));
+  const warnings = getSlotWarnings(planningState).warnings.filter((warning) => warning.projectId === route.projectId);
+  const hours = Math.round(slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0) * 10) / 10;
+  return {
+    steps,
+    required: steps.filter((step) => step.isRequired).length,
+    slots,
+    warnings,
+    hours,
+  };
+}
+
+function renderRoutesPage() {
+  const activeRoute = getActiveRouteForModule();
+  const isNewRoute = ui.activeRouteId === "__new__" || !activeRoute;
+  const defaultProjectId = activeRoute?.projectId || ui.activeProjectId || planningState.projects[0]?.id || "";
+  const route = activeRoute || {
+    id: "",
+    projectId: defaultProjectId,
+    name: "Новая маршрутная карта",
+    isDefault: true,
+  };
+  const project = getProject(route.projectId);
+  const stats = getRouteModuleStats(activeRoute);
+  const projectOptions = planningState.projects.map((item) => ({
+    value: item.id,
+    label: item.name,
+    meta: `${item.orderNumber} · ${PROJECT_STATUS_LABELS[item.status] || item.status || "статус"}`,
+  }));
+
+  return `
+    <section class="routes-page module-data-page" data-layout="main-content" aria-label="Маршрутные карты">
+      <aside class="directory-sidebar module-data-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Технология</span>
+          <h1>Маршруты</h1>
+        </div>
+        <div class="module-sidebar-actions">
+          <button class="primary-button" data-route-create type="button">${icon("plus")}<span>Новая карта</span></button>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Маршрутные карты проектов</div>
+          ${isNewRoute ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая маршрутная карта</strong><small>${escapeHtml(getProject(defaultProjectId)?.name || "выберите проект")}</small></span><em>new</em></button>` : ""}
+          ${getRoutesForModule().map((item) => {
+            const routeProject = getProject(item.projectId);
+            const steps = getRouteStepsForModule(item.id);
+            return `
+              <button class="module-entity-item ${item.id === activeRoute?.id ? "is-active" : ""}" data-route-open="${item.id}" type="button">
+                <span>
+                  <strong>${escapeHtml(item.name || "Маршрутная карта")}</strong>
+                  <small>${escapeHtml(routeProject?.name || "проект не найден")} · ${steps.length} шагов</small>
+                </span>
+                <em>${item.isDefault ? "осн." : steps.length}</em>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">Маршрутная карта</span>
+            <h2>${escapeHtml(isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта")}</h2>
+            <p>${escapeHtml(project ? `${project.name}: последовательность отделов и нормативов для передачи в Gantt.` : "Выберите проект и задайте последовательность операций.")}</p>
+          </div>
+          <div class="directory-actions">
+            <button class="secondary-button" data-route-to-project type="button" ${project ? "" : "disabled"}>${icon("book")}<span>Проект</span></button>
+            <button class="secondary-button" data-route-to-calculator type="button" ${project ? "" : "disabled"}>${icon("calculator")}<span>Калькулятор</span></button>
+            <button class="primary-button" data-route-to-planning type="button" ${project ? "" : "disabled"}>${icon("calendar")}<span>В план</span></button>
+          </div>
+        </header>
+
+        <div class="module-data-content route-module-content">
+          <section class="module-panel route-editor-panel">
+            <div class="report-card-head">
+              <strong>01 · Карточка маршрута</strong>
+              <span>${isNewRoute ? "создание технологической карты" : "проект, статус и применение в плане"}</span>
+            </div>
+            <form id="routeModuleForm" class="module-form route-module-form">
+              <input type="hidden" name="routeId" value="${escapeAttribute(route.id)}" />
+              <input type="hidden" name="isNew" value="${isNewRoute ? "yes" : "no"}" />
+              <label class="form-field full"><span>Название маршрутной карты</span><input name="name" value="${escapeAttribute(route.name || "")}" placeholder="Основной маршрут" /></label>
+              <label class="form-field full">
+                <span>Проект</span>
+                ${renderDenseInlineSelect("projectId", route.projectId, projectOptions, { type: "routeModule" })}
+              </label>
+              <label class="route-default-toggle full">
+                <input name="isDefault" type="checkbox" ${route.isDefault ? "checked" : ""} />
+                <span><strong>Использовать как основной маршрут проекта</strong><small>Gantt и очередь операций будут брать эту карту по умолчанию.</small></span>
+              </label>
+              <div class="module-form-actions full">
+                <button class="primary-button" type="submit">${icon("save")}<span>${isNewRoute ? "Создать карту" : "Сохранить карту"}</span></button>
+              </div>
+            </form>
+          </section>
+
+          <section class="module-panel route-summary-panel">
+            <div class="report-card-head">
+              <strong>02 · Сводка</strong>
+              <span>готовность маршрута для планирования</span>
+            </div>
+            <div class="module-kpi-grid route-kpi-grid">
+              <article><span>Шагов</span><strong>${stats.steps.length}</strong><small>${stats.required} обязательных</small></article>
+              <article><span>В Gantt</span><strong>${stats.slots.length}</strong><small>операций используют карту</small></article>
+              <article><span>Часы</span><strong>${formatReportNumber(stats.hours)}</strong><small>по текущему плану</small></article>
+              <article><span>Сигналы</span><strong>${stats.warnings.length}</strong><small>по проекту</small></article>
+            </div>
+            ${renderRouteModuleSequence(stats.steps)}
+          </section>
+
+          <section class="module-panel route-steps-panel">
+            <div class="report-card-head">
+              <strong>03 · Операции маршрута</strong>
+              <span>${stats.steps.length ? "кликните поле, чтобы изменить участок, норматив или обязательность" : "сначала сохраните карту, затем добавьте операции"}</span>
+            </div>
+            <div class="route-step-toolbar">
+              <button class="secondary-button" data-route-add-step type="button" ${activeRoute ? "" : "disabled"}>${icon("plus")}<span>Добавить операцию</span></button>
+            </div>
+            ${renderRouteStepsEditor(activeRoute, stats.steps)}
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderRouteModuleSequence(steps) {
+  if (!steps.length) {
+    return `
+      <div class="route-module-empty">
+        ${icon("split")}
+        <strong>Маршрут пока пустой</strong>
+        <span>Добавьте операции в нужной последовательности. Конечный складской шаг можно оставить последним.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="route-module-sequence" aria-label="Последовательность маршрутной карты">
+      ${steps.map((step) => {
+        const center = getWorkCenter(step.workCenterId);
+        return `
+          <article class="${step.workCenterId === "warehouse" ? "is-warehouse" : ""}">
+            <b>${Number(step.stepOrder || 0)}</b>
+            <span><strong>${escapeHtml(step.operationName || "Операция")}</strong><small>${escapeHtml(center?.name || step.workCenterId || "участок")}</small></span>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderRouteStepsEditor(route, steps) {
+  if (!route) {
+    return `
+      <div class="route-module-empty">
+        ${icon("info")}
+        <strong>Карта еще не сохранена</strong>
+        <span>Сохраните карточку маршрута, чтобы открыть редактирование операций.</span>
+      </div>
+    `;
+  }
+
+  if (!steps.length) {
+    return `
+      <div class="route-module-empty">
+        ${icon("plus")}
+        <strong>Операций нет</strong>
+        <span>Добавьте первый шаг маршрута. После сохранения Gantt сможет использовать эту последовательность.</span>
+      </div>
+    `;
+  }
+
+  const workCenterOptions = planningState.workCenters.map((center) => ({
+    value: center.id,
+    label: center.name,
+    meta: center.code || "участок",
+  }));
+
+  return `
+    <div class="route-step-editor-list">
+      ${steps.map((step, index) => `
+        <article class="route-step-editor-row ${step.workCenterId === "warehouse" ? "is-warehouse" : ""}" data-route-step-row="${step.id}">
+          <div class="route-step-index">
+            <button class="icon-button" data-route-step-up="${step.id}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
+            <input data-route-step-input="${step.id}" data-route-step-field="stepOrder" type="number" min="1" step="1" value="${Number(step.stepOrder || index + 1)}" aria-label="Порядок операции" />
+            <button class="icon-button" data-route-step-down="${step.id}" type="button" title="Опустить" ${index === steps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
+          </div>
+          <label class="form-field route-step-name">
+            <span>Операция</span>
+            <input data-route-step-input="${step.id}" data-route-step-field="operationName" value="${escapeAttribute(step.operationName || "")}" />
+          </label>
+          <label class="form-field route-step-center">
+            <span>Участок</span>
+            ${renderDenseInlineSelect("workCenterId", step.workCenterId, workCenterOptions, { type: "routeStep", stepId: step.id })}
+          </label>
+          <label class="form-field route-step-number">
+            <span>Плат/час</span>
+            <input data-route-step-input="${step.id}" data-route-step-field="unitsPerHour" type="number" min="0" step="0.1" value="${Number(step.unitsPerHour || getWorkCenterUnitsPerHour(step.workCenterId) || 0)}" />
+          </label>
+          <label class="form-field route-step-number">
+            <span>Setup, мин</span>
+            <input data-route-step-input="${step.id}" data-route-step-field="setupMin" type="number" min="0" step="1" value="${Number(step.setupMin || 0)}" />
+          </label>
+          <label class="route-required-toggle">
+            <input data-route-step-required="${step.id}" type="checkbox" ${step.isRequired ? "checked" : ""} />
+            <span>Обязательная</span>
+          </label>
+          <button class="icon-button danger-soft" data-route-step-delete="${step.id}" type="button" title="Удалить операцию">${icon("trash")}</button>
+        </article>
+      `).join("")}
     </div>
   `;
 }
@@ -4424,6 +4700,20 @@ function getConfirmDialogConfig(dialog) {
       confirmIcon: "save",
       icon: "info",
       tone: "info",
+    };
+  }
+
+  if (dialog?.action === "routeDeleteStep") {
+    const step = planningState.routeSteps.find((item) => item.id === payload.stepId);
+    const slotsCount = planningState.slots.filter((slot) => slot.routeStepId === payload.stepId).length;
+    return {
+      title: "Удалить шаг маршрута?",
+      body: `Операция "${step?.operationName || "шаг маршрута"}" будет удалена из маршрутной карты.`,
+      meta: slotsCount ? `Этот шаг используют ${slotsCount} операций Gantt. После удаления они получат предупреждение маршрута.` : "Действие изменит технологическую последовательность проекта.",
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
+      icon: "alert",
+      tone: "danger",
     };
   }
 
@@ -5443,6 +5733,11 @@ function performConfirmedAction(dialog) {
 
   if (dialog.action === "calculatorSaveRoute") {
     saveCalculatorRouteToProject();
+    return;
+  }
+
+  if (dialog.action === "routeDeleteStep") {
+    deleteRouteStepConfirmed(payload.stepId);
   }
 }
 
@@ -5727,6 +6022,281 @@ function bindProjectsEvents() {
     persistUiState();
     render();
   });
+
+  app.querySelector("[data-open-project-route]")?.addEventListener("click", () => {
+    const project = getActiveProjectForModule();
+    if (!project) return;
+    const route = getProjectRouteForModule(project.id);
+    ui.activeModule = "routes";
+    ui.activeProjectId = project.id;
+    ui.activeRouteId = route?.id || "__new__";
+    persistUiState();
+    render();
+  });
+}
+
+function bindRoutesEvents() {
+  app.querySelector("[data-route-create]")?.addEventListener("click", () => {
+    ui.activeRouteId = "__new__";
+    ui.activeProjectId = ui.activeProjectId || planningState.projects[0]?.id || "";
+    persistUiState();
+    render();
+  });
+
+  app.querySelectorAll("[data-route-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const route = planningState.routes.find((item) => item.id === button.dataset.routeOpen);
+      if (!route) return;
+      ui.activeRouteId = route.id;
+      ui.activeProjectId = route.projectId;
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelector("#routeModuleForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveRouteModuleForm(event.currentTarget);
+  });
+
+  app.querySelectorAll("[data-dense-route-field] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-route-field]");
+      if (!root || root.dataset.denseRouteField !== "projectId") return;
+      updateRouteProject(button.dataset.denseValue || "");
+    });
+  });
+
+  app.querySelectorAll("[data-dense-route-step-field] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-route-step-field]");
+      if (!root) return;
+      updateRouteStepField(root.dataset.routeStepId, root.dataset.denseRouteStepField, button.dataset.denseValue || "");
+    });
+  });
+
+  app.querySelectorAll("[data-route-step-input]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateRouteStepField(field.dataset.routeStepInput, field.dataset.routeStepField, field.value);
+    });
+  });
+
+  app.querySelectorAll("[data-route-step-required]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateRouteStepField(field.dataset.routeStepRequired, "isRequired", field.checked);
+    });
+  });
+
+  app.querySelector("[data-route-add-step]")?.addEventListener("click", () => {
+    addRouteModuleStep();
+  });
+
+  app.querySelectorAll("[data-route-step-up]").forEach((button) => {
+    button.addEventListener("click", () => moveRouteStep(button.dataset.routeStepUp, -1));
+  });
+
+  app.querySelectorAll("[data-route-step-down]").forEach((button) => {
+    button.addEventListener("click", () => moveRouteStep(button.dataset.routeStepDown, 1));
+  });
+
+  app.querySelectorAll("[data-route-step-delete]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openConfirmDialog("routeDeleteStep", { stepId: button.dataset.routeStepDelete });
+    });
+  });
+
+  app.querySelector("[data-route-to-project]")?.addEventListener("click", () => {
+    const route = getActiveRouteForModule();
+    if (!route) return;
+    ui.activeModule = "projects";
+    ui.activeProjectId = route.projectId;
+    persistUiState();
+    render();
+  });
+
+  app.querySelector("[data-route-to-calculator]")?.addEventListener("click", () => {
+    const route = getActiveRouteForModule();
+    if (!route) return;
+    openProjectInCalculator(route.projectId);
+  });
+
+  app.querySelector("[data-route-to-planning]")?.addEventListener("click", () => {
+    const route = getActiveRouteForModule();
+    if (!route) return;
+    ui.activeModule = "planning";
+    ui.activeProjectId = route.projectId;
+    persistUiState();
+    focusProject(route.projectId);
+  });
+}
+
+function saveRouteModuleForm(form) {
+  const data = new FormData(form);
+  const isNew = data.get("isNew") === "yes";
+  const existingRoute = getActiveRouteForModule();
+  const projectId = existingRoute?.projectId || ui.activeProjectId || planningState.projects[0]?.id || "";
+  const name = String(data.get("name") || "").trim();
+  const isDefault = data.get("isDefault") === "on";
+  if (!name || !projectId) {
+    alert("Заполните название маршрутной карты и проект.");
+    return;
+  }
+
+  const stamp = new Date().toISOString();
+  const routeId = isNew ? makeId("r") : existingRoute?.id || String(data.get("routeId") || makeId("r"));
+  const nextRoute = {
+    ...(existingRoute || {}),
+    id: routeId,
+    projectId,
+    name,
+    isDefault,
+    updatedAt: stamp,
+  };
+
+  planningState.routes = [
+    ...planningState.routes
+      .filter((route) => route.id !== routeId)
+      .map((route) => route.projectId === projectId && isDefault ? { ...route, isDefault: false } : route),
+    nextRoute,
+  ];
+  planningState = normalizePlanningState(planningState);
+  ui.activeRouteId = routeId;
+  ui.activeProjectId = projectId;
+  persistState();
+  persistUiState();
+  render();
+}
+
+function updateRouteProject(projectId) {
+  if (!projectId) return;
+  const activeRoute = getActiveRouteForModule();
+  if (!activeRoute || ui.activeRouteId === "__new__") {
+    ui.activeProjectId = projectId;
+    persistUiState();
+    render();
+    return;
+  }
+
+  planningState.routes = planningState.routes.map((route) => (
+    route.id === activeRoute.id
+      ? { ...route, projectId, updatedAt: new Date().toISOString() }
+      : activeRoute.isDefault && route.projectId === projectId
+        ? { ...route, isDefault: false }
+      : route
+  ));
+  ui.activeProjectId = projectId;
+  persistState();
+  persistUiState();
+  render();
+}
+
+function updateRouteStepField(stepId, field, rawValue) {
+  const step = planningState.routeSteps.find((item) => item.id === stepId);
+  if (!step || !field) return;
+  const oldCenter = getWorkCenter(step.workCenterId);
+  let value = rawValue;
+  if (["stepOrder", "setupMin", "secondsPerPanel"].includes(field)) {
+    value = Math.max(field === "stepOrder" ? 1 : 0, Math.round(Number(rawValue || 0)));
+  }
+  if (field === "unitsPerHour") {
+    value = Math.max(0, Math.round(Number(rawValue || 0) * 10) / 10);
+  }
+
+  planningState.routeSteps = planningState.routeSteps.map((item) => {
+    if (item.id !== stepId) return item;
+    const next = { ...item, [field]: value, updatedAt: new Date().toISOString() };
+    if (field === "workCenterId") {
+      const center = getWorkCenter(value);
+      const shouldRename = !item.operationName || item.operationName === oldCenter?.name || item.operationName === oldCenter?.code;
+      next.operationName = shouldRename ? center?.name || "Операция" : item.operationName;
+      if (!Number(next.unitsPerHour || 0)) next.unitsPerHour = getWorkCenterUnitsPerHour(value);
+    }
+    return next;
+  });
+
+  if (field === "stepOrder") normalizeRouteStepOrders(step.routeId);
+  persistState();
+  render();
+}
+
+function addRouteModuleStep() {
+  const route = getActiveRouteForModule();
+  if (!route) return;
+  const steps = getRouteStepsForModule(route.id);
+  const warehouseStep = steps.find((step) => step.workCenterId === "warehouse");
+  const insertOrder = warehouseStep?.stepOrder || Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
+  const workCenterId = planningState.workCenters.find((center) => center.id !== "warehouse")?.id || "manual";
+  const center = getWorkCenter(workCenterId);
+
+  planningState.routeSteps = [
+    ...planningState.routeSteps.map((step) => (
+      step.routeId === route.id && Number(step.stepOrder || 0) >= insertOrder
+        ? { ...step, stepOrder: Number(step.stepOrder || 0) + 1 }
+        : step
+    )),
+    {
+      id: makeId("rs"),
+      routeId: route.id,
+      workCenterId,
+      operationName: center?.name || "Новая операция",
+      stepOrder: insertOrder,
+      isRequired: true,
+      unitsPerHour: getWorkCenterUnitsPerHour(workCenterId),
+      setupMin: 0,
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+  normalizeRouteStepOrders(route.id);
+  persistState();
+  render();
+}
+
+function moveRouteStep(stepId, direction) {
+  const step = planningState.routeSteps.find((item) => item.id === stepId);
+  if (!step) return;
+  const steps = getRouteStepsForModule(step.routeId);
+  const index = steps.findIndex((item) => item.id === stepId);
+  const target = steps[index + direction];
+  if (!target) return;
+  const leftOrder = step.stepOrder;
+  const rightOrder = target.stepOrder;
+  planningState.routeSteps = planningState.routeSteps.map((item) => {
+    if (item.id === step.id) return { ...item, stepOrder: rightOrder, updatedAt: new Date().toISOString() };
+    if (item.id === target.id) return { ...item, stepOrder: leftOrder, updatedAt: new Date().toISOString() };
+    return item;
+  });
+  normalizeRouteStepOrders(step.routeId);
+  persistState();
+  render();
+}
+
+function normalizeRouteStepOrders(routeId) {
+  const orderedIds = getRouteStepsForModule(routeId).map((step) => step.id);
+  planningState.routeSteps = planningState.routeSteps.map((step) => {
+    const index = orderedIds.indexOf(step.id);
+    return index >= 0 ? { ...step, stepOrder: index + 1 } : step;
+  });
+}
+
+function deleteRouteStepConfirmed(stepId) {
+  const step = planningState.routeSteps.find((item) => item.id === stepId);
+  if (!step) return;
+  if (step.workCenterId === "warehouse") {
+    alert("Склад должен оставаться конечным этапом маршрута.");
+    return;
+  }
+  const routeId = step.routeId;
+  const steps = getRouteStepsForModule(routeId);
+  if (steps.length <= 1) {
+    alert("В маршрутной карте должна остаться хотя бы одна операция.");
+    return;
+  }
+  planningState.routeSteps = planningState.routeSteps.filter((item) => item.id !== stepId);
+  normalizeRouteStepOrders(routeId);
+  persistState();
+  render();
 }
 
 function saveProjectModuleForm(form) {
@@ -9226,6 +9796,7 @@ function icon(name) {
     plus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>`,
     clock: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>`,
     chevronDown: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>`,
+    chevronUp: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>`,
     chevronRight: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>`,
     alert: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.2 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></svg>`,
     info: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>`,
