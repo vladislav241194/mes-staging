@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.11";
+const APP_VERSION = "v.1.12";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -40,6 +40,7 @@ const STORAGE_KEYS = [
 ];
 const LEFT_WIDTH = 360;
 const TIMELINE_HEIGHT = 48;
+const GANTT_SNAP_MS = 15 * 60 * 1000;
 const PROJECT_ROW_HEIGHT = 82;
 const WORK_ROW_HEIGHT = 58;
 const WEEK_SLOT_HEIGHT = 18;
@@ -795,7 +796,7 @@ function isWindowAvailable(workCenterId, start, end, excludeSlotId = null) {
 }
 
 function findFreeWindow(workCenterId, durationMs, earliestStart, excludeSlotId = null) {
-  const snapMs = scaleConfig[ui.scale]?.snapMs || 30 * 60 * 1000;
+  const snapMs = getGanttSnapMs();
   let candidateStart = snapDate(earliestStart, snapMs);
   const maxIterations = 160;
 
@@ -817,6 +818,21 @@ function findFreeWindow(workCenterId, durationMs, earliestStart, excludeSlotId =
   }
 
   return { start: candidateStart, end: addMs(candidateStart, durationMs) };
+}
+
+function getGanttSnapMs() {
+  return GANTT_SNAP_MS;
+}
+
+function getGanttSnapScaleInfo(scaleInfo) {
+  return {
+    ...scaleInfo,
+    snapMs: getGanttSnapMs(),
+  };
+}
+
+function getGanttSnapWidth(scaleInfo) {
+  return scaleInfo.cellWidth * (getGanttSnapMs() / scaleInfo.unitMs);
 }
 
 function cascadeBatchFromSlot(slotId) {
@@ -1006,6 +1022,7 @@ function render() {
                 ${rows.map((row) => renderRow(row, rowLayout, scaleInfo, warningsContext.slotWarningMap, slotPlacementMap)).join("")}
               </div>
               ${renderDependencies(rows, rowLayout, scaleInfo, warningsContext.slotWarningMap, slotPlacementMap)}
+              ${renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap)}
             </div>
           </div>
         </section>
@@ -6418,9 +6435,10 @@ function restoreScroll() {
 }
 
 function updateDependencyClip(shell) {
-  const layer = app.querySelector(".dependencies-layer");
-  if (!layer || !shell) return;
-  layer.style.setProperty("--dependency-clip-left", `${shell.scrollLeft}px`);
+  if (!shell) return;
+  app.querySelectorAll(".dependencies-layer, .gantt-snap-overlay").forEach((layer) => {
+    layer.style.setProperty("--dependency-clip-left", `${shell.scrollLeft}px`);
+  });
 }
 
 function updateClockOnly() {
@@ -6830,20 +6848,63 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     const y2 = toLayout.top + (toPlacement?.top ?? toLayout.height / 2) + (toPlacement?.height ? toPlacement.height / 2 : 0);
     const hasIssue = (slotWarningMap[from.id] || []).length || (slotWarningMap[to.id] || []).length;
     const className = hasIssue ? "dependency-path has-issue" : "dependency-path";
+    const underlayClassName = hasIssue ? "dependency-path-underlay has-issue" : "dependency-path-underlay";
+    const markerId = hasIssue ? "dependencyArrowIssue" : "dependencyArrow";
     const d = buildDependencyPath(x1, y1, x2, y2);
 
-    paths.push(`<path class="${className}" d="${d}" marker-end="url(#dependencyArrow)" />`);
+    paths.push(`
+      <path class="${underlayClassName}" d="${d}" />
+      <path class="${className}" d="${d}" marker-end="url(#${markerId})" />
+    `);
   }
 
   return `
     <svg class="dependencies-layer ${ui.scale === "weeks" ? "week-dependencies" : ""}" style="left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --dependency-clip-left:${ui.scrollLeft}px;" aria-hidden="true">
       <defs>
-        <marker id="dependencyArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M 0 0 L 8 4 L 0 8 z" class="dependency-arrow" />
+        <marker id="dependencyArrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow" />
+        </marker>
+        <marker id="dependencyArrowIssue" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow has-issue" />
         </marker>
       </defs>
       ${paths.join("")}
     </svg>
+  `;
+}
+
+function renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap) {
+  if (!ui.drag?.moved) return "";
+
+  const slot = planningState.slots.find((item) => item.id === ui.drag.slotId);
+  if (!slot) return "";
+
+  const rowId = ui.drag.targetRowId || getVisibleSlotRowId(slot);
+  const layout = rowLayout.map[rowId];
+  if (!layout) return "";
+
+  const isProjectRow = rowId.startsWith("project:");
+  const placement = slotPlacementMap[rowId]?.[slot.id];
+  const rect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isProjectRow);
+  const snapWidth = getGanttSnapWidth(scaleInfo);
+  const guideX = ui.drag.mode === "resize" ? rect.right : rect.x;
+  const columnWidth = Math.max(3, snapWidth);
+  const columnLeft = Math.max(0, Math.min(scaleInfo.width - columnWidth, Math.floor(guideX / Math.max(snapWidth, 1)) * snapWidth));
+  const top = layout.top + (placement?.top ?? (isProjectRow ? 12 : 6));
+  const height = placement?.height ?? (isProjectRow ? 22 : 42);
+  const gridClass = snapWidth >= 6 ? "is-readable" : "is-dense";
+
+  return `
+    <div
+      class="gantt-snap-overlay ${gridClass}"
+      style="left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --cell-width:${scaleInfo.cellWidth}px; --snap-width:${round(snapWidth)}px; --dependency-clip-left:${ui.scrollLeft}px;"
+      aria-hidden="true"
+    >
+      <div class="gantt-snap-grid"></div>
+      <div class="gantt-snap-column" style="left:${round(columnLeft)}px; width:${round(columnWidth)}px;"></div>
+      <div class="gantt-drag-ghost" style="left:${round(rect.x)}px; top:${round(top)}px; width:${round(rect.width)}px; height:${round(height)}px;"></div>
+      <div class="gantt-snap-guide ${ui.drag.mode === "resize" ? "is-resize" : "is-move"}" style="left:${round(guideX)}px;"></div>
+    </div>
   `;
 }
 
@@ -7507,7 +7568,7 @@ function bindEvents(scaleInfo, rows, rowLayout) {
       if (!row || row.type !== "workCenter") return;
 
       const rect = lane.getBoundingClientRect();
-      const start = xToDate(event.clientX - rect.left, scaleInfo);
+      const start = xToDate(event.clientX - rect.left, getGanttSnapScaleInfo(scaleInfo));
       openCreateSlot(row, start);
     });
   });
@@ -7899,6 +7960,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
   ui.drag = {
     mode,
     slotId,
+    snapMs: getGanttSnapMs(),
     startClientX: event.clientX,
     startClientY: event.clientY,
     originalStart: toDate(slot.plannedStart),
@@ -7920,19 +7982,21 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     ui.drag.moved = true;
 
     const dx = moveEvent.clientX - ui.drag.startClientX;
-    const msDelta = Math.round(dx / scaleInfo.cellWidth * scaleInfo.unitMs / scaleInfo.snapMs) * scaleInfo.snapMs;
+    const snapMs = ui.drag.snapMs || getGanttSnapMs();
+    const msDelta = Math.round(dx / scaleInfo.cellWidth * scaleInfo.unitMs / snapMs) * snapMs;
     const targetSlot = planningState.slots.find((item) => item.id === slotId);
     if (!targetSlot) return;
 
     if (mode === "resize") {
-      const minEnd = addMs(ui.drag.originalStart, scaleInfo.snapMs);
-      const newEnd = new Date(Math.max(minEnd.getTime(), ui.drag.originalEnd.getTime() + msDelta));
+      const minEnd = addMs(ui.drag.originalStart, snapMs);
+      const rawEnd = new Date(ui.drag.originalEnd.getTime() + msDelta);
+      const newEnd = new Date(Math.max(minEnd.getTime(), snapDate(rawEnd, snapMs).getTime()));
       const nextQuantity = calculateQuantityByDuration(targetSlot.workCenterId, targetSlot.plannedStart, newEnd);
       targetSlot.quantity = nextQuantity;
-      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(targetSlot.plannedStart, targetSlot.workCenterId, nextQuantity));
+      targetSlot.plannedEnd = toSlotDateTime(newEnd);
       targetSlot.updatedAt = new Date().toISOString();
     } else {
-      const newStart = snapDate(addMs(ui.drag.originalStart, msDelta), scaleInfo.snapMs);
+      const newStart = snapDate(addMs(ui.drag.originalStart, msDelta), snapMs);
       targetSlot.plannedStart = toSlotDateTime(newStart);
 
       const targetRow = rowFromPointer(moveEvent, rows, rowLayout);
@@ -7982,7 +8046,7 @@ function openCreateSlot(row, start) {
   const projectBatches = planningState.batches.filter((batch) => batch.projectId === row.projectId);
   const routeStep = getProjectRouteSteps(row.projectId, planningState).find((step) => step.workCenterId === row.workCenterId)
     || getProjectRouteSteps(row.projectId, planningState)[0];
-  const plannedStart = snapDate(start, scaleConfig[ui.scale].snapMs);
+  const plannedStart = snapDate(start, getGanttSnapMs());
   const quantity = normalizeQuantity(projectBatches[0]?.quantity);
   const plannedEnd = calculatePlannedEndByQuantity(plannedStart, row.workCenterId, quantity, planningState, routeStep?.unitsPerHour || null);
 

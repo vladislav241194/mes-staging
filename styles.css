@@ -15506,3 +15506,119 @@ main.planning-app-shell > .planner-workspace {
 .gantt-shell .operation-slot.is-tiny .slot-warning-dot {
   display: none;
 }
+
+/* Gantt interaction contract v1.12: crisp dependencies and 15-minute snap guidance */
+.gantt-shell .dependencies-layer {
+  z-index: 10;
+  overflow: hidden;
+  shape-rendering: geometricPrecision;
+}
+
+.gantt-shell .dependency-path-underlay {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.88);
+  stroke-width: 5.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.gantt-shell .dependency-path {
+  fill: none;
+  stroke: rgba(76, 91, 109, 0.78);
+  stroke-width: 1.55px;
+  stroke-dasharray: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.gantt-shell .dependency-path.has-issue {
+  stroke: rgba(199, 53, 53, 0.82);
+}
+
+.gantt-shell .week-dependencies .dependency-path {
+  stroke-width: 1.35px;
+  stroke-opacity: 0.74;
+  stroke-dasharray: none;
+}
+
+.gantt-shell .dependency-arrow {
+  fill: rgba(76, 91, 109, 0.92);
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 0.55px;
+  paint-order: stroke fill;
+}
+
+.gantt-shell .dependency-arrow.has-issue {
+  fill: rgba(199, 53, 53, 0.94);
+}
+
+.gantt-snap-overlay {
+  position: absolute;
+  z-index: 20;
+  overflow: hidden;
+  clip-path: inset(0 0 0 var(--dependency-clip-left, 0px));
+  pointer-events: none;
+}
+
+.gantt-snap-grid,
+.gantt-snap-column,
+.gantt-snap-guide,
+.gantt-drag-ghost {
+  position: absolute;
+  pointer-events: none;
+}
+
+.gantt-snap-grid {
+  inset: 0;
+  opacity: 0;
+}
+
+.gantt-snap-overlay.is-readable .gantt-snap-grid {
+  opacity: 1;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--snap-width) - 1px),
+      rgba(37, 99, 235, 0.22) calc(var(--snap-width) - 1px),
+      rgba(37, 99, 235, 0.22) var(--snap-width)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--cell-width) - 1px),
+      rgba(15, 23, 42, 0.16) calc(var(--cell-width) - 1px),
+      rgba(15, 23, 42, 0.16) var(--cell-width)
+    );
+}
+
+.gantt-snap-column {
+  top: 0;
+  bottom: 0;
+  border-inline: 1px solid rgba(37, 99, 235, 0.32);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.gantt-snap-guide {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-1px);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.78);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.gantt-snap-guide.is-resize {
+  background: rgba(47, 143, 91, 0.82);
+  box-shadow: 0 0 0 3px rgba(47, 143, 91, 0.13);
+}
+
+.gantt-drag-ghost {
+  border: 1px solid rgba(37, 99, 235, 0.62);
+  border-radius: 7px;
+  background: rgba(37, 99, 235, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 8px 20px rgba(37, 99, 235, 0.12);
+}
