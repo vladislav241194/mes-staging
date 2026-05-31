@@ -48,8 +48,8 @@ async function renderIndexHtml() {
   ]);
 
   return html
-    .replace("./styles.css", `./styles.css?v=${stylesVersion}`)
-    .replace("./src/app.js", `./src/app.js?v=${appVersion}`);
+    .replace(/\.\/styles\.css(?:\?v=[^"]*)?/, `./styles.css?v=${stylesVersion}`)
+    .replace(/\.\/src\/app\.js(?:\?v=[^"]*)?/, `./src/app.js?v=${appVersion}`);
 }
 
 createServer(async (req, res) => {

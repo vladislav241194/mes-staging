@@ -103,14 +103,15 @@ export function toDateInput(value) {
   return `${year}-${month}-${day}`;
 }
 
-export function buildTimeScale(scale, startValue) {
+export function buildTimeScale(scale, startValue, countOverride = null) {
   const config = scaleConfig[scale];
+  const tickCount = Math.max(config.count, Math.round(Number(countOverride || config.count)));
   let cursor = startValue ? toDate(startValue) : new Date();
 
   if (scale === "weeks") cursor = startOfWeek(cursor);
   if (scale === "days" || scale === "hours") cursor = startOfDay(cursor);
 
-  const ticks = Array.from({ length: config.count }, (_, index) => {
+  const ticks = Array.from({ length: tickCount }, (_, index) => {
     const start = addMs(cursor, index * config.unitMs);
     const end = addMs(start, config.unitMs);
     const weekNumber = getWeekNumber(start);
@@ -144,9 +145,10 @@ export function buildTimeScale(scale, startValue) {
   return {
     ...config,
     start: cursor,
-    end: addMs(cursor, config.count * config.unitMs),
+    count: tickCount,
+    end: addMs(cursor, tickCount * config.unitMs),
     ticks,
-    width: config.count * config.cellWidth,
+    width: tickCount * config.cellWidth,
   };
 }
 

@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.12";
+const APP_VERSION = "v.1.14";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -41,11 +41,17 @@ const STORAGE_KEYS = [
 const LEFT_WIDTH = 360;
 const TIMELINE_HEIGHT = 48;
 const GANTT_SNAP_MS = 15 * 60 * 1000;
+const TIMELINE_LOAD_CHUNK = { hours: 24, days: 14, weeks: 6 };
+const TIMELINE_MAX_COUNT = { hours: 240, days: 120, weeks: 52 };
 const PROJECT_ROW_HEIGHT = 82;
 const WORK_ROW_HEIGHT = 58;
 const WEEK_SLOT_HEIGHT = 18;
 const WEEK_SLOT_GAP = 3;
 const WEEK_SLOT_TOP = 6;
+const STANDARD_SLOT_TOP = 6;
+const STANDARD_SLOT_HEIGHT = 26;
+const AGGREGATE_SLOT_TOP = 12;
+const AGGREGATE_SLOT_HEIGHT = 22;
 const MIN_OPERATION_DURATION_MS = 5 * 60 * 1000;
 const DEFAULT_ROUTE_BUFFER_MS = 30 * 60 * 1000;
 const DEFAULT_RESOURCE_CPH = 30000;
@@ -90,6 +96,7 @@ const defaultUiState = {
   workCenterFilter: "all",
   rowMode: "route",
   autoCascade: true,
+  timelineCounts: { hours: scaleConfig.hours.count, days: scaleConfig.days.count, weeks: scaleConfig.weeks.count },
   expandedProjects: new Set(["p-x100", "p-v2", "p-mes"]),
   selectedSlotId: null,
   editor: null,
@@ -130,6 +137,18 @@ const BOM_COMPONENT_FIELDS = [
   { key: "cqfn", componentId: "ct-qfn", label: "QFN" },
   { key: "cbga", componentId: "ct-bga", label: "BGA" },
   { key: "cconnector", componentId: "ct-connector", label: "Разъемы" },
+];
+const BOM_IMPORT_COLUMN_COUNT = 9;
+const BOM_IMPORT_FALLBACK_HEADERS = [
+  "Порядковый номер",
+  "Описание",
+  "Обозначение в схеме",
+  "Артикул производителя",
+  "Производитель",
+  "Корпус",
+  "Кол-во",
+  "Примечание",
+  "Поле I",
 ];
 
 let planningState = loadState();
@@ -423,6 +442,10 @@ function loadUiState() {
       splitSlotId: null,
       projectModal: false,
       drag: null,
+      timelineCounts: {
+        ...defaultUiState.timelineCounts,
+        ...(parsed.timelineCounts || {}),
+      },
       now: new Date(),
     };
   } catch {
@@ -453,6 +476,7 @@ function persistUiState() {
     workCenterFilter: ui.workCenterFilter,
     rowMode: ui.rowMode,
     autoCascade: ui.autoCascade,
+    timelineCounts: ui.timelineCounts,
     expandedProjects: [...ui.expandedProjects],
     scrollLeft: ui.scrollLeft,
     scrollTop: ui.scrollTop,
@@ -481,9 +505,17 @@ function normalizeDirectoryState(state) {
 
 function normalizeDirectoryRow(sectionId, row) {
   if (sectionId === "bomLists") {
+    const importHeaders = Array.isArray(row.importHeaders) ? row.importHeaders : [];
+    const importRows = Array.isArray(row.importRows) ? row.importRows : Array.isArray(row.items) ? row.items : [];
     return {
       ...row,
       projectId: row.projectId || "",
+      importHeaders,
+      importRows: importRows.map((item) => normalizeBomImportRow(item)),
+      importedAt: row.importedAt || "",
+      sourceFileName: row.sourceFileName || "",
+      sourceSheetName: row.sourceSheetName || "",
+      ...Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, Math.max(0, Math.round(Number(row[field.key] || 0)))])),
     };
   }
 
@@ -835,6 +867,47 @@ function getGanttSnapWidth(scaleInfo) {
   return scaleInfo.cellWidth * (getGanttSnapMs() / scaleInfo.unitMs);
 }
 
+function getTimelineCount(scale, startValue = null) {
+  const base = scaleConfig[scale]?.count || 1;
+  const configuredCount = Math.max(base, Math.round(Number(ui.timelineCounts?.[scale] || base)));
+  const unitMs = scaleConfig[scale]?.unitMs || 1;
+  const start = startValue ? toDate(startValue) : toDate(fromDateInput(ui.windowStart));
+  const maxSlotEnd = planningState.slots.reduce((max, slot) => Math.max(max, toDate(slot.plannedEnd).getTime()), start.getTime());
+  const requiredCount = Math.ceil((maxSlotEnd - start.getTime()) / unitMs) + Math.max(2, Math.round((TIMELINE_LOAD_CHUNK[scale] || base) / 3));
+  return Math.min(TIMELINE_MAX_COUNT[scale] || configuredCount, Math.max(base, configuredCount, requiredCount));
+}
+
+function getVisiblePlanningProjects() {
+  return planningState.projects.filter((project) => projectMatchesFilters(project));
+}
+
+function areAllVisibleProjectsExpanded() {
+  const projects = getVisiblePlanningProjects();
+  return projects.length > 0 && projects.every((project) => ui.expandedProjects.has(project.id));
+}
+
+function extendTimelineIfNeeded(shell, scaleInfo) {
+  if (!shell || !scaleInfo) return false;
+  const remaining = shell.scrollWidth - shell.clientWidth - shell.scrollLeft;
+  const threshold = Math.max(shell.clientWidth * 0.42, scaleInfo.cellWidth * 3);
+  if (remaining > threshold) return false;
+
+  const current = getTimelineCount(ui.scale, scaleInfo.start);
+  const next = Math.min(TIMELINE_MAX_COUNT[ui.scale] || current, current + (TIMELINE_LOAD_CHUNK[ui.scale] || 0));
+  if (next <= current) return false;
+
+  ui.timelineCounts = {
+    ...defaultUiState.timelineCounts,
+    ...(ui.timelineCounts || {}),
+    [ui.scale]: next,
+  };
+  ui.scrollLeft = shell.scrollLeft;
+  ui.scrollTop = shell.scrollTop;
+  persistUiState();
+  render();
+  return true;
+}
+
 function cascadeBatchFromSlot(slotId) {
   const changedSlot = planningState.slots.find((slot) => slot.id === slotId);
   if (!changedSlot) return;
@@ -1000,7 +1073,8 @@ function render() {
     return;
   }
 
-  const scaleInfo = buildTimeScale(ui.scale, fromDateInput(ui.windowStart));
+  const scaleStart = fromDateInput(ui.windowStart);
+  const scaleInfo = buildTimeScale(ui.scale, scaleStart, getTimelineCount(ui.scale, scaleStart));
   const rows = buildRows(scaleInfo);
   const rowLayout = buildRowLayout(rows);
   const slotPlacementMap = buildSlotPlacementMap(rows, scaleInfo);
@@ -1012,8 +1086,7 @@ function render() {
       ${renderModuleMenu()}
       ${renderAppTopbar()}
       ${renderToolbar(scaleInfo, stats)}
-      ${renderPlanningDirectorCommand(warningsContext, stats, scaleInfo)}
-      <section class="planner-workspace" data-layout="planning-page" aria-label="Рабочая область планирования">
+      <section class="planner-workspace planner-workspace-gantt-only" data-layout="planning-page" aria-label="Рабочая область планирования">
         <section class="planner-frame" aria-label="Производственный план">
           <div class="gantt-shell" data-layout="gantt" data-gantt-shell>
             <div class="gantt-canvas" style="--left-width:${LEFT_WIDTH}px; --timeline-width:${scaleInfo.width}px; --total-height:${rowLayout.totalHeight}px;">
@@ -1026,7 +1099,6 @@ function render() {
             </div>
           </div>
         </section>
-        ${renderPlanningAssistantDock(warningsContext.warnings)}
       </section>
       ${renderSlotDrawer(warningsContext.slotWarningMap)}
       ${renderEditorModal()}
@@ -2606,6 +2678,256 @@ function getBomComponentCounts(bom) {
   ]));
 }
 
+function normalizeBomImportRow(row) {
+  const source = Array.isArray(row?.values) ? row.values : Array.isArray(row) ? row : [];
+  const values = Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, index) => source[index] ?? row?.[index] ?? "");
+  return {
+    sequence: values[0] ?? "",
+    description: values[1] ?? "",
+    designator: values[2] ?? "",
+    manufacturerPart: values[3] ?? "",
+    manufacturer: values[4] ?? "",
+    package: values[5] ?? "",
+    quantity: Math.max(0, Number(values[6] || 0)),
+    note: values[7] ?? "",
+    extra: values[8] ?? "",
+    values,
+  };
+}
+
+function getBomImportRows(bom) {
+  return Array.isArray(bom?.importRows) ? bom.importRows.map((row) => normalizeBomImportRow(row)) : [];
+}
+
+function getBomImportHeaders(bom) {
+  const headers = Array.isArray(bom?.importHeaders) ? bom.importHeaders : [];
+  return Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, index) => {
+    const value = String(headers[index] || "").trim();
+    return value || BOM_IMPORT_FALLBACK_HEADERS[index] || `Поле ${index + 1}`;
+  });
+}
+
+function getFileBaseName(fileName) {
+  return String(fileName || "BOM")
+    .replace(/\.[^.]+$/, "")
+    .trim() || "BOM";
+}
+
+function classifyBomPackage(row) {
+  const packageText = normalizePackageText(row.package || "");
+  const combined = normalizePackageText(`${row.package || ""} ${row.description || ""}`);
+
+  if (packageText === "0402" || packageText === "402") return "c0402";
+  if (packageText === "0603" || packageText === "603") return "c0603";
+  if (packageText === "0805" || packageText === "805") return "c0805";
+  if (combined.includes("0402")) return "c0402";
+  if (combined.includes("0603")) return "c0603";
+  if (combined.includes("0805")) return "c0805";
+  if (combined.includes("sot23") || combined.includes("sot-23") || combined.includes("sod")) return "csot23";
+  if (combined.includes("soic") || combined.includes("tssop") || combined.includes("ssop")) return "csoic";
+  if (combined.includes("qfn") || combined.includes("dfn") || combined.includes("lga")) return "cqfn";
+  if (combined.includes("bga")) return "cbga";
+  if (combined.includes("connector") || combined.includes("разъем") || combined.includes("разъём") || combined.includes("terminal")) return "cconnector";
+  return "cconnector";
+}
+
+function normalizePackageText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[.,]/g, "")
+    .replace(/\s+/g, "")
+    .replace(/^0?(\d{3})$/, "0$1");
+}
+
+function summarizeBomComponentFields(importRows) {
+  const totals = Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, 0]));
+  for (const row of importRows) {
+    const key = classifyBomPackage(row);
+    totals[key] = (totals[key] || 0) + Math.max(0, Number(row.quantity || 0));
+  }
+  return Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, Math.round(value)]));
+}
+
+async function importBomFromXlsxFile(file, projectId) {
+  const parsed = await parseXlsxBomFile(file);
+  const name = getFileBaseName(file.name);
+  const id = makeId("bom");
+  const importRows = parsed.rows.map((row) => normalizeBomImportRow(row));
+  const componentTotals = summarizeBomComponentFields(importRows);
+  const stamp = new Date().toISOString();
+  const row = normalizeDirectoryRow("bomLists", {
+    id,
+    name,
+    projectId,
+    boardCode: name,
+    revision: "import",
+    resultItem: `Смонтированная печатная плата ${name}`,
+    status: "Активен",
+    importHeaders: parsed.headers,
+    importRows,
+    importedAt: stamp,
+    sourceFileName: file.name,
+    sourceSheetName: parsed.sheetName,
+    updatedAt: stamp,
+    ...componentTotals,
+  });
+
+  directoryState.bomLists = [
+    ...(directoryState.bomLists || []).filter((item) => item.name !== row.name || item.projectId !== row.projectId),
+    row,
+  ];
+  directoryState = normalizeDirectoryState(directoryState);
+  ui.activeBomId = id;
+  ui.activeProjectId = projectId;
+  persistDirectoryState();
+  persistUiState();
+}
+
+async function parseXlsxBomFile(file) {
+  const entries = await readZipEntries(await file.arrayBuffer());
+  const workbookXml = await getZipText(entries, "xl/workbook.xml");
+  const sheetName = readFirstWorksheetName(workbookXml) || "Sheet1";
+  const sheetEntryName = entries.has("xl/worksheets/sheet1.xml")
+    ? "xl/worksheets/sheet1.xml"
+    : [...entries.keys()].find((name) => name.startsWith("xl/worksheets/sheet") && name.endsWith(".xml"));
+  if (!sheetEntryName) throw new Error("В файле не найден лист Excel.");
+
+  const sharedStringsXml = entries.has("xl/sharedStrings.xml") ? await getZipText(entries, "xl/sharedStrings.xml") : "";
+  const sharedStrings = sharedStringsXml ? parseSharedStrings(sharedStringsXml) : [];
+  const sheetXml = await getZipText(entries, sheetEntryName);
+  const matrix = parseWorksheetMatrix(sheetXml, sharedStrings);
+  const headers = Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, index) => (
+    String(matrix[0]?.[index] || "").trim() || BOM_IMPORT_FALLBACK_HEADERS[index] || `Поле ${index + 1}`
+  ));
+  const rows = [];
+
+  for (let index = 1; index < matrix.length; index += 1) {
+    const source = matrix[index] || [];
+    if (source[0] === undefined || source[0] === null || String(source[0]).trim() === "") break;
+    rows.push(Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, columnIndex) => source[columnIndex] ?? ""));
+  }
+
+  if (!rows.length) throw new Error("BOM не содержит строк: первая пустая ячейка A найдена сразу после заголовка.");
+  return { sheetName, headers, rows };
+}
+
+async function readZipEntries(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const view = new DataView(arrayBuffer);
+  const textDecoder = new TextDecoder("utf-8");
+  let eocdOffset = -1;
+  const minOffset = Math.max(0, bytes.length - 66000);
+
+  for (let offset = bytes.length - 22; offset >= minOffset; offset -= 1) {
+    if (view.getUint32(offset, true) === 0x06054b50) {
+      eocdOffset = offset;
+      break;
+    }
+  }
+  if (eocdOffset < 0) throw new Error("Файл не похож на XLSX: не найден ZIP-каталог.");
+
+  const entryCount = view.getUint16(eocdOffset + 10, true);
+  const centralDirectoryOffset = view.getUint32(eocdOffset + 16, true);
+  const entries = new Map();
+  let cursor = centralDirectoryOffset;
+
+  for (let index = 0; index < entryCount; index += 1) {
+    if (view.getUint32(cursor, true) !== 0x02014b50) break;
+    const compressionMethod = view.getUint16(cursor + 10, true);
+    const compressedSize = view.getUint32(cursor + 20, true);
+    const fileNameLength = view.getUint16(cursor + 28, true);
+    const extraLength = view.getUint16(cursor + 30, true);
+    const commentLength = view.getUint16(cursor + 32, true);
+    const localHeaderOffset = view.getUint32(cursor + 42, true);
+    const name = textDecoder.decode(bytes.slice(cursor + 46, cursor + 46 + fileNameLength));
+
+    const localNameLength = view.getUint16(localHeaderOffset + 26, true);
+    const localExtraLength = view.getUint16(localHeaderOffset + 28, true);
+    const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength;
+    const compressedBytes = bytes.slice(dataStart, dataStart + compressedSize);
+    entries.set(name, {
+      name,
+      text: null,
+      bytes: compressedBytes,
+      compressionMethod,
+    });
+
+    cursor += 46 + fileNameLength + extraLength + commentLength;
+  }
+
+  return entries;
+}
+
+async function getZipText(entries, name) {
+  const entry = entries.get(name);
+  if (!entry) throw new Error(`В XLSX не найден файл ${name}.`);
+  if (entry.text !== null) return entry.text;
+
+  let bytes = entry.bytes;
+  if (entry.compressionMethod === 8) {
+    if (!("DecompressionStream" in window)) {
+      throw new Error("Браузер не поддерживает распаковку XLSX. Откройте систему в актуальном Chrome/Edge.");
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  } else if (entry.compressionMethod !== 0) {
+    throw new Error(`Неподдерживаемый метод сжатия XLSX: ${entry.compressionMethod}.`);
+  }
+
+  entry.text = new TextDecoder("utf-8").decode(bytes);
+  return entry.text;
+}
+
+function parseXml(text) {
+  const xml = new DOMParser().parseFromString(text, "application/xml");
+  if (xml.querySelector("parsererror")) throw new Error("Не удалось прочитать XML внутри XLSX.");
+  return xml;
+}
+
+function readFirstWorksheetName(workbookXml) {
+  const sheet = parseXml(workbookXml).querySelector("sheet");
+  return sheet?.getAttribute("name") || "";
+}
+
+function parseSharedStrings(sharedStringsXml) {
+  return [...parseXml(sharedStringsXml).querySelectorAll("si")].map((item) => (
+    [...item.querySelectorAll("t")].map((node) => node.textContent || "").join("")
+  ));
+}
+
+function parseWorksheetMatrix(sheetXml, sharedStrings) {
+  const matrix = [];
+  const xml = parseXml(sheetXml);
+  xml.querySelectorAll("sheetData row").forEach((rowNode) => {
+    const rowIndex = Math.max(0, Number(rowNode.getAttribute("r") || matrix.length + 1) - 1);
+    matrix[rowIndex] = matrix[rowIndex] || [];
+    rowNode.querySelectorAll("c").forEach((cellNode) => {
+      const ref = cellNode.getAttribute("r") || "";
+      const columnIndex = columnLettersToIndex(ref.replace(/\d+/g, ""));
+      if (columnIndex < 0 || columnIndex >= BOM_IMPORT_COLUMN_COUNT) return;
+      matrix[rowIndex][columnIndex] = parseXlsxCellValue(cellNode, sharedStrings);
+    });
+  });
+  return matrix;
+}
+
+function parseXlsxCellValue(cellNode, sharedStrings) {
+  const type = cellNode.getAttribute("t");
+  if (type === "inlineStr") return cellNode.querySelector("is t")?.textContent || "";
+  const value = cellNode.querySelector("v")?.textContent ?? "";
+  if (type === "s") return sharedStrings[Number(value)] ?? "";
+  if (type === "b") return value === "1";
+  if (value === "") return "";
+  const number = Number(value);
+  return Number.isFinite(number) ? number : value;
+}
+
+function columnLettersToIndex(letters) {
+  if (!letters) return -1;
+  return [...letters.toUpperCase()].reduce((index, char) => index * 26 + char.charCodeAt(0) - 64, 0) - 1;
+}
+
 function getDefaultComponentCounts() {
   const fallback = createDefaultDirectoryState();
   const source = directoryState?.componentTypes?.length ? directoryState.componentTypes : fallback.componentTypes;
@@ -2990,6 +3312,8 @@ function renderBomListsPage() {
   const componentCounts = getBomComponentCounts(bom);
   const componentTotal = Object.values(componentCounts).reduce((sum, count) => sum + Number(count || 0), 0);
   const linkedSpecifications = getBomLinkedSpecifications(bom.id);
+  const importRows = getBomImportRows(bom);
+  const importHeaders = getBomImportHeaders(bom);
 
   return `
     <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="BOM-листы SMT">
@@ -3061,15 +3385,30 @@ function renderBomListsPage() {
           <section class="module-panel bom-summary-panel">
             <div class="report-card-head">
               <strong>02 · Связи и импорт</strong>
-              <span>проект, спецификации и будущий Excel-шаблон</span>
+              <span>проект, спецификации и Excel-шаблон</span>
             </div>
             <div class="module-kpi-grid bom-kpi-grid">
               <article><span>Компонентов</span><strong>${componentTotal.toLocaleString("ru-RU")}</strong><small>на одну плату</small></article>
               <article><span>Типов</span><strong>${Object.values(componentCounts).filter((count) => Number(count || 0) > 0).length}</strong><small>заполненных категорий</small></article>
               <article><span>Спецификаций</span><strong>${linkedSpecifications.length}</strong><small>используют этот BOM</small></article>
-              <article><span>Импорт</span><strong>Excel</strong><small>ожидает шаблон</small></article>
+              <article><span>Импорт</span><strong>${importRows.length || "Excel"}</strong><small>${importRows.length ? "строк из файла" : "готов к загрузке"}</small></article>
             </div>
             <div class="bom-link-list">
+              <div class="bom-import-note">
+                <strong>Импорт BOM из Excel</strong>
+                <span>Загрузите `.xlsx`: название файла станет названием BOM, строки читаются от A до I, импорт остановится на первой пустой ячейке A.</span>
+                <div class="bom-import-controls">
+                  <label class="form-field">
+                    <span>Проект для BOM</span>
+                    <select id="bomImportProjectId">${planningState.projects.map((project) => `<option value="${project.id}" ${selected(defaultProjectId, project.id)}>${escapeHtml(project.name)}</option>`).join("")}</select>
+                  </label>
+                  <label class="secondary-button bom-file-import-button">
+                    ${icon("upload")}
+                    <span>Импортировать Excel</span>
+                    <input data-bom-import-file type="file" accept=".xlsx,.xls" />
+                  </label>
+                </div>
+              </div>
               <div class="module-list-label">Где используется</div>
               ${linkedSpecifications.length ? linkedSpecifications.map((specification) => `
                 <button class="module-entity-item" data-bom-linked-spec="${specification.id}" type="button">
@@ -3082,15 +3421,48 @@ function renderBomListsPage() {
                   <span>После сохранения BOM откройте модуль «Спецификации» и выберите его как BOM A или BOM B.</span>
                 </article>
               `}
-              <div class="bom-import-note">
-                <strong>Импорт Excel будет добавлен после шаблона</strong>
-                <span>Пока вручную задаем проект, код платы, ревизию, результат BOM и агрегированные типы компонентов. Когда будет готов Excel-шаблон, сюда добавим загрузку файла и сопоставление колонок.</span>
-              </div>
             </div>
+          </section>
+
+          <section class="module-panel bom-import-table-panel">
+            <div class="report-card-head">
+              <strong>03 · Таблица импортированного BOM</strong>
+              <span>${importRows.length ? `${escapeHtml(bom.sourceFileName || bom.name)} · ${importRows.length} строк` : "после импорта здесь появятся строки A:I"}</span>
+            </div>
+            ${renderBomImportTable(importHeaders, importRows)}
           </section>
         </div>
       </div>
     </section>
+  `;
+}
+
+function renderBomImportTable(headers, rows) {
+  if (!rows.length) {
+    return `
+      <div class="bom-import-empty">
+        ${icon("upload")}
+        <strong>Файл еще не импортирован</strong>
+        <span>Выберите Excel-шаблон BOM. Система сохранит строки до первой пустой ячейки A и покажет результат в этой таблице.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="bom-import-table-wrap" data-layout="table">
+      <table class="directory-table bom-import-table">
+        <thead>
+          <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              ${row.values.map((value, index) => `<td class="${index === 1 ? "primary-cell" : ""}">${escapeHtml(value)}</td>`).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -4992,20 +5364,19 @@ function bindGlobalNavigation() {
     persistAuthState();
     render();
   });
+}
 
-  app.querySelectorAll("[data-module]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (!getAvailableModules().some((moduleItem) => moduleItem.id === button.dataset.module)) return;
-      ui.activeModule = button.dataset.module;
-      ui.selectedSlotId = null;
-      ui.editor = null;
-      ui.splitSlotId = null;
-      ui.projectModal = false;
-      ui.debugOverlay = null;
-      ui.confirmDialog = null;
-      render();
-    });
-  });
+function navigateToModule(moduleId) {
+  if (!getAvailableModules().some((moduleItem) => moduleItem.id === moduleId)) return;
+  ui.activeModule = moduleId;
+  ui.selectedSlotId = null;
+  ui.editor = null;
+  ui.splitSlotId = null;
+  ui.projectModal = false;
+  ui.debugOverlay = null;
+  ui.confirmDialog = null;
+  persistUiState();
+  render();
 }
 
 function openConfirmDialog(action, payload = {}) {
@@ -5470,6 +5841,26 @@ function bindBomListsEvents() {
     saveBomModuleForm(event.currentTarget);
   });
 
+  app.querySelector("[data-bom-import-file]")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const projectId = app.querySelector("#bomImportProjectId")?.value || getActiveProjectForModule()?.id || planningState.projects[0]?.id || "";
+    if (!projectId) {
+      alert("Перед импортом BOM выберите проект.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      await importBomFromXlsxFile(file, projectId);
+      render();
+    } catch (error) {
+      alert(error?.message || "Не удалось импортировать BOM из Excel.");
+    } finally {
+      event.target.value = "";
+    }
+  });
+
   app.querySelector("[data-bom-to-calculator]")?.addEventListener("click", () => {
     const bom = getActiveBomForModule();
     if (!bom) return;
@@ -5556,6 +5947,7 @@ function saveBomModuleForm(form) {
   const data = new FormData(form);
   const isNew = data.get("isNew") === "yes";
   const id = isNew ? makeId("bom") : String(data.get("bomId") || makeId("bom"));
+  const previousBom = getBomList(id);
   const name = String(data.get("name") || "").trim();
   const projectId = String(data.get("projectId") || "");
   if (!name || !projectId) {
@@ -5571,6 +5963,11 @@ function saveBomModuleForm(form) {
     revision: String(data.get("revision") || "A.0").trim(),
     resultItem: String(data.get("resultItem") || "").trim(),
     status: String(data.get("status") || "Черновик").trim(),
+    importHeaders: previousBom?.importHeaders || [],
+    importRows: previousBom?.importRows || [],
+    importedAt: previousBom?.importedAt || "",
+    sourceFileName: previousBom?.sourceFileName || "",
+    sourceSheetName: previousBom?.sourceSheetName || "",
     updatedAt: new Date().toISOString(),
   };
   for (const field of BOM_COMPONENT_FIELDS) {
@@ -6447,6 +6844,7 @@ function updateClockOnly() {
 }
 
 function renderToolbar(scaleInfo, stats) {
+  const allProjectsExpanded = areAllVisibleProjectsExpanded();
   const statusOptions = [
     { value: "all", label: "Все статусы", meta: "портфель" },
     ...PROJECT_STATUSES.map((status) => ({ value: status, label: PROJECT_STATUS_LABELS[status], meta: "статус проекта" })),
@@ -6498,6 +6896,10 @@ function renderToolbar(scaleInfo, stats) {
       </div>
 
       <div class="toolbar-actions">
+        <button class="toggle-switch-button ${allProjectsExpanded ? "is-on" : ""}" data-toggle-all-projects type="button" aria-pressed="${allProjectsExpanded ? "true" : "false"}" title="${allProjectsExpanded ? "Свернуть все проекты" : "Развернуть все проекты"}">
+          <span class="toggle-switch-knob"></span>
+          <span>${allProjectsExpanded ? "Свернуть" : "Развернуть"}</span>
+        </button>
         <button class="icon-button" id="todayButton" type="button" title="Перейти к сегодняшнему дню">${icon("calendar")}</button>
         <button class="icon-button" id="refreshButton" type="button" title="Перестроить план">${icon("refresh")}</button>
         <button class="icon-button danger-soft" id="resetButton" type="button" title="Сбросить демо-данные">${icon("reset")}</button>
@@ -6620,7 +7022,6 @@ function renderTimeline(scaleInfo) {
     <div class="timeline-row" style="height:${TIMELINE_HEIGHT}px;">
       <div class="timeline-corner">
         <span>Проекты и участки</span>
-        <small>фиксированная колонка</small>
       </div>
       <div class="timeline-cells" style="width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;">
         ${scaleInfo.ticks.map((tick, index) => `
@@ -6735,8 +7136,8 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const isAggregate = row.type === "project";
   const isWeekSlot = ui.scale === "weeks";
   const visualRect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isAggregate);
-  const top = placement?.top ?? (isAggregate ? 12 : 6);
-  const height = placement?.height ?? (isAggregate ? 22 : 42);
+  const top = placement?.top ?? getSlotTop(isAggregate);
+  const height = placement?.height ?? getSlotHeight(isAggregate);
   const selectedClass = ui.selectedSlotId === slot.id ? "is-selected" : "";
   const warningClass = warningList.length ? `has-warning ${hasCritical ? "critical" : "warning"}` : "";
   const dragClass = ui.drag?.slotId === slot.id ? "is-dragging" : "";
@@ -6841,16 +7242,15 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     const toPlacement = slotPlacementMap[toRowId]?.[to.id];
     const fromRect = fromPlacement?.rect || getSlotVisualRect(from, scaleInfo);
     const toRect = toPlacement?.rect || getSlotVisualRect(to, scaleInfo);
-    const connectorGap = ui.scale === "weeks" ? 0 : 3;
-    const x1 = fromRect.right + connectorGap;
-    const y1 = fromLayout.top + (fromPlacement?.top ?? fromLayout.height / 2) + (fromPlacement?.height ? fromPlacement.height / 2 : 0);
-    const x2 = toRect.x - connectorGap;
-    const y2 = toLayout.top + (toPlacement?.top ?? toLayout.height / 2) + (toPlacement?.height ? toPlacement.height / 2 : 0);
+    const x1 = fromRect.right;
+    const y1 = getSlotConnectionY(fromLayout, fromPlacement, false);
+    const x2 = toRect.x;
+    const y2 = getSlotConnectionY(toLayout, toPlacement, false);
     const hasIssue = (slotWarningMap[from.id] || []).length || (slotWarningMap[to.id] || []).length;
     const className = hasIssue ? "dependency-path has-issue" : "dependency-path";
     const underlayClassName = hasIssue ? "dependency-path-underlay has-issue" : "dependency-path-underlay";
     const markerId = hasIssue ? "dependencyArrowIssue" : "dependencyArrow";
-    const d = buildDependencyPath(x1, y1, x2, y2);
+    const d = buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect);
 
     paths.push(`
       <path class="${underlayClassName}" d="${d}" />
@@ -6890,8 +7290,8 @@ function renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap) {
   const guideX = ui.drag.mode === "resize" ? rect.right : rect.x;
   const columnWidth = Math.max(3, snapWidth);
   const columnLeft = Math.max(0, Math.min(scaleInfo.width - columnWidth, Math.floor(guideX / Math.max(snapWidth, 1)) * snapWidth));
-  const top = layout.top + (placement?.top ?? (isProjectRow ? 12 : 6));
-  const height = placement?.height ?? (isProjectRow ? 22 : 42);
+  const top = layout.top + (placement?.top ?? getSlotTop(isProjectRow));
+  const height = placement?.height ?? getSlotHeight(isProjectRow);
   const gridClass = snapWidth >= 6 ? "is-readable" : "is-dense";
 
   return `
@@ -6906,6 +7306,43 @@ function renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap) {
       <div class="gantt-snap-guide ${ui.drag.mode === "resize" ? "is-resize" : "is-move"}" style="left:${round(guideX)}px;"></div>
     </div>
   `;
+}
+
+function buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect) {
+  const cornerRadius = ui.scale === "weeks" ? 5 : 8;
+  const targetLeft = toRect.x;
+  const targetApproachX = targetLeft - (ui.scale === "weeks" ? 10 : 18);
+  const startStubX = fromRect.right + (ui.scale === "weeks" ? 8 : 16);
+
+  if (Math.abs(y1 - y2) < 1) {
+    return roundedOrthogonalPath([
+      [x1, y1],
+      [targetApproachX, y1],
+      [x2, y2],
+    ], cornerRadius);
+  }
+
+  if (targetApproachX > x1 + 18) {
+    return roundedOrthogonalPath([
+      [x1, y1],
+      [targetApproachX, y1],
+      [targetApproachX, y2],
+      [x2, y2],
+    ], cornerRadius);
+  }
+
+  const outerX = Math.max(startStubX, x1 + (ui.scale === "weeks" ? 18 : 30));
+  const leftBypassX = Math.min(targetApproachX, x2 - (ui.scale === "weeks" ? 10 : 18));
+  const midY = y1 + (y2 - y1) / 2;
+
+  return roundedOrthogonalPath([
+    [x1, y1],
+    [outerX, y1],
+    [outerX, midY],
+    [leftBypassX, midY],
+    [leftBypassX, y2],
+    [x2, y2],
+  ], cornerRadius);
 }
 
 function buildDependencyPath(x1, y1, x2, y2) {
@@ -7487,6 +7924,7 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     ui.scrollLeft = shell.scrollLeft;
     ui.scrollTop = shell.scrollTop;
     updateDependencyClip(shell);
+    extendTimelineIfNeeded(shell, scaleInfo);
   }, { passive: true });
 
   app.querySelector("#periodStart")?.addEventListener("change", (event) => {
@@ -7549,6 +7987,17 @@ function bindEvents(scaleInfo, rows, rowLayout) {
 
   app.querySelector("#addProjectButton")?.addEventListener("click", () => {
     ui.projectModal = true;
+    render();
+  });
+
+  app.querySelector("[data-toggle-all-projects]")?.addEventListener("click", () => {
+    const projects = getVisiblePlanningProjects();
+    const shouldExpand = !areAllVisibleProjectsExpanded();
+    projects.forEach((project) => {
+      if (shouldExpand) ui.expandedProjects.add(project.id);
+      else ui.expandedProjects.delete(project.id);
+    });
+    persistUiState();
     render();
   });
 
@@ -8526,7 +8975,7 @@ function closeModals() {
 }
 
 function buildRows(scaleInfo) {
-  const filteredProjects = planningState.projects.filter((project) => projectMatchesFilters(project));
+  const filteredProjects = getVisiblePlanningProjects();
   const rows = [];
 
   for (const project of filteredProjects) {
@@ -8595,8 +9044,8 @@ function calculateSlotPlacements(slots, scaleInfo, isAggregate = false) {
   if (ui.scale !== "weeks") {
     for (const slot of slots) {
       placements[slot.id] = {
-        top: isAggregate ? 12 : 6,
-        height: isAggregate ? 22 : 42,
+        top: getSlotTop(isAggregate),
+        height: getSlotHeight(isAggregate),
         level: 0,
         rect: getSlotVisualRect(slot, scaleInfo, isAggregate),
       };
@@ -8633,6 +9082,23 @@ function calculateSlotPlacements(slots, scaleInfo, isAggregate = false) {
 
 function getWeekSlotHeight(isAggregate) {
   return isAggregate ? 18 : WEEK_SLOT_HEIGHT;
+}
+
+function getSlotTop(isAggregate = false) {
+  if (ui.scale === "weeks") return WEEK_SLOT_TOP;
+  return isAggregate ? AGGREGATE_SLOT_TOP : STANDARD_SLOT_TOP;
+}
+
+function getSlotHeight(isAggregate = false) {
+  if (ui.scale === "weeks") return getWeekSlotHeight(isAggregate);
+  return isAggregate ? AGGREGATE_SLOT_HEIGHT : STANDARD_SLOT_HEIGHT;
+}
+
+function getSlotConnectionY(rowLayout, placement, isAggregate = false) {
+  if (!rowLayout) return 0;
+  const top = placement?.top ?? getSlotTop(isAggregate);
+  const height = placement?.height ?? getSlotHeight(isAggregate);
+  return rowLayout.top + top + height / 2;
 }
 
 function getProjectCenters(projectId) {
@@ -8773,6 +9239,7 @@ function icon(name) {
     trash: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="m19 6-1 14H6L5 6"></path><path d="M10 11v5M14 11v5"></path></svg>`,
     save: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>`,
     chart: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"></path><rect x="7" y="12" width="3" height="5" rx="1"></rect><rect x="12" y="8" width="3" height="9" rx="1"></rect><rect x="17" y="5" width="3" height="12" rx="1"></rect></svg>`,
+    upload: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9"></path><path d="m7 14 5-5 5 5"></path><path d="M5 3h14"></path></svg>`,
     download: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>`,
     lock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>`,
     unlock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M15 10V7a4 4 0 0 0-7-2.6"></path></svg>`,
@@ -8785,6 +9252,12 @@ window.addEventListener("keydown", (event) => {
     ui.selectedSlotId = null;
     closeModals();
   }
+});
+
+window.addEventListener("click", (event) => {
+  const moduleButton = event.target.closest?.("[data-module]");
+  if (!moduleButton || !app.contains(moduleButton)) return;
+  navigateToModule(moduleButton.dataset.module);
 });
 
 window.addEventListener("beforeunload", () => {

@@ -15622,3 +15622,200 @@ main.planning-app-shell > .planner-workspace {
   background: rgba(37, 99, 235, 0.09);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 8px 20px rgba(37, 99, 235, 0.12);
 }
+
+/* Planning and BOM import contract v1.13 */
+.planner-workspace.planner-workspace-gantt-only {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+}
+
+.planner-workspace.planner-workspace-gantt-only .planner-frame {
+  min-height: 620px;
+}
+
+.planning-app-shell .timeline-corner {
+  align-content: center;
+}
+
+.planning-app-shell .timeline-corner span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planning-app-shell .toolbar-grid .search-field {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  min-height: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid var(--mes-border, #d7e0ea);
+  border-radius: var(--mes-radius-control, 12px);
+  background: var(--mes-surface, #ffffff);
+  padding: 0 12px;
+}
+
+.planning-app-shell .toolbar-grid .search-field svg {
+  position: static !important;
+  width: 16px;
+  height: 16px;
+  color: #667085;
+}
+
+.planning-app-shell .toolbar-grid .search-field input {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  padding: 0;
+}
+
+.planning-app-shell .toolbar-grid .field > span {
+  text-transform: none;
+}
+
+.toggle-switch-button {
+  display: inline-grid;
+  grid-template-columns: 34px minmax(0, auto);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid var(--mes-border, #d7e0ea);
+  border-radius: var(--mes-radius-control, 12px);
+  background: #ffffff;
+  color: #344054;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.toggle-switch-button span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toggle-switch-knob {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: #d7e0ea;
+  transition: background 0.16s ease;
+}
+
+.toggle-switch-knob::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+  content: "";
+  transition: transform 0.16s ease;
+}
+
+.toggle-switch-button.is-on .toggle-switch-knob {
+  background: #2563eb;
+}
+
+.toggle-switch-button.is-on .toggle-switch-knob::after {
+  transform: translateX(14px);
+}
+
+.bom-import-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+.bom-file-import-button {
+  position: relative;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.bom-file-import-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.bom-import-table-panel {
+  grid-column: 1 / -1;
+}
+
+.bom-import-table-wrap {
+  min-width: 0;
+  overflow: auto;
+  padding: 10px;
+}
+
+.bom-import-table {
+  min-width: 1120px;
+  table-layout: fixed;
+}
+
+.bom-import-table th,
+.bom-import-table td {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bom-import-table th:nth-child(2),
+.bom-import-table td:nth-child(2) {
+  width: 320px;
+  max-width: 320px;
+}
+
+.bom-import-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-height: 180px;
+  color: #64748b;
+  padding: 24px;
+  text-align: center;
+}
+
+.bom-import-empty svg {
+  width: 28px;
+  height: 28px;
+  color: #2563eb;
+}
+
+.bom-import-empty strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+@media (max-width: 760px) {
+  .bom-import-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .toggle-switch-button {
+    width: 100%;
+    justify-content: start;
+  }
+}
