@@ -340,8 +340,9 @@ function normalizeCalculatorState(state) {
   };
   for (const operation of routeOperations) {
     if (operation.calculationType === "components" && !componentCountsByOperation[operation.id]) {
+      const operationBom = getBomList(operation.bomListId) || bomList;
       componentCountsByOperation[operation.id] = {
-        ...(bomList ? getBomComponentCounts(bomList) : {}),
+        ...(operationBom ? getBomComponentCounts(operationBom) : {}),
         ...(state?.componentCounts || {}),
       };
     }
@@ -664,7 +665,7 @@ function buildBacklogItems(limit = 14) {
 
       const quantity = normalizeQuantity(batch.quantity);
       const earliestStart = getEarliestRouteStart(project.id, batch.id, nextStep.id);
-      const durationMs = calculateRequiredDurationMs(nextStep.workCenterId, quantity);
+      const durationMs = calculateRequiredDurationMs(nextStep.workCenterId, quantity, planningState, nextStep.unitsPerHour || null);
       const window = findFreeWindow(nextStep.workCenterId, durationMs, earliestStart);
       const dueState = getProjectDeadlineState(project);
 
@@ -763,7 +764,7 @@ function cascadeBatchFromSlot(slotId) {
 
     const earliestStart = addMs(previous.plannedEnd, getRouteBufferMs());
     if (toDate(current.plannedStart) < earliestStart) {
-      const durationMs = calculateRequiredDurationMs(current.workCenterId, current.quantity);
+      const durationMs = calculateRequiredDurationMs(current.workCenterId, current.quantity, planningState, current.unitsPerHour || null);
       const window = findFreeWindow(current.workCenterId, durationMs, earliestStart, current.id);
       current.plannedStart = toSlotDateTime(window.start);
       current.plannedEnd = toSlotDateTime(window.end);
@@ -1327,7 +1328,11 @@ function renderCalculatorPage() {
     ? selectedResources.map((resource) => ({ value: resource.id, label: resource.name, meta: resource.status || "ресурс" }))
     : [{ value: "", label: "Нет ресурсов участка", meta: "проверьте справочник" }];
   const isComponentOperation = selectedOperation?.calculationType === "components";
-  const bomOperationResult = calc.operationResults.find((operation) => operation.calculationType === "components") || calc.selectedResult;
+  const bomOperationResult = calc.selectedResult?.calculationType === "components"
+    ? calc.selectedResult
+    : calc.operationResults.find((operation) => operation.bomListId === calc.bomList?.id)
+      || calc.operationResults.find((operation) => operation.calculationType === "components")
+      || calc.selectedResult;
   const bomRows = inputStatus.complete ? ((bomOperationResult?.componentRows?.length ? bomOperationResult.componentRows : buildBomPreviewRows(calc))) : [];
   const bomActiveTypes = bomRows.filter((row) => row.count > 0).length;
   const bomComponentsPerBoard = bomRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
@@ -1395,6 +1400,9 @@ function renderCalculatorPage() {
             </div>
           </section>
 
+          ${renderProjectReadinessPanel(calc)}
+          ${renderSpecificationBomPlan(calc)}
+
           <section class="calculator-panel calculator-result-panel">
             <div class="report-card-head">
               <strong>03 · Сводка маршрутной карты</strong>
@@ -1448,7 +1456,7 @@ function renderCalculatorPage() {
                       <td>${row.stepOrder}</td>
                       <td class="primary-cell route-operation-cell" data-select-route-operation="${row.id}" tabindex="0" role="button" aria-label="Редактировать операцию ${escapeAttribute(row.operationName)}">
                         <span class="component-name">${escapeHtml(row.operationName)}</span>
-                        <small>${escapeHtml(row.comment || "операция маршрутной карты")}</small>
+                        <small>${escapeHtml(row.bomList ? `${row.bomEntryQuantity}x ${row.bomList.resultItem || row.bomList.name} · ${row.operationBoardQuantity.toLocaleString("ru-RU")} плат` : row.comment || "операция маршрутной карты")}</small>
                       </td>
                       <td>${escapeHtml(row.workCenter?.name || row.workCenterId)}</td>
                       <td>${row.calculationType === "components" ? "Компоненты" : "Норматив"}</td>
@@ -1656,6 +1664,123 @@ function renderCalculatorProjectBindings(calc) {
             <button class="secondary-button" data-load-calculator-project="${row.project.id}" type="button">${icon("play")}<span>${row.isActive ? "Открыт" : "Открыть"}</span></button>
           </article>
         `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderProjectReadinessPanel(calc) {
+  const project = calc.project;
+  const specification = calc.specification;
+  const bomEntries = specification ? getSpecificationBomEntries(specification.id) : [];
+  const routeSteps = project ? getProjectRouteSteps(project.id, planningState) : [];
+  const plannedSlots = project ? planningState.slots.filter((slot) => slot.projectId === project.id) : [];
+  const backlog = project ? buildBacklogItems(120).filter((item) => item.project.id === project.id) : [];
+  const stages = [
+    {
+      code: "01",
+      title: "Проект",
+      status: project ? "Готов" : "Нет проекта",
+      complete: Boolean(project),
+      meta: project ? `${project.orderNumber} · ${Number(project.totalQuantity || 0).toLocaleString("ru-RU")} шт.` : "выберите проект",
+    },
+    {
+      code: "02",
+      title: "Спецификация",
+      status: specification ? "Привязана" : "Нет СП",
+      complete: Boolean(specification),
+      meta: specification?.outputItem || "состав изделия не выбран",
+    },
+    {
+      code: "03",
+      title: "BOM",
+      status: bomEntries.length ? `${bomEntries.length} BOM` : "Нет BOM",
+      complete: bomEntries.length > 0,
+      meta: bomEntries.length
+        ? bomEntries.map((entry) => `${entry.quantity}x ${entry.bom.name}`).join(" · ")
+        : "SMT-состав не задан",
+    },
+    {
+      code: "04",
+      title: "Маршрут",
+      status: routeSteps.length ? `${routeSteps.length} оп.` : "Нет маршрута",
+      complete: routeSteps.length > 0,
+      meta: routeSteps.length ? "маршрутная карта сохранена" : "сформируйте маршрут",
+    },
+    {
+      code: "05",
+      title: "План",
+      status: backlog.length ? `${backlog.length} в очереди` : plannedSlots.length ? "Размещен" : "Нет слотов",
+      complete: plannedSlots.length > 0 && backlog.length === 0,
+      warning: backlog.length > 0,
+      meta: `${plannedSlots.length} слотов · ${backlog.length} без размещения`,
+    },
+  ];
+
+  return `
+    <section class="calculator-panel project-readiness-panel">
+      <div class="directory-table-toolbar">
+        <strong>00 · Готовность проекта</strong>
+        <span>${escapeHtml(project?.name || "сквозной сценарий подготовки")}</span>
+      </div>
+      <div class="project-readiness-steps">
+        ${stages.map((stage) => `
+          <article class="${stage.complete ? "is-done" : stage.warning ? "is-warning" : ""}">
+            <b>${stage.code}</b>
+            <div>
+              <strong>${escapeHtml(stage.title)}</strong>
+              <small>${escapeHtml(stage.meta)}</small>
+            </div>
+            <em>${escapeHtml(stage.status)}</em>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderSpecificationBomPlan(calc) {
+  const bomEntries = calc.specification ? getSpecificationBomEntries(calc.specification.id) : [];
+  const rows = bomEntries.map((entry, index) => {
+    const boards = Number(calc.boardQuantity || 0) * Number(entry.quantity || 0);
+    const panels = calc.boardsPerPanel > 0 ? Math.ceil(boards / calc.boardsPerPanel) : 0;
+    const operation = calc.operationResults.find((result) => result.bomListId === entry.bom.id)
+      || getRouteOperations().find((item) => item.bomListId === entry.bom.id);
+    return {
+      index: index + 1,
+      entry,
+      boards,
+      panels,
+      operation,
+    };
+  });
+
+  return `
+    <section class="calculator-panel spec-bom-plan-panel">
+      <div class="directory-table-toolbar">
+        <strong>02 · BOM из спецификации</strong>
+        <span>${rows.length ? "каждый BOM станет отдельной SMT-операцией" : "BOM пока не привязаны"}</span>
+      </div>
+      <div class="spec-bom-plan-list">
+        ${rows.length ? rows.map((row) => `
+          <article>
+            <span>${String(row.index).padStart(2, "0")}</span>
+            <div>
+              <strong>${escapeHtml(row.entry.bom.name)}</strong>
+              <small>${escapeHtml(row.entry.bom.resultItem || row.entry.bom.boardCode || "результат BOM")}</small>
+            </div>
+            <em>${row.entry.quantity}x в изделии</em>
+            <em>${row.boards.toLocaleString("ru-RU")} плат</em>
+            <em>${row.panels.toLocaleString("ru-RU")} мультипл.</em>
+            <b>${row.operation ? formatDuration(row.operation.totalMs || 0) : "нет операции"}</b>
+          </article>
+        `).join("") : `
+          <div class="calculator-empty-panel compact">
+            ${icon("info")}
+            <strong>BOM не найдены</strong>
+            <span>Заполните спецификацию изделия в справочнике.</span>
+          </div>
+        `}
       </div>
     </section>
   `;
@@ -1891,11 +2016,19 @@ function calculateRouteOperation(operation, context) {
   const resources = getResourcesForWorkCenter(operation.workCenterId);
   const resource = resources.find((item) => item.id === operation.resourceId) || resources[0] || directoryState.resources[0];
   const setupMs = Math.max(0, Number(operation.setupMin || resource?.changeoverMin || 0) * 60 * 1000);
+  const quantityMultiplier = Math.max(1, Number(operation.quantityMultiplier || 1));
+  const operationBoardQuantity = operation.calculationType === "components"
+    ? context.boardQuantity * quantityMultiplier
+    : context.boardQuantity;
+  const operationPanelCount = operation.calculationType === "components"
+    ? Math.max(1, Math.ceil(operationBoardQuantity / Math.max(1, context.boardsPerPanel)))
+    : context.panelCount;
+  const operationBomList = getBomList(operation.bomListId);
 
   if (operation.calculationType === "components") {
     const resourceBaseCph = getResourceBaseCph(resource);
     const efficiency = Math.max(0.1, Number(resource?.efficiency || 100) / 100);
-    const counts = getOperationComponentCounts(operation.id);
+    const counts = getOperationComponentCounts(operation);
     const componentRows = getComponentTypes().map((type) => {
       const count = Math.max(0, Math.round(Number(counts[type.id] ?? type.defaultCount ?? 0)));
       const coefficient = Math.max(0.1, Number(type.coefficient || 1));
@@ -1909,17 +2042,21 @@ function calculateRouteOperation(operation, context) {
         effectiveCph,
         secondsPerBoard,
         secondsPerPanel: secondsPerBoard * context.boardsPerPanel,
-        totalPlacements: count * context.boardQuantity,
+        totalPlacements: count * operationBoardQuantity,
         complexity: count * coefficient,
       };
     });
     const perBoardSeconds = componentRows.reduce((sum, row) => sum + row.secondsPerBoard, 0);
     const perPanelSeconds = perBoardSeconds * context.boardsPerPanel;
-    const totalMs = perPanelSeconds * context.panelCount * 1000 + setupMs;
+    const totalMs = perPanelSeconds * operationPanelCount * 1000 + setupMs;
     return {
       ...operation,
       workCenter,
       resource,
+      bomList: operationBomList,
+      bomEntryQuantity: quantityMultiplier,
+      operationBoardQuantity,
+      operationPanelCount,
       componentRows,
       perBoardSeconds,
       perPanelSeconds,
@@ -1935,11 +2072,15 @@ function calculateRouteOperation(operation, context) {
   const fallbackSeconds = getDefaultSecondsPerPanel(operation.workCenterId, context.boardsPerPanel);
   const perPanelSeconds = Math.max(0, Number(operation.secondsPerPanel || fallbackSeconds));
   const perBoardSeconds = perPanelSeconds / Math.max(1, context.boardsPerPanel);
-  const totalMs = perPanelSeconds * context.panelCount * 1000 + setupMs;
+  const totalMs = perPanelSeconds * operationPanelCount * 1000 + setupMs;
   return {
     ...operation,
     workCenter,
     resource,
+    bomList: operationBomList,
+    bomEntryQuantity: quantityMultiplier,
+    operationBoardQuantity,
+    operationPanelCount,
     componentRows: [],
     perBoardSeconds,
     perPanelSeconds,
@@ -1987,11 +2128,18 @@ function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
     secondsPerPanel: Math.max(0, Number(operation.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, boardsPerPanel))),
     setupMin: Math.max(0, Number(operation.setupMin || resource?.changeoverMin || 0)),
     comment: operation.comment || "",
+    bomListId: operation.bomListId || "",
+    bomSlot: operation.bomSlot || "",
+    quantityMultiplier: Math.max(1, Number(operation.quantityMultiplier || 1)),
+    sourceRouteStepId: operation.sourceRouteStepId || "",
   };
 }
 
 function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalculatorState.boardsPerPanel) {
   const steps = getProjectRouteSteps(projectId || planningState.projects[0]?.id, planningState);
+  const specification = (directoryState.specifications || []).find((item) => item.id === calculatorState.specificationId)
+    || getProjectSpecification(projectId);
+  const bomEntries = getSpecificationBomEntries(specification?.id);
   const source = steps.length ? steps : [
     { workCenterId: "smt", operationName: "SMT-монтаж", stepOrder: 1 },
     { workCenterId: "aoi", operationName: "AOI-контроль", stepOrder: 2 },
@@ -2002,20 +2150,46 @@ function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalcula
     { workCenterId: "warehouse", operationName: "Склад", stepOrder: 7 },
   ];
 
-  return source.map((step, index) => {
+  const operations = [];
+  source.forEach((step) => {
     const resource = getResourcesForWorkCenter(step.workCenterId)[0];
-    return normalizeRouteOperation({
-      id: `op-${step.workCenterId}-${index + 1}`,
-      stepOrder: Number(step.stepOrder || index + 1),
-      operationName: step.operationName || getWorkCenter(step.workCenterId)?.name || "Операция",
-      workCenterId: step.workCenterId,
-      resourceId: resource?.id || "",
-      calculationType: step.workCenterId === "smt" ? "components" : "manual",
-      secondsPerPanel: getDefaultSecondsPerPanel(step.workCenterId, boardsPerPanel),
-      setupMin: Number(resource?.changeoverMin || 0),
-      comment: step.isRequired === false ? "опциональная операция" : "",
-    }, index + 1);
+    const isExpandableSmt = step.workCenterId === "smt" && bomEntries.length > 0 && !step.bomListId;
+    const entries = isExpandableSmt ? bomEntries : [{ bom: getBomList(step.bomListId), quantity: step.quantityMultiplier || 1, slot: step.bomSlot || "" }];
+
+    entries.forEach((entry) => {
+      const entryLabel = entry.bom?.resultItem || entry.bom?.name || "";
+      const operationName = isExpandableSmt && entryLabel
+        ? `SMT-монтаж · ${entryLabel}`
+        : step.operationName || getWorkCenter(step.workCenterId)?.name || "Операция";
+
+      operations.push(normalizeRouteOperation({
+        id: step.bomListId ? `op-${step.workCenterId}-${step.id || operations.length + 1}` : makeRouteOperationId(step, entry, operations.length + 1),
+        stepOrder: Number(step.stepOrder || operations.length + 1),
+        operationName,
+        workCenterId: step.workCenterId,
+        resourceId: resource?.id || "",
+        calculationType: step.workCenterId === "smt" ? "components" : "manual",
+        secondsPerPanel: getDefaultSecondsPerPanel(step.workCenterId, boardsPerPanel),
+        setupMin: Number(resource?.changeoverMin || 0),
+        comment: step.isRequired === false ? "опциональная операция" : "",
+        bomListId: entry.bom?.id || step.bomListId || "",
+        bomSlot: entry.slot || step.bomSlot || "",
+        quantityMultiplier: entry.quantity || step.quantityMultiplier || 1,
+        sourceRouteStepId: step.id || "",
+      }, operations.length + 1));
+    });
   });
+
+  return operations.map((operation, index) => normalizeRouteOperation({
+    ...operation,
+    stepOrder: index + 1,
+  }, index + 1, boardsPerPanel));
+}
+
+function makeRouteOperationId(step, entry, index) {
+  if (step.id && entry?.bom?.id) return `op-${step.id}-${entry.bom.id}-${entry.slot || index}`;
+  if (entry?.bom?.id) return `op-${step.workCenterId}-${entry.bom.id}-${entry.slot || index}`;
+  return `op-${step.workCenterId}-${index}`;
 }
 
 function getDefaultSecondsPerPanel(workCenterId, boardsPerPanel = 1) {
@@ -2035,11 +2209,14 @@ function getDefaultSecondsPerPanel(workCenterId, boardsPerPanel = 1) {
   return Math.max(30, Math.round((Math.max(1, Number(boardsPerPanel || 1)) / rate) * 3600));
 }
 
-function getOperationComponentCounts(operationId) {
+function getOperationComponentCounts(operationOrId) {
+  const operation = operationOrId && typeof operationOrId === "object" ? operationOrId : null;
+  const operationId = operation?.id || operationOrId;
+  const operationBom = getBomList(operation?.bomListId) || getBomList(calculatorState.bomListId);
   const byOperation = calculatorState.componentCountsByOperation || {};
   return {
-    ...getDefaultComponentCounts(),
-    ...(byOperation[operationId] || calculatorState.componentCounts || {}),
+    ...(operationBom ? getBomComponentCounts(operationBom) : getDefaultComponentCounts()),
+    ...(byOperation[operationId] || {}),
   };
 }
 
@@ -2092,7 +2269,19 @@ function getResourcesForWorkCenter(workCenterId) {
   const center = planningState?.workCenters?.find((item) => item.id === workCenterId);
   const centerNames = new Set([center?.id, center?.name, center?.code].filter(Boolean).map(normalizeLookupText));
   const matched = (directoryState?.resources || []).filter((resource) => centerNames.has(normalizeLookupText(resource.workCenter)));
-  return matched.length ? matched : (directoryState?.resources || []);
+  if (matched.length) return matched;
+  if (!center) return [];
+  return [{
+    id: `resource-${center.id}-norm`,
+    name: `${center.name} · норматив`,
+    type: "Норматив участка",
+    workCenter: center.name,
+    capacity: `${Number(center.unitsPerHour || getWorkCenterUnitsPerHour(center.id)).toLocaleString("ru-RU")} изд./час`,
+    baseCph: center.id === "smt" ? DEFAULT_RESOURCE_CPH : 0,
+    efficiency: 100,
+    changeoverMin: 0,
+    status: "Норматив",
+  }];
 }
 
 function normalizeLookupText(value) {
@@ -4283,18 +4472,27 @@ function bindCalculatorEvents() {
   });
 }
 
-function applyBomToComponentOperation(bomListId) {
-  const bom = getBomList(bomListId);
-  if (!bom) return;
-  const operation = getRouteOperations().find((item) => item.calculationType === "components")
-    || getRouteOperations().find((item) => item.workCenterId === "smt");
-  if (!operation) return;
-  calculatorState.selectedOperationId = operation.id;
-  calculatorState.componentCountsByOperation = {
-    ...(calculatorState.componentCountsByOperation || {}),
-    [operation.id]: getBomComponentCounts(bom),
-  };
-  calculatorState.componentCounts = getBomComponentCounts(bom);
+function applySpecificationBomsToComponentOperations() {
+  const operations = getRouteOperations();
+  const bomEntries = getSpecificationBomEntries(calculatorState.specificationId);
+  const selectedBom = getBomList(calculatorState.bomListId) || bomEntries[0]?.bom || null;
+  const nextCounts = { ...(calculatorState.componentCountsByOperation || {}) };
+
+  operations
+    .filter((operation) => operation.calculationType === "components")
+    .forEach((operation) => {
+      const bom = getBomList(operation.bomListId) || selectedBom;
+      if (!bom) return;
+      nextCounts[operation.id] = getBomComponentCounts(bom);
+    });
+
+  calculatorState.componentCountsByOperation = nextCounts;
+  calculatorState.componentCounts = selectedBom ? getBomComponentCounts(selectedBom) : {};
+  calculatorState.selectedOperationId = operations[0]?.id || "";
+}
+
+function applyBomToComponentOperation() {
+  applySpecificationBomsToComponentOperations();
 }
 
 function getNextCalculatorStep() {
@@ -4312,7 +4510,7 @@ function buildCalculatorRouteFromTemplate() {
   calculatorState.selectedOperationId = calculatorState.routeOperations[0]?.id || "";
   calculatorState.lastSavedAt = "";
   calculatorState = normalizeCalculatorState(calculatorState);
-  applyBomToComponentOperation(calculatorState.bomListId);
+  applySpecificationBomsToComponentOperations();
   ui.calculatorStep = "route";
   persistCalculatorState();
   persistUiState();
@@ -4432,7 +4630,7 @@ function resetCalculatorRoute() {
     componentCounts: getBomComponentCounts(getBomList(calculatorState.bomListId)),
     lastSavedAt: "",
   });
-  applyBomToComponentOperation(calculatorState.bomListId);
+  applySpecificationBomsToComponentOperations();
   ui.calculatorStep = "route";
   persistCalculatorState();
   persistUiState();
@@ -4485,11 +4683,21 @@ function saveCalculatorRouteToProject() {
   }
 
   const existingSteps = planningState.routeSteps.filter((step) => step.routeId === route.id);
+  const usedStepIds = new Set();
   const nextSteps = calc.operationResults.map((operation, index) => {
-    const existing = existingSteps.find((step) => (
-      step.stepOrder === index + 1
-      || (step.workCenterId === operation.workCenterId && step.operationName === operation.operationName)
+    const sameOperation = existingSteps.find((step) => (
+      !usedStepIds.has(step.id)
+      && step.workCenterId === operation.workCenterId
+      && step.operationName === operation.operationName
+      && String(step.bomListId || "") === String(operation.bomListId || "")
     ));
+    const sameOrder = existingSteps.find((step) => (
+      !usedStepIds.has(step.id)
+      && step.workCenterId === operation.workCenterId
+      && Number(step.stepOrder) === index + 1
+    ));
+    const existing = sameOperation || sameOrder;
+    if (existing?.id) usedStepIds.add(existing.id);
     return {
       id: existing?.id || makeId("rs"),
       routeId: route.id,
@@ -4501,10 +4709,20 @@ function saveCalculatorRouteToProject() {
       setupMin: Math.round(operation.setupMs / 60000),
       calculationType: operation.calculationType,
       resourceId: operation.resource?.id || operation.resourceId || "",
+      bomListId: operation.bomListId || "",
+      bomSlot: operation.bomSlot || "",
+      quantityMultiplier: operation.quantityMultiplier || 1,
+      unitsPerHour: Math.max(1, Math.round(Number(operation.flowBoardsPerHour || 0) * 10) / 10),
       updatedAt: stamp,
     };
   });
-  const routeStepIdsByWorkCenter = new Map(nextSteps.map((step) => [step.workCenterId, step.id]));
+  const routeStepIdsByWorkCenter = new Map();
+  for (const step of nextSteps) {
+    if (!routeStepIdsByWorkCenter.has(step.workCenterId)) {
+      routeStepIdsByWorkCenter.set(step.workCenterId, step.id);
+    }
+  }
+  const nextStepIds = new Set(nextSteps.map((step) => step.id));
 
   planningState.routeSteps = [
     ...planningState.routeSteps.filter((step) => step.routeId !== route.id),
@@ -4514,7 +4732,7 @@ function saveCalculatorRouteToProject() {
     ? { ...item, name: "Маршрутная карта", isDefault: true, updatedAt: stamp }
     : item);
   planningState.slots = planningState.slots.map((slot) => (
-    slot.projectId === calc.project.id && routeStepIdsByWorkCenter.has(slot.workCenterId)
+    slot.projectId === calc.project.id && !nextStepIds.has(slot.routeStepId) && routeStepIdsByWorkCenter.has(slot.workCenterId)
       ? { ...slot, routeStepId: routeStepIdsByWorkCenter.get(slot.workCenterId) }
       : slot
   ));
@@ -5183,6 +5401,7 @@ function renderPlanningAssistantDock(warnings) {
                 <span>${escapeHtml(item.workCenter?.code || "")}</span>
                 <span>${formatDateTime(item.plannedStart)}</span>
                 <button class="mini-action" data-schedule-backlog data-backlog-project="${item.project.id}" data-backlog-batch="${item.batch.id}" data-backlog-step="${item.routeStep.id}" type="button">Поставить</button>
+                <button class="mini-action" data-schedule-project="${item.project.id}" type="button">Проект</button>
               </div>
             </article>
           `).join("") : `
@@ -5755,6 +5974,12 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     });
   });
 
+  app.querySelectorAll("[data-schedule-project]").forEach((button) => {
+    button.addEventListener("click", () => {
+      scheduleProjectBacklog(button.dataset.scheduleProject);
+    });
+  });
+
   app.querySelectorAll("[data-open-backlog]").forEach((button) => {
     button.addEventListener("click", () => {
       openBacklogOperation(button.dataset.backlogProject, button.dataset.backlogBatch, button.dataset.backlogStep);
@@ -5804,7 +6029,14 @@ function bindSlotForm() {
     if (!plannedStartField?.value || !plannedEndField || !workCenterField?.value) return;
     const batch = getBatch(batchField?.value);
     const quantity = normalizeQuantity(quantityField?.value, editedSlot?.quantity || batch?.quantity || 1);
-    const plannedEnd = calculatePlannedEndByQuantity(cleanDateTime(plannedStartField.value), workCenterField.value, quantity);
+    const selectedStep = planningState.routeSteps.find((step) => step.id === routeStepField?.value);
+    const plannedEnd = calculatePlannedEndByQuantity(
+      cleanDateTime(plannedStartField.value),
+      workCenterField.value,
+      quantity,
+      planningState,
+      selectedStep?.unitsPerHour || editedSlot?.unitsPerHour || null,
+    );
     plannedEndField.value = isoLocal(plannedEnd);
   };
 
@@ -5833,7 +6065,9 @@ function bindSlotForm() {
       currentSlot?.quantity || selectedBatch?.quantity || 1,
     );
     const plannedStart = cleanDateTime(data.get("plannedStart"));
-    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity));
+    const selectedRouteStep = planningState.routeSteps.find((step) => step.id === data.get("routeStepId"));
+    const unitsPerHour = Number(selectedRouteStep?.unitsPerHour || currentSlot?.unitsPerHour || 0);
+    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity, planningState, unitsPerHour || null));
     const slotData = {
       projectId: data.get("projectId"),
       batchId: data.get("batchId"),
@@ -5841,6 +6075,7 @@ function bindSlotForm() {
       routeStepId: data.get("routeStepId"),
       operationName: String(data.get("operationName") || "").trim(),
       quantity,
+      unitsPerHour: unitsPerHour || undefined,
       plannedStart,
       plannedEnd,
       actualStart: cleanOptionalDateTime(data.get("actualStart")),
@@ -6072,7 +6307,7 @@ function openCreateSlot(row, start) {
     || getProjectRouteSteps(row.projectId, planningState)[0];
   const plannedStart = snapDate(start, scaleConfig[ui.scale].snapMs);
   const quantity = normalizeQuantity(projectBatches[0]?.quantity);
-  const plannedEnd = calculatePlannedEndByQuantity(plannedStart, row.workCenterId, quantity);
+  const plannedEnd = calculatePlannedEndByQuantity(plannedStart, row.workCenterId, quantity, planningState, routeStep?.unitsPerHour || null);
 
   ui.editor = {
     mode: "create",
@@ -6083,6 +6318,7 @@ function openCreateSlot(row, start) {
       routeStepId: routeStep?.id,
       operationName: routeStep?.operationName || row.workCenter.name,
       quantity,
+      unitsPerHour: routeStep?.unitsPerHour || undefined,
       plannedStart: toSlotDateTime(plannedStart),
       plannedEnd: toSlotDateTime(plannedEnd),
       status: "planned",
@@ -6099,7 +6335,8 @@ function makeBacklogSlotDefaults(projectId, batchId, routeStepId) {
   if (!project || !batch || !routeStep) return null;
 
   const quantity = normalizeQuantity(batch.quantity);
-  const durationMs = calculateRequiredDurationMs(routeStep.workCenterId, quantity);
+  const unitsPerHour = Number(routeStep.unitsPerHour || 0);
+  const durationMs = calculateRequiredDurationMs(routeStep.workCenterId, quantity, planningState, unitsPerHour || null);
   const earliestStart = getEarliestRouteStart(projectId, batchId, routeStepId);
   const window = findFreeWindow(routeStep.workCenterId, durationMs, earliestStart);
 
@@ -6115,6 +6352,7 @@ function makeBacklogSlotDefaults(projectId, batchId, routeStepId) {
     actualStart: "",
     actualEnd: "",
     status: "planned",
+    unitsPerHour: unitsPerHour || undefined,
     comment: "Создано из очереди незапланированных операций.",
   };
 }
@@ -6162,6 +6400,45 @@ function scheduleBacklogOperation(projectId, batchId, routeStepId) {
   render();
 }
 
+function scheduleProjectBacklog(projectId) {
+  const project = getProject(projectId);
+  if (!project) return;
+
+  const stamp = new Date().toISOString();
+  const createdIds = [];
+  let guard = 0;
+
+  while (guard < 120) {
+    guard += 1;
+    const item = buildBacklogItems(240).find((candidate) => candidate.project.id === projectId);
+    if (!item) break;
+
+    const defaults = makeBacklogSlotDefaults(item.project.id, item.batch.id, item.routeStep.id);
+    if (!defaults) break;
+
+    const slot = {
+      id: makeId("s"),
+      ...defaults,
+      createdAt: stamp,
+      updatedAt: stamp,
+    };
+    planningState.slots = [...planningState.slots, slot];
+    createdIds.push(slot.id);
+    cascadeIfEnabled(slot.id);
+  }
+
+  if (createdIds.length) {
+    ui.selectedSlotId = createdIds[createdIds.length - 1];
+    ui.expandedProjects.add(projectId);
+    persistState();
+    render();
+  } else {
+    ui.expandedProjects.add(projectId);
+    persistUiState();
+    render();
+  }
+}
+
 function moveSlotToNearestWindow(slotId, earliestOverride = null) {
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!slot || slot.locked || slot.status === "completed") return;
@@ -6172,7 +6449,7 @@ function moveSlotToNearestWindow(slotId, earliestOverride = null) {
     toDate(earliestOverride || slot.plannedStart).getTime(),
     toDate(routeEarliest).getTime(),
   ));
-  const durationMs = calculateRequiredDurationMs(slot.workCenterId, slot.quantity);
+  const durationMs = calculateRequiredDurationMs(slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour);
   const window = findFreeWindow(slot.workCenterId, durationMs, earliestStart, slot.id);
 
   slot.plannedStart = toSlotDateTime(window.start);

@@ -8970,3 +8970,387 @@ body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Project preparation flow: BOM-aware routing and mobile staging layout */
+.project-readiness-panel,
+.spec-bom-plan-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.project-readiness-steps,
+.spec-bom-plan-list {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.project-readiness-steps article {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #d7e0ea;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 7px 8px;
+}
+
+.project-readiness-steps article b {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #edf3fb;
+  color: #5d7898;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.project-readiness-steps article strong,
+.project-readiness-steps article small,
+.spec-bom-plan-list article strong,
+.spec-bom-plan-list article small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-readiness-steps article strong,
+.spec-bom-plan-list article strong {
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.project-readiness-steps article small,
+.spec-bom-plan-list article small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 680;
+}
+
+.project-readiness-steps article em {
+  border: 1px solid #d7e0ea;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.project-readiness-steps article.is-done {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.project-readiness-steps article.is-done b,
+.project-readiness-steps article.is-done em {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.project-readiness-steps article.is-warning {
+  border-color: #f7d08a;
+  background: #fffaf0;
+}
+
+.project-readiness-steps article.is-warning b,
+.project-readiness-steps article.is-warning em {
+  border-color: #f7d08a;
+  background: #fff7ed;
+  color: #b26b00;
+}
+
+.spec-bom-plan-list article {
+  display: grid;
+  grid-template-columns: 34px minmax(150px, 1fr) repeat(3, minmax(92px, auto)) minmax(86px, auto);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #d7e0ea;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.spec-bom-plan-list article > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #e7f9fb;
+  color: #0c526d;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.spec-bom-plan-list article em,
+.spec-bom-plan-list article b {
+  overflow: hidden;
+  border: 1px solid #d7e0ea;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 780;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spec-bom-plan-list article b {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.calculator-empty-panel.compact {
+  min-height: 90px;
+  padding: 14px;
+}
+
+.calculator-stack > .calculator-input-panel {
+  order: 1;
+}
+
+.calculator-stack > .project-readiness-panel {
+  order: 2;
+  min-height: 168px;
+}
+
+.calculator-stack > .spec-bom-plan-panel {
+  order: 3;
+  min-height: 156px;
+}
+
+.calculator-stack > .component-matrix-panel {
+  order: 4;
+}
+
+.calculator-stack > .calculator-result-panel {
+  order: 5;
+}
+
+.calculator-stack > .route-card-panel {
+  order: 6;
+}
+
+.calculator-stack > .operation-editor-panel {
+  order: 7;
+}
+
+.calculator-stack > .project-bindings-panel {
+  order: 8;
+}
+
+@media (max-width: 680px) {
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    height: auto;
+  }
+
+  body {
+    overflow: auto;
+  }
+
+  .app-shell,
+  .planning-app-shell,
+  .directory-app-shell,
+  .dashboard-app-shell,
+  .calculator-app-shell,
+  .report-app-shell,
+  .debug-app-shell {
+    min-height: 100vh;
+    height: auto;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .module-menu {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .module-menu-brand,
+  .module-menu-meta {
+    min-width: 0;
+  }
+
+  .module-tabs {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .module-tab {
+    flex: 0 0 auto;
+    min-width: 96px;
+    justify-content: center;
+  }
+
+  .calculator-page,
+  .directories-page,
+  .reports-page,
+  .debug-page,
+  .dashboard-page {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .calculator-workspace {
+    height: auto;
+    min-height: 0;
+  }
+
+  .calculator-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding: 10px;
+  }
+
+  .calculator-header-metrics {
+    justify-content: flex-start;
+  }
+
+  .calculator-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    gap: 8px;
+    overflow: visible;
+    padding: 8px;
+  }
+
+  .calculator-process-panel,
+  .calculator-stack,
+  .calculator-stack > .calculator-panel {
+    grid-column: auto;
+    grid-row: auto;
+    min-height: auto;
+  }
+
+  .calculator-process-panel {
+    max-height: none;
+    order: 0;
+  }
+
+  .calculator-stack {
+    overflow: visible;
+    padding-right: 0;
+    order: 1;
+  }
+
+  .calculator-process-stepper {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calculator-form-grid,
+  .calculator-stack .calculator-input-grid,
+  .calculator-stack .calculator-kpis,
+  .bom-overview,
+  .project-readiness-steps,
+  .project-binding-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .spec-bom-plan-list article,
+  .project-list-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .project-readiness-steps article {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .project-readiness-steps article em {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .spec-bom-plan-list article > span {
+    width: 30px;
+    height: 24px;
+  }
+
+  .spec-bom-plan-list article em,
+  .spec-bom-plan-list article b {
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  .calculator-panel-actions,
+  .route-actions {
+    justify-content: flex-start;
+  }
+
+  .calculator-panel-actions button {
+    flex: 1 1 150px;
+    justify-content: center;
+  }
+
+  .directory-table-wrap,
+  .calculator-panel .directory-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .planning-app-shell {
+    grid-template-rows: auto auto minmax(420px, 1fr) auto;
+  }
+
+  .planning-assistant-dock {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    max-height: none;
+    overflow: visible;
+  }
+
+  .assistant-item-meta {
+    flex-wrap: wrap;
+  }
+
+  .slot-drawer {
+    position: fixed;
+    inset: auto 8px 8px 8px;
+    width: auto;
+    max-height: min(70vh, 520px);
+  }
+
+  .directory-sidebar,
+  .report-sidebar,
+  .debug-sidebar {
+    max-height: none;
+  }
+
+  .kpi-row,
+  .report-chart-grid,
+  .dashboard-grid,
+  .dashboard-status-grid,
+  .debug-card-grid,
+  .debug-modal-grid,
+  .debug-stepper-grid,
+  .debug-spec-grid,
+  .debug-usage-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
