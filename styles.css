@@ -15212,3 +15212,233 @@ main.planning-app-shell > .planner-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Layout contract v1.10: stable planning fixed column and compact Gantt bars */
+.gantt-shell .row-label {
+  overflow: hidden;
+}
+
+.gantt-shell .project-label {
+  grid-template-columns: 24px minmax(0, 1fr) 72px;
+  gap: 6px;
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+  padding: 6px 8px 6px 6px;
+  overflow: hidden;
+}
+
+.gantt-shell .project-main {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.gantt-shell .project-name-line {
+  min-width: 0;
+  max-width: 100%;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.gantt-shell .project-name-line strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-shell .mini-alert {
+  flex: 0 0 auto;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0;
+  font-size: 9px;
+  line-height: 14px;
+}
+
+.gantt-shell .deadline-badge {
+  flex: 0 0 auto;
+  max-width: 66px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0 5px;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-shell .project-meta {
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 0;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-shell .project-route-mini {
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 0;
+  gap: 2px;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.gantt-shell .project-route-mini span {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 14px;
+  min-height: 14px;
+  padding: 0;
+  font-size: 8px;
+  line-height: 12px;
+}
+
+.gantt-shell .project-side {
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  gap: 3px;
+  min-width: 0;
+  max-width: 72px;
+  overflow: hidden;
+}
+
+.gantt-shell .project-status {
+  width: 100%;
+  max-width: 72px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0 5px;
+  font-size: 9px;
+  line-height: 14px;
+}
+
+.gantt-shell .project-progress-value {
+  line-height: 12px;
+}
+
+.gantt-shell .progress {
+  width: 100%;
+  max-width: 70px;
+  height: 4px;
+  margin-top: 0;
+}
+
+.gantt-shell .operation-slot,
+.gantt-shell .slot-content,
+.gantt-shell .slot-line,
+.gantt-shell .week-slot-line {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.gantt-shell .operation-slot .resize-handle {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+
+.gantt-shell .aggregate-slot .slot-content {
+  height: 100%;
+  padding: 0 5px;
+}
+
+.gantt-shell .operation-slot.is-compact .slot-line {
+  grid-template-columns: minmax(18px, auto) minmax(0, 1fr);
+  gap: 2px;
+}
+
+.gantt-shell .operation-slot.is-compact .slot-content {
+  align-items: center;
+  height: 100%;
+  padding: 0 4px;
+}
+
+.gantt-shell .operation-slot.is-compact .week-slot-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2px;
+}
+
+.gantt-shell .operation-slot.is-compact .slot-step-chip,
+.gantt-shell .week-slot.is-compact .week-slot-line b {
+  min-width: 18px;
+  max-width: 100%;
+  height: 14px;
+  min-height: 14px;
+  padding: 0 3px;
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 12px;
+  text-overflow: clip;
+}
+
+.gantt-shell .operation-slot.is-compact .slot-quantity-control {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 16px;
+  min-height: 16px;
+}
+
+.gantt-shell .operation-slot.is-compact .slot-quantity-control input,
+.gantt-shell .week-slot.is-compact .slot-quantity-input.compact {
+  width: 100%;
+  min-width: 0;
+  height: 14px;
+  min-height: 14px;
+  padding: 0;
+  font-size: 8px;
+  line-height: 14px;
+}
+
+.gantt-shell .operation-slot.is-tiny .slot-line,
+.gantt-shell .operation-slot.is-tiny .week-slot-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  gap: 0;
+}
+
+.gantt-shell .operation-slot.is-tiny .slot-content {
+  padding: 0;
+}
+
+.gantt-shell .operation-slot.is-tiny .slot-step-chip,
+.gantt-shell .week-slot.is-tiny .week-slot-line b {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 14px;
+  min-height: 14px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 8px;
+  line-height: 14px;
+}
+
+.gantt-shell .operation-slot.is-tiny .slot-quantity-control,
+.gantt-shell .week-slot.is-tiny .slot-quantity-input.compact,
+.gantt-shell .operation-slot.is-tiny .slot-warning-dot {
+  display: none;
+}

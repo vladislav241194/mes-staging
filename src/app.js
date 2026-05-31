@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.9";
+const APP_VERSION = "v.1.10";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -40,7 +40,7 @@ const STORAGE_KEYS = [
 ];
 const LEFT_WIDTH = 360;
 const TIMELINE_HEIGHT = 48;
-const PROJECT_ROW_HEIGHT = 66;
+const PROJECT_ROW_HEIGHT = 82;
 const WORK_ROW_HEIGHT = 58;
 const WEEK_SLOT_HEIGHT = 18;
 const WEEK_SLOT_GAP = 3;
@@ -6557,13 +6557,14 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const warehouseClass = slot.workCenterId === "warehouse" ? "warehouse-slot" : "";
   const lockedClass = slot.locked ? "is-locked" : "";
   const quantity = normalizeQuantity(slot.quantity);
-  const compactClass = visualRect.width < (isWeekSlot ? 58 : 82) ? "is-compact" : "";
+  const compactClass = visualRect.width < (isWeekSlot ? 58 : 136) ? "is-compact" : "";
+  const tinyClass = visualRect.width < (isWeekSlot ? 36 : 58) ? "is-tiny" : "";
   const routeMeta = getSlotRouteMeta(slot);
   const durationMs = Math.max(0, toDate(slot.plannedEnd) - toDate(slot.plannedStart));
 
   return `
     <article
-      class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${selectedClass} ${warningClass} ${dragClass}"
+      class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass}"
       data-slot-id="${slot.id}"
       style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px;"
       title="${escapeAttribute(`${project?.name || ""}: партия ${batch?.batchNumber || ""} · ${slot.operationName} · ${formatDuration(durationMs)}`)}"
