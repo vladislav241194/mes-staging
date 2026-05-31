@@ -9152,6 +9152,11 @@ body {
   min-width: 0;
 }
 
+.calculator-stack > .calculator-panel[hidden],
+.calculator-panel[hidden] {
+  display: none !important;
+}
+
 .calculator-stack > .calculator-input-panel {
   order: 1;
 }
