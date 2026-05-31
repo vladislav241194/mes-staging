@@ -30,7 +30,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v4";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.0.2";
+const APP_VERSION = "v.0.5";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -1394,6 +1394,8 @@ function renderCalculatorPage() {
   const inputSaveCaption = calculatorState.inputsSavedAt
     ? `сохранено ${formatDateTime(calculatorState.inputsSavedAt)}`
     : "зафиксируйте вводные перед маршрутом";
+  const activeCalculatorStep = getActiveCalculatorStep(calc);
+  const visibleAttr = (blockId) => isCalculatorBlockVisible(activeCalculatorStep, blockId) ? "" : " hidden";
 
   return `
     <section class="calculator-page" aria-label="Маршрутная карта и калькулятор операций">
@@ -1417,7 +1419,7 @@ function renderCalculatorPage() {
           </aside>
 
           <div class="calculator-stack">
-          <section class="calculator-panel calculator-input-panel">
+          <section class="calculator-panel calculator-input-panel" data-calculator-block="inputs"${visibleAttr("inputs")}>
             <div class="report-card-head">
               <strong>01 · Входные данные</strong>
               <span>${inputStatus.complete ? "готово к маршрутной карте" : "заполните все поля слева направо"}</span>
@@ -1469,9 +1471,9 @@ function renderCalculatorPage() {
             </div>
           </section>
 
-          ${renderSpecificationBomPlan(calc)}
+          ${renderSpecificationBomPlan(calc, visibleAttr("specBom"))}
 
-          <section class="calculator-panel calculator-result-panel">
+          <section class="calculator-panel calculator-result-panel" data-calculator-block="summary"${visibleAttr("summary")}>
             <div class="report-card-head">
               <strong>03 · Сводка маршрутной карты</strong>
               <span>${escapeHtml(calc.project?.name || "проект не выбран")}</span>
@@ -1500,7 +1502,7 @@ function renderCalculatorPage() {
             </div>
           </section>
 
-          <section class="calculator-panel route-card-panel">
+          <section class="calculator-panel route-card-panel" data-calculator-block="route"${visibleAttr("route")}>
             <div class="directory-table-toolbar">
               <strong>04 · Маршрутная карта</strong>
               <span>${routeReady ? "операции, участки и расчет времени" : "сначала сформируйте маршрут по выбранным вводным"}</span>
@@ -1551,7 +1553,7 @@ function renderCalculatorPage() {
             </div>
           </section>
 
-          <section class="calculator-panel operation-editor-panel">
+          <section class="calculator-panel operation-editor-panel" data-calculator-block="operation"${visibleAttr("operation")}>
             <div class="report-card-head">
               <strong>05 · ${escapeHtml(selectedOperation?.operationName || "Операция")}</strong>
               <span>${selectedOperation ? "настройка выбранного шага" : "выберите или добавьте операцию"}</span>
@@ -1599,7 +1601,7 @@ function renderCalculatorPage() {
             `}
           </section>
 
-          <section class="calculator-panel component-matrix-panel">
+          <section class="calculator-panel component-matrix-panel" data-calculator-block="bom"${visibleAttr("bom")}>
             <div class="directory-table-toolbar">
               <strong>02 · BOM SMT-операции</strong>
               <span>${escapeHtml(calc.bomList?.name || "BOM не выбран")}</span>
@@ -1666,7 +1668,8 @@ function renderCalculatorPage() {
             </div>
           </section>
 
-          ${renderCalculatorProjectBindings(calc)}
+          ${renderCalculatorSavePanel(calc, visibleAttr("save"))}
+          ${renderCalculatorProjectBindings(calc, visibleAttr("bindings"))}
           </div>
         </div>
       </div>
@@ -1674,7 +1677,7 @@ function renderCalculatorPage() {
   `;
 }
 
-function renderCalculatorProjectBindings(calc) {
+function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
   const rows = planningState.projects.map((project) => {
     const specification = getProjectSpecification(project.id);
     const bomEntries = specification ? getSpecificationBomEntries(specification.id) : [];
@@ -1711,7 +1714,7 @@ function renderCalculatorProjectBindings(calc) {
   });
 
   return `
-    <section class="calculator-panel project-bindings-panel">
+    <section class="calculator-panel project-bindings-panel" data-calculator-block="bindings"${visibilityAttr}>
       <div class="directory-table-toolbar">
         <strong>07 · Текущие проекты</strong>
         <span>проект, спецификация, BOM, маршрут и запуск</span>
@@ -1732,6 +1735,61 @@ function renderCalculatorProjectBindings(calc) {
             <button class="secondary-button" data-load-calculator-project="${row.project.id}" type="button">${icon("play")}<span>${row.isActive ? "Открыт" : "Открыть"}</span></button>
           </article>
         `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderCalculatorSavePanel(calc, visibilityAttr = "") {
+  const routeReady = calc.operationResults.length > 0;
+  const savedReady = Boolean(calculatorState.lastSavedAt) && routeReady;
+  const route = calc.project
+    ? planningState.routes.find((item) => item.projectId === calc.project.id && item.isDefault)
+      || planningState.routes.find((item) => item.projectId === calc.project.id)
+    : null;
+  const routeSteps = route ? planningState.routeSteps.filter((step) => step.routeId === route.id) : [];
+  const projectSlots = calc.project ? planningState.slots.filter((slot) => slot.projectId === calc.project.id) : [];
+
+  return `
+    <section class="calculator-panel calculator-save-panel" data-calculator-block="save"${visibilityAttr}>
+      <div class="report-card-head">
+        <strong>06 · Передача в план</strong>
+        <span>${savedReady ? `сохранено ${formatDateTime(calculatorState.lastSavedAt)}` : "сохраните маршрут проекта для Gantt"}</span>
+      </div>
+      <div class="calculator-kpis">
+        <article>
+          <span>Проект</span>
+          <strong>${escapeHtml(calc.project?.name || "-")}</strong>
+          <small>${escapeHtml(calc.project?.orderNumber || "проект не выбран")}</small>
+        </article>
+        <article>
+          <span>Маршрут</span>
+          <strong>${routeReady ? `${calc.operationResults.length} оп.` : "нет"}</strong>
+          <small>${routeSteps.length ? `${routeSteps.length} шагов уже в проекте` : "будет создан при сохранении"}</small>
+        </article>
+        <article>
+          <span>Расчет заказа</span>
+          <strong>${formatDuration(calc.totalMs)}</strong>
+          <small>${calc.panelCount.toLocaleString("ru-RU")} мультипликаций</small>
+        </article>
+        <article>
+          <span>Gantt</span>
+          <strong>${projectSlots.length}</strong>
+          <small>слотов проекта в плане</small>
+        </article>
+      </div>
+      <div class="calculator-save-summary">
+        <div>
+          ${icon(savedReady ? "check" : "info")}
+          <span>${savedReady
+            ? "Маршрутная карта сохранена в проект. Следующий шаг - постановка операций на диаграмму Ганта."
+            : routeReady
+              ? "Проверьте маршрут и сохраните его в проект, чтобы планирование использовало актуальные операции."
+              : "Сначала сформируйте маршрутную карту на этапе 04."}</span>
+        </div>
+      </div>
+      <div class="calculator-panel-actions">
+        <button class="primary-button" data-calculator-save-route type="button" ${routeReady ? "" : "disabled"}>${icon("save")}<span>Сохранить маршрут проекта</span></button>
       </div>
     </section>
   `;
@@ -1807,7 +1865,7 @@ function renderProjectReadinessPanel(calc) {
   `;
 }
 
-function renderSpecificationBomPlan(calc) {
+function renderSpecificationBomPlan(calc, visibilityAttr = "") {
   const bomEntries = calc.specification
     ? getSpecificationBomEntries(calc.specification.id)
     : calculatorState.noSpecification && calc.bomList
@@ -1828,7 +1886,7 @@ function renderSpecificationBomPlan(calc) {
   });
 
   return `
-    <section class="calculator-panel spec-bom-plan-panel">
+    <section class="calculator-panel spec-bom-plan-panel" data-calculator-block="specBom"${visibilityAttr}>
       <div class="directory-table-toolbar">
         <strong>02 · ${calculatorState.noSpecification ? "BOM проекта" : "BOM из спецификации"}</strong>
         <span>${rows.length ? "каждый BOM станет отдельной SMT-операцией" : "BOM пока не привязаны"}</span>
@@ -1965,6 +2023,14 @@ function getCalculatorWorkflow(calc) {
       locked: !routeReady,
       warning: routeReady && !savedReady,
     },
+    {
+      id: "bindings",
+      sequence: "07",
+      title: "Текущие проекты",
+      caption: calc.project ? "проектные связи и быстрый выбор" : "список проектов, спецификаций и BOM",
+      complete: planningState.projects.length > 0,
+      locked: false,
+    },
   ];
 
   if (!steps.some((step) => step.id === ui.calculatorStep)) {
@@ -1973,25 +2039,51 @@ function getCalculatorWorkflow(calc) {
   return steps;
 }
 
+function getActiveCalculatorStep(calc) {
+  const steps = getCalculatorWorkflow(calc);
+  const active = steps.find((step) => step.id === ui.calculatorStep);
+  if (active) return active.id;
+  const next = steps.find((step) => !step.complete && !step.locked) || steps[0];
+  ui.calculatorStep = next?.id || "inputs";
+  return ui.calculatorStep;
+}
+
+function getCalculatorStepBlocks(stepId) {
+  const groups = {
+    inputs: ["inputs"],
+    bom: ["specBom", "bom"],
+    summary: ["summary"],
+    route: ["route"],
+    operation: ["operation"],
+    save: ["save"],
+    bindings: ["bindings"],
+  };
+  return groups[stepId] || groups.inputs;
+}
+
+function isCalculatorBlockVisible(stepId, blockId) {
+  return getCalculatorStepBlocks(stepId).includes(blockId);
+}
+
 function renderCalculatorProcessStepper(calc) {
   const steps = getCalculatorWorkflow(calc);
   return `
     <div class="calculator-process-head">
-      <span class="eyebrow">STP-02 · Vertical Process Stepper</span>
-      <h3>Последовательность заполнения</h3>
-      <p>Дальние настройки маршрута открываются только после заполнения обязательных входных данных.</p>
+      <span class="eyebrow">Навигация и готовность</span>
+      <h3>Калькулятор проекта</h3>
+      <p>Выберите этап слева: справа откроются только связанные блоки. Статус показывает заполненность перед передачей в Gantt.</p>
     </div>
-    <ol class="calculator-process-stepper">
+    <ol class="calculator-process-stepper calculator-step-nav">
       ${steps.map((step, index) => `
         <li class="${step.complete ? "is-done" : ""} ${step.id === ui.calculatorStep ? "is-active" : ""} ${step.locked ? "is-locked" : ""} ${step.warning ? "is-warning" : ""}">
-          <div class="stepper-status-card">
+          <button class="stepper-status-card" data-calculator-step="${escapeAttribute(step.id)}" type="button" aria-current="${step.id === ui.calculatorStep ? "step" : "false"}">
             <span class="stepper-status-index">${escapeHtml(step.sequence || String(index + 1).padStart(2, "0"))}</span>
             <div>
               <strong>${escapeHtml(step.title)}</strong>
               <small>${escapeHtml(step.caption)}</small>
             </div>
             <em>${step.complete ? "готово" : step.locked ? "закрыто" : step.warning ? "проверить" : "текущий"}</em>
-          </div>
+          </button>
         </li>
       `).join("")}
     </ol>
@@ -4643,6 +4735,14 @@ function bindCalculatorEvents() {
     render();
   };
 
+  app.querySelectorAll("[data-calculator-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.calculatorStep = button.dataset.calculatorStep || "inputs";
+      persistUiState();
+      render();
+    });
+  });
+
   app.querySelectorAll("[data-dense-calc-select] [data-dense-value]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -4791,8 +4891,10 @@ function bindCalculatorEvents() {
     requestDeleteSelectedRouteOperation();
   });
 
-  app.querySelector("[data-calculator-save-route]")?.addEventListener("click", () => {
-    openConfirmDialog("calculatorSaveRoute");
+  app.querySelectorAll("[data-calculator-save-route]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openConfirmDialog("calculatorSaveRoute");
+    });
   });
 
   app.querySelector("[data-save-calculator-inputs]")?.addEventListener("click", () => {
@@ -4959,7 +5061,9 @@ function refreshCalculatorActionStates() {
   app.querySelector("[data-save-calculator-inputs]")?.toggleAttribute("disabled", !inputComplete);
   app.querySelector("[data-add-route-operation]")?.toggleAttribute("disabled", !inputComplete);
   app.querySelector("[data-calculator-reset]")?.toggleAttribute("disabled", !routeReady);
-  app.querySelector("[data-calculator-save-route]")?.toggleAttribute("disabled", !routeReady);
+  app.querySelectorAll("[data-calculator-save-route]").forEach((button) => {
+    button.toggleAttribute("disabled", !routeReady);
+  });
   const panelCountField = app.querySelector(".calculator-input-panel .field.readonly input");
   if (panelCountField) {
     const boardQuantity = Number(calculatorState.boardQuantity || 0);

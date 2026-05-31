@@ -54,14 +54,20 @@ await copyFile(join(projectRoot, "index.html"), join(distDir, "index.html"));
 await copyFile(join(projectRoot, "styles.css"), join(distDir, "styles.css"));
 await copyDirectory(join(projectRoot, "src"), join(distDir, "src"));
 
+const faviconPath = join(projectRoot, "favicon.svg");
+if (await pathExists(faviconPath)) {
+  await copyFile(faviconPath, join(distDir, "favicon.svg"));
+}
+
 const imagePath = join(projectRoot, "mes-planning-prototype.png");
 if (await pathExists(imagePath)) {
   await copyFile(imagePath, join(distDir, "mes-planning-prototype.png"));
 }
 
-const [stylesVersion, appVersion] = await Promise.all([
+const [stylesVersion, appVersion, faviconVersion] = await Promise.all([
   fileHash(join(distDir, "styles.css")),
   fileHash(join(distDir, "src", "app.js")),
+  pathExists(join(distDir, "favicon.svg")).then((exists) => exists ? fileHash(join(distDir, "favicon.svg")) : ""),
 ]);
 
 let html = await readFile(join(distDir, "index.html"), "utf-8");
@@ -77,9 +83,18 @@ html = replaceRequired(
   `src="./src/app.js?v=${appVersion}"`,
   "src/app.js script",
 );
+if (faviconVersion) {
+  html = replaceRequired(
+    html,
+    /href="\.\/favicon\.svg(?:\?[^"]*)?"/,
+    `href="./favicon.svg?v=${faviconVersion}"`,
+    "favicon.svg link",
+  );
+}
 await writeFile(join(distDir, "index.html"), html);
 
 console.log("Static staging build created:");
 console.log(`- ${distDir}`);
 console.log(`- styles.css?v=${stylesVersion}`);
 console.log(`- src/app.js?v=${appVersion}`);
+if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}`);
