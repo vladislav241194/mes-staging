@@ -30,7 +30,7 @@ const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defaults-restored-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.75";
+const APP_VERSION = "v.1.76";
 const MVP_ACCESS_PASSWORD = "5555";
 const MVP_MODULE_IDS = new Set(["reports", "debug"]);
 const STORAGE_KEYS = [
@@ -1541,7 +1541,7 @@ function renderModuleMenu() {
           <div class="module-group">
             <span class="module-group-title">${escapeHtml(group.label)}</span>
             ${group.modules.map((moduleItem) => `
-              <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button">
+              <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button" aria-label="${escapeAttribute(moduleItem.label)}" title="${escapeAttribute(moduleItem.label)}">
                 ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>
               </button>
             `).join("")}

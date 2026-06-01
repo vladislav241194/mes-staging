@@ -17932,3 +17932,1334 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .pl
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* MES Clean Industrial Enterprise UI preset v1.76 */
+:root {
+  --mes-bg: #f8fafc;
+  --mes-surface: #ffffff;
+  --mes-surface-muted: #f1f5f9;
+  --mes-surface-subtle: #f8fafc;
+  --mes-border: #e2e8f0;
+  --mes-border-strong: #cbd5e1;
+  --mes-text-primary: #0f172a;
+  --mes-text-secondary: #475569;
+  --mes-text-muted: #94a3b8;
+  --mes-primary: #2563eb;
+  --mes-primary-hover: #1d4ed8;
+  --mes-primary-soft: #dbeafe;
+  --mes-primary-border: #bfdbfe;
+  --mes-success: #16a34a;
+  --mes-success-soft: #dcfce7;
+  --mes-success-border: #bbf7d0;
+  --mes-warning: #d97706;
+  --mes-warning-soft: #fef3c7;
+  --mes-warning-border: #fde68a;
+  --mes-danger: #dc2626;
+  --mes-danger-soft: #fee2e2;
+  --mes-danger-border: #fecaca;
+  --mes-neutral: #64748b;
+  --mes-neutral-soft: #f1f5f9;
+  --mes-neutral-border: #cbd5e1;
+  --mes-sidebar-bg: #0f2742;
+  --mes-sidebar-surface: #123456;
+  --mes-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --mes-sidebar-active: #2563eb;
+  --mes-sidebar-text: #e2e8f0;
+  --mes-sidebar-muted: #94a3b8;
+  --mes-sidebar-border: rgba(255, 255, 255, 0.1);
+  --mes-radius-sm: 4px;
+  --mes-radius-control: 6px;
+  --mes-radius-card: 8px;
+  --mes-radius-panel: 10px;
+  --mes-header-height: 60px;
+  --mes-sidebar-width: 260px;
+  --mes-sidebar-collapsed: 72px;
+  --mes-page-padding: 16px;
+  --mes-section-gap: 16px;
+  --mes-control-height: 36px;
+  --mes-table-row-height: 40px;
+  --mes-table-header-height: 40px;
+  --mes-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --mes-shadow-md: 0 8px 22px rgba(15, 23, 42, 0.08);
+  --mes-accent: var(--mes-primary);
+  --mes-accent-hover: var(--mes-primary-hover);
+  --mes-accent-soft: var(--mes-primary-soft);
+  --mes-accent-border: var(--mes-primary-border);
+  --layout-sidebar-width: var(--mes-sidebar-width);
+  --layout-sidebar-collapsed: var(--mes-sidebar-collapsed);
+  --layout-header-height: var(--mes-header-height);
+  --layout-page-padding: var(--mes-page-padding);
+  --layout-gap: var(--mes-section-gap);
+  --layout-card-radius: var(--mes-radius-card);
+  --layout-control-height: var(--mes-control-height);
+  --bg: var(--mes-bg);
+  --panel: var(--mes-surface);
+  --panel-strong: var(--mes-surface-muted);
+  --line: var(--mes-border);
+  --line-soft: var(--mes-border);
+  --text: var(--mes-text-primary);
+  --muted: var(--mes-text-secondary);
+  --muted-2: var(--mes-text-muted);
+  --blue: var(--mes-primary);
+  --green: var(--mes-success);
+  --amber: var(--mes-warning);
+  --red: var(--mes-danger);
+  --shadow: var(--mes-shadow-sm);
+  --shadow-soft: var(--mes-shadow-sm);
+  --radius: var(--mes-radius-control);
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow-x: hidden;
+  background: var(--mes-bg);
+  color: var(--mes-text-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+body {
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+main[data-layout="app-shell"] {
+  display: grid !important;
+  grid-template-columns: var(--mes-sidebar-width) minmax(0, 1fr) !important;
+  grid-template-rows: var(--mes-header-height) minmax(0, 1fr) !important;
+  width: 100%;
+  max-width: 100vw;
+  height: 100dvh !important;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden !important;
+  background: var(--mes-bg) !important;
+  background-image: none !important;
+}
+
+main[data-layout="app-shell"] > [data-layout="sidebar"] {
+  grid-column: 1 !important;
+  grid-row: 1 / -1 !important;
+}
+
+main[data-layout="app-shell"] > [data-layout="header"] {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+main[data-layout="app-shell"] > [data-layout="main-content"],
+main[data-layout="app-shell"] > [data-layout="planning-page"] {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.module-menu {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  align-items: stretch !important;
+  gap: 14px !important;
+  width: var(--mes-sidebar-width) !important;
+  height: 100dvh !important;
+  min-width: 0;
+  overflow: hidden !important;
+  border-right: 1px solid var(--mes-sidebar-border) !important;
+  border-bottom: 0 !important;
+  background: var(--mes-sidebar-bg) !important;
+  color: var(--mes-sidebar-text) !important;
+  padding: 14px 12px !important;
+  box-shadow: none !important;
+}
+
+.module-menu-brand {
+  display: grid !important;
+  grid-template-columns: 36px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0;
+  color: var(--mes-sidebar-text) !important;
+}
+
+.module-menu-brand::before {
+  content: "M";
+  display: grid;
+  place-items: center;
+  width: 36px !important;
+  height: 36px !important;
+  border: 1px solid var(--mes-sidebar-border) !important;
+  border-radius: var(--mes-radius-card) !important;
+  background: var(--mes-sidebar-surface) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+.module-menu-brand strong {
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 18px !important;
+}
+
+.module-menu-brand span {
+  color: var(--mes-sidebar-muted) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 16px !important;
+}
+
+.module-tabs {
+  display: grid !important;
+  align-content: start !important;
+  gap: 14px !important;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto !important;
+  padding: 0 2px 2px !important;
+  scrollbar-width: thin;
+}
+
+.module-group {
+  display: grid !important;
+  gap: 4px !important;
+  min-width: 0;
+}
+
+.module-group-title {
+  overflow: hidden;
+  color: var(--mes-sidebar-muted) !important;
+  padding: 0 9px 4px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 14px !important;
+  letter-spacing: 0 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-tab {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  justify-content: start !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--mes-radius-control) !important;
+  background: transparent !important;
+  color: var(--mes-sidebar-muted) !important;
+  padding: 0 9px !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 18px !important;
+  text-align: left !important;
+}
+
+.module-tab:hover {
+  border-color: var(--mes-sidebar-border) !important;
+  background: var(--mes-sidebar-hover) !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+.module-tab.is-active {
+  border-color: transparent !important;
+  background: var(--mes-sidebar-active) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.module-tab span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-tab svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.module-menu-meta {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 36px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100%;
+  min-width: 0;
+  color: var(--mes-sidebar-muted) !important;
+}
+
+.auth-user-chip {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 38px !important;
+  border: 1px solid var(--mes-sidebar-border) !important;
+  border-radius: var(--mes-radius-card) !important;
+  background: var(--mes-sidebar-surface) !important;
+  color: var(--mes-sidebar-text) !important;
+  padding: 6px 8px !important;
+  box-shadow: none !important;
+}
+
+.auth-user-chip strong {
+  color: #ffffff !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.auth-user-chip small {
+  color: var(--mes-sidebar-muted) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+.module-logout-button {
+  border-color: var(--mes-sidebar-border) !important;
+  background: transparent !important;
+  color: var(--mes-sidebar-muted) !important;
+}
+
+.module-logout-button:hover {
+  background: var(--mes-sidebar-hover) !important;
+  color: #ffffff !important;
+}
+
+.app-topbar {
+  display: grid !important;
+  grid-template-columns: minmax(170px, 0.65fr) minmax(220px, 1fr) minmax(240px, 0.9fr) auto !important;
+  align-items: center !important;
+  gap: 16px !important;
+  width: 100%;
+  height: var(--mes-header-height) !important;
+  min-width: 0;
+  overflow: hidden !important;
+  border-bottom: 1px solid var(--mes-border) !important;
+  background: var(--mes-surface) !important;
+  padding: 0 18px !important;
+  box-shadow: none !important;
+}
+
+.app-breadcrumbs,
+.app-topbar-title,
+.app-global-search,
+.app-topbar-actions {
+  min-width: 0;
+}
+
+.app-breadcrumbs {
+  overflow: hidden;
+  color: var(--mes-text-muted) !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  white-space: nowrap;
+}
+
+.app-breadcrumbs strong,
+.app-topbar-title h1 {
+  color: var(--mes-text-primary) !important;
+}
+
+.app-topbar-title {
+  display: grid !important;
+  gap: 0 !important;
+}
+
+.app-topbar-title h1 {
+  overflow: hidden;
+  margin: 0 !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  line-height: 22px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-topbar-title p {
+  overflow: hidden;
+  margin: 0 !important;
+  color: var(--mes-text-secondary) !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-global-search {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border: 1px solid var(--mes-border) !important;
+  border-radius: var(--mes-radius-control) !important;
+  background: var(--mes-surface-muted) !important;
+  color: var(--mes-text-muted) !important;
+  padding: 0 10px !important;
+}
+
+.app-global-search input {
+  min-height: 0 !important;
+  height: 34px !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.app-time,
+.app-topbar-user strong,
+.app-topbar-user span {
+  font-size: 12px !important;
+  line-height: 16px !important;
+}
+
+.reports-page,
+.directories-page,
+.module-data-page,
+.debug-page,
+.calculator-page,
+.planning-empty-page,
+.planner-workspace {
+  min-width: 0;
+  min-height: 0;
+  background: var(--mes-bg) !important;
+  background-image: none !important;
+}
+
+.reports-page,
+.directories-page,
+.module-data-page,
+.debug-page {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) !important;
+  gap: var(--mes-section-gap) !important;
+  align-items: stretch !important;
+  padding: var(--mes-page-padding) !important;
+  overflow: auto !important;
+}
+
+.calculator-page {
+  padding: var(--mes-page-padding) !important;
+  overflow: auto !important;
+}
+
+.module-data-content,
+.directory-content,
+.report-content,
+.debug-content,
+.calculator-grid,
+.calculator-stack,
+.planning-route-content,
+.bom-module-content,
+.specification-module-content {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.report-sidebar,
+.directory-sidebar,
+.module-data-sidebar,
+.debug-sidebar,
+.calculator-stepper-rail,
+.directory-workspace,
+.report-workspace,
+.module-data-workspace,
+.debug-workspace,
+.calculator-workspace,
+.directory-table-card,
+.directory-detail-card,
+.module-panel,
+.calculator-panel,
+.calculator-card,
+.route-summary-card,
+.employee-constructor-card,
+.report-chart-card,
+.report-table-card,
+.report-insights,
+.debug-card,
+.debug-section,
+.scada-panel,
+.smt-line-card,
+.planning-empty-panel,
+.planner-frame,
+.topbar,
+.director-command,
+.assistant-panel,
+.assistant-dock-head {
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--mes-border) !important;
+  border-radius: var(--mes-radius-card) !important;
+  background: var(--mes-surface) !important;
+  background-image: none !important;
+  box-shadow: var(--mes-shadow-sm) !important;
+}
+
+.directory-table-card,
+.directory-detail-card,
+.module-panel,
+.calculator-panel,
+.calculator-card,
+.route-summary-card,
+.employee-constructor-card,
+.report-chart-card,
+.report-table-card,
+.report-insights,
+.debug-card,
+.debug-section,
+.scada-panel,
+.planning-empty-panel {
+  overflow: hidden;
+  padding: 14px !important;
+}
+
+.report-sidebar,
+.directory-sidebar,
+.module-data-sidebar,
+.debug-sidebar,
+.calculator-stepper-rail {
+  overflow: hidden !important;
+}
+
+.directory-workspace,
+.report-workspace,
+.module-data-workspace,
+.debug-workspace,
+.calculator-workspace {
+  min-height: 0;
+  overflow: auto !important;
+}
+
+.directory-header,
+.directory-table-toolbar,
+.report-card-head,
+.detail-card-head,
+.assistant-panel-head,
+.directory-sidebar-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  min-height: 40px !important;
+  min-width: 0;
+  border-bottom: 1px solid var(--mes-border) !important;
+  background: transparent !important;
+  padding: 0 0 12px !important;
+}
+
+.directory-header,
+.directory-actions,
+.toolbar-actions,
+.director-command-actions,
+.modal-footer,
+.drawer-actions {
+  flex-wrap: wrap !important;
+}
+
+.brand-title,
+.dashboard-header h1,
+.report-header h2,
+.directory-header h2,
+.module-panel h2 {
+  margin: 0 !important;
+  color: var(--mes-text-primary) !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 26px !important;
+  letter-spacing: 0 !important;
+}
+
+.brand-subtitle,
+.dashboard-header p,
+.report-header p,
+.directory-header p,
+.module-panel p {
+  margin: 0;
+  color: var(--mes-text-secondary) !important;
+  font-size: 12px !important;
+  line-height: 16px !important;
+}
+
+.eyebrow {
+  color: var(--mes-text-muted) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 14px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+input,
+select,
+textarea,
+.dense-inline-select > summary,
+.search-field,
+.segmented {
+  min-width: 0;
+  min-height: var(--mes-control-height) !important;
+  border: 1px solid var(--mes-border) !important;
+  border-radius: var(--mes-radius-control) !important;
+  background: var(--mes-surface) !important;
+  color: var(--mes-text-primary) !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  line-height: 18px !important;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 10px !important;
+}
+
+textarea {
+  min-height: 78px !important;
+  padding: 8px 10px !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.dense-inline-select[open] > summary {
+  border-color: var(--mes-primary) !important;
+  outline: 3px solid rgba(37, 99, 235, 0.12) !important;
+}
+
+.search-field {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 0 10px !important;
+}
+
+.search-field input {
+  height: 32px !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button,
+.danger-primary,
+.icon-button,
+.table-icon-button,
+.segment,
+.toggle-switch-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: var(--mes-control-height) !important;
+  height: var(--mes-control-height);
+  border-radius: var(--mes-radius-control) !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 18px !important;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.primary-button {
+  border: 1px solid var(--mes-primary) !important;
+  background: var(--mes-primary) !important;
+  color: #ffffff !important;
+}
+
+.primary-button:hover {
+  border-color: var(--mes-primary-hover) !important;
+  background: var(--mes-primary-hover) !important;
+}
+
+.secondary-button,
+.ghost-button,
+.icon-button,
+.table-icon-button,
+.toggle-switch-button {
+  border: 1px solid var(--mes-border) !important;
+  background: var(--mes-surface) !important;
+  color: var(--mes-text-primary) !important;
+}
+
+.secondary-button:hover,
+.ghost-button:hover,
+.icon-button:hover,
+.table-icon-button:hover,
+.toggle-switch-button:hover {
+  border-color: var(--mes-border-strong) !important;
+  background: var(--mes-surface-muted) !important;
+}
+
+.icon-button,
+.table-icon-button,
+.module-logout-button {
+  width: var(--mes-control-height) !important;
+  min-width: var(--mes-control-height) !important;
+  padding: 0 !important;
+}
+
+.segmented {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 3px !important;
+  background: var(--mes-surface-muted) !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.segment {
+  flex: 0 0 auto;
+  height: 28px !important;
+  min-height: 28px !important;
+  min-width: max-content !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--mes-text-secondary) !important;
+  padding: 0 10px !important;
+}
+
+.segment.is-active {
+  background: var(--mes-surface) !important;
+  color: var(--mes-primary) !important;
+}
+
+.status-pill,
+.project-status,
+.deadline-badge,
+.mini-alert,
+.outside-route,
+.directory-nav-count,
+.stepper-status-index,
+.slot-step-chip {
+  min-height: 22px !important;
+  border: 1px solid var(--mes-neutral-border) !important;
+  border-radius: 999px !important;
+  background: var(--mes-neutral-soft) !important;
+  color: var(--mes-neutral) !important;
+  padding: 1px 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 16px !important;
+}
+
+.status-pill.ok,
+.project-status.status-completed,
+.status-completed,
+.deadline-badge.ok {
+  border-color: var(--mes-success-border) !important;
+  background: var(--mes-success-soft) !important;
+  color: var(--mes-success) !important;
+}
+
+.status-pill.warning,
+.project-status.status-problem,
+.status-problem,
+.deadline-badge.warning {
+  border-color: var(--mes-warning-border) !important;
+  background: var(--mes-warning-soft) !important;
+  color: var(--mes-warning) !important;
+}
+
+.status-pill.critical,
+.project-status.status-overdue,
+.status-overdue,
+.deadline-badge.critical {
+  border-color: var(--mes-danger-border) !important;
+  background: var(--mes-danger-soft) !important;
+  color: var(--mes-danger) !important;
+}
+
+.directory-nav,
+.module-entity-list,
+.debug-index {
+  min-width: 0;
+  overflow: auto !important;
+  padding: 8px !important;
+}
+
+.directory-nav-item,
+.module-entity-item,
+.stepper-status-card {
+  min-width: 0;
+  border: 1px solid transparent !important;
+  border-radius: var(--mes-radius-control) !important;
+  background: transparent !important;
+  color: var(--mes-text-secondary) !important;
+  box-shadow: none !important;
+}
+
+.directory-nav-item:hover,
+.module-entity-item:hover,
+.stepper-status-card:hover {
+  border-color: var(--mes-border) !important;
+  background: var(--mes-surface-muted) !important;
+  color: var(--mes-text-primary) !important;
+}
+
+.directory-nav-item.is-active,
+.module-entity-item.is-active,
+.stepper-status-card.is-active {
+  border-color: var(--mes-primary-border) !important;
+  background: var(--mes-primary-soft) !important;
+  color: var(--mes-primary) !important;
+}
+
+.directory-table-wrap,
+[data-layout="table"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto !important;
+  border: 1px solid var(--mes-border) !important;
+  border-radius: var(--mes-radius-card) !important;
+  background: var(--mes-surface) !important;
+  box-shadow: none !important;
+}
+
+.directory-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  color: var(--mes-text-primary) !important;
+  font-size: 13px !important;
+  line-height: 18px !important;
+  table-layout: auto;
+}
+
+.directory-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: var(--mes-table-header-height) !important;
+  border-bottom: 1px solid var(--mes-border) !important;
+  background: var(--mes-surface-muted) !important;
+  color: var(--mes-text-secondary) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 16px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.directory-table th,
+.directory-table td {
+  max-width: 260px;
+  overflow: hidden;
+  border-right: 0 !important;
+  border-bottom: 1px solid var(--mes-border) !important;
+  padding: 8px 10px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-table td {
+  height: var(--mes-table-row-height) !important;
+  color: var(--mes-text-primary) !important;
+  font-size: 13px !important;
+  line-height: 18px !important;
+}
+
+.directory-table tr:hover td {
+  background: var(--mes-surface-subtle) !important;
+}
+
+.directory-table tr.is-selected td {
+  background: var(--mes-primary-soft) !important;
+}
+
+.directory-table .primary-cell {
+  max-width: 320px;
+  color: var(--mes-text-primary) !important;
+  font-weight: 700 !important;
+}
+
+.dense-inline-select {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dense-inline-select > summary {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 16px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100%;
+  padding: 0 10px !important;
+  list-style: none;
+}
+
+.dense-inline-select > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dense-inline-options {
+  z-index: 90 !important;
+  width: 100% !important;
+  min-width: min(240px, calc(100vw - 32px));
+  max-width: min(360px, calc(100vw - 32px)) !important;
+  max-height: min(280px, calc(100dvh - 96px)) !important;
+  overflow: auto !important;
+  border: 1px solid var(--mes-border) !important;
+  border-radius: var(--mes-radius-card) !important;
+  background: var(--mes-surface) !important;
+  box-shadow: var(--mes-shadow-md) !important;
+  padding: 6px !important;
+}
+
+.dense-inline-options button {
+  justify-content: flex-start !important;
+  width: 100%;
+  min-height: 32px !important;
+  border-radius: var(--mes-radius-control) !important;
+  color: var(--mes-text-secondary) !important;
+  padding: 0 9px !important;
+  font-size: 13px !important;
+}
+
+.dense-inline-options button:hover,
+.dense-inline-options button.is-selected {
+  background: var(--mes-primary-soft) !important;
+  color: var(--mes-primary) !important;
+}
+
+.speki-node-button {
+  width: auto !important;
+  min-width: 54px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 8px !important;
+  border-radius: var(--mes-radius-control) !important;
+  white-space: nowrap !important;
+}
+
+main.planning-app-shell.planning-gantt-shell {
+  grid-template-rows: var(--mes-header-height) minmax(0, 1fr) !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+main.planning-app-shell.planning-gantt-shell > .planner-workspace.planner-workspace-gantt-only {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: 12px !important;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden !important;
+  padding: 12px !important;
+  background: var(--mes-bg) !important;
+}
+
+main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar {
+  display: grid !important;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 2fr) minmax(150px, auto) !important;
+  grid-template-rows: auto auto !important;
+  gap: 10px !important;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 10px !important;
+  overflow: visible !important;
+}
+
+main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .brand-block {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+
+main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .toolbar-grid {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important;
+  gap: 8px !important;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .toolbar-actions {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .status-strip {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .planner-frame {
+  min-width: 0;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.gantt-shell {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 520px;
+  overflow: auto !important;
+  border: 1px solid var(--mes-border) !important;
+  border-radius: var(--mes-radius-card) !important;
+  background: var(--mes-surface) !important;
+  box-shadow: none !important;
+}
+
+.gantt-canvas {
+  background: var(--mes-surface) !important;
+}
+
+.timeline-row {
+  height: 48px !important;
+  border-bottom: 1px solid var(--mes-border) !important;
+  background: var(--mes-surface-muted) !important;
+}
+
+.timeline-corner,
+.timeline-cell {
+  border-color: var(--mes-border) !important;
+  background: var(--mes-surface-muted) !important;
+}
+
+.row-label {
+  width: 360px;
+  border-right: 1px solid var(--mes-border) !important;
+  border-bottom: 1px solid var(--mes-border) !important;
+  background: var(--mes-surface) !important;
+}
+
+.gantt-row {
+  border-bottom: 1px solid var(--mes-border) !important;
+}
+
+.lane {
+  border-color: var(--mes-border) !important;
+  background-color: var(--mes-surface) !important;
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.14) 1px, transparent 1px) !important;
+}
+
+.operation-slot {
+  border: 1px solid var(--mes-neutral-border) !important;
+  border-radius: 6px !important;
+  background: var(--mes-neutral-soft) !important;
+  color: var(--mes-neutral) !important;
+  box-shadow: none !important;
+}
+
+.operation-slot.status-completed,
+.operation-slot.warehouse-slot {
+  border-color: var(--mes-success-border) !important;
+  background: var(--mes-success-soft) !important;
+  color: var(--mes-success) !important;
+}
+
+.operation-slot.status-in_progress {
+  border-color: var(--mes-primary-border) !important;
+  background: var(--mes-primary-soft) !important;
+  color: var(--mes-primary) !important;
+}
+
+.operation-slot.status-problem,
+.operation-slot.has-warning.warning {
+  border-color: var(--mes-warning-border) !important;
+  background: var(--mes-warning-soft) !important;
+  color: var(--mes-warning) !important;
+}
+
+.operation-slot.status-overdue,
+.operation-slot.has-warning.critical {
+  border-color: var(--mes-danger-border) !important;
+  background: var(--mes-danger-soft) !important;
+  color: var(--mes-danger) !important;
+}
+
+.slot-content {
+  min-width: 0;
+  padding: 0 8px !important;
+}
+
+.slot-line strong,
+.week-slot-line strong {
+  overflow: hidden;
+  color: var(--mes-text-primary) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 16px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dependencies-layer path,
+.dependency-layer path {
+  opacity: 0.58;
+}
+
+.dashboard-control-room,
+.dashboard-grid,
+.report-dashboard-workspace,
+.report-dashboard-workspace .dashboard-page {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.dashboard-header,
+.scada-panel,
+.scada-metric,
+.scada-node,
+.scada-alarm,
+.scada-project,
+.smt-station {
+  background: var(--mes-surface) !important;
+  color: var(--mes-text-primary) !important;
+}
+
+.scada-mimic,
+.scada-equipment-mimic,
+.smt-line-rail {
+  min-width: 0;
+  overflow: auto;
+}
+
+.modal-backdrop {
+  background: rgba(15, 23, 42, 0.34) !important;
+}
+
+.modal,
+.slot-drawer,
+.debug-drawer {
+  max-width: calc(100vw - 32px) !important;
+  max-height: calc(100dvh - 32px) !important;
+  border: 1px solid var(--mes-border) !important;
+  border-radius: var(--mes-radius-panel) !important;
+  background: var(--mes-surface) !important;
+  box-shadow: var(--mes-shadow-md) !important;
+  overflow: auto !important;
+}
+
+@media (max-width: 1180px) {
+  :root {
+    --layout-sidebar-width: var(--mes-sidebar-collapsed);
+  }
+
+  main[data-layout="app-shell"] {
+    grid-template-columns: var(--mes-sidebar-collapsed) minmax(0, 1fr) !important;
+  }
+
+  .module-menu {
+    width: var(--mes-sidebar-collapsed) !important;
+    padding: 12px 8px !important;
+  }
+
+  .module-menu-brand {
+    grid-template-columns: 36px !important;
+    justify-content: center !important;
+  }
+
+  .module-menu-brand strong,
+  .module-menu-brand span,
+  .module-group-title,
+  .module-tab span,
+  .auth-user-chip,
+  .app-breadcrumbs,
+  .app-time {
+    display: none !important;
+  }
+
+  .module-tab {
+    grid-template-columns: 18px !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  .module-menu-meta {
+    grid-template-columns: 36px !important;
+    justify-content: center !important;
+  }
+
+  .app-topbar {
+    grid-template-columns: minmax(160px, 1fr) minmax(220px, 1fr) auto !important;
+  }
+
+  .app-global-search {
+    grid-column: 2;
+  }
+
+  .reports-page,
+  .directories-page,
+  .module-data-page,
+  .debug-page {
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) !important;
+  }
+
+  main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .brand-block,
+  main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .toolbar-grid,
+  main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .toolbar-actions,
+  main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .topbar .status-strip {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+}
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #app {
+    height: auto;
+    min-height: 100%;
+  }
+
+  body {
+    overflow: auto;
+  }
+
+  main[data-layout="app-shell"] {
+    height: auto !important;
+    min-height: 100dvh;
+    overflow: visible !important;
+  }
+
+  .module-menu {
+    position: sticky;
+    top: 0;
+    height: 100dvh !important;
+  }
+
+  .app-topbar {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    height: 56px !important;
+    padding: 0 12px !important;
+  }
+
+  .app-global-search,
+  .app-topbar-user {
+    display: none !important;
+  }
+
+  .reports-page,
+  .directories-page,
+  .module-data-page,
+  .debug-page {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-rows: auto !important;
+    align-items: start !important;
+    overflow: visible !important;
+  }
+
+  .report-sidebar,
+  .directory-sidebar,
+  .module-data-sidebar,
+  .debug-sidebar,
+  .calculator-stepper-rail {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .directory-workspace,
+  .report-workspace,
+  .module-data-workspace,
+  .debug-workspace,
+  .calculator-workspace {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main.planning-app-shell.planning-gantt-shell {
+    height: auto !important;
+    min-height: 100dvh;
+    overflow: visible !important;
+  }
+
+  main.planning-app-shell.planning-gantt-shell > .planner-workspace.planner-workspace-gantt-only {
+    height: auto !important;
+    min-height: 620px;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --mes-page-padding: 12px;
+  }
+
+  .reports-page,
+  .directories-page,
+  .module-data-page,
+  .debug-page,
+  .calculator-page,
+  .planner-workspace {
+    padding: 12px !important;
+  }
+
+  .toolbar-grid,
+  .calculator-grid,
+  .calculator-stack .calculator-input-grid,
+  .calculator-stack .calculator-kpis,
+  .module-form,
+  .module-kpi-grid,
+  .project-relation-grid,
+  .bom-component-grid,
+  .report-content,
+  .directory-content,
+  .project-module-content,
+  .bom-module-content,
+  .specification-module-content,
+  .debug-card-grid,
+  .debug-modal-grid,
+  .debug-stepper-grid,
+  .debug-spec-grid,
+  .debug-usage-grid,
+  .planning-app-shell .toolbar-grid,
+  .planning-app-shell .director-flow-grid,
+  .planning-app-shell .director-command-head,
+  .planning-app-shell .director-command-actions {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .directory-table th,
+  .directory-table td {
+    max-width: 220px;
+  }
+}
