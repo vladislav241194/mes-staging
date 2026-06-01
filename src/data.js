@@ -376,12 +376,12 @@ const operationSlots = [
 export function createDefaultPlanningState() {
   return {
     version: 1,
-    projects: structuredClone(projects),
-    batches: structuredClone(batches),
+    projects: [],
+    batches: [],
     workCenters: structuredClone(workCenters),
-    routes: structuredClone(routes),
-    routeSteps: structuredClone(routeSteps),
-    slots: structuredClone(operationSlots),
+    routes: [],
+    routeSteps: [],
+    slots: [],
   };
 }
 

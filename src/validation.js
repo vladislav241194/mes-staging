@@ -23,6 +23,10 @@ export function getStepOrder(slot, state) {
   return step?.stepOrder ?? Number.MAX_SAFE_INTEGER;
 }
 
+function getValidationRouteTaskId(step) {
+  return step?.specTaskId || "__main__";
+}
+
 export function getSlotWarnings(state) {
   const conflictWarnings = detectWorkCenterConflicts(state);
   const routeWarnings = detectRouteWarnings(state);
@@ -130,14 +134,19 @@ export function detectRouteWarnings(state) {
     }
   }
 
-  const slotsByProjectBatch = groupBy(state.slots, (slot) => `${slot.projectId}:${slot.batchId}`);
+  const slotsByProjectBatch = groupBy(state.slots, (slot) => {
+    const step = stepById[slot.routeStepId];
+    return `${slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(step)}`;
+  });
 
   for (const slots of Object.values(slotsByProjectBatch)) {
     if (!slots.length) continue;
 
     const project = projectById[slots[0].projectId];
     const batch = batchById[slots[0].batchId];
-    const routeSteps = getProjectRouteSteps(slots[0].projectId, state);
+    const taskId = getValidationRouteTaskId(stepById[slots[0].routeStepId]);
+    const routeSteps = getProjectRouteSteps(slots[0].projectId, state)
+      .filter((step) => getValidationRouteTaskId(step) === taskId);
     const plannedByOrder = new Map();
 
     for (const slot of slots) {
@@ -224,7 +233,9 @@ export function detectRouteWarnings(state) {
 
 export function getDependencyPairs(state) {
   const stepById = byId(state.routeSteps);
-  const grouped = groupBy(state.slots, (slot) => `${slot.projectId}:${slot.batchId}`);
+  const grouped = groupBy(state.slots, (slot) => (
+    `${slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(stepById[slot.routeStepId])}`
+  ));
   const pairs = [];
 
   for (const slots of Object.values(grouped)) {
@@ -245,7 +256,9 @@ export function getDependencyPairs(state) {
 }
 
 export function calculateProjectProgress(project, state) {
-  const routeSteps = getProjectRouteSteps(project.id, state).filter((step) => step.isRequired);
+  const allRouteSteps = getProjectRouteSteps(project.id, state).filter((step) => step.isRequired);
+  const taskRouteSteps = allRouteSteps.filter((step) => getValidationRouteTaskId(step) !== "__main__");
+  const routeSteps = taskRouteSteps.length ? taskRouteSteps : allRouteSteps;
   if (!routeSteps.length || !project.totalQuantity) return 0;
 
   const requiredStepIds = new Set(routeSteps.map((step) => step.id));
