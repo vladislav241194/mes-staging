@@ -16571,6 +16571,67 @@ main.planning-app-shell > .planner-workspace {
   color: #166534;
 }
 
+.gantt-shell .operation-slot.is-segmented {
+  display: block;
+  overflow: visible;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.gantt-shell .operation-slot.is-segmented:hover {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.gantt-shell .operation-slot.is-segmented.is-selected {
+  outline: 0;
+}
+
+.gantt-shell .slot-working-segment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) 7px;
+  min-width: 18px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: var(--slot-bg);
+  color: var(--slot-text);
+  box-shadow: var(--mes-shadow-sm);
+}
+
+.gantt-shell .operation-slot.is-selected .slot-working-segment {
+  outline: 2px solid var(--mes-accent);
+  outline-offset: 2px;
+}
+
+.gantt-shell .slot-working-segment .slot-accent {
+  height: 100%;
+}
+
+.gantt-shell .slot-working-segment .slot-content {
+  min-width: 0;
+}
+
+.gantt-shell .slot-continuation-mark {
+  align-self: center;
+  justify-self: center;
+  width: 18px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.gantt-shell .slot-working-segment .resize-handle {
+  grid-column: 3;
+  height: 100%;
+}
+
 /* Gantt calendar contract v1.74: non-working days and work-center off-hours */
 .gantt-shell .timeline-cell.is-weekend {
   background:
@@ -21563,4 +21624,50 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .pl
   .directories-page {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+/* Production resource Gantt hierarchy: route -> department -> resource. */
+.gantt-row.resource-row .row-label {
+  background: #fbfdff;
+}
+
+.gantt-row.resource-row .workcenter-label {
+  padding-left: 68px;
+}
+
+.gantt-row.workCenter-row .department-label {
+  background: #f7f9fc;
+  border-top: 1px solid #e3e8ef;
+}
+
+.gantt-row.resource-row .resource-label.is-passive-resource {
+  color: #64748b;
+}
+
+.gantt-row.resource-row .resource-label.is-passive-resource .workcenter-code {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.gantt-row.resource-row .outside-route {
+  max-width: 120px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-row.resource-row .operation-slot,
+.gantt-row.route-row .operation-slot,
+.gantt-row.workCenter-row .operation-slot {
+  min-height: 0;
+  overflow: hidden !important;
+}
+
+.gantt-row.resource-row .resource-lane {
+  background-color: #ffffff;
+}
+
+.gantt-row.workCenter-row .department-lane {
+  background-color: #f9fbfe;
 }

@@ -31,7 +31,7 @@ const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defau
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
 const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
-const APP_VERSION = "v.1.153";
+const APP_VERSION = "v.1.160";
 const UPDATE_CHECK_INTERVAL_MS = 10000;
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -64,6 +64,8 @@ const AGGREGATE_SLOT_TOP = 12;
 const AGGREGATE_SLOT_HEIGHT = 22;
 const MIN_OPERATION_DURATION_MS = 5 * 60 * 1000;
 const DEFAULT_ROUTE_BUFFER_MS = 30 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SHIFT_CYCLE_ANCHOR_DATE = "2026-06-01";
 const DEFAULT_RESOURCE_CPH = 30000;
 const SMT_LINE_WORKCENTER_PREFIX = "smt-line:";
 const GANTT_ZOOM_LEVELS = [0.75, 1, 1.5, 2, 3, 4, 6, 8];
@@ -93,6 +95,56 @@ const EMPLOYEE_DEPARTMENT_MIGRATION = {
   "Производство": "SMT отдел",
   "STM отдел": "SMT отдел",
 };
+const UNIT_TYPE_LABELS = {
+  production: "Производственное",
+  administrative: "Административное",
+  warehouse: "Склад",
+  quality: "Контроль",
+  service: "Сервисное",
+};
+const PRODUCTION_RESOURCE_TYPE_LABELS = {
+  line: "Производственная линия",
+  machine: "Станок",
+  workplace: "Рабочее место",
+  post: "Пост",
+  equipment: "Оборудование",
+  tool: "Оснастка",
+  normative: "Норматив подразделения",
+};
+const PRODUCTION_RESOURCE_TYPE_CODES = {
+  line: "Лин.",
+  machine: "Ст.",
+  workplace: "РМ",
+  post: "Пост",
+  equipment: "Обор.",
+  tool: "Осн.",
+  normative: "Норм.",
+};
+const WORK_SHIFT_OPTIONS = [
+  { value: "5/2 08:00-20:00", label: "5/2 · 08:00-20:00" },
+  { value: "2/2 08:00-20:00", label: "2/2 · 08:00-20:00" },
+  { value: "2/2 20:00-08:00", label: "2/2 · 20:00-08:00" },
+  { value: "6/1 08:00-20:00", label: "6/1 · 08:00-20:00" },
+  { value: "24/7", label: "24/7" },
+];
+const LEGACY_DEPARTMENT_TO_WORK_CENTER_ID = {
+  "SMT отдел": "smt",
+  "STM отдел": "smt",
+  "ОТК / AOI-контроль": "aoi",
+  "Отмывка": "wash",
+  "THT отдел": "manual",
+  "ОТК / Испытания": "test",
+  "Отдел ручной лакировки": "coating",
+  "Отдел селективной лакировки": "coating",
+  "Слесарный отдел": "mechanic",
+  "Сборочный отдел": "assembly",
+  "Склад компонентов": "warehouse",
+  "Склад готовой продукции": "warehouse",
+  "Слесарный участок": "mechanic",
+};
+const LEGACY_WORK_CENTER_NAME_MIGRATION = {
+  "Слесарный участок": "Слесарное подразделение",
+};
 
 const DEFAULT_DEPARTMENTS = [
   { id: "dep-planning", name: "Производственное планирование", code: "PLAN", owner: "Анна Морозова", status: "Активен" },
@@ -113,9 +165,39 @@ const DEFAULT_DEPARTMENTS = [
 
 const app = document.querySelector("#app");
 
+function renderFatalStartupError(error) {
+  if (!app) return;
+  const message = error?.message || String(error || "Неизвестная ошибка");
+  const stack = error?.stack || "";
+  app.innerHTML = `
+    <main class="auth-shell" aria-label="Ошибка запуска MES">
+      <section class="auth-card">
+        <div class="auth-logo-row">
+          <span class="auth-logo">M</span>
+          <div>
+            <strong>MES</strong>
+            <small>${escapeHtml(APP_VERSION)}</small>
+          </div>
+        </div>
+        <h1>Ошибка запуска интерфейса</h1>
+        <p>${escapeHtml(message)}</p>
+        ${stack ? `<pre style="white-space:pre-wrap; max-height:260px; overflow:auto;">${escapeHtml(stack)}</pre>` : ""}
+      </section>
+    </main>
+  `;
+}
+
+window.addEventListener("error", (event) => {
+  renderFatalStartupError(event.error || event.message);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  renderFatalStartupError(event.reason || "Unhandled promise rejection");
+});
+
 const defaultUiState = {
   activeModule: "gantt",
-  activeDirectory: "departments",
+  activeDirectory: "workCenters",
   activeProjectId: "",
   activeSpecificationId: "",
   spekiEditingId: "",
@@ -197,9 +279,9 @@ const DEFAULT_COMPONENT_TYPES = [
 
 const DEFAULT_ROLES = [
   { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, admin", status: "Активен" },
-  { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "gantt, planning, operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "departments, resources, componentTypes, nomenclatureTypes, employees, equipment, workCenters, norms, statuses", permissions: "create, read, update, schedule, approve", status: "Активен" },
-  { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "resources, componentTypes, nomenclatureTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
-  { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "gantt, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
+  { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "gantt, planning, operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "workCenters, productionResources, componentTypes, nomenclatureTypes, employees, norms, statuses", permissions: "create, read, update, schedule, approve", status: "Активен" },
+  { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "productionResources, componentTypes, nomenclatureTypes, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
+  { id: "role-operator", name: "Оператор производства", code: "OPERATOR", accessLevel: 35, modules: "gantt, planning", directories: "productionResources, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
   { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "gantt, operationMap, routes, bomLists, speki", directories: "statuses", permissions: "read", status: "Активен" },
 ];
 
@@ -240,10 +322,10 @@ const DEFAULT_EQUIPMENT = [
 ];
 
 const DEFAULT_NORMS = [
-  { id: "norm-day", name: "Рабочая смена дневная", value: "08:00-20:00", scope: "Все участки", status: "Активен" },
+  { id: "norm-day", name: "Рабочая смена дневная", value: "08:00-20:00", scope: "Все подразделения", status: "Активен" },
   { id: "norm-night", name: "Рабочая смена ночная", value: "20:00-08:00", scope: "SMT / Тестирование", status: "Активен" },
   { id: "norm-buffer", name: "Буфер между операциями", value: "30 минут", scope: "Маршрутная карта", status: "Активен" },
-  { id: "norm-capacity", name: "Емкость участка", value: "1 операция одновременно", scope: "Заказ на пр-во", status: "Активен" },
+  { id: "norm-capacity", name: "Емкость подразделения", value: "1 операция одновременно", scope: "Заказ на пр-во", status: "Активен" },
 ];
 
 const DEFAULT_STATUSES = [
@@ -313,8 +395,10 @@ const SYSTEM_AUTH_EMPLOYEE = {
 
 let directoryEntityRemovalAllowed = false;
 let planningEntityRemovalAllowed = false;
+let directoryState = null;
 let planningState = loadState();
-let directoryState = loadDirectoryState();
+directoryState = loadDirectoryState();
+migrateDepartmentsToUnifiedWorkCenters();
 migrateProjectEntityToSpecifications();
 migrateSpecificationBomRowsToNomenclature();
 syncNomenclatureTypesFromItems({ persist: true });
@@ -328,28 +412,26 @@ let saveUxRefreshTimer = null;
 let pendingSaveFeedback = null;
 
 const directorySections = [
-  { id: "departments", label: "Отделы", description: "Подразделения и зоны ответственности", count: () => directoryState.departments.length },
+  { id: "workCenters", label: "Подразделения", description: "Единый справочник оргподразделений, производственных зон и складов", count: () => planningState.workCenters.length },
   { id: "roles", label: "Роли", description: "Гибкая настройка доступа к модулям и справочникам", count: () => directoryState.roles.length },
-  { id: "resources", label: "Ресурсы", description: "Производственные мощности", count: () => directoryState.resources.length },
+  { id: "productionResources", label: "Производственные ресурсы", description: "Линии, станки, посты и оборудование", count: () => getProductionResources({ includeInactive: true }).length },
   { id: "componentTypes", label: "Типы компонентов", description: "Корпуса, коэффициенты и скорости установки", count: () => directoryState.componentTypes.length },
   { id: "nomenclatureTypes", label: "Типы номенклатуры", description: "Разделы, которые используются в модуле номенклатуры", count: () => directoryState.nomenclatureTypes.length },
   { id: "employees", label: "Сотрудники", description: "Планировщики, мастера, операторы", count: () => directoryState.employees.length },
-  { id: "equipment", label: "Оборудование", description: "Линии, установки и стенды", count: () => directoryState.equipment.length },
-  { id: "workCenters", label: "Участки", description: "Производственные участки MES", count: () => planningState.workCenters.length },
   { id: "statuses", label: "Статусы", description: "Состояния спецификаций и операций", count: () => directoryState.statuses.length },
   { id: "norms", label: "Нормативы", description: "Смены, длительности и ограничения", count: () => directoryState.norms.length },
 ];
 
 const directorySectionGroups = [
   {
-    label: "Система",
-    description: "организация, пользователи, права",
-    ids: ["departments", "employees", "roles", "statuses"],
+    label: "Производство",
+    description: "подразделения, мощности, оборудование",
+    ids: ["workCenters", "productionResources", "norms"],
   },
   {
-    label: "Производство",
-    description: "участки, мощности, оборудование",
-    ids: ["workCenters", "resources", "equipment", "norms"],
+    label: "Система",
+    description: "пользователи, права, статусы",
+    ids: ["employees", "roles", "statuses"],
   },
   {
     label: "Технологии",
@@ -416,6 +498,7 @@ function createDefaultDirectoryState() {
   return {
     departments: DEFAULT_DEPARTMENTS,
     roles: DEFAULT_ROLES,
+    productionResources: buildDefaultProductionResources(),
     resources: DEFAULT_RESOURCES,
     operationMap: [],
     nomenclatureTypes: DEFAULT_NOMENCLATURE_TYPES,
@@ -885,6 +968,350 @@ function persistDirectoryState() {
   localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directoryState));
 }
 
+function resolveProductionResourceType(value = "") {
+  const text = normalizeLookupText(value);
+  if (Object.keys(PRODUCTION_RESOURCE_TYPE_LABELS).includes(text)) return text;
+  if (text.includes("линия")) return "line";
+  if (text.includes("стан") || text.includes("установ") || text.includes("печ")) return "machine";
+  if (text.includes("рабоч") || text.includes("мест")) return "workplace";
+  if (text.includes("пост") || text.includes("стенд") || text.includes("инспектор")) return "post";
+  if (text.includes("оснаст")) return "tool";
+  if (text.includes("норматив")) return "normative";
+  return "equipment";
+}
+
+function resolveWorkCenterIdFromName(value = "") {
+  const normalized = normalizeLookupText(value);
+  if (!normalized) return "";
+  const direct = getWorkCenter(value);
+  if (direct) return direct.id;
+  const lineNumber = getSmtLineNumberFromText(value);
+  if (lineNumber) return "smt";
+  if (normalized.includes("офлайн") && (normalized.includes("аои") || normalized.includes("aoi"))) return "aoi";
+  const exact = (getRuntimePlanningState()?.workCenters || []).find((center) => (
+    normalizeLookupText(center.id) === normalized
+    || normalizeLookupText(center.name) === normalized
+    || normalizeLookupText(center.code) === normalized
+    || (center.legacyDepartmentNames || []).some((name) => normalizeLookupText(name) === normalized)
+  ));
+  if (exact) return exact.id;
+  if (normalized.includes("smt") || normalized.includes("смт")) return "smt";
+  if (normalized.includes("aoi") || normalized.includes("аои") || normalized.includes("отк")) return "aoi";
+  if (normalized.includes("отмыв")) return "wash";
+  if (normalized.includes("руч") || normalized.includes("tht")) return "manual";
+  if (normalized.includes("тест") || normalized.includes("испыт")) return "test";
+  if (normalized.includes("лак")) return "coating";
+  if (normalized.includes("слесар") || normalized.includes("механ")) return "mechanic";
+  if (normalized.includes("сбор")) return "assembly";
+  if (normalized.includes("склад")) return "warehouse";
+  return "";
+}
+
+function getProductionResourceWorkCenterId(resource = {}) {
+  return resource.workCenterId || resolveWorkCenterIdFromName(resource.workCenter || resource.line || resource.department || "");
+}
+
+function normalizeProductionResource(row = {}) {
+  const workCenterId = getProductionResourceWorkCenterId(row) || "manual";
+  const center = getWorkCenter(workCenterId);
+  const type = resolveProductionResourceType(row.type || row.resourceType || row.kind || "");
+  const isLegacyEquipment = row.sourceKind === "equipment";
+  const participatesInPlanning = row.participatesInPlanning ?? row.planningStatus ?? (isLegacyEquipment ? "no" : "yes");
+  const participatesInCalculation = row.participatesInCalculation ?? row.calculationStatus ?? (isLegacyEquipment ? "no" : "yes");
+
+  return {
+    ...row,
+    id: row.id || makeId("res"),
+    name: String(row.name || "Производственный ресурс").trim(),
+    type,
+    workCenterId,
+    workCenter: center?.name || row.workCenter || "",
+    parentResourceId: row.parentResourceId || "",
+    inventory: String(row.inventory || "").trim(),
+    maintenance: String(row.maintenance || "").trim(),
+    capacity: String(row.capacity || "").trim(),
+    baseCph: Math.max(0, Number(row.baseCph || 0)),
+    efficiency: Math.max(0, Number(row.efficiency || 0)),
+    changeoverMin: Math.max(0, Number(row.changeoverMin || 0)),
+    participatesInPlanning: participatesInPlanning === true || participatesInPlanning === "yes" ? "yes" : "no",
+    participatesInCalculation: participatesInCalculation === true || participatesInCalculation === "yes" ? "yes" : "no",
+    sourceKind: row.sourceKind || "productionResource",
+    status: String(row.status || "Доступен").trim(),
+  };
+}
+
+function getSmtLineParentResourceId(value = "", resources = []) {
+  const lineNumber = getSmtLineNumberFromText(value);
+  if (!lineNumber) return "";
+  const line = findSmtLineByNumber(lineNumber, resources);
+  return line?.id || "";
+}
+
+function migrateLegacyResourceRow(row = {}) {
+  return normalizeProductionResource({
+    ...row,
+    sourceKind: "resource",
+    workCenterId: resolveWorkCenterIdFromName(row.workCenter),
+    participatesInPlanning: "yes",
+    participatesInCalculation: "yes",
+  });
+}
+
+function migrateLegacyEquipmentRow(row = {}, migratedResources = []) {
+  const parentResourceId = getSmtLineParentResourceId(row.workCenter, migratedResources);
+  return normalizeProductionResource({
+    ...row,
+    type: row.type || "equipment",
+    sourceKind: "equipment",
+    workCenterId: resolveWorkCenterIdFromName(row.workCenter),
+    parentResourceId,
+    capacity: "",
+    baseCph: 0,
+    efficiency: 0,
+    changeoverMin: 0,
+    participatesInPlanning: "no",
+    participatesInCalculation: "no",
+  });
+}
+
+function dedupeProductionResources(rows = []) {
+  const result = [];
+  const seen = new Set();
+  rows.forEach((row) => {
+    const normalized = normalizeProductionResource(row);
+    const key = normalized.id || `${normalizeLookupText(normalized.name)}::${normalized.workCenterId}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(normalized);
+  });
+  return result;
+}
+
+function buildDefaultProductionResources() {
+  const migratedResources = DEFAULT_RESOURCES.map((row) => migrateLegacyResourceRow(row));
+  const migratedEquipment = DEFAULT_EQUIPMENT.map((row) => migrateLegacyEquipmentRow(row, migratedResources));
+  return dedupeProductionResources([...migratedResources, ...migratedEquipment]);
+}
+
+function getProductionResourceSourceRows(state = {}, fallbackRows = []) {
+  const currentRows = Array.isArray(state?.productionResources) ? state.productionResources : [];
+  const migratedResources = (Array.isArray(state?.resources) ? state.resources : []).map((row) => migrateLegacyResourceRow(row));
+  const migratedEquipment = (Array.isArray(state?.equipment) ? state.equipment : []).map((row) => migrateLegacyEquipmentRow(row, [...currentRows, ...migratedResources]));
+  const source = currentRows.length ? currentRows : fallbackRows;
+  return dedupeProductionResources([...source, ...migratedResources, ...migratedEquipment]);
+}
+
+function getProductionResources({ includeInactive = false } = {}) {
+  const rows = Array.isArray(directoryState?.productionResources)
+    ? directoryState.productionResources
+    : getProductionResourceSourceRows(directoryState, buildDefaultProductionResources());
+  return dedupeProductionResources(rows)
+    .filter((resource) => includeInactive || !["Отключен", "inactive"].includes(resource.status));
+}
+
+function getProductionResource(resourceId) {
+  return getProductionResources({ includeInactive: true }).find((resource) => resource.id === resourceId) || null;
+}
+
+function resourceParticipatesInPlanning(resource = {}) {
+  return resource.participatesInPlanning !== "no" && !["Отключен", "inactive"].includes(resource.status);
+}
+
+function resourceParticipatesInCalculation(resource = {}) {
+  return resource.participatesInCalculation !== "no" && !["Отключен", "inactive"].includes(resource.status);
+}
+
+function getProductionResourcesForWorkCenter(workCenterId, { includeInactive = false, includePassive = false } = {}) {
+  const resolvedId = getCalendarWorkCenterId(workCenterId);
+  return getProductionResources({ includeInactive })
+    .filter((resource) => getProductionResourceWorkCenterId(resource) === resolvedId)
+    .filter((resource) => includePassive || resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource));
+}
+
+function makeFallbackProductionResource(workCenterId) {
+  const center = getWorkCenter(workCenterId) || { id: workCenterId, name: "Подразделение", code: workCenterId };
+  return normalizeProductionResource({
+    id: `resource-${center.id}-norm`,
+    name: `${center.name} · норматив`,
+    type: "normative",
+    workCenterId: center.id,
+    workCenter: center.name,
+    capacity: `${Number(center.unitsPerHour || getWorkCenterUnitsPerHour(center.id)).toLocaleString("ru-RU")} изд./час`,
+    baseCph: center.id === "smt" ? DEFAULT_RESOURCE_CPH : 0,
+    efficiency: 100,
+    changeoverMin: 0,
+    participatesInPlanning: "yes",
+    participatesInCalculation: "yes",
+    status: "Норматив",
+  });
+}
+
+function normalizeUnitType(value, row = {}) {
+  const raw = String(value || row.unitType || row.type || "").trim().toLowerCase();
+  if (["production", "administrative", "warehouse", "quality", "service"].includes(raw)) return raw;
+  const text = `${row.id || ""} ${row.name || ""} ${row.code || ""}`.toLowerCase();
+  if (text.includes("warehouse") || text.includes("склад")) return "warehouse";
+  if (text.includes("отк") || text.includes("aoi") || text.includes("аои") || text.includes("контроль") || text.includes("test")) return "quality";
+  if (text.includes("план") || text.includes("закуп") || text.includes("снаб") || text.includes("программ")) return "administrative";
+  return "production";
+}
+
+function isPlanningWorkCenter(center) {
+  return Boolean(center) && center.isActive !== false && center.isPlanningUnit !== false && center.showInGantt !== false;
+}
+
+function getPlanningWorkCenters({ includeWarehouse = true } = {}) {
+  return (planningState.workCenters || [])
+    .filter((center) => isPlanningWorkCenter(center))
+    .filter((center) => includeWarehouse || center.id !== "warehouse");
+}
+
+function normalizeWorkCenterUnit(center = {}) {
+  const migratedName = LEGACY_WORK_CENTER_NAME_MIGRATION[center.name] || center.name;
+  const unitType = normalizeUnitType(center.unitType, center);
+  const isWarehouse = center.id === "warehouse" || unitType === "warehouse";
+  const isAdministrative = unitType === "administrative";
+  const isPlanningUnit = center.isPlanningUnit === undefined
+    ? !isAdministrative
+    : Boolean(center.isPlanningUnit);
+  const showInGantt = center.showInGantt === undefined ? isPlanningUnit : Boolean(center.showInGantt);
+  const unitsPerHour = isPlanningUnit
+    ? Math.max(1, Number(center.unitsPerHour || WORK_CENTER_RATES[center.id] || 40))
+    : Math.max(0, Number(center.unitsPerHour || 0));
+  const capacity = isPlanningUnit
+    ? Math.max(1, Number(center.capacity || 1))
+    : Math.max(0, Number(center.capacity || 0));
+
+  return {
+    ...center,
+    name: migratedName,
+    unitType,
+    owner: String(center.owner || "").trim(),
+    isPlanningUnit,
+    showInGantt,
+    unitsPerHour,
+    capacity,
+    shift: center.shift || (isWarehouse ? "24/7" : isPlanningUnit ? "5/2 08:00-20:00" : ""),
+    isActive: center.isActive !== false,
+  };
+}
+
+function getLegacyDepartmentTargetCenterId(departmentName = "") {
+  const direct = LEGACY_DEPARTMENT_TO_WORK_CENTER_ID[departmentName];
+  if (direct) return direct;
+  const normalized = normalizeLookupText(EMPLOYEE_DEPARTMENT_MIGRATION[departmentName] || departmentName);
+  const exact = (planningState.workCenters || []).find((center) => (
+    normalizeLookupText(center.name) === normalized
+    || normalizeLookupText(center.code) === normalized
+  ));
+  if (exact) return exact.id;
+  return "";
+}
+
+function getUnifiedUnitName(name = "") {
+  const migratedName = LEGACY_WORK_CENTER_NAME_MIGRATION[EMPLOYEE_DEPARTMENT_MIGRATION[name] || name] || EMPLOYEE_DEPARTMENT_MIGRATION[name] || name;
+  const targetId = getLegacyDepartmentTargetCenterId(migratedName);
+  const target = targetId ? getWorkCenter(targetId) : null;
+  if (target?.name) return target.name;
+  return migratedName;
+}
+
+function migrateSpecificationDepartmentNames(renameMap) {
+  if (!renameMap.size) return false;
+  let changed = false;
+  directoryState.specifications = (directoryState.specifications || []).map((specification) => {
+    let specificationChanged = false;
+    const nextItems = getSpecificationStructureItems(specification).map((item) => {
+      const nextDepartmentName = renameMap.get(item.departmentName) || item.departmentName;
+      if (nextDepartmentName === item.departmentName) return item;
+      specificationChanged = true;
+      return { ...item, departmentName: nextDepartmentName };
+    });
+    if (!specificationChanged) return specification;
+    changed = true;
+    return { ...specification, structureItems: nextItems };
+  });
+  return changed;
+}
+
+function migrateDepartmentsToUnifiedWorkCenters() {
+  if (!planningState || !directoryState) return;
+  const legacyDepartments = Array.isArray(directoryState.departments) ? directoryState.departments : [];
+  const renameMap = new Map();
+  let planningChanged = false;
+  let directoryChanged = false;
+
+  planningState.workCenters = (planningState.workCenters || []).map((center) => {
+    const normalizedCenter = normalizeWorkCenterUnit(center);
+    if (center.name && normalizedCenter.name !== center.name) {
+      renameMap.set(center.name, normalizedCenter.name);
+      planningChanged = true;
+    }
+    return normalizedCenter;
+  });
+
+  legacyDepartments.forEach((department) => {
+    if (!department?.name) return;
+    const targetId = getLegacyDepartmentTargetCenterId(department.name);
+    const targetIndex = targetId
+      ? planningState.workCenters.findIndex((center) => center.id === targetId)
+      : -1;
+
+    if (targetIndex >= 0) {
+      const target = planningState.workCenters[targetIndex];
+      renameMap.set(department.name, target.name);
+      planningState.workCenters[targetIndex] = normalizeWorkCenterUnit({
+        ...target,
+        owner: target.owner || department.owner || "",
+        legacyDepartmentNames: [...new Set([...(target.legacyDepartmentNames || []), department.name])],
+      });
+      planningChanged = true;
+      return;
+    }
+
+    const unitIdBase = String(department.id || makeId("unit")).replace(/^dep-/, "unit-");
+    let unitId = unitIdBase || makeId("unit");
+    let suffix = 1;
+    while (planningState.workCenters.some((center) => center.id === unitId)) {
+      suffix += 1;
+      unitId = `${unitIdBase}-${suffix}`;
+    }
+    planningState.workCenters.push(normalizeWorkCenterUnit({
+      id: unitId,
+      name: department.name,
+      code: department.code || "UNIT",
+      unitType: normalizeUnitType("", department),
+      owner: department.owner || "",
+      isPlanningUnit: false,
+      showInGantt: false,
+      unitsPerHour: 0,
+      capacity: 0,
+      shift: "",
+      description: "Мигрировано из прежнего справочника подразделений.",
+      isActive: department.status !== "Отключен",
+    }));
+    planningChanged = true;
+  });
+
+  directoryState.employees = (directoryState.employees || []).map((employee) => {
+    const nextDepartment = getUnifiedUnitName(employee.department);
+    if (nextDepartment === employee.department) return employee;
+    directoryChanged = true;
+    return { ...employee, department: nextDepartment };
+  });
+
+  if (migrateSpecificationDepartmentNames(renameMap)) directoryChanged = true;
+
+  if (legacyDepartments.length) {
+    directoryState.departments = [];
+    directoryChanged = true;
+  }
+
+  planningState = normalizePlanningState(planningState);
+  if (planningChanged) persistState();
+  if (directoryChanged) persistDirectoryState();
+}
+
 function migrateProjectEntityToSpecifications() {
   // Legacy migration only. "Project" is no longer a business entity; old
   // projectId fields are kept as aliases for specificationId in saved Gantt data.
@@ -1331,7 +1758,9 @@ function normalizeDirectoryState(state, options = {}) {
   const fallback = createDefaultDirectoryState();
   const mergeFallback = options.mergeFallback !== false;
   return Object.fromEntries(Object.entries(fallback).map(([sectionId, fallbackRows]) => {
-    const sourceRows = Array.isArray(state?.[sectionId]) ? state[sectionId] : fallbackRows;
+    const sourceRows = sectionId === "productionResources"
+      ? getProductionResourceSourceRows(state, fallbackRows)
+      : Array.isArray(state?.[sectionId]) ? state[sectionId] : fallbackRows;
     const sourceIds = new Set(sourceRows.map((row) => row?.id).filter(Boolean));
     const rows = [
       ...sourceRows,
@@ -1357,6 +1786,10 @@ function normalizeDirectoryRow(sectionId, row) {
       owner: String(row.owner || "").trim(),
       status: String(row.status || "Активен").trim(),
     };
+  }
+
+  if (sectionId === "productionResources") {
+    return normalizeProductionResource(row);
   }
 
   if (sectionId === "bomLists") {
@@ -1509,8 +1942,17 @@ function normalizeRoleDirectoryList(value) {
   const rawDirectories = String(value || "statuses").trim();
   if (rawDirectories === "*") return "*";
   const directories = parseAccessList(rawDirectories);
+  if (directories.has("departments")) {
+    directories.delete("departments");
+    directories.add("workCenters");
+  }
+  if (directories.has("resources") || directories.has("equipment")) {
+    directories.delete("resources");
+    directories.delete("equipment");
+    directories.add("productionResources");
+  }
   ["projects", "specifications", "bomLists", "routes"].forEach((sectionId) => directories.delete(sectionId));
-  const order = ["departments", "roles", "resources", "componentTypes", "nomenclatureTypes", "employees", "equipment", "workCenters", "statuses", "norms"];
+  const order = ["workCenters", "productionResources", "norms", "employees", "roles", "statuses", "componentTypes", "nomenclatureTypes"];
   return order.filter((sectionId) => directories.has(sectionId)).join(", ") || "statuses";
 }
 
@@ -1540,6 +1982,9 @@ function normalizePlanningState(state) {
     name: "Склад",
     code: "WH",
     description: "Финальное размещение готовой партии на складе",
+    unitType: "warehouse",
+    isPlanningUnit: true,
+    showInGantt: true,
     isActive: true,
   };
 
@@ -1547,12 +1992,8 @@ function normalizePlanningState(state) {
     state.workCenters = [...state.workCenters, warehouseCenter];
   }
 
-  state.workCenters = state.workCenters.map((center) => ({
-    ...center,
-    unitsPerHour: Number(center.unitsPerHour || WORK_CENTER_RATES[center.id] || 40),
-    capacity: Math.max(1, Number(center.capacity || 1)),
-    shift: center.shift || (center.id === "warehouse" ? "24/7" : "08:00-20:00"),
-  }));
+  state.workCenters = state.workCenters.map((center) => normalizeWorkCenterUnit(center));
+  state.routeSteps = state.routeSteps.map((step) => normalizeRouteStepCalculationFields(step, state));
 
   for (const route of state.routes) {
     const steps = state.routeSteps.filter((step) => step.routeId === route.id);
@@ -1565,6 +2006,10 @@ function normalizePlanningState(state) {
         operationName: "Склад",
         stepOrder: nextOrder,
         isRequired: true,
+        calculationType: "rate",
+        unitsPerHour: getWorkCenterUnitsPerHour("warehouse", state),
+        boardsPerPanel: 1,
+        setupMin: 0,
       });
     }
   }
@@ -1596,7 +2041,7 @@ function addMissingWarehouseSlots(state) {
 
     const plannedStart = addMs(latest.plannedEnd, 60 * 60 * 1000);
     const quantity = normalizeQuantity(latest.quantity);
-    const plannedEnd = calculatePlannedEndByQuantity(plannedStart, "warehouse", quantity, state);
+    const plannedEnd = calculatePlannedEndByQuantity(plannedStart, "warehouse", quantity, state, warehouseStep.unitsPerHour || null, warehouseStep.boardsPerPanel || null, warehouseStep);
     state.slots.push({
       id: `s-${latest.projectId}-${latest.batchId}-warehouse`,
       routeId: route.id,
@@ -1627,7 +2072,10 @@ function getWorkCenterUnitsPerHour(workCenterId, state = null) {
     }
   }
   const center = sourceState?.workCenters?.find((item) => item.id === workCenterId);
-  return Number(center?.unitsPerHour || WORK_CENTER_RATES[workCenterId] || 40);
+  if (center?.isPlanningUnit === false) return 0;
+  const centerRate = Number(center?.unitsPerHour || 0);
+  if (Number.isFinite(centerRate) && centerRate > 0) return centerRate;
+  return Number(WORK_CENTER_RATES[workCenterId] || 40);
 }
 
 function normalizeQuantity(value, fallback = 1) {
@@ -1658,7 +2106,227 @@ function toSlotDateTime(value) {
   return `${isoLocal(value)}:00`;
 }
 
-function calculateRequiredDurationMs(workCenterId, quantity, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null) {
+function getRuntimePlanningState(fallback = null) {
+  try {
+    return planningState || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getRuntimeDirectoryState(fallback = null) {
+  try {
+    return directoryState || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getDurationWorkCenter(workCenterId, state = null) {
+  const sourceState = state || getRuntimePlanningState();
+  return sourceState?.workCenters?.find((center) => center.id === workCenterId) || null;
+}
+
+function getDurationResourcesForWorkCenter(workCenterId, state = null) {
+  const center = getDurationWorkCenter(workCenterId, state);
+  const matched = getProductionResourcesForWorkCenter(workCenterId)
+    .filter((resource) => resourceParticipatesInCalculation(resource) || resourceParticipatesInPlanning(resource));
+  if (matched.length) return matched;
+  if (isSmtOperationWorkCenter(workCenterId, { workCenter: center }, state)) return getDefaultSmtLineConfigurations();
+  if (!center) return [];
+  return [makeFallbackProductionResource(center.id)];
+}
+
+function isSmtOperationWorkCenter(workCenterId, operationContext = null, state = null) {
+  const id = String(workCenterId || operationContext?.workCenterId || "");
+  if (id === "smt" || isSmtLineWorkCenterId(id)) return true;
+  const center = operationContext?.workCenter || getDurationWorkCenter(id, state);
+  const text = normalizeLookupText([center?.id, center?.name, center?.code, operationContext?.operationName].filter(Boolean).join(" "));
+  if (text.includes("smt") || text.includes("смт")) return true;
+  const resourceId = String(operationContext?.resourceId || "");
+  if (resourceId && getSmtLineConfigurations().some((line) => line.id === resourceId)) return true;
+  return false;
+}
+
+function getDefaultOperationCalculationType(workCenterId, operationContext = null) {
+  const explicit = String(operationContext?.calculationType || "").trim();
+  if (["components", "manual", "normative", "rate"].includes(explicit)) return explicit;
+  if (isSmtOperationWorkCenter(workCenterId, operationContext)) return "components";
+  if (String(workCenterId || "") === "warehouse") return "rate";
+  return "manual";
+}
+
+function normalizeRouteStepCalculationFields(step = {}, state = null) {
+  const workCenterId = step.workCenterId || "manual";
+  const calculationType = getDefaultOperationCalculationType(workCenterId, step);
+  const boardsPerPanel = normalizeBoardsPerPanel(step.boardsPerPanel, 1);
+  const resources = getDurationResourcesForWorkCenter(workCenterId, state);
+  const resource = resources.find((item) => item.id === step.resourceId) || resources[0] || null;
+  const secondsPerPanel = Number(step.secondsPerPanel || 0) > 0
+    ? Math.max(1, Number(step.secondsPerPanel))
+    : calculationType === "components" || calculationType === "rate"
+      ? 0
+      : getDefaultSecondsPerPanel(workCenterId, boardsPerPanel);
+
+  return {
+    ...step,
+    workCenterId,
+    calculationType,
+    boardsPerPanel,
+    resourceId: step.resourceId || resource?.id || "",
+    secondsPerPanel,
+    unitsPerHour: Number(step.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId, state) || 0),
+    setupMin: Math.max(0, Number(step.setupMin ?? resource?.changeoverMin ?? 0)),
+  };
+}
+
+function getDurationOperationContext(operationContext, workCenterId, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null) {
+  const sourceState = state || getRuntimePlanningState();
+  const routeStep = operationContext?.routeStepId
+    ? sourceState?.routeSteps?.find((step) => step.id === operationContext.routeStepId)
+    : null;
+  const context = {
+    ...(routeStep || {}),
+    ...(operationContext || {}),
+  };
+  const resolvedWorkCenterId = workCenterId || context.workCenterId || routeStep?.workCenterId || "";
+  const boardsPerPanel = normalizeBoardsPerPanel(boardsPerPanelOverride || context.boardsPerPanel, 1);
+  return {
+    ...context,
+    workCenterId: resolvedWorkCenterId,
+    unitsPerHour: unitsPerHourOverride || context.unitsPerHour || "",
+    boardsPerPanel,
+    calculationType: getDefaultOperationCalculationType(resolvedWorkCenterId, context),
+  };
+}
+
+function getOperationSetupMs(operationContext = null, resource = null) {
+  const setupMin = Number(operationContext?.setupMin ?? resource?.changeoverMin ?? 0);
+  return Math.max(0, Number.isFinite(setupMin) ? setupMin * 60 * 1000 : 0);
+}
+
+function getDurationBomList(operationContext = null) {
+  const bomId = operationContext?.bomListId || "";
+  const directory = getRuntimeDirectoryState();
+  if (!bomId || !directory?.bomLists) return null;
+  return directory.bomLists.find((bom) => bom.id === bomId) || null;
+}
+
+function getDurationComponentTypes() {
+  const directory = getRuntimeDirectoryState();
+  const source = directory?.componentTypes?.length ? directory.componentTypes : DEFAULT_COMPONENT_TYPES;
+  return source.filter((type) => type.status !== "Отключен");
+}
+
+function getDurationComponentCounts(bom) {
+  if (!bom) return Object.fromEntries(getDurationComponentTypes().map((type) => [type.id, 0]));
+  const importRows = Array.isArray(bom.importRows) ? bom.importRows.map((row) => normalizeBomImportRow(row)) : [];
+  if (importRows.length) {
+    const totals = summarizeBomComponentFields(importRows);
+    return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [
+      field.componentId,
+      Math.max(0, Math.round(Number(totals[field.key] || 0))),
+    ]));
+  }
+  return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [
+    field.componentId,
+    Math.max(0, Math.round(Number(bom[field.key] || 0))),
+  ]));
+}
+
+function getOperationSmtResource(operationContext = null, state = null) {
+  const lineId = getSmtLineIdFromWorkCenterId(operationContext?.workCenterId) || operationContext?.resourceId || "";
+  const resources = getDurationResourcesForWorkCenter("smt", state);
+  return resources.find((resource) => resource.id === lineId)
+    || getDurationResourcesForWorkCenter(operationContext?.workCenterId || "smt", state).find((resource) => resource.id === lineId)
+    || resources[0]
+    || getDefaultSmtLineConfigurations()[0];
+}
+
+function buildSmtComponentDurationRows(bom, resource, boardsPerPanel, boardQuantity = 1) {
+  const resourceBaseCph = getResourceBaseCph(resource);
+  const efficiency = Math.max(0.1, Number(resource?.efficiency || 100) / 100);
+  const counts = getDurationComponentCounts(bom);
+  return getDurationComponentTypes().map((type) => {
+    const count = Math.max(0, Math.round(Number(counts[type.id] ?? 0)));
+    const coefficient = Math.max(0.1, Number(type.coefficient || 1));
+    const typeLimitCph = Math.max(1, Number(type.placementsPerHour || resourceBaseCph / coefficient));
+    const effectiveCph = Math.max(1, Math.min(typeLimitCph, resourceBaseCph / coefficient) * efficiency);
+    const secondsPerBoard = count > 0 ? count / effectiveCph * 3600 : 0;
+    return {
+      type,
+      count,
+      coefficient,
+      effectiveCph,
+      secondsPerBoard,
+      secondsPerPanel: secondsPerBoard * boardsPerPanel,
+      totalPlacements: count * boardQuantity,
+      complexity: count * coefficient,
+    };
+  });
+}
+
+function calculateSmtOperationDurationMs(operationContext, quantity, state = null) {
+  const boardsPerPanel = normalizeBoardsPerPanel(operationContext?.boardsPerPanel, 1);
+  const boardQuantity = normalizeQuantity(quantity);
+  const panelCount = Math.max(1, Math.ceil(boardQuantity / boardsPerPanel));
+  const resource = getOperationSmtResource(operationContext, state);
+  const bom = getDurationBomList(operationContext);
+  const componentRows = buildSmtComponentDurationRows(bom, resource, boardsPerPanel, boardQuantity);
+  const perBoardSeconds = componentRows.reduce((sum, row) => sum + row.secondsPerBoard, 0);
+  if (perBoardSeconds <= 0) return null;
+  const perPanelSeconds = perBoardSeconds * boardsPerPanel;
+  return getOperationSetupMs(operationContext, resource) + perPanelSeconds * panelCount * 1000;
+}
+
+function getWorkCenterEmployeeCount(workCenterId, state = null) {
+  const center = getDurationWorkCenter(workCenterId, state);
+  const names = new Set([
+    center?.name,
+    center?.code,
+    ...(center?.legacyDepartmentNames || []),
+  ].filter(Boolean).map(normalizeLookupText));
+  const employees = (getRuntimeDirectoryState()?.employees || []).filter((employee) => {
+    if (["Уволен", "Отключен"].includes(employee.status)) return false;
+    return names.has(normalizeLookupText(employee.department));
+  });
+  if (employees.length) return employees.length;
+
+  const resources = getDurationResourcesForWorkCenter(workCenterId, state);
+  for (const resource of resources) {
+    const match = String(resource.capacity || "").match(/([\d.,]+)/);
+    if (!match) continue;
+    const parsed = Number(match[1].replace(",", "."));
+    if (Number.isFinite(parsed) && parsed > 0) return Math.max(1, Math.round(parsed));
+  }
+
+  return Math.max(1, Number(center?.capacity || 1));
+}
+
+function calculateManualLaborDurationMs(operationContext, quantity, state = null) {
+  const workCenterId = operationContext?.workCenterId || "";
+  const resources = getDurationResourcesForWorkCenter(workCenterId, state);
+  const resource = resources.find((item) => item.id === operationContext?.resourceId) || resources[0] || null;
+  const setupMs = getOperationSetupMs(operationContext, resource);
+  const secondsPerUnit = Math.max(1, Number(operationContext?.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, 1)));
+  const employeesCount = getWorkCenterEmployeeCount(workCenterId, state);
+  return setupMs + (normalizeQuantity(quantity) * secondsPerUnit * 1000) / Math.max(1, employeesCount);
+}
+
+function calculateNormativeSerialDurationMs(operationContext, quantity, state = null) {
+  const workCenterId = operationContext?.workCenterId || "";
+  const resources = getDurationResourcesForWorkCenter(workCenterId, state);
+  const resource = resources.find((item) => item.id === operationContext?.resourceId) || resources[0] || null;
+  const setupMs = getOperationSetupMs(operationContext, resource);
+  const boardsPerPanel = normalizeBoardsPerPanel(operationContext?.boardsPerPanel, 1);
+  const batchQuantity = workCenterUsesPanelBatching(workCenterId)
+    ? Math.max(1, Math.ceil(normalizeQuantity(quantity) / boardsPerPanel))
+    : normalizeQuantity(quantity);
+  const secondsPerBatch = Math.max(1, Number(operationContext?.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, boardsPerPanel)));
+  return setupMs + batchQuantity * secondsPerBatch * 1000;
+}
+
+function calculateRateDurationMs(workCenterId, quantity, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null) {
   const rate = Math.max(1, Number(unitsPerHourOverride || getWorkCenterUnitsPerHour(workCenterId, state)));
   const normalizedQuantity = normalizeQuantity(quantity);
   const boardsPerPanel = normalizeBoardsPerPanel(boardsPerPanelOverride, 1);
@@ -1670,22 +2338,68 @@ function calculateRequiredDurationMs(workCenterId, quantity, state = null, units
   return Math.max(MIN_OPERATION_DURATION_MS, normalizedQuantity / rate * 60 * 60 * 1000);
 }
 
-function calculatePlannedEndByQuantity(plannedStart, workCenterId, quantity, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null) {
-  return addMs(plannedStart, calculateRequiredDurationMs(workCenterId, quantity, state, unitsPerHourOverride, boardsPerPanelOverride));
+function calculateRequiredDurationMs(workCenterId, quantity, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null, operationContext = null) {
+  const context = getDurationOperationContext(operationContext, workCenterId, state, unitsPerHourOverride, boardsPerPanelOverride);
+  let durationMs = null;
+
+  if (context.calculationType === "components" || isSmtOperationWorkCenter(workCenterId, context, state)) {
+    durationMs = calculateSmtOperationDurationMs(context, quantity, state);
+  } else if (context.calculationType === "manual") {
+    durationMs = calculateManualLaborDurationMs(context, quantity, state);
+  } else if (context.calculationType === "normative") {
+    durationMs = calculateNormativeSerialDurationMs(context, quantity, state);
+  }
+
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    durationMs = calculateRateDurationMs(workCenterId, quantity, state, unitsPerHourOverride, boardsPerPanelOverride);
+  }
+
+  return Math.max(MIN_OPERATION_DURATION_MS, durationMs);
 }
 
-function calculateQuantityByDuration(workCenterId, plannedStart, plannedEnd) {
-  const durationHours = Math.max(0, toDate(plannedEnd) - toDate(plannedStart)) / (60 * 60 * 1000);
+function calculatePlannedEndByQuantity(plannedStart, workCenterId, quantity, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null, operationContext = null) {
+  const durationMs = calculateRequiredDurationMs(workCenterId, quantity, state, unitsPerHourOverride, boardsPerPanelOverride, operationContext);
+  const workingStart = snapToWorkingTime(workCenterId, plannedStart, state);
+  return addWorkingDuration(workCenterId, workingStart, durationMs, state);
+}
+
+function calculateQuantityByDuration(workCenterId, plannedStart, plannedEnd, operationContext = null) {
+  const workingDurationMs = getWorkingDurationBetween(workCenterId, plannedStart, plannedEnd, planningState);
+  const durationHours = workingDurationMs / (60 * 60 * 1000);
+  const context = getDurationOperationContext(operationContext, workCenterId, planningState, operationContext?.unitsPerHour || null, operationContext?.boardsPerPanel || null);
+  const durationMs = workingDurationMs;
+
+  if (context.calculationType === "components" || isSmtOperationWorkCenter(workCenterId, context, planningState)) {
+    const resource = getOperationSmtResource(context, planningState);
+    const bom = getDurationBomList(context);
+    const boardsPerPanel = normalizeBoardsPerPanel(context.boardsPerPanel, 1);
+    const perBoardSeconds = buildSmtComponentDurationRows(bom, resource, boardsPerPanel).reduce((sum, row) => sum + row.secondsPerBoard, 0);
+    if (perBoardSeconds > 0) {
+      const setupMs = getOperationSetupMs(context, resource);
+      const productiveMs = Math.max(0, durationMs - setupMs);
+      return normalizeQuantity(Math.max(1, Math.floor(productiveMs / (perBoardSeconds * boardsPerPanel * 1000)) * boardsPerPanel));
+    }
+  }
+
+  if (context.calculationType === "manual") {
+    const secondsPerUnit = Math.max(1, Number(context.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, 1)));
+    const employeesCount = getWorkCenterEmployeeCount(workCenterId, planningState);
+    const setupMs = getOperationSetupMs(context);
+    return normalizeQuantity((Math.max(0, durationMs - setupMs) / 1000 / secondsPerUnit) * employeesCount);
+  }
+
   return normalizeQuantity(durationHours * getWorkCenterUnitsPerHour(workCenterId));
 }
 
 function recalculateSlotEndByQuantity(slot, state = null) {
   const quantity = normalizeQuantity(slot.quantity);
+  const plannedStart = toSlotDateTime(snapToWorkingTime(slot.workCenterId, slot.plannedStart, state));
   return {
     ...slot,
     quantity,
     boardsPerPanel: normalizeBoardsPerPanel(slot.boardsPerPanel, 1),
-    plannedEnd: toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity, state, slot.unitsPerHour, slot.boardsPerPanel)),
+    plannedStart,
+    plannedEnd: toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, slot.workCenterId, quantity, state, slot.unitsPerHour, slot.boardsPerPanel, slot)),
   };
 }
 
@@ -1694,7 +2408,9 @@ function getRouteBufferMs() {
 }
 
 function getWorkCenterCapacity(workCenterId) {
+  if (isSmtLineWorkCenterId(workCenterId)) return 1;
   const center = planningState.workCenters.find((item) => item.id === workCenterId);
+  if (center?.isPlanningUnit === false) return 0;
   return Math.max(1, Number(center?.capacity || 1));
 }
 
@@ -1764,8 +2480,8 @@ function buildBacklogItems(limit = 14) {
 
       const quantity = getRouteStepQuantityForBatch(nextStep, batch);
       const earliestStart = getEarliestRouteStart(project.id, batch.id, nextStep.id);
-      const durationMs = calculateRequiredDurationMs(nextStep.workCenterId, quantity, planningState, nextStep.unitsPerHour || null, nextStep.boardsPerPanel || null);
-      const window = findFreeWindow(nextStep.workCenterId, durationMs, earliestStart);
+      const durationMs = calculateRequiredDurationMs(nextStep.workCenterId, quantity, planningState, nextStep.unitsPerHour || null, nextStep.boardsPerPanel || null, nextStep);
+      const window = findFreeWindow(nextStep.workCenterId, durationMs, earliestStart, null, nextStep.resourceId || "");
       const dueState = getProjectDeadlineState(project);
 
       items.push({
@@ -1791,10 +2507,11 @@ function windowsOverlap(startA, endA, startB, endB) {
   return toDate(startA) < toDate(endB) && toDate(endA) > toDate(startB);
 }
 
-function isWindowAvailable(workCenterId, start, end, excludeSlotId = null) {
-  const capacity = getWorkCenterCapacity(workCenterId);
+function isWindowAvailable(workCenterId, start, end, excludeSlotId = null, resourceId = "") {
+  const capacity = resourceId ? 1 : getWorkCenterCapacity(workCenterId);
   const relevantSlots = planningState.slots.filter((slot) => (
     slot.workCenterId === workCenterId
+    && (!resourceId || getSlotGanttResourceId(slot) === resourceId)
     && slot.id !== excludeSlotId
     && windowsOverlap(start, end, slot.plannedStart, slot.plannedEnd)
   ));
@@ -1820,29 +2537,31 @@ function isWindowAvailable(workCenterId, start, end, excludeSlotId = null) {
   return true;
 }
 
-function findFreeWindow(workCenterId, durationMs, earliestStart, excludeSlotId = null) {
+function findFreeWindow(workCenterId, durationMs, earliestStart, excludeSlotId = null, resourceId = "") {
   const snapMs = getGanttSnapMs();
-  let candidateStart = snapDate(earliestStart, snapMs);
+  let candidateStart = snapToWorkingTime(workCenterId, snapDate(earliestStart, snapMs), planningState);
   const maxIterations = 160;
 
   for (let index = 0; index < maxIterations; index += 1) {
-    const candidateEnd = addMs(candidateStart, durationMs);
-    if (isWindowAvailable(workCenterId, candidateStart, candidateEnd, excludeSlotId)) {
+    candidateStart = snapToWorkingTime(workCenterId, candidateStart, planningState);
+    const candidateEnd = addWorkingDuration(workCenterId, candidateStart, durationMs, planningState);
+    if (isWindowAvailable(workCenterId, candidateStart, candidateEnd, excludeSlotId, resourceId)) {
       return { start: candidateStart, end: candidateEnd };
     }
 
     const overlappingSlots = planningState.slots
       .filter((slot) => (
         slot.workCenterId === workCenterId
+        && (!resourceId || getSlotGanttResourceId(slot) === resourceId)
         && slot.id !== excludeSlotId
         && windowsOverlap(candidateStart, candidateEnd, slot.plannedStart, slot.plannedEnd)
       ))
       .sort((left, right) => toDate(left.plannedEnd) - toDate(right.plannedEnd));
 
-    candidateStart = snapDate(addMs(overlappingSlots[0]?.plannedEnd || candidateEnd, getRouteBufferMs()), snapMs);
+    candidateStart = snapToWorkingTime(workCenterId, snapDate(addMs(overlappingSlots[0]?.plannedEnd || candidateEnd, getRouteBufferMs()), snapMs), planningState);
   }
 
-  return { start: candidateStart, end: addMs(candidateStart, durationMs) };
+  return { start: candidateStart, end: addWorkingDuration(workCenterId, candidateStart, durationMs, planningState) };
 }
 
 function getGanttSnapMs() {
@@ -1986,8 +2705,8 @@ function cascadeBatchFromSlot(slotId) {
 
     const earliestStart = addMs(previous.plannedEnd, getRouteBufferMs());
     if (toDate(current.plannedStart) < earliestStart) {
-      const durationMs = calculateRequiredDurationMs(current.workCenterId, current.quantity, planningState, current.unitsPerHour || null, current.boardsPerPanel || null);
-      const window = findFreeWindow(current.workCenterId, durationMs, earliestStart, current.id);
+      const durationMs = calculateRequiredDurationMs(current.workCenterId, current.quantity, planningState, current.unitsPerHour || null, current.boardsPerPanel || null, current);
+      const window = findFreeWindow(current.workCenterId, durationMs, earliestStart, current.id, current.resourceId || "");
       current.plannedStart = toSlotDateTime(window.start);
       current.plannedEnd = toSlotDateTime(window.end);
       current.updatedAt = new Date().toISOString();
@@ -2205,16 +2924,16 @@ function getOperationTypeOption(type) {
 }
 
 function getOperationMapWorkCenterOptions() {
-  return planningState.workCenters.map((center) => ({
+  return getPlanningWorkCenters().map((center) => ({
     value: center.id,
     label: center.name,
-    meta: center.code || "участок",
+    meta: center.code || "подразделение",
   }));
 }
 
 function createBlankOperationMapItem() {
-  const defaultCenter = planningState.workCenters.find((center) => center.id !== "warehouse")
-    || planningState.workCenters[0]
+  const defaultCenter = getPlanningWorkCenters({ includeWarehouse: false })[0]
+    || getPlanningWorkCenters()[0]
     || { id: "warehouse" };
   return {
     id: "",
@@ -2256,7 +2975,7 @@ function renderOperationMapPage() {
               <button class="module-entity-item ${operation.id === activeOperation?.id ? "is-active" : ""}" data-operation-open="${escapeAttribute(operation.id)}" type="button">
                 <span>
                   <strong>${escapeHtml(operation.name || "Операция без названия")}</strong>
-                  <small>${escapeHtml(type.label)} · ${escapeHtml(center?.name || "участок не выбран")}</small>
+                  <small>${escapeHtml(type.label)} · ${escapeHtml(center?.name || "подразделение не выбрано")}</small>
                 </span>
                 <em>${routeUsageCount(operation.id)}</em>
               </button>
@@ -2275,7 +2994,7 @@ function renderOperationMapPage() {
           <div>
             <span class="eyebrow">Карта операций</span>
             <h2>${escapeHtml(hasPreview ? (isNew ? "Новая операция" : activeOperation.name || "Операция без названия") : "Операция не выбрана")}</h2>
-            <p>${escapeHtml(hasPreview ? "Операция задает участок по умолчанию и нормативы для маршрутных карт." : "Выберите операцию слева или создайте новую.")}</p>
+            <p>${escapeHtml(hasPreview ? "Операция задает подразделение по умолчанию и нормативы для маршрутных карт." : "Выберите операцию слева или создайте новую.")}</p>
           </div>
         </header>
 
@@ -2320,7 +3039,7 @@ function renderOperationMapEditor(operation, isNew, usageCount) {
           ${renderDenseInlineSelect("type", operation.type || "production", typeOptions, { type: "operationMapForm" })}
         </label>
         <label class="form-field">
-          <span>Участок по умолчанию</span>
+          <span>Подразделение по умолчанию</span>
           <input type="hidden" name="workCenterId" data-operation-map-hidden="workCenterId" value="${escapeAttribute(operation.workCenterId || "")}" />
           ${renderDenseInlineSelect("workCenterId", operation.workCenterId || "", workCenterOptions, { type: "operationMapForm" })}
         </label>
@@ -2334,8 +3053,8 @@ function renderOperationMapEditor(operation, isNew, usageCount) {
         </label>
         <div class="operation-map-summary full">
           <span>${escapeHtml(type.label)}</span>
-          <strong>${escapeHtml(center?.name || "Участок не выбран")}</strong>
-          <small>${operation.unitsPerHour ? `${Number(operation.unitsPerHour).toLocaleString("ru-RU")} ед/час` : "норматив возьмется из участка"}</small>
+          <strong>${escapeHtml(center?.name || "Подразделение не выбрано")}</strong>
+          <small>${operation.unitsPerHour ? `${Number(operation.unitsPerHour).toLocaleString("ru-RU")} ед/час` : "норматив возьмется из подразделения"}</small>
         </div>
         <div class="module-form-actions full">
           <button class="primary-button" type="submit">${icon("save")}<span>${isNew ? "Создать операцию" : "Сохранить операцию"}</span></button>
@@ -2469,7 +3188,7 @@ function renderPlanningPage() {
             ` : ""}
             <div class="planning-route-note">
               ${icon("info")}
-              <span>Заказ на пр-во теперь единственный вход для заданий в Гант. Кнопка «Передать в Гант» автоматически разложит операции по ближайшим доступным 15-минутным слотам с учетом участка, партии и последовательности задач.</span>
+              <span>Заказ на пр-во теперь единственный вход для заданий в Гант. Кнопка «Передать в Гант» автоматически разложит операции по ближайшим доступным 15-минутным слотам с учетом подразделения, партии и последовательности задач.</span>
             </div>
           </section>
 
@@ -2610,7 +3329,7 @@ function renderTreePage() {
   const layers = [
     { title: "Производство", value: productionContexts.length, meta: "спецификации, партии, слоты" },
     { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "спеки, BOM, маршруты" },
-    { title: "Справочники", value: getDirectoryObjectCount(), meta: "участки, отделы, ресурсы" },
+    { title: "Справочники", value: getDirectoryObjectCount(), meta: "подразделения, ресурсы, сотрудники" },
   ];
 
   return `
@@ -2699,10 +3418,8 @@ function getObjectTreeStats() {
 function getDirectoryObjectCount() {
   return [
     planningState.workCenters,
-    directoryState.departments,
-    directoryState.resources,
+    getProductionResources({ includeInactive: true }),
     directoryState.employees,
-    directoryState.equipment,
     directoryState.componentTypes,
     directoryState.norms,
     directoryState.statuses,
@@ -2965,14 +3682,14 @@ function renderRouteObjectTree(route) {
             const center = getWorkCenter(step.workCenterId);
             return renderObjectTreeLeaf(
               `${step.stepOrder}. ${step.operationName || center?.name || "Операция"}`,
-              `${center?.name || "участок не найден"} · ${Number(step.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час`,
+              `${center?.name || "подразделение не найдено"} · ${Number(step.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час`,
               "operation",
             );
           }).join("")],
         });
       }).join("") : steps.map((step) => {
         const center = getWorkCenter(step.workCenterId);
-        return renderObjectTreeLeaf(`${step.stepOrder}. ${step.operationName || "Операция"}`, center?.name || "участок не найден", "operation");
+        return renderObjectTreeLeaf(`${step.stepOrder}. ${step.operationName || "Операция"}`, center?.name || "подразделение не найдено", "operation");
       }).join(""),
     ],
   });
@@ -2995,7 +3712,7 @@ function renderBatchObjectTree(batch, slots) {
       ? [...slotsByCenter.entries()].map(([workCenterId, centerSlots]) => {
         const center = getWorkCenter(workCenterId);
         return renderObjectTreeNode({
-          title: center?.name || "Участок не найден",
+          title: center?.name || "Подразделение не найдено",
           meta: `${centerSlots.length} слотов Ганта`,
           badge: centerSlots.length,
           tone: "gantt",
@@ -3014,16 +3731,20 @@ function renderBatchObjectTree(batch, slots) {
 }
 
 function renderDirectoryTree() {
-  const departmentNodes = (directoryState.departments || []).map((department) => {
-    const employees = (directoryState.employees || []).filter((employee) => employee.department === department.name);
+  const unitNodes = (planningState.workCenters || []).map((unit) => {
+    const employees = (directoryState.employees || []).filter((employee) => employee.department === unit.name);
+    const typeLabel = UNIT_TYPE_LABELS[unit.unitType] || "Подразделение";
+    const planningLabel = isPlanningWorkCenter(unit)
+      ? `${Number(unit.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час · ${unit.shift || "смена не задана"}`
+      : "не участвует в Ганте";
     return renderObjectTreeNode({
-      title: department.name || "Отдел без названия",
-      meta: `${department.code || "код не задан"} · ${department.owner || "ответственный не задан"}`,
+      title: unit.name || "Подразделение без названия",
+      meta: `${typeLabel} · ${unit.code || "код не задан"} · ${planningLabel}`,
       badge: employees.length,
-      tone: "directory",
+      tone: isPlanningWorkCenter(unit) ? "workcenter" : "directory",
       children: [employees.length
         ? employees.map((employee) => renderObjectTreeLeaf(employee.name || "Сотрудник", `${employee.position || employee.role || "должность не задана"} · ${getRoleName(employee.roleId)}`, "employee")).join("")
-        : renderObjectTreeLeaf("Сотрудников нет", "Отдел пока пустой.", "empty")],
+        : renderObjectTreeLeaf("Сотрудников нет", "Подразделение пока пустое.", "empty")],
     });
   }).join("");
 
@@ -3035,28 +3756,20 @@ function renderDirectoryTree() {
     open: true,
     children: [
       renderObjectTreeNode({
-        title: "Участки",
-        meta: "строки Ганта и производственные мощности",
+        title: "Подразделения и сотрудники",
+        meta: "организация, ответственность и расчетные зоны",
         badge: planningState.workCenters.length,
         tone: "workcenter",
-        children: [planningState.workCenters.map((center) => renderObjectTreeLeaf(center.name || "Участок", `${center.code || "код не задан"} · ${Number(center.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час · ${center.shift || "смена не задана"}`, center.isActive === false ? "warning" : "workcenter")).join("")],
+        children: [unitNodes || renderObjectTreeLeaf("Подразделений пока нет", "Заполните справочник подразделений.", "empty")],
       }),
       renderObjectTreeNode({
-        title: "Отделы и сотрудники",
-        meta: "ответственность и роли",
-        badge: (directoryState.departments || []).length,
-        tone: "directory",
-        children: [departmentNodes || renderObjectTreeLeaf("Отделов пока нет", "Заполните справочник отделов.", "empty")],
-      }),
-      renderObjectTreeNode({
-        title: "Ресурсы и оборудование",
-        meta: `${(directoryState.resources || []).length} ресурсов · ${(directoryState.equipment || []).length} единиц оборудования`,
-        badge: (directoryState.resources || []).length + (directoryState.equipment || []).length,
+        title: "Производственные ресурсы",
+        meta: `${getProductionResources({ includeInactive: true }).length} линий, постов и единиц оборудования`,
+        badge: getProductionResources({ includeInactive: true }).length,
         tone: "resource",
         children: [
-          ...(directoryState.resources || []).map((resource) => renderObjectTreeLeaf(resource.name || "Ресурс", `${resource.type || "тип"} · ${resource.workCenter || "участок не задан"} · ${resource.status || "статус"}`, "resource")),
-          ...(directoryState.equipment || []).map((equipment) => renderObjectTreeLeaf(equipment.name || "Оборудование", `${equipment.type || "тип"} · ${equipment.line || equipment.workCenter || "линия не задана"} · ${equipment.status || "статус"}`, "resource")),
-        ].join("") || renderObjectTreeLeaf("Ресурсы не заполнены", "Добавьте ресурсы и оборудование в справочниках.", "empty"),
+          ...getProductionResources({ includeInactive: true }).map((resource) => renderObjectTreeLeaf(resource.name || "Ресурс", `${PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "тип"} · ${getWorkCenter(resource.workCenterId)?.name || "подразделение не задано"} · ${resource.status || "статус"}`, "resource")),
+        ].join("") || renderObjectTreeLeaf("Ресурсы не заполнены", "Добавьте производственные ресурсы в справочниках.", "empty"),
       }),
     ],
   });
@@ -3186,7 +3899,7 @@ function ensureAuthorizedModule() {
 function getVisibleDirectorySections() {
   const role = getEmployeeRole();
   const visibleSections = directorySections.filter((section) => roleAllowsValue(role?.directories, section.id));
-  return visibleSections.length ? visibleSections : directorySections.filter((section) => section.id === "departments");
+  return visibleSections.length ? visibleSections : directorySections.filter((section) => section.id === "workCenters");
 }
 
 function getVisibleDirectoryGroups(visibleSections = getVisibleDirectorySections()) {
@@ -4058,19 +4771,20 @@ function buildBomPreviewRows(calc) {
 function calculateRouteOperation(operation, context) {
   const workCenter = planningState.workCenters.find((center) => center.id === operation.workCenterId);
   const resources = getResourcesForWorkCenter(operation.workCenterId);
-  const resource = resources.find((item) => item.id === operation.resourceId) || resources[0] || directoryState.resources[0];
+  const resource = resources.find((item) => item.id === operation.resourceId) || resources[0] || null;
   const setupMs = Math.max(0, Number(operation.setupMin || resource?.changeoverMin || 0) * 60 * 1000);
   const quantityMultiplier = Math.max(1, Number(operation.quantityMultiplier || 1));
+  const calculationType = getDefaultOperationCalculationType(operation.workCenterId, operation);
   const operationBoardsPerPanel = normalizeBoardsPerPanel(operation.boardsPerPanel, context.boardsPerPanel || 1);
-  const operationBoardQuantity = operation.calculationType === "components"
+  const operationBoardQuantity = calculationType === "components"
     ? context.boardQuantity * quantityMultiplier
     : context.boardQuantity;
-  const operationPanelCount = operation.calculationType === "components"
+  const operationPanelCount = calculationType === "components"
     ? Math.max(1, Math.ceil(operationBoardQuantity / operationBoardsPerPanel))
     : context.panelCount;
   const operationBomList = getBomList(operation.bomListId);
 
-  if (operation.calculationType === "components") {
+  if (calculationType === "components") {
     const resourceBaseCph = getResourceBaseCph(resource);
     const efficiency = Math.max(0.1, Number(resource?.efficiency || 100) / 100);
     const counts = getOperationComponentCounts(operation);
@@ -4094,9 +4808,10 @@ function calculateRouteOperation(operation, context) {
     const perBoardSeconds = componentRows.reduce((sum, row) => sum + row.secondsPerBoard, 0);
     const perPanelSeconds = perBoardSeconds * operationBoardsPerPanel;
     const totalMs = perPanelSeconds * operationPanelCount * 1000 + setupMs;
-    return {
-      ...operation,
-      workCenter,
+	    return {
+	      ...operation,
+	      calculationType,
+	      workCenter,
       resource,
       bomList: operationBomList,
       boardsPerPanel: operationBoardsPerPanel,
@@ -4117,10 +4832,15 @@ function calculateRouteOperation(operation, context) {
 
   const fallbackSeconds = getDefaultSecondsPerPanel(operation.workCenterId, operationBoardsPerPanel);
   const perPanelSeconds = Math.max(0, Number(operation.secondsPerPanel || fallbackSeconds));
-  const perBoardSeconds = perPanelSeconds / operationBoardsPerPanel;
-  const totalMs = perPanelSeconds * operationPanelCount * 1000 + setupMs;
+  const employeeCount = calculationType === "manual" ? getWorkCenterEmployeeCount(operation.workCenterId, planningState) : 1;
+  const operationUnitCount = calculationType === "manual" ? operationBoardQuantity : operationPanelCount;
+  const perBoardSeconds = calculationType === "manual"
+    ? perPanelSeconds / employeeCount
+    : perPanelSeconds / operationBoardsPerPanel;
+  const totalMs = perPanelSeconds * operationUnitCount * 1000 / Math.max(1, employeeCount) + setupMs;
   return {
     ...operation,
+    calculationType,
     workCenter,
     resource,
     bomList: operationBomList,
@@ -4133,6 +4853,7 @@ function calculateRouteOperation(operation, context) {
     perPanelSeconds,
     setupMs,
     totalMs,
+    employeeCount,
     flowBoardsPerHour: perBoardSeconds > 0 ? 3600 / perBoardSeconds : 0,
     flowPanelsPerHour: perPanelSeconds > 0 ? 3600 / perPanelSeconds : 0,
     activeComponentCount: 0,
@@ -4146,9 +4867,10 @@ function getCalculatorProject() {
 
 function getCalculatorWorkCenter() {
   const selectedOperation = getRouteOperations().find((operation) => operation.id === calculatorState.selectedOperationId);
-  return planningState.workCenters.find((center) => center.id === selectedOperation?.workCenterId)
-    || planningState.workCenters.find((center) => center.id === "smt")
-    || planningState.workCenters[0];
+  const planningCenters = getPlanningWorkCenters();
+  return planningCenters.find((center) => center.id === selectedOperation?.workCenterId)
+    || planningCenters.find((center) => center.id === "smt")
+    || planningCenters[0];
 }
 
 function getRouteOperations() {
@@ -4164,7 +4886,7 @@ function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
   const workCenterId = operation.workCenterId || "smt";
   const resources = getResourcesForWorkCenter(workCenterId);
   const resource = resources.find((item) => item.id === operation.resourceId) || resources[0];
-  const calculationType = operation.calculationType || (workCenterId === "smt" ? "components" : "manual");
+  const calculationType = getDefaultOperationCalculationType(workCenterId, operation);
   const normalizedBoardsPerPanel = normalizeBoardsPerPanel(operation.boardsPerPanel, boardsPerPanel || 1);
   return {
     id: operation.id || makeId("op"),
@@ -4221,7 +4943,7 @@ function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalcula
         operationName,
         workCenterId: step.workCenterId,
         resourceId: resource?.id || "",
-        calculationType: step.workCenterId === "smt" ? "components" : "manual",
+        calculationType: getDefaultOperationCalculationType(step.workCenterId, step),
         secondsPerPanel: getDefaultSecondsPerPanel(step.workCenterId, boardsPerPanel),
         boardsPerPanel: entry.boardsPerPanel || step.boardsPerPanel || boardsPerPanel || 1,
         setupMin: Number(resource?.changeoverMin || 0),
@@ -4275,7 +4997,7 @@ function getOperationComponentCounts(operationOrId) {
 }
 
 function getComponentTypes() {
-  const source = directoryState.componentTypes?.length ? directoryState.componentTypes : DEFAULT_COMPONENT_TYPES;
+  const source = directoryState?.componentTypes?.length ? directoryState.componentTypes : DEFAULT_COMPONENT_TYPES;
   return source.filter((type) => type.status !== "Отключен");
 }
 
@@ -4293,7 +5015,7 @@ function normalizeSpecificationStructureItem(item, index = 0) {
   const quantity = Number.isFinite(rawQuantity) && rawQuantity >= 0 ? Math.round(rawQuantity) : 1;
   const rawExecutionType = String(item?.executionType || item?.fulfillmentType || "");
   const nomenclatureItem = type === "nomenclature" || type === "part"
-    ? (directoryState.nomenclature || []).find((entry) => entry.id === String(item?.nomenclatureId || item?.itemId || ""))
+    ? (directoryState?.nomenclature || []).find((entry) => entry.id === String(item?.nomenclatureId || item?.itemId || ""))
     : null;
   const executionType = nomenclatureItem?.sourceBomResultId
     ? "make"
@@ -4440,12 +5162,12 @@ function getSpekiOperationOptions() {
     const center = getWorkCenter(step.workCenterId);
     addOption(operationName, operationName, center?.name || "маршрутная операция");
   });
-  (planningState.workCenters || []).forEach((center) => {
+  getPlanningWorkCenters().forEach((center) => {
     if (!center?.name) return;
-    addOption(center.name, center.name, center.code || "участок");
+    addOption(center.name, center.name, center.code || "подразделение");
   });
 
-  ["SMT-монтаж", "AOI-контроль", "Отмывка", "Ручной монтаж", "Тестирование", "Лакировка", "Слесарный участок", "Сборка", "Склад"]
+  ["SMT-монтаж", "AOI-контроль", "Отмывка", "Ручной монтаж", "Тестирование", "Лакировка", "Слесарное подразделение", "Сборка", "Склад"]
     .forEach((name) => addOption(name, name, "типовая операция"));
 
   return [...options.values()];
@@ -4453,8 +5175,8 @@ function getSpekiOperationOptions() {
 
 function getSpekiDepartmentOptions() {
   return [
-    { value: "", label: "Отдел не выбран", meta: "назначьте для операции" },
-    ...getEmployeeDepartmentNames().map((name) => ({ value: name, label: name, meta: "справочник отделов" })),
+    { value: "", label: "Подразделение не выбрано", meta: "назначьте для операции" },
+    ...getEmployeeDepartmentNames().map((name) => ({ value: name, label: name, meta: "справочник подразделений" })),
   ];
 }
 
@@ -4463,18 +5185,18 @@ function getDefaultSpekiDepartmentName(operationName) {
   if (!normalizedOperation) return "";
   const names = getEmployeeDepartmentNames();
   const rules = [
-    { tokens: ["smt"], preferred: ["SMT отдел", "STM отдел"] },
-    { tokens: ["aoi", "аои"], preferred: ["ОТК / AOI-контроль", "ОТК"] },
-    { tokens: ["контроль", "тест", "испыт"], preferred: ["ОТК / Испытания", "ОТК"] },
+    { tokens: ["smt"], preferred: ["SMT-монтаж", "SMT отдел", "STM отдел"] },
+    { tokens: ["aoi", "аои"], preferred: ["AOI-контроль", "ОТК / AOI-контроль", "ОТК"] },
+    { tokens: ["контроль", "тест", "испыт"], preferred: ["Тестирование", "ОТК / Испытания", "ОТК"] },
     { tokens: ["отмыв"], preferred: ["Отмывка"] },
-    { tokens: ["ручн", "tht"], preferred: ["THT отдел"] },
-    { tokens: ["лакир"], preferred: ["Отдел селективной лакировки", "Отдел ручной лакировки"] },
-    { tokens: ["слесар", "механ"], preferred: ["Слесарный отдел"] },
-    { tokens: ["сбор"], preferred: ["Сборочный отдел", "Слесарный отдел"] },
+    { tokens: ["ручн", "tht"], preferred: ["Ручной монтаж", "THT отдел"] },
+    { tokens: ["лакир"], preferred: ["Лакировка", "Отдел селективной лакировки", "Отдел ручной лакировки"] },
+    { tokens: ["слесар", "механ"], preferred: ["Слесарное подразделение", "Слесарный отдел"] },
+    { tokens: ["сбор"], preferred: ["Сборка", "Сборочный отдел", "Слесарный отдел"] },
     { tokens: ["программ", "прошив"], preferred: ["Отдел программной подготовки изделий"] },
-    { tokens: ["комплект"], preferred: ["Склад компонентов"] },
+    { tokens: ["комплект"], preferred: ["Склад", "Склад компонентов"] },
     { tokens: ["закуп"], preferred: ["Закупки и снабжение"] },
-    { tokens: ["склад", "упаков"], preferred: ["Склад готовой продукции", "Склад компонентов"] },
+    { tokens: ["склад", "упаков"], preferred: ["Склад", "Склад готовой продукции", "Склад компонентов"] },
   ];
   const rule = rules.find((item) => item.tokens.some((token) => normalizedOperation.includes(token)));
   if (!rule) return "";
@@ -5541,22 +6263,12 @@ function getDefaultComponentCounts() {
 }
 
 function getResourcesForWorkCenter(workCenterId) {
-  const center = planningState?.workCenters?.find((item) => item.id === workCenterId);
-  const centerNames = new Set([center?.id, center?.name, center?.code].filter(Boolean).map(normalizeLookupText));
-  const matched = (directoryState?.resources || []).filter((resource) => centerNames.has(normalizeLookupText(resource.workCenter)));
+  const center = getWorkCenter(workCenterId);
+  const matched = getProductionResourcesForWorkCenter(workCenterId)
+    .filter((resource) => resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource));
   if (matched.length) return matched;
   if (!center) return [];
-  return [{
-    id: `resource-${center.id}-norm`,
-    name: `${center.name} · норматив`,
-    type: "Норматив участка",
-    workCenter: center.name,
-    capacity: `${Number(center.unitsPerHour || getWorkCenterUnitsPerHour(center.id)).toLocaleString("ru-RU")} изд./час`,
-    baseCph: center.id === "smt" ? DEFAULT_RESOURCE_CPH : 0,
-    efficiency: 100,
-    changeoverMin: 0,
-    status: "Норматив",
-  }];
+  return [makeFallbackProductionResource(center.id)];
 }
 
 function getDefaultSmtLineConfigurations() {
@@ -5587,12 +6299,9 @@ function getDefaultSmtLineConfigurations() {
 }
 
 function getSmtLineConfigurations() {
-  const smtCenter = planningState?.workCenters?.find((item) => item.id === "smt");
-  const centerNames = new Set([smtCenter?.id, smtCenter?.name, smtCenter?.code, "SMT-монтаж", "SMT"]
-    .filter(Boolean)
-    .map(normalizeLookupText));
-  const resources = (directoryState?.resources || [])
-    .filter((resource) => centerNames.has(normalizeLookupText(resource.workCenter)))
+  const resources = getProductionResourcesForWorkCenter("smt")
+    .filter((resource) => resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource))
+    .filter((resource) => resolveProductionResourceType(resource.type) === "line" || getSmtLineNumberFromText(`${resource.name} ${resource.code} ${resource.id}`))
     .filter((resource) => resource.status !== "Отключен");
   return resources.length ? resources : getDefaultSmtLineConfigurations();
 }
@@ -5643,7 +6352,7 @@ function getSmtGanttLineCenters() {
     code: "SMT",
     unitsPerHour: WORK_CENTER_RATES.smt,
     capacity: 1,
-    shift: "08:00-20:00",
+    shift: "5/2 08:00-20:00",
     isActive: true,
   };
 
@@ -5656,8 +6365,11 @@ function getSmtGanttLineCenters() {
       code: `SMT-${lineNumber}`,
       description: line.capacity || smtCenter.description || "Производственная линия SMT",
       parentWorkCenterId: "smt",
+      baseWorkCenterId: "smt",
+      calendarWorkCenterId: "smt",
       smtLineId: line.id,
       resourceId: line.id,
+      capacity: 1,
       isSmtLine: true,
     };
   });
@@ -5688,8 +6400,53 @@ function getSlotGanttWorkCenterId(slot) {
   return lineId ? getSmtLineWorkCenterId(lineId) : "smt";
 }
 
+function getSlotGanttResourceId(slot) {
+  if (!slot) return "";
+  const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
+  const explicitResourceId = slot.resourceId || step?.resourceId || "";
+  const explicitResource = explicitResourceId ? getProductionResource(explicitResourceId) : null;
+  if (explicitResource && getProductionResourceWorkCenterId(explicitResource) === slot.workCenterId) {
+    return explicitResource.id;
+  }
+
+  if (slot.workCenterId === "smt") {
+    const lineId = getSlotAssignedSmtLineId(slot);
+    if (lineId) return lineId;
+  }
+
+  const fallback = getResourcesForWorkCenter(slot.workCenterId)[0] || makeFallbackProductionResource(slot.workCenterId);
+  return fallback.id;
+}
+
+function getResourceRowId(routeId, workCenterId, resourceId) {
+  return `resource:${routeId}:${workCenterId}:${resourceId || "default"}`;
+}
+
+function getGanttResourcesForWorkCenter(workCenterId) {
+  const resources = getProductionResourcesForWorkCenter(workCenterId, {
+    includeInactive: false,
+    includePassive: true,
+  });
+  const hasSchedulableResource = resources.some((resource) => (
+    resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource)
+  ));
+  const rows = hasSchedulableResource ? resources : [...resources, makeFallbackProductionResource(workCenterId)];
+  return dedupeProductionResources(rows).sort((left, right) => (
+    Number(Boolean(right.participatesInPlanning === "yes" || right.participatesInCalculation === "yes"))
+      - Number(Boolean(left.participatesInPlanning === "yes" || left.participatesInCalculation === "yes"))
+    || String(left.parentResourceId || "").localeCompare(String(right.parentResourceId || ""), "ru")
+    || String(left.name || "").localeCompare(String(right.name || ""), "ru")
+  ));
+}
+
 function applyGanttRowToSlot(slot, row) {
-  if (!slot || row?.type !== "workCenter") return;
+  if (!slot || !["workCenter", "resource"].includes(row?.type)) return;
+  if (row.type === "resource") {
+    slot.workCenterId = row.workCenterId;
+    slot.resourceId = row.resourceId || "";
+    return;
+  }
+
   if (row.isSmtLine || isSmtLineWorkCenterId(row.workCenterId)) {
     slot.workCenterId = "smt";
     slot.resourceId = row.smtLineId || getSmtLineIdFromWorkCenterId(row.workCenterId);
@@ -5697,9 +6454,8 @@ function applyGanttRowToSlot(slot, row) {
   }
 
   slot.workCenterId = row.workCenterId;
-  if (slot.resourceId && getSmtLineConfigurations().some((line) => line.id === slot.resourceId)) {
-    slot.resourceId = "";
-  }
+  const resource = getResourcesForWorkCenter(row.workCenterId)[0] || null;
+  slot.resourceId = resource?.id || "";
 }
 
 function normalizeLookupText(value) {
@@ -6421,7 +7177,7 @@ function renderSpekiTreeItemNode(item, rowMeta = {}, staleItemIds = new Set(), d
     ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionValue)
     : getDefaultSpekiOperationName(item.type, executionValue);
   const operationLabel = executionValue === "buy" ? "операция не требуется" : item.operationName || defaultOperationLabel || "операция не задана";
-  const departmentLabel = executionValue === "buy" ? "" : item.departmentName || "отдел не выбран";
+  const departmentLabel = executionValue === "buy" ? "" : item.departmentName || "подразделение не выбрано";
   const quantityLabel = `${Number(item.quantity || 0).toLocaleString("ru-RU")} ${item.unit || "шт."}`;
   const issues = getSpekiTreeItemIssues(item, currentSpecificationId, staleItemIds, duplicateBomItemIds);
   const meta = [
@@ -6470,7 +7226,7 @@ function getSpekiTreeItemIssues(item, specificationId = "", staleItemIds = new S
     ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionValue)
     : getDefaultSpekiOperationName(item.type, executionValue);
   if (executionValue === "make" && !String(item.operationName || defaultOperation || "").trim()) issues.push("операция не задана");
-  if (executionValue === "make" && !String(item.departmentName || "").trim()) issues.push("отдел не выбран");
+  if (executionValue === "make" && !String(item.departmentName || "").trim()) issues.push("подразделение не выбрано");
   if (staleItemIds.has(item.id)) issues.push("ссылка на объект удалена");
   if (duplicateBomItemIds.has(item.id)) issues.push("BOM уже выбран выше");
   return issues;
@@ -6620,7 +7376,7 @@ function renderSpekiWorkBreakdownTable(specification) {
               <tr>
                 <th>№</th>
                 <th>Работа</th>
-                <th>Отдел</th>
+                <th>Подразделение</th>
                 <th>Позиции спеки</th>
                 <th>Входы</th>
                 <th>Кол-во</th>
@@ -6648,7 +7404,7 @@ function renderSpekiWorkBreakdownTable(specification) {
         <div class="bom-import-empty compact">
           ${icon("info")}
           <strong>Работы пока не заданы</strong>
-          <span>Назначьте операции и отделы строкам со статусом «К обеспечению», чтобы увидеть будущую маршрутную карту.</span>
+          <span>Назначьте операции и подразделения строкам со статусом «К обеспечению», чтобы увидеть будущую маршрутную карту.</span>
         </div>
       `}
     </section>
@@ -6667,7 +7423,7 @@ function getSpekiWorkBreakdownRows(specification) {
     const operationName = item.operationName || getDefaultSpekiOperationName(item.type, executionType);
     if (!operationName) return;
 
-    const departmentName = item.departmentName || "Отдел не выбран";
+    const departmentName = item.departmentName || "Подразделение не выбрано";
     const key = `${operationName}::${departmentName}`;
     if (!groups.has(key)) {
       groups.set(key, {
@@ -6702,14 +7458,14 @@ function getSpekiWorkBreakdownRows(specification) {
     const quantityLabel = group.quantities.length > 2
       ? `${group.quantities.slice(0, 2).join("; ")} +${group.quantities.length - 2}`
       : group.quantities.join("; ");
-    const isReady = group.departmentName !== "Отдел не выбран";
+    const isReady = group.departmentName !== "Подразделение не выбрано";
     return {
       ...group,
       itemsPreview,
       quantityLabel,
       inputsLabel: inputCount ? `${inputCount} покупн.` : "-",
       isReady,
-      status: isReady ? "готово" : "нужен отдел",
+      status: isReady ? "готово" : "нужно подразделение",
     };
   }).sort((left, right) => compareStructureNumbers(left.firstNumber, right.firstNumber));
 }
@@ -7458,6 +8214,12 @@ function getRouteStepsForTask(steps, taskId) {
 }
 
 function getWorkCenterIdForRouteTask(task) {
+  const targetUnit = (planningState.workCenters || []).find((center) => (
+    isPlanningWorkCenter(center)
+    && normalizeLookupText(center.name) === normalizeLookupText(task?.departmentName)
+  ));
+  if (targetUnit) return targetUnit.id;
+
   const text = `${task?.operationName || ""} ${task?.departmentName || ""} ${task?.title || ""}`.toLowerCase();
   if (text.includes("smt") || text.includes("smd") || text.includes("паяль") || text.includes("оплав")) return "smt";
   if (text.includes("aoi") || text.includes("аои") || text.includes("инспек")) return "aoi";
@@ -7467,16 +8229,25 @@ function getWorkCenterIdForRouteTask(task) {
   if (text.includes("лакир")) return "coating";
   if (text.includes("слесар") || text.includes("механ")) return "mechanic";
   if (text.includes("сбор")) return "assembly";
-  return planningState.workCenters.find((center) => center.id !== "warehouse")?.id || "manual";
+  return getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "manual";
 }
 
 function getRouteStepTemplate(workCenterId, operationName = "") {
   const center = getWorkCenter(workCenterId);
+  const resolvedWorkCenterId = center?.id || workCenterId;
+  const resources = getResourcesForWorkCenter(resolvedWorkCenterId);
+  const resource = resources[0] || null;
+  const calculationType = getDefaultOperationCalculationType(resolvedWorkCenterId);
   return {
-    workCenterId: center?.id || workCenterId,
+    workCenterId: resolvedWorkCenterId,
     operationName: operationName || center?.name || "Операция",
-    unitsPerHour: getWorkCenterUnitsPerHour(center?.id || workCenterId),
-    setupMin: 0,
+    unitsPerHour: getWorkCenterUnitsPerHour(resolvedWorkCenterId),
+    resourceId: resource?.id || "",
+    calculationType,
+    secondsPerPanel: calculationType === "manual" || calculationType === "normative"
+      ? getDefaultSecondsPerPanel(resolvedWorkCenterId, 1)
+      : 0,
+    setupMin: Number(resource?.changeoverMin || 0),
   };
 }
 
@@ -7520,16 +8291,19 @@ function createRouteStepFromTaskTemplate(routeId, task, template, stepOrder, sta
     specTaskQuantity: Math.max(1, Number(task.quantity || 1)),
     bomListId: task.bomListId || "",
     boardsPerPanel: task.type === "bom" ? normalizeBoardsPerPanel(task.boardsPerPanel, 1) : 1,
-    workCenterId: template.workCenterId,
-    operationName: template.operationName || getWorkCenter(template.workCenterId)?.name || "Операция",
-    stepOrder,
-    isRequired: true,
-    quantityMultiplier: Math.max(1, Number(task.quantity || 1)),
-    unitsPerHour: Number(template.unitsPerHour || getWorkCenterUnitsPerHour(template.workCenterId) || 0),
-    setupMin: Number(template.setupMin || 0),
-    updatedAt: stamp,
-  };
-}
+	    workCenterId: template.workCenterId,
+	    operationName: template.operationName || getWorkCenter(template.workCenterId)?.name || "Операция",
+	    stepOrder,
+	    isRequired: true,
+	    quantityMultiplier: Math.max(1, Number(task.quantity || 1)),
+	    unitsPerHour: Number(template.unitsPerHour || getWorkCenterUnitsPerHour(template.workCenterId) || 0),
+	    resourceId: template.resourceId || "",
+	    calculationType: template.calculationType || getDefaultOperationCalculationType(template.workCenterId, template),
+	    secondsPerPanel: Number(template.secondsPerPanel || 0),
+	    setupMin: Number(template.setupMin || 0),
+	    updatedAt: stamp,
+	  };
+	}
 
 function getSpecificationRouteTasks(specification, context = {}) {
   if (!specification) return [];
@@ -7570,7 +8344,7 @@ function getSpecificationRouteTasks(specification, context = {}) {
       type: taskType,
       title,
       operationName,
-      departmentName: item.departmentName || getDefaultSpekiDepartmentName(operationName) || "Отдел не выбран",
+      departmentName: item.departmentName || getDefaultSpekiDepartmentName(operationName) || "Подразделение не выбрано",
       quantity: Math.max(1, Number(item.quantity || 1)),
       unit: item.unit || "шт.",
       bomListId: bomId,
@@ -7597,7 +8371,7 @@ function getRouteMainTask(route = null) {
     departmentName: "Заказ на пр-во",
     quantity: 1,
     unit: "маршрут",
-    workCenterId: planningState.workCenters.find((center) => center.id !== "warehouse")?.id || "manual",
+    workCenterId: getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "manual",
     isMain: true,
     routeId: route?.id || "",
   };
@@ -7666,18 +8440,28 @@ function ensureRouteTaskSeedSteps(routeId, specification) {
     if (step.routeId !== routeId) return step;
     const task = taskById.get(getRouteStepTaskId(step));
     if (!task) return step;
-    const boardsPerPanel = task.type === "bom"
-      ? getPlanningBoardsPerPanel(route, task.sourceItemId || task.id, task.boardsPerPanel || step.boardsPerPanel || 1)
-      : 1;
-    const nextQuantity = Math.max(1, Number(task.quantity || 1));
-    const patch = {
-      specTaskSourceItemId: task.sourceItemId || step.specTaskSourceItemId || "",
-      specTaskName: task.title || step.specTaskName || "",
-      specTaskQuantity: nextQuantity,
-      quantityMultiplier: nextQuantity,
-      bomListId: task.bomListId || step.bomListId || "",
-      boardsPerPanel,
-    };
+	    const boardsPerPanel = task.type === "bom"
+	      ? getPlanningBoardsPerPanel(route, task.sourceItemId || task.id, task.boardsPerPanel || step.boardsPerPanel || 1)
+	      : 1;
+	    const nextQuantity = Math.max(1, Number(task.quantity || 1));
+	    const normalizedStep = normalizeRouteStepCalculationFields({
+	      ...step,
+	      boardsPerPanel,
+	      bomListId: task.bomListId || step.bomListId || "",
+	    }, planningState);
+	    const patch = {
+	      specTaskSourceItemId: task.sourceItemId || step.specTaskSourceItemId || "",
+	      specTaskName: task.title || step.specTaskName || "",
+	      specTaskQuantity: nextQuantity,
+	      quantityMultiplier: nextQuantity,
+	      bomListId: task.bomListId || step.bomListId || "",
+	      boardsPerPanel,
+	      resourceId: step.resourceId || normalizedStep.resourceId || "",
+	      calculationType: normalizedStep.calculationType,
+	      secondsPerPanel: Number(step.secondsPerPanel || normalizedStep.secondsPerPanel || 0),
+	      setupMin: Number(step.setupMin ?? normalizedStep.setupMin ?? 0),
+	      unitsPerHour: Number(step.unitsPerHour || normalizedStep.unitsPerHour || 0),
+	    };
     const needsPatch = Object.entries(patch).some(([key, value]) => String(step[key] ?? "") !== String(value ?? ""));
     if (!needsPatch) return step;
     changed = true;
@@ -8304,10 +9088,14 @@ function createSlotFromRouteStep(project, batch, routeStep, window, quantity, st
     routeStepId: routeStep.id,
     operationName: routeStep.operationName || getWorkCenter(routeStep.workCenterId)?.name || "Операция",
     quantity,
-    unitsPerHour: Number(routeStep.unitsPerHour || 0) || undefined,
-    boardsPerPanel: getRouteStepBoardsPerPanel(routeStep),
-    resourceId: routeStep.resourceId || "",
-    plannedStart: toSlotDateTime(window.start),
+	    unitsPerHour: Number(routeStep.unitsPerHour || 0) || undefined,
+	    boardsPerPanel: getRouteStepBoardsPerPanel(routeStep),
+	    resourceId: routeStep.resourceId || "",
+	    calculationType: routeStep.calculationType || getDefaultOperationCalculationType(routeStep.workCenterId, routeStep),
+	    secondsPerPanel: Number(routeStep.secondsPerPanel || 0),
+	    setupMin: Number(routeStep.setupMin || 0),
+	    bomListId: routeStep.bomListId || "",
+	    plannedStart: toSlotDateTime(window.start),
     plannedEnd: toSlotDateTime(window.end),
     actualStart: "",
     actualEnd: "",
@@ -8358,8 +9146,8 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
       .map((group) => {
         const step = group.queue[0];
         const quantity = getRouteStepQuantityForBatch(step, batch);
-        const durationMs = calculateRequiredDurationMs(step.workCenterId, quantity, planningState, step.unitsPerHour || null, step.boardsPerPanel || null);
-        const window = findFreeWindow(step.workCenterId, durationMs, group.readyAt);
+        const durationMs = calculateRequiredDurationMs(step.workCenterId, quantity, planningState, step.unitsPerHour || null, step.boardsPerPanel || null, step);
+        const window = findFreeWindow(step.workCenterId, durationMs, group.readyAt, null, step.resourceId || "");
         return { group, step, quantity, window };
       })
       .sort((left, right) => (
@@ -8510,7 +9298,7 @@ function renderRoutesPage() {
           <div>
             <span class="eyebrow">Маршрутная карта</span>
             <h2>${escapeHtml(hasPreviewRoute ? (isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта") : "Карта не выбрана")}</h2>
-            <p>${escapeHtml(hasPreviewRoute ? (routeSpecification || project ? `${routeTargetName}: последовательность отделов и нормативов для передачи в Гант.` : "Выберите спецификацию и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
+            <p>${escapeHtml(hasPreviewRoute ? (routeSpecification || project ? `${routeTargetName}: последовательность подразделений и нормативов для передачи в Гант.` : "Выберите спецификацию и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
           </div>
           <div class="directory-actions">
             <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>В Заказ на пр-во</span></button>
@@ -8544,8 +9332,8 @@ function renderRoutesPage() {
             <div class="report-card-head">
               <strong>Операции маршрута</strong>
               <div class="route-steps-head-actions">
-                <span>Добавляйте только операции участка или склада.</span>
-                <button class="secondary-button" data-route-add-step="workCenter" type="button">${icon("plus")}<span>Участок</span></button>
+                <span>Добавляйте только операции подразделения или склада.</span>
+                <button class="secondary-button" data-route-add-step="workCenter" type="button">${icon("plus")}<span>Подразделение</span></button>
                 <button class="secondary-button" data-route-add-step="warehouse" type="button">${icon("package")}<span>Склад</span></button>
               </div>
             </div>
@@ -8586,7 +9374,7 @@ function renderRouteModuleSequence(steps, route = null) {
                 <div class="route-task-sequence-steps">
                   ${taskSteps.map((step) => {
                     const center = getWorkCenter(step.workCenterId);
-                    return `<span class="${step.workCenterId === "warehouse" ? "is-warehouse" : ""}"><b>${Number(step.stepOrder || 0)}</b>${escapeHtml(step.operationName || "Операция")}<small>${escapeHtml(center?.name || step.workCenterId || "участок")}</small></span>`;
+                    return `<span class="${step.workCenterId === "warehouse" ? "is-warehouse" : ""}"><b>${Number(step.stepOrder || 0)}</b>${escapeHtml(step.operationName || "Операция")}<small>${escapeHtml(center?.name || step.workCenterId || "подразделение")}</small></span>`;
                   }).join("")}
                 </div>
               ` : `<div class="route-task-sequence-empty">Операции еще не заданы</div>`}
@@ -8604,7 +9392,7 @@ function renderRouteModuleSequence(steps, route = null) {
         return `
           <article class="${step.workCenterId === "warehouse" ? "is-warehouse" : ""}">
             <b>${Number(step.stepOrder || 0)}</b>
-            <span><strong>${escapeHtml(step.operationName || "Операция")}</strong><small>${escapeHtml(center?.name || step.workCenterId || "участок")}</small></span>
+            <span><strong>${escapeHtml(step.operationName || "Операция")}</strong><small>${escapeHtml(center?.name || step.workCenterId || "подразделение")}</small></span>
           </article>
         `;
       }).join("")}
@@ -8633,10 +9421,10 @@ function renderRouteStepsEditor(route, steps) {
     `;
   }
 
-  const workCenterOptions = planningState.workCenters.map((center) => ({
+  const workCenterOptions = getPlanningWorkCenters().map((center) => ({
     value: center.id,
     label: center.name,
-    meta: center.code || "участок",
+    meta: center.code || "подразделение",
   }));
   const orderedSteps = getRouteStepsForModule(route.id);
 
@@ -8646,7 +9434,7 @@ function renderRouteStepsEditor(route, steps) {
         <div class="route-module-empty">
           ${icon("info")}
           <strong>Операций пока нет</strong>
-          <span>Добавьте операцию участка или склада кнопками в заголовке блока.</span>
+          <span>Добавьте операцию подразделения или склада кнопками в заголовке блока.</span>
         </div>
       `}
     </div>
@@ -8667,7 +9455,7 @@ function renderRouteStepRows(steps, workCenterOptions) {
               <button class="icon-button" data-route-step-down="${step.id}" type="button" title="Опустить" ${index === steps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
             </div>
             <label class="form-field route-step-center">
-              <span>Участок</span>
+              <span>Подразделение</span>
               ${renderDenseInlineSelect("workCenterId", step.workCenterId, workCenterOptions, { type: "routeStep", stepId: step.id })}
             </label>
             <label class="form-field route-step-name">
@@ -8695,7 +9483,7 @@ function getRouteStepOperationOptions(step = {}) {
     return {
       value: operation.id,
       label: operation.name || "Операция без названия",
-      meta: `${type.label} · ${center?.name || "участок не выбран"}`,
+      meta: `${type.label} · ${center?.name || "подразделение не выбрано"}`,
     };
   });
   const hasLinkedOperation = step.operationId && operations.some((item) => item.value === step.operationId);
@@ -9020,7 +9808,7 @@ function getConfirmDialogConfig(dialog) {
     const critical = warnings.filter((warning) => warning.severity === "critical").length;
     return {
       title: "Исправить конфликты плана?",
-      body: `Система попробует автоматически исправить ${warnings.length} предупреждений, включая ${critical} критичных: сдвиги, пересечения, участки и количество.`,
+      body: `Система попробует автоматически исправить ${warnings.length} предупреждений, включая ${critical} критичных: сдвиги, пересечения, подразделения и количество.`,
       meta: "Зафиксированные и завершенные операции не будут изменены.",
       confirmLabel: "Исправить",
       confirmIcon: "refresh",
@@ -9106,7 +9894,7 @@ function getConfirmDialogConfig(dialog) {
 }
 
 function buildWorkloadRows() {
-  const rows = planningState.workCenters.map((center, index) => {
+  const rows = getPlanningWorkCenters().map((center, index) => {
     const slots = planningState.slots.filter((slot) => slot.workCenterId === center.id);
     return {
       label: center.name,
@@ -9219,9 +10007,9 @@ function buildWarningRows(warnings) {
 function buildWorkloadInsights(workload, warnings) {
   const top = workload[0];
   return [
-    { icon: "info", text: top ? `Самый загруженный участок: ${top.label}, ${top.hours} ч.` : "Нет операций для анализа загрузки." },
-    { icon: warnings.some((warning) => warning.type === "capacity") ? "alert" : "check", tone: warnings.some((warning) => warning.type === "capacity") ? "warning" : "ok", text: warnings.some((warning) => warning.type === "capacity") ? "Есть пересечения операций на участках." : "Пересечений по емкости не найдено." },
-    { icon: "check", tone: "ok", text: "Склад учитывается как отдельный конечный участок." },
+    { icon: "info", text: top ? `Самое загруженное подразделение: ${top.label}, ${top.hours} ч.` : "Нет операций для анализа загрузки." },
+    { icon: warnings.some((warning) => warning.type === "capacity") ? "alert" : "check", tone: warnings.some((warning) => warning.type === "capacity") ? "warning" : "ok", text: warnings.some((warning) => warning.type === "capacity") ? "Есть пересечения операций по емкости подразделений." : "Пересечений по емкости не найдено." },
+    { icon: "check", tone: "ok", text: "Склад учитывается как отдельное конечное подразделение." },
   ];
 }
 
@@ -9261,7 +10049,7 @@ function formatReportNumber(value) {
 
 function getEmployeeDepartmentNames() {
   const names = new Set([
-    ...(directoryState.departments || []).map((department) => department.name),
+    ...(planningState.workCenters || []).map((center) => center.name),
     ...(directoryState.employees || []).map((employee) => employee.department),
   ].filter(Boolean));
   return [...names].sort((left, right) => left.localeCompare(right, "ru"));
@@ -9277,8 +10065,8 @@ function renderEmployeeDepartmentConstructor() {
   return `
     <section class="employee-constructor-card">
       <div class="directory-table-toolbar">
-        <strong>Конструктор отделов</strong>
-        <span>перетаскивайте сотрудников между отделами, меняйте должность и роль доступа</span>
+        <strong>Конструктор подразделений</strong>
+        <span>перетаскивайте сотрудников между подразделениями, меняйте должность и роль доступа</span>
       </div>
       <div class="employee-department-board">
         ${departmentNames.map((departmentName) => {
@@ -9302,7 +10090,7 @@ function renderEmployeeDepartmentConstructor() {
                     </label>
                     <div class="employee-assignment-controls">
                       <div class="field compact">
-                        <span>Отдел</span>
+                        <span>Подразделение</span>
                         ${renderEmployeeDenseSelect(employee.id, "department", employee.department, departmentOptions)}
                       </div>
                       <div class="field compact">
@@ -9312,7 +10100,7 @@ function renderEmployeeDepartmentConstructor() {
                     </div>
                   </div>
                 `).join("") : `
-                  <div class="employee-drop-empty">Перетащите сотрудника в этот отдел</div>
+                  <div class="employee-drop-empty">Перетащите сотрудника в это подразделение</div>
                 `}
               </div>
             </article>
@@ -9416,16 +10204,19 @@ function renderDirectoryDetail(activeSection, directoryData) {
 function getDirectoryData(sectionId) {
   if (sectionId === "workCenters") {
     return makeDirectoryData(sectionId, {
-      caption: "Участки связывают операции маршрута с производственными строками Ганта.",
-      columns: ["Участок", "Код", "Изд./час", "Емкость", "Смена", "Описание", "Активность"],
-      keys: ["name", "code", "unitsPerHour", "capacity", "shift", "description", "status"],
+      caption: "Подразделения объединяют организационную ответственность и производственные мощности. Только производственные подразделения участвуют в Ганте.",
+      columns: ["Подразделение", "Код", "Тип", "В плане", "Изд./час", "Емкость", "Смена", "Ответственный", "Описание", "Активность"],
+      keys: ["name", "code", "unitType", "planningStatus", "unitsPerHour", "capacity", "shift", "owner", "description", "status"],
       rows: planningState.workCenters.map((center) => ({
         id: center.id,
         name: center.name,
         code: center.code,
+        unitType: center.unitType || "production",
+        planningStatus: center.isPlanningUnit === false ? "no" : "yes",
         unitsPerHour: center.unitsPerHour,
         capacity: center.capacity,
         shift: center.shift,
+        owner: center.owner || "",
         description: center.description || "-",
         status: center.isActive ? "active" : "inactive",
       })),
@@ -9442,23 +10233,17 @@ function getDirectoryData(sectionId) {
   }
 
   const configs = {
-    departments: {
-      caption: "Организационная структура для ответственности и прав доступа.",
-      columns: ["Отдел", "Код", "Ответственный", "Статус"],
-      keys: ["name", "code", "owner", "status"],
-      rows: directoryState.departments,
-    },
     roles: {
       caption: "Роли управляют доступом к модулям, справочникам и действиям пользователя.",
       columns: ["Роль", "Код", "Уровень", "Модули", "Справочники", "Права", "Статус"],
       keys: ["name", "code", "accessLevel", "modules", "directories", "permissions", "status"],
       rows: directoryState.roles,
     },
-    resources: {
-      caption: "Ресурсы используются калькулятором сложности и могут назначаться на операции.",
-      columns: ["Ресурс", "Тип", "Участок", "Мощность", "База комп./ч", "Эфф., %", "Setup, мин", "Статус"],
-      keys: ["name", "type", "workCenter", "capacity", "baseCph", "efficiency", "changeoverMin", "status"],
-      rows: directoryState.resources,
+    productionResources: {
+      caption: "Производственные ресурсы объединяют линии, станки, посты и оборудование. В Ганте операции привязываются к ресурсам внутри подразделений.",
+      columns: ["Ресурс", "Тип", "Подразделение", "Родитель", "В Ганте", "В расчете", "Мощность", "База комп./ч", "Эфф., %", "Setup, мин", "Инв. номер", "ТО", "Статус"],
+      keys: ["name", "type", "workCenterId", "parentResourceId", "participatesInPlanning", "participatesInCalculation", "capacity", "baseCph", "efficiency", "changeoverMin", "inventory", "maintenance", "status"],
+      rows: getProductionResources({ includeInactive: true }),
     },
     componentTypes: {
       caption: "Коэффициенты сложности и ограничения скорости для расчета SMT-монтажа.",
@@ -9474,15 +10259,9 @@ function getDirectoryData(sectionId) {
     },
     employees: {
       caption: "Сотрудники получают роли доступа из справочника ролей и используются для авторизации по ФИО.",
-      columns: ["Сотрудник", "Роль доступа", "Должность", "Отдел", "Смена", "Пароль", "Статус"],
+      columns: ["Сотрудник", "Роль доступа", "Должность", "Подразделение", "Смена", "Пароль", "Статус"],
       keys: ["name", "roleId", "role", "department", "shift", "password", "status"],
       rows: directoryState.employees,
-    },
-    equipment: {
-      caption: "Оборудование связывается с участками, ресурсами и обслуживанием.",
-      columns: ["Оборудование", "Инв. номер", "Участок", "ТО", "Статус"],
-      keys: ["name", "inventory", "workCenter", "maintenance", "status"],
-      rows: directoryState.equipment,
     },
     norms: {
       caption: "Нормативы используются для ограничений, смен и будущего автопланирования.",
@@ -9492,7 +10271,7 @@ function getDirectoryData(sectionId) {
     },
   };
 
-  return makeDirectoryData(sectionId, configs[sectionId] || configs.departments);
+  return makeDirectoryData(sectionId, configs[sectionId] || getDirectoryData("workCenters"));
 }
 
 function makeDirectoryData(sectionId, config) {
@@ -9512,6 +10291,13 @@ function getDirectoryFieldType(sectionId, key) {
   if (sectionId === "specifications" && (key === "bomListA" || key === "bomListB")) return "bom-link";
   if (sectionId === "employees" && key === "roleId") return "role-link";
   if (sectionId === "employees" && key === "password") return "password";
+  if (sectionId === "workCenters" && key === "unitType") return "unit-type";
+  if (sectionId === "workCenters" && key === "planningStatus") return "yes-no";
+  if (sectionId === "workCenters" && key === "shift") return "work-shift";
+  if (sectionId === "productionResources" && key === "type") return "production-resource-type";
+  if (sectionId === "productionResources" && key === "workCenterId") return "work-center-link";
+  if (sectionId === "productionResources" && key === "parentResourceId") return "production-resource-parent-link";
+  if (sectionId === "productionResources" && (key === "participatesInPlanning" || key === "participatesInCalculation")) return "yes-no";
   if (
     key === "totalQuantity"
     || key === "steps"
@@ -9547,14 +10333,20 @@ function getSelectedDirectoryRowIndex(sectionId, rows) {
 
 function formatDirectoryCell(sectionId, key, value) {
   if (sectionId === "workCenters" && key === "status") return value === "active" ? "Активен" : "Отключен";
-  if (sectionId === "workCenters" && key === "unitsPerHour") return `${Number(value || 0).toLocaleString("ru-RU")} изд./час`;
-  if (sectionId === "workCenters" && key === "capacity") return `${Number(value || 1).toLocaleString("ru-RU")} паралл.`;
+  if (sectionId === "workCenters" && key === "unitType") return UNIT_TYPE_LABELS[value] || value || "-";
+  if (sectionId === "workCenters" && key === "planningStatus") return value === "yes" ? "Да" : "Нет";
+  if (sectionId === "workCenters" && key === "unitsPerHour") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} изд./час` : "-";
+  if (sectionId === "workCenters" && key === "capacity") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} паралл.` : "-";
   if (sectionId === "specifications" && (key === "bomListA" || key === "bomListB")) return getBomList(value)?.name || "-";
   if (sectionId === "specifications" && (key === "bomQtyA" || key === "bomQtyB")) return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
   if (sectionId === "bomLists" && BOM_COMPONENT_FIELDS.some((field) => field.key === key)) return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
-  if (sectionId === "resources" && key === "baseCph") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} комп./ч` : "-";
-  if (sectionId === "resources" && key === "efficiency") return `${Number(value || 0).toLocaleString("ru-RU")} %`;
-  if (sectionId === "resources" && key === "changeoverMin") return `${Number(value || 0).toLocaleString("ru-RU")} мин`;
+  if (sectionId === "productionResources" && key === "type") return PRODUCTION_RESOURCE_TYPE_LABELS[value] || value || "-";
+  if (sectionId === "productionResources" && key === "workCenterId") return getWorkCenter(value)?.name || value || "-";
+  if (sectionId === "productionResources" && key === "parentResourceId") return getProductionResource(value)?.name || "-";
+  if (sectionId === "productionResources" && (key === "participatesInPlanning" || key === "participatesInCalculation")) return value === "yes" ? "Да" : "Нет";
+  if (sectionId === "productionResources" && key === "baseCph") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} комп./ч` : "-";
+  if (sectionId === "productionResources" && key === "efficiency") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} %` : "-";
+  if (sectionId === "productionResources" && key === "changeoverMin") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} мин` : "-";
   if (sectionId === "componentTypes" && key === "coefficient") return formatCalculatorNumber(value, 2);
   if (sectionId === "componentTypes" && key === "placementsPerHour") return `${Number(value || 0).toLocaleString("ru-RU")} комп./ч`;
   if (sectionId === "componentTypes" && key === "setupSeconds") return `${Number(value || 0).toLocaleString("ru-RU")} сек`;
@@ -9646,6 +10438,64 @@ function renderDirectoryField(field, value) {
     `;
   }
 
+  if (field.type === "unit-type") {
+    return `
+      <label class="form-field command-field">
+        <span>${escapeHtml(field.label)}</span>
+        <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
+          ${Object.entries(UNIT_TYPE_LABELS).map(([key, label]) => `<option value="${key}" ${selected(value, key)}>${escapeHtml(label)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  if (field.type === "production-resource-type") {
+    return `
+      <label class="form-field command-field">
+        <span>${escapeHtml(field.label)}</span>
+        <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
+          ${Object.entries(PRODUCTION_RESOURCE_TYPE_LABELS).map(([key, label]) => `<option value="${key}" ${selected(value, key)}>${escapeHtml(label)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  if (field.type === "work-center-link") {
+    return `
+      <label class="form-field command-field">
+        <span>${escapeHtml(field.label)}</span>
+        <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
+          ${getPlanningWorkCenters().map((center) => `<option value="${escapeAttribute(center.id)}" ${selected(value, center.id)}>${escapeHtml(center.name)} · ${escapeHtml(center.code || "")}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  if (field.type === "production-resource-parent-link") {
+    return `
+      <label class="form-field command-field">
+        <span>${escapeHtml(field.label)}</span>
+        <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
+          <option value="" ${selected(value, "")}>Нет родителя</option>
+          ${getProductionResources({ includeInactive: true }).map((resource) => `<option value="${escapeAttribute(resource.id)}" ${selected(value, resource.id)}>${escapeHtml(resource.name)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  if (field.type === "work-shift") {
+    const hasCustomValue = value && !WORK_SHIFT_OPTIONS.some((option) => option.value === value);
+    return `
+      <label class="form-field command-field">
+        <span>${escapeHtml(field.label)}</span>
+        <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
+          ${hasCustomValue ? `<option value="${escapedValue}" selected>${escapeHtml(value)}</option>` : ""}
+          ${WORK_SHIFT_OPTIONS.map((option) => `<option value="${escapeAttribute(option.value)}" ${selected(value, option.value)}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
   if (field.type === "project-link") {
     return `
       <label class="form-field command-field">
@@ -9693,6 +10543,12 @@ function createEmptyDirectoryRow(directoryData) {
     row[key] = "";
     if (key === "status") row[key] = "Активен";
     if (directoryData.sectionId === "workCenters" && key === "status") row[key] = "active";
+    if (directoryData.sectionId === "workCenters" && key === "unitType") row[key] = "production";
+    if (directoryData.sectionId === "workCenters" && key === "planningStatus") row[key] = "yes";
+    if (directoryData.sectionId === "productionResources" && key === "type") row[key] = "workplace";
+    if (directoryData.sectionId === "productionResources" && key === "workCenterId") row[key] = getPlanningWorkCenters()[0]?.id || "manual";
+    if (directoryData.sectionId === "productionResources" && key === "participatesInPlanning") row[key] = "yes";
+    if (directoryData.sectionId === "productionResources" && key === "participatesInCalculation") row[key] = "yes";
     if (key === "totalQuantity" || key === "steps") row[key] = 0;
     if (key === "unitsPerHour") row[key] = 40;
     if (key === "capacity") row[key] = directoryData.sectionId === "workCenters" ? 1 : "1 партия / смена";
@@ -9710,7 +10566,7 @@ function createEmptyDirectoryRow(directoryData) {
     if (key === "bomListB") row[key] = "";
     if (key === "bomQtyA") row[key] = 1;
     if (key === "bomQtyB") row[key] = 0;
-    if (key === "shift") row[key] = "08:00-20:00";
+    if (key === "shift") row[key] = "5/2 08:00-20:00";
     if (key === "roleId") row[key] = directoryState.roles?.[0]?.id || "role-admin";
     if (key === "password") row[key] = "";
     if (directoryData.sectionId === "roles" && key === "modules") row[key] = "gantt";
@@ -10193,7 +11049,7 @@ function saveOperationMapForm(form) {
   const name = String(data.get("name") || "").trim();
   const workCenterId = String(data.get("workCenterId") || "");
   if (!name || !workCenterId) {
-    alert("Заполните название операции и участок по умолчанию.");
+    alert("Заполните название операции и подразделение по умолчанию.");
     return;
   }
 
@@ -10235,14 +11091,16 @@ function applyOperationMapChangesToRoutes(operation) {
     const nextWorkCenterId = step.workCenterOverride ? step.workCenterId : operation.workCenterId;
     return {
       ...step,
-      operationName: operation.name || step.operationName,
-      operationType: operation.type,
-      workCenterId: nextWorkCenterId,
-      unitsPerHour: operation.unitsPerHour || step.unitsPerHour || getWorkCenterUnitsPerHour(nextWorkCenterId),
-      requiresBatch: operation.requiresBatch,
-      isWarehouseOperation: operation.isWarehouse,
-      updatedAt: new Date().toISOString(),
-    };
+	      operationName: operation.name || step.operationName,
+	      operationType: operation.type,
+	      workCenterId: nextWorkCenterId,
+	      unitsPerHour: operation.unitsPerHour || step.unitsPerHour || getWorkCenterUnitsPerHour(nextWorkCenterId),
+	      calculationType: step.calculationType || getDefaultOperationCalculationType(nextWorkCenterId, operation),
+	      secondsPerPanel: step.secondsPerPanel || getDefaultSecondsPerPanel(nextWorkCenterId, step.boardsPerPanel || 1),
+	      requiresBatch: operation.requiresBatch,
+	      isWarehouseOperation: operation.isWarehouse,
+	      updatedAt: new Date().toISOString(),
+	    };
   });
   const linkedStepById = new Map((planningState.routeSteps || [])
     .filter((step) => step.operationId === operation.id)
@@ -10253,12 +11111,17 @@ function applyOperationMapChangesToRoutes(operation) {
     return recalculateSlotEndByQuantity({
       ...slot,
       operationName: step.operationName || slot.operationName,
-      workCenterId: step.workCenterId || slot.workCenterId,
-      unitsPerHour: step.unitsPerHour || slot.unitsPerHour,
-      updatedAt: new Date().toISOString(),
-    }, planningState);
-  });
-}
+	      workCenterId: step.workCenterId || slot.workCenterId,
+	      unitsPerHour: step.unitsPerHour || slot.unitsPerHour,
+	      resourceId: step.resourceId || slot.resourceId || "",
+	      calculationType: step.calculationType || slot.calculationType || "",
+	      secondsPerPanel: step.secondsPerPanel || slot.secondsPerPanel || 0,
+	      setupMin: step.setupMin || slot.setupMin || 0,
+	      bomListId: step.bomListId || slot.bomListId || "",
+	      updatedAt: new Date().toISOString(),
+	    }, planningState);
+	  });
+	}
 
 function deleteOperationMapItem(operationId) {
   const operation = getOperationMapItem(operationId);
@@ -10469,42 +11332,60 @@ function updateRouteStepField(stepId, field, rawValue) {
       if (operation) {
         next.operationId = operation.id;
         next.operationName = operation.name || "Операция";
-        next.operationType = operation.type;
-        next.workCenterId = operation.workCenterId || next.workCenterId;
-        next.workCenterOverride = false;
-        next.unitsPerHour = operation.unitsPerHour || getWorkCenterUnitsPerHour(next.workCenterId);
-        next.requiresBatch = operation.requiresBatch;
-        next.isWarehouseOperation = operation.isWarehouse;
-      }
-    }
-    if (field === "workCenterId") {
-      const center = getWorkCenter(value);
-      const shouldRename = !item.operationName || item.operationName === oldCenter?.name || item.operationName === oldCenter?.code;
-      next.operationName = shouldRename ? center?.name || "Операция" : item.operationName;
-      if (item.operationId) {
-        const operation = getOperationMapItem(item.operationId);
-        next.workCenterOverride = Boolean(operation && operation.workCenterId !== value);
-      }
-      if (!Number(next.unitsPerHour || 0)) next.unitsPerHour = getWorkCenterUnitsPerHour(value);
-    }
-    return next;
-  });
+	        next.operationType = operation.type;
+	        next.workCenterId = operation.workCenterId || next.workCenterId;
+	        next.workCenterOverride = false;
+	        next.unitsPerHour = operation.unitsPerHour || getWorkCenterUnitsPerHour(next.workCenterId);
+	        next.calculationType = getDefaultOperationCalculationType(next.workCenterId, operation);
+	        next.secondsPerPanel = next.calculationType === "manual" || next.calculationType === "normative"
+	          ? Number(next.secondsPerPanel || getDefaultSecondsPerPanel(next.workCenterId, next.boardsPerPanel || 1))
+	          : 0;
+	        next.setupMin = Math.max(0, Number(next.setupMin || 0));
+	        next.requiresBatch = operation.requiresBatch;
+	        next.isWarehouseOperation = operation.isWarehouse;
+	      }
+	    }
+	    if (field === "workCenterId") {
+	      const center = getWorkCenter(value);
+	      const resources = getResourcesForWorkCenter(value);
+	      const resource = resources.find((item) => item.id === next.resourceId) || resources[0] || null;
+	      const shouldRename = !item.operationName || item.operationName === oldCenter?.name || item.operationName === oldCenter?.code;
+	      next.operationName = shouldRename ? center?.name || "Операция" : item.operationName;
+	      if (item.operationId) {
+	        const operation = getOperationMapItem(item.operationId);
+	        next.workCenterOverride = Boolean(operation && operation.workCenterId !== value);
+	      }
+	      if (!Number(next.unitsPerHour || 0)) next.unitsPerHour = getWorkCenterUnitsPerHour(value);
+	      next.resourceId = resource?.id || "";
+	      next.calculationType = getDefaultOperationCalculationType(value, next);
+	      next.secondsPerPanel = next.calculationType === "manual" || next.calculationType === "normative"
+	        ? getDefaultSecondsPerPanel(value, next.boardsPerPanel || 1)
+	        : 0;
+	      next.setupMin = Number(resource?.changeoverMin || 0);
+	    }
+	    return next;
+	  });
 
   if (field === "stepOrder") normalizeRouteStepOrders(step.routeId, getRouteStepTaskId(step));
-  if (["operationId", "workCenterId", "unitsPerHour"].includes(field)) {
-    const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
-    planningState.slots = planningState.slots.map((slot) => {
-      if (slot.routeStepId !== stepId || slot.locked || slot.status === "completed" || !updatedStep) return slot;
-      return recalculateSlotEndByQuantity({
-        ...slot,
-        workCenterId: updatedStep.workCenterId,
-        operationName: updatedStep.operationName || slot.operationName,
-        unitsPerHour: updatedStep.unitsPerHour || slot.unitsPerHour,
-        boardsPerPanel: updatedStep.boardsPerPanel || slot.boardsPerPanel || 1,
-        updatedAt: new Date().toISOString(),
-      }, planningState);
-    });
-  }
+	  if (["operationId", "workCenterId", "unitsPerHour", "secondsPerPanel", "setupMin", "calculationType", "resourceId", "bomListId", "boardsPerPanel"].includes(field)) {
+	    const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
+	    planningState.slots = planningState.slots.map((slot) => {
+	      if (slot.routeStepId !== stepId || slot.locked || slot.status === "completed" || !updatedStep) return slot;
+	      return recalculateSlotEndByQuantity({
+	        ...slot,
+	        workCenterId: updatedStep.workCenterId,
+	        operationName: updatedStep.operationName || slot.operationName,
+	        unitsPerHour: updatedStep.unitsPerHour || slot.unitsPerHour,
+	        boardsPerPanel: updatedStep.boardsPerPanel || slot.boardsPerPanel || 1,
+	        resourceId: updatedStep.resourceId || slot.resourceId || "",
+	        calculationType: updatedStep.calculationType || slot.calculationType || "",
+	        secondsPerPanel: updatedStep.secondsPerPanel || slot.secondsPerPanel || 0,
+	        setupMin: updatedStep.setupMin || slot.setupMin || 0,
+	        bomListId: updatedStep.bomListId || slot.bomListId || "",
+	        updatedAt: new Date().toISOString(),
+	      }, planningState);
+	    });
+	  }
   persistState();
   notifySaveSuccess("Операция маршрута сохранена");
   render();
@@ -10581,13 +11462,16 @@ function addRouteModuleStep(operationKind = "workCenter") {
   const insertOrder = isWarehouse
     ? Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1
     : warehouseStep?.stepOrder || Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
-  const workCenterId = isWarehouse
-    ? operation?.workCenterId || "warehouse"
-    : planningState.workCenters.find((center) => center.id !== "warehouse")?.id || "manual";
-  const routeWorkCenterId = operation?.workCenterId || workCenterId;
-  const center = getWorkCenter(workCenterId);
+	  const workCenterId = isWarehouse
+	    ? operation?.workCenterId || "warehouse"
+	    : getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "manual";
+	  const routeWorkCenterId = operation?.workCenterId || workCenterId;
+	  const center = getWorkCenter(workCenterId);
+	  const resources = getResourcesForWorkCenter(routeWorkCenterId);
+	  const resource = resources[0] || null;
+	  const calculationType = getDefaultOperationCalculationType(routeWorkCenterId, operation);
 
-  planningState.routeSteps = [
+	  planningState.routeSteps = [
     ...planningState.routeSteps.map((step) => (
       step.routeId === route.id && Number(step.stepOrder || 0) >= insertOrder
         ? { ...step, stepOrder: Number(step.stepOrder || 0) + 1 }
@@ -10609,17 +11493,22 @@ function addRouteModuleStep(operationKind = "workCenter") {
       operationName: operation?.name || (isWarehouse ? "Склад" : center?.name || "Новая операция"),
       stepOrder: insertOrder,
       isRequired: true,
-      quantityMultiplier: 1,
-      unitsPerHour: operation?.unitsPerHour || getWorkCenterUnitsPerHour(routeWorkCenterId),
-      requiresBatch: operation?.requiresBatch ?? !isWarehouse,
-      isWarehouseOperation: operation?.isWarehouse || isWarehouse,
-      setupMin: 0,
-      updatedAt: new Date().toISOString(),
-    },
+	      quantityMultiplier: 1,
+	      unitsPerHour: operation?.unitsPerHour || getWorkCenterUnitsPerHour(routeWorkCenterId),
+	      resourceId: resource?.id || "",
+	      calculationType,
+	      secondsPerPanel: calculationType === "manual" || calculationType === "normative"
+	        ? getDefaultSecondsPerPanel(routeWorkCenterId, 1)
+	        : 0,
+	      requiresBatch: operation?.requiresBatch ?? !isWarehouse,
+	      isWarehouseOperation: operation?.isWarehouse || isWarehouse,
+	      setupMin: Number(resource?.changeoverMin || 0),
+	      updatedAt: new Date().toISOString(),
+	    },
   ];
   normalizeRouteStepOrders(route.id);
   persistState();
-  notifySaveSuccess(isWarehouse ? "Операция склада добавлена" : "Операция участка добавлена");
+  notifySaveSuccess(isWarehouse ? "Операция склада добавлена" : "Операция подразделения добавлена");
   render();
 }
 
@@ -12198,13 +13087,15 @@ function updateSelectedRouteOperation(key, value) {
     if (operation.id !== operationId) return operation;
     const next = { ...operation, [key]: value };
     if (key === "workCenterId") {
-      const resource = getResourcesForWorkCenter(value)[0];
-      next.resourceId = resource?.id || "";
-      next.operationName = operation.operationName || getWorkCenter(value)?.name || "Операция";
-      next.calculationType = value === "smt" ? "components" : "manual";
-      next.secondsPerPanel = getDefaultSecondsPerPanel(value, calculatorState.boardsPerPanel);
-      next.setupMin = Number(resource?.changeoverMin || 0);
-    }
+	      const resource = getResourcesForWorkCenter(value)[0];
+	      next.resourceId = resource?.id || "";
+	      next.operationName = operation.operationName || getWorkCenter(value)?.name || "Операция";
+	      next.calculationType = getDefaultOperationCalculationType(value, next);
+	      next.secondsPerPanel = next.calculationType === "manual" || next.calculationType === "normative"
+	        ? getDefaultSecondsPerPanel(value, calculatorState.boardsPerPanel)
+	        : 0;
+	      next.setupMin = Number(resource?.changeoverMin || 0);
+	    }
     if (key === "calculationType" && value === "components") {
       calculatorState.componentCountsByOperation = {
         ...(calculatorState.componentCountsByOperation || {}),
@@ -12386,7 +13277,7 @@ function applyCalculatorRateToWorkCenter() {
   const calc = calculateComplexityResult();
   const unitsPerHour = Math.max(1, Math.round(calc.flowBoardsPerHour));
   if (!calc.workCenter || !unitsPerHour) {
-    alert("Не удалось рассчитать скорость участка: проверьте состав платы и ресурс.");
+    alert("Не удалось рассчитать скорость подразделения: проверьте состав платы и ресурс.");
     return;
   }
 
@@ -12397,14 +13288,14 @@ function applyCalculatorRateToWorkCenter() {
     ? recalculateSlotEndByQuantity(slot, planningState)
     : slot);
   persistState();
-  notifySaveSuccess(`Норматив участка обновлен: ${unitsPerHour.toLocaleString("ru-RU")} плат/час`);
+  notifySaveSuccess(`Норматив подразделения обновлен: ${unitsPerHour.toLocaleString("ru-RU")} плат/час`);
   render();
 }
 
 function applyCalculatorToProjectSlots() {
   const calc = calculateComplexityResult();
   if (!calc.project || !calc.workCenter || calc.perBoardSeconds <= 0) {
-    alert("Не удалось применить расчет: выберите спецификацию, участок и заполните состав платы.");
+    alert("Не удалось применить расчет: выберите спецификацию, подразделение и заполните состав платы.");
     return;
   }
 
@@ -12416,7 +13307,7 @@ function applyCalculatorToProjectSlots() {
   ));
 
   if (!targetSlots.length) {
-    alert(`В спецификации "${calc.specification?.name || getProjectDisplayName(calc.project)}" нет доступных операций участка "${calc.workCenter.name}".`);
+    alert(`В спецификации "${calc.specification?.name || getProjectDisplayName(calc.project)}" нет доступных операций подразделения "${calc.workCenter.name}".`);
     return;
   }
 
@@ -12490,6 +13381,7 @@ function saveDirectoryRow(sectionId, rowIndex, row) {
   if (sectionId === "workCenters") {
     saveWorkCenterDirectoryRow(rowIndex, row);
     persistState();
+    persistDirectoryState();
     notifySaveSuccess(rowIndex >= 0 ? "Запись справочника сохранена" : "Запись справочника создана");
     return;
   }
@@ -12565,10 +13457,16 @@ function deleteDirectoryStateRow(sectionId, row) {
     ));
   }
 
-  if (sectionId === "resources") {
+  if (sectionId === "resources" || sectionId === "productionResources") {
     if (calculatorState.resourceId === rowId) calculatorState.resourceId = "";
     calculatorState.routeOperations = (calculatorState.routeOperations || []).map((operation) => (
       operation.resourceId === rowId ? { ...operation, resourceId: "" } : operation
+    ));
+    planningState.routeSteps = (planningState.routeSteps || []).map((step) => (
+      step.resourceId === rowId ? { ...step, resourceId: "", updatedAt: new Date().toISOString() } : step
+    ));
+    planningState.slots = (planningState.slots || []).map((slot) => (
+      slot.resourceId === rowId ? { ...slot, resourceId: "", updatedAt: new Date().toISOString() } : slot
     ));
   }
 
@@ -12657,6 +13555,7 @@ function deleteDirectoryStateRow(sectionId, row) {
 
 function deleteWorkCenterDirectoryRow(workCenterId) {
   if (!workCenterId) return;
+  const removedCenter = planningState.workCenters.find((center) => center.id === workCenterId);
   const removedStepIds = new Set(planningState.routeSteps
     .filter((step) => step.workCenterId === workCenterId)
     .map((step) => step.id));
@@ -12664,25 +13563,51 @@ function deleteWorkCenterDirectoryRow(workCenterId) {
   planningState.routeSteps = planningState.routeSteps.filter((step) => step.workCenterId !== workCenterId);
   planningState.slots = planningState.slots.filter((slot) => slot.workCenterId !== workCenterId && !removedStepIds.has(slot.routeStepId));
   calculatorState.routeOperations = (calculatorState.routeOperations || []).filter((operation) => operation.workCenterId !== workCenterId);
+  if (removedCenter?.name) updateDepartmentNameReferences(removedCenter.name, "");
   planningState = normalizePlanningState(planningState);
   calculatorState = normalizeCalculatorState(calculatorState);
 }
 
 function saveWorkCenterDirectoryRow(rowIndex, row) {
-  const normalizedCenter = {
+  const previousCenter = rowIndex >= 0 ? planningState.workCenters[rowIndex] : null;
+  const isPlanningUnit = row.planningStatus !== "no";
+  const normalizedCenter = normalizeWorkCenterUnit({
     id: row.id || makeId("wc"),
-    name: row.name || "Новый участок",
+    name: row.name || "Новое подразделение",
     code: row.code || "NEW",
-    unitsPerHour: Math.max(1, Number(row.unitsPerHour || 40)),
-    capacity: Math.max(1, Number(row.capacity || 1)),
-    shift: row.shift || "08:00-20:00",
+    unitType: normalizeUnitType(row.unitType, row),
+    isPlanningUnit,
+    showInGantt: isPlanningUnit,
+    unitsPerHour: isPlanningUnit ? Math.max(1, Number(row.unitsPerHour || 40)) : 0,
+    capacity: isPlanningUnit ? Math.max(1, Number(row.capacity || 1)) : 0,
+    shift: isPlanningUnit ? row.shift || "5/2 08:00-20:00" : row.shift || "",
+    owner: row.owner || "",
     description: row.description || "",
     isActive: row.status !== "inactive",
-  };
+  });
 
   planningState.workCenters = rowIndex >= 0
     ? planningState.workCenters.map((center, index) => index === rowIndex ? normalizedCenter : center)
     : [...planningState.workCenters, normalizedCenter];
+  if (previousCenter?.name && previousCenter.name !== normalizedCenter.name) {
+    updateDepartmentNameReferences(previousCenter.name, normalizedCenter.name);
+  }
+}
+
+function updateDepartmentNameReferences(previousName = "", nextName = "") {
+  if (!previousName) return;
+  directoryState.employees = (directoryState.employees || []).map((employee) => (
+    employee.department === previousName ? { ...employee, department: nextName, updatedAt: new Date().toISOString() } : employee
+  ));
+  directoryState.specifications = (directoryState.specifications || []).map((specification) => {
+    let changed = false;
+    const structureItems = getSpecificationStructureItems(specification).map((item) => {
+      if (item.departmentName !== previousName) return item;
+      changed = true;
+      return { ...item, departmentName: nextName };
+    });
+    return changed ? { ...specification, structureItems } : specification;
+  });
 }
 
 function rememberScroll() {
@@ -12713,14 +13638,9 @@ function updateClockOnly() {
 }
 
 function getGanttWorkCenterFilterOptions() {
-  const options = [{ value: "all", label: "Все участки", meta: "маршрут целиком" }];
-  for (const center of planningState.workCenters) {
-    options.push({ value: center.id, label: center.name, meta: center.code || "участок" });
-    if (center.id === "smt") {
-      getSmtGanttLineCenters().forEach((line) => {
-        options.push({ value: line.id, label: line.name, meta: `${line.code} · линия SMT` });
-      });
-    }
+  const options = [{ value: "all", label: "Все подразделения", meta: "маршрут целиком" }];
+  for (const center of getPlanningWorkCenters()) {
+    options.push({ value: center.id, label: center.name, meta: center.code || "подразделение" });
   }
   return options;
 }
@@ -12776,13 +13696,13 @@ function renderToolbar(scaleInfo, stats) {
         </label>
 
         <label class="field">
-          <span>Участок</span>
+          <span>Подразделение</span>
           ${renderDenseInlineSelect("workCenterFilter", ui.workCenterFilter, workCenterOptions, { type: "toolbar" })}
         </label>
 
         <div class="segmented row-mode" role="group" aria-label="Режим строк">
           <button class="segment ${ui.rowMode === "route" ? "is-active" : ""}" data-row-mode="route" type="button">Маршрут</button>
-          <button class="segment ${ui.rowMode === "all" ? "is-active" : ""}" data-row-mode="all" type="button">Все участки</button>
+          <button class="segment ${ui.rowMode === "all" ? "is-active" : ""}" data-row-mode="all" type="button">Все подразделения</button>
         </div>
       </div>
 
@@ -12912,7 +13832,7 @@ function renderTimeline(scaleInfo) {
   return `
     <div class="timeline-row" style="height:${TIMELINE_HEIGHT}px;">
       <div class="timeline-corner">
-        <span>Маршрутные карты и участки</span>
+        <span>Маршрутные карты и подразделения</span>
       </div>
       <div class="timeline-cells" style="width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;">
         ${scaleInfo.ticks.map((tick, index) => `
@@ -12934,7 +13854,7 @@ function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) 
   const layout = rowLayout.map[row.id];
   const height = layout.height;
   const isAggregateRow = row.type === "route" || row.type === "project";
-  const laneClass = isAggregateRow ? "project-lane route-lane" : "workcenter-lane";
+  const laneClass = isAggregateRow ? "project-lane route-lane" : row.type === "resource" ? "workcenter-lane resource-lane" : "workcenter-lane department-lane";
   const rowSlots = getRowSlots(row);
   const rowPlacements = slotPlacementMap[row.id] || {};
   const isDropTarget = ui.drag?.targetRowId === row.id;
@@ -12978,6 +13898,7 @@ function getWorkCenterCalendar(workCenter) {
   if (normalized.includes("24/7") || normalized.includes("7/0")) {
     return {
       isAlwaysOn: true,
+      scheduleType: "24/7",
       workDays: new Set([0, 1, 2, 3, 4, 5, 6]),
       start: 0,
       end: 24 * 60,
@@ -12986,16 +13907,185 @@ function getWorkCenterCalendar(workCenter) {
   }
 
   let workDays = new Set([1, 2, 3, 4, 5]);
+  let scheduleType = "5/2";
   if (normalized.includes("6/1")) workDays = new Set([1, 2, 3, 4, 5, 6]);
-  if (normalized.includes("5/2")) workDays = new Set([1, 2, 3, 4, 5]);
+  if (normalized.includes("6/1")) scheduleType = "6/1";
+  if (normalized.includes("5/2")) {
+    workDays = new Set([1, 2, 3, 4, 5]);
+    scheduleType = "5/2";
+  }
+  if (normalized.includes("2/2")) {
+    workDays = new Set([0, 1, 2, 3, 4, 5, 6]);
+    scheduleType = "2/2";
+  }
 
   const shift = parseShiftMinutes(shiftText);
   return {
     isAlwaysOn: false,
+    scheduleType,
     workDays,
     ...shift,
     label: shiftText || "5/2 08:00-20:00",
   };
+}
+
+function isCalendarWorkDay(calendar, dayStart) {
+  if (!calendar) return true;
+  if (calendar.isAlwaysOn) return true;
+  const normalizedDayStart = startOfDay(dayStart);
+
+  if (calendar.scheduleType === "2/2") {
+    const anchor = startOfDay(fromDateInput(SHIFT_CYCLE_ANCHOR_DATE));
+    const dayIndex = Math.floor((normalizedDayStart.getTime() - anchor.getTime()) / DAY_MS);
+    const cycleIndex = ((dayIndex % 4) + 4) % 4;
+    return cycleIndex < 2;
+  }
+
+  return calendar.workDays.has(normalizedDayStart.getDay());
+}
+
+function getCalendarWorkCenterId(workCenterId) {
+  const id = String(workCenterId || "");
+  if (isSmtLineWorkCenterId(id)) return "smt";
+  return id;
+}
+
+function getCalendarWorkCenter(workCenterId, state = null) {
+  const sourceState = state || getRuntimePlanningState();
+  const requestedId = String(workCenterId || "");
+  const calendarWorkCenterId = getCalendarWorkCenterId(requestedId);
+  return sourceState?.workCenters?.find((center) => center.id === calendarWorkCenterId)
+    || getRuntimePlanningState()?.workCenters?.find((center) => center.id === calendarWorkCenterId)
+    || {
+      id: calendarWorkCenterId || requestedId,
+      name: calendarWorkCenterId || requestedId || "Подразделение",
+      shift: calendarWorkCenterId === "smt" ? "5/2 08:00-20:00" : "24/7",
+      isPlanningUnit: true,
+    };
+}
+
+function getGanttRowCalendar(row) {
+  if (!["workCenter", "resource"].includes(row?.type)) return null;
+  const calendarWorkCenterId = row.workCenter?.calendarWorkCenterId
+    || row.workCenter?.parentWorkCenterId
+    || getCalendarWorkCenterId(row.workCenterId);
+  return getWorkCenterCalendar(getCalendarWorkCenter(calendarWorkCenterId, planningState));
+}
+
+function getWorkingIntervalsForCalendar(calendar, value) {
+  const dayStart = startOfDay(value);
+  const nextDay = addMs(dayStart, DAY_MS);
+
+  if (!calendar) return [{ start: dayStart, end: nextDay }];
+  if (calendar.isAlwaysOn) return [{ start: dayStart, end: nextDay }];
+  if (calendar.start === calendar.end) return [];
+
+  const intervals = [];
+  const previousDayStart = addMs(dayStart, -DAY_MS);
+
+  if (calendar.start < calendar.end) {
+    if (isCalendarWorkDay(calendar, dayStart)) {
+      intervals.push({
+        start: minuteToDate(dayStart, calendar.start),
+        end: minuteToDate(dayStart, calendar.end),
+      });
+    }
+  } else {
+    if (isCalendarWorkDay(calendar, previousDayStart)) {
+      intervals.push({
+        start: dayStart,
+        end: minuteToDate(dayStart, calendar.end),
+      });
+    }
+    if (isCalendarWorkDay(calendar, dayStart)) {
+      intervals.push({
+        start: minuteToDate(dayStart, calendar.start),
+        end: nextDay,
+      });
+    }
+  }
+
+  return intervals
+    .filter((interval) => interval.end > interval.start)
+    .sort((left, right) => left.start - right.start);
+}
+
+function getWorkingIntervalsForDay(workCenterId, value, state = null) {
+  return getWorkingIntervalsForCalendar(
+    getWorkCenterCalendar(getCalendarWorkCenter(workCenterId, state)),
+    value,
+  );
+}
+
+function getWorkingIntervalsBetween(workCenterId, start, end, state = null) {
+  const rangeStart = toDate(start);
+  const rangeEnd = toDate(end);
+  if (rangeEnd <= rangeStart) return [];
+
+  const intervals = [];
+  let cursor = startOfDay(rangeStart);
+  let guard = 0;
+  while (cursor < rangeEnd && guard < 370) {
+    guard += 1;
+    getWorkingIntervalsForDay(workCenterId, cursor, state).forEach((interval) => {
+      const clippedStart = new Date(Math.max(interval.start.getTime(), rangeStart.getTime()));
+      const clippedEnd = new Date(Math.min(interval.end.getTime(), rangeEnd.getTime()));
+      if (clippedEnd > clippedStart) intervals.push({ start: clippedStart, end: clippedEnd });
+    });
+    cursor = addMs(cursor, 24 * 60 * 60 * 1000);
+  }
+
+  return intervals;
+}
+
+function snapToWorkingTime(workCenterId, value, state = null) {
+  let probe = toDate(value);
+  let dayCursor = startOfDay(probe);
+
+  for (let guard = 0; guard < 370; guard += 1) {
+    const intervals = getWorkingIntervalsForDay(workCenterId, dayCursor, state);
+    for (const interval of intervals) {
+      if (probe <= interval.start) return interval.start;
+      if (probe >= interval.start && probe < interval.end) return probe;
+    }
+    dayCursor = addMs(dayCursor, 24 * 60 * 60 * 1000);
+    probe = dayCursor;
+  }
+
+  return toDate(value);
+}
+
+function addWorkingDuration(workCenterId, start, durationMs, state = null) {
+  let remainingMs = Math.max(0, Number(durationMs || 0));
+  let cursor = snapToWorkingTime(workCenterId, start, state);
+  if (remainingMs <= 0) return cursor;
+
+  for (let guard = 0; guard < 10000; guard += 1) {
+    const intervals = getWorkingIntervalsForDay(workCenterId, cursor, state);
+    let advanced = false;
+
+    for (const interval of intervals) {
+      if (cursor < interval.start) cursor = interval.start;
+      if (cursor >= interval.end) continue;
+
+      const availableMs = interval.end.getTime() - cursor.getTime();
+      if (remainingMs <= availableMs) return addMs(cursor, remainingMs);
+
+      remainingMs -= availableMs;
+      cursor = interval.end;
+      advanced = true;
+    }
+
+    const nextDay = addMs(startOfDay(cursor), 24 * 60 * 60 * 1000);
+    cursor = snapToWorkingTime(workCenterId, advanced && nextDay <= cursor ? addMs(cursor, 1) : nextDay, state);
+  }
+
+  return addMs(cursor, remainingMs);
+}
+
+function getWorkingDurationBetween(workCenterId, start, end, state = null) {
+  return getWorkingIntervalsBetween(workCenterId, start, end, state)
+    .reduce((sum, interval) => sum + Math.max(0, interval.end - interval.start), 0);
 }
 
 function minuteToDate(dayStart, minute) {
@@ -13022,33 +14112,48 @@ function addNonWorkingSegment(segments, start, end, type, scaleInfo) {
 
 function buildNonWorkingSegments(row, scaleInfo) {
   const segments = [];
-  const calendar = row.type === "workCenter" ? getWorkCenterCalendar(row.workCenter) : null;
+  const calendar = getGanttRowCalendar(row);
   if (calendar?.isAlwaysOn) return segments;
 
   let cursor = startOfDay(scaleInfo.start);
   while (cursor < scaleInfo.end) {
-    const nextDay = addMs(cursor, 24 * 60 * 60 * 1000);
-    const day = cursor.getDay();
-
+    const nextDay = addMs(cursor, DAY_MS);
     if (row.type === "project" || row.type === "route") {
       if (isWeekendDate(cursor)) addNonWorkingSegment(segments, cursor, nextDay, "day-off", scaleInfo);
       cursor = nextDay;
       continue;
     }
 
-    if (!calendar.workDays.has(day)) {
+    if (!row.workCenter?.id || calendar.start === calendar.end) {
       addNonWorkingSegment(segments, cursor, nextDay, "day-off", scaleInfo);
       cursor = nextDay;
       continue;
     }
 
-    if (calendar.start === calendar.end) {
+    const workingIntervals = getWorkingIntervalsForCalendar(calendar, cursor)
+      .map((interval) => ({
+        start: new Date(Math.max(interval.start.getTime(), cursor.getTime())),
+        end: new Date(Math.min(interval.end.getTime(), nextDay.getTime())),
+      }))
+      .filter((interval) => interval.end > interval.start)
+      .sort((left, right) => left.start - right.start);
+
+    if (!workingIntervals.length) {
       addNonWorkingSegment(segments, cursor, nextDay, "day-off", scaleInfo);
-    } else if (calendar.start < calendar.end) {
-      if (calendar.start > 0) addNonWorkingSegment(segments, cursor, minuteToDate(cursor, calendar.start), "off-hours", scaleInfo);
-      if (calendar.end < 24 * 60) addNonWorkingSegment(segments, minuteToDate(cursor, calendar.end), nextDay, "off-hours", scaleInfo);
-    } else {
-      addNonWorkingSegment(segments, minuteToDate(cursor, calendar.end), minuteToDate(cursor, calendar.start), "off-hours", scaleInfo);
+      cursor = nextDay;
+      continue;
+    }
+
+    let offCursor = cursor;
+    workingIntervals.forEach((interval) => {
+      if (interval.start > offCursor) {
+        addNonWorkingSegment(segments, offCursor, interval.start, "off-hours", scaleInfo);
+      }
+      if (interval.end > offCursor) offCursor = interval.end;
+    });
+
+    if (offCursor < nextDay) {
+      addNonWorkingSegment(segments, offCursor, nextDay, "off-hours", scaleInfo);
     }
 
     cursor = nextDay;
@@ -13061,8 +14166,8 @@ function renderNonWorkingLayer(row, scaleInfo, height) {
   const segments = buildNonWorkingSegments(row, scaleInfo);
   if (!segments.length) return "";
 
-  const label = row.type === "workCenter"
-    ? `Нерабочее время участка: ${row.workCenter.shift || "5/2 08:00-20:00"}`
+  const label = ["workCenter", "resource"].includes(row.type)
+    ? `Нерабочее время подразделения: ${row.workCenter.shift || "5/2 08:00-20:00"}`
     : "Нерабочие дни";
 
   return `
@@ -13143,8 +14248,22 @@ function renderRowLabel(row, slotWarningMap = {}) {
     `;
   }
 
+  if (row.type === "resource") {
+    const resource = row.resource || {};
+    const parent = resource.parentResourceId ? getProductionResource(resource.parentResourceId) : null;
+    const passiveClass = resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource) ? "" : "is-passive-resource";
+    return `
+      <div class="row-label workcenter-label resource-label ${passiveClass}">
+        <span class="workcenter-code">${escapeHtml(parent ? "Доч." : PRODUCTION_RESOURCE_TYPE_CODES[resource.type] || "Рес")}</span>
+        <span class="workcenter-name">${escapeHtml(resource.name || "Производственный ресурс")}</span>
+        ${parent ? `<span class="outside-route">${escapeHtml(parent.name)}</span>` : ""}
+        ${resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource) ? "" : `<span class="outside-route">инфо</span>`}
+      </div>
+    `;
+  }
+
   return `
-    <div class="row-label workcenter-label">
+    <div class="row-label workcenter-label department-label">
       <span class="workcenter-code">${escapeHtml(row.workCenter.code)}</span>
       <span class="workcenter-name">${escapeHtml(row.workCenter.name)}</span>
       ${row.isOutsideRoute ? `<span class="outside-route">вне маршрута</span>` : ""}
@@ -13234,6 +14353,50 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const routeMeta = getSlotRouteMeta(slot);
   const durationMs = Math.max(0, toDate(slot.plannedEnd) - toDate(slot.plannedStart));
   const operationLabel = String(slot.operationName || workCenter?.name || "Операция").trim();
+  const workingSegments = getSlotWorkingVisualSegments(slot, scaleInfo, visualRect);
+  const segmentedClass = workingSegments.length > 1 ? "is-segmented" : "";
+
+  if (workingSegments.length > 1) {
+    const primaryIndex = workingSegments.reduce((bestIndex, segment, index, segments) => (
+      segment.width > segments[bestIndex].width ? index : bestIndex
+    ), 0);
+    return `
+      <article
+        class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass} ${segmentedClass}"
+        data-slot-id="${slot.id}"
+        style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px;"
+        title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · рабочее время ${formatDuration(getWorkingDurationBetween(slot.workCenterId, slot.plannedStart, slot.plannedEnd, planningState))}`)}"
+        tabindex="0"
+      >
+        ${workingSegments.map((segment, index) => `
+          <div class="slot-working-segment ${index === primaryIndex ? "is-primary" : ""}" style="left:${segment.offset}px; width:${segment.width}px;">
+            <div class="slot-accent"></div>
+            ${index === primaryIndex ? `
+              <div class="slot-content">
+                ${renderGanttSlotLine({
+                  slot,
+                  batch,
+                  routeMeta,
+                  operationLabel,
+                  quantity,
+                  isWeekSlot,
+                  isAggregate,
+                  warningList,
+                })}
+                ${!isAggregate && !isWeekSlot ? `
+                  <div class="slot-footer">
+                    <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
+                    <span>${formatTime(segment.start)}-${formatTime(segment.end)}</span>
+                  </div>
+                ` : ""}
+              </div>
+            ` : `<span class="slot-continuation-mark" title="${escapeAttribute(`${formatTime(segment.start)}-${formatTime(segment.end)}`)}"></span>`}
+            ${index === workingSegments.length - 1 && !isAggregate && !isWeekSlot ? `<button class="resize-handle" data-resize-slot="${slot.id}" type="button" title="Изменить длительность"></button>` : ""}
+          </div>
+        `).join("")}
+      </article>
+    `;
+  }
 
   return `
     <article
@@ -13324,6 +14487,37 @@ function getSlotVisualRect(slot, scaleInfo, isAggregate = false) {
     width,
     right: x + width,
   };
+}
+
+function getSlotWorkingVisualSegments(slot, scaleInfo, visualRect) {
+  const intervals = getWorkingIntervalsBetween(slot.workCenterId, slot.plannedStart, slot.plannedEnd, planningState);
+  if (intervals.length <= 1) return intervals.map((interval) => {
+    const left = Math.max(visualRect.x, dateToX(interval.start, scaleInfo));
+    const right = Math.min(visualRect.right, dateToX(interval.end, scaleInfo));
+    return {
+      start: interval.start,
+      end: interval.end,
+      x: left,
+      offset: Math.max(0, left - visualRect.x),
+      width: Math.max(1, right - left),
+      right,
+    };
+  });
+
+  return intervals
+    .map((interval) => {
+      const left = Math.max(visualRect.x, dateToX(interval.start, scaleInfo));
+      const right = Math.min(visualRect.right, dateToX(interval.end, scaleInfo));
+      return {
+        start: interval.start,
+        end: interval.end,
+        x: left,
+        offset: Math.max(0, left - visualRect.x),
+        width: Math.max(1, right - left),
+        right,
+      };
+    })
+    .filter((segment) => segment.right > segment.x);
 }
 
 function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) {
@@ -13660,7 +14854,7 @@ function renderPlanningAssistantDock(warnings) {
         <div class="assistant-panel-head">
           <div>
             <strong>Исправления</strong>
-            <span>маршрут, перегрузка участка, количество</span>
+            <span>маршрут, перегрузка подразделения, количество</span>
           </div>
           <em class="${critical.length ? "critical" : warnings.length ? "warning" : "ok"}">${warnings.length}</em>
         </div>
@@ -13701,7 +14895,7 @@ function renderPlanningAssistantDock(warnings) {
           <button class="assistant-command" data-save-plan-snapshot type="button">${icon("save")}<span>Снимок плана</span></button>
         </div>
         <div class="assistant-metrics">
-          <div><strong>${topWorkload?.label || "-"}</strong><span>самый загруженный участок</span></div>
+          <div><strong>${topWorkload?.label || "-"}</strong><span>самое загруженное подразделение</span></div>
           <div><strong>${riskyProjects.length}</strong><span>спецификаций у срока</span></div>
           <div><strong>${formatDuration(getRouteBufferMs())}</strong><span>буфер маршрута</span></div>
         </div>
@@ -13774,7 +14968,7 @@ function renderSlotDrawer(slotWarningMap) {
           <strong>${formatDuration(planMs)}</strong>
         </article>
         <article>
-          <span>Участок</span>
+          <span>Подразделение</span>
           <strong>${escapeHtml(workCenter?.code || "-")}</strong>
         </article>
         <article>
@@ -13790,7 +14984,7 @@ function renderSlotDrawer(slotWarningMap) {
       <dl class="detail-grid">
         <div><dt>Спецификация</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
         <div><dt>Заказ</dt><dd>${escapeHtml(project?.orderNumber || "")}</dd></div>
-        <div><dt>Участок</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
+        <div><dt>Подразделение</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
         <div><dt>Шаг маршрута</dt><dd>${currentStep?.stepOrder || "-"} · ${escapeHtml(currentStep?.operationName || "")}</dd></div>
         <div><dt>План</dt><dd>${formatDateTime(slot.plannedStart)} - ${formatDateTime(slot.plannedEnd)}</dd></div>
         <div><dt>Факт</dt><dd>${slot.actualStart ? formatDateTime(slot.actualStart) : "-"} - ${slot.actualEnd ? formatDateTime(slot.actualEnd) : "-"}</dd></div>
@@ -13901,9 +15095,9 @@ function renderEditorModal() {
             </label>
 
             <label class="form-field command-field">
-              <span>Участок</span>
+              <span>Подразделение</span>
               <select name="workCenterId" id="workCenterField" required>
-                ${planningState.workCenters.map((center) => `<option value="${center.id}" ${selected(slot.workCenterId || routeStep?.workCenterId, center.id)}>${escapeHtml(center.name)}</option>`).join("")}
+                ${getPlanningWorkCenters().map((center) => `<option value="${center.id}" ${selected(slot.workCenterId || routeStep?.workCenterId, center.id)}>${escapeHtml(center.name)}</option>`).join("")}
               </select>
             </label>
 
@@ -13982,7 +15176,7 @@ function renderSplitModal() {
           <div class="confirm-body warning">
             <div class="confirm-icon">${icon("split")}</div>
             <div>
-              <p>Новый слот сохранит спецификацию, маршрутный шаг и участок. Исходный слот будет уменьшен на указанное количество.</p>
+              <p>Новый слот сохранит спецификацию, маршрутный шаг и подразделение. Исходный слот будет уменьшен на указанное количество.</p>
               <span>Действие влияет на план партии и последующую цепочку операций.</span>
             </div>
           </div>
@@ -14371,14 +15565,15 @@ function bindSlotForm() {
     const batch = getBatch(batchField?.value);
     const quantity = normalizeQuantity(quantityField?.value, editedSlot?.quantity || batch?.quantity || 1);
     const selectedStep = planningState.routeSteps.find((step) => step.id === routeStepField?.value);
-    const plannedEnd = calculatePlannedEndByQuantity(
-      cleanDateTime(plannedStartField.value),
-      workCenterField.value,
-      quantity,
-      planningState,
-      selectedStep?.unitsPerHour || editedSlot?.unitsPerHour || null,
-      selectedStep?.boardsPerPanel || editedSlot?.boardsPerPanel || null,
-    );
+	    const plannedEnd = calculatePlannedEndByQuantity(
+	      cleanDateTime(plannedStartField.value),
+	      workCenterField.value,
+	      quantity,
+	      planningState,
+	      selectedStep?.unitsPerHour || editedSlot?.unitsPerHour || null,
+	      selectedStep?.boardsPerPanel || editedSlot?.boardsPerPanel || null,
+	      selectedStep || editedSlot,
+	    );
     plannedEndField.value = isoLocal(plannedEnd);
   };
 
@@ -14406,21 +15601,26 @@ function bindSlotForm() {
       data.has("quantity") ? data.get("quantity") : currentSlot?.quantity,
       currentSlot?.quantity || selectedBatch?.quantity || 1,
     );
-    const plannedStart = cleanDateTime(data.get("plannedStart"));
+	    const plannedStart = toSlotDateTime(snapToWorkingTime(data.get("workCenterId"), cleanDateTime(data.get("plannedStart")), planningState));
     const selectedRouteStep = planningState.routeSteps.find((step) => step.id === data.get("routeStepId"));
     const unitsPerHour = Number(selectedRouteStep?.unitsPerHour || currentSlot?.unitsPerHour || 0);
     const boardsPerPanel = normalizeBoardsPerPanel(selectedRouteStep?.boardsPerPanel || currentSlot?.boardsPerPanel, 1);
-    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity, planningState, unitsPerHour || null, boardsPerPanel));
+	    const slotContext = selectedRouteStep || currentSlot;
+	    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity, planningState, unitsPerHour || null, boardsPerPanel, slotContext));
     const slotData = {
       projectId: data.get("projectId"),
       batchId: data.get("batchId"),
       workCenterId: data.get("workCenterId"),
       routeStepId: data.get("routeStepId"),
       operationName: String(data.get("operationName") || "").trim(),
-      quantity,
-      unitsPerHour: unitsPerHour || undefined,
-      boardsPerPanel,
-      resourceId: selectedRouteStep?.resourceId || currentSlot?.resourceId || "",
+	      quantity,
+	      unitsPerHour: unitsPerHour || undefined,
+	      boardsPerPanel,
+	      resourceId: selectedRouteStep?.resourceId || currentSlot?.resourceId || "",
+	      calculationType: selectedRouteStep?.calculationType || currentSlot?.calculationType || "",
+	      secondsPerPanel: selectedRouteStep?.secondsPerPanel || currentSlot?.secondsPerPanel || 0,
+	      setupMin: selectedRouteStep?.setupMin || currentSlot?.setupMin || 0,
+	      bomListId: selectedRouteStep?.bomListId || currentSlot?.bomListId || "",
       plannedStart,
       plannedEnd,
       actualStart: cleanOptionalDateTime(data.get("actualStart")),
@@ -14479,8 +15679,8 @@ function bindSplitForm() {
     const stamp = new Date().toISOString();
     const childIndex = planningState.batches.filter((batch) => batch.parentBatchId === (sourceBatch.parentBatchId || sourceBatch.id)).length + 1;
     const sourceQuantity = normalizeQuantity(sourceSlot.quantity - quantity);
-    const sourcePlannedEnd = calculatePlannedEndByQuantity(sourceSlot.plannedStart, sourceSlot.workCenterId, sourceQuantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null);
-    const childPlannedEnd = calculatePlannedEndByQuantity(sourcePlannedEnd, sourceSlot.workCenterId, quantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null);
+	    const sourcePlannedEnd = calculatePlannedEndByQuantity(sourceSlot.plannedStart, sourceSlot.workCenterId, sourceQuantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null, sourceSlot);
+	    const childPlannedEnd = calculatePlannedEndByQuantity(sourcePlannedEnd, sourceSlot.workCenterId, quantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null, sourceSlot);
     const childBatch = {
       id: makeId("b"),
       routeId: sourceSlot.routeId || sourceBatch?.routeId || "",
@@ -14641,24 +15841,25 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     if (mode === "resize") {
       const minEnd = addMs(ui.drag.originalStart, snapMs);
       const rawEnd = new Date(ui.drag.originalEnd.getTime() + msDelta);
-      const newEnd = new Date(Math.max(minEnd.getTime(), snapDate(rawEnd, snapMs).getTime()));
-      const nextQuantity = calculateQuantityByDuration(targetSlot.workCenterId, targetSlot.plannedStart, newEnd);
-      targetSlot.quantity = nextQuantity;
-      targetSlot.plannedEnd = toSlotDateTime(newEnd);
-      targetSlot.updatedAt = new Date().toISOString();
-    } else {
-      const newStart = snapDate(addMs(ui.drag.originalStart, msDelta), snapMs);
-      targetSlot.plannedStart = toSlotDateTime(newStart);
+	      const newEnd = new Date(Math.max(minEnd.getTime(), snapDate(rawEnd, snapMs).getTime()));
+	      const nextQuantity = calculateQuantityByDuration(targetSlot.workCenterId, targetSlot.plannedStart, newEnd, targetSlot);
+	      targetSlot.quantity = nextQuantity;
+	      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(targetSlot.plannedStart, targetSlot.workCenterId, nextQuantity, planningState, targetSlot.unitsPerHour || null, targetSlot.boardsPerPanel || null, targetSlot));
+	      targetSlot.updatedAt = new Date().toISOString();
+	    } else {
+	      const rawStart = snapDate(addMs(ui.drag.originalStart, msDelta), snapMs);
 
-      const targetRow = rowFromPointer(moveEvent, rows, rowLayout);
-      if (targetRow?.type === "workCenter" && targetRow.routeId === ui.drag.routeId) {
-        applyGanttRowToSlot(targetSlot, targetRow);
-        ui.drag.targetRowId = targetRow.id;
-      }
+	      const targetRow = rowFromPointer(moveEvent, rows, rowLayout);
+	      if (["workCenter", "resource"].includes(targetRow?.type) && targetRow.routeId === ui.drag.routeId) {
+	        applyGanttRowToSlot(targetSlot, targetRow);
+	        ui.drag.targetRowId = targetRow.id;
+	      }
 
-      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(newStart, targetSlot.workCenterId, targetSlot.quantity, planningState, targetSlot.unitsPerHour || null, targetSlot.boardsPerPanel || null));
-      targetSlot.updatedAt = new Date().toISOString();
-    }
+	      const newStart = snapToWorkingTime(targetSlot.workCenterId, rawStart, planningState);
+	      targetSlot.plannedStart = toSlotDateTime(newStart);
+	      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(newStart, targetSlot.workCenterId, targetSlot.quantity, planningState, targetSlot.unitsPerHour || null, targetSlot.boardsPerPanel || null, targetSlot));
+	      targetSlot.updatedAt = new Date().toISOString();
+	    }
 
     render();
   };
@@ -14703,10 +15904,10 @@ function placeSlotInNearestWindow(slot, earliestOverride = null) {
     toDate(earliestOverride || slot.plannedStart).getTime(),
     toDate(routeEarliest).getTime(),
   ));
-  const durationMs = calculateRequiredDurationMs(slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour, slot.boardsPerPanel || null);
-  const window = findFreeWindow(slot.workCenterId, durationMs, earliestStart, slot.id);
+	  const durationMs = calculateRequiredDurationMs(slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour, slot.boardsPerPanel || null, slot);
+  const window = findFreeWindow(slot.workCenterId, durationMs, earliestStart, slot.id, slot.resourceId || "");
 
-  slot.plannedStart = toSlotDateTime(window.start);
+	  slot.plannedStart = toSlotDateTime(window.start);
   slot.plannedEnd = toSlotDateTime(window.end);
   slot.updatedAt = new Date().toISOString();
   cascadeIfEnabled(slot.id);
@@ -14782,7 +15983,7 @@ function applyWarningFixInPlace(warning) {
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return false;
     slot.workCenterId = step.workCenterId;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
+	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
     slot.updatedAt = stamp;
     return Boolean(placeSlotInNearestWindow(slot, slot.plannedStart));
   }
@@ -14793,7 +15994,7 @@ function applyWarningFixInPlace(warning) {
     const previous = getRouteNeighbor(slot, -1);
     if (!previous) return false;
     slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
+	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     return true;
@@ -14802,7 +16003,7 @@ function applyWarningFixInPlace(warning) {
   if (warning.type === "duration" && slots[0]) {
     const slot = slots[0];
     if (slot.locked || slot.status === "completed") return false;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
+	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     return true;
@@ -14845,7 +16046,7 @@ function autoFixWarning(warningId) {
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return;
     slot.workCenterId = step.workCenterId;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
+	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
     slot.updatedAt = stamp;
     moveSlotToNearestWindow(slot.id, slot.plannedStart);
     return;
@@ -14857,7 +16058,7 @@ function autoFixWarning(warningId) {
     const previous = getRouteNeighbor(slot, -1);
     if (!previous) return;
     slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
+	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     persistState();
@@ -14868,7 +16069,7 @@ function autoFixWarning(warningId) {
   if (warning.type === "duration" && slots[0]) {
     const slot = slots[0];
     if (slot.locked) return;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
+	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     persistState();
@@ -14906,7 +16107,7 @@ function updateSlotQuantity(slotId, value) {
 
   const quantity = normalizeQuantity(value, slot.quantity);
   slot.quantity = quantity;
-  slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
+	  slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
   slot.updatedAt = new Date().toISOString();
   cascadeIfEnabled(slotId);
   persistState();
@@ -15042,7 +16243,6 @@ function buildRows(scaleInfo) {
       if (!ganttCenterMatchesFilter(center)) continue;
       const routeSteps = getRouteStepsForModule(route.id);
       const inRoute = routeSteps.some((step) => step.workCenterId === getGanttCenterRouteWorkCenterId(center));
-      const centerSlots = getSlotsForRouteCenter(route.id, center.id);
       rows.push({
         id: `work:${route.id}:${center.id}`,
         type: "workCenter",
@@ -15054,7 +16254,24 @@ function buildRows(scaleInfo) {
         smtLineId: center.smtLineId || "",
         isSmtLine: Boolean(center.isSmtLine),
         isOutsideRoute: !inRoute,
-        height: getScaledRowHeight(WORK_ROW_HEIGHT, centerSlots, scaleInfo, false),
+        height: WORK_ROW_HEIGHT,
+      });
+
+      getGanttResourcesForWorkCenter(getGanttCenterRouteWorkCenterId(center)).forEach((resource) => {
+        const resourceSlots = getSlotsForRouteResource(route.id, getGanttCenterRouteWorkCenterId(center), resource.id);
+        rows.push({
+          id: getResourceRowId(route.id, getGanttCenterRouteWorkCenterId(center), resource.id),
+          type: "resource",
+          routeId: route.id,
+          projectId: route.projectId,
+          workCenterId: getGanttCenterRouteWorkCenterId(center),
+          workCenter: getWorkCenter(getGanttCenterRouteWorkCenterId(center)) || center,
+          resourceId: resource.id,
+          resource,
+          parentResourceId: resource.parentResourceId || "",
+          isOutsideRoute: !inRoute,
+          height: getScaledRowHeight(WORK_ROW_HEIGHT, resourceSlots, scaleInfo, false),
+        });
       });
     }
   }
@@ -15148,13 +16365,10 @@ function getProjectCenters(projectId) {
     .filter((slot) => slot.projectId === projectId)
     .map((slot) => getWorkCenter(slot.workCenterId))
     .filter(Boolean);
-  const base = ui.rowMode === "all" ? planningState.workCenters : [...routeCenters, ...slotCenters];
-  const expandedBase = base.flatMap((center) => (
-    center.id === "smt" ? getSmtGanttLineCenters() : [center]
-  ));
+  const base = ui.rowMode === "all" ? getPlanningWorkCenters() : [...routeCenters, ...slotCenters];
   const seen = new Set();
 
-  return expandedBase.filter((center) => {
+  return base.filter((center) => {
     if (!center.isActive || seen.has(center.id)) return false;
     seen.add(center.id);
     return true;
@@ -15169,13 +16383,10 @@ function getRouteCenters(routeId) {
   const slotCenters = getRouteSlots(routeId)
     .map((slot) => getWorkCenter(slot.workCenterId))
     .filter(Boolean);
-  const base = ui.rowMode === "all" ? planningState.workCenters : [...routeCenters, ...slotCenters];
-  const expandedBase = base.flatMap((center) => (
-    center.id === "smt" ? getSmtGanttLineCenters() : [center]
-  ));
+  const base = ui.rowMode === "all" ? getPlanningWorkCenters() : [...routeCenters, ...slotCenters];
   const seen = new Set();
 
-  return expandedBase.filter((center) => {
+  return base.filter((center) => {
     if (!center.isActive || seen.has(center.id)) return false;
     seen.add(center.id);
     return true;
@@ -15183,15 +16394,6 @@ function getRouteCenters(routeId) {
 }
 
 function getSlotsForProjectCenter(projectId, workCenterId) {
-  if (isSmtLineWorkCenterId(workCenterId)) {
-    const lineId = getSmtLineIdFromWorkCenterId(workCenterId);
-    return planningState.slots.filter((slot) => (
-      slot.projectId === projectId
-      && slot.workCenterId === "smt"
-      && getSlotAssignedSmtLineId(slot) === lineId
-    ));
-  }
-
   return planningState.slots.filter((slot) => (
     slot.projectId === projectId
     && slot.workCenterId === workCenterId
@@ -15219,15 +16421,12 @@ function getRouteSlots(routeId) {
 
 function getSlotsForRouteCenter(routeId, workCenterId) {
   const routeSlots = getRouteSlots(routeId);
-  if (isSmtLineWorkCenterId(workCenterId)) {
-    const lineId = getSmtLineIdFromWorkCenterId(workCenterId);
-    return routeSlots.filter((slot) => (
-      slot.workCenterId === "smt"
-      && getSlotAssignedSmtLineId(slot) === lineId
-    ));
-  }
-
   return routeSlots.filter((slot) => slot.workCenterId === workCenterId);
+}
+
+function getSlotsForRouteResource(routeId, workCenterId, resourceId) {
+  return getSlotsForRouteCenter(routeId, workCenterId)
+    .filter((slot) => getSlotGanttResourceId(slot) === resourceId);
 }
 
 function getGanttCenterRouteWorkCenterId(center) {
@@ -15316,6 +16515,14 @@ function getRowSlots(row) {
     return getProjectSummarySlots(row.projectId);
   }
 
+  if (row.type === "workCenter") {
+    return [];
+  }
+
+  if (row.type === "resource") {
+    return getSlotsForRouteResource(row.routeId, row.workCenterId, row.resourceId);
+  }
+
   return planningState.slots.filter((slot) => (
     (!row.routeId || getSlotRoute(slot)?.id === row.routeId)
     && slot.projectId === row.projectId
@@ -15329,7 +16536,7 @@ function getVisibleSlotRowId(slot) {
   if (!isGanttRouteExpanded(route)) {
     return isFinishedGoodsSlot(slot) ? `route:${route.id}` : null;
   }
-  return `work:${route.id}:${getSlotGanttWorkCenterId(slot)}`;
+  return getResourceRowId(route.id, slot.workCenterId, getSlotGanttResourceId(slot));
 }
 
 function buildStats(warnings) {
@@ -15397,7 +16604,7 @@ function getBatch(id) {
 }
 
 function getWorkCenter(id) {
-  return planningState.workCenters.find((center) => center.id === id);
+  return getRuntimePlanningState()?.workCenters?.find((center) => center.id === id) || null;
 }
 
 function selected(left, right) {

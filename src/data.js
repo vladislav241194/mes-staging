@@ -45,7 +45,7 @@ export const workCenters = [
   },
   {
     id: "mechanic",
-    name: "Слесарный участок",
+    name: "Слесарное подразделение",
     code: "MECH",
     description: "Механическая подготовка корпусов и крепежа",
     isActive: true,
@@ -83,7 +83,7 @@ const routeTemplates = {
     ["manual", "Ручной монтаж", true],
     ["test", "Тестирование", true],
     ["coating", "Лакировка", true],
-    ["mechanic", "Слесарный участок", true],
+    ["mechanic", "Слесарное подразделение", true],
     ["assembly", "Сборка", true],
   ],
   service: [

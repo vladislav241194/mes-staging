@@ -97,7 +97,7 @@ export function detectWorkCenterConflicts(state) {
           slotIds: [left.id, right.id],
           projectId: left.projectId,
           workCenterId: left.workCenterId,
-          message: `${workCenterById[left.workCenterId]?.name || "Участок"} перегружен: ${overlappingSlots.length} операций при емкости ${capacity}. ${projectById[left.specificationId || left.projectId]?.name || "Задание"} пересекается с ${projectById[right.specificationId || right.projectId]?.name || "заданием"}.`,
+          message: `${workCenterById[left.workCenterId]?.name || "Подразделение"} перегружено: ${overlappingSlots.length} операций при емкости ${capacity}. ${projectById[left.specificationId || left.projectId]?.name || "Задание"} пересекается с ${projectById[right.specificationId || right.projectId]?.name || "заданием"}.`,
         });
       }
     }
@@ -151,7 +151,7 @@ export function detectRouteWarnings(state) {
         slotIds: [slot.id],
         projectId: slot.projectId,
         batchId: slot.batchId,
-        message: `${slot.operationName}: операция маршрута ожидает участок ${workCenterById[step.workCenterId]?.name || step.workCenterId}, а слот стоит на ${workCenterById[slot.workCenterId]?.name || slot.workCenterId}.`,
+        message: `${slot.operationName}: операция маршрута ожидает подразделение ${workCenterById[step.workCenterId]?.name || step.workCenterId}, а слот стоит на ${workCenterById[slot.workCenterId]?.name || slot.workCenterId}.`,
       });
     }
   }
