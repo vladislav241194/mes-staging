@@ -1,4 +1,4 @@
-import { createDefaultPlanningState, createProjectBundle, routeTemplateOptions } from "./data.js";
+import { createDefaultPlanningState, createProductionBundle, routeTemplateOptions } from "./data.js";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUSES, SLOT_STATUSES, STATUS_LABELS } from "./types.js";
 import {
   addMs,
@@ -30,9 +30,13 @@ const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defaults-restored-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
-const APP_VERSION = "v.1.75";
-const MVP_ACCESS_PASSWORD = "5555";
-const MVP_MODULE_IDS = new Set(["reports", "debug"]);
+const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
+const APP_VERSION = "v.1.152";
+const UPDATE_CHECK_INTERVAL_MS = 10000;
+const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
+const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
+const DIRECTORY_BACKUP_STORAGE_KEY = "mes-planning-prototype-directories-backup-v1";
+const DIRECTORY_DELETED_ENTITIES_STORAGE_KEY = "mes-planning-prototype-directories-deleted-entities-v1";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
@@ -40,7 +44,10 @@ const STORAGE_KEYS = [
   DIRECTORY_DEFAULTS_STORAGE_KEY,
   CALCULATOR_STORAGE_KEY,
   AUTH_STORAGE_KEY,
+  UPDATE_DISMISSED_STORAGE_KEY,
+  DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
 ];
+const CRITICAL_DIRECTORY_SECTION_IDS = ["bomLists", "specifications"];
 const LEFT_WIDTH = 360;
 const TIMELINE_HEIGHT = 48;
 const GANTT_SNAP_MS = 15 * 60 * 1000;
@@ -58,6 +65,14 @@ const AGGREGATE_SLOT_HEIGHT = 22;
 const MIN_OPERATION_DURATION_MS = 5 * 60 * 1000;
 const DEFAULT_ROUTE_BUFFER_MS = 30 * 60 * 1000;
 const DEFAULT_RESOURCE_CPH = 30000;
+const SMT_LINE_WORKCENTER_PREFIX = "smt-line:";
+const GANTT_ZOOM_LEVELS = [0.75, 1, 1.5, 2, 3, 4, 6, 8];
+const GANTT_SLOT_CONTENT_MODES = [
+  { id: "operationQuantity", label: "Операция + кол-во", shortLabel: "Опер. + кол." },
+  { id: "operation", label: "Операция", shortLabel: "Операция" },
+  { id: "quantity", label: "Количество", shortLabel: "Кол-во" },
+  { id: "batchStep", label: "Партия и шаг", shortLabel: "Партия" },
+];
 const WORK_CENTER_RATES = {
   smt: 55,
   aoi: 110,
@@ -101,7 +116,6 @@ const app = document.querySelector("#app");
 const defaultUiState = {
   activeModule: "gantt",
   activeDirectory: "departments",
-  activeReport: "dashboard",
   activeProjectId: "",
   activeSpecificationId: "",
   spekiEditingId: "",
@@ -110,9 +124,10 @@ const defaultUiState = {
   spekiCollapsedBomIds: [],
   activeBomId: "",
   activeNomenclatureId: "",
+  activeOperationId: "",
+  nomenclatureTypeFilter: "all",
   activeRouteId: "",
   calculatorStep: "inputs",
-  debugOverlay: null,
   confirmDialog: null,
   directoryEditor: null,
   selectedDirectoryRows: {},
@@ -123,6 +138,8 @@ const defaultUiState = {
   workCenterFilter: "all",
   rowMode: "route",
   autoCascade: true,
+  ganttZoom: 1,
+  ganttSlotContent: "operationQuantity",
   timelineCounts: { hours: scaleConfig.hours.count, days: scaleConfig.days.count, weeks: scaleConfig.weeks.count },
   expandedProjects: new Set(["p-x100", "p-v2", "p-mes"]),
   selectedSlotId: null,
@@ -151,6 +168,8 @@ const defaultCalculatorState = {
   selectedOperationId: "",
   lastSavedAt: "",
   inputsSavedAt: "",
+  inputsSavedSignature: "",
+  routeSavedSignature: "",
 };
 
 handleDevResetParams();
@@ -177,11 +196,11 @@ const DEFAULT_COMPONENT_TYPES = [
 ];
 
 const DEFAULT_ROLES = [
-  { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, debug, admin", status: "Активен" },
-  { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "reports, gantt, planning, calculator, routes, bomLists, speki, nomenclature, directories", directories: "departments, resources, componentTypes, employees, equipment, workCenters, norms, statuses", permissions: "create, read, update, schedule, approve", status: "Активен" },
-  { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "reports, calculator, routes, bomLists, speki, nomenclature, directories", directories: "resources, componentTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
-  { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "reports, gantt, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
-  { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "reports, gantt, routes, bomLists, speki", directories: "statuses", permissions: "read", status: "Активен" },
+  { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, admin", status: "Активен" },
+  { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "gantt, planning, operationMap, technologyCard, calculator, routes, bomLists, speki, nomenclature, directories", directories: "departments, resources, componentTypes, nomenclatureTypes, employees, equipment, workCenters, norms, statuses", permissions: "create, read, update, schedule, approve", status: "Активен" },
+  { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "operationMap, technologyCard, calculator, routes, bomLists, speki, nomenclature, directories", directories: "resources, componentTypes, nomenclatureTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
+  { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "gantt, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
+  { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "gantt, operationMap, technologyCard, routes, bomLists, speki", directories: "statuses", permissions: "read", status: "Активен" },
 ];
 
 const DEFAULT_RESOURCES = [
@@ -192,19 +211,8 @@ const DEFAULT_RESOURCES = [
   { id: "res-manual-a", name: "Пост ручного монтажа A", type: "Рабочее место", workCenter: "Ручной монтаж", capacity: "2 оператора", baseCph: 0, efficiency: 80, changeoverMin: 5, status: "Доступен" },
 ];
 
-const DEFAULT_BOM_LISTS = [
-  { id: "bom-x100", name: "BOM X100 PCB", projectId: "p-x100", boardCode: "PCB-X100", resultItem: "Смонтированная плата X100", c0402: 42, c0603: 36, c0805: 18, csot23: 6, csoic: 2, cqfn: 1, cbga: 0, cconnector: 3, status: "Активен" },
-  { id: "bom-v2", name: "BOM Power V2 PCB", projectId: "p-v2", boardCode: "PCB-PWR-V2", resultItem: "Смонтированная плата питания V2", c0402: 28, c0603: 54, c0805: 22, csot23: 8, csoic: 3, cqfn: 2, cbga: 0, cconnector: 4, status: "Активен" },
-  { id: "bom-mes-main", name: "BOM MES Main PCB", projectId: "p-mes", boardCode: "PCB-MES-MAIN", resultItem: "Смонтированная основная плата MES", c0402: 64, c0603: 48, c0805: 16, csot23: 10, csoic: 4, cqfn: 2, cbga: 1, cconnector: 5, status: "Активен" },
-  { id: "bom-mes-io", name: "BOM MES IO PCB", projectId: "p-mes", boardCode: "PCB-MES-IO", resultItem: "Смонтированная плата ввода-вывода MES", c0402: 34, c0603: 30, c0805: 12, csot23: 5, csoic: 2, cqfn: 1, cbga: 0, cconnector: 8, status: "Активен" },
-];
-
-const DEFAULT_SPECIFICATIONS = [
-  { id: "spec-x100", name: "СП X100", projectId: "p-x100", outputItem: "Плата управления X100", bomListA: "bom-x100", bomQtyA: 1, bomListB: "", bomQtyB: 0, extraItems: "Крепеж M3; этикетка; технологическая тара", status: "Активен" },
-  { id: "spec-v2", name: "СП Контроллер питания V2", projectId: "p-v2", outputItem: "Контроллер питания V2", bomListA: "bom-v2", bomQtyA: 1, bomListB: "", bomQtyB: 0, extraItems: "Радиатор; корпусной винт; маркировка", status: "Активен" },
-  { id: "spec-mes", name: "СП MES-001", projectId: "p-mes", outputItem: "Готовое изделие MES-001", bomListA: "bom-mes-main", bomQtyA: 1, bomListB: "bom-mes-io", bomQtyB: 2, extraItems: "Корпус IP54; кабельный ввод; DIN-крепление; шильдик", status: "Активен" },
-  { id: "spec-t40", name: "СП Датчик T-40", projectId: "p-t40", outputItem: "Датчик телеметрии T-40", bomListA: "bom-v2", bomQtyA: 1, bomListB: "", bomQtyB: 0, extraItems: "Герметичный корпус; прокладка; комплект винтов", status: "Черновик" },
-];
+const DEFAULT_BOM_LISTS = [];
+const DEFAULT_SPECIFICATIONS = [];
 
 const DEFAULT_EMPLOYEES = [
   { id: "emp-morozova", name: "Анна Морозова", roleId: "role-admin", role: "Планировщик", department: "Отдел программной подготовки изделий", shift: "День", password: "", status: "На смене" },
@@ -235,15 +243,40 @@ const DEFAULT_NORMS = [
   { id: "norm-day", name: "Рабочая смена дневная", value: "08:00-20:00", scope: "Все участки", status: "Активен" },
   { id: "norm-night", name: "Рабочая смена ночная", value: "20:00-08:00", scope: "SMT / Тестирование", status: "Активен" },
   { id: "norm-buffer", name: "Буфер между операциями", value: "30 минут", scope: "Маршрутная карта", status: "Активен" },
-  { id: "norm-capacity", name: "Емкость участка MVP", value: "1 операция одновременно", scope: "Планирование", status: "Активен" },
+  { id: "norm-capacity", name: "Емкость участка", value: "1 операция одновременно", scope: "Заказ на пр-во", status: "Активен" },
 ];
 
 const DEFAULT_STATUSES = [
   ...PROJECT_STATUSES.map((status) => ({ id: `project-${status}`, name: PROJECT_STATUS_LABELS[status], type: "Спецификация", code: status, usage: "Карточка спецификации" })),
   ...SLOT_STATUSES.map((status) => ({ id: `slot-${status}`, name: STATUS_LABELS[status], type: "Операция", code: status, usage: "Слот Ганта" })),
 ];
+const OPERATION_TYPE_OPTIONS = [
+  { value: "production", label: "Производственная", meta: "изготовление или обработка" },
+  { value: "warehouse", label: "Складская", meta: "приемка, выдача, отгрузка" },
+  { value: "quality", label: "Контроль", meta: "проверка, испытания, AOI" },
+  { value: "preparation", label: "Подготовительная", meta: "комплектация, наладка" },
+  { value: "service", label: "Сервисная", meta: "вспомогательная работа" },
+];
 const BOM_IMPORT_COLUMN_COUNT = 9;
 const MAIN_ROUTE_TASK_ID = "__main__";
+const NOMENCLATURE_REA_COMPONENT_TYPE = "РЭА компоненты";
+const DEFAULT_NOMENCLATURE_TYPES = [
+  { id: "nom-type-rea", name: NOMENCLATURE_REA_COMPONENT_TYPE, code: "REA", description: "Резисторы, конденсаторы, микросхемы", status: "Активен" },
+  { id: "nom-type-pcb", name: "Печатные платы", code: "PCB", description: "Голые платы и заготовки", status: "Активен" },
+  { id: "nom-type-mech", name: "Механика", code: "MECH", description: "Корпуса, крепеж, радиаторы", status: "Активен" },
+  { id: "nom-type-cable", name: "Кабели и жгуты", code: "CABLE", description: "Проводники, шлейфы, сборки", status: "Активен" },
+  { id: "nom-type-consumable", name: "Расходные материалы", code: "CONS", description: "Паста, флюс, лак, химия", status: "Активен" },
+  { id: "nom-type-pack", name: "Упаковка и маркировка", code: "PACK", description: "Коробки, этикетки, шильды", status: "Активен" },
+  { id: "nom-type-buy", name: "Покупные изделия", code: "BUY", description: "Готовые узлы поставщика", status: "Активен" },
+  { id: "nom-type-make", name: "Производимые узлы", code: "MAKE", description: "Сборочные единицы предприятия", status: "Активен" },
+  { id: "nom-type-tooling", name: "Оснастка", code: "TOOL", description: "Трафареты, приспособления", status: "Активен" },
+  { id: "nom-type-other", name: "Прочее", code: "OTHER", description: "Временный раздел", status: "Активен" },
+];
+const NOMENCLATURE_DEFAULT_TYPES = DEFAULT_NOMENCLATURE_TYPES.map((item) => ({
+  value: item.name,
+  label: item.name,
+  meta: item.description,
+}));
 const BOM_IMPORT_FALLBACK_HEADERS = [
   "Порядковый номер",
   "Описание",
@@ -263,7 +296,7 @@ const SYSTEM_AUTH_ROLE = {
   accessLevel: 100,
   modules: "*",
   directories: "*",
-  permissions: "create, read, update, delete, approve, reset, debug, admin",
+  permissions: "create, read, update, delete, approve, reset, admin",
   status: "Активен",
 };
 
@@ -278,18 +311,28 @@ const SYSTEM_AUTH_EMPLOYEE = {
   status: "На смене",
 };
 
+let directoryEntityRemovalAllowed = false;
+let planningEntityRemovalAllowed = false;
 let planningState = loadState();
 let directoryState = loadDirectoryState();
+migrateProjectEntityToSpecifications();
+migrateSpecificationBomRowsToNomenclature();
+syncNomenclatureTypesFromItems({ persist: true });
 let calculatorState = loadCalculatorState();
 let ui = loadUiState();
 let authState = loadAuthState();
-let mvpAccessUnlocked = false;
+let updateCheckTimer = null;
+let updateNoticeVersion = "";
+let saveFeedbackTimer = null;
+let saveUxRefreshTimer = null;
+let pendingSaveFeedback = null;
 
 const directorySections = [
   { id: "departments", label: "Отделы", description: "Подразделения и зоны ответственности", count: () => directoryState.departments.length },
   { id: "roles", label: "Роли", description: "Гибкая настройка доступа к модулям и справочникам", count: () => directoryState.roles.length },
   { id: "resources", label: "Ресурсы", description: "Производственные мощности", count: () => directoryState.resources.length },
   { id: "componentTypes", label: "Типы компонентов", description: "Корпуса, коэффициенты и скорости установки", count: () => directoryState.componentTypes.length },
+  { id: "nomenclatureTypes", label: "Типы номенклатуры", description: "Разделы, которые используются в модуле номенклатуры", count: () => directoryState.nomenclatureTypes.length },
   { id: "employees", label: "Сотрудники", description: "Планировщики, мастера, операторы", count: () => directoryState.employees.length },
   { id: "equipment", label: "Оборудование", description: "Линии, установки и стенды", count: () => directoryState.equipment.length },
   { id: "workCenters", label: "Участки", description: "Производственные участки MES", count: () => planningState.workCenters.length },
@@ -297,13 +340,22 @@ const directorySections = [
   { id: "norms", label: "Нормативы", description: "Смены, длительности и ограничения", count: () => directoryState.norms.length },
 ];
 
-const reportSections = [
-  { id: "dashboard", label: "Дашборд", description: "Операционный обзор цеха", count: () => getSlotWarnings(planningState).warnings.length },
-  { id: "production", label: "Сводка производства", description: "Статусы, объем и готовность", count: () => planningState.slots.length },
-  { id: "workload", label: "Загрузка участков", description: "Операции и часы по участкам", count: () => planningState.workCenters.length },
-  { id: "deadlines", label: "Сроки и отклонения", description: "Сроки спецификаций и риски", count: () => planningState.projects.length },
-  { id: "quality", label: "Проблемы и конфликты", description: "Предупреждения маршрутов и загрузки", count: () => getSlotWarnings(planningState).warnings.length },
-  { id: "warehouse", label: "Склад и выпуск", description: "Финальные складские операции", count: () => planningState.slots.filter((slot) => slot.workCenterId === "warehouse").length },
+const directorySectionGroups = [
+  {
+    label: "Система",
+    description: "организация, пользователи, права",
+    ids: ["departments", "employees", "roles", "statuses"],
+  },
+  {
+    label: "Производство",
+    description: "участки, мощности, оборудование",
+    ids: ["workCenters", "resources", "equipment", "norms"],
+  },
+  {
+    label: "Технологии",
+    description: "типы для BOM, SMT и номенклатуры",
+    ids: ["componentTypes", "nomenclatureTypes"],
+  },
 ];
 
 const chartColors = ["#2563eb", "#0284c7", "#16a34a", "#d97706", "#dc2626", "#7c3aed", "#64748b"];
@@ -319,24 +371,45 @@ const statusReportColors = {
 
 function handleDevResetParams() {
   const params = new URLSearchParams(window.location.search);
+  let shouldReplaceUrl = false;
 
   if (params.has("state-reset")) {
-    STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+    backupLocalStateBeforeReset();
+    console.warn("[MES] state-reset ignored to protect saved BOM lists and specifications.");
+    params.delete("state-reset");
+    shouldReplaceUrl = true;
   }
 
-  if (!params.has("cache-reset")) return;
+  if (params.has("cache-reset")) {
+    if ("caches" in window) {
+      window.caches.keys()
+        .then((keys) => Promise.all(keys.map((key) => window.caches.delete(key))))
+        .catch(() => {});
+    }
 
-  if ("caches" in window) {
-    window.caches.keys()
-      .then((keys) => Promise.all(keys.map((key) => window.caches.delete(key))))
-      .catch(() => {});
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .catch(() => {});
+    }
   }
 
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-      .catch(() => {});
+  if (shouldReplaceUrl) {
+    const search = params.toString();
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash || ""}`;
+    window.history.replaceState(null, "", nextUrl);
   }
+}
+
+function backupLocalStateBeforeReset() {
+  const values = Object.fromEntries(STORAGE_KEYS.map((key) => [key, localStorage.getItem(key)]));
+  if (Object.values(values).every((value) => value === null)) return;
+  localStorage.setItem(STATE_RESET_BACKUP_STORAGE_KEY, JSON.stringify({
+    createdAt: new Date().toISOString(),
+    version: APP_VERSION,
+    url: window.location.href,
+    values,
+  }));
 }
 
 function createDefaultDirectoryState() {
@@ -344,6 +417,8 @@ function createDefaultDirectoryState() {
     departments: DEFAULT_DEPARTMENTS,
     roles: DEFAULT_ROLES,
     resources: DEFAULT_RESOURCES,
+    operationMap: [],
+    nomenclatureTypes: DEFAULT_NOMENCLATURE_TYPES,
     nomenclature: [],
     bomLists: DEFAULT_BOM_LISTS,
     specifications: DEFAULT_SPECIFICATIONS,
@@ -356,6 +431,7 @@ function createDefaultDirectoryState() {
 }
 
 render();
+startUpdateNotifier();
 setInterval(() => {
   ui.now = new Date();
   updateClockOnly();
@@ -364,40 +440,615 @@ setInterval(() => {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return normalizePlanningState(createDefaultPlanningState());
+    if (!raw) {
+      const restored = restorePlanningStateFromBackups("missing-planning-storage");
+      if (restored) return restored;
+      return normalizePlanningState(createDefaultPlanningState());
+    }
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 1) return normalizePlanningState(createDefaultPlanningState());
+    if (parsed?.version !== 1) {
+      const restored = restorePlanningStateFromBackups("invalid-planning-version");
+      if (restored) return restored;
+      return normalizePlanningState(createDefaultPlanningState());
+    }
     return normalizePlanningState(parsed);
   } catch {
+    const restored = restorePlanningStateFromBackups("broken-planning-storage");
+    if (restored) return restored;
     return normalizePlanningState(createDefaultPlanningState());
   }
 }
 
 function persistState() {
+  const previousRaw = localStorage.getItem(STORAGE_KEY);
+  const previousState = parsePlanningStateSnapshot(previousRaw);
+  if (previousRaw) backupRawPlanningState("before-planning-persist", previousRaw);
+  if (previousState && !planningEntityRemovalAllowed) {
+    planningState = preserveCriticalPlanningEntities(previousState, planningState);
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(planningState));
+}
+
+function parsePlanningStateSnapshot(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function backupRawPlanningState(reason, raw = localStorage.getItem(STORAGE_KEY)) {
+  if (!raw) return;
+  try {
+    const currentHistory = JSON.parse(localStorage.getItem(PLANNING_BACKUP_STORAGE_KEY) || "[]");
+    const history = Array.isArray(currentHistory) ? currentHistory : [];
+    history.unshift({
+      createdAt: new Date().toISOString(),
+      reason,
+      version: APP_VERSION,
+      raw,
+    });
+    localStorage.setItem(PLANNING_BACKUP_STORAGE_KEY, JSON.stringify(history.slice(0, 12)));
+  } catch {
+    localStorage.setItem(PLANNING_BACKUP_STORAGE_KEY, JSON.stringify([{
+      createdAt: new Date().toISOString(),
+      reason,
+      version: APP_VERSION,
+      raw,
+    }]));
+  }
+}
+
+function collectPlanningRecoverySnapshots() {
+  const snapshots = [];
+  try {
+    const history = JSON.parse(localStorage.getItem(PLANNING_BACKUP_STORAGE_KEY) || "[]");
+    if (Array.isArray(history)) {
+      history.forEach((entry) => {
+        const parsed = parsePlanningStateSnapshot(entry?.raw);
+        if (!parsed) return;
+        snapshots.push({
+          state: parsed,
+          reason: entry.reason || "planning-backup",
+          createdAt: entry.createdAt || "",
+        });
+      });
+    }
+  } catch {}
+
+  try {
+    const resetBackup = JSON.parse(localStorage.getItem(STATE_RESET_BACKUP_STORAGE_KEY) || "null");
+    const raw = resetBackup?.values?.[STORAGE_KEY];
+    const parsed = parsePlanningStateSnapshot(raw);
+    if (parsed) {
+      snapshots.push({
+        state: parsed,
+        reason: "state-reset-backup",
+        createdAt: resetBackup.createdAt || "",
+      });
+    }
+  } catch {}
+
+  return snapshots;
+}
+
+function getCriticalPlanningCounts(state) {
+  return {
+    routes: Array.isArray(state?.routes) ? state.routes.length : 0,
+    routeSteps: Array.isArray(state?.routeSteps) ? state.routeSteps.length : 0,
+    batches: Array.isArray(state?.batches) ? state.batches.length : 0,
+    slots: Array.isArray(state?.slots) ? state.slots.length : 0,
+  };
+}
+
+function getPlanningRecoveryScore(snapshot) {
+  const counts = getCriticalPlanningCounts(snapshot?.state);
+  return counts.routes * 10 + counts.routeSteps + counts.batches + counts.slots;
+}
+
+function restorePlanningStateFromBackups(reason) {
+  const candidates = collectPlanningRecoverySnapshots()
+    .filter((snapshot) => getPlanningRecoveryScore(snapshot) > 0)
+    .sort((left, right) => (
+      getPlanningRecoveryScore(right) - getPlanningRecoveryScore(left)
+      || String(right.createdAt || "").localeCompare(String(left.createdAt || ""))
+    ));
+  const best = candidates[0];
+  if (!best) return null;
+
+  const normalized = normalizePlanningState(best.state);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+  console.warn("[MES] Restored planning state from local backup.", {
+    reason,
+    source: best.reason,
+    counts: getCriticalPlanningCounts(normalized),
+  });
+  return normalized;
+}
+
+function preserveCriticalPlanningEntities(previousState, nextState) {
+  if (!previousState || !nextState) return nextState;
+  const previousCounts = getCriticalPlanningCounts(previousState);
+  const nextCounts = getCriticalPlanningCounts(nextState);
+  let changed = false;
+  const mergedState = { ...nextState };
+
+  if (previousCounts.routes > 0 && nextCounts.routes === 0) {
+    mergedState.routes = previousState.routes || [];
+    changed = true;
+  }
+  if (previousCounts.routeSteps > 0 && nextCounts.routeSteps === 0) {
+    mergedState.routeSteps = previousState.routeSteps || [];
+    changed = true;
+  }
+
+  if (!changed) return nextState;
+
+  console.warn("[MES] Prevented critical planning wipe before save.", {
+    previousCounts,
+    nextCounts,
+    mergedCounts: getCriticalPlanningCounts(mergedState),
+  });
+  return mergedState;
+}
+
+function parseDirectoryStateSnapshot(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function backupRawDirectoryState(reason, raw = localStorage.getItem(DIRECTORY_STORAGE_KEY)) {
+  if (!raw) return;
+  try {
+    const currentHistory = JSON.parse(localStorage.getItem(DIRECTORY_BACKUP_STORAGE_KEY) || "[]");
+    const history = Array.isArray(currentHistory) ? currentHistory : [];
+    history.unshift({
+      createdAt: new Date().toISOString(),
+      reason,
+      version: APP_VERSION,
+      raw,
+    });
+    localStorage.setItem(DIRECTORY_BACKUP_STORAGE_KEY, JSON.stringify(history.slice(0, 10)));
+  } catch {
+    localStorage.setItem(DIRECTORY_BACKUP_STORAGE_KEY, JSON.stringify([{
+      createdAt: new Date().toISOString(),
+      reason,
+      version: APP_VERSION,
+      raw,
+    }]));
+  }
+}
+
+function collectDirectoryRecoverySnapshots() {
+  const snapshots = [];
+  try {
+    const history = JSON.parse(localStorage.getItem(DIRECTORY_BACKUP_STORAGE_KEY) || "[]");
+    if (Array.isArray(history)) {
+      history.forEach((entry) => {
+        const parsed = parseDirectoryStateSnapshot(entry?.raw);
+        if (!parsed) return;
+        snapshots.push({
+          state: parsed,
+          reason: entry.reason || "directory-backup",
+          createdAt: entry.createdAt || "",
+        });
+      });
+    }
+  } catch {}
+
+  try {
+    const resetBackup = JSON.parse(localStorage.getItem(STATE_RESET_BACKUP_STORAGE_KEY) || "null");
+    const raw = resetBackup?.values?.[DIRECTORY_STORAGE_KEY];
+    const parsed = parseDirectoryStateSnapshot(raw);
+    if (parsed) {
+      snapshots.push({
+        state: parsed,
+        reason: "state-reset-backup",
+        createdAt: resetBackup.createdAt || "",
+      });
+    }
+  } catch {}
+
+  return snapshots;
+}
+
+function getDirectoryRecoveryScore(snapshot) {
+  const counts = getCriticalDirectoryCounts(snapshot?.state);
+  return counts.bomLists + counts.specifications;
+}
+
+function restoreDirectoryStateFromBackups(reason) {
+  const candidates = collectDirectoryRecoverySnapshots()
+    .filter((snapshot) => getDirectoryRecoveryScore(snapshot) > 0)
+    .sort((left, right) => (
+      getDirectoryRecoveryScore(right) - getDirectoryRecoveryScore(left)
+      || String(right.createdAt || "").localeCompare(String(left.createdAt || ""))
+    ));
+  const best = candidates[0];
+  if (!best) return null;
+
+  const normalized = omitDeletedCriticalDirectoryEntities(normalizeDirectoryState(best.state, { mergeFallback: false }));
+  localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(normalized));
+  localStorage.setItem(DIRECTORY_DEFAULTS_STORAGE_KEY, "1");
+  console.warn("[MES] Restored directory state from local backup.", {
+    reason,
+    source: best.reason,
+    counts: getCriticalDirectoryCounts(normalized),
+  });
+  return normalized;
+}
+
+function getCriticalDirectoryCounts(state) {
+  return {
+    bomLists: Array.isArray(state?.bomLists) ? state.bomLists.length : 0,
+    specifications: Array.isArray(state?.specifications) ? state.specifications.length : 0,
+  };
+}
+
+function getDirectoryRowTimestamp(row) {
+  const candidates = [row?.updatedAt, row?.importedAt, row?.createdAt]
+    .map((value) => Date.parse(value))
+    .filter((value) => Number.isFinite(value));
+  return candidates.length ? Math.max(...candidates) : 0;
+}
+
+function readDirectoryDeletedEntities() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DIRECTORY_DELETED_ENTITIES_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDirectoryDeletedEntities(tombstones) {
+  try {
+    localStorage.setItem(DIRECTORY_DELETED_ENTITIES_STORAGE_KEY, JSON.stringify(tombstones));
+  } catch {}
+}
+
+function recordDirectoryEntityDeletion(sectionId, rowId) {
+  if (!CRITICAL_DIRECTORY_SECTION_IDS.includes(sectionId) || !rowId) return;
+  const tombstones = readDirectoryDeletedEntities();
+  tombstones[sectionId] = {
+    ...(tombstones[sectionId] || {}),
+    [rowId]: Date.now(),
+  };
+  writeDirectoryDeletedEntities(tombstones);
+}
+
+function wasDirectoryEntityDeletedAfter(sectionId, row) {
+  const rowId = row?.id;
+  if (!rowId) return false;
+  const deletedAt = Number(readDirectoryDeletedEntities()?.[sectionId]?.[rowId] || 0);
+  return deletedAt > 0 && deletedAt >= getDirectoryRowTimestamp(row);
+}
+
+function omitDeletedCriticalDirectoryEntities(state) {
+  if (!state) return state;
+  let changed = false;
+  const nextState = { ...state };
+  CRITICAL_DIRECTORY_SECTION_IDS.forEach((sectionId) => {
+    const rows = Array.isArray(nextState[sectionId]) ? nextState[sectionId] : [];
+    const filteredRows = rows.filter((row) => !wasDirectoryEntityDeletedAfter(sectionId, row));
+    if (filteredRows.length !== rows.length) {
+      nextState[sectionId] = filteredRows;
+      changed = true;
+    }
+  });
+  return changed ? nextState : state;
+}
+
+function mergeCriticalDirectorySection(sectionId, previousRows = [], nextRows = []) {
+  const previousMaxTimestamp = previousRows.reduce((max, row) => Math.max(max, getDirectoryRowTimestamp(row)), 0);
+  const merged = [];
+  const indexById = new Map();
+  let changed = false;
+
+  const remember = (row) => {
+    if (!row?.id) return;
+    const existingIndex = indexById.get(row.id);
+    if (existingIndex === undefined) {
+      indexById.set(row.id, merged.length);
+      merged.push(row);
+      return;
+    }
+    if (getDirectoryRowTimestamp(row) > getDirectoryRowTimestamp(merged[existingIndex])) {
+      merged[existingIndex] = row;
+      changed = true;
+    }
+  };
+
+  previousRows.forEach((row) => {
+    if (wasDirectoryEntityDeletedAfter(sectionId, row)) {
+      changed = true;
+      return;
+    }
+    remember(row);
+  });
+
+  nextRows.forEach((row) => {
+    if (!row?.id) return;
+    if (wasDirectoryEntityDeletedAfter(sectionId, row)) {
+      changed = true;
+      return;
+    }
+    if (indexById.has(row.id)) {
+      remember(row);
+      return;
+    }
+    if (!previousRows.length || getDirectoryRowTimestamp(row) > previousMaxTimestamp) {
+      remember(row);
+      return;
+    }
+    changed = true;
+  });
+
+  if (merged.length !== nextRows.length) changed = true;
+  return { rows: merged, changed };
+}
+
+function preserveCriticalDirectoryEntities(previousState, nextState) {
+  if (!previousState || !nextState) return nextState;
+  const mergedState = { ...nextState };
+  const changedSections = [];
+
+  CRITICAL_DIRECTORY_SECTION_IDS.forEach((sectionId) => {
+    const previousRows = Array.isArray(previousState?.[sectionId]) ? previousState[sectionId] : [];
+    const nextRows = Array.isArray(nextState?.[sectionId]) ? nextState[sectionId] : [];
+    const merged = mergeCriticalDirectorySection(sectionId, previousRows, nextRows);
+    if (merged.changed) {
+      mergedState[sectionId] = merged.rows;
+      changedSections.push(sectionId);
+    }
+  });
+
+  if (!changedSections.length) return nextState;
+
+  console.warn("[MES] Reconciled critical directory entities before save.", {
+    changedSections,
+    previousCounts: getCriticalDirectoryCounts(previousState),
+    nextCounts: getCriticalDirectoryCounts(nextState),
+    mergedCounts: getCriticalDirectoryCounts(mergedState),
+  });
+
+  return mergedState;
+}
+
+function withDirectoryEntityRemovalAllowed(callback) {
+  const previousValue = directoryEntityRemovalAllowed;
+  directoryEntityRemovalAllowed = true;
+  try {
+    return callback();
+  } finally {
+    directoryEntityRemovalAllowed = previousValue;
+  }
+}
+
+function withPlanningEntityRemovalAllowed(callback) {
+  const previousValue = planningEntityRemovalAllowed;
+  planningEntityRemovalAllowed = true;
+  try {
+    return callback();
+  } finally {
+    planningEntityRemovalAllowed = previousValue;
+  }
 }
 
 function loadDirectoryState() {
   try {
     const raw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
     if (!raw) {
+      const restored = restoreDirectoryStateFromBackups("missing-directory-storage");
+      if (restored) return restored;
       const fallback = normalizeDirectoryState(createDefaultDirectoryState());
       localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(fallback));
       localStorage.setItem(DIRECTORY_DEFAULTS_STORAGE_KEY, "1");
       return fallback;
     }
     const shouldRestoreDefaults = localStorage.getItem(DIRECTORY_DEFAULTS_STORAGE_KEY) !== "1";
-    const normalized = normalizeDirectoryState(JSON.parse(raw), { mergeFallback: shouldRestoreDefaults });
-    localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(normalized));
+    const parsed = JSON.parse(raw);
+    let normalized = preserveCriticalDirectoryEntities(
+      parsed,
+      normalizeDirectoryState(parsed, { mergeFallback: shouldRestoreDefaults }),
+    );
+    normalized = omitDeletedCriticalDirectoryEntities(normalized);
+    const serialized = JSON.stringify(normalized);
+    if (serialized !== raw || shouldRestoreDefaults) {
+      backupRawDirectoryState("before-directory-load-normalize", raw);
+      localStorage.setItem(DIRECTORY_STORAGE_KEY, serialized);
+    }
     localStorage.setItem(DIRECTORY_DEFAULTS_STORAGE_KEY, "1");
     return normalized;
   } catch {
+    const restored = restoreDirectoryStateFromBackups("broken-directory-storage");
+    if (restored) return restored;
     return createDefaultDirectoryState();
   }
 }
 
 function persistDirectoryState() {
+  const previousRaw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
+  const previousState = parseDirectoryStateSnapshot(previousRaw);
+  if (previousRaw) backupRawDirectoryState("before-directory-persist", previousRaw);
+  if (previousState && !directoryEntityRemovalAllowed) {
+    directoryState = preserveCriticalDirectoryEntities(previousState, directoryState);
+  }
+  directoryState = omitDeletedCriticalDirectoryEntities(directoryState);
   localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directoryState));
+}
+
+function migrateProjectEntityToSpecifications() {
+  // Legacy migration only. "Project" is no longer a business entity; old
+  // projectId fields are kept as aliases for specificationId in saved Gantt data.
+  if (!planningState || !directoryState) return;
+
+  const legacyProjects = Array.isArray(planningState.projects) ? planningState.projects : [];
+  const legacyProjectById = byId(legacyProjects);
+  const specifications = Array.isArray(directoryState.specifications) ? directoryState.specifications : [];
+  const projectToSpecificationId = new Map();
+  let changed = false;
+
+  specifications.forEach((specification) => {
+    if (specification.projectId) projectToSpecificationId.set(specification.projectId, specification.id);
+    projectToSpecificationId.set(specification.id, specification.id);
+  });
+
+  const nextSpecifications = [...specifications];
+  legacyProjects.forEach((project) => {
+    let specificationId = projectToSpecificationId.get(project.id);
+    const legacySuffix = String(project.id || "").replace(/^p-/, "");
+    const derivedSpecificationId = legacySuffix ? `spec-${legacySuffix}` : "";
+    if (!specificationId && nextSpecifications.some((specification) => specification.id === derivedSpecificationId)) {
+      specificationId = derivedSpecificationId;
+      projectToSpecificationId.set(project.id, specificationId);
+      changed = true;
+    }
+    if (!specificationId) {
+      specificationId = derivedSpecificationId || `spec-${makeId("legacy")}`;
+      let uniqueId = specificationId;
+      let suffix = 1;
+      while (nextSpecifications.some((specification) => specification.id === uniqueId)) {
+        suffix += 1;
+        uniqueId = `${specificationId}-${suffix}`;
+      }
+      specificationId = uniqueId;
+      nextSpecifications.push({
+        id: specificationId,
+        name: project.name || `Спецификация ${project.orderNumber || project.id}`,
+        outputItem: project.name || "",
+        bomListA: "",
+        bomQtyA: 0,
+        bomListB: "",
+        bomQtyB: 0,
+        extraItems: "",
+        status: "Активен",
+        structureManaged: true,
+        structureItems: [],
+        createdAt: project.createdAt || new Date().toISOString(),
+      });
+      projectToSpecificationId.set(project.id, specificationId);
+      changed = true;
+    }
+  });
+
+  const stamp = new Date().toISOString();
+  directoryState.specifications = nextSpecifications.map((specification) => {
+    const legacyProject = specification.projectId ? legacyProjectById[specification.projectId] : null;
+    const next = {
+      ...specification,
+      projectId: "",
+      productionQuantity: normalizeOptionalPositiveInteger(specification.productionQuantity || legacyProject?.totalQuantity) || "",
+      dueDate: specification.dueDate || legacyProject?.dueDate || "",
+      orderNumber: specification.orderNumber || legacyProject?.orderNumber || "",
+      customer: specification.customer || legacyProject?.customer || "",
+      productionStatus: PROJECT_STATUSES.includes(specification.productionStatus || legacyProject?.status)
+        ? specification.productionStatus || legacyProject?.status
+        : "planned",
+      updatedAt: specification.updatedAt || legacyProject?.updatedAt || stamp,
+    };
+    if (specification.projectId || legacyProject) changed = true;
+    const synced = syncSpecificationDerivedFields(next);
+    if (JSON.stringify(synced) !== JSON.stringify(specification)) changed = true;
+    return synced;
+  });
+
+  directoryState.bomLists = (directoryState.bomLists || []).map((bom) => {
+    if (!bom.projectId) return bom;
+    changed = true;
+    return { ...bom, projectId: "" };
+  });
+
+  const routeByLegacyProjectId = new Map((planningState.routes || [])
+    .filter((route) => route.projectId)
+    .map((route) => [route.projectId, route]));
+  const routeById = new Map();
+
+  planningState.routes = (planningState.routes || []).map((route) => {
+    const specificationId = route.specificationId
+      || projectToSpecificationId.get(route.projectId)
+      || (getSpecificationById(route.projectId) ? route.projectId : "");
+    if (route.specificationId === specificationId && route.projectId === specificationId) {
+      routeById.set(route.id, route);
+      return route;
+    }
+    changed = true;
+    const specification = getSpecificationById(specificationId);
+    const nextRoute = {
+      ...route,
+      specificationId,
+      specificationName: specification?.name || route.specificationName || "",
+      projectId: specificationId || route.projectId || "",
+      updatedAt: route.updatedAt || stamp,
+    };
+    routeById.set(nextRoute.id, nextRoute);
+    return nextRoute;
+  });
+
+  const routeByLegacyAfterMigration = new Map((planningState.routes || [])
+    .map((route) => [route.projectId, route]));
+
+  planningState.batches = (planningState.batches || []).map((batch) => {
+    const route = routeById.get(batch.routeId)
+      || routeByLegacyProjectId.get(batch.projectId)
+      || routeByLegacyAfterMigration.get(projectToSpecificationId.get(batch.projectId) || batch.projectId);
+    const specificationId = batch.specificationId
+      || route?.specificationId
+      || projectToSpecificationId.get(batch.projectId)
+      || (getSpecificationById(batch.projectId) ? batch.projectId : "");
+    if (batch.routeId === route?.id && batch.specificationId === specificationId && batch.projectId === specificationId) return batch;
+    changed = true;
+    return {
+      ...batch,
+      routeId: route?.id || batch.routeId || "",
+      specificationId,
+      projectId: specificationId || batch.projectId || "",
+      updatedAt: batch.updatedAt || stamp,
+    };
+  });
+
+  const routeByStepId = new Map((planningState.routeSteps || []).map((step) => [step.id, routeById.get(step.routeId)]));
+  planningState.slots = (planningState.slots || []).map((slot) => {
+    const route = routeByStepId.get(slot.routeStepId)
+      || routeById.get(slot.routeId)
+      || routeByLegacyProjectId.get(slot.projectId)
+      || routeByLegacyAfterMigration.get(projectToSpecificationId.get(slot.projectId) || slot.projectId);
+    const specificationId = slot.specificationId
+      || route?.specificationId
+      || projectToSpecificationId.get(slot.projectId)
+      || (getSpecificationById(slot.projectId) ? slot.projectId : "");
+    if (slot.routeId === route?.id && slot.specificationId === specificationId && slot.projectId === specificationId) return slot;
+    changed = true;
+    return {
+      ...slot,
+      routeId: route?.id || slot.routeId || "",
+      specificationId,
+      projectId: specificationId || slot.projectId || "",
+      updatedAt: slot.updatedAt || stamp,
+    };
+  });
+
+  if (planningState.projects?.length) {
+    planningState.projects = [];
+    changed = true;
+  } else {
+    planningState.projects = [];
+  }
+
+  planningState = normalizePlanningState(planningState);
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+
+  if (changed) {
+    persistState();
+    persistDirectoryState();
+  }
 }
 
 function loadCalculatorState() {
@@ -432,6 +1083,117 @@ function persistAuthState() {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
 }
 
+function notifySaveSuccess(message = "Сохранено") {
+  pendingSaveFeedback = {
+    message: String(message || "Сохранено"),
+    createdAt: Date.now(),
+  };
+  window.clearTimeout(saveFeedbackTimer);
+  window.setTimeout(renderPendingSaveFeedback, 0);
+}
+
+function renderPendingSaveFeedback() {
+  document.querySelectorAll(".global-save-toast").forEach((element) => element.remove());
+  if (!pendingSaveFeedback) return;
+  window.clearTimeout(saveFeedbackTimer);
+
+  const toast = document.createElement("div");
+  toast.className = "global-save-toast";
+  toast.setAttribute("role", "status");
+  toast.setAttribute("aria-live", "polite");
+  toast.innerHTML = `${icon("check")}<span>${escapeHtml(pendingSaveFeedback.message)}</span>`;
+  document.body.appendChild(toast);
+
+  saveFeedbackTimer = window.setTimeout(() => {
+    toast.classList.add("is-hiding");
+    window.setTimeout(() => toast.remove(), 180);
+    pendingSaveFeedback = null;
+  }, 2600);
+}
+
+function scheduleGlobalSaveUxRefresh() {
+  window.clearTimeout(saveUxRefreshTimer);
+  saveUxRefreshTimer = window.setTimeout(() => {
+    bindGlobalFormDirtyTracking();
+    renderPendingSaveFeedback();
+  }, 0);
+}
+
+function getFormControlSignatureEntry(control) {
+  if (!control?.name || control.disabled) return null;
+  const type = String(control.type || "").toLowerCase();
+  if (["button", "submit", "reset", "file"].includes(type)) return null;
+  if (type === "checkbox" || type === "radio") {
+    return [control.name, control.checked ? String(control.value || "on") : ""];
+  }
+  if (control.tagName === "SELECT" && control.multiple) {
+    return [control.name, [...control.selectedOptions].map((option) => option.value).join("|")];
+  }
+  return [control.name, String(control.value ?? "")];
+}
+
+function getFormSignature(form) {
+  return JSON.stringify([...form.elements]
+    .map((control) => getFormControlSignatureEntry(control))
+    .filter(Boolean)
+    .sort((left, right) => String(left[0]).localeCompare(String(right[0]))));
+}
+
+function isUnsavedCreateForm(form) {
+  const isNewValue = form.querySelector('[name="isNew"]')?.value;
+  const rowIndexValue = form.querySelector('[name="rowIndex"]')?.value;
+  if (isNewValue === "yes" || rowIndexValue === "-1") return true;
+  if (form.id === "slotForm" && !form.querySelector('[name="slotId"]')?.value) return true;
+  return ["splitForm", "projectForm"].includes(form.id);
+}
+
+function setSaveButtonDisabled(button, disabled) {
+  if (!button) return;
+  if (!Object.prototype.hasOwnProperty.call(button.dataset, "saveOriginalTitle")) {
+    button.dataset.saveOriginalTitle = button.getAttribute("title") || "";
+  }
+  button.toggleAttribute("disabled", Boolean(disabled));
+  button.classList.toggle("is-save-disabled", Boolean(disabled));
+  if (disabled) {
+    button.setAttribute("title", "Измените данные, чтобы сохранить");
+    return;
+  }
+  if (button.dataset.saveOriginalTitle) {
+    button.setAttribute("title", button.dataset.saveOriginalTitle);
+  } else {
+    button.removeAttribute("title");
+  }
+}
+
+function bindGlobalFormDirtyTracking() {
+  app.querySelectorAll("form").forEach((form) => {
+    if (form.id === "authForm") return;
+    const saveButtons = [...form.querySelectorAll('button[type="submit"], input[type="submit"]')];
+    if (!saveButtons.length) return;
+    form.dataset.initialSaveSignature = getFormSignature(form);
+
+    const syncDirtyState = () => {
+      const isDirty = isUnsavedCreateForm(form) || getFormSignature(form) !== form.dataset.initialSaveSignature;
+      form.classList.toggle("is-dirty", isDirty);
+      saveButtons.forEach((button) => setSaveButtonDisabled(button, !isDirty));
+    };
+    const guardCleanSubmit = (event) => {
+      if (isUnsavedCreateForm(form)) return;
+      if (getFormSignature(form) !== form.dataset.initialSaveSignature) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    if (!form.dataset.saveUxBound) {
+      form.addEventListener("input", syncDirtyState);
+      form.addEventListener("change", syncDirtyState);
+      form.addEventListener("submit", guardCleanSubmit, true);
+      form.dataset.saveUxBound = "yes";
+    }
+    syncDirtyState();
+  });
+}
+
 function createDefaultCalculatorState() {
   return normalizeCalculatorState({
     ...defaultCalculatorState,
@@ -440,7 +1202,7 @@ function createDefaultCalculatorState() {
 }
 
 function normalizeCalculatorState(state) {
-  const project = planningState?.projects?.find((item) => item.id === state?.projectId) || null;
+  const project = getProject(state?.projectId || state?.specificationId) || null;
   const noSpecification = Boolean(state?.noSpecification);
   const specification = noSpecification ? null : directoryState?.specifications?.find((item) => item.id === state?.specificationId) || null;
   const bomList = directoryState?.bomLists?.find((item) => item.id === state?.bomListId) || null;
@@ -483,6 +1245,8 @@ function normalizeCalculatorState(state) {
     componentCountsByOperation,
     lastSavedAt: String(state?.lastSavedAt || ""),
     inputsSavedAt: String(state?.inputsSavedAt || ""),
+    inputsSavedSignature: String(state?.inputsSavedSignature || ""),
+    routeSavedSignature: String(state?.routeSavedSignature || ""),
   };
 }
 
@@ -506,7 +1270,6 @@ function loadUiState() {
       spekiStaleItemIds: Array.isArray(parsed.spekiStaleItemIds) ? parsed.spekiStaleItemIds : [],
       spekiCollapsedBomIds: Array.isArray(parsed.spekiCollapsedBomIds) ? parsed.spekiCollapsedBomIds : [],
       directoryEditor: null,
-      debugOverlay: null,
       confirmDialog: null,
       selectedSlotId: null,
       editor: null,
@@ -517,6 +1280,8 @@ function loadUiState() {
         ...defaultUiState.timelineCounts,
         ...(parsed.timelineCounts || {}),
       },
+      ganttZoom: normalizeGanttZoom(parsed.ganttZoom),
+      ganttSlotContent: normalizeGanttSlotContent(parsed.ganttSlotContent),
       now: new Date(),
     };
   } catch {
@@ -534,7 +1299,6 @@ function persistUiState() {
   localStorage.setItem(UI_STORAGE_KEY, JSON.stringify({
       activeModule: ui.activeModule,
       activeDirectory: ui.activeDirectory,
-      activeReport: ui.activeReport,
       activeProjectId: ui.activeProjectId,
       activeSpecificationId: ui.activeSpecificationId,
       spekiEditingId: ui.spekiEditingId,
@@ -543,6 +1307,7 @@ function persistUiState() {
       spekiCollapsedBomIds: ui.spekiCollapsedBomIds,
       activeBomId: ui.activeBomId,
       activeNomenclatureId: ui.activeNomenclatureId,
+      activeOperationId: ui.activeOperationId,
       activeRouteId: ui.activeRouteId,
       calculatorStep: ui.calculatorStep,
       selectedDirectoryRows: ui.selectedDirectoryRows,
@@ -553,6 +1318,8 @@ function persistUiState() {
     workCenterFilter: ui.workCenterFilter,
     rowMode: ui.rowMode,
     autoCascade: ui.autoCascade,
+    ganttZoom: ui.ganttZoom,
+    ganttSlotContent: ui.ganttSlotContent,
     timelineCounts: ui.timelineCounts,
     expandedProjects: [...ui.expandedProjects],
     scrollLeft: ui.scrollLeft,
@@ -572,7 +1339,7 @@ function normalizeDirectoryState(state, options = {}) {
     ];
     return [sectionId, rows
       .filter((row) => !OBSOLETE_DIRECTORY_ROW_IDS[sectionId]?.has(row?.id))
-      .filter((row) => !isBlankDirectoryRow(row))
+      .filter((row) => shouldKeepDirectoryRow(sectionId, row))
       .map((row, index) => normalizeDirectoryRow(sectionId, {
         ...(fallbackRows.find((fallbackRow) => fallbackRow.id === row.id) || fallbackRows[index]),
         ...row,
@@ -593,7 +1360,7 @@ function normalizeDirectoryRow(sectionId, row) {
   }
 
   if (sectionId === "bomLists") {
-    const { revision, ...rowWithoutRevision } = row || {};
+    const { revision, boardsPerPanel, ...rowWithoutRevision } = row || {};
     const importHeaders = Array.isArray(row.importHeaders) ? row.importHeaders : [];
     const importRows = Array.isArray(row.importRows) ? row.importRows : Array.isArray(row.items) ? row.items : [];
     return {
@@ -613,11 +1380,43 @@ function normalizeDirectoryRow(sectionId, row) {
       ...row,
       name: String(row.name || "").trim(),
       article: String(row.article || row.code || "").trim(),
-      type: String(row.type || "Компонент").trim(),
+      type: normalizeNomenclatureType(row.type),
       package: String(row.package || "").trim(),
       unit: String(row.unit || "шт.").trim(),
       manufacturer: String(row.manufacturer || "").trim(),
       description: String(row.description || "").trim(),
+      status: String(row.status || "Активен").trim(),
+    };
+  }
+
+  if (sectionId === "operationMap") {
+    const type = OPERATION_TYPE_OPTIONS.some((item) => item.value === row.type)
+      ? row.type
+      : row.isWarehouse
+        ? "warehouse"
+        : "production";
+    const fallbackCenterId = type === "warehouse" ? "warehouse" : planningState?.workCenters?.find((center) => center.id !== "warehouse")?.id || "smt";
+    return {
+      ...row,
+      name: String(row.name || row.operationName || "").trim(),
+      code: String(row.code || "").trim(),
+      type,
+      workCenterId: String(row.workCenterId || fallbackCenterId),
+      unitsPerHour: Math.max(0, Math.round(Number(row.unitsPerHour || row.rate || 0) * 10) / 10),
+      requiresBatch: row.requiresBatch === undefined ? type !== "warehouse" : Boolean(row.requiresBatch),
+      isWarehouse: type === "warehouse" || Boolean(row.isWarehouse),
+      status: String(row.status || "Активен").trim(),
+      updatedAt: row.updatedAt || "",
+    };
+  }
+
+  if (sectionId === "nomenclatureTypes") {
+    const name = normalizeNomenclatureType(row.name || row.value || row.label);
+    return {
+      ...row,
+      name,
+      code: String(row.code || "").trim(),
+      description: String(row.description || row.meta || "").trim(),
       status: String(row.status || "Активен").trim(),
     };
   }
@@ -673,13 +1472,14 @@ function normalizeDirectoryRow(sectionId, row) {
 }
 
 function normalizeRoleModuleList(row) {
-  const rawModules = String(row.modules || "reports").trim();
+  const rawModules = String(row.modules || "gantt").trim();
   if (rawModules === "*") return "*";
   const modules = parseAccessList(rawModules);
   if (modules.has("dashboard")) {
     modules.delete("dashboard");
-    modules.add("reports");
   }
+  modules.delete("reports");
+  modules.delete("debug");
   if (modules.has("planning")) {
     modules.add("gantt");
   }
@@ -690,7 +1490,9 @@ function normalizeRoleModuleList(row) {
     modules.delete("specifications");
     modules.add("speki");
   }
-  if (modules.has("calculator") || modules.has("speki")) {
+  if (modules.has("calculator") || modules.has("speki") || modules.has("routes")) {
+    modules.add("operationMap");
+    modules.add("technologyCard");
     modules.add("routes");
   }
   if (roleAllowsValue(row.directories, "bomLists") || modules.has("speki")) {
@@ -699,8 +1501,9 @@ function normalizeRoleModuleList(row) {
   if (modules.has("bomLists") || modules.has("calculator")) {
     modules.add("nomenclature");
   }
-  const order = ["reports", "gantt", "planning", "nomenclature", "bomLists", "speki", "routes", "calculator", "directories", "debug"];
-  return order.filter((moduleId) => modules.has(moduleId)).join(", ") || "reports";
+  modules.delete("tree");
+  const order = ["gantt", "planning", "operationMap", "technologyCard", "routes", "speki", "bomLists", "nomenclature", "directories", "calculator"];
+  return order.filter((moduleId) => modules.has(moduleId)).join(", ") || "gantt";
 }
 
 function normalizeRoleDirectoryList(value) {
@@ -708,8 +1511,14 @@ function normalizeRoleDirectoryList(value) {
   if (rawDirectories === "*") return "*";
   const directories = parseAccessList(rawDirectories);
   ["projects", "specifications", "bomLists", "routes"].forEach((sectionId) => directories.delete(sectionId));
-  const order = ["departments", "roles", "resources", "componentTypes", "employees", "equipment", "workCenters", "statuses", "norms"];
+  const order = ["departments", "roles", "resources", "componentTypes", "nomenclatureTypes", "employees", "equipment", "workCenters", "statuses", "norms"];
   return order.filter((sectionId) => directories.has(sectionId)).join(", ") || "statuses";
+}
+
+function shouldKeepDirectoryRow(sectionId, row) {
+  if (!row || typeof row !== "object") return false;
+  if ((sectionId === "bomLists" || sectionId === "specifications") && row.id) return true;
+  return !isBlankDirectoryRow(row);
 }
 
 function isBlankDirectoryRow(row) {
@@ -721,6 +1530,12 @@ function isBlankDirectoryRow(row) {
 }
 
 function normalizePlanningState(state) {
+  state.projects = [];
+  state.batches = Array.isArray(state.batches) ? state.batches : [];
+  state.routes = Array.isArray(state.routes) ? state.routes : [];
+  state.routeSteps = Array.isArray(state.routeSteps) ? state.routeSteps : [];
+  state.slots = Array.isArray(state.slots) ? state.slots : [];
+  state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
   const warehouseCenter = {
     id: "warehouse",
     name: "Склад",
@@ -764,7 +1579,7 @@ function normalizePlanningState(state) {
 function addMissingWarehouseSlots(state) {
   const stamp = new Date().toISOString();
   const groups = Object.values(state.slots.reduce((map, slot) => {
-    const key = `${slot.projectId}:${slot.batchId}`;
+    const key = `${slot.routeId || slot.projectId}:${slot.batchId}`;
     if (!map[key]) map[key] = [];
     map[key].push(slot);
     return map;
@@ -774,8 +1589,9 @@ function addMissingWarehouseSlots(state) {
     if (!slots.length || slots.some((slot) => slot.workCenterId === "warehouse")) continue;
 
     const latest = [...slots].sort((left, right) => toDate(right.plannedEnd) - toDate(left.plannedEnd))[0];
-    const route = state.routes.find((item) => item.projectId === latest.projectId && item.isDefault)
-      || state.routes.find((item) => item.projectId === latest.projectId);
+    const route = state.routes.find((item) => item.id === latest.routeId)
+      || state.routes.find((item) => (item.specificationId === latest.specificationId || item.projectId === latest.projectId) && item.isDefault)
+      || state.routes.find((item) => item.specificationId === latest.specificationId || item.projectId === latest.projectId);
     const warehouseStep = state.routeSteps.find((step) => step.routeId === route?.id && step.workCenterId === "warehouse");
     if (!warehouseStep) continue;
 
@@ -784,7 +1600,9 @@ function addMissingWarehouseSlots(state) {
     const plannedEnd = calculatePlannedEndByQuantity(plannedStart, "warehouse", quantity, state);
     state.slots.push({
       id: `s-${latest.projectId}-${latest.batchId}-warehouse`,
-      projectId: latest.projectId,
+      routeId: route.id,
+      specificationId: latest.specificationId || route.specificationId || latest.projectId,
+      projectId: latest.specificationId || route.specificationId || latest.projectId,
       batchId: latest.batchId,
       workCenterId: "warehouse",
       routeStepId: warehouseStep.id,
@@ -819,18 +1637,42 @@ function normalizeQuantity(value, fallback = 1) {
   return Math.max(1, Math.round(Number(fallback) || 1));
 }
 
+function normalizeBoardsPerPanel(value, fallback = 1) {
+  const boardsPerPanel = Math.round(Number(value));
+  if (Number.isFinite(boardsPerPanel) && boardsPerPanel > 0) return boardsPerPanel;
+  return Math.max(1, Math.round(Number(fallback) || 1));
+}
+
+function workCenterUsesPanelBatching(workCenterId) {
+  return ["smt", "aoi", "wash", "coating"].includes(String(workCenterId || ""));
+}
+
+function getSpecificationItemBoardsPerPanel(item) {
+  return item?.type === "bom" ? normalizeBoardsPerPanel(item.boardsPerPanel, 1) : 1;
+}
+
+function getRouteStepBoardsPerPanel(step) {
+  return normalizeBoardsPerPanel(step?.boardsPerPanel, 1);
+}
+
 function toSlotDateTime(value) {
   return `${isoLocal(value)}:00`;
 }
 
-function calculateRequiredDurationMs(workCenterId, quantity, state = null, unitsPerHourOverride = null) {
+function calculateRequiredDurationMs(workCenterId, quantity, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null) {
   const rate = Math.max(1, Number(unitsPerHourOverride || getWorkCenterUnitsPerHour(workCenterId, state)));
   const normalizedQuantity = normalizeQuantity(quantity);
+  const boardsPerPanel = normalizeBoardsPerPanel(boardsPerPanelOverride, 1);
+  if (boardsPerPanel > 1 && workCenterUsesPanelBatching(workCenterId)) {
+    const panelCount = Math.max(1, Math.ceil(normalizedQuantity / boardsPerPanel));
+    const panelRate = Math.max(1 / 60, rate / boardsPerPanel);
+    return Math.max(MIN_OPERATION_DURATION_MS, panelCount / panelRate * 60 * 60 * 1000);
+  }
   return Math.max(MIN_OPERATION_DURATION_MS, normalizedQuantity / rate * 60 * 60 * 1000);
 }
 
-function calculatePlannedEndByQuantity(plannedStart, workCenterId, quantity, state = null, unitsPerHourOverride = null) {
-  return addMs(plannedStart, calculateRequiredDurationMs(workCenterId, quantity, state, unitsPerHourOverride));
+function calculatePlannedEndByQuantity(plannedStart, workCenterId, quantity, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null) {
+  return addMs(plannedStart, calculateRequiredDurationMs(workCenterId, quantity, state, unitsPerHourOverride, boardsPerPanelOverride));
 }
 
 function calculateQuantityByDuration(workCenterId, plannedStart, plannedEnd) {
@@ -843,7 +1685,8 @@ function recalculateSlotEndByQuantity(slot, state = null) {
   return {
     ...slot,
     quantity,
-    plannedEnd: toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity, state, slot.unitsPerHour)),
+    boardsPerPanel: normalizeBoardsPerPanel(slot.boardsPerPanel, 1),
+    plannedEnd: toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity, state, slot.unitsPerHour, slot.boardsPerPanel)),
   };
 }
 
@@ -898,20 +1741,22 @@ function getEarliestRouteStart(projectId, batchId, routeStepId) {
 
 function getPlannedStepIds(projectId, batchId) {
   return new Set(planningState.slots
-    .filter((slot) => slot.projectId === projectId && slot.batchId === batchId)
+    .filter((slot) => (slot.routeId === projectId || slot.specificationId === projectId || slot.projectId === projectId) && slot.batchId === batchId)
     .map((slot) => slot.routeStepId));
 }
 
 function buildBacklogItems(limit = 14) {
   const items = [];
-  const projects = planningState.projects.filter((project) => projectMatchesFilters(project));
+  const routes = getVisibleGanttRoutes();
 
-  for (const project of projects) {
-    const routeSteps = getSchedulableProjectRouteSteps(project.id);
-    const batches = planningState.batches.filter((batch) => batch.projectId === project.id);
+  for (const route of routes) {
+    const project = getProject(route.specificationId || route.projectId);
+    if (!project) continue;
+    const routeSteps = getSchedulableRouteSteps(route.id);
+    const batches = planningState.batches.filter((batch) => batch.routeId === route.id || batch.specificationId === project.id || batch.projectId === project.id);
 
     for (const batch of batches) {
-      const plannedStepIds = getPlannedStepIds(project.id, batch.id);
+      const plannedStepIds = getPlannedStepIds(route.id, batch.id);
       const nextStep = routeSteps.find((step) => (
         !plannedStepIds.has(step.id)
         && (step.workCenterId !== "warehouse" || plannedStepIds.size > 0)
@@ -920,7 +1765,7 @@ function buildBacklogItems(limit = 14) {
 
       const quantity = getRouteStepQuantityForBatch(nextStep, batch);
       const earliestStart = getEarliestRouteStart(project.id, batch.id, nextStep.id);
-      const durationMs = calculateRequiredDurationMs(nextStep.workCenterId, quantity, planningState, nextStep.unitsPerHour || null);
+      const durationMs = calculateRequiredDurationMs(nextStep.workCenterId, quantity, planningState, nextStep.unitsPerHour || null, nextStep.boardsPerPanel || null);
       const window = findFreeWindow(nextStep.workCenterId, durationMs, earliestStart);
       const dueState = getProjectDeadlineState(project);
 
@@ -1005,6 +1850,56 @@ function getGanttSnapMs() {
   return GANTT_SNAP_MS;
 }
 
+function normalizeGanttZoom(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return defaultUiState.ganttZoom;
+  return GANTT_ZOOM_LEVELS.reduce((closest, level) => (
+    Math.abs(level - number) < Math.abs(closest - number) ? level : closest
+  ), GANTT_ZOOM_LEVELS[1]);
+}
+
+function getGanttZoomIndex(value = ui.ganttZoom) {
+  const normalized = normalizeGanttZoom(value);
+  return Math.max(0, GANTT_ZOOM_LEVELS.indexOf(normalized));
+}
+
+function getGanttZoomPercent(value = ui.ganttZoom) {
+  return `${Math.round(normalizeGanttZoom(value) * 100)}%`;
+}
+
+function setGanttZoom(action) {
+  const index = getGanttZoomIndex();
+  const nextIndex = action === "in"
+    ? Math.min(GANTT_ZOOM_LEVELS.length - 1, index + 1)
+    : action === "out"
+      ? Math.max(0, index - 1)
+      : GANTT_ZOOM_LEVELS.indexOf(1);
+  ui.ganttZoom = GANTT_ZOOM_LEVELS[Math.max(0, nextIndex)];
+  persistUiState();
+  render();
+}
+
+function normalizeGanttSlotContent(value) {
+  return GANTT_SLOT_CONTENT_MODES.some((mode) => mode.id === value) ? value : defaultUiState.ganttSlotContent;
+}
+
+function getGanttSlotContentMode() {
+  return GANTT_SLOT_CONTENT_MODES.find((mode) => mode.id === normalizeGanttSlotContent(ui.ganttSlotContent))
+    || GANTT_SLOT_CONTENT_MODES[0];
+}
+
+function buildGanttScaleInfo(scale, startValue, countOverride = null) {
+  const base = buildTimeScale(scale, startValue, countOverride);
+  const zoom = normalizeGanttZoom(ui.ganttZoom);
+  const cellWidth = Math.round(base.cellWidth * zoom);
+  return {
+    ...base,
+    cellWidth,
+    width: base.count * cellWidth,
+    zoom,
+  };
+}
+
 function getGanttSnapScaleInfo(scaleInfo) {
   return {
     ...scaleInfo,
@@ -1027,12 +1922,29 @@ function getTimelineCount(scale, startValue = null) {
 }
 
 function getVisiblePlanningProjects() {
-  return planningState.projects.filter((project) => projectMatchesFilters(project));
+  return getProductionContexts().filter((project) => projectMatchesFilters(project));
+}
+
+function getVisibleGanttRoutes() {
+  return (planningState.routes || [])
+    .filter((route) => routeMatchesGanttFilters(route))
+    .sort((left, right) => {
+      const leftSpecification = getRouteSpecification(left);
+      const rightSpecification = getRouteSpecification(right);
+      const leftProject = getProject(left.projectId);
+      const rightProject = getProject(right.projectId);
+      return String(leftSpecification?.name || getProjectDisplayName(leftProject) || "").localeCompare(String(rightSpecification?.name || getProjectDisplayName(rightProject) || ""), "ru")
+        || String(left.name || "").localeCompare(String(right.name || ""), "ru");
+    });
+}
+
+function isGanttRouteExpanded(route) {
+  return Boolean(route?.id && (ui.expandedProjects.has(route.id) || ui.expandedProjects.has(route.projectId)));
 }
 
 function areAllVisibleProjectsExpanded() {
-  const projects = getVisiblePlanningProjects();
-  return projects.length > 0 && projects.every((project) => ui.expandedProjects.has(project.id));
+  const routes = getVisibleGanttRoutes();
+  return routes.length > 0 && routes.every((route) => isGanttRouteExpanded(route));
 }
 
 function extendTimelineIfNeeded(shell, scaleInfo) {
@@ -1075,7 +1987,7 @@ function cascadeBatchFromSlot(slotId) {
 
     const earliestStart = addMs(previous.plannedEnd, getRouteBufferMs());
     if (toDate(current.plannedStart) < earliestStart) {
-      const durationMs = calculateRequiredDurationMs(current.workCenterId, current.quantity, planningState, current.unitsPerHour || null);
+      const durationMs = calculateRequiredDurationMs(current.workCenterId, current.quantity, planningState, current.unitsPerHour || null, current.boardsPerPanel || null);
       const window = findFreeWindow(current.workCenterId, durationMs, earliestStart, current.id);
       current.plannedStart = toSlotDateTime(window.start);
       current.plannedEnd = toSlotDateTime(window.end);
@@ -1106,6 +2018,7 @@ function getProjectDeadlineState(project) {
 function render() {
   rememberScroll();
   persistUiState();
+  scheduleGlobalSaveUxRefresh();
 
   if (!getAuthEmployee()) {
     app.innerHTML = renderAuthPage();
@@ -1162,6 +2075,35 @@ function render() {
     return;
   }
 
+  if (ui.activeModule === "operationMap") {
+    app.innerHTML = `
+      <main class="app-shell operation-map-app-shell" data-layout="app-shell" data-layout-page="operationMap">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderOperationMapPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindOperationMapEvents();
+    bindConfirmEvents();
+    return;
+  }
+
+  if (ui.activeModule === "technologyCard") {
+    app.innerHTML = `
+      <main class="app-shell technology-placeholder-app-shell" data-layout="app-shell" data-layout-page="${escapeAttribute(ui.activeModule)}">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderTechnologyPlaceholderPage(ui.activeModule)}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindConfirmEvents();
+    return;
+  }
+
   if (ui.activeModule === "nomenclature") {
     app.innerHTML = `
       <main class="app-shell nomenclature-app-shell" data-layout="app-shell" data-layout-page="nomenclature">
@@ -1207,36 +2149,6 @@ function render() {
     return;
   }
 
-  if (ui.activeModule === "reports") {
-    app.innerHTML = `
-      <main class="app-shell report-app-shell" data-layout="app-shell" data-layout-page="reports">
-        ${renderModuleMenu()}
-        ${renderAppTopbar()}
-        ${renderReportsPage()}
-        ${renderConfirmModal()}
-      </main>
-    `;
-    bindGlobalNavigation();
-    bindReportEvents();
-    bindConfirmEvents();
-    return;
-  }
-
-  if (ui.activeModule === "debug") {
-    app.innerHTML = `
-      <main class="app-shell debug-app-shell" data-layout="app-shell" data-layout-page="debug">
-        ${renderModuleMenu()}
-        ${renderAppTopbar()}
-        ${renderDebugPage()}
-        ${renderConfirmModal()}
-      </main>
-    `;
-    bindGlobalNavigation();
-    bindDebugEvents();
-    bindConfirmEvents();
-    return;
-  }
-
   if (ui.activeModule === "planning") {
     app.innerHTML = `
       <main class="app-shell planning-empty-app-shell" data-layout="app-shell" data-layout-page="planning">
@@ -1253,7 +2165,7 @@ function render() {
   }
 
   const scaleStart = fromDateInput(ui.windowStart);
-  const scaleInfo = buildTimeScale(ui.scale, scaleStart, getTimelineCount(ui.scale, scaleStart));
+  const scaleInfo = buildGanttScaleInfo(ui.scale, scaleStart, getTimelineCount(ui.scale, scaleStart));
   const rows = buildRows(scaleInfo);
   const rowLayout = buildRowLayout(rows);
   const slotPlacementMap = buildSlotPlacementMap(rows, scaleInfo);
@@ -1293,10 +2205,285 @@ function render() {
   restoreScroll();
 }
 
+function getOperationMapRows() {
+  return [...(directoryState.operationMap || [])]
+    .filter((item) => item && item.id)
+    .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru"));
+}
+
+function getOperationMapItem(operationId) {
+  return getOperationMapRows().find((item) => item.id === operationId) || null;
+}
+
+function getOperationTypeOption(type) {
+  return OPERATION_TYPE_OPTIONS.find((item) => item.value === type) || OPERATION_TYPE_OPTIONS[0];
+}
+
+function getOperationMapWorkCenterOptions() {
+  return planningState.workCenters.map((center) => ({
+    value: center.id,
+    label: center.name,
+    meta: center.code || "участок",
+  }));
+}
+
+function createBlankOperationMapItem() {
+  const defaultCenter = planningState.workCenters.find((center) => center.id !== "warehouse")
+    || planningState.workCenters[0]
+    || { id: "warehouse" };
+  return {
+    id: "",
+    name: "",
+    code: "",
+    type: "production",
+    workCenterId: defaultCenter.id,
+    unitsPerHour: getWorkCenterUnitsPerHour(defaultCenter.id),
+    requiresBatch: true,
+    isWarehouse: defaultCenter.id === "warehouse",
+    status: "Активен",
+  };
+}
+
+function renderOperationMapPage() {
+  const operations = getOperationMapRows();
+  const isNew = ui.activeOperationId === "__new__";
+  const activeOperation = isNew ? createBlankOperationMapItem() : getOperationMapItem(ui.activeOperationId);
+  const hasPreview = isNew || Boolean(activeOperation);
+  const routeUsageCount = (operationId) => planningState.routeSteps.filter((step) => step.operationId === operationId).length;
+
+  return `
+    <section class="operation-map-page module-data-page" data-layout="main-content" aria-label="Карта операций">
+      <aside class="directory-sidebar module-data-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Технологии</span>
+          <h1>Карта операций</h1>
+        </div>
+        <div class="module-sidebar-actions">
+          <button class="primary-button" data-operation-create type="button">${icon("plus")}<span>Новая операция</span></button>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Операции</div>
+          ${isNew ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая операция</strong><small>еще не сохранена</small></span><em>new</em></button>` : ""}
+          ${operations.length ? operations.map((operation) => {
+            const center = getWorkCenter(operation.workCenterId);
+            const type = getOperationTypeOption(operation.type);
+            return `
+              <button class="module-entity-item ${operation.id === activeOperation?.id ? "is-active" : ""}" data-operation-open="${escapeAttribute(operation.id)}" type="button">
+                <span>
+                  <strong>${escapeHtml(operation.name || "Операция без названия")}</strong>
+                  <small>${escapeHtml(type.label)} · ${escapeHtml(center?.name || "участок не выбран")}</small>
+                </span>
+                <em>${routeUsageCount(operation.id)}</em>
+              </button>
+            `;
+          }).join("") : `
+            <div class="module-empty-note">
+              <strong>Операций пока нет</strong>
+              <span>Создайте первую операцию, затем используйте ее в маршрутной карте.</span>
+            </div>
+          `}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">Карта операций</span>
+            <h2>${escapeHtml(hasPreview ? (isNew ? "Новая операция" : activeOperation.name || "Операция без названия") : "Операция не выбрана")}</h2>
+            <p>${escapeHtml(hasPreview ? "Операция задает участок по умолчанию и нормативы для маршрутных карт." : "Выберите операцию слева или создайте новую.")}</p>
+          </div>
+        </header>
+
+        <div class="module-data-content operation-map-content">
+          ${hasPreview ? renderOperationMapEditor(activeOperation, isNew, routeUsageCount(activeOperation.id)) : renderModulePreviewEmpty({
+            iconName: "chart",
+            title: "Предпросмотр пуст",
+            text: "Выберите операцию в перечне или нажмите «Новая операция».",
+          })}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderOperationMapEditor(operation, isNew, usageCount) {
+  const typeOptions = OPERATION_TYPE_OPTIONS;
+  const workCenterOptions = getOperationMapWorkCenterOptions();
+  const type = getOperationTypeOption(operation.type);
+  const center = getWorkCenter(operation.workCenterId);
+
+  return `
+    <section class="module-panel operation-map-editor-panel">
+      <div class="report-card-head">
+        <strong>Карточка операции</strong>
+        <span>${isNew ? "создание" : `${usageCount} связей в маршрутных картах`}</span>
+      </div>
+      <form id="operationMapForm" class="module-form operation-map-form">
+        <input type="hidden" name="operationId" value="${escapeAttribute(operation.id || "")}" />
+        <input type="hidden" name="isNew" value="${isNew ? "yes" : "no"}" />
+        <label class="form-field full">
+          <span>Название операции</span>
+          <input name="name" value="${escapeAttribute(operation.name || "")}" placeholder="Например: SMT-монтаж" required />
+        </label>
+        <label class="form-field">
+          <span>Код</span>
+          <input name="code" value="${escapeAttribute(operation.code || "")}" placeholder="SMT-010" />
+        </label>
+        <label class="form-field">
+          <span>Тип операции</span>
+          <input type="hidden" name="type" data-operation-map-hidden="type" value="${escapeAttribute(operation.type || "production")}" />
+          ${renderDenseInlineSelect("type", operation.type || "production", typeOptions, { type: "operationMapForm" })}
+        </label>
+        <label class="form-field">
+          <span>Участок по умолчанию</span>
+          <input type="hidden" name="workCenterId" data-operation-map-hidden="workCenterId" value="${escapeAttribute(operation.workCenterId || "")}" />
+          ${renderDenseInlineSelect("workCenterId", operation.workCenterId || "", workCenterOptions, { type: "operationMapForm" })}
+        </label>
+        <label class="form-field">
+          <span>Норматив, ед/час</span>
+          <input name="unitsPerHour" type="number" min="0" step="1" value="${escapeAttribute(operation.unitsPerHour || "")}" placeholder="${escapeAttribute(getWorkCenterUnitsPerHour(operation.workCenterId || "smt"))}" />
+        </label>
+        <label class="operation-map-toggle">
+          <input name="requiresBatch" type="checkbox" ${operation.requiresBatch ? "checked" : ""} />
+          <span>Требует партийность</span>
+        </label>
+        <div class="operation-map-summary full">
+          <span>${escapeHtml(type.label)}</span>
+          <strong>${escapeHtml(center?.name || "Участок не выбран")}</strong>
+          <small>${operation.unitsPerHour ? `${Number(operation.unitsPerHour).toLocaleString("ru-RU")} ед/час` : "норматив возьмется из участка"}</small>
+        </div>
+        <div class="module-form-actions full">
+          <button class="primary-button" type="submit">${icon("save")}<span>${isNew ? "Создать операцию" : "Сохранить операцию"}</span></button>
+          ${isNew ? "" : `<button class="secondary-button danger" data-operation-delete="${escapeAttribute(operation.id)}" type="button">${icon("trash")}<span>Удалить</span></button>`}
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+function renderTechnologyPlaceholderPage(moduleId) {
+  const configs = {
+    operationMap: {
+      label: "Карта операций",
+      eyebrow: "Технологии",
+      iconName: "chart",
+      intro: "Здесь будет единый перечень типовых операций, которые затем можно использовать в технологических и маршрутных картах.",
+      metrics: [
+        { label: "Маршрутных операций", value: planningState.routeSteps.length, caption: "уже используются в маршрутах" },
+        { label: "Участков", value: planningState.workCenters.length, caption: "доступны для привязки" },
+        { label: "Нормативов", value: directoryState.norms.length, caption: "источник ограничений" },
+      ],
+      blocks: [
+        { title: "Библиотека операций", text: "Типовые операции, нормы времени, участок по умолчанию, признак обязательности и правила применения." },
+        { title: "Использование в маршрутах", text: "Связь операции с маршрутными картами и будущая проверка, где операция уже задействована." },
+      ],
+      sidebarItems: [
+        { title: "Библиотека операций", meta: "типовые операции" },
+        { title: "Привязки к участкам", meta: "нормы и ограничения" },
+        { title: "Использование", meta: "маршрутные карты" },
+      ],
+    },
+    technologyCard: {
+      label: "Технологическая карта",
+      eyebrow: "Технологии",
+      iconName: "tree",
+      intro: "Здесь будет технологическое описание изготовления спецификации до передачи в маршрутную карту и заказ на производство.",
+      metrics: [
+        { label: "Спецификаций", value: (directoryState.specifications || []).length, caption: "центральные объекты" },
+        { label: "BOM-листов", value: (directoryState.bomLists || []).length, caption: "источник состава плат" },
+        { label: "Маршрутных карт", value: planningState.routes.length, caption: "следующий этап" },
+      ],
+      blocks: [
+        { title: "Структура технологии", text: "Связка спецификации, состава, операций и требований до формирования маршрутной карты." },
+        { title: "Подготовка к маршруту", text: "Проверка полноты технологии перед тем, как передать ее в маршрутную карту." },
+      ],
+      sidebarItems: [
+        { title: "Структура технологии", meta: "состав и операции" },
+        { title: "Требования", meta: "условия производства" },
+        { title: "Готовность", meta: "передача в маршрут" },
+      ],
+    },
+  };
+  const config = configs[moduleId] || configs.operationMap;
+
+  return `
+    <section class="technology-placeholder-page module-data-page" data-layout="main-content" aria-label="${escapeAttribute(config.label)}">
+      <aside class="directory-sidebar module-data-sidebar technology-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">${escapeHtml(config.eyebrow)}</span>
+          <h1>${escapeHtml(config.label)}</h1>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Разделы модуля</div>
+          ${config.sidebarItems.map((item, index) => `
+            <button class="module-entity-item ${index === 0 ? "is-active" : ""}" type="button">
+              <span>
+                <strong>${escapeHtml(item.title)}</strong>
+                <small>${escapeHtml(item.meta)}</small>
+              </span>
+              <em>${String(index + 1).padStart(2, "0")}</em>
+            </button>
+          `).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">${escapeHtml(config.eyebrow)}</span>
+            <h2>${escapeHtml(config.label)}</h2>
+            <p>${escapeHtml(config.intro)}</p>
+          </div>
+        </header>
+
+        <div class="module-data-content technology-placeholder-content">
+          <section class="module-panel technology-placeholder-hero">
+            <div class="technology-placeholder-icon">${icon(config.iconName)}</div>
+            <div>
+              <strong>${escapeHtml(config.label)}</strong>
+              <span>Модуль добавлен в начало группы «Технологии». Функциональное наполнение можно развивать отдельным шагом без изменения навигации.</span>
+            </div>
+          </section>
+
+          <section class="module-panel">
+            <div class="report-card-head">
+              <strong>Контекст модуля</strong>
+              <span>быстрые показатели системы</span>
+            </div>
+            <div class="module-kpi-grid route-kpi-grid">
+              ${config.metrics.map((metric) => `
+                <article>
+                  <span>${escapeHtml(metric.label)}</span>
+                  <strong>${Number(metric.value || 0).toLocaleString("ru-RU")}</strong>
+                  <small>${escapeHtml(metric.caption)}</small>
+                </article>
+              `).join("")}
+            </div>
+          </section>
+
+          ${config.blocks.map((block) => `
+            <section class="module-panel">
+              <div class="report-card-head">
+                <strong>${escapeHtml(block.title)}</strong>
+                <span>заготовка будущего блока</span>
+              </div>
+              ${renderModulePreviewEmpty({
+                iconName: config.iconName,
+                title: block.title.replace(/^\d+\s*·\s*/, ""),
+                text: block.text,
+              })}
+            </section>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderPlanningPage() {
   const routes = getRoutesForModule();
   const activeRoute = getActiveRouteForModule();
-  const activeProject = getProject(activeRoute?.projectId);
+  const activeProject = getProject(activeRoute?.specificationId || activeRoute?.projectId);
   const activeSpecification = getRouteSpecification(activeRoute);
   if (activeRoute && activeSpecification && ensureRouteTaskSeedSteps(activeRoute.id, activeSpecification)) {
     persistState();
@@ -1304,18 +2491,20 @@ function renderPlanningPage() {
   const stats = getRouteModuleStats(activeRoute);
   const routeTasks = getRouteTasksForModule(activeRoute);
   const transferSummary = getPlanningRouteTransferSummary(activeRoute);
-  const routeTitle = activeRoute?.name || "Маршрутная карта";
-  const specificationTitle = activeSpecification?.name || getProjectDisplayName(activeProject) || "спецификация не выбрана";
+  const routeTitle = activeRoute?.name || "Маршрутная карта не выбрана";
+  const specificationTitle = activeRoute
+    ? activeSpecification?.name || getProjectDisplayName(activeProject) || "спецификация не выбрана"
+    : "выберите карту слева";
 
   if (!routes.length) {
     return `
-      <section class="planning-empty-page" data-layout="main-content" aria-label="Планирование">
+      <section class="planning-empty-page" data-layout="main-content" aria-label="Заказ на пр-во">
         <section class="planning-empty-panel">
           <div class="planning-empty-icon">${icon("calendar")}</div>
           <div>
             <span class="eyebrow">Новый модуль</span>
-            <h2>Планирование</h2>
-            <p>Маршрутных карт пока нет. Создайте маршрутную карту в модуле «Маршрутная карта», затем передайте ее сюда кнопкой «В Планирование».</p>
+            <h2>Заказ на пр-во</h2>
+            <p>Маршрутных карт пока нет. Создайте маршрутную карту в модуле «Маршрутная карта», затем передайте ее сюда кнопкой «В Заказ на пр-во».</p>
           </div>
         </section>
       </section>
@@ -1323,11 +2512,11 @@ function renderPlanningPage() {
   }
 
   return `
-    <section class="planning-page module-data-page" data-layout="main-content" aria-label="Планирование">
+    <section class="planning-page module-data-page" data-layout="main-content" aria-label="Заказ на пр-во">
       <aside class="directory-sidebar module-data-sidebar planning-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Очередь</span>
-          <h1>Планирование</h1>
+          <h1>Заказ на пр-во</h1>
         </div>
         <div class="module-entity-list">
           <div class="module-list-label">Маршрутные карты</div>
@@ -1341,7 +2530,7 @@ function renderPlanningPage() {
                   <strong>${escapeHtml(route.name || "Маршрутная карта")}</strong>
                   <small>${escapeHtml(routeSpecification?.name || getProjectDisplayName(routeProject) || "спецификация не найдена")} · ${steps.length} шагов</small>
                 </span>
-                <em>${route.isDefault ? "осн." : steps.length}</em>
+                <em>${steps.length}</em>
               </button>
             `;
           }).join("")}
@@ -1351,9 +2540,9 @@ function renderPlanningPage() {
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
-            <span class="eyebrow">Маршрут в планировании</span>
+            <span class="eyebrow">Маршрут в заказе на пр-во</span>
             <h2>${escapeHtml(routeTitle)}</h2>
-            <p>${escapeHtml(`${specificationTitle}: маршрутная карта передана в модуль планирования для подготовки к Ганту.`)}</p>
+            <p>${escapeHtml(activeRoute ? `${specificationTitle}: маршрутная карта передана в модуль заказа на пр-во для подготовки к Ганту.` : "Выберите маршрутную карту в перечне, чтобы настроить количество, партийность и передачу в Гант.")}</p>
           </div>
           <div class="directory-actions">
             <button class="primary-button" data-planning-route-to-gantt="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.steps.length ? "" : "disabled"}>
@@ -1363,9 +2552,10 @@ function renderPlanningPage() {
         </header>
 
         <div class="module-data-content planning-route-content">
+          ${activeRoute ? `
           <section class="module-panel planning-route-card">
             <div class="report-card-head">
-              <strong>01 · Принятая маршрутная карта</strong>
+              <strong>Принятая маршрутная карта</strong>
               <span>${escapeHtml(specificationTitle)}</span>
             </div>
             <div class="planning-route-meta">
@@ -1373,25 +2563,678 @@ function renderPlanningPage() {
               <article><span>Операций</span><strong>${stats.steps.length}</strong><small>${stats.required} обязательных</small></article>
               <article><span>Задач</span><strong>${routeTasks.length}</strong><small>из структуры спецификации</small></article>
               <article><span>Партий</span><strong>${transferSummary.batches.length}</strong><small>к размещению</small></article>
+              <article><span>Мультипликаций</span><strong>${Number(transferSummary.totalPanels || 0).toLocaleString("ru-RU")}</strong><small>расчет для заказа</small></article>
               <article><span>В Ганте</span><strong>${transferSummary.planned}/${transferSummary.expected}</strong><small>${transferSummary.missing ? `${transferSummary.missing} осталось` : "все размещено"}</small></article>
             </div>
+            <div class="planning-route-quantity">
+              <label class="form-field">
+                <span>Планируемое количество для Ганта</span>
+                <input data-planning-quantity="${escapeAttribute(activeRoute?.id || "")}" type="number" min="1" step="1" value="${escapeAttribute(transferSummary.planningQuantity || 1)}" ${activeRoute ? "" : "disabled"} />
+              </label>
+              <div>
+                <strong>${Number(transferSummary.planningQuantity || 1).toLocaleString("ru-RU")} шт.</strong>
+                <small>количество партии для создания операций в Ганте</small>
+              </div>
+            </div>
+            ${transferSummary.multiplicationRows.length ? `
+              <div class="planning-multiplication-list" aria-label="Расчет мультипликаций для заказа на пр-во">
+                ${transferSummary.multiplicationRows.map((row) => `
+                  <article>
+                    <div class="planning-multiplication-head">
+                      <span>${escapeHtml(row.label)}</span>
+                      <strong>${row.panels.toLocaleString("ru-RU")} мультипл.</strong>
+                    </div>
+                    <label class="planning-bpp-field">
+                      <span>Плат в мультиплате</span>
+                      <input
+                        data-planning-boards-per-panel="${escapeAttribute(row.sourceId || row.id)}"
+                        data-planning-bpp-route="${escapeAttribute(activeRoute?.id || "")}"
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        step="1"
+                        value="${escapeAttribute(row.boardsPerPanel)}"
+                      />
+                    </label>
+                    <small>${row.boards.toLocaleString("ru-RU")} плат для заказа</small>
+                  </article>
+                `).join("")}
+              </div>
+            ` : ""}
             <div class="planning-route-note">
               ${icon("info")}
-              <span>Планирование теперь единственный вход для заданий в Гант. Кнопка «Передать в Гант» автоматически разложит операции по ближайшим доступным 15-минутным слотам с учетом участка, партии и последовательности задач.</span>
+              <span>Заказ на пр-во теперь единственный вход для заданий в Гант. Кнопка «Передать в Гант» автоматически разложит операции по ближайшим доступным 15-минутным слотам с учетом участка, партии и последовательности задач.</span>
             </div>
           </section>
 
+          ${renderPlanningBatchConstructor(activeRoute, transferSummary)}
+
           <section class="module-panel planning-route-steps">
             <div class="report-card-head">
-              <strong>02 · Последовательность операций</strong>
+              <strong>Последовательность операций</strong>
               <span>${stats.steps.length ? "маршрут готов к разложению по партиям" : "операции еще не заданы"}</span>
             </div>
             ${renderRouteModuleSequence(stats.steps, activeRoute)}
+          </section>
+          ` : `
+          <section class="module-panel planning-route-card">
+            <div class="report-card-head">
+              <strong>Принятая маршрутная карта</strong>
+              <span>маршрут не выбран</span>
+            </div>
+            ${renderModulePreviewEmpty({
+              iconName: "calendar",
+              title: "Маршрутная карта не выбрана",
+              text: "Выберите карту слева или передайте ее сюда из модуля «Маршрутная карта», чтобы подготовить заказ к Ганту.",
+            })}
+          </section>
+          `}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderPlanningBatchConstructor(route, summary) {
+  const batches = summary?.batches || [];
+  const realBatches = batches.filter((batch) => batch.id !== "__pending__");
+  const planningQuantity = normalizeQuantity(summary?.planningQuantity || getPlanningRouteQuantity(route));
+  const batchQuantityTotal = normalizeQuantity(summary?.batchQuantityTotal || planningQuantity);
+  const quantityDelta = Number(summary?.quantityDelta || 0);
+  const deltaTone = quantityDelta === 0 ? "ok" : quantityDelta > 0 ? "warning" : "critical";
+  const deltaLabel = quantityDelta === 0
+    ? "совпадает"
+    : `${quantityDelta > 0 ? "+" : ""}${quantityDelta.toLocaleString("ru-RU")} шт.`;
+  const routeId = route?.id || "";
+
+  return `
+    <section class="module-panel planning-batch-constructor">
+      <div class="report-card-head planning-batch-head">
+        <div>
+          <strong>Конструктор партий</strong>
+          <span>соберите партии перед автоматическим размещением в Ганте</span>
+        </div>
+        <div class="planning-batch-actions">
+          <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("plus")}<span>Партия</span></button>
+          <button class="secondary-button" data-planning-batches-distribute="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("refresh")}<span>Разделить поровну</span></button>
+          <button class="secondary-button" data-planning-batches-accept-total="${escapeAttribute(routeId)}" type="button" ${route && realBatches.length ? "" : "disabled"}>${icon("check")}<span>Принять сумму</span></button>
+        </div>
+      </div>
+
+      <div class="planning-batch-summary">
+        <article>
+          <span>План</span>
+          <strong>${planningQuantity.toLocaleString("ru-RU")} шт.</strong>
+          <small>целевое количество</small>
+        </article>
+        <article>
+          <span>По партиям</span>
+          <strong>${batchQuantityTotal.toLocaleString("ru-RU")} шт.</strong>
+          <small>${realBatches.length || batches.length} партий</small>
+        </article>
+        <article class="${deltaTone}">
+          <span>Разница</span>
+          <strong>${escapeHtml(deltaLabel)}</strong>
+          <small>${quantityDelta === 0 ? "можно передавать в Гант" : "проверьте партийность"}</small>
+        </article>
+        <article>
+          <span>Слоты</span>
+          <strong>${summary?.planned || 0}/${summary?.expected || 0}</strong>
+          <small>операций в Ганте</small>
+        </article>
+      </div>
+
+      <div class="planning-batch-table" role="table" aria-label="Конструктор партий">
+        <div class="planning-batch-row is-head" role="row">
+          <span>Партия</span>
+          <span>Количество</span>
+          <span>Гант</span>
+          <span></span>
+        </div>
+        ${batches.map((batch) => {
+          const isPending = batch.id === "__pending__";
+          const slotsCount = isPending ? 0 : getPlanningBatchSlots(batch, route).length;
+          return `
+            <div class="planning-batch-row ${isPending ? "is-pending" : ""}" role="row">
+              <label>
+                <span>Партия</span>
+                <input
+                  data-planning-batch-field="batchNumber"
+                  data-planning-batch-id="${escapeAttribute(batch.id)}"
+                  type="text"
+                  value="${escapeAttribute(batch.batchNumber || "")}"
+                  ${isPending ? "disabled" : ""}
+                />
+              </label>
+              <label>
+                <span>Количество</span>
+                <input
+                  data-planning-batch-field="quantity"
+                  data-planning-batch-id="${escapeAttribute(batch.id)}"
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  step="1"
+                  value="${escapeAttribute(batch.quantity || 1)}"
+                  ${isPending ? "disabled" : ""}
+                />
+              </label>
+              <div class="planning-batch-state">
+                <strong>${slotsCount ? `${slotsCount} слотов` : "не размещена"}</strong>
+                <small>${slotsCount ? "уже есть в Ганте" : "будет создана при передаче"}</small>
+              </div>
+              <div class="planning-batch-row-actions">
+                ${isPending ? `
+                  <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button">${icon("plus")}<span>Создать</span></button>
+                ` : `
+                  <button class="icon-button danger-soft" data-planning-batch-delete="${escapeAttribute(batch.id)}" type="button" title="Удалить партию">${icon("trash")}</button>
+                `}
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderTreePage() {
+  const stats = getObjectTreeStats();
+  const productionContexts = getProductionContexts();
+  const layers = [
+    { title: "Производство", value: productionContexts.length, meta: "спецификации, партии, слоты" },
+    { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "спеки, BOM, маршруты" },
+    { title: "Справочники", value: getDirectoryObjectCount(), meta: "участки, отделы, ресурсы" },
+  ];
+
+  return `
+    <section class="object-tree-page module-data-page" data-layout="main-content" aria-label="Дерево объектов системы">
+      <aside class="directory-sidebar module-data-sidebar object-tree-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Просмотр</span>
+          <h1>Дерево</h1>
+        </div>
+        <div class="object-tree-sidebar-summary">
+          ${stats.slice(0, 4).map((item) => `
+            <article>
+              <strong>${escapeHtml(item.value)}</strong>
+              <span>${escapeHtml(item.label)}</span>
+            </article>
+          `).join("")}
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Слои дерева</div>
+          ${layers.map((layer) => `
+            <article class="module-entity-item object-tree-layer">
+              <span>
+                <strong>${escapeHtml(layer.title)}</strong>
+                <small>${escapeHtml(layer.meta)}</small>
+              </span>
+              <em>${Number(layer.value || 0).toLocaleString("ru-RU")}</em>
+            </article>
+          `).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">Структура объектов</span>
+            <h2>Дерево связей MES</h2>
+            <p>Просмотр без редактирования: как спецификации, BOM, маршрутные карты, партии, слоты Ганта и справочники связаны между собой.</p>
+          </div>
+        </header>
+
+        <div class="module-data-content object-tree-content">
+          <section class="module-panel object-tree-kpi-panel">
+            <div class="report-card-head">
+              <strong>Карта объектов</strong>
+              <span>сводка по текущему состоянию системы</span>
+            </div>
+            <div class="object-tree-kpi-grid">
+              ${stats.map((item) => `
+                <article>
+                  <span>${escapeHtml(item.label)}</span>
+                  <strong>${escapeHtml(item.value)}</strong>
+                  <small>${escapeHtml(item.caption)}</small>
+                </article>
+              `).join("")}
+            </div>
+          </section>
+
+          <section class="module-panel object-tree-view-panel">
+            <div class="report-card-head">
+              <strong>Дерево объектов системы</strong>
+              <span>только просмотр, без изменения данных</span>
+            </div>
+            <div class="object-tree-wrap">
+              ${renderSystemObjectTree()}
+            </div>
           </section>
         </div>
       </div>
     </section>
   `;
+}
+
+function getObjectTreeStats() {
+  const importedBomRows = (directoryState.bomLists || []).reduce((sum, bom) => sum + getBomImportRows(bom).length, 0);
+  const productionCount = getProductionContexts().length;
+  return [
+    { label: "Спецификации", value: String((directoryState.specifications || []).length), caption: `${productionCount} в производстве` },
+    { label: "BOM-листы", value: String((directoryState.bomLists || []).length), caption: `${importedBomRows.toLocaleString("ru-RU")} импортированных строк` },
+    { label: "Маршрутные карты", value: String(planningState.routes.length), caption: `${planningState.routeSteps.length} операций` },
+    { label: "Слоты Ганта", value: String(planningState.slots.length), caption: `${planningState.batches.length} партий` },
+    { label: "Номенклатура", value: String((directoryState.nomenclature || []).length), caption: "позиции справочника" },
+    { label: "Справочники", value: String(getDirectoryObjectCount()), caption: "записей инфраструктуры" },
+  ];
+}
+
+function getDirectoryObjectCount() {
+  return [
+    planningState.workCenters,
+    directoryState.departments,
+    directoryState.resources,
+    directoryState.employees,
+    directoryState.equipment,
+    directoryState.componentTypes,
+    directoryState.norms,
+    directoryState.statuses,
+  ].reduce((sum, rows) => sum + (Array.isArray(rows) ? rows.length : 0), 0);
+}
+
+function renderSystemObjectTree() {
+  return `
+    <div class="object-tree-root">
+      ${renderObjectTreeNode({
+        title: "MES-система",
+        meta: "единая структура объектов прототипа",
+        badge: APP_VERSION,
+        tone: "system",
+        open: true,
+        children: [
+          renderProductionTree(),
+          renderTechnologyTree(),
+          renderDirectoryTree(),
+        ],
+      })}
+    </div>
+  `;
+}
+
+function renderProductionTree() {
+  const productionContexts = getProductionContexts();
+  const projectNodes = productionContexts.length
+    ? productionContexts.map((project) => renderProductionProjectTree(project)).join("")
+    : renderObjectTreeLeaf("Спецификации в производстве отсутствуют", "Создайте спецификацию и маршрутную карту, затем передайте маршрут в заказ на пр-во.", "empty");
+
+  return renderObjectTreeNode({
+    title: "Производство",
+    meta: "объекты, которые участвуют в планировании и Ганте",
+    badge: productionContexts.length,
+    tone: "production",
+    open: true,
+    children: [projectNodes],
+  });
+}
+
+function renderProductionProjectTree(project) {
+  const specification = getSpecificationByProjectId(project.id);
+  const routes = planningState.routes.filter((route) => route.specificationId === project.id || route.projectId === project.id);
+  const batches = planningState.batches.filter((batch) => batch.specificationId === project.id || batch.projectId === project.id);
+  const slots = planningState.slots.filter((slot) => slot.specificationId === project.id || slot.projectId === project.id);
+  const routeNodes = routes.length
+    ? routes.map((route) => renderRouteObjectTree(route)).join("")
+    : renderObjectTreeLeaf("Маршрутная карта не создана", "Для передачи в заказ на пр-во нужен маршрут.", "warning");
+  const batchNodes = batches.length
+    ? batches.map((batch) => renderBatchObjectTree(batch, slots.filter((slot) => slot.batchId === batch.id))).join("")
+    : renderObjectTreeLeaf("Партии не созданы", "Партии появятся при подготовке спецификации к производству.", "empty");
+
+  return renderObjectTreeNode({
+    title: getProjectDisplayName(project) || project.name || "Спецификация в производстве",
+    meta: `${PROJECT_STATUS_LABELS[project.status] || project.status || "статус не задан"} · ${Number(project.totalQuantity || 0).toLocaleString("ru-RU")} шт.`,
+    badge: project.orderNumber || "заказ",
+    tone: "project",
+    open: true,
+    children: [
+      specification
+        ? renderSpecificationObjectTree(specification, { open: true, includeRoutes: false })
+        : renderObjectTreeLeaf("Спецификация не связана", "Производственный объект есть, но карточка спецификации не найдена.", "warning"),
+      renderObjectTreeNode({
+        title: "Маршрутные карты",
+        meta: `${routes.length} карт · ${routes.reduce((sum, route) => sum + getRouteStepsForModule(route.id).length, 0)} операций`,
+        badge: routes.length,
+        tone: "route",
+        children: [routeNodes],
+      }),
+      renderObjectTreeNode({
+        title: "Партии и слоты Ганта",
+        meta: `${batches.length} партий · ${slots.length} слотов`,
+        badge: slots.length,
+        tone: "gantt",
+        children: [batchNodes],
+      }),
+    ],
+  });
+}
+
+function renderTechnologyTree() {
+  return renderObjectTreeNode({
+    title: "Технологии",
+    meta: "исходные структуры для расчета и маршрутных карт",
+    badge: (directoryState.specifications || []).length + (directoryState.bomLists || []).length,
+    tone: "technology",
+    open: true,
+    children: [
+      renderObjectTreeNode({
+        title: "Спецификации",
+        meta: "структура изделия и вложенные объекты",
+        badge: (directoryState.specifications || []).length,
+        tone: "specification",
+        children: [(directoryState.specifications || []).length
+          ? (directoryState.specifications || []).map((specification) => renderSpecificationObjectTree(specification)).join("")
+          : renderObjectTreeLeaf("Спецификаций пока нет", "Создайте спецификацию в модуле «Спецификации».", "empty")],
+      }),
+      renderObjectTreeNode({
+        title: "BOM-листы",
+        meta: "компонентный состав печатных плат",
+        badge: (directoryState.bomLists || []).length,
+        tone: "bom",
+        children: [(directoryState.bomLists || []).length
+          ? (directoryState.bomLists || []).map((bom) => renderBomObjectTree(bom)).join("")
+          : renderObjectTreeLeaf("BOM-листов пока нет", "Создайте BOM или импортируйте Excel-шаблон.", "empty")],
+      }),
+      renderObjectTreeNode({
+        title: "Номенклатура",
+        meta: "покупные и производимые позиции",
+        badge: (directoryState.nomenclature || []).length,
+        tone: "nomenclature",
+        children: [(directoryState.nomenclature || []).length
+          ? (directoryState.nomenclature || []).slice(0, 30).map((item) => renderObjectTreeLeaf(item.name || "Позиция без названия", `${item.article || "артикул не задан"} · ${item.type || "тип не задан"} · ${item.unit || "шт."}`, "nomenclature")).join("")
+          : renderObjectTreeLeaf("Номенклатура пуста", "Добавьте позиции в модуле «Номенклатура».", "empty")],
+      }),
+    ],
+  });
+}
+
+function renderSpecificationObjectTree(specification, options = {}) {
+  const visitedSpecificationIds = new Set(options.visitedSpecificationIds || []);
+  if (visitedSpecificationIds.has(specification.id)) {
+    return renderObjectTreeLeaf(specification.name || "Повторная спецификация", "Повторная ссылка уже показана выше, ветка остановлена.", "warning");
+  }
+  visitedSpecificationIds.add(specification.id);
+  const structureItems = getSpecificationStructureItems(specification);
+  const productionQuantity = getSpecificationProductionQuantity(specification);
+  return renderObjectTreeNode({
+    title: specification.name || "Спецификация без названия",
+    meta: `${specification.outputItem || "выход не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(specification)] || "статус не задан"} · ${Number(productionQuantity || 0).toLocaleString("ru-RU")} шт.`,
+    badge: structureItems.length,
+    tone: "specification",
+    open: Boolean(options.open),
+    children: [
+      structureItems.length
+        ? renderSpecificationStructureObjectTree(specification, structureItems, visitedSpecificationIds)
+        : renderObjectTreeLeaf("Структура спецификации пуста", "Добавьте BOM, номенклатуру или узлы в модуле «Спецификации».", "warning"),
+    ],
+  });
+}
+
+function renderSpecificationStructureObjectTree(specification, items, visitedSpecificationIds = new Set()) {
+  const childrenByParent = items.reduce((map, item) => {
+    const parentId = item.parentId || "root";
+    if (!map.has(parentId)) map.set(parentId, []);
+    map.get(parentId).push(item);
+    return map;
+  }, new Map());
+  const visited = new Set();
+  const renderBranch = (parentId, level = 0) => (childrenByParent.get(parentId) || [])
+    .map((item) => {
+      visited.add(item.id);
+      return renderSpecificationItemObjectTree(item, renderBranch(item.id, level + 1), level, visitedSpecificationIds);
+    })
+    .join("");
+  const rootItems = renderBranch("root");
+  const orphanItems = items
+    .filter((item) => !visited.has(item.id))
+    .map((item) => renderSpecificationItemObjectTree(item, "", 0, visitedSpecificationIds))
+    .join("");
+  return rootItems + orphanItems;
+}
+
+function renderSpecificationItemObjectTree(item, nestedChildren = "", level = 0, visitedSpecificationIds = new Set()) {
+  const bom = item.type === "bom" ? getBomList(item.bomListId) : null;
+  const linkedSpecification = item.type === "specification"
+    ? (directoryState.specifications || []).find((specification) => specification.id === item.specificationId)
+    : null;
+  const nomenclatureItem = item.type === "nomenclature"
+    ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
+    : null;
+  const title = bom?.name
+    || linkedSpecification?.name
+    || nomenclatureItem?.name
+    || item.name
+    || "Позиция без названия";
+  const typeLabel = getSpecificationTreeItemTypeLabel(item.type);
+  const executionLabel = item.executionType === "buy" ? "покупное" : "к обеспечению";
+  const quantity = `${Number(item.quantity || 0).toLocaleString("ru-RU")} ${item.unit || "шт."}`;
+  const metaParts = [typeLabel, executionLabel, quantity, item.operationName, item.departmentName].filter(Boolean);
+  const extraChildren = [
+    item.type === "bom" && bom ? renderBomObjectTree(bom, { compact: true }) : "",
+    item.type === "specification" && linkedSpecification ? renderSpecificationObjectTree(linkedSpecification, { visitedSpecificationIds }) : "",
+    nestedChildren,
+  ].filter(Boolean).join("");
+
+  return renderObjectTreeNode({
+    title,
+    meta: metaParts.join(" · "),
+    badge: level > 0 ? `${level + 1} ур.` : typeLabel,
+    tone: item.type || "item",
+    children: [extraChildren || renderObjectTreeLeaf("Дочерних объектов нет", item.resultItem || item.note || "Конечная позиция структуры.", "empty")],
+  });
+}
+
+function getSpecificationTreeItemTypeLabel(type) {
+  const labels = {
+    assembly: "узел",
+    bom: "BOM",
+    specification: "спецификация",
+    nomenclature: "номенклатура",
+    part: "позиция",
+  };
+  return labels[type] || "позиция";
+}
+
+function renderBomObjectTree(bom, options = {}) {
+  const rows = getBomImportRows(bom);
+  const componentTotal = Object.values(getBomComponentCounts(bom)).reduce((sum, count) => sum + Number(count || 0), 0);
+  const linkedSpecifications = getBomLinkedSpecifications(bom.id);
+  const rowPreview = rows.slice(0, options.compact ? 4 : 10).map((row) => (
+    renderObjectTreeLeaf(
+      row.description || row.manufacturerPart || row.designator || `Строка ${row.sequence || ""}`.trim(),
+      `${row.designator || "позиция не задана"} · ${row.package || "типоразмер не задан"} · ${Number(row.quantity || 0).toLocaleString("ru-RU")} шт.`,
+      "component",
+    )
+  )).join("");
+  const hiddenCount = Math.max(0, rows.length - (options.compact ? 4 : 10));
+
+  return renderObjectTreeNode({
+    title: bom.name || "BOM без названия",
+    meta: `${bom.boardCode || "код платы не задан"} · ${bom.resultItem || "результат не задан"} · ${componentTotal.toLocaleString("ru-RU")} компонентов`,
+    badge: rows.length || "ручн.",
+    tone: "bom",
+    open: !options.compact,
+    children: [
+      renderObjectTreeLeaf("Результат BOM", bom.resultItem || "смонтированная печатная плата не задана", "output"),
+      renderObjectTreeLeaf("Где используется", linkedSpecifications.length ? linkedSpecifications.map((specification) => specification.name).join(", ") : "пока не включен в спецификации", linkedSpecifications.length ? "link" : "empty"),
+      rows.length
+        ? renderObjectTreeNode({
+          title: "Импортированные строки",
+          meta: `${rows.length} строк до первой пустой ячейки A`,
+          badge: rows.length,
+          tone: "component",
+          children: [rowPreview, hiddenCount ? renderObjectTreeLeaf(`Еще ${hiddenCount.toLocaleString("ru-RU")} строк`, "скрыто в компактном просмотре", "empty") : ""],
+        })
+        : renderObjectTreeLeaf("Импортированных строк нет", "BOM заполнен вручную или пока пустой.", "warning"),
+    ],
+  });
+}
+
+function renderRouteObjectTree(route) {
+  const steps = getRouteStepsForModule(route.id);
+  const tasks = getRouteTasksForModule(route);
+  return renderObjectTreeNode({
+    title: route.name || "Маршрутная карта",
+    meta: `${getRouteSpecification(route)?.name || "спецификация не найдена"} · ${steps.length} операций`,
+    badge: steps.length,
+    tone: "route",
+    children: [
+      tasks.length ? tasks.map((task) => {
+        const taskSteps = steps.filter((step) => getRouteStepTaskId(step) === task.id);
+        return renderObjectTreeNode({
+          title: task.name || "Задача маршрута",
+          meta: `${getRouteTaskTypeLabel(task)} · ${taskSteps.length} операций`,
+          badge: taskSteps.length,
+          tone: "task",
+          children: [taskSteps.map((step) => {
+            const center = getWorkCenter(step.workCenterId);
+            return renderObjectTreeLeaf(
+              `${step.stepOrder}. ${step.operationName || center?.name || "Операция"}`,
+              `${center?.name || "участок не найден"} · ${Number(step.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час`,
+              "operation",
+            );
+          }).join("")],
+        });
+      }).join("") : steps.map((step) => {
+        const center = getWorkCenter(step.workCenterId);
+        return renderObjectTreeLeaf(`${step.stepOrder}. ${step.operationName || "Операция"}`, center?.name || "участок не найден", "operation");
+      }).join(""),
+    ],
+  });
+}
+
+function renderBatchObjectTree(batch, slots) {
+  const slotsByCenter = slots.reduce((map, slot) => {
+    const key = slot.workCenterId || "unknown";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(slot);
+    return map;
+  }, new Map());
+
+  return renderObjectTreeNode({
+    title: `Партия ${batch.batchNumber || batch.id}`,
+    meta: `${Number(batch.quantity || 0).toLocaleString("ru-RU")} шт. · ${batch.status || "статус не задан"}`,
+    badge: slots.length,
+    tone: "batch",
+    children: [slots.length
+      ? [...slotsByCenter.entries()].map(([workCenterId, centerSlots]) => {
+        const center = getWorkCenter(workCenterId);
+        return renderObjectTreeNode({
+          title: center?.name || "Участок не найден",
+          meta: `${centerSlots.length} слотов Ганта`,
+          badge: centerSlots.length,
+          tone: "gantt",
+          children: [centerSlots
+            .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))
+            .map((slot) => renderObjectTreeLeaf(
+              slot.operationName || "Операция",
+              `${formatDateTimeShort(slot.plannedStart)} → ${formatDateTimeShort(slot.plannedEnd)} · ${STATUS_LABELS[slot.status] || slot.status || "статус"}`,
+              "slot",
+            ))
+            .join("")],
+        });
+      }).join("")
+      : renderObjectTreeLeaf("Слоты еще не размещены", "Передайте маршрут из модуля «Заказ на пр-во» в Гант.", "warning")],
+  });
+}
+
+function renderDirectoryTree() {
+  const departmentNodes = (directoryState.departments || []).map((department) => {
+    const employees = (directoryState.employees || []).filter((employee) => employee.department === department.name);
+    return renderObjectTreeNode({
+      title: department.name || "Отдел без названия",
+      meta: `${department.code || "код не задан"} · ${department.owner || "ответственный не задан"}`,
+      badge: employees.length,
+      tone: "directory",
+      children: [employees.length
+        ? employees.map((employee) => renderObjectTreeLeaf(employee.name || "Сотрудник", `${employee.position || employee.role || "должность не задана"} · ${getRoleName(employee.roleId)}`, "employee")).join("")
+        : renderObjectTreeLeaf("Сотрудников нет", "Отдел пока пустой.", "empty")],
+    });
+  }).join("");
+
+  return renderObjectTreeNode({
+    title: "Справочники",
+    meta: "производственная инфраструктура и права доступа",
+    badge: getDirectoryObjectCount(),
+    tone: "directory",
+    open: true,
+    children: [
+      renderObjectTreeNode({
+        title: "Участки",
+        meta: "строки Ганта и производственные мощности",
+        badge: planningState.workCenters.length,
+        tone: "workcenter",
+        children: [planningState.workCenters.map((center) => renderObjectTreeLeaf(center.name || "Участок", `${center.code || "код не задан"} · ${Number(center.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час · ${center.shift || "смена не задана"}`, center.isActive === false ? "warning" : "workcenter")).join("")],
+      }),
+      renderObjectTreeNode({
+        title: "Отделы и сотрудники",
+        meta: "ответственность и роли",
+        badge: (directoryState.departments || []).length,
+        tone: "directory",
+        children: [departmentNodes || renderObjectTreeLeaf("Отделов пока нет", "Заполните справочник отделов.", "empty")],
+      }),
+      renderObjectTreeNode({
+        title: "Ресурсы и оборудование",
+        meta: `${(directoryState.resources || []).length} ресурсов · ${(directoryState.equipment || []).length} единиц оборудования`,
+        badge: (directoryState.resources || []).length + (directoryState.equipment || []).length,
+        tone: "resource",
+        children: [
+          ...(directoryState.resources || []).map((resource) => renderObjectTreeLeaf(resource.name || "Ресурс", `${resource.type || "тип"} · ${resource.workCenter || "участок не задан"} · ${resource.status || "статус"}`, "resource")),
+          ...(directoryState.equipment || []).map((equipment) => renderObjectTreeLeaf(equipment.name || "Оборудование", `${equipment.type || "тип"} · ${equipment.line || equipment.workCenter || "линия не задана"} · ${equipment.status || "статус"}`, "resource")),
+        ].join("") || renderObjectTreeLeaf("Ресурсы не заполнены", "Добавьте ресурсы и оборудование в справочниках.", "empty"),
+      }),
+    ],
+  });
+}
+
+function renderObjectTreeNode({ title, meta = "", badge = "", tone = "default", children = [], open = false }) {
+  const content = Array.isArray(children) ? children.filter(Boolean).join("") : String(children || "");
+  return `
+    <details class="object-tree-node is-${escapeAttribute(tone)}" ${open ? "open" : ""}>
+      <summary>
+        <span class="object-tree-marker"></span>
+        <span class="object-tree-title">
+          <strong>${escapeHtml(title)}</strong>
+          ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+        </span>
+        ${badge !== "" && badge !== null && badge !== undefined ? `<em>${escapeHtml(String(badge))}</em>` : ""}
+      </summary>
+      <div class="object-tree-children">
+        ${content}
+      </div>
+    </details>
+  `;
+}
+
+function renderObjectTreeLeaf(title, meta = "", tone = "default") {
+  return `
+    <article class="object-tree-leaf is-${escapeAttribute(tone)}">
+      <span class="object-tree-marker"></span>
+      <span class="object-tree-title">
+        <strong>${escapeHtml(title)}</strong>
+        ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+      </span>
+    </article>
+  `;
+}
+
+function formatDateTimeShort(value) {
+  const date = toDate(value);
+  return date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function getAuthEmployee() {
@@ -1426,25 +3269,25 @@ function roleAllowsValue(listValue, value) {
 
 function getModuleDefinitions() {
   return [
-    { id: "reports", label: "Отчеты", icon: "chart" },
     { id: "gantt", label: "Гант", icon: "gantt" },
-    { id: "planning", label: "Планирование", icon: "calendar" },
+    { id: "planning", label: "Заказ на пр-во", icon: "calendar" },
+    { id: "operationMap", label: "Карта операций", icon: "chart" },
+    { id: "technologyCard", label: "Технологическая карта", icon: "tree" },
     { id: "speki", label: "Спецификации", icon: "book" },
     { id: "calculator", label: "Калькулятор", icon: "calculator" },
     { id: "routes", label: "Маршрутная карта", icon: "split" },
     { id: "bomLists", label: "BOM-листы", icon: "bom" },
     { id: "nomenclature", label: "Номенклатура", icon: "package" },
     { id: "directories", label: "Справочники", icon: "settings" },
-    { id: "debug", label: "Отладка", icon: "bug" },
   ];
 }
 
 function getModuleGroups(modules) {
   const groupMap = [
     { label: "Производство", ids: ["gantt", "planning"] },
-    { label: "Технологии", ids: ["nomenclature", "bomLists", "speki", "routes", "calculator"] },
+    { label: "Технологии", ids: ["operationMap", "technologyCard", "routes", "speki", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
-    { label: "MVP", ids: ["reports", "debug"] },
+    { label: "MVP", ids: ["calculator"] },
   ];
 
   return groupMap
@@ -1458,25 +3301,20 @@ function getModuleGroups(modules) {
 function getAvailableModules(role = getEmployeeRole()) {
   const modules = getModuleDefinitions().filter((moduleItem) => (
     roleAllowsValue(role?.modules, moduleItem.id)
-    || (moduleItem.id === "reports" && roleAllowsValue(role?.modules, "dashboard"))
   ));
-  return modules.length ? modules : getModuleDefinitions().filter((moduleItem) => moduleItem.id === "reports");
+  return modules.length ? modules : getModuleDefinitions().filter((moduleItem) => moduleItem.id === "gantt");
 }
 
 function ensureAuthorizedModule() {
-  if (ui.activeModule === "dashboard") {
-    ui.activeModule = "reports";
-    ui.activeReport = "dashboard";
+  if (ui.activeModule === "dashboard" || ui.activeModule === "reports" || ui.activeModule === "debug") {
+    ui.activeModule = "gantt";
   }
   if (ui.activeModule === "specifications") {
     ui.activeModule = "speki";
   }
   const availableModules = getAvailableModules();
   if (!availableModules.some((moduleItem) => moduleItem.id === ui.activeModule)) {
-    ui.activeModule = availableModules.find((moduleItem) => !MVP_MODULE_IDS.has(moduleItem.id))?.id || availableModules[0]?.id || "gantt";
-  }
-  if (MVP_MODULE_IDS.has(ui.activeModule) && !mvpAccessUnlocked) {
-    ui.activeModule = availableModules.find((moduleItem) => !MVP_MODULE_IDS.has(moduleItem.id))?.id || "gantt";
+    ui.activeModule = availableModules[0]?.id || "gantt";
   }
 }
 
@@ -1484,6 +3322,30 @@ function getVisibleDirectorySections() {
   const role = getEmployeeRole();
   const visibleSections = directorySections.filter((section) => roleAllowsValue(role?.directories, section.id));
   return visibleSections.length ? visibleSections : directorySections.filter((section) => section.id === "departments");
+}
+
+function getVisibleDirectoryGroups(visibleSections = getVisibleDirectorySections()) {
+  const sectionById = new Map(visibleSections.map((section) => [section.id, section]));
+  const groupedIds = new Set();
+  const groups = directorySectionGroups
+    .map((group) => {
+      const sections = group.ids.map((id) => sectionById.get(id)).filter(Boolean);
+      sections.forEach((section) => groupedIds.add(section.id));
+      return { ...group, sections };
+    })
+    .filter((group) => group.sections.length);
+
+  const otherSections = visibleSections.filter((section) => !groupedIds.has(section.id));
+  if (otherSections.length) {
+    groups.push({
+      label: "Прочее",
+      description: "служебные справочники",
+      ids: otherSections.map((section) => section.id),
+      sections: otherSections,
+    });
+  }
+
+  return groups;
 }
 
 function renderAuthPage() {
@@ -1511,7 +3373,7 @@ function renderAuthPage() {
           </label>
           <label class="form-field">
             <span>Пароль</span>
-            <input name="password" type="password" placeholder="Пустой пароль для MVP" autocomplete="current-password" />
+            <input name="password" type="password" placeholder="Пустой пароль для отладки" autocomplete="current-password" />
           </label>
           <div class="auth-hint">
             ${icon("lock")}
@@ -1541,7 +3403,7 @@ function renderModuleMenu() {
           <div class="module-group">
             <span class="module-group-title">${escapeHtml(group.label)}</span>
             ${group.modules.map((moduleItem) => `
-              <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button">
+              <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button" aria-label="${escapeAttribute(moduleItem.label)}" title="${escapeAttribute(moduleItem.label)}">
                 ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>
               </button>
             `).join("")}
@@ -1563,9 +3425,7 @@ function renderAppTopbar() {
   const employee = getAuthEmployee();
   const role = getEmployeeRole(employee);
   const activeModule = getModuleDefinitions().find((moduleItem) => moduleItem.id === ui.activeModule) || getModuleDefinitions()[0];
-  const activeContext = ui.activeModule === "reports"
-    ? reportSections.find((section) => section.id === ui.activeReport)?.label || "Дашборд"
-    : ui.activeModule === "directories"
+  const activeContext = ui.activeModule === "directories"
       ? directorySections.find((section) => section.id === ui.activeDirectory)?.label || "Справочники"
       : activeModule.label;
 
@@ -1594,274 +3454,6 @@ function renderAppTopbar() {
       </div>
     </header>
   `;
-}
-
-function renderDashboardPage({ embedded = false } = {}) {
-  const data = getDashboardData();
-  return `
-    <section class="dashboard-page ${embedded ? "is-embedded" : ""}" aria-label="Дашборд производства">
-      <div class="dashboard-control-room">
-        <header class="dashboard-header">
-          <div>
-            <span class="eyebrow">Операционный обзор</span>
-            <h1>Производственный дашборд</h1>
-            <p>Оперативная картина плана, загрузки участков, складского выхода и предупреждений.</p>
-          </div>
-          <div class="dashboard-time">
-            ${icon("clock")}
-            <strong>${formatDateTime(ui.now)}</strong>
-            <span>актуальное состояние</span>
-          </div>
-        </header>
-
-        <div class="dashboard-grid">
-          <section class="scada-panel scada-overview">
-            <div class="scada-panel-head">
-              <strong>Состояние контура</strong>
-              <span>${data.criticalCount ? "критично" : "норма"}</span>
-            </div>
-            <div class="scada-metrics">
-              ${data.metrics.map((metric) => `
-                <article class="scada-metric ${metric.tone}">
-                  <span>${escapeHtml(metric.label)}</span>
-                  <strong>${escapeHtml(metric.value)}</strong>
-                  <small>${escapeHtml(metric.caption)}</small>
-                </article>
-              `).join("")}
-            </div>
-          </section>
-
-          <section class="scada-panel scada-mimic-panel">
-            <div class="scada-panel-head">
-              <strong>SMT линии и оборудование</strong>
-              <span>2 линии + офлайн АОИ</span>
-            </div>
-            <div class="scada-mimic scada-equipment-mimic">
-              ${data.smtLines.map((line) => renderDashboardSmtLine(line)).join("")}
-            </div>
-          </section>
-
-          <section class="scada-panel scada-workcenters">
-            <div class="scada-panel-head">
-              <strong>Участки и загрузка</strong>
-              <span>${data.workCenters.length} участков</span>
-            </div>
-            <div class="scada-node-grid">
-              ${data.workCenters.map((center) => `
-                <article class="scada-node ${center.tone}">
-                  <div class="scada-node-top">
-                    <span>${escapeHtml(center.code)}</span>
-                    <em>${escapeHtml(center.state)}</em>
-                  </div>
-                  <strong>${escapeHtml(center.name)}</strong>
-                  <div class="scada-load"><i style="width:${center.loadPercent}%;"></i></div>
-                  <small>${center.hours} ч · ${center.slots} оп. · ${center.quantity.toLocaleString("ru-RU")} шт.</small>
-                </article>
-              `).join("")}
-            </div>
-          </section>
-
-          <details class="scada-panel scada-alarms">
-            <summary class="scada-panel-head">
-              <strong>Предупреждения</strong>
-              <span>${data.alarms.length} событий · свернуто</span>
-            </summary>
-            <div class="scada-alarm-list">
-              ${data.alarms.length ? data.alarms.map((alarm) => `
-                <article class="scada-alarm ${alarm.severity}">
-                  <span>${escapeHtml(alarm.type)}</span>
-                  <strong>${escapeHtml(alarm.project)}</strong>
-                  <p>${escapeHtml(alarm.message)}</p>
-                </article>
-              `).join("") : `
-                <article class="scada-alarm ok">
-                  <span>OK</span>
-                  <strong>Предупреждений нет</strong>
-                  <p>Контур планирования не содержит активных критичных сообщений.</p>
-                </article>
-              `}
-            </div>
-          </details>
-
-          <section class="scada-panel scada-projects">
-            <div class="scada-panel-head">
-              <strong>Спецификации и сроки</strong>
-              <span>производственный портфель</span>
-            </div>
-            <div class="scada-project-list">
-              ${data.projects.map((project) => `
-                <article class="scada-project ${project.tone}">
-                  <div>
-                    <strong>${escapeHtml(project.name)}</strong>
-                    <span>${escapeHtml(project.order)} · ${escapeHtml(project.due)}</span>
-                  </div>
-                  <em>${project.progress}%</em>
-                  <div class="scada-progress"><i style="width:${project.progress}%;"></i></div>
-                </article>
-              `).join("")}
-            </div>
-          </section>
-        </div>
-      </div>
-    </section>
-  `;
-}
-
-function renderDashboardSmtLine(line) {
-  return `
-    <article class="smt-line-card ${line.tone}">
-      <div class="smt-line-head">
-        <div>
-          <span>${escapeHtml(line.code)}</span>
-          <strong>${escapeHtml(line.name)}</strong>
-        </div>
-        <em>${escapeHtml(line.state)}</em>
-      </div>
-      <div class="smt-line-rail" style="--station-count:${line.stations.length};" aria-label="${escapeAttribute(line.name)}">
-        ${line.stations.map((station, index) => `
-          <div class="smt-station ${station.kind} ${station.tone}">
-            <div class="smt-machine-figure" aria-hidden="true">
-              <i></i><b></b><span></span>
-            </div>
-            <strong>${escapeHtml(station.label)}</strong>
-            <small>${escapeHtml(station.equipment)}</small>
-            <em>${escapeHtml(station.state)}</em>
-            ${index < line.stations.length - 1 ? `<mark></mark>` : ""}
-          </div>
-        `).join("")}
-      </div>
-      <div class="smt-line-footer">
-        <span>Загрузка <b>${line.load}%</b></span>
-        <div class="scada-load"><i style="width:${line.load}%;"></i></div>
-        <span>${escapeHtml(line.project)}</span>
-      </div>
-    </article>
-  `;
-}
-
-function getDashboardData() {
-  const warnings = getSlotWarnings(planningState).warnings;
-  const slotHours = planningState.slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
-  const completedSlots = planningState.slots.filter((slot) => slot.status === "completed").length;
-  const warehouseSlots = planningState.slots.filter((slot) => slot.workCenterId === "warehouse");
-  const warehouseQuantity = warehouseSlots.reduce((sum, slot) => sum + Number(slot.quantity || 0), 0);
-  const criticalCount = warnings.filter((warning) => warning.severity === "critical").length;
-  const warningCount = warnings.length - criticalCount;
-  const activeSlots = planningState.slots.filter((slot) => slot.status === "in_progress").length;
-  const completionPercent = planningState.slots.length
-    ? Math.round(completedSlots / planningState.slots.length * 100)
-    : 0;
-
-  const workCenterRows = planningState.workCenters.map((center) => {
-    const slots = planningState.slots.filter((slot) => slot.workCenterId === center.id);
-    const hours = Math.round(slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0) * 10) / 10;
-    const centerWarnings = warnings.filter((warning) => warning.workCenterId === center.id);
-    const hasCritical = centerWarnings.some((warning) => warning.severity === "critical");
-    return {
-      id: center.id,
-      code: center.code,
-      name: center.name,
-      slots: slots.length,
-      hours,
-      quantity: slots.reduce((sum, slot) => sum + Number(slot.quantity || 0), 0),
-      tone: hasCritical ? "critical" : centerWarnings.length ? "warning" : slots.some((slot) => slot.status === "in_progress") ? "active" : "ok",
-      state: hasCritical ? "Критично" : centerWarnings.length ? "Риск" : slots.some((slot) => slot.status === "in_progress") ? "В работе" : "Готов",
-    };
-  });
-  const maxHours = Math.max(1, ...workCenterRows.map((row) => row.hours));
-  const workCenters = workCenterRows.map((row) => ({
-    ...row,
-    loadPercent: Math.max(4, Math.round(row.hours / maxHours * 100)),
-  }));
-
-  const lineOrder = ["smt", "aoi", "wash", "manual", "test", "coating", "assembly", "warehouse"];
-  const lineNodes = lineOrder
-    .map((id) => workCenters.find((center) => center.id === id))
-    .filter(Boolean)
-    .map((center) => ({
-      code: center.code,
-      label: center.name,
-      status: center.state,
-      tone: center.tone,
-    }));
-
-  const smtCenter = workCenters.find((center) => center.id === "smt");
-  const aoiCenter = workCenters.find((center) => center.id === "aoi");
-  const smtLines = [
-    {
-      code: "SMT-01",
-      name: "Линия SMT-1",
-      state: smtCenter?.state || "Готов",
-      tone: smtCenter?.tone || "active",
-      load: Math.max(18, smtCenter?.loadPercent || 74),
-      project: "СП MES-001 · основная плата",
-      stations: [
-        { kind: "loader", label: "Загрузчик", equipment: "LDC 460XL", state: "подача", tone: "ok" },
-        { kind: "conveyor", label: "Инсп. конвейер", equipment: "CYB 460XL-600", state: "инспекция", tone: "ok" },
-        { kind: "mounter", label: "Установщик", equipment: "Hanwha S2", state: "монтаж", tone: "active" },
-        { kind: "mounter", label: "Установщик", equipment: "Hanwha L2", state: "монтаж", tone: "active" },
-        { kind: "conveyor", label: "Конвейер", equipment: "CYB 460XL-600", state: "транспорт", tone: "ok" },
-        { kind: "oven", label: "Печь", equipment: "JTR-800", state: "профиль", tone: "ok" },
-      ],
-    },
-    {
-      code: "SMT-02",
-      name: "Линия SMT-2",
-      state: "Переналадка",
-      tone: "warning",
-      load: 52,
-      project: "СП Power V2 · плата питания",
-      stations: [
-        { kind: "loader", label: "Ручная подача", equipment: "Стол подачи ПП", state: "оператор", tone: "ok" },
-        { kind: "conveyor", label: "Конвейер", equipment: "CYB 460XL-600", state: "транспорт", tone: "ok" },
-        { kind: "mounter", label: "Установщик", equipment: "Hanwha S2", state: "фидеры", tone: "warning" },
-        { kind: "oven", label: "Печь", equipment: "NoName", state: "нагрев", tone: "active" },
-        { kind: "aoi", label: "АОИ", equipment: "QUICK A300T", state: aoiCenter?.state || "готов", tone: aoiCenter?.tone || "ok" },
-      ],
-    },
-    {
-      code: "AOI-OFF",
-      name: "Офлайн инспектор АОИ",
-      state: aoiCenter?.state || "Готов",
-      tone: aoiCenter?.tone || "ok",
-      load: Math.max(12, Math.round((aoiCenter?.loadPercent || 38) * 0.72)),
-      project: "Выборочный и финальный контроль",
-      stations: [
-        { kind: "aoi offline", label: "АОИ 3D", equipment: "Athena 10MP", state: "офлайн", tone: aoiCenter?.tone || "ok" },
-      ],
-    },
-  ];
-
-  const projects = buildDeadlineRows().map((row) => ({
-    name: row.project,
-    order: row.order,
-    due: row.due,
-    progress: row.progress,
-    tone: row.progress < 35 ? "warning" : row.progress > 70 ? "ok" : "active",
-  }));
-
-  return {
-    criticalCount,
-    warningCount,
-    metrics: [
-      { label: "Спецификации", value: String(planningState.projects.length), caption: "в производстве", tone: "active" },
-      { label: "Операции", value: String(planningState.slots.length), caption: `${activeSlots} в работе`, tone: "active" },
-      { label: "Плановые часы", value: formatReportNumber(slotHours), caption: "суммарная длительность", tone: "ok" },
-      { label: "Готовность", value: `${completionPercent}%`, caption: `${completedSlots}/${planningState.slots.length} закрыто`, tone: completionPercent > 70 ? "ok" : "active" },
-      { label: "Склад", value: warehouseQuantity.toLocaleString("ru-RU"), caption: `${warehouseSlots.length} финальных операций`, tone: "ok" },
-      { label: "Сигналы", value: String(warnings.length), caption: `${criticalCount} крит. · ${warningCount} пред.`, tone: criticalCount ? "critical" : warningCount ? "warning" : "ok" },
-    ],
-    workCenters,
-    lineNodes,
-    smtLines,
-    projects,
-    alarms: warnings.slice(0, 8).map((warning) => ({
-      type: warning.severity === "critical" ? "Критично" : "Риск",
-      severity: warning.severity,
-      project: getProjectDisplayName(getProject(warning.projectId)) || "План",
-      message: warning.message,
-    })),
-  };
 }
 
 function renderCalculatorPage() {
@@ -1917,7 +3509,7 @@ function renderCalculatorPage() {
         <div class="calculator-simple-grid">
           <section class="calculator-panel calculator-input-panel calculator-smt-input-panel">
             <div class="report-card-head">
-              <strong>01 · Входные данные</strong>
+              <strong>Входные данные</strong>
               <span>${inputStatus.complete ? "готово к расчету SMT" : "выберите BOM, линию и количество"}</span>
             </div>
             <div class="calculator-form-grid calculator-input-grid">
@@ -1958,7 +3550,7 @@ function renderCalculatorPage() {
 
           <section class="calculator-panel calculator-result-panel calculator-smt-result-panel">
             <div class="report-card-head">
-              <strong>02 · Результат расчета SMT</strong>
+              <strong>Результат расчета SMT</strong>
               <span>${inputStatus.complete ? escapeHtml(calc.bomList?.name || "BOM") : "расчет появится после заполнения вводных"}</span>
             </div>
             <div class="calculator-kpis">
@@ -1973,7 +3565,7 @@ function renderCalculatorPage() {
 
           <section class="calculator-panel component-matrix-panel calculator-smt-component-panel">
             <div class="directory-table-toolbar">
-              <strong>03 · Расчет по компонентам BOM</strong>
+              <strong>Расчет по компонентам BOM</strong>
               <span>${componentRows.length ? `${componentRows.length} типов · ${totalPlacements.toLocaleString("ru-RU")} установок` : "выберите BOM и параметры запуска"}</span>
             </div>
             <div class="directory-table-wrap" data-layout="table">
@@ -2064,7 +3656,7 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
   return `
     <section class="calculator-panel project-bindings-panel" data-calculator-block="bindings"${visibilityAttr}>
       <div class="directory-table-toolbar">
-        <strong>07 · Текущие спецификации</strong>
+        <strong>Текущие спецификации</strong>
         <span>спецификация, BOM, маршрут и запуск</span>
       </div>
       <div class="project-list-table" role="list">
@@ -2101,7 +3693,7 @@ function renderCalculatorSavePanel(calc, visibilityAttr = "") {
   return `
     <section class="calculator-panel calculator-save-panel" data-calculator-block="save"${visibilityAttr}>
       <div class="report-card-head">
-        <strong>06 · Передача в план</strong>
+        <strong>Передача в план</strong>
         <span>${savedReady ? `сохранено ${formatDateTime(calculatorState.lastSavedAt)}` : "сохраните маршрут спецификации для Ганта"}</span>
       </div>
       <div class="calculator-kpis">
@@ -2132,7 +3724,7 @@ function renderCalculatorSavePanel(calc, visibilityAttr = "") {
           <span>${savedReady
             ? "Маршрутная карта сохранена в спецификацию. Следующий шаг - постановка операций на диаграмму Ганта."
             : routeReady
-              ? "Проверьте маршрут и сохраните его в спецификацию, чтобы планирование использовало актуальные операции."
+              ? "Проверьте маршрут и сохраните его в спецификацию, чтобы заказ на пр-во использовал актуальные операции."
               : "Сначала сформируйте маршрутную карту на этапе 04."}</span>
         </div>
       </div>
@@ -2194,7 +3786,7 @@ function renderProjectReadinessPanel(calc) {
   return `
     <section class="calculator-panel project-readiness-panel">
       <div class="directory-table-toolbar">
-        <strong>00 · Готовность спецификации</strong>
+        <strong>Готовность спецификации</strong>
         <span>${escapeHtml(specification?.name || "сквозной сценарий подготовки")}</span>
       </div>
       <div class="project-readiness-steps">
@@ -2217,17 +3809,19 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
   const bomEntries = calc.specification
     ? getSpecificationBomEntries(calc.specification.id)
     : calculatorState.noSpecification && calc.bomList
-      ? [{ bom: calc.bomList, quantity: 1, slot: "PCB" }]
+      ? [{ bom: calc.bomList, quantity: 1, boardsPerPanel: calc.boardsPerPanel || 1, slot: "PCB" }]
       : [];
   const rows = bomEntries.map((entry, index) => {
     const boards = Number(calc.boardQuantity || 0) * Number(entry.quantity || 0);
-    const panels = calc.boardsPerPanel > 0 ? Math.ceil(boards / calc.boardsPerPanel) : 0;
+    const boardsPerPanel = normalizeBoardsPerPanel(entry.boardsPerPanel, calc.boardsPerPanel || 1);
+    const panels = boardsPerPanel > 0 ? Math.ceil(boards / boardsPerPanel) : 0;
     const operation = calc.operationResults.find((result) => result.bomListId === entry.bom.id)
       || getRouteOperations().find((item) => item.bomListId === entry.bom.id);
     return {
       index: index + 1,
       entry,
       boards,
+      boardsPerPanel,
       panels,
       operation,
     };
@@ -2236,7 +3830,7 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
   return `
     <section class="calculator-panel spec-bom-plan-panel" data-calculator-block="specBom"${visibilityAttr}>
       <div class="directory-table-toolbar">
-        <strong>02 · BOM из спецификации</strong>
+        <strong>BOM из спецификации</strong>
         <span>${rows.length ? "каждый BOM станет отдельной SMT-операцией" : "BOM пока не привязаны"}</span>
       </div>
       <div class="spec-bom-plan-list">
@@ -2249,6 +3843,7 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
             </div>
             <em>${row.entry.quantity}x в изделии</em>
             <em>${row.boards.toLocaleString("ru-RU")} плат</em>
+            <em>${row.boardsPerPanel.toLocaleString("ru-RU")} плат/мульт.</em>
             <em>${row.panels.toLocaleString("ru-RU")} мультипл.</em>
             <b>${row.operation ? formatDuration(row.operation.totalMs || 0) : "нет операции"}</b>
           </article>
@@ -2288,10 +3883,16 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
       ? `data-dense-speki-structure-department="${escapeAttribute(options.itemId || "")}"`
     : options.type === "routeStep"
     ? `data-dense-route-step-field="${escapeAttribute(name)}" data-route-step-id="${escapeAttribute(options.stepId || "")}"`
+    : options.type === "operationMapForm"
+      ? `data-dense-operation-map-field="${escapeAttribute(name)}"`
     : options.type === "routeModule"
       ? `data-dense-route-field="${escapeAttribute(name)}"`
       : options.type === "route"
         ? `data-dense-route-op-field="${escapeAttribute(name)}"`
+        : options.type === "bomNomenclature"
+          ? `data-dense-bom-nomenclature="${escapeAttribute(options.bomId || "")}"`
+        : options.type === "nomenclatureType"
+          ? `data-dense-nomenclature-type="${escapeAttribute(name)}"`
         : options.type === "toolbar"
           ? `data-dense-toolbar-select="${escapeAttribute(name)}"`
           : `data-dense-calc-select="${escapeAttribute(name)}"`;
@@ -2333,6 +3934,46 @@ function getCalculatorInputStatus(calc = calculateComplexityResult()) {
 
 function isCalculatorInputsComplete() {
   return getCalculatorInputStatus(calculateComplexityResult()).complete;
+}
+
+function getCalculatorInputsSignature() {
+  return JSON.stringify({
+    projectId: calculatorState.projectId || "",
+    specificationId: calculatorState.specificationId || "",
+    noSpecification: Boolean(calculatorState.noSpecification),
+    bomListId: calculatorState.bomListId || "",
+    workCenterId: calculatorState.workCenterId || "",
+    resourceId: calculatorState.resourceId || "",
+    boardQuantity: normalizeOptionalPositiveInteger(calculatorState.boardQuantity) || "",
+    boardsPerPanel: normalizeOptionalPositiveInteger(calculatorState.boardsPerPanel) || "",
+    efficiency: Math.round(Number(calculatorState.efficiency || 0) * 100) / 100,
+  });
+}
+
+function isCalculatorInputsDirty() {
+  return !calculatorState.inputsSavedSignature || calculatorState.inputsSavedSignature !== getCalculatorInputsSignature();
+}
+
+function getCalculatorRouteSignature() {
+  return JSON.stringify(getRouteOperations().map((operation) => ({
+    operationName: operation.operationName || "",
+    workCenterId: operation.workCenterId || "",
+    resourceId: operation.resourceId || "",
+    calculationType: operation.calculationType || "",
+    stepOrder: Number(operation.stepOrder || 0),
+    secondsPerPanel: Number(operation.secondsPerPanel || 0),
+    setupMin: Number(operation.setupMin || 0),
+    bomListId: operation.bomListId || "",
+    quantityMultiplier: Number(operation.quantityMultiplier || 1),
+    boardsPerPanel: normalizeBoardsPerPanel(operation.boardsPerPanel, calculatorState.boardsPerPanel || 1),
+    unitsPerHour: Number(operation.unitsPerHour || 0),
+    counts: Object.entries(calculatorState.componentCountsByOperation?.[operation.id] || {})
+      .sort(([left], [right]) => String(left).localeCompare(String(right))),
+  })));
+}
+
+function isCalculatorRouteDirty() {
+  return !calculatorState.routeSavedSignature || calculatorState.routeSavedSignature !== getCalculatorRouteSignature();
 }
 
 function getCalculatorWorkflow(calc) {
@@ -2434,7 +4075,7 @@ function calculateComplexityResult() {
     project: null,
     specification: null,
     bomList,
-    bomEntries: bomList ? [{ bom: bomList, quantity: 1, slot: "SMT" }] : [],
+    bomEntries: bomList ? [{ bom: bomList, quantity: 1, boardsPerPanel, slot: "SMT" }] : [],
     smtLine,
     boardQuantity,
     boardsPerPanel,
@@ -2492,6 +4133,7 @@ function calculateSmtBomOperation(bomList, smtLine, context) {
     resourceId: smtLine?.id || "",
     bomList,
     bomListId: bomList?.id || "",
+    boardsPerPanel: context.boardsPerPanel,
     bomEntryQuantity: 1,
     operationBoardQuantity: context.boardQuantity,
     operationPanelCount: context.panelCount,
@@ -2554,11 +4196,12 @@ function calculateRouteOperation(operation, context) {
   const resource = resources.find((item) => item.id === operation.resourceId) || resources[0] || directoryState.resources[0];
   const setupMs = Math.max(0, Number(operation.setupMin || resource?.changeoverMin || 0) * 60 * 1000);
   const quantityMultiplier = Math.max(1, Number(operation.quantityMultiplier || 1));
+  const operationBoardsPerPanel = normalizeBoardsPerPanel(operation.boardsPerPanel, context.boardsPerPanel || 1);
   const operationBoardQuantity = operation.calculationType === "components"
     ? context.boardQuantity * quantityMultiplier
     : context.boardQuantity;
   const operationPanelCount = operation.calculationType === "components"
-    ? Math.max(1, Math.ceil(operationBoardQuantity / Math.max(1, context.boardsPerPanel)))
+    ? Math.max(1, Math.ceil(operationBoardQuantity / operationBoardsPerPanel))
     : context.panelCount;
   const operationBomList = getBomList(operation.bomListId);
 
@@ -2578,19 +4221,20 @@ function calculateRouteOperation(operation, context) {
         coefficient,
         effectiveCph,
         secondsPerBoard,
-        secondsPerPanel: secondsPerBoard * context.boardsPerPanel,
+        secondsPerPanel: secondsPerBoard * operationBoardsPerPanel,
         totalPlacements: count * operationBoardQuantity,
         complexity: count * coefficient,
       };
     });
     const perBoardSeconds = componentRows.reduce((sum, row) => sum + row.secondsPerBoard, 0);
-    const perPanelSeconds = perBoardSeconds * context.boardsPerPanel;
+    const perPanelSeconds = perBoardSeconds * operationBoardsPerPanel;
     const totalMs = perPanelSeconds * operationPanelCount * 1000 + setupMs;
     return {
       ...operation,
       workCenter,
       resource,
       bomList: operationBomList,
+      boardsPerPanel: operationBoardsPerPanel,
       bomEntryQuantity: quantityMultiplier,
       operationBoardQuantity,
       operationPanelCount,
@@ -2606,15 +4250,16 @@ function calculateRouteOperation(operation, context) {
     };
   }
 
-  const fallbackSeconds = getDefaultSecondsPerPanel(operation.workCenterId, context.boardsPerPanel);
+  const fallbackSeconds = getDefaultSecondsPerPanel(operation.workCenterId, operationBoardsPerPanel);
   const perPanelSeconds = Math.max(0, Number(operation.secondsPerPanel || fallbackSeconds));
-  const perBoardSeconds = perPanelSeconds / Math.max(1, context.boardsPerPanel);
+  const perBoardSeconds = perPanelSeconds / operationBoardsPerPanel;
   const totalMs = perPanelSeconds * operationPanelCount * 1000 + setupMs;
   return {
     ...operation,
     workCenter,
     resource,
     bomList: operationBomList,
+    boardsPerPanel: operationBoardsPerPanel,
     bomEntryQuantity: quantityMultiplier,
     operationBoardQuantity,
     operationPanelCount,
@@ -2631,7 +4276,7 @@ function calculateRouteOperation(operation, context) {
 }
 
 function getCalculatorProject() {
-  return planningState.projects.find((project) => project.id === calculatorState.projectId) || null;
+  return getProject(calculatorState.projectId || calculatorState.specificationId);
 }
 
 function getCalculatorWorkCenter() {
@@ -2655,6 +4300,7 @@ function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
   const resources = getResourcesForWorkCenter(workCenterId);
   const resource = resources.find((item) => item.id === operation.resourceId) || resources[0];
   const calculationType = operation.calculationType || (workCenterId === "smt" ? "components" : "manual");
+  const normalizedBoardsPerPanel = normalizeBoardsPerPanel(operation.boardsPerPanel, boardsPerPanel || 1);
   return {
     id: operation.id || makeId("op"),
     stepOrder: Math.max(1, Number(operation.stepOrder || stepOrder)),
@@ -2663,6 +4309,7 @@ function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
     resourceId: resource?.id || operation.resourceId || "",
     calculationType,
     secondsPerPanel: Math.max(0, Number(operation.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, boardsPerPanel))),
+    boardsPerPanel: normalizedBoardsPerPanel,
     setupMin: Math.max(0, Number(operation.setupMin || resource?.changeoverMin || 0)),
     comment: operation.comment || "",
     bomListId: operation.bomListId || "",
@@ -2673,12 +4320,13 @@ function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
 }
 
 function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalculatorState.boardsPerPanel) {
-  const steps = getProjectRouteSteps(projectId || planningState.projects[0]?.id, planningState);
+  const route = getProjectRouteForModule(projectId || calculatorState.specificationId);
+  const steps = route ? getRouteStepsForModule(route.id) : [];
   const specification = (directoryState.specifications || []).find((item) => item.id === calculatorState.specificationId)
     || getProjectSpecification(projectId);
   const selectedBom = getBomList(calculatorState.bomListId);
   const bomEntries = calculatorState.noSpecification && selectedBom
-    ? [{ bom: selectedBom, quantity: 1, slot: "PCB" }]
+    ? [{ bom: selectedBom, quantity: 1, boardsPerPanel, slot: "PCB" }]
     : getSpecificationBomEntries(specification?.id);
   const source = steps.length ? steps : [
     { workCenterId: "smt", operationName: "SMT-монтаж", stepOrder: 1 },
@@ -2694,7 +4342,7 @@ function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalcula
   source.forEach((step) => {
     const resource = getResourcesForWorkCenter(step.workCenterId)[0];
     const isExpandableSmt = step.workCenterId === "smt" && bomEntries.length > 0 && !step.bomListId;
-    const entries = isExpandableSmt ? bomEntries : [{ bom: getBomList(step.bomListId), quantity: step.quantityMultiplier || 1, slot: step.bomSlot || "" }];
+    const entries = isExpandableSmt ? bomEntries : [{ bom: getBomList(step.bomListId), quantity: step.quantityMultiplier || 1, boardsPerPanel: step.boardsPerPanel || boardsPerPanel || 1, slot: step.bomSlot || "" }];
 
     entries.forEach((entry) => {
       const entryLabel = entry.bom?.resultItem || entry.bom?.name || "";
@@ -2710,6 +4358,7 @@ function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalcula
         resourceId: resource?.id || "",
         calculationType: step.workCenterId === "smt" ? "components" : "manual",
         secondsPerPanel: getDefaultSecondsPerPanel(step.workCenterId, boardsPerPanel),
+        boardsPerPanel: entry.boardsPerPanel || step.boardsPerPanel || boardsPerPanel || 1,
         setupMin: Number(resource?.changeoverMin || 0),
         comment: step.isRequired === false ? "опциональная операция" : "",
         bomListId: entry.bom?.id || step.bomListId || "",
@@ -2767,7 +4416,9 @@ function getComponentTypes() {
 
 function getProjectSpecification(projectId) {
   if (!projectId) return null;
-  return (directoryState.specifications || []).find((specification) => specification.projectId === projectId) || null;
+  return (directoryState.specifications || []).find((specification) => (
+    specification.id === projectId || specification.projectId === projectId
+  )) || null;
 }
 
 function normalizeSpecificationStructureItem(item, index = 0) {
@@ -2776,12 +4427,21 @@ function normalizeSpecificationStructureItem(item, index = 0) {
   const rawQuantity = Number(item?.quantity ?? item?.qty ?? 1);
   const quantity = Number.isFinite(rawQuantity) && rawQuantity >= 0 ? Math.round(rawQuantity) : 1;
   const rawExecutionType = String(item?.executionType || item?.fulfillmentType || "");
-  const executionType = ["make", "buy"].includes(rawExecutionType)
+  const nomenclatureItem = type === "nomenclature" || type === "part"
+    ? (directoryState.nomenclature || []).find((entry) => entry.id === String(item?.nomenclatureId || item?.itemId || ""))
+    : null;
+  const executionType = nomenclatureItem?.sourceBomResultId
+    ? "make"
+    : ["make", "buy"].includes(rawExecutionType)
     ? rawExecutionType
     : type === "nomenclature" || type === "part"
-      ? "buy"
+      ? getDefaultNomenclatureExecutionType(nomenclatureItem)
       : "make";
-  const operationName = String(item?.operationName || item?.operation || item?.routeOperation || getDefaultSpekiOperationName(type, executionType));
+  const defaultOperationName = type === "nomenclature" || type === "part"
+    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType)
+    : getDefaultSpekiOperationName(type, executionType);
+  const operationName = String(item?.operationName || item?.operation || item?.routeOperation || defaultOperationName);
+  const bomListId = type === "bom" ? String(item?.bomListId || item?.bomId || "") : "";
   return {
     id: String(item?.id || makeId("spi")),
     parentId: String(item?.parentId || "root"),
@@ -2789,12 +4449,13 @@ function normalizeSpecificationStructureItem(item, index = 0) {
     executionType,
     operationName,
     departmentName: String(item?.departmentName || item?.department || ""),
-    bomListId: type === "bom" ? String(item?.bomListId || item?.bomId || "") : "",
+    bomListId,
     specificationId: type === "specification" ? String(item?.specificationId || item?.linkedSpecificationId || "") : "",
     nomenclatureId: type === "nomenclature" ? String(item?.nomenclatureId || item?.itemId || "") : "",
     name: String(item?.name || ""),
     quantity,
     unit: String(item?.unit || (type === "assembly" ? "узел" : type === "bom" ? "плата" : type === "specification" ? "спец." : "шт.")),
+    boardsPerPanel: type === "bom" ? normalizeBoardsPerPanel(item?.boardsPerPanel ?? item?.boardsInPanel ?? item?.panelSize ?? 1, 1) : 1,
     resultItem: String(item?.resultItem || ""),
     note: String(item?.note || ""),
     position: Math.max(1, Math.round(Number(item?.position || index + 1))),
@@ -2807,16 +4468,22 @@ function buildDefaultSpecificationStructureItems(specification) {
   const pushBom = (bomListId, quantity, slot) => {
     const bom = getBomList(bomListId);
     if (!bom || Number(quantity || 0) <= 0) return;
+    const resultNomenclature = getBomResultNomenclatureItem(bom.id);
     rows.push(normalizeSpecificationStructureItem({
       id: `${specification.id || "spec"}-bom-${String(slot).toLowerCase()}`,
-      type: "bom",
+      type: resultNomenclature ? "nomenclature" : "bom",
       parentId: "root",
-      bomListId: bom.id,
-      name: bom.name,
+      bomListId: resultNomenclature ? "" : bom.id,
+      nomenclatureId: resultNomenclature?.id || "",
+      executionType: "make",
+      operationName: "SMT-монтаж",
+      departmentName: getDefaultSpekiDepartmentName("SMT-монтаж"),
+      name: resultNomenclature?.name || bom.name,
       quantity: Number(quantity || 1),
-      unit: "плата",
-      resultItem: bom.resultItem || bom.boardCode || "",
-      note: `BOM ${slot}`,
+      unit: resultNomenclature?.unit || "шт.",
+      boardsPerPanel: 1,
+      resultItem: resultNomenclature?.name || bom.resultItem || bom.boardCode || "",
+      note: resultNomenclature ? `Результат BOM ${slot}` : `BOM ${slot}`,
       position: rows.length + 1,
     }, rows.length));
   };
@@ -2867,9 +4534,6 @@ function getSpecificationBomCandidates(specification, items = []) {
     candidates.push(bom);
   };
 
-  (directoryState.bomLists || [])
-    .filter((bom) => specification?.projectId && bom.projectId === specification.projectId)
-    .forEach(addBom);
   [specification?.bomListA, specification?.bomListB]
     .map((bomId) => getBomList(bomId))
     .forEach(addBom);
@@ -2958,13 +4622,12 @@ function getDefaultSpekiDepartmentName(operationName) {
 
 function getSpecificationStructureRows(specification) {
   if (!specification) return [];
-  const project = getProject(specification.projectId);
   const rows = [{
     level: 0,
     position: "00",
     type: "Узел",
     name: specification.outputItem || specification.name || "Итоговое изделие",
-    source: project ? getProjectDisplayName(project) || specification.name : "Производственная спецификация",
+    source: "Производственная спецификация",
     quantity: 1,
     unit: "изд.",
     result: specification.outputItem || specification.name || "",
@@ -2995,6 +4658,7 @@ function getSpecificationStructureRows(specification) {
       source: item.type === "bom" ? bom?.boardCode || "BOM" : item.type === "specification" ? "Вложенная спецификация" : item.type === "assembly" ? "Внутренний узел" : item.type === "nomenclature" ? nomenclatureItem?.article || "Номенклатура" : "Спецификация",
       quantity: item.quantity,
       unit: item.unit,
+      boardsPerPanel: getSpecificationItemBoardsPerPanel(item),
       result: item.type === "bom"
         ? bom?.resultItem || item.resultItem || bom?.name || ""
         : item.type === "specification"
@@ -3026,18 +4690,61 @@ function getSpecificationStructureRows(specification) {
   return rows;
 }
 
+function getSpecificationBomResultNameKeys(specification) {
+  const keys = new Set();
+  [specification?.bomListA, specification?.bomListB]
+    .map((bomId) => getBomList(bomId))
+    .filter(Boolean)
+    .forEach((bom) => {
+      [
+        bom.name,
+        bom.resultItem,
+        bom.boardCode,
+        getBomResultNomenclatureItem(bom.id)?.name,
+      ].filter(Boolean).forEach((name) => keys.add(normalizeLookupText(name)));
+    });
+  return keys;
+}
+
+function cleanSpecificationExtraItems(specification) {
+  const blockedKeys = getSpecificationBomResultNameKeys(specification);
+  const seenKeys = new Set();
+  return String(specification?.extraItems || "")
+    .split(";")
+    .map((item) => item.trim())
+    .filter((item) => {
+      const key = normalizeLookupText(item);
+      if (!key || seenKeys.has(key) || blockedKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    })
+    .join("; ");
+}
+
 function syncSpecificationDerivedFields(specification) {
-  const items = getSpecificationStructureItems(specification);
-  const bomItems = items.filter((item) => item.type === "bom" && item.bomListId);
-  const partItems = items.filter((item) => (item.type === "part" || item.type === "nomenclature") && item.name);
-  const isManaged = Boolean(specification.structureManaged || Array.isArray(specification.structureItems));
+  const cleanedExtraItems = cleanSpecificationExtraItems(specification);
+  const sourceSpecification = cleanedExtraItems === String(specification?.extraItems || "")
+    ? specification
+    : { ...specification, extraItems: cleanedExtraItems };
+  const items = getSpecificationStructureItems(sourceSpecification);
+  const bomItems = items
+    .map((item) => ({ item, bomId: getSpecificationItemBomId(item) }))
+    .filter((entry) => entry.bomId);
+  const partItems = items.filter((item) => (
+    (item.type === "part" || item.type === "nomenclature")
+    && item.name
+    && !getSpecificationItemBomId(item)
+  ));
+  const isManaged = Boolean(sourceSpecification.structureManaged || Array.isArray(sourceSpecification.structureItems));
   return {
-    ...specification,
-    bomListA: bomItems[0]?.bomListId || (isManaged ? "" : specification.bomListA || ""),
-    bomQtyA: bomItems[0] ? Number(bomItems[0].quantity || 0) : isManaged ? 0 : Number(specification.bomQtyA || 0),
-    bomListB: bomItems[1]?.bomListId || "",
-    bomQtyB: bomItems[1] ? Number(bomItems[1].quantity || 0) : 0,
-    extraItems: partItems.map((item) => item.name).join("; ") || (isManaged ? "" : specification.extraItems || ""),
+    ...sourceSpecification,
+    bomListA: bomItems[0]?.bomId || (isManaged ? "" : sourceSpecification.bomListA || ""),
+    bomQtyA: bomItems[0] ? Number(bomItems[0].item.quantity || 0) : isManaged ? 0 : Number(sourceSpecification.bomQtyA || 0),
+    bomListB: bomItems[1]?.bomId || "",
+    bomQtyB: bomItems[1] ? Number(bomItems[1].item.quantity || 0) : 0,
+    extraItems: isManaged
+      ? sourceSpecification.extraItems || ""
+      : partItems.map((item) => item.name).join("; ") || sourceSpecification.extraItems || "",
   };
 }
 
@@ -3045,12 +4752,14 @@ function getSpecificationBomEntries(specificationId) {
   const specification = (directoryState.specifications || []).find((item) => item.id === specificationId);
   if (!specification) return [];
   return getSpecificationStructureItems(specification)
-    .filter((item) => item.type === "bom" && item.bomListId && Number(item.quantity || 0) > 0)
+    .map((item) => ({ item, bomId: getSpecificationItemBomId(item) }))
+    .filter(({ bomId, item }) => bomId && Number(item.quantity || 0) > 0)
     .map((item, index) => ({
-      bom: getBomList(item.bomListId),
-      quantity: Math.max(0, Number(item.quantity || 0)),
-      slot: item.note || String(index + 1),
-      structureItemId: item.id,
+      bom: getBomList(item.bomId),
+      quantity: Math.max(0, Number(item.item.quantity || 0)),
+      boardsPerPanel: getSpecificationItemBoardsPerPanel(item.item),
+      slot: item.item.note || String(index + 1),
+      structureItemId: item.item.id,
     }))
     .filter((entry) => entry.bom && entry.quantity > 0);
 }
@@ -3088,6 +4797,40 @@ function getBomList(bomId) {
   return (directoryState.bomLists || []).find((bom) => bom.id === bomId) || null;
 }
 
+function getBomResultNomenclatureItem(bomId) {
+  const bom = getBomList(bomId);
+  if (!bom) return null;
+
+  const items = directoryState.nomenclature || [];
+  const direct = items.find((item) => String(item.sourceBomResultId || "") === String(bom.id));
+  if (direct) return direct;
+
+  const payload = makeBomResultNomenclaturePayload(bom);
+  if (!payload) return null;
+  const index = findBomResultNomenclatureIndex(items, bom, payload);
+  return index >= 0 ? items[index] : null;
+}
+
+function getNomenclatureSourceBomId(nomenclatureId) {
+  const item = (directoryState.nomenclature || []).find((entry) => entry.id === nomenclatureId);
+  if (!item) return "";
+  if (item.sourceBomResultId) return String(item.sourceBomResultId);
+  if (normalizeNomenclatureType(item.type) !== "Печатные платы") return "";
+  const sourceIds = Array.isArray(item.sourceBomIds) ? item.sourceBomIds : [];
+  return String(sourceIds[0] || "");
+}
+
+function getSpecificationItemBomId(item) {
+  if (!item) return "";
+  if (item.type === "bom") return String(item.bomListId || "");
+  if (item.type === "nomenclature") return getNomenclatureSourceBomId(item.nomenclatureId);
+  return "";
+}
+
+function getSpecificationItemBom(item) {
+  return getBomList(getSpecificationItemBomId(item));
+}
+
 function getBomComponentCounts(bom) {
   if (!bom) return getDefaultComponentCounts();
   const importRows = Array.isArray(bom.importRows) ? bom.importRows.map((row) => normalizeBomImportRow(row)) : [];
@@ -3104,12 +4847,21 @@ function getBomComponentCounts(bom) {
   ]));
 }
 
+function getBomComponentFieldCounts(componentCounts = {}) {
+  return Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [
+    field.key,
+    Math.max(0, Math.round(Number(componentCounts[field.key] ?? componentCounts[field.componentId] ?? 0))),
+  ]));
+}
+
 function normalizeBomImportRow(row) {
   const source = Array.isArray(row?.values) ? row.values : Array.isArray(row) ? row : [];
   const values = Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, index) => source[index] ?? row?.[index] ?? "");
   const packageValue = normalizeBomPackageValue(values[5]);
+  const quantity = normalizeBomQuantityValue(values[6]);
   const normalizedValues = [...values];
   normalizedValues[5] = packageValue;
+  normalizedValues[6] = quantity;
   return {
     sequence: values[0] ?? "",
     description: values[1] ?? "",
@@ -3117,9 +4869,10 @@ function normalizeBomImportRow(row) {
     manufacturerPart: values[3] ?? "",
     manufacturer: values[4] ?? "",
     package: packageValue,
-    quantity: Math.max(0, Number(values[6] || 0)),
+    quantity,
     note: values[7] ?? "",
     extra: values[8] ?? "",
+    nomenclatureId: row?.nomenclatureId || "",
     values: normalizedValues,
   };
 }
@@ -3163,14 +4916,32 @@ function classifyBomPackage(row) {
 function normalizeBomPackageValue(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
-  const compact = raw.replace(/[.,]/g, "").replace(/\s+/g, "");
   const leadingZeroPackages = {
     201: "0201",
     402: "0402",
     603: "0603",
     805: "0805",
   };
+  const numeric = Number(raw.replace(",", "."));
+  if (Number.isFinite(numeric) && Number.isInteger(numeric)) {
+    const normalizedNumericPackage = leadingZeroPackages[String(numeric)];
+    if (normalizedNumericPackage) return normalizedNumericPackage;
+  }
+
+  const compact = raw.replace(/[.,]/g, "").replace(/\s+/g, "");
   return leadingZeroPackages[compact] || raw;
+}
+
+function normalizeBomQuantityValue(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.round(value));
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+  const compact = raw.replace(/\s+/g, "");
+  const normalizedDecimal = compact.replace(",", ".");
+  const decimalNumber = Number(normalizedDecimal);
+  if (Number.isFinite(decimalNumber)) return Math.max(0, Math.round(decimalNumber));
+  const digitNumber = Number(compact.replace(/[^\d.-]/g, ""));
+  return Number.isFinite(digitNumber) ? Math.max(0, Math.round(digitNumber)) : 0;
 }
 
 function normalizePackageText(value) {
@@ -3190,6 +4961,534 @@ function summarizeBomComponentFields(importRows) {
   return Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, Math.round(value)]));
 }
 
+function makeBomImportNomenclaturePayload(row, bom, stamp) {
+  const normalizedRow = normalizeBomImportRow(row);
+  const name = String(normalizedRow.description || normalizedRow.manufacturerPart || normalizedRow.designator || `Компонент ${normalizedRow.sequence || ""}`).trim();
+  const article = String(normalizedRow.manufacturerPart || "").trim();
+  if (!name && !article) return null;
+
+  const descriptionParts = [
+    normalizedRow.designator ? `Обозначение: ${normalizedRow.designator}` : "",
+    normalizedRow.note ? `Примечание: ${normalizedRow.note}` : "",
+    bom?.name ? `Источник BOM: ${bom.name}` : "",
+  ].filter(Boolean);
+
+  return normalizeDirectoryRow("nomenclature", {
+    id: makeId("nom"),
+    name,
+    article,
+    type: NOMENCLATURE_REA_COMPONENT_TYPE,
+    package: normalizedRow.package,
+    unit: "шт.",
+    manufacturer: normalizedRow.manufacturer,
+    description: descriptionParts.join(". "),
+    status: "Активен",
+    sourceBomIds: bom?.id ? [bom.id] : [],
+    lastBomImportAt: stamp,
+    updatedAt: stamp,
+  });
+}
+
+function makeBomResultNomenclaturePayload(bom, stamp = new Date().toISOString()) {
+  const name = String(bom?.resultItem || bom?.boardCode || bom?.name || "").trim();
+  if (!name) return null;
+
+  const descriptionParts = [
+    bom?.name ? `Результат BOM: ${bom.name}` : "",
+    bom?.boardCode ? `Код платы: ${bom.boardCode}` : "",
+    "Тип позиции: печатная плата",
+  ].filter(Boolean);
+
+  return normalizeDirectoryRow("nomenclature", {
+    id: makeId("nom"),
+    name,
+    article: String(bom?.boardCode || "").trim(),
+    type: "Печатные платы",
+    package: "PCB",
+    unit: "шт.",
+    manufacturer: "",
+    description: descriptionParts.join(". "),
+    status: "Активен",
+    sourceBomResultId: bom?.id || "",
+    sourceBomIds: bom?.id ? [bom.id] : [],
+    lastBomResultSyncAt: stamp,
+    updatedAt: stamp,
+  });
+}
+
+function findImportedNomenclatureIndex(items, payload) {
+  const article = normalizeLookupText(payload.article);
+  const name = normalizeLookupText(payload.name);
+  const packageValue = normalizePackageText(payload.package);
+  const manufacturer = normalizeLookupText(payload.manufacturer);
+
+  if (article) {
+    const articleIndex = items.findIndex((item) => normalizeLookupText(item.article) === article);
+    if (articleIndex >= 0) return articleIndex;
+  }
+
+  return items.findIndex((item) => (
+    name
+    && normalizeLookupText(item.name) === name
+    && normalizePackageText(item.package) === packageValue
+    && normalizeLookupText(item.manufacturer) === manufacturer
+  ));
+}
+
+function findBomResultNomenclatureIndex(items, bom, payload) {
+  const bomId = String(bom?.id || "");
+  const article = normalizeLookupText(payload?.article);
+  const name = normalizeLookupText(payload?.name);
+
+  if (bomId) {
+    const directIndex = items.findIndex((item) => String(item.sourceBomResultId || "") === bomId);
+    if (directIndex >= 0) return directIndex;
+  }
+
+  if (article) {
+    const articleIndex = items.findIndex((item) => (
+      normalizeNomenclatureType(item.type) === "Печатные платы"
+      && normalizeLookupText(item.article) === article
+    ));
+    if (articleIndex >= 0) return articleIndex;
+  }
+
+  if (name) {
+    return items.findIndex((item) => (
+      normalizeNomenclatureType(item.type) === "Печатные платы"
+      && normalizeLookupText(item.name) === name
+    ));
+  }
+
+  return -1;
+}
+
+function mergeBomSourceIds(existing, incoming) {
+  return [...new Set([
+    ...(Array.isArray(existing?.sourceBomIds) ? existing.sourceBomIds : []),
+    ...(Array.isArray(incoming?.sourceBomIds) ? incoming.sourceBomIds : []),
+  ].filter(Boolean))];
+}
+
+function isReaNomenclatureItem(item) {
+  return normalizeLookupText(item?.type) === normalizeLookupText(NOMENCLATURE_REA_COMPONENT_TYPE);
+}
+
+function normalizeNomenclatureType(value) {
+  const text = String(value || "").trim();
+  const normalized = normalizeLookupText(text);
+  if (!normalized || ["компонент", "компоненты", "рэа", "rea", "радиоэлектронные компоненты"].includes(normalized)) {
+    return NOMENCLATURE_REA_COMPONENT_TYPE;
+  }
+  return text;
+}
+
+function getNomenclatureTypeRows(options = {}) {
+  const rows = Array.isArray(directoryState?.nomenclatureTypes) ? directoryState.nomenclatureTypes : [];
+  const seen = new Set();
+  return rows
+    .map((row) => normalizeDirectoryRow("nomenclatureTypes", row))
+    .filter((row) => row.name)
+    .filter((row) => options.includeInactive || !["отключен", "удален", "архив"].includes(normalizeLookupText(row.status)))
+    .filter((row) => {
+      const key = normalizeLookupText(row.name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function makeNomenclatureTypeRow(typeName, meta = "Добавлено из модуля номенклатуры") {
+  const name = normalizeNomenclatureType(typeName);
+  const defaultRow = DEFAULT_NOMENCLATURE_TYPES.find((item) => normalizeLookupText(item.name) === normalizeLookupText(name));
+  return normalizeDirectoryRow("nomenclatureTypes", {
+    id: defaultRow?.id || makeId("nom-type"),
+    name,
+    code: defaultRow?.code || "",
+    description: defaultRow?.description || meta,
+    status: defaultRow?.status || "Активен",
+  });
+}
+
+function ensureNomenclatureTypeExists(typeName, options = {}) {
+  const name = normalizeNomenclatureType(typeName);
+  if (!name) return "";
+  const exists = getNomenclatureTypeRows({ includeInactive: true })
+    .some((row) => normalizeLookupText(row.name) === normalizeLookupText(name));
+  if (exists) return name;
+
+  directoryState.nomenclatureTypes = [
+    ...(directoryState.nomenclatureTypes || []),
+    makeNomenclatureTypeRow(name, options.meta),
+  ];
+  return name;
+}
+
+function syncNomenclatureTypesFromItems(options = {}) {
+  const existingKeys = new Set(getNomenclatureTypeRows({ includeInactive: true }).map((row) => normalizeLookupText(row.name)));
+  const itemTypes = [...new Set((directoryState.nomenclature || [])
+    .map((item) => normalizeNomenclatureType(item.type))
+    .filter(Boolean))]
+    .filter((type) => !existingKeys.has(normalizeLookupText(type)));
+
+  if (!itemTypes.length) return false;
+  directoryState.nomenclatureTypes = [
+    ...(directoryState.nomenclatureTypes || []),
+    ...itemTypes.map((type) => makeNomenclatureTypeRow(type, "Добавлено из существующей номенклатуры")),
+  ];
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  if (options.persist) persistDirectoryState();
+  return true;
+}
+
+function syncNomenclatureTypeRename(previousName, nextName) {
+  const previous = normalizeNomenclatureType(previousName);
+  const next = normalizeNomenclatureType(nextName);
+  if (!previous || !next || normalizeLookupText(previous) === normalizeLookupText(next)) return;
+  directoryState.nomenclature = (directoryState.nomenclature || []).map((item) => (
+    normalizeLookupText(item.type) === normalizeLookupText(previous)
+      ? { ...item, type: next, updatedAt: new Date().toISOString() }
+      : item
+  ));
+  if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(previous)) {
+    ui.nomenclatureTypeFilter = next;
+  }
+}
+
+function getFallbackNomenclatureType(excludedName = "") {
+  const excluded = normalizeLookupText(excludedName);
+  return getNomenclatureTypeRows()
+    .map((row) => row.name)
+    .find((name) => normalizeLookupText(name) !== excluded) || "";
+}
+
+function getNomenclatureTypeOptions(items = directoryState.nomenclature || []) {
+  return getNomenclatureTypeRows().map((type) => ({
+    value: type.name,
+    label: type.name,
+    meta: type.description || type.code || "тип номенклатуры",
+  }));
+}
+
+function getNomenclatureTypeCounts(items = directoryState.nomenclature || []) {
+  return items.reduce((counts, item) => {
+    const type = normalizeNomenclatureType(item.type);
+    counts[type] = (counts[type] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function getNomenclatureTypeFilterValue(items = directoryState.nomenclature || []) {
+  const selected = ui.nomenclatureTypeFilter || "all";
+  if (selected === "all") return selected;
+  return getNomenclatureTypeOptions(items).some((item) => item.value === selected) ? selected : "all";
+}
+
+function getFilteredNomenclatureItems(items = directoryState.nomenclature || []) {
+  const filterValue = getNomenclatureTypeFilterValue(items);
+  if (filterValue === "all") return items;
+  return items.filter((item) => normalizeNomenclatureType(item.type) === filterValue);
+}
+
+function getReaNomenclatureItems() {
+  return (directoryState.nomenclature || [])
+    .filter(isReaNomenclatureItem)
+    .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru"));
+}
+
+function makeBomImportRowFromNomenclature(item, sequence) {
+  return normalizeBomImportRow({
+    nomenclatureId: item.id,
+    values: [
+      sequence,
+      item.name || "",
+      "",
+      item.article || "",
+      item.manufacturer || "",
+      item.package || "",
+      1,
+      "Добавлено из номенклатуры",
+      "",
+    ],
+  });
+}
+
+function getNextBomImportSequence(rows) {
+  const maxSequence = rows.reduce((max, row, index) => {
+    const number = Number(normalizeBomImportRow(row).sequence || index + 1);
+    return Number.isFinite(number) ? Math.max(max, number) : max;
+  }, 0);
+  return maxSequence + 1;
+}
+
+function updateBomImportRows(bomId, rows, options = {}) {
+  const currentBom = getBomList(bomId);
+  if (!currentBom) return null;
+
+  const stamp = new Date().toISOString();
+  const importRows = rows.map((row) => normalizeBomImportRow(row));
+  const componentTotals = summarizeBomComponentFields(importRows);
+  let nextBom = null;
+
+  directoryState.bomLists = (directoryState.bomLists || []).map((item) => {
+    if (item.id !== bomId) return item;
+    nextBom = normalizeDirectoryRow("bomLists", {
+      ...item,
+      importHeaders: item.importHeaders?.length ? item.importHeaders : BOM_IMPORT_FALLBACK_HEADERS,
+      importRows,
+      importedAt: item.importedAt || stamp,
+      updatedAt: stamp,
+      ...componentTotals,
+    });
+    return nextBom;
+  });
+
+  if (options.syncNomenclature !== false && nextBom) {
+    upsertBomImportRowsToNomenclature(nextBom, stamp);
+  }
+
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  persistDirectoryState();
+  persistUiState();
+  if (options.notify !== false) {
+    notifySaveSuccess(options.message || "Таблица BOM сохранена");
+  }
+  return nextBom;
+}
+
+function updateBomImportCell(bomId, rowIndex, columnIndex, value) {
+  const bom = getBomList(bomId);
+  if (!bom) return;
+  const rows = getBomImportRows(bom);
+  const row = rows[rowIndex];
+  if (!row || columnIndex < 0 || columnIndex >= BOM_IMPORT_COLUMN_COUNT) return;
+
+  const nextValues = [...row.values];
+  nextValues[columnIndex] = columnIndex === 6
+    ? normalizeBomQuantityValue(value)
+    : value;
+  const nextRows = rows.map((item, index) => (
+    index === rowIndex
+      ? normalizeBomImportRow({ ...row, values: nextValues })
+      : item
+  ));
+  updateBomImportRows(bomId, nextRows);
+}
+
+function deleteBomImportRow(bomId, rowIndex) {
+  const bom = getBomList(bomId);
+  if (!bom) return;
+  const rows = getBomImportRows(bom).filter((_, index) => index !== rowIndex);
+  updateBomImportRows(bomId, rows, { syncNomenclature: false });
+}
+
+function addNomenclatureToBom(bomId, nomenclatureId) {
+  const bom = getBomList(bomId);
+  const nomenclatureItem = (directoryState.nomenclature || []).find((item) => item.id === nomenclatureId);
+  if (!bom || !nomenclatureItem) return;
+  if (!isReaNomenclatureItem(nomenclatureItem)) {
+    alert("В BOM можно добавить только номенклатуру из раздела «РЭА компоненты».");
+    return;
+  }
+
+  const rows = getBomImportRows(bom);
+  const nextRows = [
+    ...rows,
+    makeBomImportRowFromNomenclature(nomenclatureItem, getNextBomImportSequence(rows)),
+  ];
+  updateBomImportRows(bomId, nextRows);
+}
+
+function ensureBomResultsInNomenclature() {
+  const bomLists = directoryState.bomLists || [];
+  if (!bomLists.length) return;
+
+  const stamp = new Date().toISOString();
+  const nextItems = [...(directoryState.nomenclature || [])];
+  let changed = false;
+
+  bomLists.forEach((bom) => {
+    const payload = makeBomResultNomenclaturePayload(bom, bom.updatedAt || bom.importedAt || stamp);
+    if (!payload) return;
+
+    const existingIndex = findBomResultNomenclatureIndex(nextItems, bom, payload);
+    if (existingIndex >= 0) {
+      const existing = nextItems[existingIndex];
+      const nextItem = normalizeDirectoryRow("nomenclature", {
+        ...existing,
+        name: payload.name,
+        article: payload.article || existing.article,
+        type: "Печатные платы",
+        package: existing.package || payload.package || "PCB",
+        unit: existing.unit || "шт.",
+        description: payload.description,
+        status: existing.status || "Активен",
+        sourceBomResultId: bom.id,
+        sourceBomIds: mergeBomSourceIds(existing, payload),
+        lastBomResultSyncAt: stamp,
+        updatedAt: stamp,
+      });
+      if (JSON.stringify(existing) !== JSON.stringify(nextItem)) {
+        nextItems[existingIndex] = nextItem;
+        changed = true;
+      }
+      return;
+    }
+
+    nextItems.push(payload);
+    changed = true;
+  });
+
+  if (!changed) return;
+  directoryState.nomenclature = nextItems;
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  persistDirectoryState();
+}
+
+function migrateSpecificationBomRowsToNomenclature() {
+  const specifications = directoryState.specifications || [];
+  if (!specifications.length) return;
+
+  let changed = false;
+  const nextSpecifications = specifications.map((specification) => {
+    const sourceItems = getSpecificationStructureItems(specification);
+    if (!sourceItems.length) return specification;
+
+    const nextItems = sourceItems.map((item) => {
+      if (item.type !== "bom" || !item.bomListId) return item;
+      const bom = getBomList(item.bomListId);
+      const resultNomenclature = getBomResultNomenclatureItem(item.bomListId)
+        || (bom ? upsertBomResultToNomenclature(bom, new Date().toISOString()) : null);
+      if (!bom || !resultNomenclature) return item;
+
+      changed = true;
+      const operationName = item.operationName || "SMT-монтаж";
+      return normalizeSpecificationStructureItem({
+        ...item,
+        type: "nomenclature",
+        bomListId: "",
+        nomenclatureId: resultNomenclature.id,
+        executionType: "make",
+        operationName,
+        departmentName: item.departmentName || getDefaultSpekiDepartmentName(operationName),
+        name: resultNomenclature.name || bom.resultItem || item.name || bom.name || "",
+        unit: resultNomenclature.unit || "шт.",
+        boardsPerPanel: 1,
+        resultItem: resultNomenclature.name || bom.resultItem || item.resultItem || "",
+        note: item.note && !/^bom\b/i.test(item.note) ? item.note : "Результат BOM",
+      });
+    });
+
+    return syncSpecificationDerivedFields({
+      ...specification,
+      structureManaged: true,
+      structureItems: nextItems,
+    });
+  });
+
+  if (!changed) return;
+  directoryState.specifications = nextSpecifications;
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  persistDirectoryState();
+}
+
+function ensureImportedBomRowsInNomenclature() {
+  const bomLists = directoryState.bomLists || [];
+  if (!bomLists.some((bom) => getBomImportRows(bom).length)) return;
+
+  const stamp = new Date().toISOString();
+  const nextItems = [...(directoryState.nomenclature || [])];
+  let created = 0;
+
+  bomLists.forEach((bom) => {
+    getBomImportRows(bom).forEach((row) => {
+      const payload = makeBomImportNomenclaturePayload(row, bom, bom.importedAt || bom.updatedAt || stamp);
+      if (!payload) return;
+      if (findImportedNomenclatureIndex(nextItems, payload) >= 0) return;
+      nextItems.push(payload);
+      created += 1;
+    });
+  });
+
+  if (!created) return;
+  directoryState.nomenclature = nextItems;
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  persistDirectoryState();
+}
+
+function upsertBomImportRowsToNomenclature(bom, stamp = new Date().toISOString()) {
+  const rows = getBomImportRows(bom);
+  if (!rows.length) return { created: 0, updated: 0 };
+
+  const nextItems = [...(directoryState.nomenclature || [])];
+  let created = 0;
+  let updated = 0;
+
+  rows.forEach((row) => {
+    const payload = makeBomImportNomenclaturePayload(row, bom, stamp);
+    if (!payload) return;
+
+    const existingIndex = findImportedNomenclatureIndex(nextItems, payload);
+    if (existingIndex >= 0) {
+      const existing = nextItems[existingIndex];
+      nextItems[existingIndex] = normalizeDirectoryRow("nomenclature", {
+        ...existing,
+        name: existing.name || payload.name,
+        article: existing.article || payload.article,
+        type: NOMENCLATURE_REA_COMPONENT_TYPE,
+        package: existing.package || payload.package,
+        unit: existing.unit || payload.unit || "шт.",
+        manufacturer: existing.manufacturer || payload.manufacturer,
+        description: existing.description || payload.description,
+        status: existing.status || "Активен",
+        sourceBomIds: mergeBomSourceIds(existing, payload),
+        lastBomImportAt: stamp,
+        updatedAt: stamp,
+      });
+      updated += 1;
+      return;
+    }
+
+    nextItems.push(payload);
+    created += 1;
+  });
+
+  directoryState.nomenclature = nextItems;
+  return { created, updated };
+}
+
+function upsertBomResultToNomenclature(bom, stamp = new Date().toISOString()) {
+  const payload = makeBomResultNomenclaturePayload(bom, stamp);
+  if (!payload) return null;
+
+  const nextItems = [...(directoryState.nomenclature || [])];
+  const existingIndex = findBomResultNomenclatureIndex(nextItems, bom, payload);
+
+  if (existingIndex >= 0) {
+    const existing = nextItems[existingIndex];
+    nextItems[existingIndex] = normalizeDirectoryRow("nomenclature", {
+      ...existing,
+      name: payload.name,
+      article: payload.article || existing.article,
+      type: "Печатные платы",
+      package: existing.package || payload.package || "PCB",
+      unit: existing.unit || "шт.",
+      description: payload.description,
+      status: existing.status || "Активен",
+      sourceBomResultId: bom.id,
+      sourceBomIds: mergeBomSourceIds(existing, payload),
+      lastBomResultSyncAt: stamp,
+      updatedAt: stamp,
+    });
+    directoryState.nomenclature = nextItems;
+    return nextItems[existingIndex];
+  }
+
+  nextItems.push(payload);
+  directoryState.nomenclature = nextItems;
+  return payload;
+}
+
 async function importBomFromXlsxFile(file, projectId = "") {
   const parsed = await parseXlsxBomFile(file);
   const name = getFileBaseName(file.name);
@@ -3202,7 +5501,7 @@ async function importBomFromXlsxFile(file, projectId = "") {
     name,
     projectId: projectId || "",
     boardCode: name,
-    resultItem: `Смонтированная печатная плата ${name}`,
+    resultItem: `Печатная плата ${name}`,
     status: "Активен",
     importHeaders: parsed.headers,
     importRows,
@@ -3217,11 +5516,14 @@ async function importBomFromXlsxFile(file, projectId = "") {
     ...(directoryState.bomLists || []).filter((item) => item.name !== row.name || item.projectId !== row.projectId),
     row,
   ];
+  upsertBomResultToNomenclature(row, stamp);
+  upsertBomImportRowsToNomenclature(row, stamp);
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   ui.activeBomId = id;
   ui.activeProjectId = projectId || "";
   persistDirectoryState();
   persistUiState();
+  notifySaveSuccess("BOM импортирован");
 }
 
 async function parseXlsxBomFile(file) {
@@ -3437,6 +5739,104 @@ function getSelectedSmtLineConfiguration({ fallback = false } = {}) {
   return fallback ? lines[0] || getDefaultSmtLineConfigurations()[0] : null;
 }
 
+function getSmtLineWorkCenterId(lineId) {
+  return `${SMT_LINE_WORKCENTER_PREFIX}${lineId}`;
+}
+
+function isSmtLineWorkCenterId(workCenterId) {
+  return String(workCenterId || "").startsWith(SMT_LINE_WORKCENTER_PREFIX);
+}
+
+function getSmtLineIdFromWorkCenterId(workCenterId) {
+  return isSmtLineWorkCenterId(workCenterId)
+    ? String(workCenterId).slice(SMT_LINE_WORKCENTER_PREFIX.length)
+    : "";
+}
+
+function getSmtLineNumberFromText(value) {
+  const text = String(value || "").toLowerCase();
+  const match = text.match(/(?:smt|смт|линия)\s*[-–—№#]?\s*(\d+)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function getStableStringHash(value) {
+  return [...String(value || "")].reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
+}
+
+function findSmtLineByNumber(number, lines) {
+  if (!number) return null;
+  return lines.find((line, index) => (
+    index + 1 === number
+    || getSmtLineNumberFromText(`${line.name} ${line.code} ${line.id}`) === number
+  )) || null;
+}
+
+function getSmtGanttLineCenters() {
+  const smtCenter = getWorkCenter("smt") || {
+    id: "smt",
+    name: "SMT-монтаж",
+    code: "SMT",
+    unitsPerHour: WORK_CENTER_RATES.smt,
+    capacity: 1,
+    shift: "08:00-20:00",
+    isActive: true,
+  };
+
+  return getSmtLineConfigurations().map((line, index) => {
+    const lineNumber = getSmtLineNumberFromText(`${line.name} ${line.code} ${line.id}`) || index + 1;
+    return {
+      ...smtCenter,
+      id: getSmtLineWorkCenterId(line.id),
+      name: line.name || `SMT линия ${lineNumber}`,
+      code: `SMT-${lineNumber}`,
+      description: line.capacity || smtCenter.description || "Производственная линия SMT",
+      parentWorkCenterId: "smt",
+      smtLineId: line.id,
+      resourceId: line.id,
+      isSmtLine: true,
+    };
+  });
+}
+
+function getSlotAssignedSmtLineId(slot) {
+  if (slot?.workCenterId !== "smt") return "";
+  const lines = getSmtLineConfigurations();
+  if (!lines.length) return "";
+
+  const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
+  const explicitResourceId = slot.resourceId || step?.resourceId || "";
+  if (explicitResourceId && lines.some((line) => line.id === explicitResourceId)) return explicitResourceId;
+
+  const hintedLine = findSmtLineByNumber(
+    getSmtLineNumberFromText(`${slot.comment || ""} ${slot.operationName || ""} ${explicitResourceId}`),
+    lines,
+  );
+  if (hintedLine) return hintedLine.id;
+
+  const hash = Math.abs(getStableStringHash(`${slot.projectId}:${slot.batchId}:${slot.routeStepId}:${slot.id}`));
+  return lines[hash % lines.length]?.id || "";
+}
+
+function getSlotGanttWorkCenterId(slot) {
+  if (slot?.workCenterId !== "smt") return slot?.workCenterId || "";
+  const lineId = getSlotAssignedSmtLineId(slot);
+  return lineId ? getSmtLineWorkCenterId(lineId) : "smt";
+}
+
+function applyGanttRowToSlot(slot, row) {
+  if (!slot || row?.type !== "workCenter") return;
+  if (row.isSmtLine || isSmtLineWorkCenterId(row.workCenterId)) {
+    slot.workCenterId = "smt";
+    slot.resourceId = row.smtLineId || getSmtLineIdFromWorkCenterId(row.workCenterId);
+    return;
+  }
+
+  slot.workCenterId = row.workCenterId;
+  if (slot.resourceId && getSmtLineConfigurations().some((line) => line.id === slot.resourceId)) {
+    slot.resourceId = "";
+  }
+}
+
 function normalizeLookupText(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -3466,21 +5866,20 @@ function formatSecondsDuration(seconds) {
 
 function getActiveProjectForModule() {
   if (ui.activeProjectId === "__new__") return null;
-  return planningState.projects.find((project) => project.id === ui.activeProjectId)
-    || planningState.projects[0]
-    || null;
+  return getProject(ui.activeProjectId)
+    || getProductionContextForSpecification(getActiveSpecificationForModule());
 }
 
 function getActiveSpecificationForModule() {
   if (ui.activeSpecificationId === "__new__") return null;
+  if (!ui.activeSpecificationId) return null;
   return (directoryState.specifications || []).find((specification) => specification.id === ui.activeSpecificationId)
-    || (directoryState.specifications || [])[0]
     || null;
 }
 
 function getSpecificationProductionProject(specification) {
   if (!specification) return null;
-  return planningState.projects.find((project) => project.id === specification.projectId) || null;
+  return getProductionContextForSpecification(specification);
 }
 
 function getSpecificationProductionQuantity(specification) {
@@ -3520,47 +5919,10 @@ function ensureSpecificationPlanningUnit(specification, routeTemplate = "full", 
   const dueDate = specification.dueDate || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000));
   const status = PROJECT_STATUSES.includes(specification.productionStatus) ? specification.productionStatus : "planned";
   const name = getSpecificationProductionName(specification);
-  const existingProject = specification.projectId
-    ? planningState.projects.find((project) => project.id === specification.projectId)
-    : null;
-
-  if (existingProject) {
-    planningState.projects = planningState.projects.map((project) => project.id === existingProject.id ? {
-      ...project,
-      name,
-      orderNumber: specification.orderNumber || project.orderNumber || "",
-      customer: specification.customer || project.customer || "",
-      totalQuantity: quantity,
-      dueDate,
-      status,
-      updatedAt: stamp,
-    } : project);
-    const projectBatches = planningState.batches.filter((batch) => batch.projectId === existingProject.id);
-    if (projectBatches.length) {
-      const firstBatchId = projectBatches[0].id;
-      planningState.batches = planningState.batches.map((batch) => batch.id === firstBatchId ? {
-        ...batch,
-        quantity,
-        status,
-        updatedAt: stamp,
-      } : batch);
-    } else {
-      planningState.batches = [...planningState.batches, {
-        id: `b-${existingProject.id}-1`,
-        projectId: existingProject.id,
-        batchNumber: "1",
-        quantity,
-        status,
-        createdAt: stamp,
-        updatedAt: stamp,
-      }];
-    }
-    planningState = normalizePlanningState(planningState);
-    persistState();
-    return existingProject.id;
-  }
-
-  const bundle = createProjectBundle({
+  const specificationId = specification.id || makeId("spec");
+  const existingRoute = (planningState.routes || []).find((route) => route.specificationId === specificationId || route.projectId === specificationId);
+  const bundle = createProductionBundle({
+    specificationId,
     name,
     orderNumber: specification.orderNumber || "",
     customer: specification.customer || "",
@@ -3569,30 +5931,61 @@ function ensureSpecificationPlanningUnit(specification, routeTemplate = "full", 
     status,
     routeTemplate,
   });
-  planningState.projects = [...planningState.projects, bundle.project];
-  planningState.batches = [...planningState.batches, bundle.batch];
-  if (includeRoute) {
+
+  if (!includeRoute && !existingRoute) {
+    planningState.projects = [];
+    planningState = normalizePlanningState(planningState);
+    persistState();
+    return specificationId;
+  }
+
+  planningState.batches = (planningState.batches || []).some((batch) => batch.routeId === (existingRoute?.id || bundle.route.id))
+    ? planningState.batches.map((batch) => batch.routeId === (existingRoute?.id || bundle.route.id) ? {
+        ...batch,
+        specificationId,
+        projectId: specificationId,
+        quantity,
+        status,
+        updatedAt: stamp,
+      } : batch)
+    : [...planningState.batches, {
+        ...bundle.batch,
+        routeId: existingRoute?.id || bundle.route.id,
+      }];
+
+  if (includeRoute && !existingRoute) {
     planningState.routes = [...planningState.routes, bundle.route];
     planningState.routeSteps = [...planningState.routeSteps, ...bundle.routeSteps];
+  } else if (existingRoute) {
+    planningState.routes = planningState.routes.map((route) => route.id === existingRoute.id ? {
+      ...route,
+      specificationId,
+      specificationName: specification.name || name,
+      projectId: specificationId,
+      updatedAt: stamp,
+    } : route);
   }
+  planningState.projects = [];
   planningState = normalizePlanningState(planningState);
   persistState();
-  return bundle.project.id;
+  return specificationId;
 }
 
 function getActiveBomForModule(activeSpecification = null) {
   if (ui.activeBomId === "__new__") return null;
   const specBom = activeSpecification ? getBomList(activeSpecification.bomListA) : null;
-  return (directoryState.bomLists || []).find((bom) => bom.id === ui.activeBomId)
-    || specBom
-    || (directoryState.bomLists || [])[0]
-    || null;
+  if (ui.activeBomId) {
+    return (directoryState.bomLists || []).find((bom) => bom.id === ui.activeBomId) || null;
+  }
+  return specBom || null;
 }
 
 function getBomLinkedSpecifications(bomId) {
   if (!bomId) return [];
   return (directoryState.specifications || []).filter((specification) => (
-    specification.bomListA === bomId || specification.bomListB === bomId
+    specification.bomListA === bomId
+    || specification.bomListB === bomId
+    || getSpecificationStructureItems(specification).some((item) => item.bomListId === bomId)
   ));
 }
 
@@ -3657,13 +6050,14 @@ function renderSpecificationsPage() {
           <div class="directory-actions">
             <button class="secondary-button" data-open-spec-boms type="button">${icon("book")}<span>BOM-листы</span></button>
             <button class="secondary-button" data-specification-to-calculator type="button" ${activeSpecification ? "" : "disabled"}>${icon("calculator")}<span>В калькулятор</span></button>
+            <button class="secondary-button danger" data-specification-delete="${escapeAttribute(specification.id)}" type="button" ${activeSpecification ? "" : "disabled"}>${icon("trash")}<span>Удалить</span></button>
           </div>
         </header>
 
         <div class="module-data-content specification-module-content">
           <section class="module-panel specification-editor-panel">
             <div class="report-card-head">
-              <strong>01 · Спецификация изделия</strong>
+              <strong>Спецификация изделия</strong>
               <span>${isNewSpecification ? "создание производственной спецификации" : "центральный объект планирования"}</span>
             </div>
             <form id="specificationModuleForm" class="module-form">
@@ -3699,7 +6093,7 @@ function renderSpecificationsPage() {
 
           <section class="module-panel spec-structure-panel">
             <div class="report-card-head">
-              <strong>02 · Конструктор спецификации</strong>
+              <strong>Конструктор спецификации</strong>
               <span>узел изделия, платы BOM и дополнительные позиции</span>
             </div>
             ${renderSpecificationConstructor(specification, structureItems, structureBomOptions, isNewSpecification)}
@@ -3707,7 +6101,7 @@ function renderSpecificationsPage() {
 
           <section class="module-panel spec-structure-table-panel">
             <div class="report-card-head">
-              <strong>03 · Таблица структуры спецификации</strong>
+              <strong>Таблица структуры спецификации</strong>
               <span>${structureRows.length ? `${structureRows.length} строк состава изделия` : "после заполнения конструктора здесь появится состав"}</span>
             </div>
             ${renderSpecificationStructureTable(structureRows)}
@@ -3721,12 +6115,7 @@ function renderSpecificationsPage() {
 
 function renderSpekiPage() {
   const specifications = directoryState.specifications || [];
-  const activeSpecification = specifications.find((specification) => specification.id === ui.activeSpecificationId)
-    || specifications[0]
-    || null;
-  if (activeSpecification && ui.activeSpecificationId !== activeSpecification.id) {
-    ui.activeSpecificationId = activeSpecification.id;
-  }
+  const activeSpecification = specifications.find((specification) => specification.id === ui.activeSpecificationId) || null;
   const isEditing = Boolean(activeSpecification && ui.spekiEditingId === activeSpecification.id);
 
   return `
@@ -3758,13 +6147,15 @@ function renderSpekiPage() {
 
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
         <div class="module-data-content speki-module-content">
+          ${activeSpecification ? `
           <section class="module-panel speki-spec-table-panel">
             <div class="report-card-head">
-              <strong>03 · Таблица спецификации</strong>
-              <span>${activeSpecification ? escapeHtml(activeSpecification.name || "выбранная спецификация") : "выберите спецификацию слева"}</span>
+              <strong>Таблица спецификации</strong>
+              <span>${escapeHtml(activeSpecification.name || "выбранная спецификация")}</span>
             </div>
             ${renderSpekiStructureTable(activeSpecification, isEditing)}
           </section>
+          ` : ""}
         </div>
       </div>
     </section>
@@ -3777,43 +6168,24 @@ function renderSpekiStructureTable(specification, isEditing = false) {
       <div class="bom-import-empty">
         ${icon("book")}
         <strong>Спецификация не выбрана</strong>
-        <span>Выберите спецификацию в левом перечне, чтобы собрать ее структуру из BOM-листов и вложенных спецификаций.</span>
+        <span>Выберите спецификацию в левом перечне, чтобы управлять ее составом.</span>
       </div>
     `;
   }
 
   const rows = getSpekiStructureTableRows(specification);
-  const structureItems = getSpecificationStructureItems(specification);
-  const usedBomIds = new Set();
-  const duplicateBomItemIds = rows.reduce((duplicates, { item }) => {
-    if (item.type !== "bom" || !item.bomListId) return duplicates;
-    if (usedBomIds.has(item.bomListId)) {
-      duplicates.add(item.id);
-    } else {
-      usedBomIds.add(item.bomListId);
-    }
-    return duplicates;
-  }, new Set());
-  const bomOptions = [
-    { value: "", label: "Выберите BOM-лист", meta: "компонентный состав платы" },
-    ...getSpecificationBomCandidates(specification, structureItems).map((bom) => ({
-      value: bom.id,
-      label: bom.name,
-      meta: bom.resultItem || bom.boardCode || "BOM",
-    })),
-  ];
   const specificationOptions = [
-    { value: "", label: "Выберите спецификацию", meta: "вложенный состав изделия" },
+    { value: "", label: "Выберите спецификацию", meta: "вложенный состав" },
     ...(directoryState.specifications || [])
       .filter((item) => item.id !== specification.id)
       .map((item) => ({
         value: item.id,
         label: item.name || "Спецификация без названия",
-        meta: item.outputItem || "итоговое изделие не задано",
+        meta: `${getSpecificationStructureItems(item).length} строк состава`,
       })),
   ];
   const nomenclatureOptions = [
-    { value: "", label: "Выберите номенклатуру", meta: "компонент или материал" },
+    { value: "", label: "Выберите номенклатуру", meta: "позиция состава" },
     ...(directoryState.nomenclature || []).map((item) => ({
       value: item.id,
       label: item.name || "Позиция без названия",
@@ -3821,45 +6193,42 @@ function renderSpekiStructureTable(specification, isEditing = false) {
     })),
   ];
   const typeOptions = [
-    { value: "assembly", label: "Узел", meta: "группа позиций для операции" },
-    { value: "bom", label: "BOM-лист", meta: "смонтированная плата" },
+    { value: "assembly", label: "Узел", meta: "группа строк состава" },
     { value: "specification", label: "Спецификация", meta: "вложенный узел изделия" },
-    { value: "nomenclature", label: "Номенклатура", meta: "компонент или материал" },
+    { value: "nomenclature", label: "Номенклатура", meta: "материал, плата или изделие" },
   ];
-  const executionOptions = [
-    { value: "make", label: "К обеспечению", meta: "нужно произвести или подготовить" },
-    { value: "buy", label: "Покупное изделие", meta: "поставляется для операции" },
-  ];
-  const operationOptions = getSpekiOperationOptions();
-  const departmentOptions = getSpekiDepartmentOptions();
-  const staleItemIds = ui.spekiCheckedSpecificationId === specification.id
-    ? new Set(ui.spekiStaleItemIds || [])
-    : new Set();
+  const compositionSummary = getSpekiCompositionSummary(specification, rows);
 
-  return `
+  const miniCardMarkup = `
     <article class="speki-spec-mini-card">
       <label class="speki-spec-name-field">
         <span>Название спецификации</span>
         <input data-speki-spec-name="${escapeAttribute(specification.id)}" value="${escapeAttribute(specification.name || "")}" placeholder="Введите название спецификации" ${isEditing ? "" : "disabled"} />
       </label>
+      <div class="speki-composition-strip" aria-label="Сводка состава спецификации">
+        <article><span>Строк</span><strong>${compositionSummary.totalRows}</strong></article>
+        <article><span>Узлов</span><strong>${compositionSummary.nodeCount}</strong></article>
+        <article><span>Номенклатура</span><strong>${compositionSummary.nomenclatureCount}</strong></article>
+        <article><span>Вложенные спеки</span><strong>${compositionSummary.nestedSpecificationCount}</strong></article>
+      </div>
       <div class="speki-spec-card-actions">
         ${isEditing
           ? `<button class="primary-button" data-speki-save="${escapeAttribute(specification.id)}" type="button">${icon("save")}<span>Сохранить</span></button>`
           : `<button class="secondary-button" data-speki-edit="${escapeAttribute(specification.id)}" type="button">${icon("edit")}<span>Редактировать</span></button>`}
-        <button class="secondary-button" data-speki-check="${escapeAttribute(specification.id)}" type="button">${icon("check")}<span>Проверить</span></button>
         <button class="secondary-button danger" data-speki-delete="${escapeAttribute(specification.id)}" type="button">${icon("trash")}<span>Удалить</span></button>
       </div>
     </article>
+  `;
+
+  return `
+    ${miniCardMarkup}
     <div class="speki-structure-table-wrap" data-layout="table">
       <table class="directory-table speki-structure-table">
         <thead>
           <tr>
             <th>П/п</th>
-            <th>Тип</th>
+            <th>Раздел</th>
             <th>Наименование</th>
-            <th>Исполнение</th>
-            <th>Операция</th>
-            <th>Отдел</th>
             <th>Кол-во</th>
             <th>Ед.</th>
             <th></th>
@@ -3867,78 +6236,47 @@ function renderSpekiStructureTable(specification, isEditing = false) {
         </thead>
         <tbody>
           ${rows.length ? rows.map(({ item, number, level }, index) => {
-            const bom = item.type === "bom" ? getBomList(item.bomListId) : null;
-            const bomImportCount = bom ? getBomImportRows(bom).length : 0;
-            const isBomCollapsed = item.type === "bom" && isSpekiBomCollapsed(item.id);
             const linkedSpecification = item.type === "specification"
               ? (directoryState.specifications || []).find((entry) => entry.id === item.specificationId)
               : null;
-            const nomenclatureItem = item.type === "nomenclature"
-              ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
+            const bomResultItem = item.type === "bom" ? getBomResultNomenclatureItem(getSpecificationItemBomId(item)) : null;
+            const nomenclatureItem = item.type === "nomenclature" || item.type === "part" || item.type === "bom"
+              ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId) || bomResultItem
               : null;
-            const objectSelect = item.type === "bom"
-              ? renderDenseInlineSelect("bomListId", item.bomListId, bomOptions, { type: "spekiStructureBom", itemId: item.id })
-              : item.type === "specification"
-                ? renderDenseInlineSelect("specificationId", item.specificationId, specificationOptions, { type: "spekiStructureSpecification", itemId: item.id })
-                : item.type === "assembly"
-                  ? `<input class="speki-node-name-input" data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="name" value="${escapeAttribute(item.name || "Новый узел")}" placeholder="Название узла" ${isEditing ? "" : "disabled"} />`
-                  : renderDenseInlineSelect("nomenclatureId", item.nomenclatureId, nomenclatureOptions, { type: "spekiStructureNomenclature", itemId: item.id });
-            const objectLabel = item.type === "bom"
-              ? bom?.name || item.name || "BOM не выбран"
-              : item.type === "specification"
-                ? linkedSpecification?.name || item.name || "Спецификация не выбрана"
-                : item.type === "assembly"
-                  ? item.name || "Новый узел"
-                  : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
+            const rowType = item.type === "assembly" || item.type === "specification" ? item.type : "nomenclature";
+            const objectSelect = rowType === "specification"
+              ? renderDenseInlineSelect("specificationId", item.specificationId, specificationOptions, { type: "spekiStructureSpecification", itemId: item.id })
+              : rowType === "assembly"
+                ? `<input class="speki-node-name-input" data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="name" value="${escapeAttribute(item.name || "Новый узел")}" placeholder="Название узла" ${isEditing ? "" : "disabled"} />`
+                : renderDenseInlineSelect("nomenclatureId", item.nomenclatureId || nomenclatureItem?.id || "", nomenclatureOptions, { type: "spekiStructureNomenclature", itemId: item.id });
+            const objectLabel = rowType === "specification"
+              ? linkedSpecification?.name || item.name || "Спецификация не выбрана"
+              : rowType === "assembly"
+                ? item.name || "Новый узел"
+                : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
+            const typeLabel = rowType === "assembly"
+              ? "Узел"
+              : rowType === "specification"
+                ? "Спецификация"
+                : "Номенклатура";
             const nextSibling = rows.slice(index + 1)
               .find((row) => row.level === level && (row.item.parentId || "root") === (item.parentId || "root"));
-            const canCreateNode = isEditing && item.type !== "assembly" && Boolean(nextSibling);
-            const executionValue = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
-            const executionLabel = executionValue === "buy" ? "Покупное изделие" : "К обеспечению";
-            const operationValue = executionValue === "buy" ? "" : item.operationName || getDefaultSpekiOperationName(item.type, executionValue);
-            const operationLabel = operationValue || "Операция не требуется";
-            const departmentValue = executionValue === "buy" ? "" : item.departmentName || "";
-            const departmentLabel = departmentValue || "Отдел не выбран";
-            const objectMissing = item.type === "bom"
-              ? !bom
-              : item.type === "specification"
-                ? !linkedSpecification
-                : item.type === "assembly"
-                  ? !String(item.name || "").trim()
-                  : !nomenclatureItem;
-            const objectDuplicate = item.type === "bom" && item.bomListId && duplicateBomItemIds.has(item.id);
-            const operationMissing = executionValue === "make" && !operationValue;
-            const departmentMissing = executionValue === "make" && !departmentValue;
+            const canCreateNode = isEditing && rowType !== "assembly" && Boolean(nextSibling);
+            const objectMissing = rowType === "specification"
+              ? !linkedSpecification
+              : rowType === "assembly"
+                ? !String(item.name || "").trim()
+                : !nomenclatureItem;
             const quantityMissing = Number(item.quantity || 0) <= 0;
             const unitMissing = !String(item.unit || "").trim();
-            const objectStale = staleItemIds.has(item.id);
-            const objectCellClass = [
-              objectMissing ? "is-speki-field-missing" : "",
-              objectStale ? "is-speki-field-stale" : "",
-              objectDuplicate ? "is-speki-field-duplicate" : "",
-            ].filter(Boolean).join(" ");
             const objectContent = isEditing ? objectSelect : `<span class="speki-static-cell">${escapeHtml(objectLabel)}</span>`;
-            const bomSummary = item.type === "bom" && bom
-              ? `<small class="speki-bom-collapse-note">${escapeHtml(objectDuplicate ? `BOM уже выбран выше · ${bomImportCount} поз.` : isBomCollapsed ? `BOM свернут · ${bomImportCount} поз.` : `${bomImportCount} поз. из BOM`)}</small>`
-              : "";
-            const rowNumberContent = item.type === "bom" && bom
-              ? `
-                <div class="speki-row-number-wrap">
-                  <button class="speki-bom-toggle" data-speki-bom-toggle="${escapeAttribute(item.id)}" type="button" title="${escapeAttribute(isBomCollapsed ? "Развернуть BOM" : "Свернуть BOM")}" aria-label="${escapeAttribute(isBomCollapsed ? "Развернуть BOM" : "Свернуть BOM")}">${icon(isBomCollapsed ? "chevronRight" : "chevronDown")}</button>
-                  <span class="speki-row-number">${escapeHtml(number)}</span>
-                </div>
-              `
-              : `<span class="speki-row-number">${escapeHtml(number)}</span>`;
-            const rowMarkup = `
-              <tr class="${item.type === "assembly" ? "is-speki-node" : ""}" data-speki-structure-row="${escapeAttribute(item.id)}" style="--speki-level: ${level};">
-                <td>
-                  ${rowNumberContent}
-                </td>
-                <td>${isEditing ? renderDenseInlineSelect("type", item.type === "part" ? "nomenclature" : item.type, typeOptions, { type: "spekiStructureType", itemId: item.id }) : `<span class="speki-static-cell">${escapeHtml(item.type === "assembly" ? "Узел" : item.type === "bom" ? "BOM-лист" : item.type === "specification" ? "Спецификация" : "Номенклатура")}</span>`}</td>
-                <td class="${objectCellClass}"><div class="speki-object-cell">${objectContent}${bomSummary}</div></td>
-                <td>${isEditing ? renderDenseInlineSelect("executionType", executionValue, executionOptions, { type: "spekiStructureExecution", itemId: item.id }) : `<span class="speki-static-cell">${escapeHtml(executionLabel)}</span>`}</td>
-                <td class="${operationMissing ? "is-speki-field-missing" : ""}">${isEditing ? renderDenseInlineSelect("operationName", operationValue, operationOptions, { type: "spekiStructureOperation", itemId: item.id }) : `<span class="speki-static-cell">${escapeHtml(operationLabel)}</span>`}</td>
-                <td class="${departmentMissing ? "is-speki-field-missing" : ""}">${isEditing ? renderDenseInlineSelect("departmentName", departmentValue, departmentOptions, { type: "spekiStructureDepartment", itemId: item.id }) : `<span class="speki-static-cell">${escapeHtml(departmentLabel)}</span>`}</td>
+            const rowNumberContent = `<span class="speki-row-number">${escapeHtml(number)}</span>`;
+
+            return `
+              <tr class="${rowType === "assembly" ? "is-speki-node" : ""}" data-speki-structure-row="${escapeAttribute(item.id)}" style="--speki-level: ${level};">
+                <td>${rowNumberContent}</td>
+                <td>${isEditing ? renderDenseInlineSelect("type", rowType, typeOptions, { type: "spekiStructureType", itemId: item.id }) : `<span class="speki-static-cell">${escapeHtml(typeLabel)}</span>`}</td>
+                <td class="${objectMissing ? "is-speki-field-missing" : ""}"><div class="speki-object-cell">${objectContent}</div></td>
                 <td class="${quantityMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="quantity" type="number" inputmode="numeric" min="0" step="1" value="${Math.round(Number(item.quantity || 0))}" />` : `<span class="speki-static-cell">${escapeHtml(formatReportNumber(item.quantity || 0))}</span>`}</td>
                 <td class="${unitMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="unit" value="${escapeAttribute(item.unit)}" />` : `<span class="speki-static-cell">${escapeHtml(item.unit || "шт.")}</span>`}</td>
                 <td>
@@ -3953,19 +6291,18 @@ function renderSpekiStructureTable(specification, isEditing = false) {
                 </td>
               </tr>
             `;
-            return rowMarkup + renderSpekiBomNomenclatureRows(item, bom, number, level, isBomCollapsed);
           }).join("") : `
             <tr>
-              <td colspan="9" class="primary-cell">
+              <td colspan="6" class="primary-cell">
                 <span class="component-name">Структура пока пустая</span>
-                <small>Добавьте строку под таблицей и выберите тип: BOM-лист, спецификация или номенклатура.</small>
+                <small>Добавьте строку под таблицей и выберите тип: узел, спецификация или номенклатура.</small>
               </td>
             </tr>
           `}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="9">
+            <td colspan="6">
               <div class="speki-table-add-row">
                 <button class="secondary-button" data-speki-add-row="assembly" type="button" ${isEditing ? "" : "disabled"}>${icon("split")}<span>Добавить узел</span></button>
                 <button class="secondary-button" data-speki-add-row="nomenclature" type="button" ${isEditing ? "" : "disabled"}>${icon("plus")}<span>Добавить строку</span></button>
@@ -3975,6 +6312,128 @@ function renderSpekiStructureTable(specification, isEditing = false) {
         </tfoot>
       </table>
     </div>
+  `;
+}
+
+function getSpekiCompositionSummary(specification, rows = getSpekiStructureTableRows(specification)) {
+  const items = getSpecificationStructureItems(specification);
+  const directNomenclatureItems = items.filter((item) => item.type === "nomenclature" || item.type === "part" || item.type === "bom");
+  const byNomenclatureType = directNomenclatureItems.reduce((acc, item) => {
+    const nomenclature = (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId);
+    const type = normalizeNomenclatureType(nomenclature?.type || "Прочее");
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    totalRows: rows.length,
+    bomCount: items.filter((item) => Boolean(getSpecificationItemBomId(item))).length,
+    nodeCount: items.filter((item) => item.type === "assembly").length,
+    nestedSpecificationCount: items.filter((item) => item.type === "specification").length,
+    nomenclatureCount: directNomenclatureItems.length,
+    makeCount: 0,
+    buyCount: 0,
+    issueCount: 0,
+    byNomenclatureType,
+  };
+}
+
+function renderSpekiSourcePalette(specification, compositionSummary = getSpekiCompositionSummary(specification)) {
+  const bomCards = (directoryState.bomLists || []).map((bom) => {
+    const rowsCount = getBomImportRows(bom).length;
+    const componentTotal = Object.values(getBomComponentCounts(bom)).reduce((sum, count) => sum + Number(count || 0), 0);
+    const resultNomenclature = getBomResultNomenclatureItem(bom.id);
+    const resultName = resultNomenclature?.name || bom.resultItem || bom.boardCode || bom.name || "Печатная плата";
+    return `
+      <article class="speki-source-row">
+        <div>
+          <strong>${escapeHtml(resultName)}</strong>
+          <span>${escapeHtml(bom.name || "BOM без названия")} · ${rowsCount || componentTotal} поз.</span>
+        </div>
+        <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
+        <button class="secondary-button" data-speki-quick-add="bomResult" data-speki-source-id="${escapeAttribute(bom.id)}" type="button">${icon("plus")}<span>Добавить</span></button>
+      </article>
+    `;
+  }).join("");
+
+  const nestedSpecificationCards = (directoryState.specifications || [])
+    .filter((item) => item.id !== specification.id)
+    .map((item) => `
+      <article class="speki-source-row">
+        <div>
+          <strong>${escapeHtml(item.name || "Спецификация без названия")}</strong>
+          <span>${getSpecificationStructureItems(item).length} строк состава</span>
+        </div>
+        <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
+        <button class="secondary-button" data-speki-quick-add="specification" data-speki-source-id="${escapeAttribute(item.id)}" type="button">${icon("plus")}<span>Добавить</span></button>
+      </article>
+    `).join("");
+
+  const typeCounts = getNomenclatureTypeCounts(directoryState.nomenclature || []);
+  const nomenclatureGroups = getNomenclatureTypeOptions(directoryState.nomenclature || [])
+    .map((type) => ({
+      type,
+      items: (directoryState.nomenclature || [])
+        .filter((item) => normalizeNomenclatureType(item.type) === type.value)
+        .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru")),
+    }))
+    .filter((group) => group.items.length);
+
+  return `
+    <section class="speki-source-palette" aria-label="Источники состава спецификации">
+      <div class="report-card-head">
+        <strong>Добавить в спецификацию</strong>
+        <span>выберите готовый источник состава: результат BOM, номенклатуру или вложенную спецификацию</span>
+      </div>
+      <div class="speki-source-summary">
+        ${Object.entries(compositionSummary.byNomenclatureType).length
+          ? Object.entries(compositionSummary.byNomenclatureType).map(([type, count]) => `<span>${escapeHtml(type)} · ${count}</span>`).join("")
+          : `<span>Номенклатура еще не добавлена</span>`}
+      </div>
+      <div class="speki-source-grid">
+        <details class="speki-source-group" open>
+          <summary><strong>Печатные платы из BOM</strong><span>${(directoryState.bomLists || []).length}</span></summary>
+          <div class="speki-source-list">
+            ${bomCards || `<article class="module-empty-note"><strong>BOM-листов нет</strong><span>Импортируйте BOM в отдельном модуле, чтобы его результат появился как печатная плата.</span></article>`}
+          </div>
+        </details>
+        <details class="speki-source-group">
+          <summary><strong>Вложенные спецификации</strong><span>${(directoryState.specifications || []).filter((item) => item.id !== specification.id).length}</span></summary>
+          <div class="speki-source-list">
+            ${nestedSpecificationCards || `<article class="module-empty-note"><strong>Других спецификаций нет</strong><span>Этот источник станет доступен после создания второй спецификации.</span></article>`}
+          </div>
+        </details>
+        <details class="speki-source-group" open>
+          <summary><strong>Номенклатура по разделам</strong><span>${(directoryState.nomenclature || []).length}</span></summary>
+          <div class="speki-source-nomenclature-groups">
+            ${nomenclatureGroups.length ? nomenclatureGroups.map(({ type, items }) => `
+              <details class="speki-source-subgroup" ${type.value !== NOMENCLATURE_REA_COMPONENT_TYPE ? "open" : ""}>
+                <summary><strong>${escapeHtml(type.label)}</strong><span>${typeCounts[type.value] || items.length}</span></summary>
+                <div class="speki-source-list">
+                  ${items.map((item) => `
+                    <article class="speki-source-row">
+                      <div>
+                        <strong>${escapeHtml(item.name || "Позиция без названия")}</strong>
+                        <span>${escapeHtml([item.article, item.package, item.manufacturer].filter(Boolean).join(" · ") || type.meta || "номенклатура")}</span>
+                      </div>
+                      <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
+                      <button class="secondary-button" data-speki-quick-add="nomenclature" data-speki-source-id="${escapeAttribute(item.id)}" type="button">${icon("plus")}<span>Добавить</span></button>
+                    </article>
+                  `).join("")}
+                </div>
+              </details>
+            `).join("") : `<article class="module-empty-note"><strong>Номенклатуры нет</strong><span>Добавьте позиции вручную или импортируйте BOM, чтобы РЭА компоненты появились автоматически.</span></article>`}
+          </div>
+        </details>
+        <article class="speki-source-group speki-source-node-card">
+          <div>
+            <strong>Узел спецификации</strong>
+            <span>объединяет несколько строк состава под общей операцией</span>
+          </div>
+          <button class="secondary-button" data-speki-quick-add="assembly" type="button">${icon("split")}<span>Добавить узел</span></button>
+        </article>
+      </div>
+    </section>
   `;
 }
 
@@ -4010,6 +6469,170 @@ function getSpekiStructureTableRows(specification) {
   });
 
   return rows;
+}
+
+function renderSpekiSpecificationTree(specification, rows = getSpekiStructureTableRows(specification), staleItemIds = new Set(), duplicateBomItemIds = new Set()) {
+  const items = getSpecificationStructureItems(specification);
+  const bomCount = items.filter((item) => Boolean(getSpecificationItemBomId(item))).length;
+  const nodeCount = items.filter((item) => item.type === "assembly").length;
+  const buyCount = items.filter((item) => item.executionType === "buy").length;
+  const issueCount = rows.filter(({ item }) => getSpekiTreeItemIssues(item, specification.id, staleItemIds, duplicateBomItemIds).length).length;
+
+  return `
+    <div class="speki-tree-view">
+      <div class="speki-tree-summary">
+        <article><span>Строк состава</span><strong>${rows.length}</strong><small>${nodeCount} узлов</small></article>
+        <article><span>Печатных плат</span><strong>${bomCount}</strong><small>из BOM</small></article>
+        <article><span>Покупных</span><strong>${buyCount}</strong><small>без операции</small></article>
+        <article class="${issueCount ? "is-warning" : "is-ok"}"><span>Проверка</span><strong>${issueCount}</strong><small>${issueCount ? "требует внимания" : "замечаний нет"}</small></article>
+      </div>
+      <div class="speki-tree-view-wrap object-tree-wrap">
+        <div class="object-tree-root">
+          ${renderSpekiSpecificationTreeNode(specification, rows, staleItemIds, duplicateBomItemIds, new Set(), true)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSpekiSpecificationTreeNode(specification, rows = getSpekiStructureTableRows(specification), staleItemIds = new Set(), duplicateBomItemIds = new Set(), visitedSpecificationIds = new Set(), open = false) {
+  if (!specification) return renderObjectTreeLeaf("Спецификация не найдена", "Связанный объект был удален или еще не создан.", "warning");
+  if (visitedSpecificationIds.has(specification.id)) {
+    return renderObjectTreeLeaf(specification.name || "Повторная спецификация", "Повторная ссылка уже показана выше, ветка остановлена.", "warning");
+  }
+
+  const nextVisitedSpecificationIds = new Set(visitedSpecificationIds);
+  nextVisitedSpecificationIds.add(specification.id);
+  const items = getSpecificationStructureItems(specification)
+    .filter((item) => item.type === "assembly" || item.type === "bom" || item.type === "specification" || item.type === "nomenclature" || item.type === "part");
+  const rowMetaById = new Map((rows.length ? rows : getSpekiStructureTableRows(specification))
+    .map((row) => [row.item.id, { number: row.number, level: row.level }]));
+  const children = renderSpekiTreeChildren(items, "root", rowMetaById, staleItemIds, duplicateBomItemIds, nextVisitedSpecificationIds, specification.id);
+
+  return renderObjectTreeNode({
+    title: specification.name || "Спецификация без названия",
+    meta: `${specification.outputItem || "выход не задан"} · ${items.length} позиций состава`,
+    badge: "спека",
+    tone: "specification",
+    open,
+    children: [children || renderObjectTreeLeaf("Структура пока пустая", "Нажмите «Редактировать» и добавьте строки состава.", "empty")],
+  });
+}
+
+function renderSpekiTreeChildren(items, parentId, rowMetaById, staleItemIds, duplicateBomItemIds, visitedSpecificationIds, currentSpecificationId = "", visitedItemIds = new Set()) {
+  const visibleIds = new Set(items.map((item) => item.id));
+  const children = items.filter((item) => {
+    const itemParentId = item.parentId && visibleIds.has(item.parentId) ? item.parentId : "root";
+    return itemParentId === parentId;
+  });
+
+  return children.map((item) => {
+    if (visitedItemIds.has(item.id)) return "";
+    const nextVisitedItemIds = new Set(visitedItemIds);
+    nextVisitedItemIds.add(item.id);
+    const nestedChildren = renderSpekiTreeChildren(items, item.id, rowMetaById, staleItemIds, duplicateBomItemIds, visitedSpecificationIds, currentSpecificationId, nextVisitedItemIds);
+    return renderSpekiTreeItemNode(item, rowMetaById.get(item.id), staleItemIds, duplicateBomItemIds, visitedSpecificationIds, nestedChildren, currentSpecificationId);
+  }).join("");
+}
+
+function renderSpekiTreeItemNode(item, rowMeta = {}, staleItemIds = new Set(), duplicateBomItemIds = new Set(), visitedSpecificationIds = new Set(), nestedChildren = "", currentSpecificationId = "") {
+  const bom = item.type === "bom" ? getBomList(item.bomListId) : null;
+  const linkedSpecification = item.type === "specification"
+    ? (directoryState.specifications || []).find((entry) => entry.id === item.specificationId)
+    : null;
+  const nomenclatureItem = item.type === "nomenclature" || item.type === "part"
+    ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
+    : null;
+  const title = item.type === "bom"
+    ? bom?.name || item.name || "BOM не выбран"
+    : item.type === "specification"
+      ? linkedSpecification?.name || item.name || "Спецификация не выбрана"
+      : item.type === "assembly"
+        ? item.name || "Узел без названия"
+        : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
+  const executionValue = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
+  const executionLabel = executionValue === "buy" ? "покупное" : "к обеспечению";
+  const defaultOperationLabel = item.type === "nomenclature" || item.type === "part"
+    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionValue)
+    : getDefaultSpekiOperationName(item.type, executionValue);
+  const operationLabel = executionValue === "buy" ? "операция не требуется" : item.operationName || defaultOperationLabel || "операция не задана";
+  const departmentLabel = executionValue === "buy" ? "" : item.departmentName || "отдел не выбран";
+  const quantityLabel = `${Number(item.quantity || 0).toLocaleString("ru-RU")} ${item.unit || "шт."}`;
+  const issues = getSpekiTreeItemIssues(item, currentSpecificationId, staleItemIds, duplicateBomItemIds);
+  const meta = [
+    getSpecificationTreeItemTypeLabel(item.type),
+    quantityLabel,
+    executionLabel,
+    operationLabel,
+    departmentLabel,
+  ].filter(Boolean).join(" · ");
+  const linkedSpecificationTree = linkedSpecification
+    ? renderSpekiSpecificationTreeNode(linkedSpecification, getSpekiStructureTableRows(linkedSpecification), new Set(), new Set(), visitedSpecificationIds)
+    : "";
+  const bomPreview = getSpecificationItemBom(item) ? renderSpekiBomTreePreview(getSpecificationItemBom(item)) : "";
+
+  return renderObjectTreeNode({
+    title,
+    meta,
+    badge: rowMeta.number || getSpecificationTreeItemTypeLabel(item.type),
+    tone: issues.length ? "warning" : item.type || "default",
+    children: [
+      issues.length ? renderObjectTreeLeaf("Требует внимания", issues.join("; "), "warning") : "",
+      bomPreview,
+      linkedSpecificationTree,
+      nestedChildren,
+      !issues.length && !bomPreview && !linkedSpecificationTree && !nestedChildren
+        ? renderObjectTreeLeaf("Конечная позиция", item.resultItem || item.note || "Дочерних объектов нет.", "empty")
+        : "",
+    ],
+  });
+}
+
+function getSpekiTreeItemIssues(item, specificationId = "", staleItemIds = new Set(), duplicateBomItemIds = new Set()) {
+  const issues = [];
+  const executionValue = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
+  if (item.type === "bom" && !getBomList(item.bomListId)) issues.push("BOM не выбран или удален");
+  if (item.type === "nomenclature" && getNomenclatureSourceBomId(item.nomenclatureId) && !getSpecificationItemBom(item)) issues.push("исходный BOM для печатной платы удален");
+  if (item.type === "specification" && !(directoryState.specifications || []).some((entry) => entry.id === item.specificationId && entry.id !== specificationId)) issues.push("вложенная спецификация не выбрана или удалена");
+  if ((item.type === "nomenclature" || item.type === "part") && !(directoryState.nomenclature || []).some((entry) => entry.id === item.nomenclatureId)) issues.push("номенклатура не выбрана или удалена");
+  if (item.type === "assembly" && !String(item.name || "").trim()) issues.push("название узла не заполнено");
+  if (Number(item.quantity || 0) <= 0) issues.push("количество не заполнено");
+  if (!String(item.unit || "").trim()) issues.push("единица измерения не заполнена");
+  const nomenclatureItem = item.type === "nomenclature" || item.type === "part"
+    ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
+    : null;
+  const defaultOperation = item.type === "nomenclature" || item.type === "part"
+    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionValue)
+    : getDefaultSpekiOperationName(item.type, executionValue);
+  if (executionValue === "make" && !String(item.operationName || defaultOperation || "").trim()) issues.push("операция не задана");
+  if (executionValue === "make" && !String(item.departmentName || "").trim()) issues.push("отдел не выбран");
+  if (staleItemIds.has(item.id)) issues.push("ссылка на объект удалена");
+  if (duplicateBomItemIds.has(item.id)) issues.push("BOM уже выбран выше");
+  return issues;
+}
+
+function renderSpekiBomTreePreview(bom) {
+  const rows = getBomImportRows(bom);
+  const componentTotal = Object.values(getBomComponentCounts(bom)).reduce((sum, count) => sum + Number(count || 0), 0);
+  const previewRows = rows.slice(0, 8).map((row) => renderObjectTreeLeaf(
+    row.description || row.manufacturerPart || row.designator || `Строка ${row.sequence || ""}`.trim(),
+    `${row.designator || "позиция не задана"} · ${row.package || "типоразмер не задан"} · ${Number(row.quantity || 0).toLocaleString("ru-RU")} шт.`,
+    "component",
+  )).join("");
+  const hiddenCount = Math.max(0, rows.length - 8);
+
+  return renderObjectTreeNode({
+    title: "Состав BOM",
+    meta: rows.length ? `${rows.length} строк · ${componentTotal.toLocaleString("ru-RU")} компонентов` : `${componentTotal.toLocaleString("ru-RU")} компонентов по категориям`,
+    badge: rows.length || componentTotal,
+    tone: "bom",
+    children: [
+      rows.length
+        ? previewRows
+        : renderObjectTreeLeaf("Импортированных строк нет", "BOM заполнен вручную или пока пустой.", "warning"),
+      hiddenCount ? renderObjectTreeLeaf(`Еще ${hiddenCount.toLocaleString("ru-RU")} строк`, "скрыто в компактном просмотре", "empty") : "",
+    ],
+  });
 }
 
 function isSpekiStructureItemReferenceStale(item, specificationId = "") {
@@ -4065,7 +6688,7 @@ function toggleSpekiBomCollapse(itemId = "") {
 }
 
 function renderSpekiBomNomenclatureRows(item, bom, number, level, isCollapsed = false) {
-  if (item.type !== "bom" || !bom) return "";
+  if (!getSpecificationItemBomId(item) || !bom) return "";
   const bomRows = getBomImportRows(bom);
   const childLevel = level + 1;
   const bomQuantity = Math.max(1, Math.round(Number(item.quantity || 1)));
@@ -4122,7 +6745,7 @@ function renderSpekiWorkBreakdownTable(specification) {
   return `
     <section class="speki-work-breakdown">
       <div class="report-card-head">
-        <strong>04 · Разбивка по работам</strong>
+        <strong>Разбивка по работам</strong>
         <span>${rows.length ? `${rows.length} работ для маршрутной карты` : "работы появятся после выбора операций"}</span>
       </div>
       ${rows.length ? `
@@ -4197,9 +6820,8 @@ function getSpekiWorkBreakdownRows(specification) {
     group.items.push(`${number} ${getSpekiStructureItemLabel(item)}`);
     group.quantities.push(`${formatReportNumber(item.quantity || 0)} ${item.unit || "шт."}`);
 
-    if (item.type === "bom") {
-      group.bomInputCount += getBomImportRows(getBomList(item.bomListId)).length;
-    }
+    const bom = getSpecificationItemBom(item);
+    if (bom) group.bomInputCount += getBomImportRows(bom).length;
 
     group.directInputCount += rows.filter(({ item: candidate }) => (
       candidate.parentId === item.id
@@ -4289,25 +6911,63 @@ function createSpekiSpecification() {
   ui.spekiStaleItemIds = [];
   persistDirectoryState();
   persistUiState();
+  notifySaveSuccess("Спецификация создана");
   render();
 }
 
 function getActiveNomenclatureItem() {
   if (ui.activeNomenclatureId === "__new__") return null;
-  return (directoryState.nomenclature || []).find((item) => item.id === ui.activeNomenclatureId)
-    || (directoryState.nomenclature || [])[0]
-    || null;
+  if (!ui.activeNomenclatureId) return null;
+  return getNomenclatureItem(ui.activeNomenclatureId);
+}
+
+function getNomenclatureItem(itemId) {
+  return (directoryState.nomenclature || []).find((item) => item.id === itemId) || null;
+}
+
+function getNomenclatureDeleteUsage(itemId) {
+  const specifications = (directoryState.specifications || []).filter((specification) => (
+    getSpecificationStructureItems(specification).some((item) => item.nomenclatureId === itemId)
+  ));
+  const bomRowsCount = (directoryState.bomLists || []).reduce((sum, bom) => (
+    sum + getBomImportRows(bom).filter((row) => row.nomenclatureId === itemId).length
+  ), 0);
+
+  return {
+    specificationsCount: specifications.length,
+    bomRowsCount,
+  };
+}
+
+function renderModulePreviewEmpty({ iconName = "info", title, text, action = "" }) {
+  return `
+    <div class="bom-import-empty module-preview-empty">
+      ${icon(iconName)}
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(text)}</span>
+      ${action}
+    </div>
+  `;
 }
 
 function renderNomenclaturePage() {
-  const items = directoryState.nomenclature || [];
+  const allItems = directoryState.nomenclature || [];
+  const items = getFilteredNomenclatureItems(allItems);
+  const typeOptions = getNomenclatureTypeOptions(allItems);
+  const typeCounts = getNomenclatureTypeCounts(allItems);
+  const activeFilter = getNomenclatureTypeFilterValue(allItems);
   const activeItem = getActiveNomenclatureItem();
-  const isNewItem = ui.activeNomenclatureId === "__new__" || !activeItem;
+  const isNewItem = ui.activeNomenclatureId === "__new__";
+  const hasPreviewObject = isNewItem || Boolean(activeItem);
+  const rawItemType = normalizeNomenclatureType(activeItem?.type || NOMENCLATURE_REA_COMPONENT_TYPE);
+  const itemType = typeOptions.some((type) => type.value === rawItemType)
+    ? rawItemType
+    : typeOptions[0]?.value || rawItemType;
   const item = activeItem || {
     id: "",
     name: "",
     article: "",
-    type: "Компонент",
+    type: NOMENCLATURE_REA_COMPONENT_TYPE,
     package: "",
     unit: "шт.",
     manufacturer: "",
@@ -4325,28 +6985,17 @@ function renderNomenclaturePage() {
         <div class="module-sidebar-actions">
           <button class="primary-button" data-nomenclature-create type="button">${icon("plus")}<span>Новая позиция</span></button>
         </div>
-        <div class="module-entity-list">
-          <div class="module-list-label">Позиции</div>
-          ${isNewItem ? `
-            <button class="module-entity-item is-active" type="button">
-              <span><strong>Новая позиция</strong><small>заполните карточку справа</small></span>
-              <em>new</em>
+        <div class="nomenclature-type-filter" aria-label="Разделы номенклатуры">
+          <button class="${activeFilter === "all" ? "is-active" : ""}" data-nomenclature-type-filter="all" type="button">
+            <span>Все разделы</span>
+            <em>${allItems.length}</em>
+          </button>
+          ${typeOptions.map((type) => `
+            <button class="${activeFilter === type.value ? "is-active" : ""}" data-nomenclature-type-filter="${escapeAttribute(type.value)}" type="button">
+              <span>${escapeHtml(type.label)}</span>
+              <em>${typeCounts[type.value] || 0}</em>
             </button>
-          ` : ""}
-          ${items.length ? items.map((entry) => `
-            <button class="module-entity-item ${entry.id === activeItem?.id ? "is-active" : ""}" data-nomenclature-open="${escapeAttribute(entry.id)}" type="button">
-              <span>
-                <strong>${escapeHtml(entry.name || "Позиция без названия")}</strong>
-                <small>${escapeHtml(entry.article || "артикул не задан")} · ${escapeHtml(entry.package || entry.type || "тип не задан")}</small>
-              </span>
-              <em>${escapeHtml(entry.unit || "шт.")}</em>
-            </button>
-          `).join("") : `
-            <article class="module-empty-note">
-              <strong>Номенклатура пока пустая</strong>
-              <span>Добавьте компоненты, материалы, платы или расходники, которые затем будут использоваться в BOM.</span>
-            </article>
-          `}
+          `).join("")}
         </div>
       </aside>
 
@@ -4354,38 +7003,43 @@ function renderNomenclaturePage() {
         <header class="directory-header">
           <div>
             <span class="eyebrow">Список компонентов</span>
-            <h2>${escapeHtml(isNewItem ? "Новая позиция номенклатуры" : item.name || "Позиция без названия")}</h2>
-            <p>Номенклатура хранит компоненты и материалы, которые используются в BOM-листах.</p>
+            <h2>${escapeHtml(hasPreviewObject ? (isNewItem ? "Новая позиция номенклатуры" : item.name || "Позиция без названия") : "Объект не выбран")}</h2>
+            <p>${hasPreviewObject ? "Номенклатура разделяется по типам: РЭА для BOM, платы, механика, кабели, расходники и другие производственные позиции." : "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактирования."}</p>
           </div>
         </header>
 
         <div class="module-data-content nomenclature-module-content">
+          ${hasPreviewObject ? `
           <section class="module-panel nomenclature-editor-panel">
             <div class="report-card-head">
-              <strong>01 · Карточка позиции</strong>
+              <strong>Предпросмотр позиции</strong>
               <span>${isNewItem ? "создание новой позиции" : "редактирование номенклатуры"}</span>
             </div>
             <form id="nomenclatureForm" class="module-form">
               <input type="hidden" name="itemId" value="${escapeAttribute(item.id)}" />
               <input type="hidden" name="isNew" value="${isNewItem ? "yes" : "no"}" />
+              <input type="hidden" name="type" value="${escapeAttribute(itemType)}" data-nomenclature-type-hidden />
               <label class="form-field full"><span>Наименование</span><input name="name" value="${escapeAttribute(item.name)}" placeholder="Например: Резистор 10 кОм 0603 1%" /></label>
               <label class="form-field"><span>Артикул</span><input name="article" value="${escapeAttribute(item.article)}" placeholder="PN / MPN / внутренний код" /></label>
-              <label class="form-field"><span>Тип</span><input name="type" value="${escapeAttribute(item.type)}" placeholder="Компонент / Материал / Плата" /></label>
+              <label class="form-field"><span>Раздел</span>${renderDenseInlineSelect("type", itemType, typeOptions, { type: "nomenclatureType" })}</label>
+              <label class="form-field"><span>Новый раздел</span><input name="customType" value="" placeholder="если нужен отдельный тип" /></label>
               <label class="form-field"><span>Корпус / размер</span><input name="package" value="${escapeAttribute(item.package)}" placeholder="0603, QFN-32, PCB" /></label>
               <label class="form-field"><span>Ед. изм.</span><input name="unit" value="${escapeAttribute(item.unit)}" placeholder="шт." /></label>
               <label class="form-field"><span>Производитель</span><input name="manufacturer" value="${escapeAttribute(item.manufacturer)}" placeholder="Yageo, Murata, TI..." /></label>
               <label class="form-field"><span>Статус</span><input name="status" value="${escapeAttribute(item.status)}" placeholder="Активен" /></label>
               <label class="form-field full"><span>Описание</span><textarea name="description" rows="3" placeholder="Параметры, допуски, замены, комментарии">${escapeHtml(item.description)}</textarea></label>
               <div class="module-form-actions full">
+                ${isNewItem ? "" : `<button class="secondary-button danger" data-nomenclature-delete="${escapeAttribute(item.id)}" type="button">${icon("trash")}<span>Удалить</span></button>`}
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewItem ? "Создать позицию" : "Сохранить позицию"}</span></button>
               </div>
             </form>
           </section>
+          ` : ""}
 
           <section class="module-panel nomenclature-list-panel">
             <div class="report-card-head">
-              <strong>02 · Список номенклатуры</strong>
-              <span>${items.length ? `${items.length} позиций` : "список пуст"}</span>
+              <strong>${hasPreviewObject ? "02" : "01"} · Список номенклатуры</strong>
+              <span>${items.length ? `${items.length} из ${allItems.length} позиций` : "список пуст"}</span>
             </div>
             ${renderNomenclatureTable(items, activeItem)}
           </section>
@@ -4413,23 +7067,27 @@ function renderNomenclatureTable(items, activeItem) {
           <tr>
             <th>Наименование</th>
             <th>Артикул</th>
-            <th>Тип</th>
+            <th>Раздел</th>
             <th>Корпус</th>
             <th>Ед.</th>
             <th>Производитель</th>
             <th>Статус</th>
+            <th class="actions-cell">Действия</th>
           </tr>
         </thead>
         <tbody>
           ${items.map((entry) => `
             <tr class="${entry.id === activeItem?.id ? "is-selected" : ""}" data-nomenclature-row-open="${escapeAttribute(entry.id)}">
-              <td class="primary-cell">${escapeHtml(entry.name || "Позиция без названия")}</td>
-              <td>${escapeHtml(entry.article || "-")}</td>
-              <td>${escapeHtml(entry.type || "-")}</td>
-              <td>${escapeHtml(entry.package || "-")}</td>
+              <td class="primary-cell" title="${escapeAttribute(entry.name || "Позиция без названия")}">${escapeHtml(entry.name || "Позиция без названия")}</td>
+              <td title="${escapeAttribute(entry.article || "-")}">${escapeHtml(entry.article || "-")}</td>
+              <td title="${escapeAttribute(entry.type || "-")}">${escapeHtml(entry.type || "-")}</td>
+              <td title="${escapeAttribute(entry.package || "-")}">${escapeHtml(entry.package || "-")}</td>
               <td>${escapeHtml(entry.unit || "шт.")}</td>
-              <td>${escapeHtml(entry.manufacturer || "-")}</td>
+              <td title="${escapeAttribute(entry.manufacturer || "-")}">${escapeHtml(entry.manufacturer || "-")}</td>
               <td>${escapeHtml(entry.status || "Активен")}</td>
+              <td class="actions-cell">
+                <button class="table-icon-button danger-soft" data-nomenclature-row-delete="${escapeAttribute(entry.id)}" type="button" title="Удалить позицию">${icon("trash")}</button>
+              </td>
             </tr>
           `).join("")}
         </tbody>
@@ -4440,7 +7098,8 @@ function renderNomenclatureTable(items, activeItem) {
 
 function renderBomListsPage() {
   const activeBom = getActiveBomForModule();
-  const isNewBom = ui.activeBomId === "__new__" || !activeBom;
+  const isNewBom = ui.activeBomId === "__new__";
+  const hasPreviewBom = isNewBom || Boolean(activeBom);
   const bom = activeBom || {
     id: "",
     name: "",
@@ -4450,11 +7109,10 @@ function renderBomListsPage() {
     status: "Черновик",
     ...Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, 0])),
   };
-  const componentCounts = getBomComponentCounts(bom);
+  const componentCounts = hasPreviewBom ? getBomComponentCounts(bom) : {};
   const componentTotal = Object.values(componentCounts).reduce((sum, count) => sum + Number(count || 0), 0);
-  const linkedSpecifications = getBomLinkedSpecifications(bom.id);
-  const importRows = getBomImportRows(bom);
-  const importHeaders = getBomImportHeaders(bom);
+  const importRows = hasPreviewBom ? getBomImportRows(bom) : [];
+  const importHeaders = hasPreviewBom ? getBomImportHeaders(bom) : [];
 
   return `
     <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="BOM-листы SMT">
@@ -4476,7 +7134,7 @@ function renderBomListsPage() {
               <button class="module-entity-item ${item.id === activeBom?.id ? "is-active" : ""}" data-bom-open="${item.id}" type="button">
                 <span>
                   <strong class="module-entity-title"><span>${escapeHtml(item.name)}</span>${hasImportRows ? "" : ` <b class="module-status-chip">Черновик</b>`}</strong>
-                  <small>${escapeHtml(item.boardCode || "код платы не задан")} · самостоятельный BOM</small>
+                  <small>${escapeHtml(item.boardCode || "код платы не задан")} · ${escapeHtml(item.resultItem || "результат BOM не задан")}</small>
                 </span>
                 <em>${total}</em>
               </button>
@@ -4489,57 +7147,46 @@ function renderBomListsPage() {
         <header class="directory-header">
           <div>
             <span class="eyebrow">BOM SMT</span>
-            <h2>${escapeHtml(isNewBom ? "Новый BOM-лист" : bom.name)}</h2>
-            <p>BOM описывает компонентный состав печатной платы и создается без привязки к спецификации.</p>
+            <h2>${escapeHtml(hasPreviewBom ? (isNewBom ? "Новый BOM-лист" : bom.name || "BOM без названия") : "BOM не выбран")}</h2>
+            <p>${hasPreviewBom ? "BOM описывает компонентный состав печатной платы и создается без привязки к спецификации." : "Выберите BOM в левом перечне или создайте новый, чтобы открыть карточку и таблицу компонентов."}</p>
           </div>
         </header>
 
         <div class="module-data-content bom-module-content">
-          <section class="module-panel bom-editor-panel">
+          ${hasPreviewBom ? `
+          <section class="module-panel bom-editor-panel bom-combined-panel">
             <div class="report-card-head">
-              <strong>01 · Карточка BOM</strong>
-              <span>${isNewBom ? "создание компонентного состава" : "покомпонентный расчет платы"}</span>
+              <strong>BOM и компоненты</strong>
+              <span>${isNewBom ? "создание компонентного состава" : `${importRows.length ? `${importRows.length} строк` : "таблица пока пустая"} · покомпонентный расчет платы`}</span>
             </div>
             <form id="bomModuleForm" class="module-form">
               <input type="hidden" name="bomId" value="${escapeAttribute(bom.id)}" />
               <input type="hidden" name="isNew" value="${isNewBom ? "yes" : "no"}" />
               <label class="form-field"><span>Название BOM</span><input name="name" value="${escapeAttribute(bom.name)}" placeholder="BOM PCB" /></label>
               <label class="form-field"><span>Код платы</span><input name="boardCode" value="${escapeAttribute(bom.boardCode)}" placeholder="PCB-..." /></label>
-              <label class="form-field full"><span>Результат BOM</span><input name="resultItem" value="${escapeAttribute(bom.resultItem)}" placeholder="Смонтированная печатная плата" /></label>
+              <label class="form-field full"><span>Результат BOM</span><input name="resultItem" value="${escapeAttribute(bom.resultItem)}" placeholder="Печатная плата" /></label>
               <div class="module-form-actions full">
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewBom ? "Создать BOM" : "Сохранить BOM"}</span></button>
+                ${renderBomImportButton()}
+                ${isNewBom ? "" : `<button class="secondary-button danger" data-bom-delete="${escapeAttribute(bom.id)}" type="button">${icon("trash")}<span>Удалить BOM</span></button>`}
               </div>
             </form>
+            <div class="bom-combined-table-block">
+              <div class="bom-combined-table-head">
+                <strong>Таблица импортированного BOM</strong>
+                <span>${importRows.length ? `${escapeHtml(bom.sourceFileName || bom.name)} · ${importRows.length} строк` : "стандартные поля Excel A:I"}</span>
+              </div>
+              ${renderBomImportTable(bom, importHeaders, importRows, componentCounts, componentTotal, isNewBom)}
+            </div>
+            ${importRows.length ? `
+              <div class="bom-card-component-summary">
+                <div class="module-list-label">Подсчет импортированных компонентов</div>
+                ${renderBomComponentSummary(componentCounts, componentTotal)}
+              </div>
+            ` : ""}
           </section>
 
-          <section class="module-panel bom-import-table-panel">
-            <div class="report-card-head">
-              <strong>02 · Таблица импортированного BOM</strong>
-              <span>${importRows.length ? `${escapeHtml(bom.sourceFileName || bom.name)} · ${importRows.length} строк` : "после импорта здесь появятся строки A:I"}</span>
-            </div>
-            ${renderBomImportTable(importHeaders, importRows, componentCounts, componentTotal)}
-          </section>
-
-          <section class="module-panel bom-summary-panel">
-            <div class="report-card-head">
-              <strong>03 · Связи</strong>
-              <span>${linkedSpecifications.length ? `${linkedSpecifications.length} спецификаций используют этот BOM` : "использование в спецификациях"}</span>
-            </div>
-            <div class="bom-link-list">
-              <div class="module-list-label">Где используется</div>
-              ${linkedSpecifications.length ? linkedSpecifications.map((specification) => `
-                <button class="module-entity-item" data-bom-linked-spec="${specification.id}" type="button">
-                  <span><strong>${escapeHtml(specification.name)}</strong><small>${Number(getSpecificationProductionQuantity(specification) || 0).toLocaleString("ru-RU")} шт. · ${escapeHtml(specification.outputItem || "итог не задан")}</small></span>
-                  <em>${escapeHtml(PROJECT_STATUS_LABELS[getSpecificationProductionStatus(specification)] || specification.status || "-")}</em>
-                </button>
-              `).join("") : `
-                <article class="module-empty-note">
-                  <strong>BOM пока не включен в спецификации</strong>
-                  <span>После сохранения BOM откройте модуль «Спецификации» и выберите его как BOM A или BOM B.</span>
-                </article>
-              `}
-            </div>
-          </section>
+          ` : ""}
         </div>
       </div>
     </section>
@@ -4548,7 +7195,7 @@ function renderBomListsPage() {
 
 function renderBomImportButton() {
   return `
-    <label class="secondary-button bom-file-import-button">
+    <label class="primary-button bom-file-import-button">
       ${icon("upload")}
       <span>Импортировать Excel</span>
       <input data-bom-import-file type="file" accept=".xlsx,.xls" />
@@ -4557,16 +7204,14 @@ function renderBomImportButton() {
 }
 
 function renderBomComponentSummary(componentCounts, componentTotal) {
-  const counts = {
-    ...Object.fromEntries(BOM_COMPONENT_FIELDS.map((field) => [field.key, 0])),
-    ...(componentCounts || {}),
-  };
+  const counts = getBomComponentFieldCounts(componentCounts);
+  const total = Object.values(counts).reduce((sum, count) => sum + Number(count || 0), 0);
   const activeTypes = Object.values(counts).filter((count) => Number(count || 0) > 0).length;
   return `
     <div class="bom-component-summary">
       <article>
         <span>Компонентов</span>
-        <strong>${Number(componentTotal || 0).toLocaleString("ru-RU")}</strong>
+        <strong>${Number(total || componentTotal || 0).toLocaleString("ru-RU")}</strong>
         <small>на одну плату</small>
       </article>
       <article>
@@ -4585,37 +7230,113 @@ function renderBomComponentSummary(componentCounts, componentTotal) {
   `;
 }
 
-function renderBomImportTable(headers, rows, componentCounts, componentTotal) {
-  if (!rows.length) {
+function renderBomNomenclatureAddControl(bom, isNewBom = false) {
+  const reaItems = getReaNomenclatureItems();
+  if (isNewBom || !bom?.id) {
     return `
-      <div class="bom-import-empty">
-        ${icon("upload")}
-        <strong>Файл еще не импортирован</strong>
-        <span>Выберите Excel-шаблон BOM. Система сохранит строки до первой пустой ячейки A и покажет результат в этой таблице.</span>
-        ${renderBomImportButton()}
+      <div class="bom-nomenclature-add is-disabled">
+        ${icon("package")}
+        <span>Сначала сохраните карточку BOM, затем можно будет добавлять РЭА-компоненты из номенклатуры.</span>
       </div>
     `;
+  }
+
+  if (!reaItems.length) {
+    return `
+      <div class="bom-nomenclature-add is-disabled">
+        ${icon("package")}
+        <span>В номенклатуре пока нет позиций типа «${NOMENCLATURE_REA_COMPONENT_TYPE}». Импортируйте BOM или создайте компонент в модуле «Номенклатура».</span>
+      </div>
+    `;
+  }
+
+  const options = [
+    { value: "", label: "Добавить РЭА компонент", meta: "выберите позицию номенклатуры" },
+    ...reaItems.map((item) => ({
+      value: item.id,
+      label: item.name || "Компонент без названия",
+      meta: `${item.article || "артикул не задан"} · ${item.package || "корпус не задан"}`,
+    })),
+  ];
+
+  return `
+    <div class="bom-nomenclature-add">
+      <div>
+        ${icon("package")}
+        <span>Добавить строку из номенклатуры</span>
+      </div>
+      ${renderDenseInlineSelect("nomenclatureId", "", options, { type: "bomNomenclature", bomId: bom.id })}
+    </div>
+  `;
+}
+
+function renderBomImportCellInput(bomId, rowIndex, columnIndex, value) {
+  const isQuantity = columnIndex === 6;
+  return `
+    <input
+      class="bom-edit-input"
+      data-bom-import-cell="${escapeAttribute(bomId)}"
+      data-bom-row-index="${rowIndex}"
+      data-bom-column-index="${columnIndex}"
+      ${isQuantity ? `type="number" min="0" step="1"` : `type="text"`}
+      value="${escapeAttribute(value)}"
+      aria-label="Поле BOM ${rowIndex + 1}.${columnIndex + 1}"
+    />
+  `;
+}
+
+function renderBomImportPreviewTable() {
+  return `
+    <div class="bom-import-table-wrap bom-import-preview-wrap" data-layout="table">
+      <table class="directory-table bom-import-table bom-import-preview-table">
+        <thead>
+          <tr>
+            ${BOM_IMPORT_FALLBACK_HEADERS.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="is-preview-row">
+            ${BOM_IMPORT_FALLBACK_HEADERS.map(() => "<td>&nbsp;</td>").join("")}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderBomImportTable(bom, headers, rows, componentCounts, componentTotal, isNewBom = false) {
+  if (!rows.length) {
+    return renderBomImportPreviewTable();
   }
 
   return `
     <div class="bom-import-table-wrap" data-layout="table">
       <table class="directory-table bom-import-table">
         <thead>
-          <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+          <tr>
+            ${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}
+            <th class="actions-cell">Действия</th>
+          </tr>
         </thead>
         <tbody>
-          ${rows.map((row) => `
+          ${rows.map((row, rowIndex) => `
             <tr>
-              ${row.values.map((value, index) => `<td class="${index === 1 ? "primary-cell" : ""}">${escapeHtml(value)}</td>`).join("")}
+              ${row.values.map((value, columnIndex) => `
+                <td class="${columnIndex === 1 ? "primary-cell" : ""}">
+                  ${renderBomImportCellInput(bom.id, rowIndex, columnIndex, value)}
+                </td>
+              `).join("")}
+              <td class="actions-cell bom-row-action-cell">
+                <button class="table-icon-button danger-soft" data-bom-import-delete="${escapeAttribute(bom.id)}" data-bom-row-index="${rowIndex}" type="button" title="Удалить строку BOM">${icon("trash")}</button>
+              </td>
             </tr>
           `).join("")}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="${BOM_IMPORT_COLUMN_COUNT}">
+            <td colspan="${BOM_IMPORT_COLUMN_COUNT + 1}">
               <div class="bom-import-table-footer">
-                ${renderBomImportButton()}
-                ${renderBomComponentSummary(componentCounts, componentTotal)}
+                ${renderBomNomenclatureAddControl(bom, isNewBom)}
               </div>
             </td>
           </tr>
@@ -4792,24 +7513,26 @@ function getSpecificationById(specificationId) {
 }
 
 function getRouteSpecification(route) {
-  return getSpecificationByProjectId(route?.projectId) || null;
+  return getSpecificationById(route?.specificationId)
+    || getSpecificationByProjectId(route?.projectId)
+    || null;
 }
 
 function ensureRouteModuleProjectForSpecification(specification) {
   if (!specification) return "";
-  const projectId = ensureSpecificationPlanningUnit(specification, "full", { includeRoute: false });
-  if (!projectId) return "";
-  if (specification.projectId === projectId) return projectId;
+  const specificationId = ensureSpecificationPlanningUnit(specification, "full", { includeRoute: false });
+  if (!specificationId) return "";
+  if (!specification.projectId) return specificationId;
 
   const stamp = new Date().toISOString();
   directoryState.specifications = (directoryState.specifications || []).map((item) => (
     item.id === specification.id
-      ? syncSpecificationDerivedFields({ ...item, projectId, updatedAt: stamp })
+      ? syncSpecificationDerivedFields({ ...item, projectId: "", updatedAt: stamp })
       : item
   ));
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   persistDirectoryState();
-  return projectId;
+  return specificationId;
 }
 
 function resolveRouteModuleProjectId(selectionValue, options = {}) {
@@ -4818,7 +7541,7 @@ function resolveRouteModuleProjectId(selectionValue, options = {}) {
 
   const specification = getSpecificationById(value) || getSpecificationByProjectId(value);
   if (specification) {
-    if (specification.projectId && getProject(specification.projectId)) return specification.projectId;
+    if (getProject(specification.id)) return specification.id;
     return options.createPlanningUnit === false
       ? ""
       : ensureRouteModuleProjectForSpecification(specification);
@@ -4830,6 +7553,7 @@ function resolveRouteModuleProjectId(selectionValue, options = {}) {
 function getRouteModuleSelectionValue(route, fallbackSpecification = null) {
   const routeSpecification = getRouteSpecification(route);
   if (routeSpecification) return routeSpecification.id;
+  if (route?.specificationId) return route.specificationId;
   if (route?.projectId) return route.projectId;
   if (fallbackSpecification) return fallbackSpecification.id;
   return "";
@@ -4843,8 +7567,8 @@ function getRouteModuleSelectionName(route, fallbackSpecification = null) {
 
 function getRoutesForModule() {
   return [...(planningState.routes || [])].sort((left, right) => {
-    const leftProject = getProjectDisplayName(getProject(left.projectId)) || "";
-    const rightProject = getProjectDisplayName(getProject(right.projectId)) || "";
+    const leftProject = getProjectDisplayName(getProject(left.specificationId || left.projectId)) || "";
+    const rightProject = getProjectDisplayName(getProject(right.specificationId || right.projectId)) || "";
     return leftProject.localeCompare(rightProject, "ru") || String(left.name || "").localeCompare(String(right.name || ""), "ru");
   });
 }
@@ -4929,6 +7653,8 @@ function createRouteStepFromTaskTemplate(routeId, task, template, stepOrder, sta
     specTaskSourceItemId: task.sourceItemId || "",
     specTaskName: task.title || "",
     specTaskQuantity: Math.max(1, Number(task.quantity || 1)),
+    bomListId: task.bomListId || "",
+    boardsPerPanel: task.type === "bom" ? normalizeBoardsPerPanel(task.boardsPerPanel, 1) : 1,
     workCenterId: template.workCenterId,
     operationName: template.operationName || getWorkCenter(template.workCenterId)?.name || "Операция",
     stepOrder,
@@ -4966,7 +7692,9 @@ function getSpecificationRouteTasks(specification, context = {}) {
     }
 
     const title = getSpekiStructureItemLabel(item);
-    const operationName = item.operationName || getDefaultSpekiOperationName(item.type, "make") || "Операция";
+    const bomId = getSpecificationItemBomId(item);
+    const taskType = bomId ? "bom" : item.type;
+    const operationName = item.operationName || getDefaultSpekiOperationName(taskType, "make") || "Операция";
     const task = {
       id: context.numberPrefix ? `spec-item:${specification.id}:${item.id}` : `spec-item:${item.id}`,
       sourceItemId: item.id,
@@ -4974,12 +7702,14 @@ function getSpecificationRouteTasks(specification, context = {}) {
       parentTitle: context.parentTitle || "",
       number: context.numberPrefix ? `${context.numberPrefix}.${number}` : number,
       level: Number(context.levelOffset || 0) + level,
-      type: item.type,
+      type: taskType,
       title,
       operationName,
       departmentName: item.departmentName || getDefaultSpekiDepartmentName(operationName) || "Отдел не выбран",
       quantity: Math.max(1, Number(item.quantity || 1)),
       unit: item.unit || "шт.",
+      bomListId: bomId,
+      boardsPerPanel: getSpecificationItemBoardsPerPanel(item),
     };
     tasks.push({
       ...task,
@@ -4999,7 +7729,7 @@ function getRouteMainTask(route = null) {
     type: "route",
     title: "Общий маршрут спецификации",
     operationName: "Финальная последовательность",
-    departmentName: "Планирование",
+    departmentName: "Заказ на пр-во",
     quantity: 1,
     unit: "маршрут",
     workCenterId: planningState.workCenters.find((center) => center.id !== "warehouse")?.id || "manual",
@@ -5060,35 +7790,67 @@ function ensureRouteTaskSeedSteps(routeId, specification) {
   if (!routeId || !specification) return false;
   const tasks = getSpecificationRouteTasks(specification);
   if (!tasks.length) return false;
+  const route = (planningState.routes || []).find((item) => item.id === routeId) || null;
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  let changed = false;
 
   const existingTaskIds = new Set((planningState.routeSteps || [])
     .filter((step) => step.routeId === routeId)
     .map((step) => getRouteStepTaskId(step)));
+  planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
+    if (step.routeId !== routeId) return step;
+    const task = taskById.get(getRouteStepTaskId(step));
+    if (!task) return step;
+    const boardsPerPanel = task.type === "bom"
+      ? getPlanningBoardsPerPanel(route, task.sourceItemId || task.id, task.boardsPerPanel || step.boardsPerPanel || 1)
+      : 1;
+    const nextQuantity = Math.max(1, Number(task.quantity || 1));
+    const patch = {
+      specTaskSourceItemId: task.sourceItemId || step.specTaskSourceItemId || "",
+      specTaskName: task.title || step.specTaskName || "",
+      specTaskQuantity: nextQuantity,
+      quantityMultiplier: nextQuantity,
+      bomListId: task.bomListId || step.bomListId || "",
+      boardsPerPanel,
+    };
+    const needsPatch = Object.entries(patch).some(([key, value]) => String(step[key] ?? "") !== String(value ?? ""));
+    if (!needsPatch) return step;
+    changed = true;
+    return { ...step, ...patch, updatedAt: new Date().toISOString() };
+  });
   const stamp = new Date().toISOString();
   const additions = tasks.flatMap((task) => {
     if (existingTaskIds.has(task.id)) return [];
+    const routeTask = task.type === "bom"
+      ? { ...task, boardsPerPanel: getPlanningBoardsPerPanel(route, task.sourceItemId || task.id, task.boardsPerPanel || 1) }
+      : task;
     return getRouteTaskTemplateSteps(task)
-      .map((template, index) => createRouteStepFromTaskTemplate(routeId, task, template, index + 1, stamp));
+      .map((template, index) => createRouteStepFromTaskTemplate(routeId, routeTask, template, index + 1, stamp));
   });
 
-  if (!additions.length) return false;
+  if (!additions.length) return changed;
   planningState.routeSteps = [...planningState.routeSteps, ...additions];
   tasks.forEach((task) => normalizeRouteStepOrders(routeId, task.id));
   return true;
 }
 
 function getProjectRouteForModule(projectId) {
-  return (planningState.routes || []).find((route) => route.projectId === projectId && route.isDefault)
-    || (planningState.routes || []).find((route) => route.projectId === projectId)
+  return (planningState.routes || []).find((route) => (route.specificationId === projectId || route.projectId === projectId) && route.isDefault)
+    || (planningState.routes || []).find((route) => route.specificationId === projectId || route.projectId === projectId)
+    || null;
+}
+
+function getSpecificationRouteForModule(specificationId) {
+  return (planningState.routes || []).find((route) => (route.specificationId === specificationId || route.projectId === specificationId) && route.isDefault)
+    || (planningState.routes || []).find((route) => route.specificationId === specificationId || route.projectId === specificationId)
     || null;
 }
 
 function getActiveRouteForModule() {
   if (ui.activeRouteId === "__new__") return null;
+  if (!ui.activeRouteId) return null;
   const routes = getRoutesForModule();
   return routes.find((route) => route.id === ui.activeRouteId)
-    || getProjectRouteForModule(ui.activeProjectId)
-    || routes[0]
     || null;
 }
 
@@ -5110,6 +7872,62 @@ function getRouteModuleStats(route) {
   };
 }
 
+function getRouteDeleteUsage(routeId) {
+  const steps = getRouteStepsForModule(routeId);
+  const stepIds = new Set(steps.map((step) => step.id));
+  const batches = (planningState.batches || []).filter((batch) => batch.routeId === routeId);
+  const batchIds = new Set(batches.map((batch) => batch.id));
+  const slots = (planningState.slots || []).filter((slot) => (
+    stepIds.has(slot.routeStepId) || batchIds.has(slot.batchId)
+  ));
+  return {
+    steps,
+    stepIds,
+    batches,
+    batchIds,
+    slots,
+    stepsCount: steps.length,
+    batchesCount: batches.length,
+    slotsCount: slots.length,
+  };
+}
+
+function deleteRouteMapConfirmed(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  if (!route) return;
+
+  const usage = getRouteDeleteUsage(routeId);
+  const routeTargetIds = new Set([route.specificationId, route.projectId].filter(Boolean));
+  const wasDefault = Boolean(route.isDefault);
+
+  planningState.routes = (planningState.routes || []).filter((item) => item.id !== routeId);
+  planningState.routeSteps = (planningState.routeSteps || []).filter((step) => step.routeId !== routeId);
+  planningState.batches = (planningState.batches || []).filter((batch) => !usage.batchIds.has(batch.id));
+  planningState.slots = (planningState.slots || []).filter((slot) => (
+    !usage.stepIds.has(slot.routeStepId) && !usage.batchIds.has(slot.batchId)
+  ));
+
+  if (wasDefault && routeTargetIds.size) {
+    const sameTargetRoutes = planningState.routes.filter((item) => (
+      routeTargetIds.has(item.specificationId) || routeTargetIds.has(item.projectId)
+    ));
+    if (sameTargetRoutes.length && !sameTargetRoutes.some((item) => item.isDefault)) {
+      const fallbackRoute = sameTargetRoutes[0];
+      planningState.routes = planningState.routes.map((item) => (
+        item.id === fallbackRoute.id ? { ...item, isDefault: true, updatedAt: new Date().toISOString() } : item
+      ));
+    }
+  }
+
+  planningState = normalizePlanningState(planningState);
+  const remainingRoutes = getRoutesForModule();
+  ui.activeRouteId = remainingRoutes[0]?.id || "";
+  if (planningState.slots.every((slot) => slot.id !== ui.selectedSlotId)) ui.selectedSlotId = null;
+  withPlanningEntityRemovalAllowed(() => persistState());
+  persistUiState();
+  render();
+}
+
 function ensureProjectBatches(project) {
   if (!project) return [];
   const existing = planningState.batches.filter((batch) => batch.projectId === project.id);
@@ -5129,26 +7947,455 @@ function ensureProjectBatches(project) {
   return [batch];
 }
 
+function ensureRouteBatches(route, production = null) {
+  if (!route) return [];
+  const context = production || getProject(route.specificationId || route.projectId);
+  if (!context) return [];
+  const existing = getRoutePlanningBatches(route, context);
+  if (existing.length) return existing;
+
+  const stamp = new Date().toISOString();
+  const batch = {
+    id: `b-${route.id}-1`,
+    routeId: route.id,
+    specificationId: context.id,
+    projectId: context.id,
+    batchNumber: "1",
+    quantity: normalizeQuantity(route.planningQuantity || context.totalQuantity),
+    status: context.status || "planned",
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  planningState.batches = [...planningState.batches, batch];
+  return [batch];
+}
+
+function comparePlanningBatches(left, right) {
+  return String(left.batchNumber || left.id || "").localeCompare(String(right.batchNumber || right.id || ""), "ru", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function getRoutePlanningBatches(route, production = null) {
+  if (!route) return [];
+  const context = production || getProject(route.specificationId || route.projectId);
+  const routeId = route.id;
+  const productionId = context?.id || route.specificationId || route.projectId || "";
+  return (planningState.batches || [])
+    .filter((batch) => (
+      batch.routeId === routeId
+      || (productionId && (batch.specificationId === productionId || batch.projectId === productionId))
+    ))
+    .sort(comparePlanningBatches);
+}
+
+function getPlanningBatchSlots(batch, route = null) {
+  if (!batch?.id) return [];
+  return (planningState.slots || []).filter((slot) => (
+    slot.batchId === batch.id
+    && (!route || slot.routeId === route.id || slot.specificationId === route.specificationId || slot.projectId === route.projectId)
+  ));
+}
+
+function getPlanningBatchQuantityTotal(batches) {
+  return (batches || []).reduce((sum, batch) => sum + normalizeQuantity(batch.quantity || 0), 0);
+}
+
+function getNextPlanningBatchNumber(batches) {
+  const numeric = (batches || [])
+    .map((batch) => Number(String(batch.batchNumber || "").split(".")[0]))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  return String((numeric.length ? Math.max(...numeric) : (batches || []).length) + 1);
+}
+
+function getPlanningRouteQuantity(route) {
+  if (!route) return 1;
+  const project = getProject(route.specificationId || route.projectId);
+  const specification = getRouteSpecification(route);
+  const batches = getRoutePlanningBatches(route, project);
+  const firstBatch = batches[0];
+  return normalizeOptionalPositiveInteger(route.planningQuantity)
+    || normalizeOptionalPositiveInteger(specification?.productionQuantity)
+    || normalizeOptionalPositiveInteger(firstBatch?.quantity)
+    || normalizeOptionalPositiveInteger(project?.totalQuantity)
+    || 1;
+}
+
+function syncPlanningRouteQuantity(routeId, value, options = {}) {
+  const quantity = normalizeOptionalPositiveInteger(value);
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  const production = getProject(route?.specificationId || route?.projectId);
+  if (!route || !production || !quantity) return false;
+
+  const stamp = new Date().toISOString();
+  planningState.routes = planningState.routes.map((item) => item.id === route.id ? {
+    ...item,
+    planningQuantity: quantity,
+    updatedAt: stamp,
+  } : item);
+
+  const specification = getRouteSpecification(route);
+  if (specification?.id) {
+    directoryState.specifications = (directoryState.specifications || []).map((item) => item.id === specification.id ? {
+      ...item,
+      productionQuantity: quantity,
+      updatedAt: stamp,
+    } : item);
+  }
+
+  const batches = getRoutePlanningBatches(route, production);
+  const targetBatch = batches[0];
+  if (targetBatch && batches.length <= 1) {
+    planningState.batches = planningState.batches.map((batch) => batch.id === targetBatch.id ? {
+      ...batch,
+      routeId: route.id,
+      specificationId: production.id,
+      projectId: production.id,
+      quantity,
+      updatedAt: stamp,
+    } : batch);
+  } else if (!targetBatch) {
+    planningState.batches = [...planningState.batches, {
+      id: `b-${route.id}-1`,
+      routeId: route.id,
+      specificationId: production.id,
+      projectId: production.id,
+      batchNumber: "1",
+      quantity,
+      status: production.status || "planned",
+      createdAt: stamp,
+      updatedAt: stamp,
+    }];
+  }
+
+  if (options.updateSlots) {
+    const routeSteps = getSchedulableRouteSteps(route.id);
+    const stepById = byId(routeSteps);
+    const batchById = byId(getRoutePlanningBatches(route, production));
+    planningState.slots = planningState.slots.map((slot) => {
+      const step = stepById[slot.routeStepId];
+      const batch = batchById[slot.batchId];
+      if ((slot.routeId && slot.routeId !== route.id) || !batch || !step || slot.locked || slot.status === "completed") return slot;
+      const nextQuantity = getRouteStepQuantityForBatch(step, batch);
+      return recalculateSlotEndByQuantity({
+        ...slot,
+        routeId: route.id,
+        specificationId: production.id,
+        projectId: production.id,
+        quantity: nextQuantity,
+        updatedAt: stamp,
+      }, planningState);
+    });
+  }
+
+  if (options.persist !== false) {
+    persistState();
+    persistDirectoryState();
+  }
+  if (options.notify !== false) {
+    notifySaveSuccess(options.message || "Количество к производству сохранено");
+  }
+  if (options.render !== false) render();
+  return true;
+}
+
+function createPlanningBatch(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  const production = getProject(route?.specificationId || route?.projectId);
+  if (!route || !production) return;
+
+  const stamp = new Date().toISOString();
+  const batches = getRoutePlanningBatches(route, production);
+  const planningQuantity = getPlanningRouteQuantity(route);
+  const batchTotal = getPlanningBatchQuantityTotal(batches);
+  const quantity = batches.length
+    ? Math.max(1, planningQuantity - batchTotal || Math.ceil(planningQuantity / (batches.length + 1)))
+    : planningQuantity;
+  const batch = {
+    id: makeId("b"),
+    routeId: route.id,
+    specificationId: production.id,
+    projectId: production.id,
+    batchNumber: getNextPlanningBatchNumber(batches),
+    quantity,
+    status: production.status || "planned",
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  planningState.batches = [...planningState.batches, batch];
+  persistState();
+  notifySaveSuccess("Партия создана");
+  render();
+}
+
+function recalculatePlanningBatchSlots(batchId, routeId, stamp = new Date().toISOString()) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId)
+    || (planningState.routes || []).find((item) => item.id === getBatch(batchId)?.routeId);
+  if (!route) return;
+  const batch = getBatch(batchId);
+  if (!batch) return;
+  const stepById = byId(getSchedulableRouteSteps(route.id));
+  planningState.slots = (planningState.slots || []).map((slot) => {
+    const step = stepById[slot.routeStepId];
+    if (slot.batchId !== batch.id || !step || slot.locked || slot.status === "completed") return slot;
+    return recalculateSlotEndByQuantity({
+      ...slot,
+      routeId: route.id,
+      specificationId: batch.specificationId || route.specificationId || slot.specificationId || slot.projectId,
+      projectId: batch.specificationId || route.specificationId || slot.projectId,
+      quantity: getRouteStepQuantityForBatch(step, batch),
+      updatedAt: stamp,
+    }, planningState);
+  });
+}
+
+function updatePlanningBatchField(batchId, field, value) {
+  const batch = getBatch(batchId);
+  if (!batch || !["batchNumber", "quantity"].includes(field)) return;
+  const route = (planningState.routes || []).find((item) => item.id === batch.routeId)
+    || (planningState.routes || []).find((item) => item.specificationId === batch.specificationId || item.projectId === batch.projectId);
+  const production = getProject(route?.specificationId || route?.projectId || batch.specificationId || batch.projectId);
+  const stamp = new Date().toISOString();
+  let nextValue = value;
+
+  if (field === "batchNumber") {
+    nextValue = String(value || "").trim();
+    if (!nextValue) return;
+  }
+
+  if (field === "quantity") {
+    nextValue = normalizeOptionalPositiveInteger(value);
+    if (!nextValue) return;
+  }
+
+  planningState.batches = (planningState.batches || []).map((item) => item.id === batch.id ? {
+    ...item,
+    routeId: route?.id || item.routeId || "",
+    specificationId: production?.id || item.specificationId || item.projectId || "",
+    projectId: production?.id || item.projectId || item.specificationId || "",
+    [field]: nextValue,
+    updatedAt: stamp,
+  } : item);
+
+  if (field === "quantity") {
+    recalculatePlanningBatchSlots(batch.id, route?.id || "", stamp);
+  }
+
+  persistState();
+  notifySaveSuccess("Партия сохранена");
+  render();
+}
+
+function distributePlanningBatchesEvenly(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  const production = getProject(route?.specificationId || route?.projectId);
+  if (!route || !production) return;
+
+  let batches = getRoutePlanningBatches(route, production);
+  if (!batches.length) {
+    ensureRouteBatches(route, production);
+    batches = getRoutePlanningBatches(route, production);
+  }
+  const quantity = getPlanningRouteQuantity(route);
+  const base = Math.floor(quantity / batches.length);
+  let remainder = quantity % batches.length;
+  const stamp = new Date().toISOString();
+  planningState.batches = (planningState.batches || []).map((batch) => {
+    if (!batches.some((item) => item.id === batch.id)) return batch;
+    const nextQuantity = Math.max(1, base + (remainder > 0 ? 1 : 0));
+    remainder -= 1;
+    return {
+      ...batch,
+      routeId: route.id,
+      specificationId: production.id,
+      projectId: production.id,
+      quantity: nextQuantity,
+      updatedAt: stamp,
+    };
+  });
+  batches.forEach((batch) => recalculatePlanningBatchSlots(batch.id, route.id, stamp));
+  persistState();
+  notifySaveSuccess("Партии распределены");
+  render();
+}
+
+function acceptPlanningBatchTotal(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  const production = getProject(route?.specificationId || route?.projectId);
+  if (!route || !production) return;
+  const batches = getRoutePlanningBatches(route, production);
+  const total = getPlanningBatchQuantityTotal(batches);
+  if (!total) return;
+  syncPlanningRouteQuantity(route.id, total, { updateSlots: true, message: "Количество принято из партий" });
+}
+
+function requestDeletePlanningBatch(batchId) {
+  const batch = getBatch(batchId);
+  if (!batch) return;
+  const slotsCount = getPlanningBatchSlots(batch).length;
+  if (slotsCount) {
+    openConfirmDialog("planningDeleteBatch", { batchId });
+    return;
+  }
+  deletePlanningBatch(batchId, { deleteSlots: false });
+}
+
+function deletePlanningBatch(batchId, options = {}) {
+  const batch = getBatch(batchId);
+  if (!batch) return;
+  planningState.batches = (planningState.batches || []).filter((item) => item.id !== batch.id);
+  if (options.deleteSlots) {
+    planningState.slots = (planningState.slots || []).filter((slot) => slot.batchId !== batch.id);
+    if (planningState.slots.every((slot) => slot.id !== ui.selectedSlotId)) ui.selectedSlotId = null;
+  }
+  persistState();
+  notifySaveSuccess("Операции маршрута добавлены");
+  render();
+}
+
+function getPlanningBoardsPerPanelOverrides(route) {
+  return route?.planningBoardsPerPanelBySource && typeof route.planningBoardsPerPanelBySource === "object"
+    ? route.planningBoardsPerPanelBySource
+    : {};
+}
+
+function getPlanningBoardsPerPanel(route, sourceId, fallback = 1) {
+  const key = String(sourceId || "");
+  const overrides = getPlanningBoardsPerPanelOverrides(route);
+  if (key && Object.prototype.hasOwnProperty.call(overrides, key)) {
+    return normalizeBoardsPerPanel(overrides[key], fallback);
+  }
+  return normalizeBoardsPerPanel(fallback, 1);
+}
+
+function syncPlanningBoardsPerPanel(routeId, sourceId, value, options = {}) {
+  const boardsPerPanel = normalizeOptionalPositiveInteger(value);
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  const sourceKey = String(sourceId || "");
+  if (!route || !sourceKey || !boardsPerPanel) return false;
+
+  const stamp = new Date().toISOString();
+  planningState.routes = (planningState.routes || []).map((item) => (
+    item.id === route.id
+      ? {
+          ...item,
+          planningBoardsPerPanelBySource: {
+            ...getPlanningBoardsPerPanelOverrides(item),
+            [sourceKey]: boardsPerPanel,
+          },
+          updatedAt: stamp,
+        }
+      : item
+  ));
+
+  const affectedStepIds = new Set();
+  planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
+    if (step.routeId !== route.id) return step;
+    const taskId = getRouteStepTaskId(step);
+    const compositeKey = `${taskId}:${step.bomListId || ""}`;
+    const matchesSource = (
+      step.specTaskSourceItemId === sourceKey
+      || taskId === sourceKey
+      || compositeKey === sourceKey
+    );
+    if (!matchesSource) return step;
+    affectedStepIds.add(step.id);
+    return {
+      ...step,
+      boardsPerPanel,
+      updatedAt: stamp,
+    };
+  });
+
+  if (affectedStepIds.size) {
+    planningState.slots = (planningState.slots || []).map((slot) => {
+      if (!affectedStepIds.has(slot.routeStepId) || slot.locked || slot.status === "completed") return slot;
+      return recalculateSlotEndByQuantity({
+        ...slot,
+        boardsPerPanel,
+        updatedAt: stamp,
+      }, planningState);
+    });
+  }
+
+  if (options.persist !== false) persistState();
+  if (options.notify !== false) {
+    notifySaveSuccess("Платы в мультиплате сохранены");
+  }
+  if (options.render !== false) render();
+  return true;
+}
+
 function getRouteStepQuantityForBatch(routeStep, batch) {
   const multiplier = Math.max(1, Number(routeStep?.quantityMultiplier || routeStep?.specTaskQuantity || 1));
   return Math.max(1, Math.round(normalizeQuantity(batch?.quantity) * multiplier));
 }
 
+function getPlanningMultiplicationRows(route, steps = null, planningQuantity = null) {
+  if (!route) return [];
+  const quantity = normalizeQuantity(planningQuantity || getPlanningRouteQuantity(route));
+  const specification = getRouteSpecification(route);
+  const bomEntries = specification ? getSpecificationBomEntries(specification.id) : [];
+  if (bomEntries.length) {
+    return bomEntries.map((entry) => {
+      const boards = Math.max(1, Math.round(quantity * Math.max(1, Number(entry.quantity || 1))));
+      const sourceId = entry.structureItemId || entry.bom.id;
+      const boardsPerPanel = getPlanningBoardsPerPanel(route, sourceId, entry.boardsPerPanel || 1);
+      return {
+        id: sourceId,
+        sourceId,
+        label: entry.bom.resultItem || entry.bom.name || "Печатная плата",
+        boards,
+        boardsPerPanel,
+        panels: Math.max(1, Math.ceil(boards / boardsPerPanel)),
+      };
+    });
+  }
+
+  const routeSteps = steps || getSchedulableRouteSteps(route.id);
+  const seen = new Set();
+  return routeSteps
+    .filter((step) => step.bomListId)
+    .map((step) => {
+      const key = `${getRouteStepTaskId(step)}:${step.bomListId}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      const bom = getBomList(step.bomListId);
+      const boards = getRouteStepQuantityForBatch(step, { quantity });
+      const boardsPerPanel = getPlanningBoardsPerPanel(route, key, getRouteStepBoardsPerPanel(step));
+      return {
+        id: key,
+        sourceId: key,
+        label: bom?.resultItem || bom?.name || step.specTaskName || step.operationName || "Печатная плата",
+        boards,
+        boardsPerPanel,
+        panels: Math.max(1, Math.ceil(boards / boardsPerPanel)),
+      };
+    })
+    .filter(Boolean);
+}
+
 function getPlanningRouteTransferSummary(route) {
-  if (!route) return { batches: [], steps: [], expected: 0, planned: 0, missing: 0, firstStart: null };
-  const project = getProject(route.projectId);
-  const existingBatches = project ? planningState.batches.filter((batch) => batch.projectId === project.id) : [];
+  if (!route) return { batches: [], steps: [], expected: 0, planned: 0, missing: 0, firstStart: null, multiplicationRows: [], totalPanels: 0, batchQuantityTotal: 0, quantityDelta: 0 };
+  const project = getProject(route.specificationId || route.projectId);
+  const planningQuantity = getPlanningRouteQuantity(route);
+  const existingBatches = project ? getRoutePlanningBatches(route, project) : [];
   const batches = existingBatches.length ? existingBatches : project ? [{
     id: "__pending__",
+    routeId: route.id,
+    specificationId: project.id,
     projectId: project.id,
     batchNumber: "1",
-    quantity: normalizeQuantity(project.totalQuantity),
+    quantity: planningQuantity,
   }] : [];
+  const realBatches = batches.filter((batch) => batch.id !== "__pending__");
+  const batchQuantityTotal = realBatches.length ? getPlanningBatchQuantityTotal(realBatches) : planningQuantity;
   const steps = getSchedulableRouteSteps(route.id);
   const stepIds = new Set(steps.map((step) => step.id));
   const batchIds = new Set(batches.map((batch) => batch.id));
   const slots = planningState.slots.filter((slot) => (
-    slot.projectId === route.projectId
+    (slot.routeId === route.id || slot.specificationId === project?.id || slot.projectId === project?.id)
     && batchIds.has(slot.batchId)
     && stepIds.has(slot.routeStepId)
   ));
@@ -5156,10 +8403,16 @@ function getPlanningRouteTransferSummary(route) {
   const firstStart = slots
     .map((slot) => toDate(slot.plannedStart))
     .sort((left, right) => left - right)[0] || null;
+  const multiplicationRows = getPlanningMultiplicationRows(route, steps, batchQuantityTotal || planningQuantity);
 
   return {
     batches,
     steps,
+    planningQuantity,
+    batchQuantityTotal,
+    quantityDelta: batchQuantityTotal - planningQuantity,
+    multiplicationRows,
+    totalPanels: multiplicationRows.reduce((sum, row) => sum + row.panels, 0),
     expected,
     planned: slots.length,
     missing: Math.max(0, expected - slots.length),
@@ -5174,21 +8427,27 @@ function getPlanningScheduleAnchorStart() {
 }
 
 function createSlotFromRouteStep(project, batch, routeStep, window, quantity, stamp) {
+  const route = (planningState.routes || []).find((item) => item.id === routeStep.routeId);
+  const specificationId = route?.specificationId || project.specificationId || project.id;
   return {
     id: makeId("s"),
-    projectId: project.id,
+    routeId: route?.id || routeStep.routeId || "",
+    specificationId,
+    projectId: specificationId,
     batchId: batch.id,
     workCenterId: routeStep.workCenterId,
     routeStepId: routeStep.id,
     operationName: routeStep.operationName || getWorkCenter(routeStep.workCenterId)?.name || "Операция",
     quantity,
     unitsPerHour: Number(routeStep.unitsPerHour || 0) || undefined,
+    boardsPerPanel: getRouteStepBoardsPerPanel(routeStep),
+    resourceId: routeStep.resourceId || "",
     plannedStart: toSlotDateTime(window.start),
     plannedEnd: toSlotDateTime(window.end),
     actualStart: "",
     actualEnd: "",
     status: "planned",
-    comment: "Передано из модуля «Планирование».",
+    comment: "Передано из модуля «Заказ на пр-во».",
     createdAt: stamp,
     updatedAt: stamp,
   };
@@ -5234,7 +8493,7 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
       .map((group) => {
         const step = group.queue[0];
         const quantity = getRouteStepQuantityForBatch(step, batch);
-        const durationMs = calculateRequiredDurationMs(step.workCenterId, quantity, planningState, step.unitsPerHour || null);
+        const durationMs = calculateRequiredDurationMs(step.workCenterId, quantity, planningState, step.unitsPerHour || null, step.boardsPerPanel || null);
         const window = findFreeWindow(step.workCenterId, durationMs, group.readyAt);
         return { group, step, quantity, window };
       })
@@ -5257,7 +8516,7 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
 
 function schedulePlanningRouteToGantt(routeId) {
   const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const project = getProject(route?.projectId);
+  const project = getProject(route?.specificationId || route?.projectId);
   if (!route || !project) {
     alert("Не удалось передать маршрут в Гант: маршрутная карта не связана со спецификацией в производстве.");
     return;
@@ -5265,8 +8524,10 @@ function schedulePlanningRouteToGantt(routeId) {
 
   const specification = getRouteSpecification(route);
   if (specification) ensureRouteTaskSeedSteps(route.id, specification);
+  const planningQuantity = getPlanningRouteQuantity(route);
+  syncPlanningRouteQuantity(route.id, planningQuantity, { updateSlots: true, persist: false, render: false, notify: false });
   const routeSteps = getSchedulableRouteSteps(route.id);
-  const batches = ensureProjectBatches(project);
+  const batches = ensureRouteBatches(route, project);
   if (!routeSteps.length || !batches.length) {
     alert("Не удалось передать маршрут в Гант: нет операций или партий для размещения.");
     return;
@@ -5278,18 +8539,20 @@ function schedulePlanningRouteToGantt(routeId) {
   planningState = normalizePlanningState(planningState);
   ui.activeModule = "gantt";
   ui.activeProjectId = project.id;
-  ui.expandedProjects.add(project.id);
+  ui.activeRouteId = route.id;
+  ui.expandedProjects.add(route.id);
   if (createdIds.length) ui.selectedSlotId = createdIds[0];
   persistState();
   persistUiState();
-  focusProject(project.id);
+  notifySaveSuccess(createdIds.length ? "Маршрут передан в Гант" : "Маршрут уже был в Ганте");
+  focusRoute(route.id);
   if (!createdIds.length) {
     alert("Все операции этой маршрутной карты уже находятся в Ганте.");
   }
 }
 
 function openPlanningForProject(projectId = "") {
-  const project = getProject(projectId) || planningState.projects[0] || null;
+  const project = getProject(projectId) || getProductionContextForSpecification(getActiveSpecificationForModule());
   const route = project ? getProjectRouteForModule(project.id) : null;
   ui.activeModule = "planning";
   ui.activeProjectId = project?.id || ui.activeProjectId || "";
@@ -5300,48 +8563,52 @@ function openPlanningForProject(projectId = "") {
   render();
 }
 
+function openPlanningForRoute(routeId = "") {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  if (!route) {
+    openPlanningForProject(ui.activeProjectId || "");
+    return;
+  }
+  ui.activeModule = "planning";
+  ui.activeProjectId = route.specificationId || route.projectId || ui.activeProjectId || "";
+  ui.activeRouteId = route.id;
+  ui.selectedSlotId = null;
+  ui.editor = null;
+  persistUiState();
+  render();
+}
+
 function renderRoutesPage() {
   const activeRoute = getActiveRouteForModule();
-  const isNewRoute = ui.activeRouteId === "__new__" || !activeRoute;
+  const isNewRoute = ui.activeRouteId === "__new__";
+  const hasPreviewRoute = isNewRoute || Boolean(activeRoute);
   const activeSpecification = getActiveSpecificationForModule();
-  const defaultProjectId = activeRoute?.projectId || activeSpecification?.projectId || ui.activeProjectId || planningState.projects[0]?.id || "";
+  const defaultProjectId = activeRoute?.specificationId || activeRoute?.projectId || activeSpecification?.id || ui.activeProjectId || "";
   const route = activeRoute || {
     id: "",
+    specificationId: defaultProjectId,
     projectId: defaultProjectId,
     name: "Новая маршрутная карта",
-    isDefault: true,
+    isDefault: Boolean(activeRoute?.isDefault),
   };
-  const routeSelectionValue = isNewRoute && activeSpecification
+  const routeSelectionValue = hasPreviewRoute && isNewRoute && activeSpecification
     ? activeSpecification.id
-    : getRouteModuleSelectionValue(route, activeSpecification);
-  const routeSpecification = getSpecificationById(routeSelectionValue) || getRouteSpecification(route);
-  const project = getProject(route.projectId);
-  const routeTargetName = routeSpecification?.name || getProjectDisplayName(project) || "выберите спецификацию";
-  const canOpenRouteTarget = Boolean(activeRoute && (project || routeSpecification));
-  if (activeRoute && routeSpecification && ensureRouteTaskSeedSteps(activeRoute.id, routeSpecification)) {
-    persistState();
-  }
+    : hasPreviewRoute
+      ? getRouteModuleSelectionValue(route, activeSpecification)
+      : "";
+  const routeSpecification = hasPreviewRoute ? getSpecificationById(routeSelectionValue) || getRouteSpecification(route) : null;
+  const project = hasPreviewRoute ? getProject(routeSelectionValue || route.specificationId || route.projectId) : null;
+  const routeTargetName = hasPreviewRoute
+    ? routeSpecification?.name || getProjectDisplayName(project) || "выберите спецификацию"
+    : "выберите карту слева";
+  const canOpenRouteTarget = Boolean(hasPreviewRoute);
   const stats = getRouteModuleStats(activeRoute);
-  const routeTasks = getRouteTasksForModule(activeRoute);
-  const buildableRouteTaskCount = routeTasks.filter((task) => !task.isMain && !task.isOrphan).length;
-  const specificationProjectIds = new Set((directoryState.specifications || [])
-    .map((item) => item.projectId)
-    .filter(Boolean));
-  const specificationOptions = [
-    ...(directoryState.specifications || [])
-      .map((item) => ({
-        value: item.id,
-        label: item.name || "Спецификация без названия",
-        meta: `${getSpecificationProductionOrder(item) || "заказ не задан"} · ${item.projectId && getProject(item.projectId) ? PROJECT_STATUS_LABELS[getSpecificationProductionStatus(item)] || "статус" : "план создастся при сохранении"}`,
-      })),
-    ...planningState.projects
-      .filter((item) => !specificationProjectIds.has(item.id))
-      .map((item) => ({
-        value: item.id,
-        label: getProjectDisplayName(item) || item.name,
-        meta: `${item.orderNumber || "заказ не задан"} · ${PROJECT_STATUS_LABELS[item.status] || item.status || "статус"}`,
-      })),
-  ];
+  const specificationOptions = (directoryState.specifications || [])
+    .map((item) => ({
+      value: item.id,
+      label: item.name || "Спецификация без названия",
+      meta: `${getSpecificationProductionOrder(item) || "заказ не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(item)] || "статус"}`,
+    }));
 
   return `
     <section class="routes-page module-data-page" data-layout="main-content" aria-label="Маршрутные карты">
@@ -5366,7 +8633,7 @@ function renderRoutesPage() {
                   <strong>${escapeHtml(item.name || "Маршрутная карта")}</strong>
                   <small>${escapeHtml(itemSpecification?.name || getProjectDisplayName(routeProject) || "спецификация не найдена")} · ${steps.length} шагов</small>
                 </span>
-                <em>${item.isDefault ? "осн." : steps.length}</em>
+                <em>${steps.length}</em>
               </button>
             `;
           }).join("")}
@@ -5377,18 +8644,19 @@ function renderRoutesPage() {
         <header class="directory-header">
           <div>
             <span class="eyebrow">Маршрутная карта</span>
-            <h2>${escapeHtml(isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта")}</h2>
-            <p>${escapeHtml(routeSpecification || project ? `${routeTargetName}: последовательность отделов и нормативов для передачи в Гант.` : "Выберите спецификацию и задайте последовательность операций.")}</p>
+            <h2>${escapeHtml(hasPreviewRoute ? (isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта") : "Карта не выбрана")}</h2>
+            <p>${escapeHtml(hasPreviewRoute ? (routeSpecification || project ? `${routeTargetName}: последовательность отделов и нормативов для передачи в Гант.` : "Выберите спецификацию и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
           </div>
           <div class="directory-actions">
-            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>В Планирование</span></button>
+            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>В Заказ на пр-во</span></button>
           </div>
         </header>
 
         <div class="module-data-content route-module-content">
+          ${hasPreviewRoute ? `
           <section class="module-panel route-editor-panel">
             <div class="report-card-head">
-              <strong>01 · Карточка маршрута</strong>
+              <strong>Карточка маршрута</strong>
               <span>${isNewRoute ? "создание технологической карты" : "спецификация, статус и применение в плане"}</span>
             </div>
             <form id="routeModuleForm" class="module-form route-module-form">
@@ -5400,40 +8668,25 @@ function renderRoutesPage() {
                 <span>Спецификация</span>
                 ${renderDenseInlineSelect("routeBindingId", routeSelectionValue, specificationOptions, { type: "routeModule" })}
               </label>
-              <label class="route-default-toggle full">
-                <input name="isDefault" type="checkbox" ${route.isDefault ? "checked" : ""} />
-                <span><strong>Использовать как основной маршрут спецификации</strong><small>Гант и очередь операций будут брать эту карту по умолчанию.</small></span>
-              </label>
               <div class="module-form-actions full">
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewRoute ? "Создать карту" : "Сохранить карту"}</span></button>
+                ${isNewRoute ? "" : `<button class="secondary-button danger" data-route-delete="${escapeAttribute(route.id)}" type="button">${icon("trash")}<span>Удалить карту</span></button>`}
               </div>
             </form>
           </section>
 
-          <section class="module-panel route-summary-panel">
-            <div class="report-card-head">
-              <strong>02 · Сводка</strong>
-              <span>готовность маршрута для планирования</span>
-            </div>
-            <div class="module-kpi-grid route-kpi-grid">
-              <article><span>Шагов</span><strong>${stats.steps.length}</strong><small>${stats.required} обязательных</small></article>
-              <article><span>Задач</span><strong>${routeTasks.length}</strong><small>по структуре спецификации</small></article>
-              <article><span>В Ганте</span><strong>${stats.slots.length}</strong><small>операций используют карту</small></article>
-              <article><span>Сигналы</span><strong>${stats.warnings.length}</strong><small>по спецификации</small></article>
-            </div>
-            ${renderRouteModuleSequence(stats.steps, activeRoute)}
-          </section>
-
           <section class="module-panel route-steps-panel">
             <div class="report-card-head">
-              <strong>03 · Операции маршрута</strong>
+              <strong>Операции маршрута</strong>
               <div class="route-steps-head-actions">
-                <span>${routeTasks.length ? "каждая производственная задача спецификации получает свой маршрут" : "сначала сохраните карту, затем добавьте операции"}</span>
-                ${activeRoute && buildableRouteTaskCount ? `<button class="secondary-button" data-route-seed-all-tasks type="button">${icon("split")}<span>Сформировать маршруты задач</span></button>` : ""}
+                <span>Добавляйте только операции участка или склада.</span>
+                <button class="secondary-button" data-route-add-step="workCenter" type="button">${icon("plus")}<span>Участок</span></button>
+                <button class="secondary-button" data-route-add-step="warehouse" type="button">${icon("package")}<span>Склад</span></button>
               </div>
             </div>
             ${renderRouteStepsEditor(activeRoute, stats.steps)}
           </section>
+          ` : ""}
         </div>
       </div>
     </section>
@@ -5515,39 +8768,22 @@ function renderRouteStepsEditor(route, steps) {
     `;
   }
 
-  const tasks = getRouteTasksForModule(route);
   const workCenterOptions = planningState.workCenters.map((center) => ({
     value: center.id,
     label: center.name,
     meta: center.code || "участок",
   }));
+  const orderedSteps = getRouteStepsForModule(route.id);
 
   return `
-    <div class="route-task-editor-list">
-      ${tasks.map((task) => {
-        const taskSteps = getRouteStepsForTask(steps, task.id);
-        return `
-          <section class="route-task-editor-card ${task.isMain ? "is-main-task" : ""} ${task.isOrphan ? "is-orphan-task" : ""}" data-route-task-card="${escapeAttribute(task.id)}">
-            <header class="route-task-editor-head">
-              <div>
-                <span>${escapeHtml(task.number)} · ${escapeHtml(getRouteTaskTypeLabel(task))}</span>
-                <strong>${escapeHtml(task.title)}</strong>
-                <small>${escapeHtml([task.parentTitle ? `из ${task.parentTitle}` : "", task.operationName, task.departmentName, `${task.quantity} ${task.unit}`].filter(Boolean).join(" · "))}</small>
-              </div>
-              <div class="route-task-editor-actions">
-                ${task.isMain || task.isOrphan ? "" : `<button class="secondary-button" data-route-seed-task="${escapeAttribute(task.id)}" type="button">${icon("split")}<span>${taskSteps.length ? "Дополнить шаблоном" : "Сформировать маршрут"}</span></button>`}
-                <button class="secondary-button" data-route-add-step-task="${escapeAttribute(task.id)}" type="button">${icon("plus")}<span>Добавить операцию</span></button>
-              </div>
-            </header>
-            ${taskSteps.length ? renderRouteStepRows(taskSteps, workCenterOptions) : `
-              <div class="route-task-empty">
-                ${icon("info")}
-                <span>Для этой задачи пока нет операций. Добавьте маршрут, чтобы планирование могло разместить ее отдельно.</span>
-              </div>
-            `}
-          </section>
-        `;
-      }).join("")}
+    <div class="route-step-editor-shell">
+      ${orderedSteps.length ? renderRouteStepRows(orderedSteps, workCenterOptions) : `
+        <div class="route-module-empty">
+          ${icon("info")}
+          <strong>Операций пока нет</strong>
+          <span>Добавьте операцию участка или склада кнопками в заголовке блока.</span>
+        </div>
+      `}
     </div>
   `;
 }
@@ -5555,42 +8791,77 @@ function renderRouteStepsEditor(route, steps) {
 function renderRouteStepRows(steps, workCenterOptions) {
   return `
     <div class="route-step-editor-list">
-      ${steps.map((step, index) => `
-        <article class="route-step-editor-row ${step.workCenterId === "warehouse" ? "is-warehouse" : ""}" data-route-step-row="${step.id}">
-          <div class="route-step-index">
-            <button class="icon-button" data-route-step-up="${step.id}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
-            <input data-route-step-input="${step.id}" data-route-step-field="stepOrder" type="number" min="1" step="1" value="${Number(step.stepOrder || index + 1)}" aria-label="Порядок операции" />
-            <button class="icon-button" data-route-step-down="${step.id}" type="button" title="Опустить" ${index === steps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
-          </div>
-          <label class="form-field route-step-name">
-            <span>Операция</span>
-            <input data-route-step-input="${step.id}" data-route-step-field="operationName" value="${escapeAttribute(step.operationName || "")}" />
-          </label>
-          <label class="form-field route-step-center">
-            <span>Участок</span>
-            ${renderDenseInlineSelect("workCenterId", step.workCenterId, workCenterOptions, { type: "routeStep", stepId: step.id })}
-          </label>
-          <label class="form-field route-step-number">
-            <span>Плат/час</span>
-            <input data-route-step-input="${step.id}" data-route-step-field="unitsPerHour" type="number" min="0" step="0.1" value="${Number(step.unitsPerHour || getWorkCenterUnitsPerHour(step.workCenterId) || 0)}" />
-          </label>
-          <label class="form-field route-step-number">
-            <span>Setup, мин</span>
-            <input data-route-step-input="${step.id}" data-route-step-field="setupMin" type="number" min="0" step="1" value="${Number(step.setupMin || 0)}" />
-          </label>
-          <label class="route-required-toggle">
-            <input data-route-step-required="${step.id}" type="checkbox" ${step.isRequired ? "checked" : ""} />
-            <span>Обязательная</span>
-          </label>
-          <button class="icon-button danger-soft" data-route-step-delete="${step.id}" type="button" title="Удалить операцию">${icon("trash")}</button>
-        </article>
-      `).join("")}
+      ${steps.map((step, index) => {
+        const operationOptions = getRouteStepOperationOptions(step);
+        const operationValue = getRouteStepOperationSelectValue(step, operationOptions);
+        return `
+          <article class="route-step-editor-row ${step.workCenterId === "warehouse" ? "is-warehouse" : ""}" data-route-step-row="${step.id}">
+            <div class="route-step-index">
+              <button class="icon-button" data-route-step-up="${step.id}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
+              <span class="route-step-order-badge" title="Позиция в общем списке операций" aria-label="Позиция в общем списке операций">${index + 1}</span>
+              <button class="icon-button" data-route-step-down="${step.id}" type="button" title="Опустить" ${index === steps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
+            </div>
+            <label class="form-field route-step-center">
+              <span>Участок</span>
+              ${renderDenseInlineSelect("workCenterId", step.workCenterId, workCenterOptions, { type: "routeStep", stepId: step.id })}
+            </label>
+            <label class="form-field route-step-name">
+              <span>Операция</span>
+              ${renderDenseInlineSelect("operationId", operationValue, operationOptions, { type: "routeStep", stepId: step.id })}
+            </label>
+            <button class="icon-button danger-soft" data-route-step-delete="${step.id}" type="button" title="Удалить операцию">${icon("trash")}</button>
+          </article>
+        `;
+      }).join("")}
     </div>
   `;
 }
 
+function getRouteStepOperationSelectValue(step, options = getRouteStepOperationOptions(step)) {
+  if (step.operationId && options.some((item) => item.value === step.operationId)) return step.operationId;
+  if (step.operationName) return `legacy:${step.id}`;
+  return options[0]?.value || "";
+}
+
+function getRouteStepOperationOptions(step = {}) {
+  const operations = getOperationMapRows().map((operation) => {
+    const center = getWorkCenter(operation.workCenterId);
+    const type = getOperationTypeOption(operation.type);
+    return {
+      value: operation.id,
+      label: operation.name || "Операция без названия",
+      meta: `${type.label} · ${center?.name || "участок не выбран"}`,
+    };
+  });
+  const hasLinkedOperation = step.operationId && operations.some((item) => item.value === step.operationId);
+  const hasNameMatch = operations.some((item) => normalizeLookupText(item.label) === normalizeLookupText(step.operationName));
+  if (step.operationName && (!hasLinkedOperation || !hasNameMatch)) {
+    operations.unshift({
+      value: `legacy:${step.id}`,
+      label: step.operationName,
+      meta: "текстовая операция",
+    });
+  }
+  if (!step.operationId && !step.operationName) {
+    operations.unshift({
+      value: "",
+      label: "Операция не выбрана",
+      meta: "выберите из карты операций",
+    });
+  }
+  if (!operations.length) {
+    operations.push({
+      value: "",
+      label: "Операция не выбрана",
+      meta: "создайте операцию в карте операций",
+    });
+  }
+  return operations;
+}
+
 function renderDirectoryPage() {
   const visibleSections = getVisibleDirectorySections();
+  const visibleGroups = getVisibleDirectoryGroups(visibleSections);
   const activeSection = visibleSections.find((section) => section.id === ui.activeDirectory) || visibleSections[0];
   if (activeSection && activeSection.id !== ui.activeDirectory) ui.activeDirectory = activeSection.id;
   const directoryData = getDirectoryData(activeSection.id);
@@ -5603,14 +8874,22 @@ function renderDirectoryPage() {
           <h1>Справочники</h1>
         </div>
         <div class="directory-nav">
-          ${visibleSections.map((section) => `
-            <button class="directory-nav-item ${section.id === activeSection.id ? "is-active" : ""}" data-directory-id="${section.id}" type="button">
-              <span>
-                <strong>${escapeHtml(section.label)}</strong>
-                <small>${escapeHtml(section.description)}</small>
-              </span>
-              <em>${section.count()}</em>
-            </button>
+          ${visibleGroups.map((group) => `
+            <section class="directory-nav-group">
+              <div class="directory-nav-group-head">
+                <span>${escapeHtml(group.label)}</span>
+              </div>
+              <div class="directory-nav-group-items">
+                ${group.sections.map((section) => `
+                  <button class="directory-nav-item ${section.id === activeSection.id ? "is-active" : ""}" data-directory-id="${section.id}" type="button">
+                    <span>
+                      <strong>${escapeHtml(section.label)}</strong>
+                    </span>
+                    <em>${section.count()}</em>
+                  </button>
+                `).join("")}
+              </div>
+            </section>
           `).join("")}
         </div>
       </aside>
@@ -5648,771 +8927,69 @@ function renderDirectoryPage() {
   `;
 }
 
-function renderReportsPage() {
-  const activeReport = reportSections.find((section) => section.id === ui.activeReport) || reportSections[0];
-  const isDashboardReport = activeReport.id === "dashboard";
-  const reportData = isDashboardReport ? null : getReportData(activeReport.id);
-
-  return `
-    <section class="reports-page" data-layout="main-content" aria-label="Отчеты MES">
-      <aside class="report-sidebar">
-        <div class="directory-sidebar-head">
-          <span class="eyebrow">Аналитика</span>
-          <h1>Отчеты</h1>
-        </div>
-        <div class="directory-nav">
-          ${reportSections.map((section) => `
-            <button class="directory-nav-item ${section.id === activeReport.id ? "is-active" : ""}" data-report-id="${section.id}" type="button">
-              <span>
-                <strong>${escapeHtml(section.label)}</strong>
-                <small>${escapeHtml(section.description)}</small>
-              </span>
-              <em>${section.count()}</em>
-            </button>
-          `).join("")}
-        </div>
-      </aside>
-
-      <div class="report-workspace ${isDashboardReport ? "report-dashboard-workspace" : ""}" data-layout="page-workspace">
-        ${isDashboardReport ? renderDashboardPage({ embedded: true }) : `
-          <header class="directory-header">
-            <div>
-              <span class="eyebrow">Отчет</span>
-              <h2>${escapeHtml(reportData.title)}</h2>
-              <p>${escapeHtml(reportData.description)}</p>
-            </div>
-            <div class="directory-actions">
-              <button class="secondary-button" data-report-refresh type="button">${icon("refresh")}<span>Обновить</span></button>
-              <button class="primary-button" type="button">${icon("download")}<span>Экспорт</span></button>
-            </div>
-          </header>
-
-          <div class="report-content">
-            <section class="report-main">
-              <div class="kpi-row">
-                ${reportData.kpis.map((kpi) => `
-                  <article class="kpi-card">
-                    <span>${escapeHtml(kpi.label)}</span>
-                    <strong>${escapeHtml(kpi.value)}</strong>
-                    <small>${escapeHtml(kpi.caption)}</small>
-                  </article>
-                `).join("")}
-              </div>
-              <div class="report-chart-grid">
-                ${reportData.charts.map((chart) => renderReportChart(chart)).join("")}
-              </div>
-              ${renderReportTable(reportData.table)}
-            </section>
-
-            <aside class="report-insights">
-              <div class="detail-card-head">
-                <span class="eyebrow">Итоги</span>
-                <h3>${escapeHtml(reportData.insightTitle)}</h3>
-              </div>
-              <div class="insight-list">
-                ${reportData.insights.map((insight) => `
-                  <div class="insight-item ${insight.tone || ""}">
-                    ${icon(insight.icon || "info")}
-                    <span>${escapeHtml(insight.text)}</span>
-                  </div>
-                `).join("")}
-              </div>
-            </aside>
-          </div>
-        `}
-      </div>
-    </section>
-  `;
+function startUpdateNotifier() {
+  if (updateCheckTimer) return;
+  window.setTimeout(checkForAppUpdate, 2500);
+  updateCheckTimer = window.setInterval(checkForAppUpdate, UPDATE_CHECK_INTERVAL_MS);
 }
 
-function renderDebugPage() {
-  return `
-    <section class="debug-page" data-layout="main-content" aria-label="Отладка интерфейса">
-      <aside class="debug-sidebar">
-        <div class="directory-sidebar-head">
-          <span class="eyebrow">UI Playground</span>
-          <h1>Отладка</h1>
-        </div>
-        <div class="debug-index">
-          <a href="#debug-selects"><strong>DS</strong><span>Выпадающие списки</span></a>
-          <a href="#debug-popups"><strong>POP</strong><span>Попапы и подсказки</span></a>
-          <a href="#debug-modals"><strong>MOD</strong><span>Модальные окна</span></a>
-          <a href="#debug-steppers"><strong>STP</strong><span>Пошаговые процессы</span></a>
-          <a href="#debug-spec-builder"><strong>SPEC</strong><span>Конструктор спецификаций</span></a>
-          <a href="#debug-usage"><strong>USE</strong><span>Как задавать в задачах</span></a>
-        </div>
-      </aside>
-
-      <div class="debug-workspace" data-layout="page-workspace">
-        <header class="directory-header">
-          <div>
-            <span class="eyebrow">Отладка визуальных паттернов</span>
-            <h2>Варианты dropdown, popup, modal и stepper</h2>
-            <p>Каждый вариант имеет короткое имя. Его можно использовать в следующих заданиях: например, "применить STP-02 для маршрутной карты".</p>
-          </div>
-          <div class="directory-actions">
-            <button class="secondary-button" data-debug-overlay="modal-confirm" type="button">${icon("info")}<span>Пример confirm</span></button>
-            <button class="primary-button" data-debug-overlay="modal-form" type="button">${icon("edit")}<span>Пример формы</span></button>
-          </div>
-        </header>
-
-        <div class="debug-content">
-          <section class="debug-section" id="debug-selects">
-            <div class="debug-section-head">
-              <div>
-                <span class="eyebrow">DS · Dropdown Select</span>
-                <h3>Варианты выпадающих списков</h3>
-              </div>
-              <span class="status-pill neutral">6 вариантов</span>
-            </div>
-            <div class="debug-card-grid">
-              ${renderDebugSelectCards()}
-            </div>
-          </section>
-
-          <section class="debug-section" id="debug-popups">
-            <div class="debug-section-head">
-              <div>
-                <span class="eyebrow">POP · Popup</span>
-                <h3>Варианты попапов</h3>
-              </div>
-              <span class="status-pill neutral">4 варианта</span>
-            </div>
-            <div class="debug-card-grid">
-              ${renderDebugPopupCards()}
-            </div>
-          </section>
-
-          <section class="debug-section" id="debug-modals">
-            <div class="debug-section-head">
-              <div>
-                <span class="eyebrow">MOD · Modal</span>
-                <h3>Варианты модальных окон</h3>
-              </div>
-              <span class="status-pill neutral">4 варианта</span>
-            </div>
-            <div class="debug-modal-grid">
-              <article class="debug-card">
-                <div class="debug-card-title"><code>MOD-01</code><strong>Confirm Compact</strong></div>
-                <p>Короткое подтверждение опасного или необратимого действия.</p>
-                <button class="secondary-button" data-debug-overlay="modal-confirm" type="button">${icon("alert")}<span>Открыть MOD-01</span></button>
-              </article>
-              <article class="debug-card">
-                <div class="debug-card-title"><code>MOD-02</code><strong>Form Modal</strong></div>
-                <p>Основная форма добавления или редактирования записи справочника.</p>
-                <button class="primary-button" data-debug-overlay="modal-form" type="button">${icon("edit")}<span>Открыть MOD-02</span></button>
-              </article>
-              <article class="debug-card">
-                <div class="debug-card-title"><code>MOD-03</code><strong>Right Detail Drawer</strong></div>
-                <p>Боковая карточка подробностей без потери контекста таблицы или диаграммы.</p>
-                <button class="secondary-button" data-debug-overlay="drawer-detail" type="button">${icon("chevronRight")}<span>Открыть MOD-03</span></button>
-              </article>
-              <article class="debug-card">
-                <div class="debug-card-title"><code>MOD-04</code><strong>Wizard Modal</strong></div>
-                <p>Пошаговый сценарий: выбор спецификации, BOM и маршрутной карты.</p>
-                <button class="secondary-button" data-debug-overlay="modal-wizard" type="button">${icon("check")}<span>Открыть MOD-04</span></button>
-              </article>
-            </div>
-          </section>
-
-          <section class="debug-section" id="debug-steppers">
-            <div class="debug-section-head">
-              <div>
-                <span class="eyebrow">STP · Stepper / Process Flow</span>
-                <h3>Варианты пошагового заполнения</h3>
-              </div>
-              <span class="status-pill neutral">4 варианта</span>
-            </div>
-            <div class="debug-stepper-grid">
-              ${renderDebugStepperCards()}
-            </div>
-          </section>
-
-          <section class="debug-section" id="debug-spec-builder">
-            <div class="debug-section-head">
-              <div>
-                <span class="eyebrow">SPEC · Product Specification Builder</span>
-                <h3>Конструктор спецификаций изделий</h3>
-              </div>
-              <span class="status-pill neutral">7 вариантов</span>
-            </div>
-            <div class="debug-spec-grid">
-              ${renderDebugSpecificationBuilder()}
-            </div>
-          </section>
-
-          <section class="debug-section debug-usage" id="debug-usage">
-            <div class="debug-section-head">
-              <div>
-                <span class="eyebrow">USE · Naming</span>
-                <h3>Как ссылаться в задачах</h3>
-              </div>
-            </div>
-            <div class="debug-usage-grid">
-              <div><code>DS-03</code><span>Использовать command-search dropdown для выбора спецификации или BOM.</span></div>
-              <div><code>POP-02</code><span>Использовать validation tooltip для ошибок ввода.</span></div>
-              <div><code>MOD-03</code><span>Использовать right detail drawer для просмотра операции на Ганте.</span></div>
-              <div><code>MOD-04</code><span>Использовать wizard modal для сложного сценария заполнения.</span></div>
-              <div><code>STP-01</code><span>Использовать guided form stepper для длинных форм с обязательной последовательностью.</span></div>
-              <div><code>STP-02</code><span>Использовать vertical process stepper для подготовки к планированию.</span></div>
-              <div><code>STP-03</code><span>Использовать process flow для статуса прохождения спецификации по участкам.</span></div>
-              <div><code>SPEC-01</code><span>Использовать спецификацию-дерево для изделия из нескольких плат, корпуса и комплектующих.</span></div>
-              <div><code>SPEC-04</code><span>Использовать drag assembly canvas, когда нужно собирать изделие из BOM и складских позиций.</span></div>
-              <div><code>SPEC-05</code><span>Использовать dependency graph, когда важнее показать связи спецификация → BOM → изделие.</span></div>
-              <div><code>SPEC-06</code><span>Использовать split pane inspector для детального редактирования выбранного узла спецификации.</span></div>
-              <div><code>SPEC-07</code><span>Использовать quantity impact matrix для проверки количества и влияния на планирование.</span></div>
-            </div>
-          </section>
-        </div>
-      </div>
-      ${renderDebugOverlay()}
-    </section>
-  `;
-}
-
-function renderDebugSpecificationBuilder() {
-  return `
-    <div class="debug-segment-label">
-      <code>01</code>
-      <div><strong>Базовая сборка спецификации</strong><span>Иерархия изделия, компактный список и проверка готовности перед маршрутной картой.</span></div>
-    </div>
-
-    <article class="debug-card spec-builder-card wide">
-      <div class="debug-card-title"><code>SPEC-01</code><strong>Tree BOM Assembly Builder</strong></div>
-      <p>Дерево изделия показывает итоговый продукт, вложенные смонтированные платы из BOM и дополнительные элементы спецификации.</p>
-      <div class="spec-builder-layout">
-        <div class="spec-tree-panel">
-          <div class="spec-tree-root">
-            <strong>Готовое изделие MES-001</strong>
-            <small>СП MES-001 · производственная единица p-mes</small>
-          </div>
-          <div class="spec-tree-branch">
-            <span>1x</span>
-            <div><strong>Смонтированная основная плата MES</strong><small>BOM MES Main PCB · PCB-MES-MAIN</small></div>
-            <em>результат BOM</em>
-          </div>
-          <div class="spec-tree-branch">
-            <span>2x</span>
-            <div><strong>Смонтированная плата ввода-вывода MES</strong><small>BOM MES IO PCB · PCB-MES-IO</small></div>
-            <em>результат BOM</em>
-          </div>
-          <div class="spec-tree-branch extra">
-            <span>1x</span>
-            <div><strong>Корпус IP54</strong><small>механическая часть · складская позиция</small></div>
-            <em>доп. состав</em>
-          </div>
-          <div class="spec-tree-branch extra">
-            <span>1x</span>
-            <div><strong>DIN-крепление, шильдик, кабельный ввод</strong><small>комплект сборки</small></div>
-            <em>комплект</em>
-          </div>
-        </div>
-        <aside class="spec-builder-side">
-          <div class="spec-builder-field">
-            <span>Спецификация</span>
-            <details class="debug-inline-select">
-              <summary><strong>Готовое изделие MES-001</strong>${icon("chevronDown")}</summary>
-              <div class="debug-inline-options">
-                <button type="button">Плата управления X100</button>
-                <button type="button">Контроллер питания V2</button>
-                <button type="button">Готовое изделие MES-001</button>
-              </div>
-            </details>
-          </div>
-          <div class="spec-builder-actions">
-            <button class="secondary-button" type="button">${icon("plus")}<span>Добавить BOM-узел</span></button>
-            <button class="secondary-button" type="button">${icon("plus")}<span>Добавить комплектующее</span></button>
-            <button class="primary-button" type="button">${icon("save")}<span>Сохранить спецификацию</span></button>
-          </div>
-        </aside>
-      </div>
-    </article>
-
-    <article class="debug-card spec-builder-card">
-      <div class="debug-card-title"><code>SPEC-02</code><strong>Dense Component List</strong></div>
-      <p>Плотный список строк спецификации: удобно для быстрого редактирования количества и типа позиции.</p>
-      <div class="spec-line-list">
-        <div><strong>Тип</strong><strong>Позиция</strong><strong>Кол-во</strong></div>
-        <div><span>BOM</span><strong>BOM MES Main PCB</strong><em>1</em></div>
-        <div><span>BOM</span><strong>BOM MES IO PCB</strong><em>2</em></div>
-        <div><span>Part</span><strong>Корпус IP54</strong><em>1</em></div>
-        <div><span>Kit</span><strong>DIN-крепление + шильдик</strong><em>1</em></div>
-      </div>
-    </article>
-
-    <article class="debug-card spec-builder-card">
-      <div class="debug-card-title"><code>SPEC-03</code><strong>Validation Summary</strong></div>
-      <p>Сводка готовности спецификации перед передачей в маршрутную карту и планирование.</p>
-      <div class="spec-validation-list">
-        <div class="ok">${icon("check")}<span>BOM-узлы привязаны к справочнику BOM</span></div>
-        <div class="ok">${icon("check")}<span>Итоговое изделие задано</span></div>
-        <div class="warning">${icon("alert")}<span>Для корпуса не указан поставщик</span></div>
-        <div>${icon("info")}<span>Маршрутная карта использует спецификацию как состав изделия</span></div>
-      </div>
-    </article>
-
-    <div class="debug-segment-label">
-      <code>02</code>
-      <div><strong>Механики конструктора</strong><span>Перетягивание, сборочная канва и детальное редактирование выбранного узла.</span></div>
-    </div>
-
-    <article class="debug-card spec-builder-card wide">
-      <div class="debug-card-title"><code>SPEC-04</code><strong>Drag Assembly Canvas</strong></div>
-      <p>Механика drag-and-drop: слева палитра доступных BOM и складских позиций, в центре область сборки, справа быстрый инспектор.</p>
-      <div class="spec-drag-layout">
-        <div class="spec-palette">
-          <span class="spec-panel-caption">Палитра</span>
-          <button class="spec-palette-card" data-spec-palette-card data-spec-type="BOM" data-spec-title="BOM MES Main PCB" draggable="true" type="button"><b>BOM</b><strong>BOM MES Main PCB</strong><small>результат: основная плата</small></button>
-          <button class="spec-palette-card" data-spec-palette-card data-spec-type="BOM" data-spec-title="BOM MES IO PCB" draggable="true" type="button"><b>BOM</b><strong>BOM MES IO PCB</strong><small>результат: плата ввода-вывода</small></button>
-          <button class="spec-palette-card" data-spec-palette-card data-spec-type="Part" data-spec-title="Корпус IP54" draggable="true" type="button"><b>Part</b><strong>Корпус IP54</strong><small>складская позиция</small></button>
-        </div>
-        <div class="spec-drop-canvas">
-          <span class="spec-panel-caption">Область спецификации</span>
-          <div class="spec-drop-zone" data-spec-drop-zone>
-            <strong>Готовое изделие MES-001</strong>
-            <small>перетащите BOM или нажмите элемент палитры</small>
-          </div>
-          <div class="spec-stack-item is-linked"><span>1x</span><strong>BOM MES Main PCB</strong><em>привязан</em></div>
-          <div class="spec-stack-item is-dragging"><span>2x</span><strong>BOM MES IO PCB</strong><em>перетаскивается</em></div>
-          <div class="spec-stack-item"><span>1x</span><strong>Корпус IP54</strong><em>доп. состав</em></div>
-        </div>
-        <aside class="spec-inspector-panel compact">
-          <span class="spec-panel-caption">Инспектор узла</span>
-          <div><strong>BOM MES IO PCB</strong><small>тип: результат SMT-операции</small></div>
-          <label><span>Количество</span><input value="2" inputmode="numeric" aria-label="Количество BOM MES IO PCB"></label>
-          <button class="primary-button" type="button">${icon("check")}<span>Применить</span></button>
-        </aside>
-      </div>
-    </article>
-
-    <article class="debug-card spec-builder-card">
-      <div class="debug-card-title"><code>SPEC-05</code><strong>Dependency Graph</strong></div>
-      <p>Визуализация связей: хорошо показывает, что BOM производит смонтированную плату, а спецификация собирает итоговое изделие.</p>
-      <div class="spec-graph">
-          <div class="spec-graph-node project"><b>Spec</b><strong>MES-001</strong><small>240 изделий</small></div>
-        <span class="spec-graph-arrow">${icon("arrowRight")}</span>
-        <div class="spec-graph-node spec"><b>Spec</b><strong>СП MES-001</strong><small>240 изделий</small></div>
-        <div class="spec-graph-node bom"><b>BOM</b><strong>Main PCB</strong><small>1x</small></div>
-        <span class="spec-graph-arrow">${icon("arrowRight")}</span>
-        <div class="spec-graph-node output"><b>Result</b><strong>Готовое изделие</strong><small>склад</small></div>
-        <div class="spec-graph-node bom"><b>BOM</b><strong>IO PCB</strong><small>2x</small></div>
-        <span class="spec-graph-arrow muted">${icon("arrowRight")}</span>
-        <div class="spec-graph-node part"><b>Part</b><strong>Корпус + DIN</strong><small>комплект</small></div>
-      </div>
-    </article>
-
-    <article class="debug-card spec-builder-card">
-      <div class="debug-card-title"><code>SPEC-06</code><strong>Split Pane Inspector</strong></div>
-      <p>Слева навигация по дереву, справа карточка выбранного узла. Удобно для редактирования свойств без модалки.</p>
-      <div class="spec-split-layout">
-        <div class="spec-mini-tree">
-          <button class="is-active" type="button"><span>1</span><strong>MES-001</strong></button>
-          <button type="button"><span>1.1</span><strong>Main PCB</strong></button>
-          <button type="button"><span>1.2</span><strong>IO PCB</strong></button>
-          <button type="button"><span>1.3</span><strong>Корпус</strong></button>
-        </div>
-        <div class="spec-inspector-panel">
-          <span class="spec-panel-caption">Выбранный узел</span>
-          <strong>Смонтированная плата ввода-вывода MES</strong>
-          <small>BOM MES IO PCB · результат SMT-операции</small>
-          <div class="spec-field-grid">
-            <span>Тип</span><b>BOM</b>
-            <span>Количество</span><b>2 шт.</b>
-            <span>Источник</span><b>Справочник BOM</b>
-            <span>Контроль</span><b>AOI обязателен</b>
-          </div>
-        </div>
-      </div>
-    </article>
-
-    <div class="debug-segment-label">
-      <code>03</code>
-      <div><strong>Проверка состава и влияния на план</strong><span>Матрица количества, готовность данных и влияние спецификации на расчет маршрутной карты.</span></div>
-    </div>
-
-    <article class="debug-card spec-builder-card wide">
-      <div class="debug-card-title"><code>SPEC-07</code><strong>Quantity Impact Matrix</strong></div>
-      <p>Матрица показывает, как количество в спецификации превращается в потребность BOM, операции SMT и конечный складской выпуск.</p>
-      <div class="spec-impact-layout">
-        <div class="spec-impact-table">
-          <div class="spec-impact-head"><span>Узел</span><span>Кол.</span><span>На заказ</span><span>Операция</span><span>Статус</span></div>
-          <div><strong>BOM MES Main PCB</strong><span>1x</span><span>240 плат</span><span>SMT-01</span><em class="ok">готово</em></div>
-          <div><strong>BOM MES IO PCB</strong><span>2x</span><span>480 плат</span><span>SMT-02</span><em class="ok">готово</em></div>
-          <div><strong>Корпус IP54</strong><span>1x</span><span>240 шт.</span><span>Сборка</span><em class="warn">поставщик</em></div>
-          <div><strong>DIN-комплект</strong><span>1x</span><span>240 шт.</span><span>Склад</span><em>резерв</em></div>
-        </div>
-        <aside class="spec-impact-summary">
-          <div><b>2</b><span>BOM-операции для калькулятора</span></div>
-          <div><b>720</b><span>плат к монтажу по спецификации</span></div>
-          <div><b>1</b><span>предупреждение до планирования</span></div>
-        </aside>
-      </div>
-    </article>
-  `;
-}
-
-function renderDebugStepperCards() {
-  return `
-    <article class="debug-card debug-stepper-card wide">
-      <div class="debug-card-title"><code>STP-01</code><strong>Guided Form Stepper</strong></div>
-      <p>Пошаговое заполнение длинной формы: каждый шаг открывает следующий блок и снижает перегрузку полями.</p>
-      <div class="guided-stepper">
-        <div class="guided-step is-done">
-          <span>1</span>
-          <strong>Спецификация</strong>
-          <small>Количество, клиент, срок</small>
-        </div>
-        <div class="guided-step is-active">
-          <span>2</span>
-          <strong>Спецификация</strong>
-          <small>Состав изделия</small>
-        </div>
-        <div class="guided-step">
-          <span>3</span>
-          <strong>BOM SMT</strong>
-          <small>Компоненты платы</small>
-        </div>
-        <div class="guided-step">
-          <span>4</span>
-          <strong>Маршрут</strong>
-          <small>Операции и время</small>
-        </div>
-      </div>
-      <div class="guided-form-preview">
-        <label class="field command-field">
-          <span>Спецификация изделия</span>
-          <select><option>СП X100 · 1000 шт.</option></select>
-        </label>
-        <div class="stepper-note ok">${icon("check")}<span>Шаг 1 завершен, можно выбирать спецификацию.</span></div>
-      </div>
-    </article>
-
-    <article class="debug-card debug-stepper-card">
-      <div class="debug-card-title"><code>STP-02</code><strong>Vertical Process Stepper</strong></div>
-      <p>Вертикальная последовательность для подготовки данных до Ганта.</p>
-      <ol class="vertical-stepper">
-        <li class="is-done">
-          <span>${icon("check")}</span>
-          <div><strong>Спецификация выбрана</strong><small>Количество и срок подтянуты из производственной карточки.</small></div>
-        </li>
-        <li class="is-active">
-          <span>2</span>
-          <div><strong>Спецификация и BOM</strong><small>Проверить состав изделия и SMT-компоненты.</small></div>
-        </li>
-        <li>
-          <span>3</span>
-          <div><strong>Маршрутная карта</strong><small>Участки, ресурсы, setup и нормативы.</small></div>
-        </li>
-        <li>
-          <span>4</span>
-          <div><strong>Передача в план</strong><small>Сохранить маршрут и перейти к диаграмме.</small></div>
-        </li>
-      </ol>
-    </article>
-
-    <article class="debug-card debug-stepper-card wide">
-      <div class="debug-card-title"><code>STP-03</code><strong>Horizontal Process Flow</strong></div>
-      <p>Горизонтальный поток для статуса прохождения спецификации через отделы и контрольные точки.</p>
-      <div class="process-flow">
-        <div class="flow-node is-done"><em>01</em><strong>BOM</strong><span>готов</span></div>
-        ${icon("chevronRight")}
-        <div class="flow-node is-done"><em>02</em><strong>SMT</strong><span>рассчитан</span></div>
-        ${icon("chevronRight")}
-        <div class="flow-node is-active"><em>03</em><strong>Маршрут</strong><span>в работе</span></div>
-        ${icon("chevronRight")}
-        <div class="flow-node"><em>04</em><strong>Гант</strong><span>ожидает</span></div>
-        ${icon("chevronRight")}
-        <div class="flow-node"><em>05</em><strong>Склад</strong><span>финал</span></div>
-      </div>
-      <div class="process-flow-caption">
-        <span>Лучше использовать в шапке спецификации, дашборде или карточке маршрутной карты.</span>
-      </div>
-    </article>
-
-    <article class="debug-card debug-stepper-card">
-      <div class="debug-card-title"><code>STP-04</code><strong>Block Completion Stepper</strong></div>
-      <p>Мини-степпер поверх существующих блоков калькулятора: показывает, что заполнено, а где есть пробел.</p>
-      <div class="block-stepper">
-        <div class="is-done">
-          <span>${icon("check")}</span>
-          <strong>Входные данные</strong>
-          <small>спецификация, заказ, мультипликация</small>
-        </div>
-        <div class="is-done">
-          <span>${icon("check")}</span>
-          <strong>BOM SMT</strong>
-          <small>108 компонентов / плата</small>
-        </div>
-        <div class="is-active">
-          <span>3</span>
-          <strong>Маршрут</strong>
-          <small>проверить ручной монтаж</small>
-        </div>
-        <div class="is-warning">
-          <span>${icon("alert")}</span>
-          <strong>Сохранение</strong>
-          <small>требует подтверждения</small>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function renderDebugSelectCards() {
-  return `
-    <article class="debug-card">
-      <div class="debug-card-title"><code>DS-01</code><strong>Command Search Select</strong></div>
-      <p>Компактный command-search для выбора спецификации без системного select.</p>
-      <div class="debug-combobox">
-        <div class="debug-command-input">${icon("search")}<span>Плата управления X100</span><em>Ctrl K</em></div>
-        <div class="debug-dropdown-panel">
-          <button type="button"><strong>Плата управления X100</strong><small>Заказ 1452 · срок 18.06</small></button>
-          <button type="button"><strong>Контроллер питания V2</strong><small>Заказ 1461 · SMT + тест</small></button>
-          <button type="button"><strong>Готовое изделие MES-001</strong><small>2 платы + корпус</small></button>
-        </div>
-      </div>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>DS-02</code><strong>Dense Inline Select</strong></div>
-      <p>Компактный выбор внутри таблиц, строк маршрута и фильтров.</p>
-      <div class="debug-dense-row">
-        <span>Участок</span>
-        <details class="debug-inline-select">
-          <summary><strong>SMT-монтаж</strong>${icon("chevronDown")}</summary>
-          <div class="debug-inline-options">
-            <button type="button">SMT-монтаж</button>
-            <button type="button">AOI-контроль</button>
-            <button type="button">Отмывка</button>
-            <button type="button">Тестирование</button>
-          </div>
-        </details>
-      </div>
-      <div class="debug-mini-list">
-        <span>клик по полю открывает список</span><span>для таблиц</span><span>для маршрутов</span>
-      </div>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>DS-03</code><strong>Command Search Dropdown</strong></div>
-      <p>Лучший вариант для спецификаций и BOM: поиск, метаданные, быстрый выбор.</p>
-      <div class="debug-combobox">
-        <div class="debug-command-input">${icon("search")}<span>BOM X100 PCB</span><em>Ctrl K</em></div>
-        <div class="debug-dropdown-panel">
-          <button type="button"><strong>BOM X100 PCB</strong><small>PCB-X100 · 108 компонентов</small></button>
-          <button type="button"><strong>BOM PWR V2</strong><small>PCB-PWR-V2 · 121 компонент</small></button>
-          <button type="button"><strong>BOM MES Main</strong><small>PCB-MES-MAIN · 177 компонентов</small></button>
-        </div>
-      </div>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>DS-04</code><strong>Multi Select Chips</strong></div>
-      <p>Для фильтров по нескольким статусам, участкам или ответственным.</p>
-      <div class="debug-chip-select">
-        <span>SMT</span><span>AOI</span><span>Тест</span>
-        <button type="button">${icon("plus")}</button>
-      </div>
-      <div class="debug-check-list">
-        <label><input type="checkbox" checked /> В работе</label>
-        <label><input type="checkbox" checked /> План</label>
-        <label><input type="checkbox" /> Проблема</label>
-      </div>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>DS-05</code><strong>Tree Link Select</strong></div>
-      <p>Для связки спецификация -> BOM -> изделие, когда нужно видеть иерархию.</p>
-      <div class="debug-tree-select">
-        <div><strong>Плата управления X100</strong><small>Спецификация №1452</small></div>
-        <div><span>└ СП X100 · 1000 шт.</span></div>
-        <div><span>  └ BOM X100 PCB</span><em>выбран</em></div>
-      </div>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>DS-06</code><strong>Status Palette Select</strong></div>
-      <p>Для статусов и приоритетов, где цвет несет смысл.</p>
-      <div class="debug-status-select">
-        <button type="button"><i class="ok"></i><span>Готово</span></button>
-        <button type="button"><i class="warning"></i><span>Проверка</span></button>
-        <button type="button"><i class="critical"></i><span>Проблема</span></button>
-      </div>
-    </article>
-  `;
-}
-
-function renderDebugPopupCards() {
-  return `
-    <article class="debug-card">
-      <div class="debug-card-title"><code>POP-01</code><strong>Info Popover</strong></div>
-      <p>Небольшая справка около поля без блокировки экрана.</p>
-      <div class="debug-popover-stage">
-        <button class="secondary-button" type="button">${icon("info")}<span>Норма времени</span></button>
-        <div class="debug-popover">
-          <strong>Норма времени</strong>
-          <span>Расчет применяется к одной мультипликации с учетом setup.</span>
-        </div>
-      </div>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>POP-02</code><strong>Validation Tooltip</strong></div>
-      <p>Ошибки формы рядом с проблемным контролом.</p>
-      <div class="debug-validation">
-        <label class="field">
-          <span>Плат в мультипликации</span>
-          <input value="0" />
-        </label>
-        <div class="debug-error-tip">${icon("alert")}<span>Значение должно быть больше 0.</span></div>
-      </div>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>POP-03</code><strong>Action Menu</strong></div>
-      <p>Контекстное меню действий строки таблицы.</p>
-      <details class="debug-action-menu">
-        <summary title="Открыть меню действий">${icon("edit")}</summary>
-        <div class="debug-menu-panel">
-          <button type="button">${icon("edit")}<span>Редактировать</span></button>
-          <button type="button">${icon("download")}<span>Экспортировать</span></button>
-          <button type="button" class="danger">${icon("trash")}<span>Удалить</span></button>
-        </div>
-      </details>
-    </article>
-
-    <article class="debug-card">
-      <div class="debug-card-title"><code>POP-04</code><strong>Metric Drilldown</strong></div>
-      <p>Раскрытие KPI с коротким списком причин или объектов.</p>
-      <div class="debug-metric-popover">
-        <div class="kpi-card"><span>Сигналы</span><strong>35</strong><small>2 крит. · 33 пред.</small></div>
-        <div class="debug-popover wide">
-          <strong>Топ причин</strong>
-          <span>SMT перегружен · нехватка ресурса · срок заказа V2</span>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function renderDebugOverlay() {
-  if (!ui.debugOverlay) return "";
-
-  if (ui.debugOverlay === "drawer-detail") {
-    return `
-      <div class="modal-backdrop debug-drawer-backdrop" data-debug-close>
-        <aside class="debug-drawer" role="dialog" aria-modal="true" aria-label="MOD-03 Right Detail Drawer">
-          <div class="drawer-header">
-            <div>
-              <span class="eyebrow">MOD-03 · Right Detail Drawer</span>
-              <h2>Операция SMT-монтаж</h2>
-            </div>
-            <button class="icon-button" data-debug-close type="button" title="Закрыть">${icon("close")}</button>
-          </div>
-          <div class="drawer-summary status-in_progress">
-            <div><span>Партия</span><strong>X100-B1</strong></div>
-            <strong>970 шт.</strong>
-          </div>
-          <dl class="detail-grid">
-            <div><dt>Участок</dt><dd>SMT-монтаж</dd></div>
-            <div><dt>Ресурс</dt><dd>Линия SMT-1</dd></div>
-            <div><dt>Время</dt><dd>6 ч 40 мин</dd></div>
-            <div><dt>Статус</dt><dd>В работе</dd></div>
-          </dl>
-          <div class="drawer-actions">
-            <button class="secondary-button" data-debug-close type="button">Закрыть</button>
-            <button class="primary-button" data-debug-close type="button">${icon("edit")}<span>Редактировать</span></button>
-          </div>
-        </aside>
-      </div>
-    `;
+async function checkForAppUpdate() {
+  try {
+    const sourceUrl = new URL("./src/app.js", window.location.href);
+    sourceUrl.searchParams.set("version-check", String(Date.now()));
+    const response = await fetch(sourceUrl.toString(), {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!response.ok) return;
+    const source = await response.text();
+    const latestVersion = extractAppVersion(source);
+    if (!latestVersion || latestVersion === APP_VERSION) return;
+    if (localStorage.getItem(UPDATE_DISMISSED_STORAGE_KEY) === latestVersion) return;
+    showUpdateReadyNotice(latestVersion);
+  } catch (error) {
+    // Local file previews can block fetch; the notifier is optional there.
   }
+}
 
-  if (ui.debugOverlay === "modal-wizard") {
-    return `
-      <div class="modal-backdrop" data-debug-close>
-        <section class="modal large-modal debug-wizard-modal" role="dialog" aria-modal="true" aria-label="MOD-04 Wizard Modal">
-          <div class="modal-header">
-            <div>
-              <span class="eyebrow">MOD-04 · Wizard Modal</span>
-              <h2>Создание маршрутной карты</h2>
-            </div>
-            <button class="icon-button" data-debug-close type="button" title="Закрыть">${icon("close")}</button>
-          </div>
-          <div class="debug-steps">
-            <span class="is-done">1 Спецификация</span>
-            <span class="is-active">2 Спецификация</span>
-            <span>3 BOM</span>
-            <span>4 Маршрут</span>
-          </div>
-          <div class="form-grid">
-            <label class="form-field">
-              <span>Спецификация</span>
-              <select><option>Плата управления X100</option></select>
-            </label>
-            <label class="form-field">
-              <span>Спецификация</span>
-              <select><option>СП X100 · A</option></select>
-            </label>
-            <label class="form-field full">
-              <span>BOM для SMT</span>
-              <select><option>BOM X100 PCB · Смонтированная плата X100</option></select>
-            </label>
-          </div>
-          <div class="modal-footer">
-            <button class="secondary-button" data-debug-close type="button">Отмена</button>
-            <button class="primary-button" data-debug-close type="button">${icon("chevronRight")}<span>Далее</span></button>
-          </div>
-        </section>
-      </div>
-    `;
-  }
+function extractAppVersion(source) {
+  const match = String(source || "").match(/const\s+APP_VERSION\s*=\s*["']([^"']+)["']/);
+  return match?.[1] || "";
+}
 
-  if (ui.debugOverlay === "modal-form") {
-    return `
-      <div class="modal-backdrop" data-debug-close>
-        <section class="modal large-modal" role="dialog" aria-modal="true" aria-label="MOD-02 Form Modal">
-          <div class="modal-header">
-            <div>
-              <span class="eyebrow">MOD-02 · Form Modal</span>
-              <h2>Редактирование BOM-листа</h2>
-            </div>
-            <button class="icon-button" data-debug-close type="button" title="Закрыть">${icon("close")}</button>
-          </div>
-          <div class="form-grid">
-            <label class="form-field"><span>BOM</span><input value="BOM X100 PCB" /></label>
-            <label class="form-field"><span>Код платы</span><input value="PCB-X100" /></label>
-            <label class="form-field full"><span>Результат</span><input value="Смонтированная плата X100" /></label>
-            <label class="form-field"><span>0402</span><input type="number" value="42" /></label>
-            <label class="form-field"><span>0603</span><input type="number" value="36" /></label>
-          </div>
-          <div class="modal-footer">
-            <button class="secondary-button" data-debug-close type="button">Отмена</button>
-            <button class="primary-button" data-debug-close type="button">${icon("save")}<span>Сохранить</span></button>
-          </div>
-        </section>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="modal-backdrop" data-debug-close>
-      <section class="modal" role="dialog" aria-modal="true" aria-label="MOD-01 Confirm Compact">
-        <div class="modal-header">
-          <div>
-            <span class="eyebrow">MOD-01 · Confirm Compact</span>
-            <h2>Сбросить маршрут?</h2>
-          </div>
-          <button class="icon-button" data-debug-close type="button" title="Закрыть">${icon("close")}</button>
-        </div>
-        <p class="modal-copy">Маршрутная карта будет возвращена к шаблону спецификации. Расчет BOM и спецификация останутся без изменений.</p>
-        <div class="modal-footer">
-          <button class="secondary-button" data-debug-close type="button">Отмена</button>
-          <button class="primary-button" data-debug-close type="button">${icon("reset")}<span>Сбросить</span></button>
-        </div>
-      </section>
+function showUpdateReadyNotice(version) {
+  if (!version || updateNoticeVersion === version) return;
+  updateNoticeVersion = version;
+  document.querySelector("[data-update-ready-notice]")?.remove();
+  const notice = document.createElement("section");
+  notice.className = "update-ready-notice";
+  notice.setAttribute("data-update-ready-notice", version);
+  notice.setAttribute("role", "status");
+  notice.setAttribute("aria-live", "polite");
+  notice.innerHTML = `
+    <div class="update-ready-icon">${icon("refresh")}</div>
+    <div class="update-ready-copy">
+      <strong>Обновление готово</strong>
+      <span>Открыта ${escapeHtml(APP_VERSION)}, доступна ${escapeHtml(version)}. Обновите страницу, чтобы увидеть последнюю доработку.</span>
+    </div>
+    <div class="update-ready-actions">
+      <button class="primary-button" data-update-reload="${escapeAttribute(version)}" type="button">${icon("refresh")}<span>Обновить</span></button>
+      <button class="secondary-button" data-update-dismiss="${escapeAttribute(version)}" type="button">Позже</button>
     </div>
   `;
+  document.body.appendChild(notice);
+}
+
+function hideUpdateReadyNotice(version) {
+  document.querySelector("[data-update-ready-notice]")?.remove();
+  if (version) localStorage.setItem(UPDATE_DISMISSED_STORAGE_KEY, version);
+  updateNoticeVersion = "";
+}
+
+function reloadForLatestUpdate(version) {
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set("cache-reset", `update-${String(version || APP_VERSION).replace(/[^a-z0-9.-]/gi, "")}-${Date.now()}`);
+  window.location.href = nextUrl.toString();
 }
 
 function renderConfirmModal() {
@@ -6424,7 +9001,7 @@ function renderConfirmModal() {
       <section class="modal confirm-modal" role="dialog" aria-modal="true" aria-label="${escapeAttribute(config.title)}">
         <div class="modal-header">
           <div>
-            <span class="eyebrow">MOD-01 · Confirm Compact</span>
+            <span class="eyebrow">MOD · Confirm Compact</span>
             <h2>${escapeHtml(config.title)}</h2>
           </div>
           <button class="icon-button" data-confirm-cancel type="button" title="Закрыть">${icon("close")}</button>
@@ -6473,12 +9050,44 @@ function getConfirmDialogConfig(dialog) {
     };
   }
 
+  if (dialog?.action === "planningDeleteBatch") {
+    const batch = getBatch(payload.batchId);
+    const slotsCount = getPlanningBatchSlots(batch).length;
+    return {
+      title: "Удалить партию?",
+      body: `Партия ${batch?.batchNumber || ""} будет удалена из планирования${slotsCount ? ` вместе с ${slotsCount} слотами Ганта` : ""}.`,
+      meta: "Это изменит партийность маршрутной карты и может убрать операции из Ганта.",
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
   if (dialog?.action === "spekiDeleteSpecification") {
     const specification = (directoryState.specifications || []).find((item) => item.id === payload.specificationId);
+    const usage = getSpecificationDeleteUsage(payload.specificationId);
     return {
-      title: "Удалить спеку?",
-      body: `Спека "${specification?.name || "без названия"}" будет удалена из перечня и больше не будет доступна в конструкторе.`,
-      meta: "Ссылки на эту спеку в других спеках будут очищены.",
+      title: "Удалить спецификацию?",
+      body: `Спецификация "${specification?.name || "без названия"}" будет удалена из перечня и больше не будет доступна в конструкторе.`,
+      meta: `Ссылки в других спецификациях будут очищены. Также будет удалено: ${usage.routesCount} маршрутных карт, ${usage.batchesCount} партий, ${usage.slotsCount} слотов Ганта.`,
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
+  if (dialog?.action === "bomDeleteList") {
+    const bom = getBomList(payload.bomId);
+    const linkedSpecifications = getBomLinkedSpecifications(payload.bomId);
+    const rowsCount = getBomImportRows(bom).length;
+    return {
+      title: "Удалить BOM-лист?",
+      body: `BOM "${bom?.name || "без названия"}" будет удален вместе с импортированной таблицей${rowsCount ? ` на ${rowsCount} строк` : ""}.`,
+      meta: linkedSpecifications.length
+        ? `BOM используется в ${linkedSpecifications.length} спецификациях. Ссылки на него будут очищены.`
+        : "Связанных спецификаций не найдено.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -6493,6 +9102,34 @@ function getConfirmDialogConfig(dialog) {
       title: "Удалить запись справочника?",
       body: `Запись "${getDirectoryRowLabel(directoryData.sectionId, row) || "без названия"}" будет удалена из раздела "${getDirectorySectionLabel(directoryData.sectionId)}".`,
       meta: "Если запись используется в связанных данных, система очистит прямые ссылки или оставит предупреждения в рабочих модулях.",
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
+  if (dialog?.action === "nomenclatureDeleteItem") {
+    const item = getNomenclatureItem(payload.itemId);
+    const usage = getNomenclatureDeleteUsage(payload.itemId);
+    return {
+      title: "Удалить позицию номенклатуры?",
+      body: `Позиция "${item?.name || "без названия"}" будет удалена из номенклатуры.`,
+      meta: `Ссылки будут очищены: ${usage.specificationsCount} спецификаций, ${usage.bomRowsCount} строк BOM.`,
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
+  if (dialog?.action === "operationMapDelete") {
+    const operation = getOperationMapItem(payload.operationId);
+    const usageCount = planningState.routeSteps.filter((step) => step.operationId === payload.operationId).length;
+    return {
+      title: "Удалить операцию?",
+      body: `Операция "${operation?.name || "без названия"}" будет удалена из карты операций.`,
+      meta: usageCount ? `В ${usageCount} шагах маршрутов связь будет очищена, текст операции останется.` : "Связанных маршрутных карт не найдено.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -6579,6 +9216,20 @@ function getConfirmDialogConfig(dialog) {
     };
   }
 
+  if (dialog?.action === "routeDeleteMap") {
+    const route = (planningState.routes || []).find((item) => item.id === payload.routeId);
+    const usage = getRouteDeleteUsage(payload.routeId);
+    return {
+      title: "Удалить маршрутную карту?",
+      body: `Маршрутная карта "${route?.name || "без названия"}" будет удалена из модуля.`,
+      meta: `Также будет удалено: ${usage.stepsCount} операций маршрута, ${usage.batchesCount} партий, ${usage.slotsCount} слотов Ганта.`,
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
   return {
     title: "Подтвердить действие?",
     body: "Это действие изменит данные прототипа.",
@@ -6586,228 +9237,6 @@ function getConfirmDialogConfig(dialog) {
     confirmIcon: "check",
     icon: "info",
     tone: "info",
-  };
-}
-
-function renderReportChart(chart) {
-  if (chart.type === "donut") {
-    return `
-      <article class="report-chart-card">
-        <div class="report-card-head">
-          <strong>${escapeHtml(chart.title)}</strong>
-          <span>${escapeHtml(chart.caption)}</span>
-        </div>
-        <div class="donut-wrap">
-          <div class="donut-chart" style="background:${buildDonutGradient(chart.items)};">
-            <span>${escapeHtml(chart.center)}</span>
-          </div>
-          <div class="chart-legend">
-            ${chart.items.map((item) => `
-              <div><i style="background:${item.color};"></i><span>${escapeHtml(item.label)}</span><strong>${item.value}</strong></div>
-            `).join("")}
-          </div>
-        </div>
-      </article>
-    `;
-  }
-
-  return `
-    <article class="report-chart-card">
-      <div class="report-card-head">
-        <strong>${escapeHtml(chart.title)}</strong>
-        <span>${escapeHtml(chart.caption)}</span>
-      </div>
-      <div class="bar-chart">
-        ${chart.items.map((item) => `
-          <div class="bar-row">
-            <span>${escapeHtml(item.label)}</span>
-            <div class="bar-track"><i style="width:${item.percent}%; background:${item.color};"></i></div>
-            <strong>${escapeHtml(item.value)}</strong>
-          </div>
-        `).join("")}
-      </div>
-    </article>
-  `;
-}
-
-function renderReportTable(table) {
-  return `
-    <section class="report-table-card">
-      <div class="directory-table-toolbar">
-        <strong>${escapeHtml(table.title)}</strong>
-        <span>${escapeHtml(table.caption)}</span>
-      </div>
-      <div class="directory-table-wrap" data-layout="table">
-        <table class="directory-table">
-          <thead>
-            <tr>${table.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>
-          </thead>
-          <tbody>
-            ${table.rows.map((row) => `
-              <tr>${row.map((cell, index) => `<td class="${index === 0 ? "primary-cell" : ""}">${escapeHtml(cell)}</td>`).join("")}</tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  `;
-}
-
-function getReportData(reportId) {
-  const warnings = getSlotWarnings(planningState).warnings;
-  const slotHours = planningState.slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
-  const completedSlots = planningState.slots.filter((slot) => slot.status === "completed").length;
-  const warehouseSlots = planningState.slots.filter((slot) => slot.workCenterId === "warehouse");
-  const problemSlots = planningState.slots.filter((slot) => ["problem", "overdue"].includes(slot.status)).length;
-
-  const baseKpis = [
-    { label: "Спецификации", value: String(planningState.projects.length), caption: "в производственном контуре" },
-    { label: "Операции", value: String(planningState.slots.length), caption: "слотов в плане" },
-    { label: "Плановые часы", value: formatReportNumber(slotHours), caption: "суммарная длительность" },
-    { label: "Предупреждения", value: String(warnings.length), caption: "конфликты и маршруты" },
-  ];
-
-  if (reportId === "workload") {
-    const workload = buildWorkloadRows();
-    return {
-      title: "Загрузка участков",
-      description: "Сравнение количества операций и плановых часов по производственным участкам.",
-      kpis: [
-        { label: "Участки", value: String(planningState.workCenters.length), caption: "активные строки планирования" },
-        { label: "Самый загруженный", value: workload[0]?.label || "-", caption: `${workload[0]?.hours || 0} ч в плане` },
-        { label: "Склад", value: String(warehouseSlots.length), caption: "финальных операций" },
-        { label: "Конфликты", value: String(warnings.filter((warning) => warning.type === "capacity").length), caption: "по емкости участков" },
-      ],
-      charts: [
-        { type: "bar", title: "Плановые часы", caption: "по участкам", items: workload.map((row) => ({ label: row.label, value: `${row.hours} ч`, percent: row.percentHours, color: row.color })) },
-        { type: "bar", title: "Количество операций", caption: "по участкам", items: workload.map((row) => ({ label: row.label, value: String(row.count), percent: row.percentCount, color: row.color })) },
-      ],
-      table: {
-        title: "Детализация загрузки",
-        caption: "операции, часы и количество изделий",
-        columns: ["Участок", "Операций", "Плановые часы", "Изделий", "Доля"],
-        rows: workload.map((row) => [row.label, String(row.count), `${row.hours} ч`, String(row.quantity), `${row.percentHours}%`]),
-      },
-      insightTitle: "Распределение мощности",
-      insights: buildWorkloadInsights(workload, warnings),
-    };
-  }
-
-  if (reportId === "deadlines") {
-    const deadlineRows = buildDeadlineRows();
-    return {
-      title: "Сроки и отклонения",
-      description: "Состояние спецификаций относительно сроков выпуска и рисков выполнения.",
-      kpis: [
-        { label: "В работе", value: String(planningState.projects.filter((project) => project.status === "in_progress").length), caption: "активные спецификации" },
-        { label: "Проблемные", value: String(planningState.projects.filter((project) => project.status === "problem").length), caption: "требуют внимания" },
-        { label: "Ближайший срок", value: deadlineRows[0]?.due || "-", caption: deadlineRows[0]?.project || "нет данных" },
-        { label: "Отклонения", value: String(problemSlots), caption: "операции problem/overdue" },
-      ],
-      charts: [
-        { type: "bar", title: "Готовность спецификаций", caption: "расчет по завершенным операциям", items: deadlineRows.map((row) => ({ label: row.project, value: `${row.progress}%`, percent: row.progress, color: row.color })) },
-        { type: "donut", title: "Статусы спецификаций", caption: "структура портфеля", center: `${planningState.projects.length}`, items: buildProjectStatusItems() },
-      ],
-      table: {
-        title: "Спецификации по срокам",
-        caption: "сортировка по ближайшей дате сдачи",
-        columns: ["Спецификация", "Заказ", "Срок", "Статус", "Готовность"],
-        rows: deadlineRows.map((row) => [row.project, row.order, row.due, row.status, `${row.progress}%`]),
-      },
-      insightTitle: "Риски сроков",
-      insights: buildDeadlineInsights(deadlineRows),
-    };
-  }
-
-  if (reportId === "quality") {
-    const warningRows = buildWarningRows(warnings);
-    return {
-      title: "Проблемы и конфликты",
-      description: "Сводка предупреждений по загрузке участков, маршрутам и количествам.",
-      kpis: [
-        { label: "Всего", value: String(warnings.length), caption: "активных предупреждений" },
-        { label: "Критичные", value: String(warnings.filter((warning) => warning.severity === "critical").length), caption: "нужна коррекция плана" },
-        { label: "Маршруты", value: String(warnings.filter((warning) => warning.type === "route").length), caption: "последовательность операций" },
-        { label: "Загрузка", value: String(warnings.filter((warning) => warning.type === "capacity").length), caption: "пересечения участков" },
-      ],
-      charts: [
-        { type: "donut", title: "Типы предупреждений", caption: "по категориям", center: `${warnings.length}`, items: buildWarningTypeItems(warnings) },
-        { type: "bar", title: "Предупреждения по спецификациям", caption: "количество сообщений", items: buildWarningProjectItems(warnings) },
-      ],
-      table: {
-        title: "Список предупреждений",
-        caption: "верхние записи текущего плана",
-        columns: ["Тип", "Серьезность", "Спецификация", "Сообщение"],
-        rows: warningRows,
-      },
-      insightTitle: "Контроль качества плана",
-      insights: buildWarningInsights(warnings),
-    };
-  }
-
-  if (reportId === "warehouse") {
-    const rows = warehouseSlots.map((slot) => {
-      const project = getProject(slot.projectId);
-      const batch = getBatch(slot.batchId);
-      return {
-        project: getProjectDisplayName(project) || "-",
-        batch: batch?.batchNumber || "-",
-        quantity: slot.quantity,
-        start: formatDateTime(slot.plannedStart),
-        status: STATUS_LABELS[slot.status],
-      };
-    });
-    const quantity = warehouseSlots.reduce((sum, slot) => sum + Number(slot.quantity || 0), 0);
-    return {
-      title: "Склад и выпуск",
-      description: "Финальные складские операции, которые закрывают производственный маршрут.",
-      kpis: [
-        { label: "Складских операций", value: String(warehouseSlots.length), caption: "конечный этап маршрута" },
-        { label: "Изделий к приемке", value: String(quantity), caption: "по складским слотам" },
-        { label: "Завершено", value: String(warehouseSlots.filter((slot) => slot.status === "completed").length), caption: "принято на склад" },
-        { label: "В плане", value: String(warehouseSlots.filter((slot) => slot.status === "planned").length), caption: "ожидает приемки" },
-      ],
-      charts: [
-        { type: "bar", title: "Склад по спецификациям", caption: "количество изделий", items: buildWarehouseProjectItems(warehouseSlots) },
-        { type: "donut", title: "Статусы склада", caption: "складские операции", center: `${warehouseSlots.length}`, items: buildSlotStatusItems(warehouseSlots) },
-      ],
-      table: {
-        title: "Финальные операции",
-        caption: "партии, которые завершают маршрут на складе",
-        columns: ["Спецификация", "Партия", "Количество", "План", "Статус"],
-        rows: rows.map((row) => [row.project, row.batch, String(row.quantity), row.start, row.status]),
-      },
-      insightTitle: "Выпуск продукции",
-      insights: [
-        { icon: "check", tone: "ok", text: "Склад выделен отдельным конечным этапом маршрута." },
-        { icon: "info", text: "Салатово-зеленые слоты показывают операции финальной приемки." },
-      ],
-    };
-  }
-
-  return {
-    title: "Сводка производства",
-    description: "Обзор текущего производственного плана, статусов операций и выполнения спецификаций.",
-    kpis: [
-      ...baseKpis.slice(0, 3),
-      { label: "Завершено", value: `${completedSlots}/${planningState.slots.length}`, caption: "операций закрыто" },
-    ],
-    charts: [
-      { type: "donut", title: "Статусы операций", caption: "структура слотов", center: `${planningState.slots.length}`, items: buildSlotStatusItems(planningState.slots) },
-      { type: "bar", title: "Прогресс спецификаций", caption: "по завершенным операциям", items: buildDeadlineRows().map((row) => ({ label: row.project, value: `${row.progress}%`, percent: row.progress, color: row.color })) },
-    ],
-    table: {
-      title: "Производственный портфель",
-      caption: "спецификации, объемы, сроки и готовность",
-      columns: ["Спецификация", "Заказ", "Количество", "Срок", "Статус", "Готовность"],
-      rows: buildDeadlineRows().map((row) => [row.project, row.order, row.quantity, row.due, row.status, `${row.progress}%`]),
-    },
-    insightTitle: "Оперативная картина",
-    insights: [
-      { icon: "info", text: `В плане ${planningState.slots.length} операций на ${planningState.workCenters.length} участках.` },
-      { icon: warnings.length ? "alert" : "check", tone: warnings.length ? "warning" : "ok", text: warnings.length ? `Есть ${warnings.length} предупреждений плана.` : "Критичных предупреждений не найдено." },
-      { icon: "check", tone: "ok", text: `Складских конечных операций: ${warehouseSlots.length}.` },
-    ],
   };
 }
 
@@ -6834,7 +9263,7 @@ function buildWorkloadRows() {
 }
 
 function buildDeadlineRows() {
-  return [...planningState.projects]
+  return getProductionContexts()
     .sort((left, right) => toDate(left.dueDate) - toDate(right.dueDate))
     .map((project, index) => {
       const progress = calculateProjectProgress(project, planningState);
@@ -6860,9 +9289,10 @@ function buildSlotStatusItems(slots) {
 }
 
 function buildProjectStatusItems() {
+  const productionContexts = getProductionContexts();
   return PROJECT_STATUSES.map((status) => ({
     label: PROJECT_STATUS_LABELS[status],
-    value: planningState.projects.filter((project) => project.status === status).length,
+    value: productionContexts.filter((project) => project.status === status).length,
     color: statusReportColors[status] || "#64748b",
   })).filter((item) => item.value > 0);
 }
@@ -6882,7 +9312,7 @@ function buildWarningTypeItems(warnings) {
 }
 
 function buildWarningProjectItems(warnings) {
-  const counts = planningState.projects.map((project, index) => {
+  const counts = getProductionContexts().map((project, index) => {
     const value = warnings.filter((warning) => warning.projectId === project.id).length;
     return {
       label: getProjectDisplayName(project) || project.name,
@@ -6897,7 +9327,7 @@ function buildWarningProjectItems(warnings) {
 }
 
 function buildWarehouseProjectItems(warehouseSlots) {
-  const rows = planningState.projects.map((project, index) => {
+  const rows = getProductionContexts().map((project, index) => {
     const quantity = warehouseSlots
       .filter((slot) => slot.projectId === project.id)
       .reduce((sum, slot) => sum + Number(slot.quantity || 0), 0);
@@ -7147,18 +9577,6 @@ function getDirectoryData(sectionId) {
   }
 
   const configs = {
-    specifications: {
-      caption: "Спецификация отвечает на вопрос, из чего собирается изделие: BOM смонтированных плат плюс дополнительные узлы.",
-      columns: ["Спецификация", "Производственная единица", "Итоговое изделие", "BOM A", "Кол-во A", "BOM B", "Кол-во B", "Доп. состав", "Статус"],
-      keys: ["name", "projectId", "outputItem", "bomListA", "bomQtyA", "bomListB", "bomQtyB", "extraItems", "status"],
-      rows: directoryState.specifications,
-    },
-    bomLists: {
-      caption: "BOM-лист описывает компонентный состав результата SMT: смонтированной печатной платы.",
-      columns: ["BOM", "Спецификация", "Плата", "Результат", ...BOM_COMPONENT_FIELDS.map((field) => field.label), "Статус"],
-      keys: ["name", "projectId", "boardCode", "resultItem", ...BOM_COMPONENT_FIELDS.map((field) => field.key), "status"],
-      rows: directoryState.bomLists,
-    },
     departments: {
       caption: "Организационная структура для ответственности и прав доступа.",
       columns: ["Отдел", "Код", "Ответственный", "Статус"],
@@ -7182,6 +9600,12 @@ function getDirectoryData(sectionId) {
       columns: ["Тип", "Корпус", "Семейство", "Коэф.", "Комп./ч", "Setup, сек", "По умолч.", "Статус"],
       keys: ["name", "package", "family", "coefficient", "placementsPerHour", "setupSeconds", "defaultCount", "status"],
       rows: directoryState.componentTypes,
+    },
+    nomenclatureTypes: {
+      caption: "Типы номенклатуры синхронизируются с модулем номенклатуры и используются как разделы списка.",
+      columns: ["Тип номенклатуры", "Код", "Описание", "Статус"],
+      keys: ["name", "code", "description", "status"],
+      rows: directoryState.nomenclatureTypes,
     },
     employees: {
       caption: "Сотрудники получают роли доступа из справочника ролей и используются для авторизации по ФИО.",
@@ -7220,8 +9644,6 @@ function makeDirectoryData(sectionId, config) {
 }
 
 function getDirectoryFieldType(sectionId, key) {
-  if (sectionId === "specifications" && key === "projectId") return "project-link";
-  if (sectionId === "bomLists" && key === "projectId") return "project-link";
   if (sectionId === "specifications" && (key === "bomListA" || key === "bomListB")) return "bom-link";
   if (sectionId === "employees" && key === "roleId") return "role-link";
   if (sectionId === "employees" && key === "password") return "password";
@@ -7262,8 +9684,6 @@ function formatDirectoryCell(sectionId, key, value) {
   if (sectionId === "workCenters" && key === "status") return value === "active" ? "Активен" : "Отключен";
   if (sectionId === "workCenters" && key === "unitsPerHour") return `${Number(value || 0).toLocaleString("ru-RU")} изд./час`;
   if (sectionId === "workCenters" && key === "capacity") return `${Number(value || 1).toLocaleString("ru-RU")} паралл.`;
-  if (sectionId === "specifications" && key === "projectId") return getProject(value)?.name || "-";
-  if (sectionId === "bomLists" && key === "projectId") return getProject(value)?.name || "-";
   if (sectionId === "specifications" && (key === "bomListA" || key === "bomListB")) return getBomList(value)?.name || "-";
   if (sectionId === "specifications" && (key === "bomQtyA" || key === "bomQtyB")) return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
   if (sectionId === "bomLists" && BOM_COMPONENT_FIELDS.some((field) => field.key === key)) return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
@@ -7307,7 +9727,7 @@ function renderDirectoryEditorModal(activeSection, directoryData) {
         <form id="directoryForm">
           <div class="modal-header">
             <div>
-              <span class="eyebrow">MOD-02 · Form Modal · ${escapeHtml(activeSection.label)}</span>
+              <span class="eyebrow">MOD · Form Modal · ${escapeHtml(activeSection.label)}</span>
               <h2>${isCreate ? "Новая запись" : "Редактирование записи"}</h2>
             </div>
             <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
@@ -7366,7 +9786,7 @@ function renderDirectoryField(field, value) {
       <label class="form-field command-field">
         <span>${escapeHtml(field.label)}</span>
         <select name="${field.key}">
-          ${planningState.projects.map((project) => `<option value="${project.id}" ${selected(value, project.id)}>${escapeHtml(project.name)}</option>`).join("")}
+          ${(directoryState.specifications || []).map((specification) => `<option value="${specification.id}" ${selected(value, specification.id)}>${escapeHtml(specification.name)}</option>`).join("")}
         </select>
       </label>
     `;
@@ -7420,7 +9840,7 @@ function createEmptyDirectoryRow(directoryData) {
     if (key === "setupSeconds") row[key] = 15;
     if (key === "defaultCount") row[key] = 0;
     if (BOM_COMPONENT_FIELDS.some((field) => field.key === key)) row[key] = 0;
-    if (key === "projectId") row[key] = planningState.projects[0]?.id || "";
+    if (key === "projectId") row[key] = "";
     if (key === "bomListA") row[key] = directoryState.bomLists?.[0]?.id || "";
     if (key === "bomListB") row[key] = "";
     if (key === "bomQtyA") row[key] = 1;
@@ -7428,8 +9848,8 @@ function createEmptyDirectoryRow(directoryData) {
     if (key === "shift") row[key] = "08:00-20:00";
     if (key === "roleId") row[key] = directoryState.roles?.[0]?.id || "role-admin";
     if (key === "password") row[key] = "";
-    if (directoryData.sectionId === "roles" && key === "modules") row[key] = "reports";
-    if (directoryData.sectionId === "roles" && key === "directories") row[key] = "projects, statuses";
+    if (directoryData.sectionId === "roles" && key === "modules") row[key] = "gantt";
+    if (directoryData.sectionId === "roles" && key === "directories") row[key] = "statuses";
     if (directoryData.sectionId === "roles" && key === "permissions") row[key] = "read";
     if (key === "default") row[key] = "no";
     if (key === "dueDate") row[key] = toDateInput(addMs(new Date(), 14 * 24 * 60 * 60 * 1000));
@@ -7465,7 +9885,7 @@ function bindAuthEvents() {
     }
 
     if (password !== expectedPassword) {
-      alert("Пароль не совпадает. Для MVP пароль у всех сотрудников пустой.");
+      alert("Пароль не совпадает. Для отладки пароль у всех сотрудников пустой.");
       return;
     }
 
@@ -7489,21 +9909,31 @@ function bindGlobalNavigation() {
 
 function navigateToModule(moduleId) {
   if (!getAvailableModules().some((moduleItem) => moduleItem.id === moduleId)) return;
-  if (MVP_MODULE_IDS.has(moduleId) && !mvpAccessUnlocked) {
-    const password = window.prompt("Введите пароль для доступа к группе MVP");
-    if (password !== MVP_ACCESS_PASSWORD) {
-      if (password !== null) alert("Неверный пароль для группы MVP.");
-      return;
-    }
-    mvpAccessUnlocked = true;
-  }
+  const previousModule = ui.activeModule;
   ui.activeModule = moduleId;
   ui.selectedSlotId = null;
   ui.editor = null;
   ui.splitSlotId = null;
   ui.projectModal = false;
-  ui.debugOverlay = null;
   ui.confirmDialog = null;
+  if (moduleId === "nomenclature" && previousModule !== "nomenclature") {
+    ui.activeNomenclatureId = "";
+  }
+  if (moduleId === "bomLists" && previousModule !== "bomLists") {
+    ui.activeBomId = "";
+  }
+  if (moduleId === "speki" && previousModule !== "speki") {
+    ui.activeSpecificationId = "";
+    ui.spekiEditingId = "";
+    ui.spekiCheckedSpecificationId = "";
+    ui.spekiStaleItemIds = [];
+  }
+  if (moduleId === "routes" && previousModule !== "routes") {
+    ui.activeRouteId = "";
+  }
+  if (moduleId === "planning" && previousModule !== "planning") {
+    ui.activeRouteId = "";
+  }
   persistUiState();
   render();
 }
@@ -7543,13 +9973,33 @@ function performConfirmedAction(dialog) {
     return;
   }
 
+  if (dialog.action === "planningDeleteBatch") {
+    deletePlanningBatch(payload.batchId, { deleteSlots: true });
+    return;
+  }
+
   if (dialog.action === "spekiDeleteSpecification") {
     deleteSpekiSpecification(payload.specificationId);
     return;
   }
 
+  if (dialog.action === "bomDeleteList") {
+    deleteBomList(payload.bomId);
+    return;
+  }
+
   if (dialog.action === "directoryDeleteRow") {
     deleteDirectoryRow(payload.sectionId, payload.rowIndex);
+    return;
+  }
+
+  if (dialog.action === "nomenclatureDeleteItem") {
+    deleteNomenclatureItem(payload.itemId);
+    return;
+  }
+
+  if (dialog.action === "operationMapDelete") {
+    deleteOperationMapItem(payload.operationId);
     return;
   }
 
@@ -7582,227 +10032,12 @@ function performConfirmedAction(dialog) {
 
   if (dialog.action === "routeDeleteStep") {
     deleteRouteStepConfirmed(payload.stepId);
+    return;
   }
-}
 
-function bindDebugEvents() {
-  app.querySelectorAll("[data-debug-overlay]").forEach((button) => {
-    button.addEventListener("click", () => {
-      ui.debugOverlay = button.dataset.debugOverlay;
-      render();
-    });
-  });
-
-  app.querySelectorAll("[data-debug-close]").forEach((element) => {
-    element.addEventListener("click", (event) => {
-      if (event.target !== element && !element.matches("button")) return;
-      ui.debugOverlay = null;
-      render();
-    });
-  });
-
-  let draggedSpecNode = null;
-  const addSpecNodeToCanvas = (node) => {
-    if (!node?.title) return;
-    const zone = app.querySelector("[data-spec-drop-zone]");
-    const item = document.createElement("div");
-    item.className = "spec-stack-item is-new";
-    item.innerHTML = `<span>1x</span><strong>${escapeHtml(node.title)}</strong><em>${escapeHtml(node.type || "Item")} · добавлено</em>`;
-    zone?.closest(".spec-drop-canvas")?.append(item);
-  };
-
-  app.querySelectorAll("[data-spec-palette-card]").forEach((card) => {
-    card.addEventListener("click", () => {
-      addSpecNodeToCanvas({
-        title: card.dataset.specTitle || "Новый узел",
-        type: card.dataset.specType || "Item",
-      });
-    });
-
-    card.addEventListener("dragstart", (event) => {
-      draggedSpecNode = {
-        title: card.dataset.specTitle || "Новый узел",
-        type: card.dataset.specType || "Item",
-      };
-      card.classList.add("is-being-dragged");
-      event.dataTransfer?.setData("text/plain", JSON.stringify(draggedSpecNode));
-      event.dataTransfer?.setDragImage(card, 16, 16);
-    });
-
-    card.addEventListener("dragend", () => {
-      card.classList.remove("is-being-dragged");
-      app.querySelectorAll("[data-spec-drop-zone]").forEach((zone) => zone.classList.remove("is-drop-ready"));
-      draggedSpecNode = null;
-    });
-  });
-
-  app.querySelectorAll("[data-spec-drop-zone]").forEach((zone) => {
-    zone.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      zone.classList.add("is-drop-ready");
-    });
-
-    zone.addEventListener("dragleave", (event) => {
-      if (event.relatedTarget && zone.contains(event.relatedTarget)) return;
-      zone.classList.remove("is-drop-ready");
-    });
-
-    zone.addEventListener("drop", (event) => {
-      event.preventDefault();
-      zone.classList.remove("is-drop-ready");
-      const rawData = event.dataTransfer?.getData("text/plain");
-      let dropped = draggedSpecNode;
-      try {
-        dropped = rawData ? JSON.parse(rawData) : draggedSpecNode;
-      } catch {
-        dropped = draggedSpecNode;
-      }
-      addSpecNodeToCanvas(dropped);
-    });
-  });
-}
-
-function bindSpekiEvents() {
-  app.querySelector("[data-speki-create-specification]")?.addEventListener("click", () => {
-    createSpekiSpecification();
-  });
-
-  app.querySelectorAll("[data-speki-spec-open]").forEach((button) => {
-    button.addEventListener("click", () => {
-      ui.activeSpecificationId = button.dataset.spekiSpecOpen || "";
-      ui.spekiEditingId = "";
-      ui.spekiCheckedSpecificationId = "";
-      ui.spekiStaleItemIds = [];
-      persistUiState();
-      render();
-    });
-  });
-
-  app.querySelectorAll("[data-speki-add-row]").forEach((button) => {
-    button.addEventListener("click", () => {
-      addSpecificationStructureItem(button.dataset.spekiAddRow || "bom");
-    });
-  });
-
-  app.querySelectorAll("[data-speki-create-node-from-row]").forEach((button) => {
-    button.addEventListener("click", () => {
-      createSpekiNodeFromRow(button.dataset.spekiCreateNodeFromRow || "");
-    });
-  });
-
-  app.querySelector("[data-speki-edit]")?.addEventListener("click", (event) => {
-    ui.spekiEditingId = event.currentTarget.dataset.spekiEdit || "";
-    persistUiState();
-    render();
-  });
-
-  app.querySelector("[data-speki-save]")?.addEventListener("click", (event) => {
-    const specificationId = event.currentTarget.dataset.spekiSave || "";
-    const nameInput = [...app.querySelectorAll("[data-speki-spec-name]")]
-      .find((input) => input.dataset.spekiSpecName === specificationId);
-    saveSpekiSpecification(specificationId, nameInput?.value || "");
-  });
-
-  app.querySelector("[data-speki-check]")?.addEventListener("click", (event) => {
-    checkSpekiStructureReferences(event.currentTarget.dataset.spekiCheck || "");
-  });
-
-  app.querySelector("[data-speki-delete]")?.addEventListener("click", (event) => {
-    openConfirmDialog("spekiDeleteSpecification", { specificationId: event.currentTarget.dataset.spekiDelete || "" });
-  });
-
-  app.querySelectorAll("[data-speki-structure-input]").forEach((field) => {
-    field.addEventListener("change", () => {
-      updateSpecificationStructureItem(field.dataset.spekiStructureInput, field.dataset.spekiStructureField, field.value);
-    });
-  });
-
-  app.querySelectorAll("[data-dense-speki-structure-type] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-speki-structure-type]");
-      if (!root) return;
-      updateSpecificationStructureItem(root.dataset.denseSpekiStructureType, "type", button.dataset.denseValue || "bom");
-    });
-  });
-
-  app.querySelectorAll("[data-dense-speki-structure-bom] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-speki-structure-bom]");
-      if (!root) return;
-      updateSpecificationStructureItem(root.dataset.denseSpekiStructureBom, "bomListId", button.dataset.denseValue || "");
-    });
-  });
-
-  app.querySelectorAll("[data-dense-speki-structure-specification] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-speki-structure-specification]");
-      if (!root) return;
-      updateSpecificationStructureItem(root.dataset.denseSpekiStructureSpecification, "specificationId", button.dataset.denseValue || "");
-    });
-  });
-
-  app.querySelectorAll("[data-dense-speki-structure-nomenclature] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-speki-structure-nomenclature]");
-      if (!root) return;
-      updateSpecificationStructureItem(root.dataset.denseSpekiStructureNomenclature, "nomenclatureId", button.dataset.denseValue || "");
-    });
-  });
-
-  app.querySelectorAll("[data-dense-speki-structure-execution] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-speki-structure-execution]");
-      if (!root) return;
-      updateSpecificationStructureItem(root.dataset.denseSpekiStructureExecution, "executionType", button.dataset.denseValue || "make");
-    });
-  });
-
-  app.querySelectorAll("[data-dense-speki-structure-operation] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-speki-structure-operation]");
-      if (!root) return;
-      updateSpecificationStructureItem(root.dataset.denseSpekiStructureOperation, "operationName", button.dataset.denseValue || "");
-    });
-  });
-
-  app.querySelectorAll("[data-dense-speki-structure-department] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-speki-structure-department]");
-      if (!root) return;
-      updateSpecificationStructureItem(root.dataset.denseSpekiStructureDepartment, "departmentName", button.dataset.denseValue || "");
-    });
-  });
-
-  app.querySelectorAll("[data-speki-structure-indent]").forEach((button) => {
-    button.addEventListener("click", () => changeSpekiStructureLevel(button.dataset.spekiStructureIndent, 1));
-  });
-
-  app.querySelectorAll("[data-speki-structure-outdent]").forEach((button) => {
-    button.addEventListener("click", () => changeSpekiStructureLevel(button.dataset.spekiStructureOutdent, -1));
-  });
-
-  app.querySelectorAll("[data-speki-structure-up]").forEach((button) => {
-    button.addEventListener("click", () => moveSpecificationStructureItem(button.dataset.spekiStructureUp, -1));
-  });
-
-  app.querySelectorAll("[data-speki-structure-down]").forEach((button) => {
-    button.addEventListener("click", () => moveSpecificationStructureItem(button.dataset.spekiStructureDown, 1));
-  });
-
-  app.querySelectorAll("[data-speki-bom-toggle]").forEach((button) => {
-    button.addEventListener("click", () => toggleSpekiBomCollapse(button.dataset.spekiBomToggle || ""));
-  });
-
-  app.querySelectorAll("[data-speki-structure-delete]").forEach((button) => {
-    button.addEventListener("click", () => deleteSpecificationStructureItem(button.dataset.spekiStructureDelete));
-  });
+  if (dialog.action === "routeDeleteMap") {
+    deleteRouteMapConfirmed(payload.routeId);
+  }
 }
 
 function bindDirectoryEvents() {
@@ -7940,24 +10175,76 @@ function updateEmployeeDirectoryField(employeeId, field, value) {
   ensureAuthorizedModule();
   persistDirectoryState();
   persistUiState();
+  notifySaveSuccess("Данные сотрудника сохранены");
   render();
 }
 
-function bindReportEvents() {
-  app.querySelectorAll("[data-report-id]").forEach((button) => {
-    button.addEventListener("click", () => {
-      ui.activeReport = button.dataset.reportId;
-      persistUiState();
-      render();
+function bindPlanningEvents() {
+  app.querySelectorAll("[data-planning-quantity]").forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      input.blur();
+      syncPlanningRouteQuantity(input.dataset.planningQuantity || "", input.value);
+    });
+
+    input.addEventListener("change", () => {
+      syncPlanningRouteQuantity(input.dataset.planningQuantity || "", input.value);
     });
   });
 
-  app.querySelector("[data-report-refresh]")?.addEventListener("click", () => {
-    render();
-  });
-}
+  app.querySelectorAll("[data-planning-boards-per-panel]").forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      input.blur();
+      syncPlanningBoardsPerPanel(
+        input.dataset.planningBppRoute || "",
+        input.dataset.planningBoardsPerPanel || "",
+        input.value,
+      );
+    });
 
-function bindPlanningEvents() {
+    input.addEventListener("change", () => {
+      syncPlanningBoardsPerPanel(
+        input.dataset.planningBppRoute || "",
+        input.dataset.planningBoardsPerPanel || "",
+        input.value,
+      );
+    });
+  });
+
+  app.querySelectorAll("[data-planning-batch-field]").forEach((input) => {
+    const commit = () => updatePlanningBatchField(
+      input.dataset.planningBatchId || "",
+      input.dataset.planningBatchField || "",
+      input.value,
+    );
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      input.blur();
+      commit();
+    });
+    input.addEventListener("change", commit);
+  });
+
+  app.querySelectorAll("[data-planning-batch-add]").forEach((button) => {
+    button.addEventListener("click", () => createPlanningBatch(button.dataset.planningBatchAdd || ""));
+  });
+
+  app.querySelectorAll("[data-planning-batches-distribute]").forEach((button) => {
+    button.addEventListener("click", () => distributePlanningBatchesEvenly(button.dataset.planningBatchesDistribute || ""));
+  });
+
+  app.querySelectorAll("[data-planning-batches-accept-total]").forEach((button) => {
+    button.addEventListener("click", () => acceptPlanningBatchTotal(button.dataset.planningBatchesAcceptTotal || ""));
+  });
+
+  app.querySelectorAll("[data-planning-batch-delete]").forEach((button) => {
+    button.addEventListener("click", () => requestDeletePlanningBatch(button.dataset.planningBatchDelete || ""));
+  });
+
   app.querySelector("[data-planning-route-to-gantt]")?.addEventListener("click", (event) => {
     const routeId = event.currentTarget.dataset.planningRouteToGantt || "";
     schedulePlanningRouteToGantt(routeId);
@@ -7977,10 +10264,158 @@ function bindPlanningEvents() {
   });
 }
 
+function bindOperationMapEvents() {
+  app.querySelector("[data-operation-create]")?.addEventListener("click", () => {
+    ui.activeOperationId = "__new__";
+    persistUiState();
+    render();
+  });
+
+  app.querySelectorAll("[data-operation-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.activeOperationId = button.dataset.operationOpen || "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelector("#operationMapForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveOperationMapForm(event.currentTarget);
+  });
+
+  app.querySelectorAll("[data-dense-operation-map-field] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-operation-map-field]");
+      const field = root?.dataset.denseOperationMapField || "";
+      const form = button.closest("form");
+      const hidden = form?.querySelector(`[data-operation-map-hidden="${CSS.escape(field)}"]`);
+      if (hidden) hidden.value = button.dataset.denseValue || "";
+      updateDenseInlineSelected(root, button);
+    });
+  });
+
+  app.querySelector("[data-operation-delete]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    const operationId = event.currentTarget.dataset.operationDelete || "";
+    if (!operationId) return;
+    openConfirmDialog("operationMapDelete", { operationId });
+  });
+}
+
+function updateDenseInlineSelected(root, button) {
+  if (!root || !button) return;
+  root.querySelectorAll("[data-dense-value]").forEach((item) => {
+    item.classList.toggle("is-selected", item === button);
+  });
+  const summary = root.querySelector("summary span");
+  const label = button.querySelector("strong")?.textContent || "Не выбрано";
+  const meta = button.querySelector("small")?.textContent || "";
+  if (summary) {
+    summary.innerHTML = `
+      <strong>${escapeHtml(label)}</strong>
+      ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+    `;
+  }
+  root.open = false;
+}
+
+function saveOperationMapForm(form) {
+  const data = new FormData(form);
+  const isNew = data.get("isNew") === "yes";
+  const existing = isNew ? null : getOperationMapItem(String(data.get("operationId") || ""));
+  const name = String(data.get("name") || "").trim();
+  const workCenterId = String(data.get("workCenterId") || "");
+  if (!name || !workCenterId) {
+    alert("Заполните название операции и участок по умолчанию.");
+    return;
+  }
+
+  const type = OPERATION_TYPE_OPTIONS.some((item) => item.value === data.get("type"))
+    ? String(data.get("type"))
+    : "production";
+  const stamp = new Date().toISOString();
+  const row = normalizeDirectoryRow("operationMap", {
+    ...(existing || {}),
+    id: existing?.id || makeId("op"),
+    name,
+    code: String(data.get("code") || "").trim(),
+    type,
+    workCenterId,
+    unitsPerHour: Math.max(0, Math.round(Number(data.get("unitsPerHour") || 0) * 10) / 10),
+    requiresBatch: data.get("requiresBatch") === "on",
+    isWarehouse: type === "warehouse" || workCenterId === "warehouse",
+    status: "Активен",
+    updatedAt: stamp,
+  });
+
+  directoryState.operationMap = [
+    ...(directoryState.operationMap || []).filter((item) => item.id !== row.id),
+    row,
+  ];
+  applyOperationMapChangesToRoutes(row);
+  ui.activeOperationId = row.id;
+  persistDirectoryState();
+  persistState();
+  persistUiState();
+  notifySaveSuccess(isNew ? "Операция создана" : "Операция сохранена");
+  render();
+}
+
+function applyOperationMapChangesToRoutes(operation) {
+  if (!operation?.id) return;
+  planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
+    if (step.operationId !== operation.id) return step;
+    const nextWorkCenterId = step.workCenterOverride ? step.workCenterId : operation.workCenterId;
+    return {
+      ...step,
+      operationName: operation.name || step.operationName,
+      operationType: operation.type,
+      workCenterId: nextWorkCenterId,
+      unitsPerHour: operation.unitsPerHour || step.unitsPerHour || getWorkCenterUnitsPerHour(nextWorkCenterId),
+      requiresBatch: operation.requiresBatch,
+      isWarehouseOperation: operation.isWarehouse,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  const linkedStepById = new Map((planningState.routeSteps || [])
+    .filter((step) => step.operationId === operation.id)
+    .map((step) => [step.id, step]));
+  planningState.slots = (planningState.slots || []).map((slot) => {
+    const step = linkedStepById.get(slot.routeStepId);
+    if (!step || slot.locked || slot.status === "completed") return slot;
+    return recalculateSlotEndByQuantity({
+      ...slot,
+      operationName: step.operationName || slot.operationName,
+      workCenterId: step.workCenterId || slot.workCenterId,
+      unitsPerHour: step.unitsPerHour || slot.unitsPerHour,
+      updatedAt: new Date().toISOString(),
+    }, planningState);
+  });
+}
+
+function deleteOperationMapItem(operationId) {
+  const operation = getOperationMapItem(operationId);
+  if (!operation) return;
+  directoryState.operationMap = (directoryState.operationMap || []).filter((item) => item.id !== operationId);
+  planningState.routeSteps = (planningState.routeSteps || []).map((step) => (
+    step.operationId === operationId
+      ? { ...step, operationId: "", operationName: step.operationName || operation.name || "", operationType: "", updatedAt: new Date().toISOString() }
+      : step
+  ));
+  if (ui.activeOperationId === operationId) ui.activeOperationId = "";
+  persistDirectoryState();
+  persistState();
+  persistUiState();
+  notifySaveSuccess("Операция удалена");
+  render();
+}
+
 function bindRoutesEvents() {
   app.querySelector("[data-route-create]")?.addEventListener("click", () => {
     ui.activeRouteId = "__new__";
-    ui.activeProjectId = ui.activeProjectId || planningState.projects[0]?.id || "";
+    ui.activeProjectId = ui.activeProjectId || ui.activeSpecificationId || (directoryState.specifications || [])[0]?.id || "";
     persistUiState();
     render();
   });
@@ -8001,6 +10436,13 @@ function bindRoutesEvents() {
   app.querySelector("#routeModuleForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     saveRouteModuleForm(event.currentTarget);
+  });
+
+  app.querySelector("[data-route-delete]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    const routeId = event.currentTarget.dataset.routeDelete || "";
+    if (!routeId) return;
+    openConfirmDialog("routeDeleteMap", { routeId });
   });
 
   app.querySelectorAll("[data-dense-route-field] [data-dense-value]").forEach((button) => {
@@ -8027,26 +10469,10 @@ function bindRoutesEvents() {
     });
   });
 
-  app.querySelectorAll("[data-route-step-required]").forEach((field) => {
-    field.addEventListener("change", () => {
-      updateRouteStepField(field.dataset.routeStepRequired, "isRequired", field.checked);
-    });
-  });
-
-  app.querySelectorAll("[data-route-add-step-task]").forEach((button) => {
+  app.querySelectorAll("[data-route-add-step]").forEach((button) => {
     button.addEventListener("click", () => {
-      addRouteModuleStep(button.dataset.routeAddStepTask || MAIN_ROUTE_TASK_ID);
+      addRouteModuleStep(button.dataset.routeAddStep || "workCenter");
     });
-  });
-
-  app.querySelectorAll("[data-route-seed-task]").forEach((button) => {
-    button.addEventListener("click", () => {
-      seedRouteTaskTemplate(button.dataset.routeSeedTask || "");
-    });
-  });
-
-  app.querySelector("[data-route-seed-all-tasks]")?.addEventListener("click", () => {
-    seedAllRouteTaskTemplates();
   });
 
   app.querySelectorAll("[data-route-step-up]").forEach((button) => {
@@ -8065,10 +10491,22 @@ function bindRoutesEvents() {
 
   app.querySelector("[data-route-to-planning]")?.addEventListener("click", () => {
     const route = getActiveRouteForModule();
-    if (!route) return;
+    if (!route) {
+      alert("Сначала сохраните маршрутную карту, затем передайте ее в заказ на пр-во.");
+      return;
+    }
+    const specification = getRouteSpecification(route);
+    const production = getProject(route.specificationId || route.projectId);
+    if (!specification && !production) {
+      alert("Чтобы передать маршрутную карту в заказ на пр-во, выберите спецификацию в карточке маршрута и сохраните карту.");
+      return;
+    }
+    if (specification && !production) {
+      ensureRouteModuleProjectForSpecification(specification);
+    }
     ui.activeModule = "planning";
     ui.activeRouteId = route.id;
-    ui.activeProjectId = route.projectId;
+    ui.activeProjectId = specification?.id || route.specificationId || route.projectId;
     persistUiState();
     render();
   });
@@ -8078,10 +10516,10 @@ function saveRouteModuleForm(form) {
   const data = new FormData(form);
   const isNew = data.get("isNew") === "yes";
   const existingRoute = getActiveRouteForModule();
-  const routeBindingId = String(data.get("routeBindingId") || data.get("projectId") || ui.activeSpecificationId || existingRoute?.projectId || ui.activeProjectId || planningState.projects[0]?.id || "");
+  const routeBindingId = String(data.get("routeBindingId") || data.get("projectId") || ui.activeSpecificationId || existingRoute?.specificationId || existingRoute?.projectId || ui.activeProjectId || "");
   const projectId = resolveRouteModuleProjectId(routeBindingId, { createPlanningUnit: true });
+  const selectedSpecification = getSpecificationById(routeBindingId) || getSpecificationByProjectId(projectId);
   const name = String(data.get("name") || "").trim();
-  const isDefault = data.get("isDefault") === "on";
   if (!name || !projectId) {
     alert("Заполните название маршрутной карты и спецификацию.");
     return;
@@ -8092,26 +10530,27 @@ function saveRouteModuleForm(form) {
   const nextRoute = {
     ...(existingRoute || {}),
     id: routeId,
+    specificationId: selectedSpecification?.id || projectId,
+    specificationName: selectedSpecification?.name || "",
     projectId,
     name,
-    isDefault,
+    isDefault: Boolean(existingRoute?.isDefault),
     updatedAt: stamp,
   };
 
   planningState.routes = [
     ...planningState.routes
-      .filter((route) => route.id !== routeId)
-      .map((route) => route.projectId === projectId && isDefault ? { ...route, isDefault: false } : route),
+      .filter((route) => route.id !== routeId),
     nextRoute,
   ];
   planningState = normalizePlanningState(planningState);
-  const selectedSpecification = getSpecificationById(routeBindingId) || getSpecificationByProjectId(projectId);
   ensureRouteTaskSeedSteps(routeId, selectedSpecification);
   ui.activeRouteId = routeId;
   ui.activeProjectId = projectId;
   if (selectedSpecification) ui.activeSpecificationId = selectedSpecification.id;
   persistState();
   persistUiState();
+  notifySaveSuccess(isNew ? "Маршрутная карта создана" : "Маршрутная карта сохранена");
   render();
 }
 
@@ -8124,7 +10563,7 @@ function updateRouteProject(selectionValue) {
   });
   if (selectedSpecification) ui.activeSpecificationId = selectedSpecification.id;
   if (!activeRoute || ui.activeRouteId === "__new__") {
-    ui.activeProjectId = projectId || selectedSpecification?.projectId || "";
+    ui.activeProjectId = projectId || selectedSpecification?.id || "";
     persistUiState();
     render();
     return;
@@ -8133,15 +10572,14 @@ function updateRouteProject(selectionValue) {
   if (!projectId) return;
   planningState.routes = planningState.routes.map((route) => (
     route.id === activeRoute.id
-      ? { ...route, projectId, updatedAt: new Date().toISOString() }
-      : activeRoute.isDefault && route.projectId === projectId
-        ? { ...route, isDefault: false }
+      ? { ...route, specificationId: selectedSpecification?.id || projectId, specificationName: selectedSpecification?.name || "", projectId, updatedAt: new Date().toISOString() }
       : route
   ));
   if (selectedSpecification) ensureRouteTaskSeedSteps(activeRoute.id, selectedSpecification);
   ui.activeProjectId = projectId;
   persistState();
   persistUiState();
+  notifySaveSuccess("Маршрутная карта сохранена");
   render();
 }
 
@@ -8150,6 +10588,7 @@ function updateRouteStepField(stepId, field, rawValue) {
   if (!step || !field) return;
   const oldCenter = getWorkCenter(step.workCenterId);
   let value = rawValue;
+  if (field === "operationId" && String(value || "").startsWith("legacy:")) return;
   if (["stepOrder", "setupMin", "secondsPerPanel"].includes(field)) {
     value = Math.max(field === "stepOrder" ? 1 : 0, Math.round(Number(rawValue || 0)));
   }
@@ -8160,17 +10599,49 @@ function updateRouteStepField(stepId, field, rawValue) {
   planningState.routeSteps = planningState.routeSteps.map((item) => {
     if (item.id !== stepId) return item;
     const next = { ...item, [field]: value, updatedAt: new Date().toISOString() };
+    if (field === "operationId") {
+      const operation = getOperationMapItem(value);
+      if (operation) {
+        next.operationId = operation.id;
+        next.operationName = operation.name || "Операция";
+        next.operationType = operation.type;
+        next.workCenterId = operation.workCenterId || next.workCenterId;
+        next.workCenterOverride = false;
+        next.unitsPerHour = operation.unitsPerHour || getWorkCenterUnitsPerHour(next.workCenterId);
+        next.requiresBatch = operation.requiresBatch;
+        next.isWarehouseOperation = operation.isWarehouse;
+      }
+    }
     if (field === "workCenterId") {
       const center = getWorkCenter(value);
       const shouldRename = !item.operationName || item.operationName === oldCenter?.name || item.operationName === oldCenter?.code;
       next.operationName = shouldRename ? center?.name || "Операция" : item.operationName;
+      if (item.operationId) {
+        const operation = getOperationMapItem(item.operationId);
+        next.workCenterOverride = Boolean(operation && operation.workCenterId !== value);
+      }
       if (!Number(next.unitsPerHour || 0)) next.unitsPerHour = getWorkCenterUnitsPerHour(value);
     }
     return next;
   });
 
   if (field === "stepOrder") normalizeRouteStepOrders(step.routeId, getRouteStepTaskId(step));
+  if (["operationId", "workCenterId", "unitsPerHour"].includes(field)) {
+    const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
+    planningState.slots = planningState.slots.map((slot) => {
+      if (slot.routeStepId !== stepId || slot.locked || slot.status === "completed" || !updatedStep) return slot;
+      return recalculateSlotEndByQuantity({
+        ...slot,
+        workCenterId: updatedStep.workCenterId,
+        operationName: updatedStep.operationName || slot.operationName,
+        unitsPerHour: updatedStep.unitsPerHour || slot.unitsPerHour,
+        boardsPerPanel: updatedStep.boardsPerPanel || slot.boardsPerPanel || 1,
+        updatedAt: new Date().toISOString(),
+      }, planningState);
+    });
+  }
   persistState();
+  notifySaveSuccess("Операция маршрута сохранена");
   render();
 }
 
@@ -8208,6 +10679,7 @@ function seedRouteTaskTemplate(taskId = "") {
     return;
   }
   persistState();
+  notifySaveSuccess("Операции маршрута добавлены");
   render();
 }
 
@@ -8224,48 +10696,72 @@ function seedAllRouteTaskTemplates() {
   render();
 }
 
-function addRouteModuleStep(taskId = MAIN_ROUTE_TASK_ID) {
+function getDefaultOperationMapItemForRouteKind(operationKind = "workCenter") {
+  const operations = getOperationMapRows();
+  if (operationKind === "warehouse") {
+    return operations.find((operation) => operation.type === "warehouse" || operation.workCenterId === "warehouse") || null;
+  }
+  return operations.find((operation) => operation.type !== "warehouse" && operation.workCenterId !== "warehouse")
+    || operations.find((operation) => operation.type !== "warehouse")
+    || null;
+}
+
+function addRouteModuleStep(operationKind = "workCenter") {
   const route = getActiveRouteForModule();
   if (!route) return;
-  const task = getRouteTasksForModule(route).find((item) => item.id === taskId) || getRouteMainTask(route);
   const steps = getRouteStepsForModule(route.id);
-  const taskSteps = getRouteStepsForTask(steps, task.id);
-  const warehouseStep = taskSteps.find((step) => step.workCenterId === "warehouse");
-  const insertOrder = warehouseStep?.stepOrder || Math.max(0, ...taskSteps.map((step) => Number(step.stepOrder || 0))) + 1;
-  const workCenterId = task.workCenterId || planningState.workCenters.find((center) => center.id !== "warehouse")?.id || "manual";
+  const warehouseStep = steps.find((step) => step.workCenterId === "warehouse");
+  const isWarehouse = operationKind === "warehouse";
+  const operation = getDefaultOperationMapItemForRouteKind(operationKind);
+  const insertOrder = isWarehouse
+    ? Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1
+    : warehouseStep?.stepOrder || Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
+  const workCenterId = isWarehouse
+    ? operation?.workCenterId || "warehouse"
+    : planningState.workCenters.find((center) => center.id !== "warehouse")?.id || "manual";
+  const routeWorkCenterId = operation?.workCenterId || workCenterId;
   const center = getWorkCenter(workCenterId);
 
   planningState.routeSteps = [
     ...planningState.routeSteps.map((step) => (
-      step.routeId === route.id && getRouteStepTaskId(step) === task.id && Number(step.stepOrder || 0) >= insertOrder
+      step.routeId === route.id && Number(step.stepOrder || 0) >= insertOrder
         ? { ...step, stepOrder: Number(step.stepOrder || 0) + 1 }
         : step
     )),
     {
       id: makeId("rs"),
       routeId: route.id,
-      specTaskId: task.id === MAIN_ROUTE_TASK_ID ? "" : task.id,
-      specTaskSourceItemId: task.sourceItemId || "",
-      specTaskName: task.title || "",
-      workCenterId,
-      operationName: task.operationName || center?.name || "Новая операция",
+      specTaskId: "",
+      specTaskSourceItemId: "",
+      specTaskName: "",
+      specTaskQuantity: 1,
+      bomListId: "",
+      boardsPerPanel: 1,
+      operationId: operation?.id || "",
+      operationType: operation?.type || (isWarehouse ? "warehouse" : "production"),
+      workCenterId: routeWorkCenterId,
+      workCenterOverride: false,
+      operationName: operation?.name || (isWarehouse ? "Склад" : center?.name || "Новая операция"),
       stepOrder: insertOrder,
       isRequired: true,
-      unitsPerHour: getWorkCenterUnitsPerHour(workCenterId),
+      quantityMultiplier: 1,
+      unitsPerHour: operation?.unitsPerHour || getWorkCenterUnitsPerHour(routeWorkCenterId),
+      requiresBatch: operation?.requiresBatch ?? !isWarehouse,
+      isWarehouseOperation: operation?.isWarehouse || isWarehouse,
       setupMin: 0,
       updatedAt: new Date().toISOString(),
     },
   ];
-  normalizeRouteStepOrders(route.id, task.id);
+  normalizeRouteStepOrders(route.id);
   persistState();
+  notifySaveSuccess(isWarehouse ? "Операция склада добавлена" : "Операция участка добавлена");
   render();
 }
 
 function moveRouteStep(stepId, direction) {
   const step = planningState.routeSteps.find((item) => item.id === stepId);
   if (!step) return;
-  const taskId = getRouteStepTaskId(step);
-  const steps = getRouteStepsForTask(getRouteStepsForModule(step.routeId), taskId);
+  const steps = getRouteStepsForModule(step.routeId);
   const index = steps.findIndex((item) => item.id === stepId);
   if (index < 0) return;
   const target = steps[index + direction];
@@ -8277,8 +10773,9 @@ function moveRouteStep(stepId, direction) {
     if (item.id === target.id) return { ...item, stepOrder: leftOrder, updatedAt: new Date().toISOString() };
     return item;
   });
-  normalizeRouteStepOrders(step.routeId, taskId);
+  normalizeRouteStepOrders(step.routeId);
   persistState();
+  notifySaveSuccess("Порядок операций сохранен");
   render();
 }
 
@@ -8300,11 +10797,129 @@ function deleteRouteStepConfirmed(stepId) {
     return;
   }
   const routeId = step.routeId;
-  const taskId = getRouteStepTaskId(step);
   planningState.routeSteps = planningState.routeSteps.filter((item) => item.id !== stepId);
-  normalizeRouteStepOrders(routeId, taskId);
-  persistState();
+  normalizeRouteStepOrders(routeId);
+  withPlanningEntityRemovalAllowed(() => persistState());
+  notifySaveSuccess("Операция маршрута удалена");
   render();
+}
+
+function bindSpekiEvents() {
+  app.querySelector("[data-speki-create-specification]")?.addEventListener("click", () => {
+    createSpekiSpecification();
+  });
+
+  app.querySelectorAll("[data-speki-spec-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const specificationId = button.dataset.spekiSpecOpen || "";
+      const specification = (directoryState.specifications || []).find((item) => item.id === specificationId);
+      if (!specification) return;
+      ui.activeSpecificationId = specification.id;
+      ui.activeProjectId = specification.id;
+      ui.spekiEditingId = "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-speki-edit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const specificationId = button.dataset.spekiEdit || "";
+      if (!specificationId) return;
+      ui.spekiEditingId = specificationId;
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-speki-save]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const specificationId = button.dataset.spekiSave || "";
+      const nameInput = [...app.querySelectorAll("[data-speki-spec-name]")]
+        .find((input) => input.dataset.spekiSpecName === specificationId);
+      saveSpekiSpecification(specificationId, nameInput?.value || "");
+    });
+  });
+
+  app.querySelectorAll("[data-speki-delete]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openConfirmDialog("spekiDeleteSpecification", { specificationId: button.dataset.spekiDelete || "" });
+    });
+  });
+
+  app.querySelectorAll("[data-speki-add-row]").forEach((button) => {
+    button.addEventListener("click", () => {
+      addSpecificationStructureItem(button.dataset.spekiAddRow || "nomenclature");
+    });
+  });
+
+  app.querySelectorAll("[data-speki-structure-input]").forEach((field) => {
+    const commit = () => {
+      updateSpecificationStructureItem(
+        field.dataset.spekiStructureInput || "",
+        field.dataset.spekiStructureField || "",
+        field.value,
+      );
+    };
+    field.addEventListener("change", commit);
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      field.blur();
+      commit();
+    });
+  });
+
+  app.querySelectorAll("[data-dense-speki-structure-type] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-speki-structure-type]");
+      if (!root) return;
+      updateSpecificationStructureItem(root.dataset.denseSpekiStructureType || "", "type", button.dataset.denseValue || "nomenclature");
+    });
+  });
+
+  app.querySelectorAll("[data-dense-speki-structure-specification] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-speki-structure-specification]");
+      if (!root) return;
+      updateSpecificationStructureItem(root.dataset.denseSpekiStructureSpecification || "", "specificationId", button.dataset.denseValue || "");
+    });
+  });
+
+  app.querySelectorAll("[data-dense-speki-structure-nomenclature] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-speki-structure-nomenclature]");
+      if (!root) return;
+      updateSpecificationStructureItem(root.dataset.denseSpekiStructureNomenclature || "", "nomenclatureId", button.dataset.denseValue || "");
+    });
+  });
+
+  app.querySelectorAll("[data-speki-structure-up]").forEach((button) => {
+    button.addEventListener("click", () => moveSpecificationStructureItem(button.dataset.spekiStructureUp || "", -1));
+  });
+
+  app.querySelectorAll("[data-speki-structure-down]").forEach((button) => {
+    button.addEventListener("click", () => moveSpecificationStructureItem(button.dataset.spekiStructureDown || "", 1));
+  });
+
+  app.querySelectorAll("[data-speki-structure-indent]").forEach((button) => {
+    button.addEventListener("click", () => changeSpekiStructureLevel(button.dataset.spekiStructureIndent || "", 1));
+  });
+
+  app.querySelectorAll("[data-speki-structure-outdent]").forEach((button) => {
+    button.addEventListener("click", () => changeSpekiStructureLevel(button.dataset.spekiStructureOutdent || "", -1));
+  });
+
+  app.querySelectorAll("[data-speki-structure-delete]").forEach((button) => {
+    button.addEventListener("click", () => deleteSpecificationStructureItem(button.dataset.spekiStructureDelete || ""));
+  });
+
+  app.querySelectorAll("[data-speki-create-node-from-row]").forEach((button) => {
+    button.addEventListener("click", () => createSpekiNodeFromRow(button.dataset.spekiCreateNodeFromRow || ""));
+  });
 }
 
 function bindSpecificationsEvents() {
@@ -8335,6 +10950,7 @@ function bindSpecificationsEvents() {
       const input = app.querySelector("[data-spec-production-status-input]");
       if (!input) return;
       input.value = button.dataset.specProductionStatusOption || "planned";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
       app.querySelectorAll("[data-spec-production-status-option]").forEach((item) => {
         item.classList.toggle("is-active", item === button);
       });
@@ -8345,6 +10961,10 @@ function bindSpecificationsEvents() {
     const specification = getActiveSpecificationForModule();
     if (!specification) return;
     openProjectInCalculator(specification.projectId, specification.id);
+  });
+
+  app.querySelector("[data-specification-delete]")?.addEventListener("click", (event) => {
+    openConfirmDialog("spekiDeleteSpecification", { specificationId: event.currentTarget.dataset.specificationDelete || "" });
   });
 
   app.querySelector("[data-open-spec-boms]")?.addEventListener("click", () => {
@@ -8430,6 +11050,7 @@ function updateSpecificationStructure(updater) {
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   persistDirectoryState();
   persistUiState();
+  notifySaveSuccess("Структура спецификации сохранена");
   render();
 }
 
@@ -8440,48 +11061,148 @@ function addSpecificationStructureItem(type) {
     return;
   }
 
-  const allowedTypes = new Set(["assembly", "bom", "specification", "part", "nomenclature"]);
+  const allowedTypes = new Set(["assembly", "specification", "part", "nomenclature"]);
   const nextType = allowedTypes.has(type) ? type : "nomenclature";
   const currentItems = getSpecificationStructureItems(activeSpecification);
-  const defaultBom = nextType === "bom"
-    ? pickDefaultBomForSpecificationItem(activeSpecification, currentItems)
-    : null;
   const linkedSpecification = (directoryState.specifications || []).find((specification) => specification.id !== activeSpecification.id) || null;
   const nomenclatureItem = (directoryState.nomenclature || [])[0] || null;
-  const executionType = nextType === "nomenclature" || nextType === "part" ? "buy" : "make";
-  const operationName = getDefaultSpekiOperationName(nextType, executionType);
+  const executionType = nextType === "nomenclature" || nextType === "part" ? getDefaultNomenclatureExecutionType(nomenclatureItem) : "make";
+  const operationName = nextType === "nomenclature" || nextType === "part"
+    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType)
+    : getDefaultSpekiOperationName(nextType, executionType);
   updateSpecificationStructure((items) => [
     ...items,
     normalizeSpecificationStructureItem({
       id: makeId("spi"),
       parentId: "root",
       type: nextType,
-      bomListId: nextType === "bom" ? defaultBom?.id || "" : "",
       specificationId: nextType === "specification" ? linkedSpecification?.id || "" : "",
       nomenclatureId: nextType === "nomenclature" ? nomenclatureItem?.id || "" : "",
       executionType,
       operationName,
       departmentName: getDefaultSpekiDepartmentName(operationName),
-      name: nextType === "bom"
-        ? defaultBom?.name || ""
-        : nextType === "specification"
+      name: nextType === "specification"
           ? linkedSpecification?.name || "Вложенная спецификация"
           : nextType === "assembly"
             ? "Новый узел"
             : nomenclatureItem?.name || "Номенклатура не выбрана",
       quantity: 1,
-      unit: nextType === "assembly" ? "узел" : nextType === "bom" ? "плата" : nextType === "specification" ? "спец." : nomenclatureItem?.unit || "шт.",
-      resultItem: nextType === "bom"
-        ? defaultBom?.resultItem || defaultBom?.boardCode || ""
-        : nextType === "specification"
+      unit: nextType === "assembly" ? "узел" : nextType === "specification" ? "спец." : nomenclatureItem?.unit || "шт.",
+      boardsPerPanel: 1,
+      resultItem: nextType === "specification"
           ? linkedSpecification?.outputItem || ""
           : nextType === "assembly"
             ? "Новый узел"
             : nomenclatureItem?.name || "",
-      note: nextType === "assembly" ? "Узел" : nextType === "bom" ? "BOM" : nextType === "specification" ? "Спецификация" : nextType === "nomenclature" ? "Номенклатура" : "",
+      note: nextType === "assembly" ? "Узел" : nextType === "specification" ? "Спецификация" : nextType === "nomenclature" ? "Номенклатура" : "",
       position: items.length + 1,
     }, items.length),
   ]);
+}
+
+function getDefaultNomenclatureExecutionType(item) {
+  const type = normalizeNomenclatureType(item?.type);
+  if (item?.sourceBomResultId) return "make";
+  return type === "Производимые узлы" ? "make" : "buy";
+}
+
+function getDefaultSpekiOperationForNomenclature(item, executionType) {
+  if (executionType === "buy") return "";
+  const type = normalizeNomenclatureType(item?.type);
+  if (item?.sourceBomResultId) return "SMT-монтаж";
+  if (type === "Производимые узлы") return "Сборка";
+  if (type === "Печатные платы") return "Входной контроль";
+  return "Подготовка";
+}
+
+function addSpecificationStructureItemFromSource(sourceType, sourceId = "", options = {}) {
+  const activeSpecification = getActiveSpecificationForModule();
+  if (!activeSpecification) {
+    alert("Сначала создайте спецификацию.");
+    return;
+  }
+
+  const quantity = normalizeOptionalPositiveInteger(options.quantity) || 1;
+  const stampIndex = getSpecificationStructureItems(activeSpecification).length;
+
+  if (sourceType === "assembly") {
+    addSpecificationStructureItem("assembly");
+    return;
+  }
+
+  let nextItem = null;
+  if (sourceType === "bom" || sourceType === "bomResult") {
+    const bom = getBomList(sourceId);
+    if (!bom) return;
+    const stamp = new Date().toISOString();
+    const nomenclatureItem = getBomResultNomenclatureItem(bom.id) || upsertBomResultToNomenclature(bom, stamp);
+    if (!nomenclatureItem) return;
+    const executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
+    const operationName = getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType);
+    nextItem = normalizeSpecificationStructureItem({
+      id: makeId("spi"),
+      parentId: "root",
+      type: "nomenclature",
+      nomenclatureId: nomenclatureItem.id,
+      executionType,
+      operationName,
+      departmentName: executionType === "make" ? getDefaultSpekiDepartmentName(operationName) : "",
+      name: nomenclatureItem.name || bom.resultItem || bom.name || "",
+      quantity,
+      unit: nomenclatureItem.unit || "шт.",
+      boardsPerPanel: 1,
+      resultItem: nomenclatureItem.name || bom.resultItem || bom.boardCode || "",
+      note: "Результат BOM",
+      position: stampIndex + 1,
+    }, stampIndex);
+  }
+
+  if (sourceType === "specification") {
+    const linkedSpecification = (directoryState.specifications || [])
+      .find((specification) => specification.id === sourceId && specification.id !== activeSpecification.id);
+    if (!linkedSpecification) return;
+    const operationName = getDefaultSpekiOperationName("specification", "make");
+    nextItem = normalizeSpecificationStructureItem({
+      id: makeId("spi"),
+      parentId: "root",
+      type: "specification",
+      specificationId: linkedSpecification.id,
+      executionType: "make",
+      operationName,
+      departmentName: getDefaultSpekiDepartmentName(operationName),
+      name: linkedSpecification.name || "",
+      quantity,
+      unit: "спец.",
+      resultItem: linkedSpecification.outputItem || "",
+      note: "Спецификация",
+      position: stampIndex + 1,
+    }, stampIndex);
+  }
+
+  if (sourceType === "nomenclature") {
+    const nomenclatureItem = (directoryState.nomenclature || []).find((item) => item.id === sourceId);
+    if (!nomenclatureItem) return;
+    const executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
+    const operationName = getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType);
+    nextItem = normalizeSpecificationStructureItem({
+      id: makeId("spi"),
+      parentId: "root",
+      type: "nomenclature",
+      nomenclatureId: nomenclatureItem.id,
+      executionType,
+      operationName,
+      departmentName: executionType === "make" ? getDefaultSpekiDepartmentName(operationName) : "",
+      name: nomenclatureItem.name || "",
+      quantity,
+      unit: nomenclatureItem.unit || "шт.",
+      resultItem: nomenclatureItem.name || "",
+      note: normalizeNomenclatureType(nomenclatureItem.type),
+      position: stampIndex + 1,
+    }, stampIndex);
+  }
+
+  if (!nextItem) return;
+  updateSpecificationStructure((items) => [...items, nextItem]);
 }
 
 function updateSpecificationStructureItem(itemId, field, value) {
@@ -8496,12 +11217,18 @@ function updateSpecificationStructureItem(itemId, field, value) {
 
       if (field === "type") {
         nextItem.type = ["assembly", "bom", "specification", "part", "nomenclature"].includes(value) ? value : "nomenclature";
-        nextItem.executionType = nextItem.type === "nomenclature" || nextItem.type === "part" ? "buy" : "make";
-        nextItem.operationName = getDefaultSpekiOperationName(nextItem.type, nextItem.executionType);
+        const selectedNomenclature = nextItem.type === "nomenclature"
+          ? (directoryState.nomenclature || []).find((entry) => entry.id === nextItem.nomenclatureId) || (directoryState.nomenclature || [])[0]
+          : null;
+        nextItem.executionType = nextItem.type === "nomenclature" || nextItem.type === "part" ? getDefaultNomenclatureExecutionType(selectedNomenclature) : "make";
+        nextItem.operationName = nextItem.type === "nomenclature" || nextItem.type === "part"
+          ? getDefaultSpekiOperationForNomenclature(selectedNomenclature, nextItem.executionType)
+          : getDefaultSpekiOperationName(nextItem.type, nextItem.executionType);
         nextItem.departmentName = getDefaultSpekiDepartmentName(nextItem.operationName);
         shouldMoveChildrenToRoot = nextItem.type !== "assembly";
         if (nextItem.type !== "bom") {
           nextItem.bomListId = "";
+          nextItem.boardsPerPanel = 1;
         }
         if (nextItem.type !== "specification") {
           nextItem.specificationId = "";
@@ -8512,6 +11239,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
         if (nextItem.type === "bom" && !nextItem.bomListId) {
           const defaultBom = pickDefaultBomForSpecificationItem(getActiveSpecificationForModule(), items, itemId);
           nextItem.bomListId = defaultBom?.id || "";
+          nextItem.boardsPerPanel = normalizeBoardsPerPanel(nextItem.boardsPerPanel, 1);
         }
         if (nextItem.type === "specification" && !nextItem.specificationId) {
           const activeSpecification = getActiveSpecificationForModule();
@@ -8553,6 +11281,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.bomListId = bom?.id || "";
         nextItem.name = bom?.name || "";
         nextItem.resultItem = bom?.resultItem || bom?.boardCode || "";
+        nextItem.boardsPerPanel = normalizeBoardsPerPanel(nextItem.boardsPerPanel, 1);
         if (!nextItem.note) nextItem.note = "BOM";
         return nextItem;
       }
@@ -8574,6 +11303,9 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.name = nomenclatureItem?.name || "";
         nextItem.resultItem = nomenclatureItem?.name || "";
         nextItem.unit = nomenclatureItem?.unit || nextItem.unit || "шт.";
+        nextItem.executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
+        nextItem.operationName = getDefaultSpekiOperationForNomenclature(nomenclatureItem, nextItem.executionType);
+        nextItem.departmentName = nextItem.executionType === "make" ? getDefaultSpekiDepartmentName(nextItem.operationName) : "";
         if (!nextItem.note) nextItem.note = "Номенклатура";
         return nextItem;
       }
@@ -8613,6 +11345,11 @@ function updateSpecificationStructureItem(itemId, field, value) {
       if (field === "quantity") {
         const quantity = Number(value || 0);
         nextItem.quantity = Number.isFinite(quantity) && quantity >= 0 ? Math.round(quantity) : 0;
+        return nextItem;
+      }
+
+      if (field === "boardsPerPanel") {
+        nextItem.boardsPerPanel = nextItem.type === "bom" ? normalizeBoardsPerPanel(value, 1) : 1;
         return nextItem;
       }
 
@@ -8738,11 +11475,50 @@ function saveSpekiSpecification(specificationId, value) {
   ui.spekiEditingId = "";
   persistDirectoryState();
   persistUiState();
+  notifySaveSuccess("Спецификация сохранена");
   render();
+}
+
+function getSpecificationDeleteUsage(specificationId) {
+  const routeIds = new Set((planningState.routes || [])
+    .filter((route) => (
+      route.id === specificationId
+      || route.specificationId === specificationId
+      || route.projectId === specificationId
+    ))
+    .map((route) => route.id));
+  const routeStepIds = new Set((planningState.routeSteps || [])
+    .filter((step) => routeIds.has(step.routeId))
+    .map((step) => step.id));
+  const batchIds = new Set((planningState.batches || [])
+    .filter((batch) => (
+      routeIds.has(batch.routeId)
+      || batch.specificationId === specificationId
+      || batch.projectId === specificationId
+    ))
+    .map((batch) => batch.id));
+  const slotsCount = (planningState.slots || []).filter((slot) => (
+    routeIds.has(slot.routeId)
+    || routeStepIds.has(slot.routeStepId)
+    || batchIds.has(slot.batchId)
+    || slot.specificationId === specificationId
+    || slot.projectId === specificationId
+  )).length;
+
+  return {
+    routeIds,
+    routeStepIds,
+    batchIds,
+    routesCount: routeIds.size,
+    batchesCount: batchIds.size,
+    slotsCount,
+  };
 }
 
 function deleteSpekiSpecification(specificationId) {
   if (!specificationId) return;
+  const usage = getSpecificationDeleteUsage(specificationId);
+  recordDirectoryEntityDeletion("specifications", specificationId);
   directoryState.specifications = (directoryState.specifications || [])
     .filter((specification) => specification.id !== specificationId)
     .map((specification) => ({
@@ -8750,12 +11526,48 @@ function deleteSpekiSpecification(specificationId) {
       structureItems: getSpecificationStructureItems(specification)
         .filter((item) => item.specificationId !== specificationId),
     }));
+
+  planningState.routes = (planningState.routes || []).filter((route) => !usage.routeIds.has(route.id));
+  planningState.routeSteps = (planningState.routeSteps || []).filter((step) => !usage.routeIds.has(step.routeId));
+  planningState.batches = (planningState.batches || []).filter((batch) => (
+    !usage.routeIds.has(batch.routeId)
+    && batch.specificationId !== specificationId
+    && batch.projectId !== specificationId
+  ));
+  planningState.slots = (planningState.slots || []).filter((slot) => (
+    !usage.routeIds.has(slot.routeId)
+    && !usage.routeStepIds.has(slot.routeStepId)
+    && !usage.batchIds.has(slot.batchId)
+    && slot.specificationId !== specificationId
+    && slot.projectId !== specificationId
+  ));
+
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
-  ui.activeSpecificationId = (directoryState.specifications || [])[0]?.id || "";
+  planningState = normalizePlanningState(planningState);
+  ui.activeSpecificationId = "";
+  ui.activeProjectId = "";
+  if (usage.routeIds.has(ui.activeRouteId)) ui.activeRouteId = "";
+  if ((planningState.slots || []).every((slot) => slot.id !== ui.selectedSlotId)) ui.selectedSlotId = null;
+  ui.expandedProjects?.delete?.(specificationId);
+  usage.routeIds.forEach((routeId) => ui.expandedProjects?.delete?.(routeId));
   ui.spekiEditingId = "";
   ui.spekiCheckedSpecificationId = "";
   ui.spekiStaleItemIds = [];
-  persistDirectoryState();
+  if (calculatorState.specificationId === specificationId || calculatorState.projectId === specificationId) {
+    calculatorState = normalizeCalculatorState({
+      ...calculatorState,
+      projectId: "",
+      specificationId: "",
+      bomListId: "",
+      noSpecification: false,
+      routeOperations: [],
+      selectedOperationId: "",
+      inputsSavedAt: "",
+    });
+  }
+  withPlanningEntityRemovalAllowed(() => persistState());
+  withDirectoryEntityRemovalAllowed(() => persistDirectoryState());
+  persistCalculatorState();
   persistUiState();
   render();
 }
@@ -8782,10 +11594,36 @@ function deleteSpecificationStructureItem(itemId) {
 }
 
 function bindNomenclatureEvents() {
-  app.querySelector("[data-nomenclature-create]")?.addEventListener("click", () => {
-    ui.activeNomenclatureId = "__new__";
-    persistUiState();
-    render();
+  app.querySelectorAll("[data-nomenclature-create]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.activeNomenclatureId = "__new__";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-nomenclature-type-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.nomenclatureTypeFilter = button.dataset.nomenclatureTypeFilter || "all";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-dense-nomenclature-type] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const value = button.dataset.denseValue || NOMENCLATURE_REA_COMPONENT_TYPE;
+      const hidden = app.querySelector("[data-nomenclature-type-hidden]");
+      const root = button.closest("[data-dense-nomenclature-type]");
+      if (hidden) {
+        hidden.value = value;
+        hidden.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      root?.querySelector("summary strong")?.replaceChildren(document.createTextNode(button.querySelector("strong")?.textContent || value));
+      root?.querySelector("summary small")?.replaceChildren(document.createTextNode(button.querySelector("small")?.textContent || ""));
+      root?.removeAttribute("open");
+    });
   });
 
   app.querySelectorAll("[data-nomenclature-open], [data-nomenclature-row-open]").forEach((element) => {
@@ -8793,6 +11631,15 @@ function bindNomenclatureEvents() {
       ui.activeNomenclatureId = element.dataset.nomenclatureOpen || element.dataset.nomenclatureRowOpen || "";
       persistUiState();
       render();
+    });
+  });
+
+  app.querySelectorAll("[data-nomenclature-delete], [data-nomenclature-row-delete]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const itemId = button.dataset.nomenclatureDelete || button.dataset.nomenclatureRowDelete || "";
+      if (!itemId) return;
+      openConfirmDialog("nomenclatureDeleteItem", { itemId });
     });
   });
 
@@ -8811,12 +11658,15 @@ function saveNomenclatureForm(form) {
     alert("Заполните наименование позиции номенклатуры.");
     return;
   }
+  const customType = String(data.get("customType") || "").trim();
+  const type = normalizeNomenclatureType(customType || data.get("type"));
+  ensureNomenclatureTypeExists(type);
 
   const row = normalizeDirectoryRow("nomenclature", {
     id,
     name,
     article: String(data.get("article") || "").trim(),
-    type: String(data.get("type") || "Компонент").trim(),
+    type,
     package: String(data.get("package") || "").trim(),
     unit: String(data.get("unit") || "шт.").trim(),
     manufacturer: String(data.get("manufacturer") || "").trim(),
@@ -8830,7 +11680,20 @@ function saveNomenclatureForm(form) {
     : (directoryState.nomenclature || []).map((item) => item.id === id ? { ...item, ...row } : item);
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   ui.activeNomenclatureId = id;
+  ui.nomenclatureTypeFilter = type;
   persistDirectoryState();
+  persistUiState();
+  notifySaveSuccess(isNew ? "Позиция номенклатуры создана" : "Позиция номенклатуры сохранена");
+  render();
+}
+
+function deleteNomenclatureItem(itemId) {
+  const item = getNomenclatureItem(itemId);
+  if (!item) return;
+
+  deleteDirectoryStateRow("nomenclature", item);
+  persistDirectoryState();
+  persistCalculatorState();
   persistUiState();
   render();
 }
@@ -8858,6 +11721,10 @@ function bindBomListsEvents() {
     saveBomModuleForm(event.currentTarget);
   });
 
+  app.querySelector("[data-bom-delete]")?.addEventListener("click", (event) => {
+    openConfirmDialog("bomDeleteList", { bomId: event.currentTarget.dataset.bomDelete || "" });
+  });
+
   app.querySelector("[data-bom-import-file]")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -8872,17 +11739,36 @@ function bindBomListsEvents() {
     }
   });
 
-  app.querySelectorAll("[data-bom-linked-spec]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const specification = (directoryState.specifications || []).find((item) => item.id === button.dataset.bomLinkedSpec);
-      if (!specification) return;
-      ui.activeModule = "speki";
-      ui.activeProjectId = specification.projectId;
-      ui.activeSpecificationId = specification.id;
-      persistUiState();
+  app.querySelectorAll("[data-bom-import-cell]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateBomImportCell(
+        field.dataset.bomImportCell,
+        Number(field.dataset.bomRowIndex),
+        Number(field.dataset.bomColumnIndex),
+        field.value,
+      );
       render();
     });
   });
+
+  app.querySelectorAll("[data-bom-import-delete]").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteBomImportRow(button.dataset.bomImportDelete, Number(button.dataset.bomRowIndex));
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-dense-bom-nomenclature] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-bom-nomenclature]");
+      const nomenclatureId = button.dataset.denseValue || "";
+      if (!root || !nomenclatureId) return;
+      addNomenclatureToBom(root.dataset.denseBomNomenclature, nomenclatureId);
+      render();
+    });
+  });
+
 }
 
 function saveSpecificationModuleForm(form) {
@@ -8900,7 +11786,7 @@ function saveSpecificationModuleForm(form) {
   let row = {
     id,
     name,
-    projectId: String(data.get("projectId") || previousSpecification?.projectId || ""),
+    projectId: "",
     outputItem: String(data.get("outputItem") || "").trim(),
     productionQuantity,
     dueDate: String(data.get("dueDate") || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000))),
@@ -8917,7 +11803,7 @@ function saveSpecificationModuleForm(form) {
     structureItems: previousSpecification?.structureManaged ? getSpecificationStructureItems(previousSpecification) : [],
     updatedAt: new Date().toISOString(),
   };
-  row.projectId = ensureSpecificationPlanningUnit(row, String(data.get("routeTemplate") || "full"));
+  ensureSpecificationPlanningUnit(row, String(data.get("routeTemplate") || "full"));
   if (!row.structureManaged) {
     row.structureItems = buildDefaultSpecificationStructureItems(row);
   }
@@ -8928,10 +11814,11 @@ function saveSpecificationModuleForm(form) {
     : (directoryState.specifications || []).map((item) => item.id === id ? { ...item, ...row } : item);
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   ui.activeSpecificationId = id;
-  ui.activeProjectId = row.projectId;
+  ui.activeProjectId = row.id;
   if (row.bomListA) ui.activeBomId = row.bomListA;
   persistDirectoryState();
   persistUiState();
+  notifySaveSuccess(isNew ? "Спецификация создана" : "Спецификация сохранена");
   render();
 }
 
@@ -8941,6 +11828,8 @@ function saveBomModuleForm(form) {
   const id = isNew ? makeId("bom") : String(data.get("bomId") || makeId("bom"));
   const previousBom = getBomList(id);
   const name = String(data.get("name") || "").trim();
+  const boardCode = String(data.get("boardCode") || "").trim();
+  const resultItem = String(data.get("resultItem") || "").trim() || `Печатная плата ${boardCode || name}`;
   if (!name) {
     alert("Заполните название BOM.");
     return;
@@ -8950,8 +11839,8 @@ function saveBomModuleForm(form) {
     id,
     name,
     projectId: "",
-    boardCode: String(data.get("boardCode") || "").trim(),
-    resultItem: String(data.get("resultItem") || "").trim(),
+    boardCode,
+    resultItem,
     status: String(previousBom?.status || "Черновик").trim(),
     importHeaders: previousBom?.importHeaders || [],
     importRows: previousBom?.importRows || [],
@@ -8970,16 +11859,41 @@ function saveBomModuleForm(form) {
     ? [...(directoryState.bomLists || []), row]
     : (directoryState.bomLists || []).map((item) => item.id === id ? { ...item, ...row } : item);
 
+  upsertBomResultToNomenclature(row, row.updatedAt);
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   ui.activeBomId = id;
   ui.activeProjectId = "";
   persistDirectoryState();
   persistUiState();
+  notifySaveSuccess(isNew ? "BOM создан" : "BOM сохранен");
+  render();
+}
+
+function deleteBomList(bomId) {
+  const bom = getBomList(bomId);
+  if (!bom) return;
+
+  deleteDirectoryStateRow("bomLists", bom);
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  ui.activeBomId = "";
+  if (calculatorState.bomListId === bomId) {
+    calculatorState = normalizeCalculatorState({
+      ...calculatorState,
+      bomListId: "",
+      componentCounts: {},
+      componentCountsByOperation: {},
+      inputsSavedAt: "",
+    });
+  }
+
+  withDirectoryEntityRemovalAllowed(() => persistDirectoryState());
+  persistCalculatorState();
+  persistUiState();
   render();
 }
 
 function openProjectInCalculator(projectId, specificationId = "") {
-  const project = planningState.projects.find((item) => item.id === projectId);
+  const project = getProject(projectId || specificationId);
   if (!project) return;
   const specification = specificationId
     ? (directoryState.specifications || []).find((item) => item.id === specificationId)
@@ -9243,6 +12157,7 @@ function bindCalculatorEvents() {
     });
   });
 
+  refreshCalculatorActionStates();
   bindProjectForm();
 }
 
@@ -9250,12 +12165,22 @@ function applySpecificationBomsToComponentOperations() {
   const operations = getRouteOperations();
   const selectedBom = getBomList(calculatorState.bomListId);
   const bomEntries = calculatorState.noSpecification && selectedBom
-    ? [{ bom: selectedBom, quantity: 1, slot: "PCB" }]
+    ? [{ bom: selectedBom, quantity: 1, boardsPerPanel: calculatorState.boardsPerPanel || 1, slot: "PCB" }]
     : getSpecificationBomEntries(calculatorState.specificationId);
   const fallbackBom = selectedBom || bomEntries[0]?.bom || null;
+  const entryByBomId = new Map(bomEntries.map((entry) => [entry.bom?.id, entry]));
   const nextCounts = { ...(calculatorState.componentCountsByOperation || {}) };
+  const nextOperations = operations.map((operation) => {
+    const entry = operation.bomListId ? entryByBomId.get(operation.bomListId) : null;
+    if (!entry) return operation;
+    return {
+      ...operation,
+      quantityMultiplier: entry.quantity || operation.quantityMultiplier || 1,
+      boardsPerPanel: normalizeBoardsPerPanel(entry.boardsPerPanel, operation.boardsPerPanel || calculatorState.boardsPerPanel || 1),
+    };
+  });
 
-  operations
+  nextOperations
     .filter((operation) => operation.calculationType === "components")
     .forEach((operation) => {
       const bom = getBomList(operation.bomListId) || fallbackBom;
@@ -9263,6 +12188,7 @@ function applySpecificationBomsToComponentOperations() {
       nextCounts[operation.id] = getBomComponentCounts(bom);
     });
 
+  calculatorState.routeOperations = nextOperations;
   calculatorState.componentCountsByOperation = nextCounts;
   calculatorState.componentCounts = fallbackBom ? getBomComponentCounts(fallbackBom) : {};
   calculatorState.selectedOperationId = operations[0]?.id || "";
@@ -9323,7 +12249,9 @@ function saveCalculatorInputs() {
   calculatorState.inputsSavedAt = stamp;
   calculatorState.lastSavedAt = "";
   calculatorState = normalizeCalculatorState(calculatorState);
+  calculatorState.inputsSavedSignature = getCalculatorInputsSignature();
   persistCalculatorState();
+  notifySaveSuccess("Входные данные сохранены");
   render();
 }
 
@@ -9352,7 +12280,7 @@ function buildCalculatorRouteFromTemplate() {
 function loadCalculatorProjectBinding(projectId, specificationId = "") {
   const specification = (directoryState.specifications || []).find((item) => item.id === specificationId)
     || getProjectSpecification(projectId);
-  const project = planningState.projects.find((item) => item.id === (projectId || specification?.projectId));
+  const project = getProject(projectId || specification?.id);
   if (!project || !specification) return;
   const bom = getSpecificationBomEntries(specification?.id)[0]?.bom || null;
   calculatorState = normalizeCalculatorState({
@@ -9377,12 +12305,15 @@ function loadCalculatorProjectBinding(projectId, specificationId = "") {
 function refreshCalculatorActionStates() {
   const inputComplete = isCalculatorInputsComplete();
   const routeReady = inputComplete && getRouteOperations().length > 0;
+  const inputsDirty = isCalculatorInputsDirty();
+  const routeDirty = isCalculatorRouteDirty();
   app.querySelector("[data-calculator-build-route]")?.toggleAttribute("disabled", !inputComplete);
-  app.querySelector("[data-save-calculator-inputs]")?.toggleAttribute("disabled", !inputComplete);
+  const inputsSaveButton = app.querySelector("[data-save-calculator-inputs]");
+  setSaveButtonDisabled(inputsSaveButton, !inputComplete || !inputsDirty);
   app.querySelector("[data-add-route-operation]")?.toggleAttribute("disabled", !inputComplete);
   app.querySelector("[data-calculator-reset]")?.toggleAttribute("disabled", !routeReady);
   app.querySelectorAll("[data-calculator-save-route]").forEach((button) => {
-    button.toggleAttribute("disabled", !routeReady);
+    setSaveButtonDisabled(button, !routeReady || !routeDirty);
   });
   const panelCountField = app.querySelector(".calculator-input-panel .field.readonly input");
   if (panelCountField) {
@@ -9506,12 +12437,14 @@ function saveCalculatorRouteToProject() {
   }
 
   const stamp = new Date().toISOString();
-  let route = planningState.routes.find((item) => item.projectId === calc.project.id && item.isDefault)
-    || planningState.routes.find((item) => item.projectId === calc.project.id);
+  let route = planningState.routes.find((item) => (item.specificationId === calc.project.id || item.projectId === calc.project.id) && item.isDefault)
+    || planningState.routes.find((item) => item.specificationId === calc.project.id || item.projectId === calc.project.id);
 
   if (!route) {
     route = {
       id: makeId("r"),
+      specificationId: calc.project.id,
+      specificationName: calc.specification?.name || calc.project.name || "",
       projectId: calc.project.id,
       name: "Маршрутная карта",
       isDefault: true,
@@ -9549,6 +12482,7 @@ function saveCalculatorRouteToProject() {
       bomListId: operation.bomListId || "",
       bomSlot: operation.bomSlot || "",
       quantityMultiplier: operation.quantityMultiplier || 1,
+      boardsPerPanel: normalizeBoardsPerPanel(operation.boardsPerPanel, calc.boardsPerPanel || 1),
       unitsPerHour: Math.max(1, Math.round(Number(operation.flowBoardsPerHour || 0) * 10) / 10),
       updatedAt: stamp,
     };
@@ -9566,18 +12500,20 @@ function saveCalculatorRouteToProject() {
     ...nextSteps,
   ];
   planningState.routes = planningState.routes.map((item) => item.id === route.id
-    ? { ...item, name: "Маршрутная карта", isDefault: true, updatedAt: stamp }
+    ? { ...item, specificationId: calc.project.id, specificationName: calc.specification?.name || item.specificationName || "", projectId: calc.project.id, name: "Маршрутная карта", isDefault: true, updatedAt: stamp }
     : item);
   planningState.slots = planningState.slots.map((slot) => (
-    slot.projectId === calc.project.id && !nextStepIds.has(slot.routeStepId) && routeStepIdsByWorkCenter.has(slot.workCenterId)
+    (slot.specificationId === calc.project.id || slot.projectId === calc.project.id) && !nextStepIds.has(slot.routeStepId) && routeStepIdsByWorkCenter.has(slot.workCenterId)
       ? { ...slot, routeStepId: routeStepIdsByWorkCenter.get(slot.workCenterId) }
       : slot
   ));
   calculatorState.lastSavedAt = stamp;
+  calculatorState.routeSavedSignature = getCalculatorRouteSignature();
   ui.calculatorStep = "save";
   persistState();
   persistCalculatorState();
   persistUiState();
+  notifySaveSuccess("Маршрут сохранен");
   render();
 }
 
@@ -9596,7 +12532,7 @@ function applyCalculatorRateToWorkCenter() {
     ? recalculateSlotEndByQuantity(slot, planningState)
     : slot);
   persistState();
-  alert(`Норматив участка "${calc.workCenter.name}" обновлен: ${unitsPerHour.toLocaleString("ru-RU")} плат/час.`);
+  notifySaveSuccess(`Норматив участка обновлен: ${unitsPerHour.toLocaleString("ru-RU")} плат/час`);
   render();
 }
 
@@ -9608,7 +12544,7 @@ function applyCalculatorToProjectSlots() {
   }
 
   const targetSlots = planningState.slots.filter((slot) => (
-    slot.projectId === calc.project.id
+    (slot.specificationId === calc.project.id || slot.projectId === calc.project.id)
     && slot.workCenterId === calc.workCenter.id
     && slot.status !== "completed"
     && !slot.locked
@@ -9642,7 +12578,7 @@ function applyCalculatorToProjectSlots() {
   }
 
   persistState();
-  alert(`Расчет применен к ${targetSlots.length} операциям спецификации "${calc.specification?.name || getProjectDisplayName(calc.project)}".`);
+  notifySaveSuccess(`Расчет применен к операциям: ${targetSlots.length}`);
   render();
 }
 
@@ -9689,10 +12625,14 @@ function saveDirectoryRow(sectionId, rowIndex, row) {
   if (sectionId === "workCenters") {
     saveWorkCenterDirectoryRow(rowIndex, row);
     persistState();
+    notifySaveSuccess(rowIndex >= 0 ? "Запись справочника сохранена" : "Запись справочника создана");
     return;
   }
 
   const rows = directoryState[sectionId] || [];
+  const previousTypeName = sectionId === "nomenclatureTypes" && rowIndex >= 0
+    ? rows[rowIndex]?.name || ""
+    : "";
   const normalizedRow = normalizeDirectoryRow(sectionId, { ...row, id: row.id || makeId(sectionId.slice(0, 3) || "dir") });
   directoryState = {
     ...directoryState,
@@ -9700,7 +12640,17 @@ function saveDirectoryRow(sectionId, rowIndex, row) {
       ? rows.map((item, index) => index === rowIndex ? normalizedRow : item)
       : [...rows, normalizedRow],
   };
+
+  if (sectionId === "nomenclatureTypes") {
+    syncNomenclatureTypeRename(previousTypeName, normalizedRow.name);
+    if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(previousTypeName)) {
+      ui.nomenclatureTypeFilter = normalizedRow.name || "all";
+    }
+    directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  }
+
   persistDirectoryState();
+  notifySaveSuccess(rowIndex >= 0 ? "Запись справочника сохранена" : "Запись справочника создана");
 }
 
 function deleteDirectoryRow(sectionId, rowIndex) {
@@ -9718,7 +12668,11 @@ function deleteDirectoryRow(sectionId, rowIndex) {
   ui.directoryEditor = null;
   const nextRows = getDirectoryData(sectionId).rows;
   ui.selectedDirectoryRows[sectionId] = nextRows.length ? Math.min(index, nextRows.length - 1) : 0;
-  persistDirectoryState();
+  if (sectionId === "bomLists" || sectionId === "specifications") {
+    withDirectoryEntityRemovalAllowed(() => persistDirectoryState());
+  } else {
+    persistDirectoryState();
+  }
   persistState();
   persistCalculatorState();
   persistUiState();
@@ -9727,6 +12681,7 @@ function deleteDirectoryRow(sectionId, rowIndex) {
 
 function deleteDirectoryStateRow(sectionId, row) {
   const rowId = row.id;
+  recordDirectoryEntityDeletion(sectionId, rowId);
   directoryState = {
     ...directoryState,
     [sectionId]: (directoryState[sectionId] || []).filter((item) => item.id !== rowId),
@@ -9757,7 +12712,7 @@ function deleteDirectoryStateRow(sectionId, row) {
     calculatorState.routeOperations = (calculatorState.routeOperations || []).map((operation) => (
       operation.bomListId === rowId ? { ...operation, bomListId: "", calculationType: "manual" } : operation
     ));
-    directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
+    directoryState.specifications = (directoryState.specifications || []).map((specification) => syncSpecificationDerivedFields({
       ...specification,
       bomListA: specification.bomListA === rowId ? "" : specification.bomListA,
       bomQtyA: specification.bomListA === rowId ? 0 : specification.bomQtyA,
@@ -9770,23 +12725,60 @@ function deleteDirectoryStateRow(sectionId, row) {
   }
 
   if (sectionId === "specifications") {
+    const usage = getSpecificationDeleteUsage(rowId);
     directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
       ...specification,
       structureItems: getSpecificationStructureItems(specification)
         .filter((item) => item.specificationId !== rowId),
     }));
-    if (ui.activeSpecificationId === rowId) ui.activeSpecificationId = (directoryState.specifications || [])[0]?.id || "";
+    planningState.routes = (planningState.routes || []).filter((route) => !usage.routeIds.has(route.id));
+    planningState.routeSteps = (planningState.routeSteps || []).filter((step) => !usage.routeIds.has(step.routeId));
+    planningState.batches = (planningState.batches || []).filter((batch) => (
+      !usage.routeIds.has(batch.routeId)
+      && batch.specificationId !== rowId
+      && batch.projectId !== rowId
+    ));
+    planningState.slots = (planningState.slots || []).filter((slot) => (
+      !usage.routeIds.has(slot.routeId)
+      && !usage.routeStepIds.has(slot.routeStepId)
+      && !usage.batchIds.has(slot.batchId)
+      && slot.specificationId !== rowId
+      && slot.projectId !== rowId
+    ));
+    if (ui.activeSpecificationId === rowId) ui.activeSpecificationId = "";
+    if (usage.routeIds.has(ui.activeRouteId)) ui.activeRouteId = "";
+    if ((planningState.slots || []).every((slot) => slot.id !== ui.selectedSlotId)) ui.selectedSlotId = null;
+    ui.expandedProjects?.delete?.(rowId);
+    usage.routeIds.forEach((routeId) => ui.expandedProjects?.delete?.(routeId));
     if (calculatorState.specificationId === rowId) calculatorState.specificationId = "";
   }
 
   if (sectionId === "nomenclature") {
-    if (ui.activeNomenclatureId === rowId) ui.activeNomenclatureId = (directoryState.nomenclature || [])[0]?.id || "";
+    if (ui.activeNomenclatureId === rowId) ui.activeNomenclatureId = "";
+    directoryState.bomLists = (directoryState.bomLists || []).map((bom) => ({
+      ...bom,
+      importRows: getBomImportRows(bom).map((item) => (
+        item.nomenclatureId === rowId ? { ...item, nomenclatureId: "" } : item
+      )),
+    }));
     directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
       ...specification,
       structureItems: getSpecificationStructureItems(specification).map((item) => (
         item.nomenclatureId === rowId ? { ...item, nomenclatureId: "" } : item
       )),
     }));
+  }
+
+  if (sectionId === "nomenclatureTypes") {
+    const fallbackType = getFallbackNomenclatureType(row.name);
+    directoryState.nomenclature = (directoryState.nomenclature || []).map((item) => (
+      normalizeLookupText(item.type) === normalizeLookupText(row.name)
+        ? { ...item, type: fallbackType, updatedAt: new Date().toISOString() }
+        : item
+    ));
+    if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(row.name)) {
+      ui.nomenclatureTypeFilter = fallbackType || "all";
+    }
   }
 
   if (sectionId === "employees" && authState.employeeId === rowId) {
@@ -9855,23 +12847,33 @@ function updateClockOnly() {
   if (clock) clock.textContent = formatDateTime(ui.now);
 }
 
+function getGanttWorkCenterFilterOptions() {
+  const options = [{ value: "all", label: "Все участки", meta: "маршрут целиком" }];
+  for (const center of planningState.workCenters) {
+    options.push({ value: center.id, label: center.name, meta: center.code || "участок" });
+    if (center.id === "smt") {
+      getSmtGanttLineCenters().forEach((line) => {
+        options.push({ value: line.id, label: line.name, meta: `${line.code} · линия SMT` });
+      });
+    }
+  }
+  return options;
+}
+
 function renderToolbar(scaleInfo, stats) {
-  const allProjectsExpanded = areAllVisibleProjectsExpanded();
+  const allRoutesExpanded = areAllVisibleProjectsExpanded();
   const statusOptions = [
     { value: "all", label: "Все статусы", meta: "портфель" },
     ...PROJECT_STATUSES.map((status) => ({ value: status, label: PROJECT_STATUS_LABELS[status], meta: "статус спецификации" })),
   ];
 
-  const workCenterOptions = [
-    { value: "all", label: "Все участки", meta: "маршрут целиком" },
-    ...planningState.workCenters.map((center) => ({ value: center.id, label: center.name, meta: center.code || "участок" })),
-  ];
+  const workCenterOptions = getGanttWorkCenterFilterOptions();
 
   return `
     <header class="topbar">
       <div class="brand-block">
-        <div class="brand-title">Планирование производства</div>
-        <div class="brand-subtitle">Директорский контур планирования и мониторинга</div>
+        <div class="brand-title">Гант маршрутных карт</div>
+        <div class="brand-subtitle">Маршрутная карта как производственное задание</div>
       </div>
 
       <div class="toolbar-grid">
@@ -9886,9 +12888,21 @@ function renderToolbar(scaleInfo, stats) {
           `).join("")}
         </div>
 
+        <div class="gantt-zoom-control" role="group" aria-label="Масштаб Ганта">
+          <button class="icon-button" data-gantt-zoom="out" type="button" title="Уменьшить масштаб Ганта">${icon("minus")}</button>
+          <button class="gantt-zoom-value" data-gantt-zoom="reset" type="button" title="Сбросить масштаб">${getGanttZoomPercent()}</button>
+          <button class="icon-button" data-gantt-zoom="in" type="button" title="Увеличить масштаб Ганта">${icon("plus")}</button>
+        </div>
+
+        <div class="segmented slot-content-mode" role="group" aria-label="Содержимое колбаски">
+          ${GANTT_SLOT_CONTENT_MODES.map((mode) => `
+            <button class="segment ${ui.ganttSlotContent === mode.id ? "is-active" : ""}" data-slot-content-mode="${mode.id}" type="button" title="${escapeAttribute(mode.label)}">${escapeHtml(mode.shortLabel)}</button>
+          `).join("")}
+        </div>
+
         <label class="field search-field">
           ${icon("search")}
-          <input id="searchInput" type="search" placeholder="Спецификация, заказ, изделие" value="${escapeAttribute(ui.search)}" />
+          <input id="searchInput" type="search" placeholder="Маршрутная карта, спецификация, заказ" value="${escapeAttribute(ui.search)}" />
         </label>
 
         <label class="field">
@@ -9908,18 +12922,18 @@ function renderToolbar(scaleInfo, stats) {
       </div>
 
       <div class="toolbar-actions">
-        <button class="toggle-switch-button ${allProjectsExpanded ? "is-on" : ""}" data-toggle-all-projects type="button" aria-pressed="${allProjectsExpanded ? "true" : "false"}" title="${allProjectsExpanded ? "Свернуть все спецификации" : "Развернуть все спецификации"}">
+        <button class="toggle-switch-button ${allRoutesExpanded ? "is-on" : ""}" data-toggle-all-projects type="button" aria-pressed="${allRoutesExpanded ? "true" : "false"}" title="${allRoutesExpanded ? "Свернуть все маршрутные карты" : "Развернуть все маршрутные карты"}">
           <span class="toggle-switch-knob"></span>
-          <span>${allProjectsExpanded ? "Свернуть" : "Развернуть"}</span>
+          <span>${allRoutesExpanded ? "Свернуть" : "Развернуть"}</span>
         </button>
         <button class="icon-button" id="todayButton" type="button" title="Перейти к сегодняшнему дню">${icon("calendar")}</button>
         <button class="icon-button" id="refreshButton" type="button" title="Перестроить план">${icon("refresh")}</button>
         <button class="icon-button danger-soft" id="resetButton" type="button" title="Сбросить демо-данные">${icon("reset")}</button>
-        <button class="primary-button" id="addProjectButton" type="button">${icon("plus")}<span>Новая спецификация</span></button>
+        <button class="primary-button" id="addProjectButton" type="button">${icon("plus")}<span>Новое задание</span></button>
       </div>
 
       <div class="status-strip">
-        <span class="status-pill neutral">${stats.projects} спецификаций</span>
+        <span class="status-pill neutral">${stats.routes} маршрутных карт</span>
         <span class="status-pill neutral">${stats.slots} слотов</span>
         <span class="status-pill ${stats.critical ? "critical" : "ok"}">${stats.critical} крит.</span>
         <span class="status-pill ${stats.warning ? "warning" : "ok"}">${stats.warning} пред.</span>
@@ -9933,7 +12947,7 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
   const warnings = warningsContext.warnings || [];
   const backlog = buildBacklogItems(240);
   const critical = warnings.filter((warning) => warning.severity === "critical");
-  const riskyProjects = planningState.projects
+  const riskyProjects = getProductionContexts()
     .map((project) => ({
       project,
       dueState: getProjectDeadlineState(project),
@@ -9993,7 +13007,7 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
           <strong>Портфель → очередь → Гант → контроль → выпуск</strong>
         </div>
         <div class="director-command-actions">
-          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Планирование</span></button>
+          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Заказ на пр-во</span></button>
           <button class="secondary-button ${critical.length ? "danger" : ""}" data-fix-all-warnings type="button" ${warnings.length ? "" : "disabled"}>${icon("refresh")}<span>Исправить конфликты</span></button>
           <button class="secondary-button" data-save-plan-snapshot type="button">${icon("save")}<span>Снимок</span></button>
         </div>
@@ -10033,7 +13047,7 @@ function renderTimeline(scaleInfo) {
   return `
     <div class="timeline-row" style="height:${TIMELINE_HEIGHT}px;">
       <div class="timeline-corner">
-        <span>Спецификации и участки</span>
+        <span>Маршрутные карты и участки</span>
       </div>
       <div class="timeline-cells" style="width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;">
         ${scaleInfo.ticks.map((tick, index) => `
@@ -10054,7 +13068,8 @@ function getTimelineCellClass(tick) {
 function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) {
   const layout = rowLayout.map[row.id];
   const height = layout.height;
-  const laneClass = row.type === "project" ? "project-lane" : "workcenter-lane";
+  const isAggregateRow = row.type === "route" || row.type === "project";
+  const laneClass = isAggregateRow ? "project-lane route-lane" : "workcenter-lane";
   const rowSlots = getRowSlots(row);
   const rowPlacements = slotPlacementMap[row.id] || {};
   const isDropTarget = ui.drag?.targetRowId === row.id;
@@ -10150,7 +13165,7 @@ function buildNonWorkingSegments(row, scaleInfo) {
     const nextDay = addMs(cursor, 24 * 60 * 60 * 1000);
     const day = cursor.getDay();
 
-    if (row.type === "project") {
+    if (row.type === "project" || row.type === "route") {
       if (isWeekendDate(cursor)) addNonWorkingSegment(segments, cursor, nextDay, "day-off", scaleInfo);
       cursor = nextDay;
       continue;
@@ -10195,6 +13210,43 @@ function renderNonWorkingLayer(row, scaleInfo, height) {
 }
 
 function renderRowLabel(row, slotWarningMap = {}) {
+  if (row.type === "route") {
+    const route = row.route;
+    const project = row.project || getProject(route?.projectId);
+    const specification = getRouteSpecification(route);
+    const progress = project ? calculateProjectProgress(project, planningState) : 0;
+    const isExpanded = isGanttRouteExpanded(route);
+    const routeSlots = getRouteSlots(route?.id || "");
+    const routeSlotIds = new Set(routeSlots.map((slot) => slot.id));
+    const issueCount = getSlotWarnings(planningState).warnings.filter((warning) => (
+      (warning.slotIds || []).some((slotId) => routeSlotIds.has(slotId))
+    )).length;
+    const dueState = project ? getProjectDeadlineState(project) : { tone: "neutral", label: "срок не задан" };
+    const routeSteps = getRouteStepsForModule(route?.id || "");
+
+    return `
+      <div class="row-label project-label route-label">
+        <button class="chevron" data-toggle-project="${escapeAttribute(route.id)}" type="button" title="${isExpanded ? "Свернуть" : "Раскрыть"} маршрутную карту">
+          ${icon(isExpanded ? "chevronDown" : "chevronRight")}
+        </button>
+        <div class="project-main">
+          <div class="project-name-line">
+            <strong>${escapeHtml(route.name || "Маршрутная карта")}</strong>
+            ${issueCount ? `<span class="mini-alert" title="Есть предупреждения">${issueCount}</span>` : ""}
+            <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
+          </div>
+          <div class="project-meta">${escapeHtml(specification?.name || getProjectDisplayName(project) || "спецификация не выбрана")} · ${Number(getPlanningRouteQuantity(route) || project?.totalQuantity || 0).toLocaleString("ru-RU")} шт. · ${routeSteps.length} оп.</div>
+          ${renderRouteTaskMini(route, slotWarningMap)}
+        </div>
+        <div class="project-side">
+          <span class="project-status status-${project?.status || "planned"}">${PROJECT_STATUS_LABELS[project?.status] || "В плане"}</span>
+          <strong class="project-progress-value">${progress}%</strong>
+          <div class="progress" title="Прогресс маршрутной карты"><span style="width:${progress}%"></span></div>
+        </div>
+      </div>
+    `;
+  }
+
   if (row.type === "project") {
     const project = row.project;
     const specification = getSpecificationByProjectId(project.id);
@@ -10231,6 +13283,33 @@ function renderRowLabel(row, slotWarningMap = {}) {
       <span class="workcenter-code">${escapeHtml(row.workCenter.code)}</span>
       <span class="workcenter-name">${escapeHtml(row.workCenter.name)}</span>
       ${row.isOutsideRoute ? `<span class="outside-route">вне маршрута</span>` : ""}
+    </div>
+  `;
+}
+
+function renderRouteTaskMini(route, slotWarningMap = {}) {
+  const steps = getRouteStepsForModule(route?.id || "");
+  const slots = getRouteSlots(route?.id || "");
+  if (!steps.length) return "";
+
+  return `
+    <div class="project-route-mini route-task-mini" aria-label="Маршрутная карта">
+      ${steps.map((step) => {
+        const stepSlots = slots.filter((slot) => slot.routeStepId === step.id);
+        const hasIssue = stepSlots.some((slot) => (slotWarningMap[slot.id] || []).length);
+        const isCompleted = stepSlots.length && stepSlots.every((slot) => slot.status === "completed");
+        const isActive = stepSlots.some((slot) => slot.status === "in_progress");
+        const isPlanned = stepSlots.length > 0;
+        const className = [
+          isCompleted ? "is-done" : "",
+          isActive ? "is-active" : "",
+          isPlanned ? "is-planned" : "is-empty",
+          hasIssue ? "is-warning" : "",
+          step.workCenterId === "warehouse" ? "is-warehouse" : "",
+        ].filter(Boolean).join(" ");
+        const workCenter = getWorkCenter(step.workCenterId);
+        return `<span class="${className}" title="${escapeAttribute(`${step.stepOrder}. ${step.operationName} · ${workCenter?.name || ""}`)}">${step.stepOrder}</span>`;
+      }).join("")}
     </div>
   `;
 }
@@ -10274,7 +13353,7 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const workCenter = getWorkCenter(slot.workCenterId);
   const warningList = slotWarningMap[slot.id] || [];
   const hasCritical = warningList.some((warning) => warning.severity === "critical");
-  const isAggregate = row.type === "project";
+  const isAggregate = row.type === "project" || row.type === "route";
   const isWeekSlot = ui.scale === "weeks";
   const visualRect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isAggregate);
   const top = placement?.top ?? getSlotTop(isAggregate);
@@ -10289,35 +13368,28 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const tinyClass = visualRect.width < (isWeekSlot ? 36 : 58) ? "is-tiny" : "";
   const routeMeta = getSlotRouteMeta(slot);
   const durationMs = Math.max(0, toDate(slot.plannedEnd) - toDate(slot.plannedStart));
+  const operationLabel = String(slot.operationName || workCenter?.name || "Операция").trim();
 
   return `
     <article
       class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass}"
       data-slot-id="${slot.id}"
       style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px;"
-      title="${escapeAttribute(`${project?.name || ""}: партия ${batch?.batchNumber || ""} · ${slot.operationName} · ${formatDuration(durationMs)}`)}"
+      title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · ${formatDuration(durationMs)}`)}"
       tabindex="0"
     >
       <div class="slot-accent"></div>
       <div class="slot-content">
-        ${isWeekSlot ? `
-          <div class="week-slot-line">
-            <b>${escapeHtml(routeMeta.orderLabel)}</b>
-            <strong>${escapeHtml(batch?.batchNumber || "")}</strong>
-            <input class="slot-quantity-input compact" data-slot-quantity="${slot.id}" type="number" min="1" step="1" value="${quantity}" title="Количество изделий" ${isAggregate || slot.locked ? "disabled" : ""} />
-            ${warningList.length ? `<span class="slot-warning-dot">${icon("alert")}</span>` : ""}
-          </div>
-        ` : `
-          <div class="slot-line">
-            <b class="slot-step-chip">${escapeHtml(routeMeta.orderLabel)}</b>
-            <strong>Партия ${escapeHtml(batch?.batchNumber || "")}</strong>
-            <label class="slot-quantity-control" title="Количество изделий в операции">
-              <input data-slot-quantity="${slot.id}" type="number" min="1" step="1" value="${quantity}" ${isAggregate || slot.locked ? "disabled" : ""} />
-              <span>шт.</span>
-            </label>
-            ${warningList.length ? `<span class="slot-warning-dot">${icon("alert")}</span>` : ""}
-          </div>
-        `}
+        ${renderGanttSlotLine({
+          slot,
+          batch,
+          routeMeta,
+          operationLabel,
+          quantity,
+          isWeekSlot,
+          isAggregate,
+          warningList,
+        })}
         ${!isAggregate && !isWeekSlot ? `
           <div class="slot-footer">
             <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
@@ -10330,11 +13402,39 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   `;
 }
 
+function renderGanttSlotLine({ slot, batch, routeMeta, operationLabel, quantity, isWeekSlot, isAggregate, warningList }) {
+  const mode = getGanttSlotContentMode().id;
+  const lineClass = isWeekSlot ? "week-slot-line" : "slot-line";
+  const quantityInput = isWeekSlot
+    ? `<input class="slot-quantity-input compact" data-slot-quantity="${slot.id}" type="number" min="1" step="1" value="${quantity}" title="Количество изделий" ${isAggregate || slot.locked ? "disabled" : ""} />`
+    : `<label class="slot-quantity-control" title="Количество изделий в операции">
+        <input data-slot-quantity="${slot.id}" type="number" min="1" step="1" value="${quantity}" ${isAggregate || slot.locked ? "disabled" : ""} />
+        <span>шт.</span>
+      </label>`;
+  const warningDot = warningList.length ? `<span class="slot-warning-dot">${icon("alert")}</span>` : "";
+  const stepChip = `<b class="slot-step-chip">${escapeHtml(routeMeta.orderLabel)}</b>`;
+  const operationName = `<strong class="slot-operation-name">${escapeHtml(operationLabel)}</strong>`;
+  const batchLabel = `<strong class="slot-operation-name">Партия ${escapeHtml(batch?.batchNumber || "-")}</strong>`;
+  const quantityLabel = `<strong class="slot-operation-name slot-quantity-label">${Number(quantity || 0).toLocaleString("ru-RU")} шт.</strong>`;
+
+  const contentByMode = {
+    operationQuantity: `${stepChip}${operationName}${quantityInput}${warningDot}`,
+    operation: `${stepChip}${operationName}${warningDot}`,
+    quantity: `${stepChip}${quantityInput}${warningDot}`,
+    batchStep: `${stepChip}${batchLabel}${warningDot}`,
+  };
+
+  return `<div class="${lineClass} slot-content-${escapeAttribute(mode)}">${contentByMode[mode] || contentByMode.operationQuantity}</div>`;
+}
+
 function getSlotRouteMeta(slot) {
-  const steps = getProjectRouteSteps(slot.projectId, planningState);
+  const route = getSlotRoute(slot);
+  const steps = route ? getRouteStepsForModule(route.id) : getProjectRouteSteps(slot.projectId, planningState);
   const step = steps.find((item) => item.id === slot.routeStepId);
   const workCenter = getWorkCenter(slot.workCenterId);
   return {
+    route,
+    routeName: route?.name || "",
     step,
     total: steps.length,
     orderLabel: step ? `${step.stepOrder}/${steps.length || "?"}` : "?",
@@ -10345,13 +13445,14 @@ function getSlotRouteMeta(slot) {
 function getSlotVisualRect(slot, scaleInfo, isAggregate = false) {
   const x = dateToX(slot.plannedStart, scaleInfo);
   const timeWidth = dateToX(slot.plannedEnd, scaleInfo) - x;
+  const zoom = Number(scaleInfo.zoom || 1);
   if (ui.scale === "weeks") {
-    const width = Math.max(isAggregate ? 18 : 20, timeWidth);
+    const width = Math.max((isAggregate ? 18 : 20) * zoom, timeWidth);
     return { x, width, right: x + width };
   }
 
   const minWidthByScale = { hours: 30, days: 28, weeks: 24 };
-  const width = Math.max(isAggregate ? 18 : minWidthByScale[ui.scale], timeWidth);
+  const width = Math.max((isAggregate ? 18 : minWidthByScale[ui.scale]) * zoom, timeWidth);
 
   return {
     x,
@@ -10363,6 +13464,9 @@ function getSlotVisualRect(slot, scaleInfo, isAggregate = false) {
 function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) {
   const visibleRowIds = new Set(rows.map((row) => row.id));
   const slotById = byId(planningState.slots);
+  const slotMaskRects = buildDependencySlotMaskRects(rows, rowLayout, scaleInfo, slotPlacementMap);
+  const maskId = "dependencySlotReadabilityMask";
+  const maskAttribute = slotMaskRects.length ? ` mask="url(#${maskId})"` : "";
   const paths = [];
 
   for (const pair of getDependencyPairs(planningState)) {
@@ -10373,7 +13477,7 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     const fromRowId = getVisibleSlotRowId(from);
     const toRowId = getVisibleSlotRowId(to);
     if (!fromRowId || !toRowId || !visibleRowIds.has(fromRowId) || !visibleRowIds.has(toRowId)) continue;
-    if (fromRowId.startsWith("project:") || toRowId.startsWith("project:")) continue;
+    if (fromRowId.startsWith("project:") || toRowId.startsWith("project:") || fromRowId.startsWith("route:") || toRowId.startsWith("route:")) continue;
 
     const fromLayout = rowLayout.map[fromRowId];
     const toLayout = rowLayout.map[toRowId];
@@ -10391,11 +13495,14 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     const className = hasIssue ? "dependency-path has-issue" : "dependency-path";
     const underlayClassName = hasIssue ? "dependency-path-underlay has-issue" : "dependency-path-underlay";
     const markerId = hasIssue ? "dependencyArrowIssue" : "dependencyArrow";
+    const mutedMarkerId = hasIssue ? "dependencyArrowIssueMuted" : "dependencyArrowMuted";
     const d = buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect);
 
     paths.push(`
-      <path class="${underlayClassName}" d="${d}" />
-      <path class="${className}" d="${d}" marker-end="url(#${markerId})" />
+      <path class="${underlayClassName} dependency-path-muted" d="${d}" />
+      <path class="${className} dependency-path-muted" d="${d}" marker-end="url(#${mutedMarkerId})" />
+      <path class="${underlayClassName}" d="${d}"${maskAttribute} />
+      <path class="${className}" d="${d}" marker-end="url(#${markerId})"${maskAttribute} />
     `);
   }
 
@@ -10408,10 +13515,46 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
         <marker id="dependencyArrowIssue" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow has-issue" />
         </marker>
+        <marker id="dependencyArrowMuted" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow is-muted" />
+        </marker>
+        <marker id="dependencyArrowIssueMuted" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow has-issue is-muted" />
+        </marker>
+        ${slotMaskRects.length ? `
+          <mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${round(scaleInfo.width)}" height="${round(rowLayout.totalHeight)}">
+            <rect x="0" y="0" width="${round(scaleInfo.width)}" height="${round(rowLayout.totalHeight)}" fill="white" />
+            ${slotMaskRects.map((rect) => `
+              <rect x="${round(rect.x)}" y="${round(rect.y)}" width="${round(rect.width)}" height="${round(rect.height)}" rx="${round(rect.radius)}" fill="black" />
+            `).join("")}
+          </mask>
+        ` : ""}
       </defs>
       ${paths.join("")}
     </svg>
   `;
+}
+
+function buildDependencySlotMaskRects(rows, rowLayout, scaleInfo, slotPlacementMap) {
+  const padding = ui.scale === "weeks" ? 1 : 2;
+  return rows.flatMap((row) => {
+    const layout = rowLayout.map[row.id];
+    if (!layout) return [];
+    const isAggregate = row.type === "project" || row.type === "route";
+    return getRowSlots(row).map((slot) => {
+      const placement = slotPlacementMap[row.id]?.[slot.id];
+      const rect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isAggregate);
+      const top = placement?.top ?? getSlotTop(isAggregate);
+      const height = placement?.height ?? getSlotHeight(isAggregate);
+      return {
+        x: Math.max(0, rect.x - padding),
+        y: Math.max(0, layout.top + top - padding),
+        width: rect.width + padding * 2,
+        height: height + padding * 2,
+        radius: isAggregate || ui.scale === "weeks" ? height / 2 : 8,
+      };
+    });
+  });
 }
 
 function renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap) {
@@ -10424,7 +13567,7 @@ function renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap) {
   const layout = rowLayout.map[rowId];
   if (!layout) return "";
 
-  const isProjectRow = rowId.startsWith("project:");
+  const isProjectRow = rowId.startsWith("project:") || rowId.startsWith("route:");
   const placement = slotPlacementMap[rowId]?.[slot.id];
   const rect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isProjectRow);
   const snapWidth = getGanttSnapWidth(scaleInfo);
@@ -10608,7 +13751,7 @@ function renderPlanningAssistantDock(warnings) {
   const sortedWarnings = [...critical, ...regular].slice(0, 5);
   const workload = buildWorkloadRows();
   const topWorkload = workload[0];
-  const riskyProjects = planningState.projects
+  const riskyProjects = getProductionContexts()
     .map((project) => ({ project, dueState: getProjectDeadlineState(project) }))
     .filter((item) => ["critical", "warning"].includes(item.dueState.tone));
 
@@ -10621,8 +13764,8 @@ function renderPlanningAssistantDock(warnings) {
       <section class="assistant-panel backlog-panel">
         <div class="assistant-panel-head">
           <div>
-            <strong>01 · Очередь из Планирования</strong>
-            <span>${backlog.length ? "операции доступны только через модуль Планирование" : "очередь пуста"}</span>
+            <strong>Очередь из Планирования</strong>
+            <span>${backlog.length ? "операции доступны только через модуль Заказ на пр-во" : "очередь пуста"}</span>
           </div>
           <em>${backlog.length}</em>
         </div>
@@ -10636,7 +13779,7 @@ function renderPlanningAssistantDock(warnings) {
               <div class="assistant-item-meta">
                 <span>${escapeHtml(item.workCenter?.code || "")}</span>
                 <span>${formatDateTime(item.plannedStart)}</span>
-                <button class="mini-action" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">Открыть Планирование</button>
+                <button class="mini-action" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">Открыть Заказ на пр-во</button>
               </div>
             </article>
           `).join("") : `
@@ -10644,14 +13787,14 @@ function renderPlanningAssistantDock(warnings) {
           `}
         </div>
         <div class="assistant-panel-actions">
-          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Планирование</span></button>
+          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Заказ на пр-во</span></button>
         </div>
       </section>
 
       <section class="assistant-panel conflict-panel">
         <div class="assistant-panel-head">
           <div>
-            <strong>02 · Исправления</strong>
+            <strong>Исправления</strong>
             <span>маршрут, перегрузка участка, количество</span>
           </div>
           <em class="${critical.length ? "critical" : warnings.length ? "warning" : "ok"}">${warnings.length}</em>
@@ -10680,7 +13823,7 @@ function renderPlanningAssistantDock(warnings) {
       <section class="assistant-panel intelligence-panel">
         <div class="assistant-panel-head">
           <div>
-            <strong>03 · Контроль плана</strong>
+            <strong>Контроль плана</strong>
             <span>автосдвиг, риски, буфер маршрута</span>
           </div>
           <em>${ui.autoCascade ? "ON" : "OFF"}</em>
@@ -10746,7 +13889,7 @@ function renderSlotDrawer(slotWarningMap) {
     <aside class="slot-drawer detail-drawer" aria-label="Карточка операции">
       <div class="drawer-header">
         <div>
-          <span class="eyebrow">MOD-03 · Right Detail Drawer</span>
+          <span class="eyebrow">MOD · Right Detail Drawer</span>
           <h2>${escapeHtml(slot.operationName)}</h2>
         </div>
         <button class="icon-button" data-close-drawer type="button" title="Закрыть">${icon("close")}</button>
@@ -10863,7 +14006,7 @@ function renderEditorModal() {
         <form id="slotForm">
           <div class="modal-header">
             <div>
-              <span class="eyebrow">MOD-02 · Form Modal · ${isEdit ? "Редактирование" : "Новый слот"}</span>
+              <span class="eyebrow">MOD · Form Modal · ${isEdit ? "Редактирование" : "Новый слот"}</span>
               <h2>${escapeHtml(getProjectDisplayName(project) || "Спецификация")}</h2>
             </div>
             <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
@@ -10965,7 +14108,7 @@ function renderSplitModal() {
         <form id="splitForm">
           <div class="modal-header">
             <div>
-              <span class="eyebrow">MOD-01 · Confirm Compact · Разделение</span>
+              <span class="eyebrow">MOD · Confirm Compact · Разделение</span>
               <h2>Партия ${escapeHtml(batch?.batchNumber || "")}</h2>
             </div>
             <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
@@ -11006,7 +14149,7 @@ function renderProjectModal() {
         <form id="projectForm">
           <div class="modal-header">
             <div>
-              <span class="eyebrow">MOD-04 · Wizard Modal</span>
+              <span class="eyebrow">MOD · Wizard Modal</span>
               <h2>Производственный заказ</h2>
             </div>
             <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
@@ -11081,6 +14224,21 @@ function bindEvents(scaleInfo, rows, rowLayout) {
   app.querySelectorAll("[data-scale]").forEach((button) => {
     button.addEventListener("click", () => {
       ui.scale = button.dataset.scale;
+      ui.ganttZoom = ui.scale === "hours" ? Math.max(normalizeGanttZoom(ui.ganttZoom), 1.5) : normalizeGanttZoom(ui.ganttZoom);
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-gantt-zoom]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setGanttZoom(button.dataset.ganttZoom);
+    });
+  });
+
+  app.querySelectorAll("[data-slot-content-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.ganttSlotContent = normalizeGanttSlotContent(button.dataset.slotContentMode);
+      persistUiState();
       render();
     });
   });
@@ -11132,18 +14290,21 @@ function bindEvents(scaleInfo, rows, rowLayout) {
   });
 
   app.querySelector("#addProjectButton")?.addEventListener("click", () => {
-    ui.activeModule = "speki";
-    ui.activeSpecificationId = "__new__";
+    ui.activeModule = "planning";
     persistUiState();
     render();
   });
 
   app.querySelector("[data-toggle-all-projects]")?.addEventListener("click", () => {
-    const projects = getVisiblePlanningProjects();
+    const routes = getVisibleGanttRoutes();
     const shouldExpand = !areAllVisibleProjectsExpanded();
-    projects.forEach((project) => {
-      if (shouldExpand) ui.expandedProjects.add(project.id);
-      else ui.expandedProjects.delete(project.id);
+    routes.forEach((route) => {
+      if (shouldExpand) {
+        ui.expandedProjects.add(route.id);
+      } else {
+        ui.expandedProjects.delete(route.id);
+        ui.expandedProjects.delete(route.projectId);
+      }
     });
     persistUiState();
     render();
@@ -11152,8 +14313,19 @@ function bindEvents(scaleInfo, rows, rowLayout) {
   app.querySelectorAll("[data-toggle-project]").forEach((button) => {
     button.addEventListener("click", () => {
       const id = button.dataset.toggleProject;
-      if (ui.expandedProjects.has(id)) ui.expandedProjects.delete(id);
-      else ui.expandedProjects.add(id);
+      const route = (planningState.routes || []).find((item) => item.id === id);
+      if (route) {
+        if (isGanttRouteExpanded(route)) {
+          ui.expandedProjects.delete(route.id);
+          ui.expandedProjects.delete(route.projectId);
+        } else {
+          ui.expandedProjects.add(route.id);
+        }
+      } else if (ui.expandedProjects.has(id)) {
+        ui.expandedProjects.delete(id);
+      } else {
+        ui.expandedProjects.add(id);
+      }
       render();
     });
   });
@@ -11163,7 +14335,7 @@ function bindEvents(scaleInfo, rows, rowLayout) {
       if (event.target.closest(".operation-slot")) return;
       const row = rows.find((item) => item.id === lane.dataset.laneRowId);
       if (!row || row.type !== "workCenter") return;
-      openPlanningForProject(row.projectId);
+      openPlanningForRoute(row.routeId);
     });
   });
 
@@ -11340,6 +14512,7 @@ function bindSlotForm() {
       quantity,
       planningState,
       selectedStep?.unitsPerHour || editedSlot?.unitsPerHour || null,
+      selectedStep?.boardsPerPanel || editedSlot?.boardsPerPanel || null,
     );
     plannedEndField.value = isoLocal(plannedEnd);
   };
@@ -11371,7 +14544,8 @@ function bindSlotForm() {
     const plannedStart = cleanDateTime(data.get("plannedStart"));
     const selectedRouteStep = planningState.routeSteps.find((step) => step.id === data.get("routeStepId"));
     const unitsPerHour = Number(selectedRouteStep?.unitsPerHour || currentSlot?.unitsPerHour || 0);
-    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity, planningState, unitsPerHour || null));
+    const boardsPerPanel = normalizeBoardsPerPanel(selectedRouteStep?.boardsPerPanel || currentSlot?.boardsPerPanel, 1);
+    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity, planningState, unitsPerHour || null, boardsPerPanel));
     const slotData = {
       projectId: data.get("projectId"),
       batchId: data.get("batchId"),
@@ -11380,6 +14554,8 @@ function bindSlotForm() {
       operationName: String(data.get("operationName") || "").trim(),
       quantity,
       unitsPerHour: unitsPerHour || undefined,
+      boardsPerPanel,
+      resourceId: selectedRouteStep?.resourceId || currentSlot?.resourceId || "",
       plannedStart,
       plannedEnd,
       actualStart: cleanOptionalDateTime(data.get("actualStart")),
@@ -11413,6 +14589,7 @@ function bindSlotForm() {
 
     ui.editor = null;
     persistState();
+    notifySaveSuccess(slotId ? "Слот сохранен" : "Слот создан");
     render();
   });
 }
@@ -11437,11 +14614,13 @@ function bindSplitForm() {
     const stamp = new Date().toISOString();
     const childIndex = planningState.batches.filter((batch) => batch.parentBatchId === (sourceBatch.parentBatchId || sourceBatch.id)).length + 1;
     const sourceQuantity = normalizeQuantity(sourceSlot.quantity - quantity);
-    const sourcePlannedEnd = calculatePlannedEndByQuantity(sourceSlot.plannedStart, sourceSlot.workCenterId, sourceQuantity);
-    const childPlannedEnd = calculatePlannedEndByQuantity(sourcePlannedEnd, sourceSlot.workCenterId, quantity);
+    const sourcePlannedEnd = calculatePlannedEndByQuantity(sourceSlot.plannedStart, sourceSlot.workCenterId, sourceQuantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null);
+    const childPlannedEnd = calculatePlannedEndByQuantity(sourcePlannedEnd, sourceSlot.workCenterId, quantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null);
     const childBatch = {
       id: makeId("b"),
-      projectId: sourceSlot.projectId,
+      routeId: sourceSlot.routeId || sourceBatch?.routeId || "",
+      specificationId: sourceSlot.specificationId || sourceBatch?.specificationId || sourceSlot.projectId,
+      projectId: sourceSlot.specificationId || sourceBatch?.specificationId || sourceSlot.projectId,
       batchNumber: `${sourceBatch.batchNumber}.${childIndex}`,
       quantity,
       parentBatchId: sourceBatch.parentBatchId || sourceBatch.id,
@@ -11479,6 +14658,7 @@ function bindSplitForm() {
     ui.splitSlotId = null;
     ui.selectedSlotId = childSlot.id;
     persistState();
+    notifySaveSuccess("Партия разделена");
     render();
   });
 }
@@ -11490,29 +14670,47 @@ function bindProjectForm() {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(form);
-    const bundle = createProjectBundle({
-      name: String(data.get("name") || "").trim(),
+    const stamp = new Date().toISOString();
+    const specification = syncSpecificationDerivedFields({
+      id: makeId("spec"),
+      name: String(data.get("name") || "").trim() || "Новая спецификация",
+      outputItem: String(data.get("name") || "").trim() || "Новая спецификация",
       orderNumber: String(data.get("orderNumber") || "").trim(),
       customer: String(data.get("customer") || "").trim(),
-      totalQuantity: Number(data.get("totalQuantity")),
+      productionQuantity: normalizeOptionalPositiveInteger(data.get("totalQuantity")) || 1,
       dueDate: data.get("dueDate"),
-      status: data.get("status"),
+      productionStatus: PROJECT_STATUSES.includes(data.get("status")) ? String(data.get("status")) : "planned",
+      status: "Активен",
+      structureManaged: true,
+      structureItems: [],
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+    const bundle = createProductionBundle({
+      specificationId: specification.id,
+      name: specification.name,
+      orderNumber: specification.orderNumber,
+      customer: specification.customer,
+      totalQuantity: specification.productionQuantity,
+      dueDate: specification.dueDate,
+      status: specification.productionStatus,
       routeTemplate: data.get("routeTemplate"),
     });
 
-    planningState.projects = [...planningState.projects, bundle.project];
+    directoryState.specifications = [...(directoryState.specifications || []), specification];
     planningState.batches = [...planningState.batches, bundle.batch];
     planningState.routes = [...planningState.routes, bundle.route];
     planningState.routeSteps = [...planningState.routeSteps, ...bundle.routeSteps];
-    ui.expandedProjects.add(bundle.project.id);
+    planningState.projects = [];
+    ui.expandedProjects.add(bundle.route.id);
     ui.projectModal = false;
     if (ui.activeModule === "calculator") {
       calculatorState = normalizeCalculatorState({
         ...calculatorState,
-        projectId: bundle.project.id,
-        specificationId: "",
+        projectId: specification.id,
+        specificationId: specification.id,
         bomListId: "",
-        boardQuantity: normalizeOptionalPositiveInteger(bundle.project.totalQuantity),
+        boardQuantity: normalizeOptionalPositiveInteger(specification.productionQuantity),
         routeOperations: [],
         selectedOperationId: "",
         componentCounts: {},
@@ -11523,8 +14721,10 @@ function bindProjectForm() {
       ui.calculatorStep = "inputs";
       persistCalculatorState();
     }
+    persistDirectoryState();
     persistState();
     persistUiState();
+    notifySaveSuccess("Спецификация добавлена");
     render();
   });
 }
@@ -11540,6 +14740,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
 
   const shell = app.querySelector("[data-gantt-shell]");
   const shellRect = shell.getBoundingClientRect();
+  const route = getSlotRoute(slot);
 
   ui.drag = {
     mode,
@@ -11551,6 +14752,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     originalEnd: toDate(slot.plannedEnd),
     originalWorkCenterId: slot.workCenterId,
     projectId: slot.projectId,
+    routeId: route?.id || "",
     targetRowId: getVisibleSlotRowId(slot),
     moved: false,
     shellTop: shellRect.top,
@@ -11584,12 +14786,12 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
       targetSlot.plannedStart = toSlotDateTime(newStart);
 
       const targetRow = rowFromPointer(moveEvent, rows, rowLayout);
-      if (targetRow?.type === "workCenter" && targetRow.projectId === ui.drag.projectId) {
-        targetSlot.workCenterId = targetRow.workCenterId;
+      if (targetRow?.type === "workCenter" && targetRow.routeId === ui.drag.routeId) {
+        applyGanttRowToSlot(targetSlot, targetRow);
         ui.drag.targetRowId = targetRow.id;
       }
 
-      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(newStart, targetSlot.workCenterId, targetSlot.quantity));
+      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(newStart, targetSlot.workCenterId, targetSlot.quantity, planningState, targetSlot.unitsPerHour || null, targetSlot.boardsPerPanel || null));
       targetSlot.updatedAt = new Date().toISOString();
     }
 
@@ -11604,6 +14806,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     if (moved) cascadeIfEnabled(slotId);
     persistState();
     ui.drag = null;
+    if (moved) notifySaveSuccess("Операция Ганта сохранена");
     render();
     setTimeout(() => {
       if (moved) ui.drag = null;
@@ -11635,7 +14838,7 @@ function placeSlotInNearestWindow(slot, earliestOverride = null) {
     toDate(earliestOverride || slot.plannedStart).getTime(),
     toDate(routeEarliest).getTime(),
   ));
-  const durationMs = calculateRequiredDurationMs(slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour);
+  const durationMs = calculateRequiredDurationMs(slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour, slot.boardsPerPanel || null);
   const window = findFreeWindow(slot.workCenterId, durationMs, earliestStart, slot.id);
 
   slot.plannedStart = toSlotDateTime(window.start);
@@ -11649,6 +14852,7 @@ function moveSlotToNearestWindow(slotId, earliestOverride = null) {
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!placeSlotInNearestWindow(slot, earliestOverride)) return;
   persistState();
+  notifySaveSuccess("Операция перемещена в свободное окно");
   render();
 }
 
@@ -11658,6 +14862,7 @@ function toggleSlotLock(slotId) {
   slot.locked = !slot.locked;
   slot.updatedAt = new Date().toISOString();
   persistState();
+  notifySaveSuccess(slot.locked ? "Операция заблокирована" : "Операция разблокирована");
   render();
 }
 
@@ -11676,6 +14881,7 @@ function autoFixAllWarnings() {
 
   if (fixed) {
     persistState();
+    notifySaveSuccess(`Исправления плана сохранены: ${fixed}`);
     render();
     return;
   }
@@ -11711,7 +14917,7 @@ function applyWarningFixInPlace(warning) {
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return false;
     slot.workCenterId = step.workCenterId;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity));
+    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
     slot.updatedAt = stamp;
     return Boolean(placeSlotInNearestWindow(slot, slot.plannedStart));
   }
@@ -11722,7 +14928,7 @@ function applyWarningFixInPlace(warning) {
     const previous = getRouteNeighbor(slot, -1);
     if (!previous) return false;
     slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity));
+    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     return true;
@@ -11731,7 +14937,7 @@ function applyWarningFixInPlace(warning) {
   if (warning.type === "duration" && slots[0]) {
     const slot = slots[0];
     if (slot.locked || slot.status === "completed") return false;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity));
+    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     return true;
@@ -11774,7 +14980,7 @@ function autoFixWarning(warningId) {
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return;
     slot.workCenterId = step.workCenterId;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity));
+    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
     slot.updatedAt = stamp;
     moveSlotToNearestWindow(slot.id, slot.plannedStart);
     return;
@@ -11786,7 +14992,7 @@ function autoFixWarning(warningId) {
     const previous = getRouteNeighbor(slot, -1);
     if (!previous) return;
     slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity));
+    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     persistState();
@@ -11797,7 +15003,7 @@ function autoFixWarning(warningId) {
   if (warning.type === "duration" && slots[0]) {
     const slot = slots[0];
     if (slot.locked) return;
-    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity));
+    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
     slot.updatedAt = stamp;
     cascadeIfEnabled(slot.id);
     persistState();
@@ -11819,12 +15025,13 @@ function savePlanSnapshot() {
   snapshots.unshift({
     id: makeId("snap"),
     createdAt: new Date().toISOString(),
-    projects: planningState.projects.length,
+    specifications: (directoryState.specifications || []).length,
+    routes: planningState.routes.length,
     slots: planningState.slots.length,
     state: planningState,
   });
   localStorage.setItem(key, JSON.stringify(snapshots.slice(0, 8)));
-  alert("Снимок плана сохранен. Последние 8 снимков остаются в localStorage прототипа.");
+  notifySaveSuccess("Снимок плана сохранен");
 }
 
 function updateSlotQuantity(slotId, value) {
@@ -11834,10 +15041,11 @@ function updateSlotQuantity(slotId, value) {
 
   const quantity = normalizeQuantity(value, slot.quantity);
   slot.quantity = quantity;
-  slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity));
+  slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null));
   slot.updatedAt = new Date().toISOString();
   cascadeIfEnabled(slotId);
   persistState();
+  notifySaveSuccess("Количество операции сохранено");
   render();
 }
 
@@ -11848,14 +15056,15 @@ function cycleSlotStatus(slotId) {
   slot.status = SLOT_STATUSES[(index + 1) % SLOT_STATUSES.length];
   slot.updatedAt = new Date().toISOString();
   persistState();
+  notifySaveSuccess("Статус операции сохранен");
   render();
 }
 
 function resetDemoState() {
   planningState = createDefaultPlanningState();
-  ui.expandedProjects = new Set(["p-x100", "p-v2", "p-mes"]);
+  ui.expandedProjects = new Set();
   ui.selectedSlotId = null;
-  persistState();
+  withPlanningEntityRemovalAllowed(() => persistState());
   render();
 }
 
@@ -11873,7 +15082,9 @@ function focusSlot(slotId) {
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!slot) return;
   ui.selectedSlotId = slotId;
-  ui.expandedProjects.add(slot.projectId);
+  const route = getSlotRoute(slot);
+  if (route?.id) ui.expandedProjects.add(route.id);
+  else ui.expandedProjects.add(slot.projectId);
   render();
 
   requestAnimationFrame(() => {
@@ -11885,8 +15096,35 @@ function focusSlot(slotId) {
   });
 }
 
+function focusRoute(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  if (!route) return;
+  ui.expandedProjects.add(route.id);
+  ui.activeRouteId = route.id;
+  ui.activeProjectId = route.projectId || ui.activeProjectId || "";
+  ui.search = "";
+  const firstSlot = getRouteSlots(route.id)
+    .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))[0];
+  ui.selectedSlotId = firstSlot?.id || null;
+  persistUiState();
+  render();
+
+  requestAnimationFrame(() => {
+    const element = app.querySelector(`[data-row-id="route:${route.id}"]`);
+    const shell = app.querySelector("[data-gantt-shell]");
+    if (!element || !shell) return;
+    element.scrollIntoView({ block: "center", inline: "nearest" });
+    shell.scrollLeft = Math.max(0, shell.scrollLeft - LEFT_WIDTH / 2);
+  });
+}
+
 function focusProject(projectId) {
-  if (!projectId || !planningState.projects.some((project) => project.id === projectId)) return;
+  if (!projectId || !getProject(projectId)) return;
+  const route = getProjectRouteForModule(projectId);
+  if (route) {
+    focusRoute(route.id);
+    return;
+  }
   ui.expandedProjects.add(projectId);
   ui.search = "";
   const firstSlot = planningState.slots
@@ -11897,7 +15135,7 @@ function focusProject(projectId) {
   render();
 
   requestAnimationFrame(() => {
-    const element = app.querySelector(`[data-row-id="project:${projectId}"]`);
+    const element = app.querySelector(`[data-row-id="project:${projectId}"], [data-row-id^="route:"]`);
     const shell = app.querySelector("[data-gantt-shell]");
     if (!element || !shell) return;
     element.scrollIntoView({ block: "center", inline: "nearest" });
@@ -11915,34 +15153,41 @@ function closeModals() {
 }
 
 function buildRows(scaleInfo) {
-  const filteredProjects = getVisiblePlanningProjects();
+  const filteredRoutes = getVisibleGanttRoutes();
   const rows = [];
 
-  for (const project of filteredProjects) {
-    const projectExpanded = ui.expandedProjects.has(project.id);
-    const projectSlots = planningState.slots.filter((slot) => slot.projectId === project.id);
+  for (const route of filteredRoutes) {
+    const project = getProject(route.projectId);
+    const routeExpanded = isGanttRouteExpanded(route);
+    const routeSlots = getRouteSummarySlots(route.id);
     rows.push({
-      id: `project:${project.id}`,
-      type: "project",
+      id: `route:${route.id}`,
+      type: "route",
+      route,
       project,
-      projectId: project.id,
-      height: getScaledRowHeight(PROJECT_ROW_HEIGHT, projectSlots, scaleInfo, true),
+      routeId: route.id,
+      projectId: route.projectId,
+      height: getScaledRowHeight(PROJECT_ROW_HEIGHT, routeSlots, scaleInfo, true),
     });
 
-    if (!projectExpanded) continue;
+    if (!routeExpanded) continue;
 
-    const centers = getProjectCenters(project.id);
+    const centers = getRouteCenters(route.id);
     for (const center of centers) {
-      if (ui.workCenterFilter !== "all" && center.id !== ui.workCenterFilter) continue;
-      const routeSteps = getProjectRouteSteps(project.id, planningState);
-      const inRoute = routeSteps.some((step) => step.workCenterId === center.id);
-      const centerSlots = getSlotsForProjectCenter(project.id, center.id);
+      if (!ganttCenterMatchesFilter(center)) continue;
+      const routeSteps = getRouteStepsForModule(route.id);
+      const inRoute = routeSteps.some((step) => step.workCenterId === getGanttCenterRouteWorkCenterId(center));
+      const centerSlots = getSlotsForRouteCenter(route.id, center.id);
       rows.push({
-        id: `work:${project.id}:${center.id}`,
+        id: `work:${route.id}:${center.id}`,
         type: "workCenter",
-        projectId: project.id,
+        routeId: route.id,
+        projectId: route.projectId,
         workCenterId: center.id,
         workCenter: center,
+        parentWorkCenterId: center.parentWorkCenterId || center.id,
+        smtLineId: center.smtLineId || "",
+        isSmtLine: Boolean(center.isSmtLine),
         isOutsideRoute: !inRoute,
         height: getScaledRowHeight(WORK_ROW_HEIGHT, centerSlots, scaleInfo, false),
       });
@@ -11964,36 +15209,25 @@ function buildRowLayout(rows) {
 
 function buildSlotPlacementMap(rows, scaleInfo) {
   return rows.reduce((map, row) => {
-    map[row.id] = calculateSlotPlacements(getRowSlots(row), scaleInfo, row.type === "project").placements;
+    map[row.id] = calculateSlotPlacements(getRowSlots(row), scaleInfo, row.type === "project" || row.type === "route").placements;
     return map;
   }, {});
 }
 
 function getScaledRowHeight(baseHeight, slots, scaleInfo, isAggregate) {
-  if (ui.scale !== "weeks" || slots.length < 2) return baseHeight;
+  if (slots.length < 2) return baseHeight;
 
   const { levelCount } = calculateSlotPlacements(slots, scaleInfo, isAggregate);
-  const slotHeight = getWeekSlotHeight(isAggregate);
-  const requiredHeight = WEEK_SLOT_TOP * 2 + levelCount * slotHeight + Math.max(0, levelCount - 1) * WEEK_SLOT_GAP;
+  const slotHeight = getSlotHeight(isAggregate);
+  const slotTop = getSlotTop(isAggregate);
+  const requiredHeight = slotTop * 2 + levelCount * slotHeight + Math.max(0, levelCount - 1) * WEEK_SLOT_GAP;
   return Math.max(baseHeight, Math.ceil(requiredHeight));
 }
 
 function calculateSlotPlacements(slots, scaleInfo, isAggregate = false) {
   const placements = {};
-
-  if (ui.scale !== "weeks") {
-    for (const slot of slots) {
-      placements[slot.id] = {
-        top: getSlotTop(isAggregate),
-        height: getSlotHeight(isAggregate),
-        level: 0,
-        rect: getSlotVisualRect(slot, scaleInfo, isAggregate),
-      };
-    }
-    return { placements, levelCount: slots.length ? 1 : 0 };
-  }
-
-  const slotHeight = getWeekSlotHeight(isAggregate);
+  const slotHeight = getSlotHeight(isAggregate);
+  const slotTop = getSlotTop(isAggregate);
   const laneEnds = [];
   const sortedSlots = [...slots].sort((left, right) => (
     toDate(left.plannedStart) - toDate(right.plannedStart)
@@ -12010,7 +15244,7 @@ function calculateSlotPlacements(slots, scaleInfo, isAggregate = false) {
 
     laneEnds[lane] = rect.right;
     placements[slot.id] = {
-      top: WEEK_SLOT_TOP + lane * (slotHeight + WEEK_SLOT_GAP),
+      top: slotTop + lane * (slotHeight + WEEK_SLOT_GAP),
       height: slotHeight,
       level: lane,
       rect,
@@ -12050,9 +15284,33 @@ function getProjectCenters(projectId) {
     .map((slot) => getWorkCenter(slot.workCenterId))
     .filter(Boolean);
   const base = ui.rowMode === "all" ? planningState.workCenters : [...routeCenters, ...slotCenters];
+  const expandedBase = base.flatMap((center) => (
+    center.id === "smt" ? getSmtGanttLineCenters() : [center]
+  ));
   const seen = new Set();
 
-  return base.filter((center) => {
+  return expandedBase.filter((center) => {
+    if (!center.isActive || seen.has(center.id)) return false;
+    seen.add(center.id);
+    return true;
+  });
+}
+
+function getRouteCenters(routeId) {
+  const routeSteps = getRouteStepsForModule(routeId);
+  const routeCenters = routeSteps
+    .map((step) => getWorkCenter(step.workCenterId))
+    .filter(Boolean);
+  const slotCenters = getRouteSlots(routeId)
+    .map((slot) => getWorkCenter(slot.workCenterId))
+    .filter(Boolean);
+  const base = ui.rowMode === "all" ? planningState.workCenters : [...routeCenters, ...slotCenters];
+  const expandedBase = base.flatMap((center) => (
+    center.id === "smt" ? getSmtGanttLineCenters() : [center]
+  ));
+  const seen = new Set();
+
+  return expandedBase.filter((center) => {
     if (!center.isActive || seen.has(center.id)) return false;
     seen.add(center.id);
     return true;
@@ -12060,10 +15318,81 @@ function getProjectCenters(projectId) {
 }
 
 function getSlotsForProjectCenter(projectId, workCenterId) {
+  if (isSmtLineWorkCenterId(workCenterId)) {
+    const lineId = getSmtLineIdFromWorkCenterId(workCenterId);
+    return planningState.slots.filter((slot) => (
+      slot.projectId === projectId
+      && slot.workCenterId === "smt"
+      && getSlotAssignedSmtLineId(slot) === lineId
+    ));
+  }
+
   return planningState.slots.filter((slot) => (
     slot.projectId === projectId
     && slot.workCenterId === workCenterId
   ));
+}
+
+function getRouteStepIds(routeId) {
+  return new Set((planningState.routeSteps || [])
+    .filter((step) => step.routeId === routeId)
+    .map((step) => step.id));
+}
+
+function getSlotRoute(slot) {
+  const step = (planningState.routeSteps || []).find((item) => item.id === slot?.routeStepId);
+  if (step?.routeId) return (planningState.routes || []).find((route) => route.id === step.routeId) || null;
+  return (planningState.routes || []).find((route) => route.projectId === slot?.projectId && route.isDefault)
+    || (planningState.routes || []).find((route) => route.projectId === slot?.projectId)
+    || null;
+}
+
+function getRouteSlots(routeId) {
+  const stepIds = getRouteStepIds(routeId);
+  return (planningState.slots || []).filter((slot) => stepIds.has(slot.routeStepId));
+}
+
+function getSlotsForRouteCenter(routeId, workCenterId) {
+  const routeSlots = getRouteSlots(routeId);
+  if (isSmtLineWorkCenterId(workCenterId)) {
+    const lineId = getSmtLineIdFromWorkCenterId(workCenterId);
+    return routeSlots.filter((slot) => (
+      slot.workCenterId === "smt"
+      && getSlotAssignedSmtLineId(slot) === lineId
+    ));
+  }
+
+  return routeSlots.filter((slot) => slot.workCenterId === workCenterId);
+}
+
+function getGanttCenterRouteWorkCenterId(center) {
+  return center?.parentWorkCenterId || (isSmtLineWorkCenterId(center?.id) ? "smt" : center?.id);
+}
+
+function ganttCenterMatchesFilter(center) {
+  if (ui.workCenterFilter === "all") return true;
+  if (center.id === ui.workCenterFilter) return true;
+  return getGanttCenterRouteWorkCenterId(center) === ui.workCenterFilter;
+}
+
+function isFinishedGoodsSlot(slot) {
+  const operationName = String(slot.operationName || "").toLowerCase();
+  const outputName = String(slot.output || "").toLowerCase();
+  return slot.workCenterId === "warehouse"
+    || operationName.includes("склад")
+    || operationName.includes("готов")
+    || outputName.includes("готов");
+}
+
+function getProjectSummarySlots(projectId) {
+  return planningState.slots.filter((slot) => (
+    slot.projectId === projectId
+    && isFinishedGoodsSlot(slot)
+  ));
+}
+
+function getRouteSummarySlots(routeId) {
+  return getRouteSlots(routeId).filter((slot) => isFinishedGoodsSlot(slot));
 }
 
 function projectMatchesFilters(project) {
@@ -12076,8 +15405,37 @@ function projectMatchesFilters(project) {
   }
 
   if (ui.workCenterFilter !== "all") {
-    const hasRouteCenter = getProjectRouteSteps(project.id, planningState).some((step) => step.workCenterId === ui.workCenterFilter);
-    const hasSlotCenter = planningState.slots.some((slot) => slot.projectId === project.id && slot.workCenterId === ui.workCenterFilter);
+    const hasRouteCenter = getProjectRouteSteps(project.id, planningState).some((step) => (
+      step.workCenterId === ui.workCenterFilter
+      || (ui.workCenterFilter === "smt" && step.workCenterId === "smt")
+    ));
+    const hasSlotCenter = isSmtLineWorkCenterId(ui.workCenterFilter)
+      ? getSlotsForProjectCenter(project.id, ui.workCenterFilter).length > 0
+      : planningState.slots.some((slot) => project.id === slot.projectId && slot.workCenterId === ui.workCenterFilter);
+    if (!hasRouteCenter && !hasSlotCenter) return false;
+  }
+
+  return true;
+}
+
+function routeMatchesGanttFilters(route) {
+  const project = getProject(route?.projectId);
+  if (!route || !project) return false;
+  if (ui.statusFilter !== "all" && project.status !== ui.statusFilter) return false;
+
+  const specification = getRouteSpecification(route);
+  if (ui.search.trim()) {
+    const haystack = `${route.name || ""} ${specification?.name || ""} ${specification?.outputItem || ""} ${getProjectDisplayName(project)} ${getProjectDisplayOutput(project)} ${project.orderNumber || ""} ${project.customer || ""}`.toLowerCase();
+    if (!haystack.includes(ui.search.trim().toLowerCase())) return false;
+  }
+
+  if (ui.workCenterFilter !== "all") {
+    const hasRouteCenter = getRouteStepsForModule(route.id).some((step) => (
+      step.workCenterId === ui.workCenterFilter
+      || (ui.workCenterFilter === "smt" && step.workCenterId === "smt")
+      || (isSmtLineWorkCenterId(ui.workCenterFilter) && step.workCenterId === "smt")
+    ));
+    const hasSlotCenter = getSlotsForRouteCenter(route.id, ui.workCenterFilter).length > 0;
     if (!hasRouteCenter && !hasSlotCenter) return false;
   }
 
@@ -12085,24 +15443,34 @@ function projectMatchesFilters(project) {
 }
 
 function getRowSlots(row) {
+  if (row.type === "route") {
+    return getRouteSummarySlots(row.routeId);
+  }
+
   if (row.type === "project") {
-    return planningState.slots.filter((slot) => slot.projectId === row.projectId);
+    return getProjectSummarySlots(row.projectId);
   }
 
   return planningState.slots.filter((slot) => (
-    slot.projectId === row.projectId
-    && slot.workCenterId === row.workCenterId
+    (!row.routeId || getSlotRoute(slot)?.id === row.routeId)
+    && slot.projectId === row.projectId
+    && getSlotGanttWorkCenterId(slot) === row.workCenterId
   ));
 }
 
 function getVisibleSlotRowId(slot) {
-  if (!ui.expandedProjects.has(slot.projectId)) return `project:${slot.projectId}`;
-  return `work:${slot.projectId}:${slot.workCenterId}`;
+  const route = getSlotRoute(slot);
+  if (!route) return null;
+  if (!isGanttRouteExpanded(route)) {
+    return isFinishedGoodsSlot(slot) ? `route:${route.id}` : null;
+  }
+  return `work:${route.id}:${getSlotGanttWorkCenterId(slot)}`;
 }
 
 function buildStats(warnings) {
   return {
-    projects: planningState.projects.length,
+    specifications: (directoryState.specifications || []).length,
+    routes: planningState.routes.length,
     slots: planningState.slots.length,
     critical: warnings.filter((warning) => warning.severity === "critical").length,
     warning: warnings.filter((warning) => warning.severity !== "critical").length,
@@ -12110,11 +15478,43 @@ function buildStats(warnings) {
 }
 
 function getProject(id) {
-  return planningState.projects.find((project) => project.id === id);
+  // Production context facade. The name stays for compatibility with the older
+  // Gantt code, but it resolves a specification-centered production context.
+  const legacyProject = (planningState.projects || []).find((project) => project.id === id);
+  if (legacyProject) return legacyProject;
+  const specification = getSpecificationByProjectId(id) || getSpecificationById(id);
+  return getProductionContextForSpecification(specification);
+}
+
+function getProductionContexts() {
+  return (directoryState.specifications || [])
+    .map((specification) => getProductionContextForSpecification(specification))
+    .filter(Boolean);
 }
 
 function getSpecificationByProjectId(projectId) {
-  return (directoryState.specifications || []).find((specification) => specification.projectId === projectId) || null;
+  if (!projectId) return null;
+  return (directoryState.specifications || []).find((specification) => (
+    specification.id === projectId
+    || specification.projectId === projectId
+  )) || null;
+}
+
+function getProductionContextForSpecification(specification) {
+  if (!specification) return null;
+  return {
+    id: specification.id,
+    name: specification.outputItem || specification.name || "Спецификация",
+    orderNumber: specification.orderNumber || "",
+    customer: specification.customer || "",
+    totalQuantity: normalizeOptionalPositiveInteger(specification.productionQuantity) || 1,
+    dueDate: specification.dueDate || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000)),
+    status: PROJECT_STATUSES.includes(specification.productionStatus) ? specification.productionStatus : "planned",
+    createdAt: specification.createdAt || "",
+    updatedAt: specification.updatedAt || "",
+    specificationId: specification.id,
+    isSpecificationProduction: true,
+  };
 }
 
 function getProjectDisplayName(project) {
@@ -12174,15 +15574,17 @@ function icon(name) {
     bug: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2l1.5 2.5M16 2l-1.5 2.5"></path><rect x="7" y="5" width="10" height="14" rx="5"></rect><path d="M3 9h4M17 9h4M3 14h4M17 14h4M12 5v14M8 19l-2 3M16 19l2 3"></path></svg>`,
     monitor: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path><path d="M7 10h3l2-3 2 6 2-3h1"></path></svg>`,
     book: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z"></path><path d="M8 7h8M8 11h8"></path></svg>`,
-    bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path><path d="M6 8h.01M6 12h.01M6 16h.01"></path></svg>`,
+    bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z"></path><path d="M2 8h2M2 12h2M2 16h2M20 8h2M20 12h2M20 16h2M8 2v2M12 2v2M16 2v2M8 20v2M12 20v2M16 20v2"></path></svg>`,
     package: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"></path><path d="M4 7.5 12 12l8-4.5M12 12v9"></path><path d="m8 5.2 8 4.5"></path></svg>`,
     settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,
     calculator: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M8 6h8M8 10h2M12 10h2M16 10h.01M8 14h2M12 14h2M16 14h.01M8 18h2M12 18h4"></path></svg>`,
     calendar: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path></svg>`,
     gantt: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v14M4 19h16"></path><path d="M8 7h9M8 12h5M12 17h8"></path><path d="M7 7h1M7 12h1M11 17h1"></path></svg>`,
+    tree: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="7" height="5" rx="1.5"></rect><rect x="13" y="10" width="7" height="5" rx="1.5"></rect><rect x="13" y="17" width="7" height="4" rx="1.5"></rect><path d="M7.5 8v7a2 2 0 0 0 2 2H13M11 12h2M7.5 12H13"></path></svg>`,
     refresh: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14-5l-2 2"></path><path d="M4 4v4h4"></path><path d="M4 13a8 8 0 0 0 14 5l2-2"></path><path d="M20 20v-4h-4"></path></svg>`,
     reset: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 3v6h6"></path></svg>`,
     plus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>`,
+    minus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg>`,
     clock: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>`,
     chevronDown: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>`,
     chevronUp: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>`,
@@ -12215,6 +15617,18 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("click", (event) => {
+  const updateReloadButton = event.target.closest?.("[data-update-reload]");
+  if (updateReloadButton) {
+    reloadForLatestUpdate(updateReloadButton.dataset.updateReload || "");
+    return;
+  }
+
+  const updateDismissButton = event.target.closest?.("[data-update-dismiss]");
+  if (updateDismissButton) {
+    hideUpdateReadyNotice(updateDismissButton.dataset.updateDismiss || "");
+    return;
+  }
+
   const moduleButton = event.target.closest?.("[data-module]");
   if (!moduleButton || !app.contains(moduleButton)) return;
   navigateToModule(moduleButton.dataset.module);
@@ -12223,8 +15637,6 @@ window.addEventListener("click", (event) => {
 window.addEventListener("beforeunload", () => {
   rememberScroll();
   persistUiState();
-  persistState();
-  persistDirectoryState();
   persistCalculatorState();
   persistAuthState();
 });

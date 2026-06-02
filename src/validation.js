@@ -4,14 +4,16 @@ export function byId(items) {
   return Object.fromEntries(items.map((item) => [item.id, item]));
 }
 
+// These names are retained for older Gantt callers. "Project" now means the
+// specification-centered production context, with projectId as specificationId alias.
 export function getProjectRoute(project, state) {
-  return state.routes.find((route) => route.projectId === project.id && route.isDefault)
-    || state.routes.find((route) => route.projectId === project.id);
+  return state.routes.find((route) => (route.specificationId === project.id || route.projectId === project.id) && route.isDefault)
+    || state.routes.find((route) => route.specificationId === project.id || route.projectId === project.id);
 }
 
 export function getProjectRouteSteps(projectId, state) {
-  const route = state.routes.find((item) => item.projectId === projectId && item.isDefault)
-    || state.routes.find((item) => item.projectId === projectId);
+  const route = state.routes.find((item) => (item.specificationId === projectId || item.projectId === projectId) && item.isDefault)
+    || state.routes.find((item) => item.specificationId === projectId || item.projectId === projectId);
   if (!route) return [];
   return state.routeSteps
     .filter((step) => step.routeId === route.id)
@@ -25,6 +27,26 @@ export function getStepOrder(slot, state) {
 
 function getValidationRouteTaskId(step) {
   return step?.specTaskId || "__main__";
+}
+
+function getValidationProductionMap(state) {
+  const map = byId(state.projects || []);
+  for (const route of state.routes || []) {
+    const production = {
+      id: route.specificationId || route.projectId,
+      name: route.specificationName || route.name || "Спецификация",
+      totalQuantity: route.planningQuantity || 1,
+    };
+    if (production.id && !map[production.id]) map[production.id] = production;
+  }
+  return map;
+}
+
+function getValidationRouteForSlot(slot, state, stepById = byId(state.routeSteps || [])) {
+  const step = stepById[slot.routeStepId];
+  return (state.routes || []).find((route) => route.id === (slot.routeId || step?.routeId))
+    || (state.routes || []).find((route) => route.specificationId === slot.specificationId || route.projectId === slot.projectId)
+    || null;
 }
 
 export function getSlotWarnings(state) {
@@ -48,7 +70,7 @@ export function detectWorkCenterConflicts(state) {
   const warnings = [];
   const slots = [...state.slots].sort((a, b) => toDate(a.plannedStart) - toDate(b.plannedStart));
   const workCenterById = byId(state.workCenters);
-  const projectById = byId(state.projects);
+  const projectById = getValidationProductionMap(state);
 
   for (let index = 0; index < slots.length; index += 1) {
     const left = slots[index];
@@ -75,7 +97,7 @@ export function detectWorkCenterConflicts(state) {
           slotIds: [left.id, right.id],
           projectId: left.projectId,
           workCenterId: left.workCenterId,
-          message: `${workCenterById[left.workCenterId]?.name || "Участок"} перегружен: ${overlappingSlots.length} операций при емкости ${capacity}. ${projectById[left.projectId]?.name || "Проект"} пересекается с ${projectById[right.projectId]?.name || "проектом"}.`,
+          message: `${workCenterById[left.workCenterId]?.name || "Участок"} перегружен: ${overlappingSlots.length} операций при емкости ${capacity}. ${projectById[left.specificationId || left.projectId]?.name || "Задание"} пересекается с ${projectById[right.specificationId || right.projectId]?.name || "заданием"}.`,
         });
       }
     }
@@ -87,7 +109,7 @@ export function detectWorkCenterConflicts(state) {
 export function detectRouteWarnings(state) {
   const warnings = [];
   const batchById = byId(state.batches);
-  const projectById = byId(state.projects);
+  const projectById = getValidationProductionMap(state);
   const stepById = byId(state.routeSteps);
   const workCenterById = byId(state.workCenters);
 
@@ -136,16 +158,19 @@ export function detectRouteWarnings(state) {
 
   const slotsByProjectBatch = groupBy(state.slots, (slot) => {
     const step = stepById[slot.routeStepId];
-    return `${slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(step)}`;
+    const route = getValidationRouteForSlot(slot, state, stepById);
+    return `${route?.id || slot.routeId || slot.specificationId || slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(step)}`;
   });
 
   for (const slots of Object.values(slotsByProjectBatch)) {
     if (!slots.length) continue;
 
-    const project = projectById[slots[0].projectId];
+    const productionId = slots[0].specificationId || slots[0].projectId;
+    const project = projectById[productionId];
     const batch = batchById[slots[0].batchId];
     const taskId = getValidationRouteTaskId(stepById[slots[0].routeStepId]);
-    const routeSteps = getProjectRouteSteps(slots[0].projectId, state)
+    const route = getValidationRouteForSlot(slots[0], state, stepById);
+    const routeSteps = (route ? state.routeSteps.filter((step) => step.routeId === route.id) : getProjectRouteSteps(productionId, state))
       .filter((step) => getValidationRouteTaskId(step) === taskId);
     const plannedByOrder = new Map();
 
@@ -203,7 +228,7 @@ export function detectRouteWarnings(state) {
             slotIds: [previous.id, current.id],
             projectId: current.projectId,
             batchId: current.batchId,
-            message: `${project?.name || "Проект"}, партия ${batch?.batchNumber || ""}: между операциями пропущен обязательный шаг ${step.operationName}.`,
+            message: `${project?.name || "Задание"}, партия ${batch?.batchNumber || ""}: между операциями пропущен обязательный шаг ${step.operationName}.`,
           });
         }
       }
@@ -221,7 +246,7 @@ export function detectRouteWarnings(state) {
             slotIds: sorted.map((slot) => slot.id),
             projectId: slots[0].projectId,
             batchId: slots[0].batchId,
-            message: `${project?.name || "Проект"}, партия ${batch?.batchNumber || ""}: отсутствует обязательный шаг ${step.operationName}.`,
+            message: `${project?.name || "Задание"}, партия ${batch?.batchNumber || ""}: отсутствует обязательный шаг ${step.operationName}.`,
           });
         }
       }
@@ -234,7 +259,7 @@ export function detectRouteWarnings(state) {
 export function getDependencyPairs(state) {
   const stepById = byId(state.routeSteps);
   const grouped = groupBy(state.slots, (slot) => (
-    `${slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(stepById[slot.routeStepId])}`
+    `${slot.routeId || stepById[slot.routeStepId]?.routeId || slot.specificationId || slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(stepById[slot.routeStepId])}`
   ));
   const pairs = [];
 
@@ -263,7 +288,7 @@ export function calculateProjectProgress(project, state) {
 
   const requiredStepIds = new Set(routeSteps.map((step) => step.id));
   const completedQuantity = state.slots
-    .filter((slot) => slot.projectId === project.id && slot.status === "completed" && requiredStepIds.has(slot.routeStepId))
+    .filter((slot) => (slot.specificationId === project.id || slot.projectId === project.id) && slot.status === "completed" && requiredStepIds.has(slot.routeStepId))
     .reduce((sum, slot) => sum + Number(slot.quantity || 0), 0);
 
   return Math.min(100, Math.round((completedQuantity / (project.totalQuantity * routeSteps.length)) * 100));

@@ -1,12 +1,26 @@
 /**
  * Runtime data shape reference for the MES planning prototype.
  *
- * Project: id, name, orderNumber, customer, totalQuantity, dueDate, status, createdAt, updatedAt
- * Batch: id, projectId, batchNumber, quantity, parentBatchId, status, createdAt, updatedAt
- * WorkCenter: id, name, code, description, isActive
- * Route: id, projectId, name, isDefault
- * RouteStep: id, routeId, workCenterId, operationName, stepOrder, isRequired
- * OperationSlot: id, projectId, batchId, workCenterId, routeStepId, operationName, quantity,
+ * Specification: central production object in directoryState.specifications.
+ * BOMList: component composition and PCB result in directoryState.bomLists.
+ * NomenclatureItem: material/component/PCB master data in directoryState.nomenclature.
+ * OperationMapItem: reusable operation template in directoryState.operationMap.
+ * Route: route card for a specification in planningState.routes.
+ * RouteStep: operation in a route card, linked to a work center and optionally OperationMapItem.
+ * Batch: production lot in planningState.batches, created from a route before Gantt transfer.
+ * OperationSlot: scheduled Gantt operation in planningState.slots.
+ * WorkCenter: planning resource row in planningState.workCenters.
+ *
+ * Compatibility note: projectId still appears in routes, batches and slots as
+ * an alias for specificationId. There is no separate Project entity in the UI.
+ *
+ * Main fields:
+ * Specification: id, name, structureItems, productionQuantity, dueDate, orderNumber, customer, productionStatus
+ * BOMList: id, name, boardCode, resultItem, importHeaders, importRows
+ * Route: id, specificationId, projectId, name, planningQuantity, isDefault
+ * RouteStep: id, routeId, operationId, workCenterId, operationName, stepOrder, isRequired
+ * Batch: id, routeId, specificationId, projectId, batchNumber, quantity, parentBatchId, status, createdAt, updatedAt
+ * OperationSlot: id, routeId, specificationId, projectId, batchId, workCenterId, routeStepId, operationName, quantity,
  * plannedStart, plannedEnd, actualStart, actualEnd, status, comment, createdAt, updatedAt
  */
 
