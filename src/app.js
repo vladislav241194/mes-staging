@@ -31,7 +31,7 @@ const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defau
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
 const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
-const APP_VERSION = "v.1.160";
+const APP_VERSION = "v.1.161";
 const UPDATE_CHECK_INTERVAL_MS = 10000;
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -9071,7 +9071,7 @@ function getPlanningRouteTransferSummary(route) {
 
 function getPlanningScheduleAnchorStart() {
   const now = snapDate(new Date(), getGanttSnapMs());
-  const windowStart = fromDateInput(ui.windowStart);
+  const windowStart = toDate(fromDateInput(ui.windowStart));
   return now > windowStart ? now : windowStart;
 }
 
@@ -9114,7 +9114,7 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
     return map;
   }, new Map()).entries()].map(([taskId, steps]) => {
     const orderedSteps = [...steps].sort((left, right) => Number(left.stepOrder || 0) - Number(right.stepOrder || 0));
-    let readyAt = anchorStart;
+    let readyAt = toDate(anchorStart);
     let foundMissing = false;
     const queue = [];
 
