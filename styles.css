@@ -19052,11 +19052,6 @@ main.planning-app-shell > .planner-workspace {
   padding: 10px !important;
 }
 
-/* Technology modules use the same left sidebar + workspace contract as other object modules. */
-.technology-placeholder-page.module-data-page {
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) !important;
-}
-
 /* Object modules use the same preview-first contract: sidebar list + vertical workspace blocks. */
 .bom-module-content,
 .nomenclature-module-content,
@@ -19070,61 +19065,6 @@ main.planning-app-shell > .planner-workspace {
 
 .module-preview-empty {
   min-height: 220px;
-}
-
-.technology-placeholder-page {
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) !important;
-}
-
-.technology-placeholder-page .module-data-workspace {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-}
-
-.technology-placeholder-content {
-  grid-template-columns: minmax(0, 1fr) !important;
-  grid-auto-rows: max-content;
-  align-items: start;
-}
-
-.technology-placeholder-hero {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  padding: 14px;
-}
-
-.technology-placeholder-icon {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border: 1px solid #d8e2ed;
-  border-radius: 12px;
-  background: #f7fbff;
-  color: #2563eb;
-}
-
-.technology-placeholder-icon svg {
-  width: 22px;
-  height: 22px;
-}
-
-.technology-placeholder-hero strong {
-  display: block;
-  color: #132033;
-  font-size: 15px;
-  line-height: 1.2;
-}
-
-.technology-placeholder-hero span {
-  display: block;
-  margin-top: 4px;
-  color: #5b6b7f;
-  font-size: 12px;
-  line-height: 1.45;
 }
 
 .update-ready-notice {

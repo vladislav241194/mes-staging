@@ -31,7 +31,7 @@ const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defau
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
 const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
 const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
-const APP_VERSION = "v.1.152";
+const APP_VERSION = "v.1.153";
 const UPDATE_CHECK_INTERVAL_MS = 10000;
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -197,10 +197,10 @@ const DEFAULT_COMPONENT_TYPES = [
 
 const DEFAULT_ROLES = [
   { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, admin", status: "Активен" },
-  { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "gantt, planning, operationMap, technologyCard, calculator, routes, bomLists, speki, nomenclature, directories", directories: "departments, resources, componentTypes, nomenclatureTypes, employees, equipment, workCenters, norms, statuses", permissions: "create, read, update, schedule, approve", status: "Активен" },
-  { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "operationMap, technologyCard, calculator, routes, bomLists, speki, nomenclature, directories", directories: "resources, componentTypes, nomenclatureTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
+  { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "gantt, planning, operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "departments, resources, componentTypes, nomenclatureTypes, employees, equipment, workCenters, norms, statuses", permissions: "create, read, update, schedule, approve", status: "Активен" },
+  { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "resources, componentTypes, nomenclatureTypes, equipment, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
   { id: "role-operator", name: "Оператор участка", code: "OPERATOR", accessLevel: 35, modules: "gantt, planning", directories: "resources, equipment, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
-  { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "gantt, operationMap, technologyCard, routes, bomLists, speki", directories: "statuses", permissions: "read", status: "Активен" },
+  { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "gantt, operationMap, routes, bomLists, speki", directories: "statuses", permissions: "read", status: "Активен" },
 ];
 
 const DEFAULT_RESOURCES = [
@@ -1492,7 +1492,6 @@ function normalizeRoleModuleList(row) {
   }
   if (modules.has("calculator") || modules.has("speki") || modules.has("routes")) {
     modules.add("operationMap");
-    modules.add("technologyCard");
     modules.add("routes");
   }
   if (roleAllowsValue(row.directories, "bomLists") || modules.has("speki")) {
@@ -1502,7 +1501,7 @@ function normalizeRoleModuleList(row) {
     modules.add("nomenclature");
   }
   modules.delete("tree");
-  const order = ["gantt", "planning", "operationMap", "technologyCard", "routes", "speki", "bomLists", "nomenclature", "directories", "calculator"];
+  const order = ["gantt", "planning", "operationMap", "routes", "speki", "bomLists", "nomenclature", "directories", "calculator"];
   return order.filter((moduleId) => modules.has(moduleId)).join(", ") || "gantt";
 }
 
@@ -2090,20 +2089,6 @@ function render() {
     return;
   }
 
-  if (ui.activeModule === "technologyCard") {
-    app.innerHTML = `
-      <main class="app-shell technology-placeholder-app-shell" data-layout="app-shell" data-layout-page="${escapeAttribute(ui.activeModule)}">
-        ${renderModuleMenu()}
-        ${renderAppTopbar()}
-        ${renderTechnologyPlaceholderPage(ui.activeModule)}
-        ${renderConfirmModal()}
-      </main>
-    `;
-    bindGlobalNavigation();
-    bindConfirmEvents();
-    return;
-  }
-
   if (ui.activeModule === "nomenclature") {
     app.innerHTML = `
       <main class="app-shell nomenclature-app-shell" data-layout="app-shell" data-layout-page="nomenclature">
@@ -2357,125 +2342,6 @@ function renderOperationMapEditor(operation, isNew, usageCount) {
           ${isNew ? "" : `<button class="secondary-button danger" data-operation-delete="${escapeAttribute(operation.id)}" type="button">${icon("trash")}<span>Удалить</span></button>`}
         </div>
       </form>
-    </section>
-  `;
-}
-
-function renderTechnologyPlaceholderPage(moduleId) {
-  const configs = {
-    operationMap: {
-      label: "Карта операций",
-      eyebrow: "Технологии",
-      iconName: "chart",
-      intro: "Здесь будет единый перечень типовых операций, которые затем можно использовать в технологических и маршрутных картах.",
-      metrics: [
-        { label: "Маршрутных операций", value: planningState.routeSteps.length, caption: "уже используются в маршрутах" },
-        { label: "Участков", value: planningState.workCenters.length, caption: "доступны для привязки" },
-        { label: "Нормативов", value: directoryState.norms.length, caption: "источник ограничений" },
-      ],
-      blocks: [
-        { title: "Библиотека операций", text: "Типовые операции, нормы времени, участок по умолчанию, признак обязательности и правила применения." },
-        { title: "Использование в маршрутах", text: "Связь операции с маршрутными картами и будущая проверка, где операция уже задействована." },
-      ],
-      sidebarItems: [
-        { title: "Библиотека операций", meta: "типовые операции" },
-        { title: "Привязки к участкам", meta: "нормы и ограничения" },
-        { title: "Использование", meta: "маршрутные карты" },
-      ],
-    },
-    technologyCard: {
-      label: "Технологическая карта",
-      eyebrow: "Технологии",
-      iconName: "tree",
-      intro: "Здесь будет технологическое описание изготовления спецификации до передачи в маршрутную карту и заказ на производство.",
-      metrics: [
-        { label: "Спецификаций", value: (directoryState.specifications || []).length, caption: "центральные объекты" },
-        { label: "BOM-листов", value: (directoryState.bomLists || []).length, caption: "источник состава плат" },
-        { label: "Маршрутных карт", value: planningState.routes.length, caption: "следующий этап" },
-      ],
-      blocks: [
-        { title: "Структура технологии", text: "Связка спецификации, состава, операций и требований до формирования маршрутной карты." },
-        { title: "Подготовка к маршруту", text: "Проверка полноты технологии перед тем, как передать ее в маршрутную карту." },
-      ],
-      sidebarItems: [
-        { title: "Структура технологии", meta: "состав и операции" },
-        { title: "Требования", meta: "условия производства" },
-        { title: "Готовность", meta: "передача в маршрут" },
-      ],
-    },
-  };
-  const config = configs[moduleId] || configs.operationMap;
-
-  return `
-    <section class="technology-placeholder-page module-data-page" data-layout="main-content" aria-label="${escapeAttribute(config.label)}">
-      <aside class="directory-sidebar module-data-sidebar technology-sidebar">
-        <div class="directory-sidebar-head">
-          <span class="eyebrow">${escapeHtml(config.eyebrow)}</span>
-          <h1>${escapeHtml(config.label)}</h1>
-        </div>
-        <div class="module-entity-list">
-          <div class="module-list-label">Разделы модуля</div>
-          ${config.sidebarItems.map((item, index) => `
-            <button class="module-entity-item ${index === 0 ? "is-active" : ""}" type="button">
-              <span>
-                <strong>${escapeHtml(item.title)}</strong>
-                <small>${escapeHtml(item.meta)}</small>
-              </span>
-              <em>${String(index + 1).padStart(2, "0")}</em>
-            </button>
-          `).join("")}
-        </div>
-      </aside>
-
-      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
-        <header class="directory-header">
-          <div>
-            <span class="eyebrow">${escapeHtml(config.eyebrow)}</span>
-            <h2>${escapeHtml(config.label)}</h2>
-            <p>${escapeHtml(config.intro)}</p>
-          </div>
-        </header>
-
-        <div class="module-data-content technology-placeholder-content">
-          <section class="module-panel technology-placeholder-hero">
-            <div class="technology-placeholder-icon">${icon(config.iconName)}</div>
-            <div>
-              <strong>${escapeHtml(config.label)}</strong>
-              <span>Модуль добавлен в начало группы «Технологии». Функциональное наполнение можно развивать отдельным шагом без изменения навигации.</span>
-            </div>
-          </section>
-
-          <section class="module-panel">
-            <div class="report-card-head">
-              <strong>Контекст модуля</strong>
-              <span>быстрые показатели системы</span>
-            </div>
-            <div class="module-kpi-grid route-kpi-grid">
-              ${config.metrics.map((metric) => `
-                <article>
-                  <span>${escapeHtml(metric.label)}</span>
-                  <strong>${Number(metric.value || 0).toLocaleString("ru-RU")}</strong>
-                  <small>${escapeHtml(metric.caption)}</small>
-                </article>
-              `).join("")}
-            </div>
-          </section>
-
-          ${config.blocks.map((block) => `
-            <section class="module-panel">
-              <div class="report-card-head">
-                <strong>${escapeHtml(block.title)}</strong>
-                <span>заготовка будущего блока</span>
-              </div>
-              ${renderModulePreviewEmpty({
-                iconName: config.iconName,
-                title: block.title.replace(/^\d+\s*·\s*/, ""),
-                text: block.text,
-              })}
-            </section>
-          `).join("")}
-        </div>
-      </div>
     </section>
   `;
 }
@@ -3272,7 +3138,6 @@ function getModuleDefinitions() {
     { id: "gantt", label: "Гант", icon: "gantt" },
     { id: "planning", label: "Заказ на пр-во", icon: "calendar" },
     { id: "operationMap", label: "Карта операций", icon: "chart" },
-    { id: "technologyCard", label: "Технологическая карта", icon: "tree" },
     { id: "speki", label: "Спецификации", icon: "book" },
     { id: "calculator", label: "Калькулятор", icon: "calculator" },
     { id: "routes", label: "Маршрутная карта", icon: "split" },
@@ -3285,7 +3150,7 @@ function getModuleDefinitions() {
 function getModuleGroups(modules) {
   const groupMap = [
     { label: "Производство", ids: ["gantt", "planning"] },
-    { label: "Технологии", ids: ["operationMap", "technologyCard", "routes", "speki", "bomLists", "nomenclature"] },
+    { label: "Технологии", ids: ["operationMap", "routes", "speki", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
     { label: "MVP", ids: ["calculator"] },
   ];
