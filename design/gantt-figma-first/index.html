@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Figma-first · MES Gantt</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="design-page">
+    <header class="brief-header">
+      <div>
+        <span class="eyebrow">Figma-first prototype</span>
+        <h1>Модуль Гант · MES Clean Industrial Enterprise UI</h1>
+        <p>Дизайн-эталон для последующего переноса в Figma или в рабочий интерфейс. Код приложения и бизнес-логика не изменяются.</p>
+      </div>
+      <div class="brief-tags">
+        <span>Desktop 1440x900</span>
+        <span>Laptop 1280x720</span>
+        <span>Mobile 390x844</span>
+      </div>
+    </header>
+
+    <section class="frame frame-desktop" aria-label="Desktop 1440 by 900" data-figma-frame="desktop-1440">
+      <div class="frame-label">Desktop · 1440x900</div>
+      <div class="app-shell">
+        <aside class="main-nav">
+          <div class="mark"><span>M</span></div>
+          <nav>
+            <button class="active">Гант</button>
+            <button>Планирование</button>
+            <button>Маршрутная карта</button>
+            <button>Спецификации</button>
+            <button>BOM-листы</button>
+            <button>Номенклатура</button>
+          </nav>
+          <div class="version">v.1.x</div>
+        </aside>
+
+        <section class="workspace">
+          <header class="page-topbar">
+            <div>
+              <span class="eyebrow">Производственный контур</span>
+              <h2>Гант маршрутных карт</h2>
+              <p>Маршрутная карта как производственное задание</p>
+            </div>
+            <div class="topbar-actions">
+              <button class="ghost">Сегодня</button>
+              <button class="ghost">Перестроить</button>
+              <button class="primary">Новое задание</button>
+            </div>
+          </header>
+
+          <div class="toolbar">
+            <label class="field small"><span>Период</span><strong>03.06.2026</strong></label>
+            <div class="segment-group"><button class="active">Часы</button><button>Дни</button><button>Недели</button></div>
+            <div class="zoom"><button>-</button><strong>150%</strong><button>+</button></div>
+            <div class="segment-group wide"><button class="active">Опер. + кол.</button><button>Операция</button><button>Кол-во</button><button>Партия</button></div>
+            <label class="search"><span>Поиск</span><strong>Плата отладки</strong></label>
+            <label class="field"><span>Статус</span><strong>Все статусы</strong></label>
+            <label class="field"><span>Подразделение</span><strong>Все подразделения</strong></label>
+          </div>
+
+          <section class="gantt-card">
+            <div class="gantt-head">
+              <div class="corner">Маршрутные карты и операции</div>
+              <div class="time-scale">
+                <span>08:00</span><span>09:00</span><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span><span>14:00</span><span>15:00</span><span>16:00</span>
+              </div>
+            </div>
+
+            <div class="gantt-body">
+              <div class="row route">
+                <div class="label route-label">
+                  <span class="chevron">⌄</span>
+                  <div><strong>МК-042 · Печатная плата для отладки</strong><small>Спецификация · 120 шт. · запас 4 д</small></div>
+                  <em>72%</em>
+                </div>
+                <div class="lane route-lane"><div class="summary-bar" style="left: 73%; width: 13%;">Склад · 120 шт.</div></div>
+              </div>
+
+              <div class="row operation">
+                <div class="label operation-label">
+                  <b>01</b>
+                  <div><strong>Комплектация компонентов</strong><small>Склад компонентов</small></div>
+                </div>
+                <div class="lane">
+                  <span class="off" style="left:0;width:7%;"></span>
+                  <div class="bar" style="left:9%; width:17%;">Комплектация · 120</div>
+                </div>
+              </div>
+
+              <div class="row operation">
+                <div class="label operation-label">
+                  <b>02</b>
+                  <div><strong>SMT-монтаж</strong><small>SMT-монтаж · линия Hanwha S2</small></div>
+                </div>
+                <div class="lane">
+                  <span class="off" style="left:0;width:7%;"></span>
+                  <span class="snap-grid"></span>
+                  <div class="bar active" style="left:27%; width:25%;">SMT-монтаж · 120</div>
+                </div>
+              </div>
+
+              <div class="row operation">
+                <div class="label operation-label">
+                  <b>03</b>
+                  <div><strong>AOI-контроль</strong><small>AOI-контроль</small></div>
+                </div>
+                <div class="lane">
+                  <span class="off" style="left:0;width:7%;"></span>
+                  <div class="bar" style="left:54%; width:14%;">AOI · 120</div>
+                </div>
+              </div>
+
+              <div class="row operation">
+                <div class="label operation-label">
+                  <b>04</b>
+                  <div><strong>Передача на склад</strong><small>Склад готовой продукции</small></div>
+                </div>
+                <div class="lane">
+                  <span class="off" style="left:0;width:7%;"></span>
+                  <div class="bar warehouse" style="left:70%; width:16%;">Склад · 120</div>
+                </div>
+              </div>
+
+              <svg class="deps" viewBox="0 0 820 238" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M214 76 H236 Q246 76 246 86 V112 Q246 122 256 122 H344" />
+                <path d="M520 122 H548 Q558 122 558 132 V158 Q558 168 568 168 H640" />
+                <path d="M686 168 H714 Q724 168 724 178 V204 Q724 214 734 214 H784" />
+              </svg>
+            </div>
+          </section>
+        </section>
+
+        <aside class="drawer">
+          <div class="drawer-head">
+            <span class="eyebrow">Карточка операции</span>
+            <h3>SMT-монтаж</h3>
+          </div>
+          <div class="drawer-status"><strong>Партия 1</strong><span>120 шт.</span><em>В работе</em></div>
+          <div class="metric-grid">
+            <article><span>План</span><strong>2ч 15м</strong></article>
+            <article><span>Подразделение</span><strong>SMT</strong></article>
+            <article><span>Шаг</span><strong>02/04</strong></article>
+            <article><span>Сигналы</span><strong>0</strong></article>
+          </div>
+          <dl>
+            <div><dt>Маршрут</dt><dd>МК-042</dd></div>
+            <div><dt>Начало</dt><dd>09:45</dd></div>
+            <div><dt>Окончание</dt><dd>12:00</dd></div>
+            <div><dt>Режим</dt><dd>2/2 · 08:00-20:00</dd></div>
+          </dl>
+          <div class="drawer-actions"><button class="primary">Изменить</button><button class="ghost">Окно</button><button class="ghost">Фиксация</button></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="frame frame-laptop" aria-label="Laptop 1280 by 720" data-figma-frame="laptop-1280">
+      <div class="frame-label">Laptop · 1280x720</div>
+      <div class="compact-app">
+        <header>
+          <div><span class="eyebrow">Гант</span><h2>Операции маршрутной карты</h2></div>
+          <button class="primary">Новое задание</button>
+        </header>
+        <div class="compact-toolbar">
+          <span>03.06.2026</span><span>Часы</span><span>150%</span><span>Опер. + кол.</span><span>Все подразделения</span>
+        </div>
+        <div class="compact-gantt">
+          <div class="compact-left">
+            <div class="route-title">МК-042 · Печатная плата для отладки</div>
+            <div>01 · Комплектация <small>Склад компонентов</small></div>
+            <div>02 · SMT-монтаж <small>SMT · Hanwha S2</small></div>
+            <div>03 · AOI-контроль <small>AOI</small></div>
+            <div>04 · Передача на склад <small>Склад ГП</small></div>
+          </div>
+          <div class="compact-grid">
+            <div class="time-line"><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span></div>
+            <div class="c-row"><i style="left:9%;width:18%">Комплектация · 120</i></div>
+            <div class="c-row"><i class="active" style="left:31%;width:30%">SMT-монтаж · 120</i></div>
+            <div class="c-row"><i style="left:64%;width:15%">AOI · 120</i></div>
+            <div class="c-row"><i class="warehouse" style="left:81%;width:14%">Склад</i></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame frame-mobile" aria-label="Mobile 390 by 844" data-figma-frame="mobile-390">
+      <div class="frame-label">Mobile · 390x844</div>
+      <div class="mobile-app">
+        <header><span class="eyebrow">Гант</span><h2>Маршрутные операции</h2><button>Сегодня</button></header>
+        <div class="mobile-filters"><span>Часы</span><span>150%</span><span>Все подразделения</span></div>
+        <article class="mobile-route">
+          <strong>МК-042 · Печатная плата для отладки</strong>
+          <small>120 шт. · 4 операции · запас 4 д</small>
+        </article>
+        <div class="mobile-ops">
+          <article><b>01</b><div><strong>Комплектация</strong><small>Склад компонентов</small><em style="width:44%;">120 шт.</em></div></article>
+          <article><b>02</b><div><strong>SMT-монтаж</strong><small>SMT · Hanwha S2</small><em class="active" style="width:72%;">SMT · 120</em></div></article>
+          <article><b>03</b><div><strong>AOI-контроль</strong><small>AOI</small><em style="width:38%;">AOI</em></div></article>
+          <article><b>04</b><div><strong>Передача на склад</strong><small>Склад ГП</small><em class="warehouse" style="width:51%;">Склад</em></div></article>
+        </div>
+        <aside class="mobile-drawer">
+          <span class="eyebrow">Выбрана операция</span>
+          <strong>SMT-монтаж</strong>
+          <div><span>Партия 1</span><span>120 шт.</span><span>09:45-12:00</span></div>
+          <button class="primary">Открыть карточку</button>
+        </aside>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

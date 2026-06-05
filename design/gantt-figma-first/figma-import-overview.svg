@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1800" viewBox="0 0 2200 1800">
+  <defs>
+    <style>
+      .frame { fill: #eef3f7; stroke: #c4ceda; stroke-width: 2; }
+      .surface { fill: #ffffff; stroke: #d9e0e8; stroke-width: 1.5; }
+      .muted { fill: #f6f8fb; stroke: #d9e0e8; stroke-width: 1.5; }
+      .text { fill: #18212f; font-family: Inter, Arial, sans-serif; font-size: 20px; font-weight: 700; }
+      .small { fill: #687487; font-family: Inter, Arial, sans-serif; font-size: 13px; font-weight: 600; }
+      .tiny { fill: #687487; font-family: Inter, Arial, sans-serif; font-size: 11px; font-weight: 600; }
+      .primary { fill: #235d9f; }
+      .bar { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 1.5; }
+      .active { fill: #dceafe; stroke: #3b82c4; stroke-width: 1.5; }
+      .warehouse { fill: #d9f7c4; stroke: #68a83d; stroke-width: 1.5; }
+      .off { fill: #94a3b8; opacity: 0.22; }
+      .dependency { fill: none; stroke: #475569; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.55; }
+    </style>
+  </defs>
+
+  <text x="40" y="52" class="text" font-size="30">Figma-first · Модуль Гант</text>
+  <text x="40" y="82" class="small">Маршрутная карта → операции маршрута → слоты операций во времени</text>
+
+  <g id="desktop-1440" transform="translate(40 130)">
+    <rect class="frame" width="1440" height="900" rx="24"/>
+    <text x="24" y="38" class="small">Desktop · 1440x900</text>
+    <rect class="surface" x="20" y="58" width="80" height="822" rx="14"/>
+    <rect class="surface" x="120" y="58" width="960" height="118" rx="14"/>
+    <rect class="surface" x="120" y="194" width="960" height="62" rx="14"/>
+    <rect class="surface" x="120" y="276" width="960" height="510" rx="14"/>
+    <rect class="surface" x="1100" y="58" width="320" height="822" rx="0"/>
+
+    <text x="144" y="103" class="text">Гант маршрутных карт</text>
+    <text x="144" y="130" class="small">Маршрутная карта как производственное задание</text>
+
+    <rect class="muted" x="144" y="211" width="118" height="38" rx="10"/>
+    <rect class="muted" x="274" y="211" width="150" height="38" rx="10"/>
+    <rect class="muted" x="436" y="211" width="112" height="38" rx="10"/>
+    <rect class="muted" x="560" y="211" width="270" height="38" rx="10"/>
+    <rect class="muted" x="842" y="211" width="188" height="38" rx="10"/>
+    <text x="158" y="235" class="small">Период</text>
+    <text x="292" y="235" class="small">Часы · Дни · Недели</text>
+    <text x="456" y="235" class="small">150%</text>
+    <text x="574" y="235" class="small">Опер. + кол. · Операция · Кол-во · Партия</text>
+    <text x="858" y="235" class="small">Все подразделения</text>
+
+    <rect class="muted" x="120" y="276" width="360" height="52" rx="14"/>
+    <text x="144" y="309" class="small">Маршрутные карты и операции</text>
+    <rect class="muted" x="480" y="276" width="600" height="52" rx="0"/>
+    <text x="506" y="309" class="small">08:00</text><text x="626" y="309" class="small">09:00</text><text x="746" y="309" class="small">10:00</text><text x="866" y="309" class="small">11:00</text><text x="986" y="309" class="small">12:00</text>
+
+    <rect class="surface" x="120" y="328" width="360" height="70"/>
+    <text x="152" y="358" class="text" font-size="17">МК-042 · Печатная плата</text>
+    <text x="152" y="379" class="small">Спецификация · 120 шт.</text>
+    <rect class="surface" x="480" y="328" width="600" height="70"/>
+    <rect class="warehouse" x="920" y="348" width="74" height="28" rx="8"/>
+    <text x="934" y="367" class="tiny">Склад</text>
+
+    <g transform="translate(120 398)">
+      <rect class="surface" width="360" height="58"/>
+      <text x="32" y="35" class="small">01 · Комплектация компонентов</text>
+      <rect class="surface" x="360" width="600" height="58"/>
+      <rect class="off" x="360" width="42" height="58"/>
+      <rect class="bar" x="414" y="14" width="102" height="30" rx="8"/>
+      <text x="426" y="34" class="tiny">Комплектация · 120</text>
+    </g>
+    <g transform="translate(120 456)">
+      <rect class="surface" width="360" height="58"/>
+      <text x="32" y="35" class="small">02 · SMT-монтаж</text>
+      <rect class="surface" x="360" width="600" height="58"/>
+      <rect class="off" x="360" width="42" height="58"/>
+      <rect class="active" x="545" y="14" width="150" height="30" rx="8"/>
+      <text x="558" y="34" class="tiny">SMT-монтаж · 120</text>
+    </g>
+    <g transform="translate(120 514)">
+      <rect class="surface" width="360" height="58"/>
+      <text x="32" y="35" class="small">03 · AOI-контроль</text>
+      <rect class="surface" x="360" width="600" height="58"/>
+      <rect class="off" x="360" width="42" height="58"/>
+      <rect class="bar" x="724" y="14" width="84" height="30" rx="8"/>
+      <text x="736" y="34" class="tiny">AOI · 120</text>
+    </g>
+    <g transform="translate(120 572)">
+      <rect class="surface" width="360" height="58"/>
+      <text x="32" y="35" class="small">04 · Передача на склад</text>
+      <rect class="surface" x="360" width="600" height="58"/>
+      <rect class="off" x="360" width="42" height="58"/>
+      <rect class="warehouse" x="830" y="14" width="95" height="30" rx="8"/>
+      <text x="844" y="34" class="tiny">Склад · 120</text>
+    </g>
+
+    <path class="dependency" d="M516 427 H540 Q550 427 550 437 V471 Q550 481 560 481 H545"/>
+    <path class="dependency" d="M695 485 H718 Q728 485 728 495 V529 Q728 539 738 539 H724"/>
+    <path class="dependency" d="M808 543 H826 Q836 543 836 553 V587 Q836 597 846 597 H830"/>
+
+    <text x="1130" y="103" class="small">Карточка операции</text>
+    <text x="1130" y="134" class="text" font-size="24">SMT-монтаж</text>
+    <rect class="active" x="1130" y="164" width="260" height="62" rx="14"/>
+    <text x="1148" y="190" class="small">Партия 1 · 120 шт.</text>
+    <text x="1148" y="210" class="tiny">В работе</text>
+    <rect class="muted" x="1130" y="246" width="122" height="74" rx="12"/>
+    <rect class="muted" x="1268" y="246" width="122" height="74" rx="12"/>
+    <rect class="muted" x="1130" y="334" width="122" height="74" rx="12"/>
+    <rect class="muted" x="1268" y="334" width="122" height="74" rx="12"/>
+    <text x="1144" y="278" class="tiny">План</text><text x="1144" y="300" class="small">2ч 15м</text>
+    <text x="1282" y="278" class="tiny">Подразделение</text><text x="1282" y="300" class="small">SMT</text>
+  </g>
+
+  <g id="laptop-1280" transform="translate(40 1060)">
+    <rect class="frame" width="1280" height="720" rx="24"/>
+    <text x="24" y="38" class="small">Laptop · 1280x720</text>
+    <rect class="surface" x="24" y="62" width="1232" height="86" rx="14"/>
+    <text x="48" y="108" class="text">Операции маршрутной карты</text>
+    <rect class="muted" x="24" y="166" width="1232" height="48" rx="14"/>
+    <rect class="surface" x="24" y="232" width="340" height="420" rx="14"/>
+    <rect class="surface" x="364" y="232" width="892" height="420" rx="14"/>
+    <text x="48" y="276" class="small">МК-042 · Печатная плата</text>
+    <text x="48" y="334" class="small">01 · Комплектация</text>
+    <text x="48" y="392" class="small">02 · SMT-монтаж</text>
+    <text x="48" y="450" class="small">03 · AOI-контроль</text>
+    <text x="48" y="508" class="small">04 · Передача на склад</text>
+    <rect class="bar" x="464" y="314" width="150" height="30" rx="8"/>
+    <rect class="active" x="642" y="372" width="240" height="30" rx="8"/>
+    <rect class="bar" x="922" y="430" width="126" height="30" rx="8"/>
+    <rect class="warehouse" x="1080" y="488" width="116" height="30" rx="8"/>
+  </g>
+
+  <g id="mobile-390" transform="translate(1530 130)">
+    <rect class="frame" width="390" height="844" rx="24"/>
+    <text x="18" y="38" class="small">Mobile · 390x844</text>
+    <rect class="surface" x="16" y="60" width="358" height="92" rx="16"/>
+    <text x="34" y="104" class="text">Маршрутные операции</text>
+    <rect class="muted" x="16" y="166" width="358" height="44" rx="14"/>
+    <rect class="surface" x="16" y="226" width="358" height="82" rx="16"/>
+    <text x="34" y="258" class="small">МК-042 · Печатная плата</text>
+    <text x="34" y="282" class="tiny">120 шт. · 4 операции · запас 4 д</text>
+    <g transform="translate(16 326)">
+      <rect class="surface" width="358" height="86" rx="16"/>
+      <text x="20" y="36" class="small">01 · Комплектация</text>
+      <rect class="bar" x="120" y="50" width="120" height="24" rx="7"/>
+      <rect class="surface" y="98" width="358" height="86" rx="16"/>
+      <text x="20" y="134" class="small">02 · SMT-монтаж</text>
+      <rect class="active" x="120" y="148" width="210" height="24" rx="7"/>
+      <rect class="surface" y="196" width="358" height="86" rx="16"/>
+      <text x="20" y="232" class="small">03 · AOI-контроль</text>
+      <rect class="bar" x="120" y="246" width="112" height="24" rx="7"/>
+      <rect class="surface" y="294" width="358" height="86" rx="16"/>
+      <text x="20" y="330" class="small">04 · Передача на склад</text>
+      <rect class="warehouse" x="120" y="344" width="152" height="24" rx="7"/>
+    </g>
+    <rect class="active" x="16" y="732" width="358" height="96" rx="16"/>
+    <text x="34" y="766" class="small">Выбрана операция: SMT-монтаж</text>
+    <text x="34" y="794" class="tiny">Партия 1 · 120 шт. · 09:45-12:00</text>
+  </g>
+</svg>

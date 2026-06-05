@@ -1,4 +1,4 @@
-import { createDefaultPlanningState, createProductionBundle, routeTemplateOptions } from "./data.js";
+import { createDefaultPlanningState, createProductionBundle } from "./data.js";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUSES, SLOT_STATUSES, STATUS_LABELS } from "./types.js";
 import {
   addMs,
@@ -23,36 +23,47 @@ import {
   getProjectRouteSteps,
   getSlotWarnings,
 } from "./validation.js";
+import {
+  MES_LEGACY_WORK_CENTER_ID_MAP,
+  MES_LEGACY_WORK_CENTER_NAME_MAP,
+  MES_OBSOLETE_RESOURCE_IDS,
+  MES_OBSOLETE_WORK_CENTER_IDS,
+  MES_OPERATION_MAP,
+  MES_ORG_STRUCTURE_VERSION,
+  MES_PRODUCTION_RESOURCES,
+  MES_SMT_WORK_CENTER_IDS,
+  MES_WORK_CENTERS,
+} from "./mes_org_model.js";
 
 const STORAGE_KEY = "mes-planning-prototype-state-v2";
 const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defaults-restored-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
-const AUTH_STORAGE_KEY = "mes-planning-prototype-auth-v1";
 const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
-const APP_VERSION = "v.1.161";
+const APP_VERSION = "v.1.208";
 const UPDATE_CHECK_INTERVAL_MS = 10000;
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
 const DIRECTORY_BACKUP_STORAGE_KEY = "mes-planning-prototype-directories-backup-v1";
 const DIRECTORY_DELETED_ENTITIES_STORAGE_KEY = "mes-planning-prototype-directories-deleted-entities-v1";
+const WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY = "mes-planning-prototype-work-center-operations-seeded-v2";
 const STORAGE_KEYS = [
   STORAGE_KEY,
   UI_STORAGE_KEY,
   DIRECTORY_STORAGE_KEY,
   DIRECTORY_DEFAULTS_STORAGE_KEY,
   CALCULATOR_STORAGE_KEY,
-  AUTH_STORAGE_KEY,
   UPDATE_DISMISSED_STORAGE_KEY,
   DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
+  WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
 ];
 const CRITICAL_DIRECTORY_SECTION_IDS = ["bomLists", "specifications"];
 const LEFT_WIDTH = 360;
 const TIMELINE_HEIGHT = 48;
 const GANTT_SNAP_MS = 15 * 60 * 1000;
-const TIMELINE_LOAD_CHUNK = { hours: 24, days: 14, weeks: 6 };
-const TIMELINE_MAX_COUNT = { hours: 240, days: 120, weeks: 52 };
+const TIMELINE_LOAD_CHUNK = { hours: 48, days: 30, weeks: 12 };
+const TIMELINE_MAX_COUNT = { hours: 2880, days: 540, weeks: 156 };
 const PROJECT_ROW_HEIGHT = 82;
 const WORK_ROW_HEIGHT = 58;
 const WEEK_SLOT_HEIGHT = 18;
@@ -76,19 +87,24 @@ const GANTT_SLOT_CONTENT_MODES = [
   { id: "batchStep", label: "Партия и шаг", shortLabel: "Партия" },
 ];
 const WORK_CENTER_RATES = {
-  smt: 55,
-  aoi: 110,
-  wash: 150,
-  manual: 25,
-  test: 35,
-  coating: 80,
-  mechanic: 45,
-  assembly: 30,
-  warehouse: 300,
+  D1: 300,
+  D3_L1: 55,
+  D3_L2: 50,
+  D3_AOI: 110,
+  D3_UW: 150,
+  D3_MANUAL_CC: 80,
+  D3_CC: 80,
+  D4: 35,
+  D5: 25,
+  D6: 35,
+  D9: 45,
+  D11: 120,
 };
 const OBSOLETE_DIRECTORY_ROW_IDS = {
   departments: new Set(["dep-pdo", "dep-pcb", "dep-eng"]),
-  equipment: new Set(["eq-yamaha", "eq-koh"]),
+  resources: MES_OBSOLETE_RESOURCE_IDS,
+  productionResources: MES_OBSOLETE_RESOURCE_IDS,
+  equipment: new Set(["eq-yamaha", "eq-koh", ...MES_OBSOLETE_RESOURCE_IDS]),
 };
 const EMPLOYEE_DEPARTMENT_MIGRATION = {
   "ПДО": "Отдел программной подготовки изделий",
@@ -103,65 +119,46 @@ const UNIT_TYPE_LABELS = {
   service: "Сервисное",
 };
 const PRODUCTION_RESOURCE_TYPE_LABELS = {
+  aggregate: "Агрегированный производственный ресурс",
   line: "Производственная линия",
   machine: "Станок",
   workplace: "Рабочее место",
   post: "Пост",
   equipment: "Оборудование",
+  staff: "Исполнители",
   tool: "Оснастка",
   normative: "Норматив подразделения",
 };
 const PRODUCTION_RESOURCE_TYPE_CODES = {
+  aggregate: "Агр.",
   line: "Лин.",
   machine: "Ст.",
   workplace: "РМ",
   post: "Пост",
   equipment: "Обор.",
+  staff: "Исп.",
   tool: "Осн.",
   normative: "Норм.",
 };
-const WORK_SHIFT_OPTIONS = [
-  { value: "5/2 08:00-20:00", label: "5/2 · 08:00-20:00" },
-  { value: "2/2 08:00-20:00", label: "2/2 · 08:00-20:00" },
-  { value: "2/2 20:00-08:00", label: "2/2 · 20:00-08:00" },
-  { value: "6/1 08:00-20:00", label: "6/1 · 08:00-20:00" },
+const WORK_SCHEDULE_OPTIONS = [
+  { value: "5/2", label: "5/2" },
+  { value: "6/1", label: "6/1" },
+  { value: "2/2", label: "2/2" },
   { value: "24/7", label: "24/7" },
 ];
+const WORK_MODE_OPTIONS = [
+  { value: "08:00-20:00", label: "08:00-20:00" },
+  { value: "20:00-08:00", label: "20:00-08:00" },
+  { value: "00:00-24:00", label: "00:00-24:00" },
+];
 const LEGACY_DEPARTMENT_TO_WORK_CENTER_ID = {
-  "SMT отдел": "smt",
-  "STM отдел": "smt",
-  "ОТК / AOI-контроль": "aoi",
-  "Отмывка": "wash",
-  "THT отдел": "manual",
-  "ОТК / Испытания": "test",
-  "Отдел ручной лакировки": "coating",
-  "Отдел селективной лакировки": "coating",
-  "Слесарный отдел": "mechanic",
-  "Сборочный отдел": "assembly",
-  "Склад компонентов": "warehouse",
-  "Склад готовой продукции": "warehouse",
-  "Слесарный участок": "mechanic",
+  ...MES_LEGACY_WORK_CENTER_NAME_MAP,
 };
 const LEGACY_WORK_CENTER_NAME_MIGRATION = {
-  "Слесарный участок": "Слесарное подразделение",
+  "Слесарный участок": "Слесарно-сборочный отдел",
 };
 
-const DEFAULT_DEPARTMENTS = [
-  { id: "dep-planning", name: "Производственное планирование", code: "PLAN", owner: "Анна Морозова", status: "Активен" },
-  { id: "dep-smt", name: "SMT отдел", code: "SMT", owner: "Павел Ким", status: "Активен" },
-  { id: "dep-aoi-qc", name: "ОТК / AOI-контроль", code: "QA-AOI", owner: "Мария Волкова", status: "Активен" },
-  { id: "dep-wash", name: "Отмывка", code: "WASH", owner: "Дмитрий Орлов", status: "Активен" },
-  { id: "dep-tht", name: "THT отдел", code: "THT", owner: "Игорь Семенов", status: "Активен" },
-  { id: "dep-test", name: "ОТК / Испытания", code: "TEST", owner: "Мария Волкова", status: "Активен" },
-  { id: "dep-manual-coating", name: "Отдел ручной лакировки", code: "COAT-M", owner: "Мария Волкова", status: "Активен" },
-  { id: "dep-selective-coating", name: "Отдел селективной лакировки", code: "COAT-S", owner: "Игорь Семенов", status: "Активен" },
-  { id: "dep-mechanic", name: "Слесарный отдел", code: "MECH", owner: "Дмитрий Орлов", status: "Активен" },
-  { id: "dep-assembly", name: "Сборочный отдел", code: "ASM", owner: "", status: "Активен" },
-  { id: "dep-programming", name: "Отдел программной подготовки изделий", code: "PROG", owner: "Анна Морозова", status: "Активен" },
-  { id: "dep-procurement", name: "Закупки и снабжение", code: "PROC", owner: "", status: "Активен" },
-  { id: "dep-component-warehouse", name: "Склад компонентов", code: "WH-C", owner: "", status: "Активен" },
-  { id: "dep-finished-warehouse", name: "Склад готовой продукции", code: "WH-FG", owner: "", status: "Активен" },
-];
+const DEFAULT_DEPARTMENTS = [];
 
 const app = document.querySelector("#app");
 
@@ -170,10 +167,10 @@ function renderFatalStartupError(error) {
   const message = error?.message || String(error || "Неизвестная ошибка");
   const stack = error?.stack || "";
   app.innerHTML = `
-    <main class="auth-shell" aria-label="Ошибка запуска MES">
-      <section class="auth-card">
-        <div class="auth-logo-row">
-          <span class="auth-logo">M</span>
+    <main class="startup-error-shell" aria-label="Ошибка запуска MES">
+      <section class="startup-error-card">
+        <div class="startup-error-logo-row">
+          <span class="startup-error-logo">M</span>
           <div>
             <strong>MES</strong>
             <small>${escapeHtml(APP_VERSION)}</small>
@@ -204,11 +201,15 @@ const defaultUiState = {
   spekiCheckedSpecificationId: "",
   spekiStaleItemIds: [],
   spekiCollapsedBomIds: [],
+  activeRkdStep: "kit",
   activeBomId: "",
   activeNomenclatureId: "",
   activeOperationId: "",
   nomenclatureTypeFilter: "all",
   activeRouteId: "",
+  activeShopMapWidgetId: "",
+  shopMapEditMode: false,
+  shopMapWidgetLayouts: {},
   calculatorStep: "inputs",
   confirmDialog: null,
   directoryEditor: null,
@@ -220,6 +221,7 @@ const defaultUiState = {
   workCenterFilter: "all",
   rowMode: "route",
   autoCascade: true,
+  hideSharedNonWorkingZones: false,
   ganttZoom: 1,
   ganttSlotContent: "operationQuantity",
   timelineCounts: { hours: scaleConfig.hours.count, days: scaleConfig.days.count, weeks: scaleConfig.weeks.count },
@@ -277,67 +279,49 @@ const DEFAULT_COMPONENT_TYPES = [
   { id: "ct-connector", name: "Разъем / крупный корпус", package: "Connector", family: "Крупные", coefficient: 4.6, placementsPerHour: 4200, setupSeconds: 40, defaultCount: 3, status: "Активен" },
 ];
 
-const DEFAULT_ROLES = [
-  { id: "role-admin", name: "Администратор системы", code: "ADMIN", accessLevel: 100, modules: "*", directories: "*", permissions: "create, read, update, delete, approve, reset, admin", status: "Активен" },
-  { id: "role-planner", name: "Планировщик производства", code: "PLANNER", accessLevel: 70, modules: "gantt, planning, operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "workCenters, productionResources, componentTypes, nomenclatureTypes, employees, norms, statuses", permissions: "create, read, update, schedule, approve", status: "Активен" },
-  { id: "role-engineer", name: "Инженер-технолог", code: "ENGINEER", accessLevel: 55, modules: "operationMap, calculator, routes, bomLists, speki, nomenclature, directories", directories: "productionResources, componentTypes, nomenclatureTypes, workCenters, norms", permissions: "read, update, calculate", status: "Активен" },
-  { id: "role-operator", name: "Оператор производства", code: "OPERATOR", accessLevel: 35, modules: "gantt, planning", directories: "productionResources, workCenters, statuses", permissions: "read, execute, comment", status: "Активен" },
-  { id: "role-viewer", name: "Наблюдатель", code: "VIEWER", accessLevel: 10, modules: "gantt, operationMap, routes, bomLists, speki", directories: "statuses", permissions: "read", status: "Активен" },
-];
-
-const DEFAULT_RESOURCES = [
-  { id: "res-smt-1", name: "Линия SMT-1 · Hanwha S2/L2", type: "Линия", workCenter: "SMT-монтаж", capacity: "1 партия / смена", baseCph: 32000, efficiency: 88, changeoverMin: 18, status: "Доступен" },
-  { id: "res-smt-2", name: "Линия SMT-2 · Hanwha S2", type: "Линия", workCenter: "SMT-монтаж", capacity: "1 партия / смена", baseCph: 28000, efficiency: 82, changeoverMin: 24, status: "Загружен" },
-  { id: "res-aoi-offline", name: "Офлайн АОИ · Athena 10MP", type: "Инспектор", workCenter: "AOI-контроль", capacity: "2 партии / смена", baseCph: 0, efficiency: 92, changeoverMin: 8, status: "Доступен" },
-  { id: "res-test", name: "Стенд функционального теста", type: "Стенд", workCenter: "Тестирование", capacity: "3 изделия / час", baseCph: 0, efficiency: 90, changeoverMin: 10, status: "Доступен" },
-  { id: "res-manual-a", name: "Пост ручного монтажа A", type: "Рабочее место", workCenter: "Ручной монтаж", capacity: "2 оператора", baseCph: 0, efficiency: 80, changeoverMin: 5, status: "Доступен" },
-];
+const DEFAULT_RESOURCES = [];
 
 const DEFAULT_BOM_LISTS = [];
 const DEFAULT_SPECIFICATIONS = [];
 
-const DEFAULT_EMPLOYEES = [
-  { id: "emp-morozova", name: "Анна Морозова", roleId: "role-admin", role: "Планировщик", department: "Отдел программной подготовки изделий", shift: "День", password: "", status: "На смене" },
-  { id: "emp-semenov", name: "Игорь Семенов", roleId: "role-planner", role: "Мастер THT", department: "THT отдел", shift: "День", password: "", status: "На смене" },
-  { id: "emp-volkova", name: "Мария Волкова", roleId: "role-engineer", role: "Инженер ОТК", department: "ОТК / Испытания", shift: "День", password: "", status: "Доступна" },
-  { id: "emp-kim", name: "Павел Ким", roleId: "role-operator", role: "Оператор SMT", department: "SMT отдел", shift: "Ночь", password: "", status: "Резерв" },
-];
-
-const DEFAULT_EQUIPMENT = [
-  { id: "eq-smt1-loader", name: "Загрузчик LDC 460XL", inventory: "SMT1-01", workCenter: "SMT-1", maintenance: "12.06.2026", status: "Работает" },
-  { id: "eq-smt1-inspect-conveyor", name: "Конвейер инспекционный CYB 460XL-600", inventory: "SMT1-02", workCenter: "SMT-1", maintenance: "12.06.2026", status: "Работает" },
-  { id: "eq-smt1-hanwha-s2", name: "Установщик Hanwha S2", inventory: "SMT1-03", workCenter: "SMT-1", maintenance: "15.06.2026", status: "Работает" },
-  { id: "eq-smt1-hanwha-l2", name: "Установщик Hanwha L2", inventory: "SMT1-04", workCenter: "SMT-1", maintenance: "15.06.2026", status: "Работает" },
-  { id: "eq-smt1-conveyor", name: "Конвейер CYB 460XL-600", inventory: "SMT1-05", workCenter: "SMT-1", maintenance: "12.06.2026", status: "Работает" },
-  { id: "eq-smt1-oven", name: "Печь JTR-800", inventory: "SMT1-06", workCenter: "SMT-1", maintenance: "18.06.2026", status: "Работает" },
-  { id: "eq-smt2-manual-feed", name: "Стол ручной подачи ПП", inventory: "SMT2-01", workCenter: "SMT-2", maintenance: "12.06.2026", status: "Работает" },
-  { id: "eq-smt2-conveyor", name: "Конвейер CYB 460XL-600", inventory: "SMT2-02", workCenter: "SMT-2", maintenance: "12.06.2026", status: "Работает" },
-  { id: "eq-smt2-hanwha-s2", name: "Установщик Hanwha S2", inventory: "SMT2-03", workCenter: "SMT-2", maintenance: "16.06.2026", status: "Работает" },
-  { id: "eq-smt2-oven", name: "Печь NoName", inventory: "SMT2-04", workCenter: "SMT-2", maintenance: "18.06.2026", status: "Проверка" },
-  { id: "eq-smt2-aoi", name: "АОИ QUICK A300T", inventory: "SMT2-05", workCenter: "SMT-2", maintenance: "18.06.2026", status: "Работает" },
-  { id: "eq-aoi-athena", name: "Линейная система АОИ 3D Athena 10MP", inventory: "AOI-OFF-01", workCenter: "Офлайн АОИ", maintenance: "20.06.2026", status: "Работает" },
-  { id: "eq-cleaner", name: "Aqueous Cleaner 600", inventory: "EQ-021", workCenter: "Отмывка", maintenance: "05.06.2026", status: "Проверка" },
-  { id: "eq-ict", name: "ICT-стенд T-900", inventory: "EQ-033", workCenter: "Тестирование", maintenance: "24.06.2026", status: "Работает" },
-  { id: "eq-warehouse", name: "Зона приемки склада", inventory: "EQ-WH-01", workCenter: "Склад", maintenance: "01.07.2026", status: "Работает" },
-];
+const DEFAULT_EQUIPMENT = [];
 
 const DEFAULT_NORMS = [
   { id: "norm-day", name: "Рабочая смена дневная", value: "08:00-20:00", scope: "Все подразделения", status: "Активен" },
   { id: "norm-night", name: "Рабочая смена ночная", value: "20:00-08:00", scope: "SMT / Тестирование", status: "Активен" },
   { id: "norm-buffer", name: "Буфер между операциями", value: "30 минут", scope: "Маршрутная карта", status: "Активен" },
-  { id: "norm-capacity", name: "Емкость подразделения", value: "1 операция одновременно", scope: "Заказ на пр-во", status: "Активен" },
+  { id: "norm-capacity", name: "Емкость подразделения", value: "1 операция одновременно", scope: "Планирование", status: "Активен" },
 ];
 
+// Business terminology after the 2026-06 rename:
+// - directoryState.specifications stores "Состав изделия".
+// - directoryState.bomLists stores board/component "Спецификация".
+// Technical keys stay unchanged to preserve existing localStorage data.
+const PRODUCT_COMPOSITION_TERM = "Состав изделия";
+const PRODUCT_COMPOSITION_TERM_LOWER = "состав изделия";
+const PRODUCT_COMPOSITION_LIST_TERM = "Состав изделия";
+const BOARD_SPEC_TERM = "Спецификация";
+const BOARD_SPEC_TERM_LOWER = "спецификация";
+const BOARD_SPEC_LIST_TERM = "Спецификации";
+
 const DEFAULT_STATUSES = [
-  ...PROJECT_STATUSES.map((status) => ({ id: `project-${status}`, name: PROJECT_STATUS_LABELS[status], type: "Спецификация", code: status, usage: "Карточка спецификации" })),
+  ...PROJECT_STATUSES.map((status) => ({ id: `project-${status}`, name: PROJECT_STATUS_LABELS[status], type: PRODUCT_COMPOSITION_TERM, code: status, usage: `Карточка: ${PRODUCT_COMPOSITION_TERM_LOWER}` })),
   ...SLOT_STATUSES.map((status) => ({ id: `slot-${status}`, name: STATUS_LABELS[status], type: "Операция", code: status, usage: "Слот Ганта" })),
-];
-const OPERATION_TYPE_OPTIONS = [
-  { value: "production", label: "Производственная", meta: "изготовление или обработка" },
-  { value: "warehouse", label: "Складская", meta: "приемка, выдача, отгрузка" },
-  { value: "quality", label: "Контроль", meta: "проверка, испытания, AOI" },
-  { value: "preparation", label: "Подготовительная", meta: "комплектация, наладка" },
-  { value: "service", label: "Сервисная", meta: "вспомогательная работа" },
+  { id: "route-scheduled", name: "Запланирован", type: "Маршрут / партия", code: "scheduled", usage: "Маршрутная карта перенесена в Гант" },
+  { id: "route-canceled", name: "Отменен", type: "Маршрут / партия", code: "canceled", usage: "Отмена производственного заказа и связанной партии" },
+  { id: "directory-active-ru", name: "Активен", type: "Справочник", code: "Активен", usage: "Подразделения, операции, типы компонентов, номенклатура, нормативы" },
+  { id: "directory-disabled-ru", name: "Отключен", type: "Справочник", code: "Отключен", usage: "Исключение ресурса или строки справочника из активного использования" },
+  { id: "work-center-active", name: "Активен", type: "Подразделение", code: "active", usage: "Внутренний код активности подразделения" },
+  { id: "work-center-inactive", name: "Отключен", type: "Подразделение", code: "inactive", usage: "Внутренний код отключенного подразделения или ресурса" },
+  { id: "participation-yes", name: "Да", type: "Признак участия", code: "yes", usage: "Подразделение или ресурс участвует в планировании/расчёте" },
+  { id: "participation-no", name: "Нет", type: "Признак участия", code: "no", usage: "Подразделение или ресурс исключён из планирования/расчёта" },
+  { id: "resource-available", name: "Доступен", type: "Производственный ресурс", code: "Доступен", usage: "Линии, посты, стенды и оборудование доступны для планирования" },
+  { id: "resource-loaded", name: "Загружен", type: "Производственный ресурс", code: "Загружен", usage: "Ресурс уже занят или имеет высокую загрузку" },
+  { id: "equipment-working", name: "Работает", type: "Оборудование", code: "Работает", usage: "Оборудование в составе производственного ресурса исправно" },
+  { id: "equipment-check", name: "Проверка", type: "Оборудование", code: "Проверка", usage: "Оборудование или проверка данных требует внимания" },
+  { id: "resource-normative", name: "Норматив", type: "Производственный ресурс", code: "Норматив", usage: "Расчётный ресурс подразделения, созданный из норматива мощности" },
+  { id: "document-draft", name: "Черновик", type: "Технологические данные", code: "Черновик", usage: "Состав изделия, спецификация или BOM-лист ещё не утверждены" },
+  { id: "document-ready", name: "Готова", type: "Технологические данные", code: "Готова", usage: "Импортированная спецификация или связанная запись готова к использованию" },
 ];
 const BOM_IMPORT_COLUMN_COUNT = 9;
 const MAIN_ROUTE_TASK_ID = "__main__";
@@ -370,41 +354,43 @@ const BOM_IMPORT_FALLBACK_HEADERS = [
   "Примечание",
   "Поле I",
 ];
-
-const SYSTEM_AUTH_ROLE = {
-  id: "system-admin",
-  name: "Служебный администратор",
-  code: "SYSTEM",
-  accessLevel: 100,
-  modules: "*",
-  directories: "*",
-  permissions: "create, read, update, delete, approve, reset, admin",
-  status: "Активен",
+const SHOP_FLOOR_PLAN_ASSET = "./assets/production-floor-plan.svg";
+const SHOP_FLOOR_PLAN_META = {
+  title: "План производственной зоны",
+  source: "SVG",
+  viewBox: "1500 x 1080",
 };
-
-const SYSTEM_AUTH_EMPLOYEE = {
-  id: "system-admin",
-  name: "Администратор",
-  roleId: SYSTEM_AUTH_ROLE.id,
-  role: "Служебный вход",
-  department: "Система",
-  shift: "-",
-  password: "",
-  status: "На смене",
-};
+const SHOP_FLOOR_WIDGET_LAYOUTS = [
+  { match: "smt", x: 58, y: 67, tone: "blue" },
+  { match: "aoi", x: 39, y: 64, tone: "cyan" },
+  { match: "wash", x: 24, y: 42, tone: "green" },
+  { match: "manual", x: 67, y: 43, tone: "amber" },
+  { match: "test", x: 74, y: 55, tone: "violet" },
+  { match: "coating", x: 81, y: 33, tone: "green" },
+  { match: "mechanic", x: 28, y: 69, tone: "slate" },
+  { match: "assembly", x: 52, y: 49, tone: "violet" },
+  { match: "warehouse", x: 88, y: 72, tone: "green" },
+];
+const SHOP_MAP_COORDINATE_MIN = 2;
+const SHOP_MAP_COORDINATE_MAX = 98;
 
 let directoryEntityRemovalAllowed = false;
 let planningEntityRemovalAllowed = false;
 let directoryState = null;
 let planningState = loadState();
 directoryState = loadDirectoryState();
+applyMesOrgStructureDefaults();
+ensureStatusDirectoryDefaults();
 migrateDepartmentsToUnifiedWorkCenters();
 migrateProjectEntityToSpecifications();
 migrateSpecificationBomRowsToNomenclature();
 syncNomenclatureTypesFromItems({ persist: true });
+migrateLegacyOperationsToDirectory();
+ensureWorkCenterOperations();
 let calculatorState = loadCalculatorState();
 let ui = loadUiState();
-let authState = loadAuthState();
+let shopMapLayoutDraft = null;
+let shopMapLayoutDirty = false;
 let updateCheckTimer = null;
 let updateNoticeVersion = "";
 let saveFeedbackTimer = null;
@@ -413,12 +399,11 @@ let pendingSaveFeedback = null;
 
 const directorySections = [
   { id: "workCenters", label: "Подразделения", description: "Единый справочник оргподразделений, производственных зон и складов", count: () => planningState.workCenters.length },
-  { id: "roles", label: "Роли", description: "Гибкая настройка доступа к модулям и справочникам", count: () => directoryState.roles.length },
   { id: "productionResources", label: "Производственные ресурсы", description: "Линии, станки, посты и оборудование", count: () => getProductionResources({ includeInactive: true }).length },
+  { id: "operations", label: "Операции", description: "Операции с привязкой к подразделениям", count: () => getOperationMapRows().length },
   { id: "componentTypes", label: "Типы компонентов", description: "Корпуса, коэффициенты и скорости установки", count: () => directoryState.componentTypes.length },
   { id: "nomenclatureTypes", label: "Типы номенклатуры", description: "Разделы, которые используются в модуле номенклатуры", count: () => directoryState.nomenclatureTypes.length },
-  { id: "employees", label: "Сотрудники", description: "Планировщики, мастера, операторы", count: () => directoryState.employees.length },
-  { id: "statuses", label: "Статусы", description: "Состояния спецификаций и операций", count: () => directoryState.statuses.length },
+  { id: "statuses", label: "Статусы", description: "Единый перечень статусов планирования, ресурсов, оборудования и справочников", count: () => directoryState.statuses.length },
   { id: "norms", label: "Нормативы", description: "Смены, длительности и ограничения", count: () => directoryState.norms.length },
 ];
 
@@ -430,13 +415,13 @@ const directorySectionGroups = [
   },
   {
     label: "Система",
-    description: "пользователи, права, статусы",
-    ids: ["employees", "roles", "statuses"],
+    description: "статусы и системные настройки",
+    ids: ["statuses"],
   },
   {
     label: "Технологии",
-    description: "типы для BOM, SMT и номенклатуры",
-    ids: ["componentTypes", "nomenclatureTypes"],
+    description: "операции, спецификации, SMT и номенклатура",
+    ids: ["operations", "componentTypes", "nomenclatureTypes"],
   },
 ];
 
@@ -497,16 +482,17 @@ function backupLocalStateBeforeReset() {
 function createDefaultDirectoryState() {
   return {
     departments: DEFAULT_DEPARTMENTS,
-    roles: DEFAULT_ROLES,
     productionResources: buildDefaultProductionResources(),
     resources: DEFAULT_RESOURCES,
-    operationMap: [],
+    operationMap: MES_OPERATION_MAP,
     nomenclatureTypes: DEFAULT_NOMENCLATURE_TYPES,
     nomenclature: [],
     bomLists: DEFAULT_BOM_LISTS,
     specifications: DEFAULT_SPECIFICATIONS,
     componentTypes: DEFAULT_COMPONENT_TYPES,
-    employees: DEFAULT_EMPLOYEES,
+    // Legacy compatibility bucket only. Employees are no longer an active
+    // planning directory and should not be auto-seeded.
+    employees: [],
     equipment: DEFAULT_EQUIPMENT,
     norms: DEFAULT_NORMS,
     statuses: DEFAULT_STATUSES,
@@ -957,6 +943,19 @@ function loadDirectoryState() {
   }
 }
 
+function ensureStatusDirectoryDefaults() {
+  if (!directoryState) return;
+  const rows = Array.isArray(directoryState.statuses) ? directoryState.statuses : [];
+  const existingIds = new Set(rows.map((row) => row?.id).filter(Boolean));
+  const missingRows = DEFAULT_STATUSES.filter((row) => row?.id && !existingIds.has(row.id));
+  if (!missingRows.length) return;
+  directoryState.statuses = [
+    ...rows,
+    ...missingRows.map((row) => normalizeDirectoryRow("statuses", row)),
+  ];
+  persistDirectoryState();
+}
+
 function persistDirectoryState() {
   const previousRaw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
   const previousState = parseDirectoryStateSnapshot(previousRaw);
@@ -971,7 +970,9 @@ function persistDirectoryState() {
 function resolveProductionResourceType(value = "") {
   const text = normalizeLookupText(value);
   if (Object.keys(PRODUCTION_RESOURCE_TYPE_LABELS).includes(text)) return text;
+  if (text.includes("агрег")) return "aggregate";
   if (text.includes("линия")) return "line";
+  if (text.includes("исполн") || text.includes("сотруд") || text.includes("персон")) return "staff";
   if (text.includes("стан") || text.includes("установ") || text.includes("печ")) return "machine";
   if (text.includes("рабоч") || text.includes("мест")) return "workplace";
   if (text.includes("пост") || text.includes("стенд") || text.includes("инспектор")) return "post";
@@ -980,14 +981,32 @@ function resolveProductionResourceType(value = "") {
   return "equipment";
 }
 
+function mapLegacyWorkCenterId(workCenterId = "") {
+  const id = String(workCenterId || "").trim();
+  if (!id) return "";
+  if (MES_LEGACY_WORK_CENTER_ID_MAP[id]) return MES_LEGACY_WORK_CENTER_ID_MAP[id];
+  if (MES_WORK_CENTERS.some((center) => center.id === id)) return id;
+  return resolveWorkCenterIdFromName(id) || id;
+}
+
+function isWarehouseWorkCenterId(workCenterId = "") {
+  return mapLegacyWorkCenterId(workCenterId) === "D1";
+}
+
 function resolveWorkCenterIdFromName(value = "") {
   const normalized = normalizeLookupText(value);
   if (!normalized) return "";
   const direct = getWorkCenter(value);
   if (direct) return direct.id;
+  const mappedById = MES_LEGACY_WORK_CENTER_ID_MAP[String(value || "")];
+  if (mappedById) return mappedById;
+  const mappedByName = Object.entries(MES_LEGACY_WORK_CENTER_NAME_MAP)
+    .find(([name]) => normalizeLookupText(name) === normalized)?.[1];
+  if (mappedByName) return mappedByName;
   const lineNumber = getSmtLineNumberFromText(value);
-  if (lineNumber) return "smt";
-  if (normalized.includes("офлайн") && (normalized.includes("аои") || normalized.includes("aoi"))) return "aoi";
+  if (lineNumber === "1") return "D3_L1";
+  if (lineNumber === "2") return "D3_L2";
+  if (normalized.includes("офлайн") && (normalized.includes("аои") || normalized.includes("aoi"))) return "D3_AOI";
   const exact = (getRuntimePlanningState()?.workCenters || []).find((center) => (
     normalizeLookupText(center.id) === normalized
     || normalizeLookupText(center.name) === normalized
@@ -995,15 +1014,17 @@ function resolveWorkCenterIdFromName(value = "") {
     || (center.legacyDepartmentNames || []).some((name) => normalizeLookupText(name) === normalized)
   ));
   if (exact) return exact.id;
-  if (normalized.includes("smt") || normalized.includes("смт")) return "smt";
-  if (normalized.includes("aoi") || normalized.includes("аои") || normalized.includes("отк")) return "aoi";
-  if (normalized.includes("отмыв")) return "wash";
-  if (normalized.includes("руч") || normalized.includes("tht")) return "manual";
-  if (normalized.includes("тест") || normalized.includes("испыт")) return "test";
-  if (normalized.includes("лак")) return "coating";
-  if (normalized.includes("слесар") || normalized.includes("механ")) return "mechanic";
-  if (normalized.includes("сбор")) return "assembly";
-  if (normalized.includes("склад")) return "warehouse";
+  if (normalized.includes("smt") || normalized.includes("смт") || normalized.includes("поверхност")) return "D3_L1";
+  if (normalized.includes("aoi") || normalized.includes("аои")) return "D3_AOI";
+  if (normalized.includes("отмыв")) return "D3_UW";
+  if (normalized.includes("руч") || normalized.includes("tht") || normalized.includes("вывод")) return "D5";
+  if (normalized.includes("испыт") || normalized.includes("контрол") || normalized.includes("отк")) return "D4";
+  if (normalized.includes("селектив") || normalized.includes("влагозащ")) return "D3_CC";
+  if (normalized.includes("лак")) return "D3_MANUAL_CC";
+  if (normalized.includes("программ") || normalized.includes("прошив")) return "D6";
+  if (normalized.includes("слесар") || normalized.includes("механ") || normalized.includes("сбор")) return "D9";
+  if (normalized.includes("маркиров") || normalized.includes("упаков")) return "D11";
+  if (normalized.includes("склад")) return "D1";
   return "";
 }
 
@@ -1012,7 +1033,7 @@ function getProductionResourceWorkCenterId(resource = {}) {
 }
 
 function normalizeProductionResource(row = {}) {
-  const workCenterId = getProductionResourceWorkCenterId(row) || "manual";
+  const workCenterId = getProductionResourceWorkCenterId(row) || "D5";
   const center = getWorkCenter(workCenterId);
   const type = resolveProductionResourceType(row.type || row.resourceType || row.kind || "");
   const isLegacyEquipment = row.sourceKind === "equipment";
@@ -1087,18 +1108,183 @@ function dedupeProductionResources(rows = []) {
   return result;
 }
 
+function mapLegacyResourceId(resourceId = "") {
+  const id = String(resourceId || "").trim();
+  if (!id) return "";
+  const directMap = {
+    "res-smt-1": "D3_L1",
+    "smt-line-1": "D3_L1",
+    "res-smt-2": "D3_L2",
+    "smt-line-2": "D3_L2",
+    "res-aoi-offline": "D3_AOI_E1",
+    "res-manual-a": "D5_STAFF",
+    "res-test": "D4_STAFF",
+    "eq-smt1-hanwha-s2": "D3_L1_E2",
+    "eq-smt1-hanwha-l2": "D3_L1_E3",
+    "eq-smt1-oven": "D3_L1_E4",
+    "eq-smt2-hanwha-s2": "D3_L2_E2",
+    "eq-smt2-oven": "D3_L2_E4",
+    "eq-smt2-aoi": "D3_AOI_E1",
+    "eq-aoi-athena": "D3_AOI_E1",
+    "eq-cleaner": "D3_UW_E3",
+    "eq-ict": "D4_STAFF",
+    "eq-warehouse": "D1_STAFF",
+  };
+  return directMap[id] || id;
+}
+
+function isLegacyGeneratedOperation(operation = {}) {
+  const id = String(operation.id || "");
+  if (id.startsWith("op-default-")) return true;
+  if (id.startsWith("op-") && MES_OBSOLETE_WORK_CENTER_IDS.has(operation.workCenterId)) return true;
+  return false;
+}
+
+function findMesOperationReplacement(source = {}) {
+  const mappedWorkCenterId = mapLegacyWorkCenterId(source.workCenterId || source.departmentName || source.workCenter || "");
+  const normalizedName = normalizeLookupText(source.operationName || source.name || "");
+  const byId = MES_OPERATION_MAP.find((operation) => operation.id === source.operationId || operation.id === source.id);
+  if (byId) return byId;
+  const exact = MES_OPERATION_MAP.find((operation) => (
+    operation.workCenterId === mappedWorkCenterId
+    && normalizeLookupText(operation.name) === normalizedName
+  ));
+  if (exact) return exact;
+  if (mappedWorkCenterId === "D1" || normalizedName.includes("склад") || normalizedName.includes("готов")) return MES_OPERATION_MAP.find((operation) => operation.id === "D1_OP2");
+  if (MES_SMT_WORK_CENTER_IDS.includes(mappedWorkCenterId) || normalizedName.includes("smt") || normalizedName.includes("смт")) {
+    return MES_OPERATION_MAP.find((operation) => operation.workCenterId === (mappedWorkCenterId === "D3_L2" ? "D3_L2" : "D3_L1"));
+  }
+  if (mappedWorkCenterId === "D3_AOI" || normalizedName.includes("aoi") || normalizedName.includes("аои")) return MES_OPERATION_MAP.find((operation) => operation.id === "D3_AOI_OP");
+  if (mappedWorkCenterId === "D3_UW" || normalizedName.includes("отмыв")) return MES_OPERATION_MAP.find((operation) => operation.id === "D3_UW_OP");
+  if (mappedWorkCenterId === "D5" || normalizedName.includes("руч") || normalizedName.includes("tht") || normalizedName.includes("пайк")) return MES_OPERATION_MAP.find((operation) => operation.id === "D5_OP1");
+  if (mappedWorkCenterId === "D4" || normalizedName.includes("контрол") || normalizedName.includes("тест")) return MES_OPERATION_MAP.find((operation) => operation.id === "D4_OP2");
+  if (mappedWorkCenterId === "D3_CC" || normalizedName.includes("влагозащ") || normalizedName.includes("селектив")) return MES_OPERATION_MAP.find((operation) => operation.id === "D3_CC_OP");
+  if (mappedWorkCenterId === "D3_MANUAL_CC" || normalizedName.includes("лакир")) return MES_OPERATION_MAP.find((operation) => operation.id === "D3_MANUAL_CC_OP");
+  if (mappedWorkCenterId === "D6" || normalizedName.includes("прошив")) return MES_OPERATION_MAP.find((operation) => operation.id === "D6_OP1");
+  if (mappedWorkCenterId === "D9" || normalizedName.includes("слесар") || normalizedName.includes("сбор")) return MES_OPERATION_MAP.find((operation) => operation.id === "D9_OP1");
+  if (mappedWorkCenterId === "D11" || normalizedName.includes("маркир")) return MES_OPERATION_MAP.find((operation) => operation.id === "D11_OP1");
+  if (mappedWorkCenterId === "D11" || normalizedName.includes("упаков")) return MES_OPERATION_MAP.find((operation) => operation.id === "D11_OP2");
+  return null;
+}
+
+function mergeMesProductionResources(rows = []) {
+  const mesIds = new Set(MES_PRODUCTION_RESOURCES.map((resource) => resource.id));
+  const normalizedDefaults = MES_PRODUCTION_RESOURCES.map((resource) => normalizeProductionResource(resource));
+  const customRows = (Array.isArray(rows) ? rows : [])
+    .filter((resource) => resource?.id && !MES_OBSOLETE_RESOURCE_IDS.has(resource.id) && !mesIds.has(resource.id))
+    .map((resource) => normalizeProductionResource({
+      ...resource,
+      workCenterId: mapLegacyWorkCenterId(resource.workCenterId || resource.workCenter),
+      parentResourceId: mapLegacyResourceId(resource.parentResourceId || ""),
+    }));
+  return dedupeProductionResources([...normalizedDefaults, ...customRows]);
+}
+
+function mergeMesOperationMap(rows = []) {
+  const mesIds = new Set(MES_OPERATION_MAP.map((operation) => operation.id));
+  const normalizedDefaults = MES_OPERATION_MAP.map((operation) => normalizeDirectoryRow("operations", operation));
+  const customRows = (Array.isArray(rows) ? rows : [])
+    .filter((operation) => operation?.id && !mesIds.has(operation.id) && !isLegacyGeneratedOperation(operation))
+    .map((operation) => {
+      const replacement = findMesOperationReplacement(operation);
+      if (replacement) return null;
+      return normalizeDirectoryRow("operations", {
+        ...operation,
+        workCenterId: mapLegacyWorkCenterId(operation.workCenterId),
+      });
+    })
+    .filter(Boolean);
+  return [...normalizedDefaults, ...customRows];
+}
+
+function normalizeMesRouteEntity(entity = {}) {
+  const replacementOperation = findMesOperationReplacement(entity);
+  const nextWorkCenterId = mapLegacyWorkCenterId(replacementOperation?.workCenterId || entity.workCenterId || "");
+  return {
+    ...entity,
+    operationId: replacementOperation?.id || entity.operationId || "",
+    operationName: replacementOperation?.name || entity.operationName || entity.name || "",
+    workCenterId: nextWorkCenterId || entity.workCenterId || "",
+    resourceId: mapLegacyResourceId(entity.resourceId || ""),
+    unitsPerHour: replacementOperation?.unitsPerHour || entity.unitsPerHour || getWorkCenterUnitsPerHour(nextWorkCenterId) || 0,
+    requiresBatch: replacementOperation?.requiresBatch ?? entity.requiresBatch,
+    isWarehouseOperation: replacementOperation?.isWarehouse ?? entity.isWarehouseOperation,
+  };
+}
+
+function applyMesOrgStructureDefaults() {
+  let planningChanged = false;
+  let directoryChanged = false;
+
+  const previousWorkCenters = JSON.stringify(planningState.workCenters || []);
+  planningState.workCenters = mergeMesWorkCenters(planningState.workCenters);
+  planningChanged = planningChanged || previousWorkCenters !== JSON.stringify(planningState.workCenters || []);
+
+  const nextRouteSteps = (planningState.routeSteps || []).map((step) => normalizeRouteStepCalculationFields(normalizeMesRouteEntity(step), planningState));
+  if (JSON.stringify(nextRouteSteps) !== JSON.stringify(planningState.routeSteps || [])) {
+    planningState.routeSteps = nextRouteSteps;
+    planningChanged = true;
+  }
+
+  const routeStepById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
+  const nextSlots = (planningState.slots || []).map((slot) => {
+    const step = routeStepById.get(slot.routeStepId);
+    return recalculateSlotEndByQuantity({
+      ...slot,
+      workCenterId: mapLegacyWorkCenterId(step?.workCenterId || slot.workCenterId),
+      routeStepId: slot.routeStepId,
+      operationName: step?.operationName || slot.operationName || "",
+      operationId: step?.operationId || slot.operationId || "",
+      resourceId: mapLegacyResourceId(step?.resourceId || slot.resourceId || ""),
+      unitsPerHour: step?.unitsPerHour || slot.unitsPerHour || 0,
+      calculationType: step?.calculationType || slot.calculationType || "",
+      secondsPerPanel: step?.secondsPerPanel || slot.secondsPerPanel || 0,
+      setupMin: step?.setupMin || slot.setupMin || 0,
+      updatedAt: new Date().toISOString(),
+    }, planningState);
+  });
+  if (JSON.stringify(nextSlots) !== JSON.stringify(planningState.slots || [])) {
+    planningState.slots = nextSlots;
+    planningChanged = true;
+  }
+
+  const nextProductionResources = mergeMesProductionResources(directoryState.productionResources);
+  if (JSON.stringify(nextProductionResources) !== JSON.stringify(directoryState.productionResources || [])) {
+    directoryState.productionResources = nextProductionResources;
+    directoryChanged = true;
+  }
+
+  const nextOperationMap = mergeMesOperationMap(directoryState.operationMap);
+  if (JSON.stringify(nextOperationMap) !== JSON.stringify(directoryState.operationMap || [])) {
+    directoryState.operationMap = nextOperationMap;
+    directoryChanged = true;
+  }
+
+  if ((directoryState.resources || []).length || (directoryState.equipment || []).length || (directoryState.departments || []).length) {
+    directoryState.resources = [];
+    directoryState.equipment = [];
+    directoryState.departments = [];
+    directoryChanged = true;
+  }
+
+  if (planningChanged) {
+    planningState = normalizePlanningState(planningState);
+    persistState();
+  }
+  if (directoryChanged) {
+    directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+    persistDirectoryState();
+  }
+}
+
 function buildDefaultProductionResources() {
-  const migratedResources = DEFAULT_RESOURCES.map((row) => migrateLegacyResourceRow(row));
-  const migratedEquipment = DEFAULT_EQUIPMENT.map((row) => migrateLegacyEquipmentRow(row, migratedResources));
-  return dedupeProductionResources([...migratedResources, ...migratedEquipment]);
+  return dedupeProductionResources(MES_PRODUCTION_RESOURCES);
 }
 
 function getProductionResourceSourceRows(state = {}, fallbackRows = []) {
   const currentRows = Array.isArray(state?.productionResources) ? state.productionResources : [];
-  const migratedResources = (Array.isArray(state?.resources) ? state.resources : []).map((row) => migrateLegacyResourceRow(row));
-  const migratedEquipment = (Array.isArray(state?.equipment) ? state.equipment : []).map((row) => migrateLegacyEquipmentRow(row, [...currentRows, ...migratedResources]));
   const source = currentRows.length ? currentRows : fallbackRows;
-  return dedupeProductionResources([...source, ...migratedResources, ...migratedEquipment]);
+  return dedupeProductionResources(source);
 }
 
 function getProductionResources({ includeInactive = false } = {}) {
@@ -1137,7 +1323,7 @@ function makeFallbackProductionResource(workCenterId) {
     workCenterId: center.id,
     workCenter: center.name,
     capacity: `${Number(center.unitsPerHour || getWorkCenterUnitsPerHour(center.id)).toLocaleString("ru-RU")} изд./час`,
-    baseCph: center.id === "smt" ? DEFAULT_RESOURCE_CPH : 0,
+    baseCph: MES_SMT_WORK_CENTER_IDS.includes(center.id) ? DEFAULT_RESOURCE_CPH : 0,
     efficiency: 100,
     changeoverMin: 0,
     participatesInPlanning: "yes",
@@ -1163,13 +1349,49 @@ function isPlanningWorkCenter(center) {
 function getPlanningWorkCenters({ includeWarehouse = true } = {}) {
   return (planningState.workCenters || [])
     .filter((center) => isPlanningWorkCenter(center))
-    .filter((center) => includeWarehouse || center.id !== "warehouse");
+    .filter((center) => includeWarehouse || !isWarehouseWorkCenterId(center.id));
+}
+
+function normalizeWorkSchedule(value, fallback = "5/2") {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return fallback || "";
+  if (text.includes("24/7") || text.includes("7/0")) return "24/7";
+  if (text.includes("6/1")) return "6/1";
+  if (text.includes("2/2")) return "2/2";
+  if (text.includes("5/2")) return "5/2";
+  return fallback || "";
+}
+
+function normalizeWorkMode(value, fallback = "08:00-20:00") {
+  const match = String(value || "").trim().match(/(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/);
+  if (!match) return fallback || "";
+  const startHour = Math.max(0, Math.min(23, Number(match[1])));
+  const startMinute = Math.max(0, Math.min(59, Number(match[2])));
+  const endHour = Math.max(0, Math.min(24, Number(match[3])));
+  const endMinute = Math.max(0, Math.min(59, Number(match[4])));
+  return `${String(startHour).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}-${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
+}
+
+function getDefaultWorkMode(workSchedule, isWarehouse = false) {
+  if (workSchedule === "24/7" || isWarehouse) return "00:00-24:00";
+  return "08:00-20:00";
+}
+
+function formatWorkShift(workSchedule, workMode) {
+  if (!workSchedule) return "";
+  return `${workSchedule}${workMode ? ` ${workMode}` : ""}`.trim();
+}
+
+function getWorkCalendarLabel(workCenter = {}) {
+  const schedule = normalizeWorkSchedule(workCenter.workSchedule || workCenter.shift, isWarehouseWorkCenterId(workCenter.id) ? "24/7" : "5/2");
+  const mode = normalizeWorkMode(workCenter.workMode || workCenter.shift, getDefaultWorkMode(schedule, isWarehouseWorkCenterId(workCenter.id) || workCenter.unitType === "warehouse"));
+  return formatWorkShift(schedule, mode) || "график не задан";
 }
 
 function normalizeWorkCenterUnit(center = {}) {
   const migratedName = LEGACY_WORK_CENTER_NAME_MIGRATION[center.name] || center.name;
   const unitType = normalizeUnitType(center.unitType, center);
-  const isWarehouse = center.id === "warehouse" || unitType === "warehouse";
+  const isWarehouse = isWarehouseWorkCenterId(center.id) || unitType === "warehouse";
   const isAdministrative = unitType === "administrative";
   const isPlanningUnit = center.isPlanningUnit === undefined
     ? !isAdministrative
@@ -1181,6 +1403,9 @@ function normalizeWorkCenterUnit(center = {}) {
   const capacity = isPlanningUnit
     ? Math.max(1, Number(center.capacity || 1))
     : Math.max(0, Number(center.capacity || 0));
+  const defaultSchedule = isPlanningUnit ? (isWarehouse ? "24/7" : "5/2") : "";
+  const workSchedule = normalizeWorkSchedule(center.workSchedule || center.shift, defaultSchedule);
+  const workMode = normalizeWorkMode(center.workMode || center.shift, isPlanningUnit ? getDefaultWorkMode(workSchedule, isWarehouse) : "");
 
   return {
     ...center,
@@ -1191,7 +1416,9 @@ function normalizeWorkCenterUnit(center = {}) {
     showInGantt,
     unitsPerHour,
     capacity,
-    shift: center.shift || (isWarehouse ? "24/7" : isPlanningUnit ? "5/2 08:00-20:00" : ""),
+    workSchedule,
+    workMode,
+    shift: formatWorkShift(workSchedule, workMode),
     isActive: center.isActive !== false,
   };
 }
@@ -1286,6 +1513,8 @@ function migrateDepartmentsToUnifiedWorkCenters() {
       showInGantt: false,
       unitsPerHour: 0,
       capacity: 0,
+      workSchedule: "",
+      workMode: "",
       shift: "",
       description: "Мигрировано из прежнего справочника подразделений.",
       isActive: department.status !== "Отключен",
@@ -1349,7 +1578,7 @@ function migrateProjectEntityToSpecifications() {
       specificationId = uniqueId;
       nextSpecifications.push({
         id: specificationId,
-        name: project.name || `Спецификация ${project.orderNumber || project.id}`,
+        name: project.name || `Состав изделия ${project.orderNumber || project.id}`,
         outputItem: project.name || "",
         bomListA: "",
         bomQtyA: 0,
@@ -1492,24 +1721,6 @@ function persistCalculatorState() {
   localStorage.setItem(CALCULATOR_STORAGE_KEY, JSON.stringify(calculatorState));
 }
 
-function loadAuthState() {
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return { employeeId: "", loggedInAt: "" };
-    const parsed = JSON.parse(raw);
-    return {
-      employeeId: String(parsed?.employeeId || ""),
-      loggedInAt: String(parsed?.loggedInAt || ""),
-    };
-  } catch {
-    return { employeeId: "", loggedInAt: "" };
-  }
-}
-
-function persistAuthState() {
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
-}
-
 function notifySaveSuccess(message = "Сохранено") {
   pendingSaveFeedback = {
     message: String(message || "Сохранено"),
@@ -1594,7 +1805,6 @@ function setSaveButtonDisabled(button, disabled) {
 
 function bindGlobalFormDirtyTracking() {
   app.querySelectorAll("form").forEach((form) => {
-    if (form.id === "authForm") return;
     const saveButtons = [...form.querySelectorAll('button[type="submit"], input[type="submit"]')];
     if (!saveButtons.length) return;
     form.dataset.initialSaveSignature = getFormSignature(form);
@@ -1696,6 +1906,9 @@ function loadUiState() {
       selectedDirectoryRows: parsed.selectedDirectoryRows || {},
       spekiStaleItemIds: Array.isArray(parsed.spekiStaleItemIds) ? parsed.spekiStaleItemIds : [],
       spekiCollapsedBomIds: Array.isArray(parsed.spekiCollapsedBomIds) ? parsed.spekiCollapsedBomIds : [],
+      activeRkdStep: normalizeRkdStepId(parsed.activeRkdStep),
+      shopMapEditMode: Boolean(parsed.shopMapEditMode),
+      shopMapWidgetLayouts: normalizeShopMapLayoutStore(parsed.shopMapWidgetLayouts),
       directoryEditor: null,
       confirmDialog: null,
       selectedSlotId: null,
@@ -1709,6 +1922,7 @@ function loadUiState() {
       },
       ganttZoom: normalizeGanttZoom(parsed.ganttZoom),
       ganttSlotContent: normalizeGanttSlotContent(parsed.ganttSlotContent),
+      hideSharedNonWorkingZones: Boolean(parsed.hideSharedNonWorkingZones),
       now: new Date(),
     };
   } catch {
@@ -1732,10 +1946,14 @@ function persistUiState() {
       spekiCheckedSpecificationId: ui.spekiCheckedSpecificationId,
       spekiStaleItemIds: ui.spekiStaleItemIds,
       spekiCollapsedBomIds: ui.spekiCollapsedBomIds,
+      activeRkdStep: ui.activeRkdStep,
       activeBomId: ui.activeBomId,
       activeNomenclatureId: ui.activeNomenclatureId,
       activeOperationId: ui.activeOperationId,
       activeRouteId: ui.activeRouteId,
+      activeShopMapWidgetId: ui.activeShopMapWidgetId,
+      shopMapEditMode: ui.shopMapEditMode,
+      shopMapWidgetLayouts: ui.shopMapWidgetLayouts,
       calculatorStep: ui.calculatorStep,
       selectedDirectoryRows: ui.selectedDirectoryRows,
     scale: ui.scale,
@@ -1745,6 +1963,7 @@ function persistUiState() {
     workCenterFilter: ui.workCenterFilter,
     rowMode: ui.rowMode,
     autoCascade: ui.autoCascade,
+    hideSharedNonWorkingZones: ui.hideSharedNonWorkingZones,
     ganttZoom: ui.ganttZoom,
     ganttSlotContent: ui.ganttSlotContent,
     timelineCounts: ui.timelineCounts,
@@ -1752,6 +1971,10 @@ function persistUiState() {
     scrollLeft: ui.scrollLeft,
     scrollTop: ui.scrollTop,
   }));
+}
+
+function persistAuthState() {
+  // Auth is not active in the standalone prototype, but the unload hook is shared.
 }
 
 function normalizeDirectoryState(state, options = {}) {
@@ -1822,22 +2045,21 @@ function normalizeDirectoryRow(sectionId, row) {
     };
   }
 
-  if (sectionId === "operationMap") {
-    const type = OPERATION_TYPE_OPTIONS.some((item) => item.value === row.type)
-      ? row.type
-      : row.isWarehouse
-        ? "warehouse"
-        : "production";
-    const fallbackCenterId = type === "warehouse" ? "warehouse" : planningState?.workCenters?.find((center) => center.id !== "warehouse")?.id || "smt";
+  if (sectionId === "operationMap" || sectionId === "operations") {
+    const { type: _legacyType, operationType: _legacyOperationType, ...rowWithoutType } = row || {};
+    const legacyWarehouse = _legacyType === "warehouse" || Boolean(row.isWarehouse);
+    const fallbackCenterId = legacyWarehouse ? "D1" : planningState?.workCenters?.find((center) => center.id !== "D1" && center.isPlanningUnit !== false)?.id || "D5";
+    const mappedWorkCenterId = mapLegacyWorkCenterId(row.workCenterId || fallbackCenterId);
+    const workCenterId = String(mappedWorkCenterId || fallbackCenterId);
+    const isWarehouse = workCenterId === "D1" || legacyWarehouse;
     return {
-      ...row,
+      ...rowWithoutType,
       name: String(row.name || row.operationName || "").trim(),
       code: String(row.code || "").trim(),
-      type,
-      workCenterId: String(row.workCenterId || fallbackCenterId),
+      workCenterId,
       unitsPerHour: Math.max(0, Math.round(Number(row.unitsPerHour || row.rate || 0) * 10) / 10),
-      requiresBatch: row.requiresBatch === undefined ? type !== "warehouse" : Boolean(row.requiresBatch),
-      isWarehouse: type === "warehouse" || Boolean(row.isWarehouse),
+      requiresBatch: row.requiresBatch === undefined ? !isWarehouse : Boolean(row.requiresBatch),
+      isWarehouse,
       status: String(row.status || "Активен").trim(),
       updatedAt: row.updatedAt || "",
     };
@@ -1878,82 +2100,18 @@ function normalizeDirectoryRow(sectionId, row) {
   }
 
   if (sectionId === "employees") {
-    let migratedDepartment = EMPLOYEE_DEPARTMENT_MIGRATION[row.department] || row.department || "SMT отдел";
+    let migratedDepartment = EMPLOYEE_DEPARTMENT_MIGRATION[row.department] || row.department || "Отдел поверхностного монтажа";
     if (row.department === "Производство") {
-      migratedDepartment = String(row.role || "").toLowerCase().includes("smt") ? "SMT отдел" : "THT отдел";
+      migratedDepartment = String(row.role || "").toLowerCase().includes("smt") ? "Отдел поверхностного монтажа" : "Отдел ручного монтажа";
     }
     return {
       ...row,
       department: migratedDepartment,
-      roleId: row.roleId || "role-viewer",
       password: row.password ?? "",
     };
   }
 
-  if (sectionId === "roles") {
-    return {
-      ...row,
-      accessLevel: Math.max(0, Math.min(100, Number(row.accessLevel || 0))),
-      modules: normalizeRoleModuleList(row),
-      directories: normalizeRoleDirectoryList(row.directories || "statuses"),
-      permissions: row.permissions || "read",
-      status: row.status || "Активен",
-    };
-  }
-
   return row;
-}
-
-function normalizeRoleModuleList(row) {
-  const rawModules = String(row.modules || "gantt").trim();
-  if (rawModules === "*") return "*";
-  const modules = parseAccessList(rawModules);
-  if (modules.has("dashboard")) {
-    modules.delete("dashboard");
-  }
-  modules.delete("reports");
-  modules.delete("debug");
-  if (modules.has("planning")) {
-    modules.add("gantt");
-  }
-  if (roleAllowsValue(row.directories, "specifications")) {
-    modules.add("speki");
-  }
-  if (modules.has("specifications")) {
-    modules.delete("specifications");
-    modules.add("speki");
-  }
-  if (modules.has("calculator") || modules.has("speki") || modules.has("routes")) {
-    modules.add("operationMap");
-    modules.add("routes");
-  }
-  if (roleAllowsValue(row.directories, "bomLists") || modules.has("speki")) {
-    modules.add("bomLists");
-  }
-  if (modules.has("bomLists") || modules.has("calculator")) {
-    modules.add("nomenclature");
-  }
-  modules.delete("tree");
-  const order = ["gantt", "planning", "operationMap", "routes", "speki", "bomLists", "nomenclature", "directories", "calculator"];
-  return order.filter((moduleId) => modules.has(moduleId)).join(", ") || "gantt";
-}
-
-function normalizeRoleDirectoryList(value) {
-  const rawDirectories = String(value || "statuses").trim();
-  if (rawDirectories === "*") return "*";
-  const directories = parseAccessList(rawDirectories);
-  if (directories.has("departments")) {
-    directories.delete("departments");
-    directories.add("workCenters");
-  }
-  if (directories.has("resources") || directories.has("equipment")) {
-    directories.delete("resources");
-    directories.delete("equipment");
-    directories.add("productionResources");
-  }
-  ["projects", "specifications", "bomLists", "routes"].forEach((sectionId) => directories.delete(sectionId));
-  const order = ["workCenters", "productionResources", "norms", "employees", "roles", "statuses", "componentTypes", "nomenclatureTypes"];
-  return order.filter((sectionId) => directories.has(sectionId)).join(", ") || "statuses";
 }
 
 function shouldKeepDirectoryRow(sectionId, row) {
@@ -1970,6 +2128,25 @@ function isBlankDirectoryRow(row) {
   return meaningfulValues.every((value) => !value);
 }
 
+function mergeMesWorkCenters(rows = []) {
+  const existingById = new Map((Array.isArray(rows) ? rows : [])
+    .filter((center) => center?.id && !MES_OBSOLETE_WORK_CENTER_IDS.has(center.id))
+    .map((center) => [center.id, center]));
+  const merged = MES_WORK_CENTERS.map((center) => normalizeWorkCenterUnit({
+    ...center,
+    ...(existingById.get(center.id) || {}),
+    id: center.id,
+    name: center.name,
+    code: center.code,
+    parentWorkCenterId: center.parentWorkCenterId || "",
+  }));
+  const mesIds = new Set(MES_WORK_CENTERS.map((center) => center.id));
+  const customRows = (Array.isArray(rows) ? rows : [])
+    .filter((center) => center?.id && !MES_OBSOLETE_WORK_CENTER_IDS.has(center.id) && !mesIds.has(center.id))
+    .map((center) => normalizeWorkCenterUnit(center));
+  return [...merged, ...customRows];
+}
+
 function normalizePlanningState(state) {
   state.projects = [];
   state.batches = Array.isArray(state.batches) ? state.batches : [];
@@ -1977,47 +2154,30 @@ function normalizePlanningState(state) {
   state.routeSteps = Array.isArray(state.routeSteps) ? state.routeSteps : [];
   state.slots = Array.isArray(state.slots) ? state.slots : [];
   state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
-  const warehouseCenter = {
-    id: "warehouse",
-    name: "Склад",
-    code: "WH",
-    description: "Финальное размещение готовой партии на складе",
-    unitType: "warehouse",
-    isPlanningUnit: true,
-    showInGantt: true,
-    isActive: true,
-  };
-
-  if (!state.workCenters.some((center) => center.id === warehouseCenter.id)) {
-    state.workCenters = [...state.workCenters, warehouseCenter];
-  }
-
-  state.workCenters = state.workCenters.map((center) => normalizeWorkCenterUnit(center));
+  state.workCenters = mergeMesWorkCenters(state.workCenters);
   state.routeSteps = state.routeSteps.map((step) => normalizeRouteStepCalculationFields(step, state));
 
-  for (const route of state.routes) {
-    const steps = state.routeSteps.filter((step) => step.routeId === route.id);
-    if (!steps.some((step) => step.workCenterId === "warehouse")) {
-      const nextOrder = Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
-      state.routeSteps.push({
-        id: `rs-${route.projectId}-warehouse`,
-        routeId: route.id,
-        workCenterId: "warehouse",
-        operationName: "Склад",
-        stepOrder: nextOrder,
-        isRequired: true,
-        calculationType: "rate",
-        unitsPerHour: getWorkCenterUnitsPerHour("warehouse", state),
-        boardsPerPanel: 1,
-        setupMin: 0,
-      });
-    }
-  }
-
+  removeCanceledRouteGanttSlots(state);
   state.slots = state.slots.map((slot) => recalculateSlotEndByQuantity(slot, state));
   addMissingWarehouseSlots(state);
   state.slots = state.slots.map((slot) => recalculateSlotEndByQuantity(slot, state));
   return state;
+}
+
+function removeCanceledRouteGanttSlots(state) {
+  const canceledRouteIds = new Set((state.routes || [])
+    .filter((route) => route.planningStatus === "canceled")
+    .map((route) => route.id));
+  if (!canceledRouteIds.size) return;
+
+  const canceledStepIds = new Set((state.routeSteps || [])
+    .filter((step) => canceledRouteIds.has(step.routeId))
+    .map((step) => step.id));
+
+  state.slots = (state.slots || []).filter((slot) => !(
+    canceledRouteIds.has(slot.routeId)
+    || canceledStepIds.has(slot.routeStepId)
+  ));
 }
 
 function addMissingWarehouseSlots(state) {
@@ -2030,27 +2190,27 @@ function addMissingWarehouseSlots(state) {
   }, {}));
 
   for (const slots of groups) {
-    if (!slots.length || slots.some((slot) => slot.workCenterId === "warehouse")) continue;
+    if (!slots.length || slots.some((slot) => isWarehouseWorkCenterId(slot.workCenterId))) continue;
 
     const latest = [...slots].sort((left, right) => toDate(right.plannedEnd) - toDate(left.plannedEnd))[0];
     const route = state.routes.find((item) => item.id === latest.routeId)
       || state.routes.find((item) => (item.specificationId === latest.specificationId || item.projectId === latest.projectId) && item.isDefault)
       || state.routes.find((item) => item.specificationId === latest.specificationId || item.projectId === latest.projectId);
-    const warehouseStep = state.routeSteps.find((step) => step.routeId === route?.id && step.workCenterId === "warehouse");
+    const warehouseStep = state.routeSteps.find((step) => step.routeId === route?.id && isWarehouseWorkCenterId(step.workCenterId));
     if (!warehouseStep) continue;
 
     const plannedStart = addMs(latest.plannedEnd, 60 * 60 * 1000);
     const quantity = normalizeQuantity(latest.quantity);
-    const plannedEnd = calculatePlannedEndByQuantity(plannedStart, "warehouse", quantity, state, warehouseStep.unitsPerHour || null, warehouseStep.boardsPerPanel || null, warehouseStep);
+    const plannedEnd = calculatePlannedEndByQuantity(plannedStart, "D1", quantity, state, warehouseStep.unitsPerHour || null, warehouseStep.boardsPerPanel || null, warehouseStep);
     state.slots.push({
       id: `s-${latest.projectId}-${latest.batchId}-warehouse`,
       routeId: route.id,
       specificationId: latest.specificationId || route.specificationId || latest.projectId,
       projectId: latest.specificationId || route.specificationId || latest.projectId,
       batchId: latest.batchId,
-      workCenterId: "warehouse",
+      workCenterId: "D1",
       routeStepId: warehouseStep.id,
-      operationName: "Склад",
+      operationName: warehouseStep.operationName || "",
       quantity,
       plannedStart: toSlotDateTime(plannedStart),
       plannedEnd: toSlotDateTime(plannedEnd),
@@ -2091,7 +2251,7 @@ function normalizeBoardsPerPanel(value, fallback = 1) {
 }
 
 function workCenterUsesPanelBatching(workCenterId) {
-  return ["smt", "aoi", "wash", "coating"].includes(String(workCenterId || ""));
+  return ["D3_L1", "D3_L2", "D3_AOI", "D3_UW", "D3_CC", "D3_MANUAL_CC"].includes(mapLegacyWorkCenterId(workCenterId));
 }
 
 function getSpecificationItemBoardsPerPanel(item) {
@@ -2138,11 +2298,11 @@ function getDurationResourcesForWorkCenter(workCenterId, state = null) {
 }
 
 function isSmtOperationWorkCenter(workCenterId, operationContext = null, state = null) {
-  const id = String(workCenterId || operationContext?.workCenterId || "");
-  if (id === "smt" || isSmtLineWorkCenterId(id)) return true;
+  const id = mapLegacyWorkCenterId(workCenterId || operationContext?.workCenterId || "");
+  if (MES_SMT_WORK_CENTER_IDS.includes(id) || isSmtLineWorkCenterId(id)) return true;
   const center = operationContext?.workCenter || getDurationWorkCenter(id, state);
   const text = normalizeLookupText([center?.id, center?.name, center?.code, operationContext?.operationName].filter(Boolean).join(" "));
-  if (text.includes("smt") || text.includes("смт")) return true;
+  if (text.includes("smt") || text.includes("смт") || text.includes("поверхност")) return true;
   const resourceId = String(operationContext?.resourceId || "");
   if (resourceId && getSmtLineConfigurations().some((line) => line.id === resourceId)) return true;
   return false;
@@ -2152,31 +2312,32 @@ function getDefaultOperationCalculationType(workCenterId, operationContext = nul
   const explicit = String(operationContext?.calculationType || "").trim();
   if (["components", "manual", "normative", "rate"].includes(explicit)) return explicit;
   if (isSmtOperationWorkCenter(workCenterId, operationContext)) return "components";
-  if (String(workCenterId || "") === "warehouse") return "rate";
+  if (mapLegacyWorkCenterId(workCenterId) === "D1") return "rate";
   return "manual";
 }
 
 function normalizeRouteStepCalculationFields(step = {}, state = null) {
-  const workCenterId = step.workCenterId || "manual";
-  const calculationType = getDefaultOperationCalculationType(workCenterId, step);
-  const boardsPerPanel = normalizeBoardsPerPanel(step.boardsPerPanel, 1);
+  const { operationType: _legacyOperationType, ...stepWithoutOperationType } = step || {};
+  const workCenterId = mapLegacyWorkCenterId(stepWithoutOperationType.workCenterId || "D5");
+  const calculationType = getDefaultOperationCalculationType(workCenterId, stepWithoutOperationType);
+  const boardsPerPanel = normalizeBoardsPerPanel(stepWithoutOperationType.boardsPerPanel, 1);
   const resources = getDurationResourcesForWorkCenter(workCenterId, state);
-  const resource = resources.find((item) => item.id === step.resourceId) || resources[0] || null;
-  const secondsPerPanel = Number(step.secondsPerPanel || 0) > 0
-    ? Math.max(1, Number(step.secondsPerPanel))
+  const resource = resources.find((item) => item.id === stepWithoutOperationType.resourceId) || resources[0] || null;
+  const secondsPerPanel = Number(stepWithoutOperationType.secondsPerPanel || 0) > 0
+    ? Math.max(1, Number(stepWithoutOperationType.secondsPerPanel))
     : calculationType === "components" || calculationType === "rate"
       ? 0
       : getDefaultSecondsPerPanel(workCenterId, boardsPerPanel);
 
   return {
-    ...step,
+    ...stepWithoutOperationType,
     workCenterId,
     calculationType,
     boardsPerPanel,
-    resourceId: step.resourceId || resource?.id || "",
+    resourceId: stepWithoutOperationType.resourceId || resource?.id || "",
     secondsPerPanel,
-    unitsPerHour: Number(step.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId, state) || 0),
-    setupMin: Math.max(0, Number(step.setupMin ?? resource?.changeoverMin ?? 0)),
+    unitsPerHour: Number(stepWithoutOperationType.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId, state) || 0),
+    setupMin: Math.max(0, Number(stepWithoutOperationType.setupMin ?? resource?.changeoverMin ?? 0)),
   };
 }
 
@@ -2236,9 +2397,10 @@ function getDurationComponentCounts(bom) {
 
 function getOperationSmtResource(operationContext = null, state = null) {
   const lineId = getSmtLineIdFromWorkCenterId(operationContext?.workCenterId) || operationContext?.resourceId || "";
-  const resources = getDurationResourcesForWorkCenter("smt", state);
+  const workCenterId = mapLegacyWorkCenterId(operationContext?.workCenterId || "");
+  const resources = MES_SMT_WORK_CENTER_IDS.flatMap((centerId) => getDurationResourcesForWorkCenter(centerId, state));
   return resources.find((resource) => resource.id === lineId)
-    || getDurationResourcesForWorkCenter(operationContext?.workCenterId || "smt", state).find((resource) => resource.id === lineId)
+    || getDurationResourcesForWorkCenter(workCenterId || "D3_L1", state).find((resource) => resource.id === lineId)
     || resources[0]
     || getDefaultSmtLineConfigurations()[0];
 }
@@ -2279,28 +2441,22 @@ function calculateSmtOperationDurationMs(operationContext, quantity, state = nul
   return getOperationSetupMs(operationContext, resource) + perPanelSeconds * panelCount * 1000;
 }
 
-function getWorkCenterEmployeeCount(workCenterId, state = null) {
+function parseCapacityCount(value) {
+  const match = String(value || "").match(/([\d.,]+)/);
+  if (!match) return 0;
+  const parsed = Number(match[1].replace(",", "."));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function getWorkCenterManualCapacity(workCenterId, state = null) {
   const center = getDurationWorkCenter(workCenterId, state);
-  const names = new Set([
-    center?.name,
-    center?.code,
-    ...(center?.legacyDepartmentNames || []),
-  ].filter(Boolean).map(normalizeLookupText));
-  const employees = (getRuntimeDirectoryState()?.employees || []).filter((employee) => {
-    if (["Уволен", "Отключен"].includes(employee.status)) return false;
-    return names.has(normalizeLookupText(employee.department));
-  });
-  if (employees.length) return employees.length;
-
   const resources = getDurationResourcesForWorkCenter(workCenterId, state);
-  for (const resource of resources) {
-    const match = String(resource.capacity || "").match(/([\d.,]+)/);
-    if (!match) continue;
-    const parsed = Number(match[1].replace(",", "."));
-    if (Number.isFinite(parsed) && parsed > 0) return Math.max(1, Math.round(parsed));
-  }
+  const resourceCapacity = resources
+    .filter((resource) => resourceParticipatesInCalculation(resource))
+    .reduce((sum, resource) => sum + parseCapacityCount(resource.capacity), 0);
+  if (resourceCapacity > 0) return Math.max(1, Math.round(resourceCapacity));
 
-  return Math.max(1, Number(center?.capacity || 1));
+  return Math.max(1, Math.round(Number(center?.capacity || 1)));
 }
 
 function calculateManualLaborDurationMs(operationContext, quantity, state = null) {
@@ -2309,8 +2465,8 @@ function calculateManualLaborDurationMs(operationContext, quantity, state = null
   const resource = resources.find((item) => item.id === operationContext?.resourceId) || resources[0] || null;
   const setupMs = getOperationSetupMs(operationContext, resource);
   const secondsPerUnit = Math.max(1, Number(operationContext?.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, 1)));
-  const employeesCount = getWorkCenterEmployeeCount(workCenterId, state);
-  return setupMs + (normalizeQuantity(quantity) * secondsPerUnit * 1000) / Math.max(1, employeesCount);
+  const manualCapacity = getWorkCenterManualCapacity(workCenterId, state);
+  return setupMs + (normalizeQuantity(quantity) * secondsPerUnit * 1000) / Math.max(1, manualCapacity);
 }
 
 function calculateNormativeSerialDurationMs(operationContext, quantity, state = null) {
@@ -2383,9 +2539,9 @@ function calculateQuantityByDuration(workCenterId, plannedStart, plannedEnd, ope
 
   if (context.calculationType === "manual") {
     const secondsPerUnit = Math.max(1, Number(context.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, 1)));
-    const employeesCount = getWorkCenterEmployeeCount(workCenterId, planningState);
+    const manualCapacity = getWorkCenterManualCapacity(workCenterId, planningState);
     const setupMs = getOperationSetupMs(context);
-    return normalizeQuantity((Math.max(0, durationMs - setupMs) / 1000 / secondsPerUnit) * employeesCount);
+    return normalizeQuantity((Math.max(0, durationMs - setupMs) / 1000 / secondsPerUnit) * manualCapacity);
   }
 
   return normalizeQuantity(durationHours * getWorkCenterUnitsPerHour(workCenterId));
@@ -2401,6 +2557,78 @@ function recalculateSlotEndByQuantity(slot, state = null) {
     plannedStart,
     plannedEnd: toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, slot.workCenterId, quantity, state, slot.unitsPerHour, slot.boardsPerPanel, slot)),
   };
+}
+
+function rescheduleSlotsForWorkCenterCalendarChange(workCenterId) {
+  const calendarWorkCenterId = getCalendarWorkCenterId(workCenterId);
+  const affectedSlots = planningState.slots
+    .filter((slot) => (
+      getCalendarWorkCenterId(slot.workCenterId) === calendarWorkCenterId
+      && slot.status !== "completed"
+      && !slot.locked
+    ))
+    .sort((left, right) => (
+      toDate(left.plannedStart) - toDate(right.plannedStart)
+      || getSlotStepOrder(left) - getSlotStepOrder(right)
+      || String(left.id || "").localeCompare(String(right.id || ""), "ru")
+    ));
+
+  if (!affectedSlots.length) return 0;
+
+  const stamp = new Date().toISOString();
+  const affectedIds = new Set(affectedSlots.map((slot) => slot.id));
+  const preservedSlots = planningState.slots.filter((slot) => !affectedIds.has(slot.id));
+  const rescheduledSlots = [];
+
+  affectedSlots.forEach((slot) => {
+    planningState.slots = [...preservedSlots, ...rescheduledSlots];
+    const quantity = normalizeQuantity(slot.quantity);
+    const durationMs = calculateRequiredDurationMs(
+      slot.workCenterId,
+      quantity,
+      planningState,
+      slot.unitsPerHour || null,
+      slot.boardsPerPanel || null,
+      slot,
+    );
+    const earliestStart = snapToWorkingTime(slot.workCenterId, slot.plannedStart, planningState);
+    const resourceId = slot.resourceId || getSlotGanttResourceId(slot);
+    const window = findFreeWindow(slot.workCenterId, durationMs, earliestStart, slot.id, resourceId);
+
+    rescheduledSlots.push({
+      ...slot,
+      quantity,
+      boardsPerPanel: normalizeBoardsPerPanel(slot.boardsPerPanel, 1),
+      plannedStart: toSlotDateTime(window.start),
+      plannedEnd: toSlotDateTime(window.end),
+      updatedAt: stamp,
+    });
+  });
+
+  const rescheduledById = new Map(rescheduledSlots.map((slot) => [slot.id, slot]));
+  planningState.slots = [...preservedSlots, ...rescheduledSlots]
+    .sort((left, right) => (
+      String(left.projectId || "").localeCompare(String(right.projectId || ""), "ru")
+      || String(left.batchId || "").localeCompare(String(right.batchId || ""), "ru")
+      || toDate(left.plannedStart) - toDate(right.plannedStart)
+    ));
+
+  affectedSlots.forEach((slot) => {
+    if (rescheduledById.has(slot.id)) cascadeBatchFromSlot(slot.id);
+  });
+
+  return rescheduledSlots.length;
+}
+
+function rescheduleAllGanttSlotsByCurrentCalendars() {
+  const calendarWorkCenterIds = new Set(
+    planningState.slots.map((slot) => getCalendarWorkCenterId(slot.workCenterId)).filter(Boolean),
+  );
+  let rescheduledCount = 0;
+  calendarWorkCenterIds.forEach((workCenterId) => {
+    rescheduledCount += rescheduleSlotsForWorkCenterCalendarChange(workCenterId);
+  });
+  return rescheduledCount;
 }
 
 function getRouteBufferMs() {
@@ -2474,7 +2702,7 @@ function buildBacklogItems(limit = 14) {
       const plannedStepIds = getPlannedStepIds(route.id, batch.id);
       const nextStep = routeSteps.find((step) => (
         !plannedStepIds.has(step.id)
-        && (step.workCenterId !== "warehouse" || plannedStepIds.size > 0)
+        && (!isWarehouseWorkCenterId(step.workCenterId) || plannedStepIds.size > 0)
       ));
       if (!nextStep) continue;
 
@@ -2672,7 +2900,11 @@ function extendTimelineIfNeeded(shell, scaleInfo) {
   if (remaining > threshold) return false;
 
   const current = getTimelineCount(ui.scale, scaleInfo.start);
-  const next = Math.min(TIMELINE_MAX_COUNT[ui.scale] || current, current + (TIMELINE_LOAD_CHUNK[ui.scale] || 0));
+  const chunk = TIMELINE_LOAD_CHUNK[ui.scale] || 0;
+  const maxCount = TIMELINE_MAX_COUNT[ui.scale] || current;
+  const visibleTimelineRight = Math.max(0, shell.scrollLeft + shell.clientWidth - LEFT_WIDTH);
+  const requiredByScroll = Math.ceil((visibleTimelineRight + threshold) / Math.max(scaleInfo.cellWidth, 1));
+  const next = Math.min(maxCount, Math.max(current + chunk, requiredByScroll + chunk));
   if (next <= current) return false;
 
   ui.timelineCounts = {
@@ -2738,12 +2970,6 @@ function render() {
   persistUiState();
   scheduleGlobalSaveUxRefresh();
 
-  if (!getAuthEmployee()) {
-    app.innerHTML = renderAuthPage();
-    bindAuthEvents();
-    return;
-  }
-
   ensureAuthorizedModule();
 
   if (ui.activeModule === "directories") {
@@ -2793,17 +3019,33 @@ function render() {
     return;
   }
 
-  if (ui.activeModule === "operationMap") {
+  if (ui.activeModule === "shopMap") {
     app.innerHTML = `
-      <main class="app-shell operation-map-app-shell" data-layout="app-shell" data-layout-page="operationMap">
+      <main class="app-shell shop-map-app-shell" data-layout="app-shell" data-layout-page="shopMap">
         ${renderModuleMenu()}
         ${renderAppTopbar()}
-        ${renderOperationMapPage()}
+        ${renderShopFloorMapPage()}
+        ${renderShopMapWidgetModal()}
         ${renderConfirmModal()}
       </main>
     `;
     bindGlobalNavigation();
-    bindOperationMapEvents();
+    bindShopMapEvents();
+    bindConfirmEvents();
+    return;
+  }
+
+  if (ui.activeModule === "rkd") {
+    app.innerHTML = `
+      <main class="app-shell rkd-app-shell" data-layout="app-shell" data-layout-page="rkd">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderRkdPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindSpekiEvents();
     bindConfirmEvents();
     return;
   }
@@ -2838,21 +3080,6 @@ function render() {
     return;
   }
 
-  if (ui.activeModule === "speki") {
-    app.innerHTML = `
-      <main class="app-shell speki-app-shell" data-layout="app-shell" data-layout-page="speki">
-        ${renderModuleMenu()}
-        ${renderAppTopbar()}
-        ${renderSpekiPage()}
-        ${renderConfirmModal()}
-      </main>
-    `;
-    bindGlobalNavigation();
-    bindSpekiEvents();
-    bindConfirmEvents();
-    return;
-  }
-
   if (ui.activeModule === "planning") {
     app.innerHTML = `
       <main class="app-shell planning-empty-app-shell" data-layout="app-shell" data-layout-page="planning">
@@ -2873,6 +3100,7 @@ function render() {
   const rows = buildRows(scaleInfo);
   const rowLayout = buildRowLayout(rows);
   const slotPlacementMap = buildSlotPlacementMap(rows, scaleInfo);
+  const sharedNonWorkingIntervals = buildVisibleSharedNonWorkingIntervals(rows, scaleInfo);
   const warningsContext = getSlotWarnings(planningState);
   const stats = buildStats(warningsContext.warnings);
 
@@ -2887,7 +3115,7 @@ function render() {
             <div class="gantt-canvas" style="--left-width:${LEFT_WIDTH}px; --timeline-width:${scaleInfo.width}px; --total-height:${rowLayout.totalHeight}px;">
               ${renderTimeline(scaleInfo)}
               <div class="rows-layer" style="top:${TIMELINE_HEIGHT}px;">
-                ${rows.map((row) => renderRow(row, rowLayout, scaleInfo, warningsContext.slotWarningMap, slotPlacementMap)).join("")}
+                ${rows.map((row) => renderRow(row, rowLayout, scaleInfo, warningsContext.slotWarningMap, slotPlacementMap, sharedNonWorkingIntervals)).join("")}
               </div>
               ${renderDependencies(rows, rowLayout, scaleInfo, warningsContext.slotWarningMap, slotPlacementMap)}
               ${renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap)}
@@ -2909,9 +3137,10 @@ function render() {
   restoreScroll();
 }
 
-function getOperationMapRows() {
-  return [...(directoryState.operationMap || [])]
+function getOperationMapRows({ includeInactive = true } = {}) {
+  return [...(directoryState?.operationMap || [])]
     .filter((item) => item && item.id)
+    .filter((item) => includeInactive || item.status !== "Отключен")
     .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru"));
 }
 
@@ -2919,150 +3148,198 @@ function getOperationMapItem(operationId) {
   return getOperationMapRows().find((item) => item.id === operationId) || null;
 }
 
-function getOperationTypeOption(type) {
-  return OPERATION_TYPE_OPTIONS.find((item) => item.value === type) || OPERATION_TYPE_OPTIONS[0];
+function findOperationMapItemByNameAndWorkCenter(operationName = "", workCenterId = "") {
+  const normalizedName = normalizeLookupText(operationName);
+  if (!normalizedName) return null;
+  const rows = getOperationMapRows();
+  const exact = rows.find((operation) => (
+    normalizeLookupText(operation.name) === normalizedName
+    && (!workCenterId || operation.workCenterId === workCenterId)
+  ));
+  if (exact) return exact;
+  const nameMatches = rows.filter((operation) => normalizeLookupText(operation.name) === normalizedName);
+  return nameMatches.length === 1 ? nameMatches[0] : null;
 }
 
-function getOperationMapWorkCenterOptions() {
-  return getPlanningWorkCenters().map((center) => ({
-    value: center.id,
-    label: center.name,
-    meta: center.code || "подразделение",
-  }));
+function getLegacyOperationWorkCenterId(source = {}) {
+  const explicitWorkCenterId = String(source.workCenterId || "").trim();
+  if (explicitWorkCenterId && getWorkCenter(explicitWorkCenterId)) return explicitWorkCenterId;
+  return resolveWorkCenterIdFromName(source.departmentName || source.department || source.workCenter || "")
+    || resolveWorkCenterIdFromName(source.operationName || source.name || "")
+    || getPlanningWorkCenters({ includeWarehouse: false })[0]?.id
+    || "D5";
 }
 
-function createBlankOperationMapItem() {
-  const defaultCenter = getPlanningWorkCenters({ includeWarehouse: false })[0]
-    || getPlanningWorkCenters()[0]
-    || { id: "warehouse" };
-  return {
-    id: "",
-    name: "",
-    code: "",
-    type: "production",
-    workCenterId: defaultCenter.id,
-    unitsPerHour: getWorkCenterUnitsPerHour(defaultCenter.id),
-    requiresBatch: true,
-    isWarehouse: defaultCenter.id === "warehouse",
-    status: "Активен",
-  };
+function ensureOperationMapItemFromLegacyOperation(source = {}, stamp = new Date().toISOString()) {
+  const existingById = source.operationId ? getOperationMapItem(source.operationId) : null;
+  if (existingById) return existingById;
+  const mesReplacement = findMesOperationReplacement(source);
+  if (mesReplacement) return getOperationMapItem(mesReplacement.id) || normalizeDirectoryRow("operations", mesReplacement);
+
+  const operationName = String(source.name || source.operationName || "").trim();
+  if (!operationName) return null;
+
+  const workCenterId = getLegacyOperationWorkCenterId(source);
+  const existingByName = findOperationMapItemByNameAndWorkCenter(operationName, workCenterId);
+  if (existingByName) return existingByName;
+
+  return null;
 }
 
-function renderOperationMapPage() {
-  const operations = getOperationMapRows();
-  const isNew = ui.activeOperationId === "__new__";
-  const activeOperation = isNew ? createBlankOperationMapItem() : getOperationMapItem(ui.activeOperationId);
-  const hasPreview = isNew || Boolean(activeOperation);
-  const routeUsageCount = (operationId) => planningState.routeSteps.filter((step) => step.operationId === operationId).length;
-
-  return `
-    <section class="operation-map-page module-data-page" data-layout="main-content" aria-label="Карта операций">
-      <aside class="directory-sidebar module-data-sidebar">
-        <div class="directory-sidebar-head">
-          <span class="eyebrow">Технологии</span>
-          <h1>Карта операций</h1>
-        </div>
-        <div class="module-sidebar-actions">
-          <button class="primary-button" data-operation-create type="button">${icon("plus")}<span>Новая операция</span></button>
-        </div>
-        <div class="module-entity-list">
-          <div class="module-list-label">Операции</div>
-          ${isNew ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая операция</strong><small>еще не сохранена</small></span><em>new</em></button>` : ""}
-          ${operations.length ? operations.map((operation) => {
-            const center = getWorkCenter(operation.workCenterId);
-            const type = getOperationTypeOption(operation.type);
-            return `
-              <button class="module-entity-item ${operation.id === activeOperation?.id ? "is-active" : ""}" data-operation-open="${escapeAttribute(operation.id)}" type="button">
-                <span>
-                  <strong>${escapeHtml(operation.name || "Операция без названия")}</strong>
-                  <small>${escapeHtml(type.label)} · ${escapeHtml(center?.name || "подразделение не выбрано")}</small>
-                </span>
-                <em>${routeUsageCount(operation.id)}</em>
-              </button>
-            `;
-          }).join("") : `
-            <div class="module-empty-note">
-              <strong>Операций пока нет</strong>
-              <span>Создайте первую операцию, затем используйте ее в маршрутной карте.</span>
-            </div>
-          `}
-        </div>
-      </aside>
-
-      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
-        <header class="directory-header">
-          <div>
-            <span class="eyebrow">Карта операций</span>
-            <h2>${escapeHtml(hasPreview ? (isNew ? "Новая операция" : activeOperation.name || "Операция без названия") : "Операция не выбрана")}</h2>
-            <p>${escapeHtml(hasPreview ? "Операция задает подразделение по умолчанию и нормативы для маршрутных карт." : "Выберите операцию слева или создайте новую.")}</p>
-          </div>
-        </header>
-
-        <div class="module-data-content operation-map-content">
-          ${hasPreview ? renderOperationMapEditor(activeOperation, isNew, routeUsageCount(activeOperation.id)) : renderModulePreviewEmpty({
-            iconName: "chart",
-            title: "Предпросмотр пуст",
-            text: "Выберите операцию в перечне или нажмите «Новая операция».",
-          })}
-        </div>
-      </div>
-    </section>
-  `;
+function applyOperationMapItemToRouteStep(step = {}, operation = {}, stamp = new Date().toISOString()) {
+  const workCenterId = operation.workCenterId || step.workCenterId || getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "D5";
+  const resources = getResourcesForWorkCenter(workCenterId);
+  const resource = resources.find((item) => item.id === step.resourceId) || resources[0] || null;
+  const calculationType = step.calculationType || getDefaultOperationCalculationType(workCenterId, operation);
+  return normalizeRouteStepCalculationFields({
+    ...step,
+    operationId: operation.id || "",
+    operationName: operation.name || "",
+    workCenterId,
+    workCenterOverride: false,
+    unitsPerHour: operation.unitsPerHour || step.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId),
+    resourceId: step.resourceId || resource?.id || "",
+    calculationType,
+    secondsPerPanel: calculationType === "manual" || calculationType === "normative"
+      ? Number(step.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, step.boardsPerPanel || 1))
+      : Number(step.secondsPerPanel || 0),
+    setupMin: Math.max(0, Number(step.setupMin ?? resource?.changeoverMin ?? 0)),
+    requiresBatch: operation.requiresBatch,
+    isWarehouseOperation: operation.isWarehouse,
+    updatedAt: stamp,
+  }, planningState);
 }
 
-function renderOperationMapEditor(operation, isNew, usageCount) {
-  const typeOptions = OPERATION_TYPE_OPTIONS;
-  const workCenterOptions = getOperationMapWorkCenterOptions();
-  const type = getOperationTypeOption(operation.type);
-  const center = getWorkCenter(operation.workCenterId);
+function getDefaultOperationNameForWorkCenter(center = {}) {
+  const normalizedName = normalizeLookupText(center.name || "");
+  const normalizedCode = normalizeLookupText(center.code || "");
 
-  return `
-    <section class="module-panel operation-map-editor-panel">
-      <div class="report-card-head">
-        <strong>Карточка операции</strong>
-        <span>${isNew ? "создание" : `${usageCount} связей в маршрутных картах`}</span>
-      </div>
-      <form id="operationMapForm" class="module-form operation-map-form">
-        <input type="hidden" name="operationId" value="${escapeAttribute(operation.id || "")}" />
-        <input type="hidden" name="isNew" value="${isNew ? "yes" : "no"}" />
-        <label class="form-field full">
-          <span>Название операции</span>
-          <input name="name" value="${escapeAttribute(operation.name || "")}" placeholder="Например: SMT-монтаж" required />
-        </label>
-        <label class="form-field">
-          <span>Код</span>
-          <input name="code" value="${escapeAttribute(operation.code || "")}" placeholder="SMT-010" />
-        </label>
-        <label class="form-field">
-          <span>Тип операции</span>
-          <input type="hidden" name="type" data-operation-map-hidden="type" value="${escapeAttribute(operation.type || "production")}" />
-          ${renderDenseInlineSelect("type", operation.type || "production", typeOptions, { type: "operationMapForm" })}
-        </label>
-        <label class="form-field">
-          <span>Подразделение по умолчанию</span>
-          <input type="hidden" name="workCenterId" data-operation-map-hidden="workCenterId" value="${escapeAttribute(operation.workCenterId || "")}" />
-          ${renderDenseInlineSelect("workCenterId", operation.workCenterId || "", workCenterOptions, { type: "operationMapForm" })}
-        </label>
-        <label class="form-field">
-          <span>Норматив, ед/час</span>
-          <input name="unitsPerHour" type="number" min="0" step="1" value="${escapeAttribute(operation.unitsPerHour || "")}" placeholder="${escapeAttribute(getWorkCenterUnitsPerHour(operation.workCenterId || "smt"))}" />
-        </label>
-        <label class="operation-map-toggle">
-          <input name="requiresBatch" type="checkbox" ${operation.requiresBatch ? "checked" : ""} />
-          <span>Требует партийность</span>
-        </label>
-        <div class="operation-map-summary full">
-          <span>${escapeHtml(type.label)}</span>
-          <strong>${escapeHtml(center?.name || "Подразделение не выбрано")}</strong>
-          <small>${operation.unitsPerHour ? `${Number(operation.unitsPerHour).toLocaleString("ru-RU")} ед/час` : "норматив возьмется из подразделения"}</small>
-        </div>
-        <div class="module-form-actions full">
-          <button class="primary-button" type="submit">${icon("save")}<span>${isNew ? "Создать операцию" : "Сохранить операцию"}</span></button>
-          ${isNew ? "" : `<button class="secondary-button danger" data-operation-delete="${escapeAttribute(operation.id)}" type="button">${icon("trash")}<span>Удалить</span></button>`}
-        </div>
-      </form>
-    </section>
-  `;
+  if (center.id === "warehouse" || center.unitType === "warehouse" || normalizedName.includes("склад")) {
+    return "Приемка на склад";
+  }
+  if (normalizedName.includes("smt") || normalizedCode.includes("smt")) return "SMT-монтаж компонентов";
+  if (normalizedName.includes("aoi") || normalizedCode.includes("aoi")) return "AOI-контроль";
+  if (normalizedName.includes("отмыв")) return "Отмывка плат";
+  if (normalizedName.includes("ручн")) return "Ручной монтаж компонентов";
+  if (normalizedName.includes("тест") || normalizedName.includes("испыт")) return "Функциональное тестирование";
+  if (normalizedName.includes("лакир")) return "Лакировка";
+  if (normalizedName.includes("слесар") || normalizedName.includes("механ")) return "Слесарная подготовка";
+  if (normalizedName.includes("сбор")) return "Финальная сборка";
+  if (normalizedName.includes("отк") || normalizedName.includes("контрол")) return "Контроль качества";
+  if (normalizedName.includes("планир")) return "Планирование производства";
+  if (normalizedName.includes("программ")) return "Программирование";
+  if (normalizedName.includes("закуп") || normalizedName.includes("снабжен")) return "Закупка материалов";
+
+  return `Работа подразделения ${center.name || center.code || "без названия"}`;
+}
+
+function makeDefaultOperationCode(center = {}) {
+  const source = String(center.code || center.id || "OP")
+    .toUpperCase()
+    .replace(/[^A-ZА-Я0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 18);
+  return `OP-${source || "UNIT"}`;
+}
+
+function ensureWorkCenterOperations() {
+  const nextOperationMap = mergeMesOperationMap(directoryState.operationMap);
+  if (JSON.stringify(nextOperationMap) !== JSON.stringify(directoryState.operationMap || [])) {
+    directoryState.operationMap = nextOperationMap;
+    directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+    persistDirectoryState();
+  }
+
+  localStorage.setItem(WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY, "1");
+}
+
+function migrateLegacyOperationsToDirectory() {
+  const stamp = new Date().toISOString();
+  const initialOperationCount = (directoryState.operationMap || []).length;
+  let planningChanged = false;
+  let directoryChanged = false;
+
+  planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
+    const operation = getOperationMapItem(step.operationId)
+      || ensureOperationMapItemFromLegacyOperation(step, stamp);
+    if (!operation) return step;
+    const nextStep = applyOperationMapItemToRouteStep(step, operation, stamp);
+    const changed = [
+      "operationId",
+      "operationName",
+      "workCenterId",
+      "unitsPerHour",
+      "resourceId",
+      "calculationType",
+      "secondsPerPanel",
+      "setupMin",
+      "requiresBatch",
+      "isWarehouseOperation",
+    ].some((key) => String(step[key] ?? "") !== String(nextStep[key] ?? ""));
+    if (changed) planningChanged = true;
+    return changed ? nextStep : step;
+  });
+
+  const routeStepById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
+  planningState.slots = (planningState.slots || []).map((slot) => {
+    const step = routeStepById.get(slot.routeStepId);
+    if (!step || !step.operationId) return slot;
+    const nextSlot = recalculateSlotEndByQuantity({
+      ...slot,
+      operationName: step.operationName || slot.operationName,
+      workCenterId: step.workCenterId || slot.workCenterId,
+      unitsPerHour: step.unitsPerHour || slot.unitsPerHour,
+      resourceId: step.resourceId || slot.resourceId || "",
+      calculationType: step.calculationType || slot.calculationType || "",
+      secondsPerPanel: step.secondsPerPanel || slot.secondsPerPanel || 0,
+      setupMin: step.setupMin || slot.setupMin || 0,
+      bomListId: step.bomListId || slot.bomListId || "",
+      updatedAt: stamp,
+    }, planningState);
+    const changed = ["operationName", "workCenterId", "unitsPerHour", "resourceId", "calculationType", "secondsPerPanel", "setupMin", "bomListId"]
+      .some((key) => String(slot[key] ?? "") !== String(nextSlot[key] ?? ""));
+    if (changed) planningChanged = true;
+    return changed ? nextSlot : slot;
+  });
+
+  directoryState.specifications = (directoryState.specifications || []).map((specification) => {
+    if (!Array.isArray(specification.structureItems) || !specification.structureItems.length) return specification;
+    let specificationChanged = false;
+    const structureItems = specification.structureItems.map((item) => {
+      if ((item.executionType || "") === "buy") return item;
+      const operation = getOperationMapItem(item.operationId)
+        || ensureOperationMapItemFromLegacyOperation({
+          operationName: item.operationName,
+          departmentName: item.departmentName,
+        }, stamp);
+      if (!operation) return item;
+      const center = getWorkCenter(operation.workCenterId);
+      const nextItem = {
+        ...item,
+        operationId: operation.id,
+        operationName: operation.name || "",
+        departmentName: center?.name || item.departmentName || "",
+      };
+      const changed = ["operationId", "operationName", "departmentName"]
+        .some((key) => String(item[key] ?? "") !== String(nextItem[key] ?? ""));
+      if (changed) specificationChanged = true;
+      return changed ? nextItem : item;
+    });
+    if (!specificationChanged) return specification;
+    directoryChanged = true;
+    return { ...specification, structureItems, updatedAt: stamp };
+  });
+
+  directoryChanged = directoryChanged || initialOperationCount !== (directoryState.operationMap || []).length;
+
+  if (directoryChanged) {
+    directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+    persistDirectoryState();
+  }
+  if (planningChanged) {
+    planningState = normalizePlanningState(planningState);
+    persistState();
+  }
 }
 
 function renderPlanningPage() {
@@ -3076,20 +3353,21 @@ function renderPlanningPage() {
   const stats = getRouteModuleStats(activeRoute);
   const routeTasks = getRouteTasksForModule(activeRoute);
   const transferSummary = getPlanningRouteTransferSummary(activeRoute);
+  const orderState = getPlanningRouteOrderState(activeRoute, transferSummary);
   const routeTitle = activeRoute?.name || "Маршрутная карта не выбрана";
   const specificationTitle = activeRoute
-    ? activeSpecification?.name || getProjectDisplayName(activeProject) || "спецификация не выбрана"
+    ? activeSpecification?.name || getProjectDisplayName(activeProject) || "состав изделия не выбран"
     : "выберите карту слева";
 
   if (!routes.length) {
     return `
-      <section class="planning-empty-page" data-layout="main-content" aria-label="Заказ на пр-во">
+      <section class="planning-empty-page" data-layout="main-content" aria-label="Планирование">
         <section class="planning-empty-panel">
           <div class="planning-empty-icon">${icon("calendar")}</div>
           <div>
             <span class="eyebrow">Новый модуль</span>
-            <h2>Заказ на пр-во</h2>
-            <p>Маршрутных карт пока нет. Создайте маршрутную карту в модуле «Маршрутная карта», затем передайте ее сюда кнопкой «В Заказ на пр-во».</p>
+            <h2>Планирование</h2>
+            <p>Маршрутных карт пока нет. Создайте маршрутную карту в модуле «Маршрутная карта», затем передайте ее сюда кнопкой «В Планирование».</p>
           </div>
         </section>
       </section>
@@ -3097,11 +3375,11 @@ function renderPlanningPage() {
   }
 
   return `
-    <section class="planning-page module-data-page" data-layout="main-content" aria-label="Заказ на пр-во">
+    <section class="planning-page module-data-page" data-layout="main-content" aria-label="Планирование">
       <aside class="directory-sidebar module-data-sidebar planning-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Очередь</span>
-          <h1>Заказ на пр-во</h1>
+          <h1>Планирование</h1>
         </div>
         <div class="module-entity-list">
           <div class="module-list-label">Маршрутные карты</div>
@@ -3109,13 +3387,15 @@ function renderPlanningPage() {
             const routeProject = getProject(route.projectId);
             const routeSpecification = getRouteSpecification(route);
             const steps = getRouteStepsForModule(route.id);
+            const routeSummary = getPlanningRouteTransferSummary(route);
+            const routeOrderState = getPlanningRouteOrderState(route, routeSummary);
             return `
               <button class="module-entity-item ${route.id === activeRoute?.id ? "is-active" : ""}" data-planning-route-open="${escapeAttribute(route.id)}" type="button">
                 <span>
                   <strong>${escapeHtml(route.name || "Маршрутная карта")}</strong>
-                  <small>${escapeHtml(routeSpecification?.name || getProjectDisplayName(routeProject) || "спецификация не найдена")} · ${steps.length} шагов</small>
+                  <small>${escapeHtml(routeSpecification?.name || getProjectDisplayName(routeProject) || "состав изделия не найден")} · ${steps.length} шагов · ${escapeHtml(routeOrderState.label)}</small>
                 </span>
-                <em>${steps.length}</em>
+                <em class="${escapeAttribute(routeOrderState.tone)}">${routeSummary.planned || steps.length}</em>
               </button>
             `;
           }).join("")}
@@ -3125,11 +3405,14 @@ function renderPlanningPage() {
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
-            <span class="eyebrow">Маршрут в заказе на пр-во</span>
+            <span class="eyebrow">Маршрут в планировании</span>
             <h2>${escapeHtml(routeTitle)}</h2>
-            <p>${escapeHtml(activeRoute ? `${specificationTitle}: маршрутная карта передана в модуль заказа на пр-во для подготовки к Ганту.` : "Выберите маршрутную карту в перечне, чтобы настроить количество, партийность и передачу в Гант.")}</p>
+            <p>${escapeHtml(activeRoute ? `${specificationTitle}: маршрутная карта передана в модуль планирования для подготовки к Ганту.` : "Выберите маршрутную карту в перечне, чтобы настроить количество, партийность и передачу в Гант.")}</p>
           </div>
           <div class="directory-actions">
+            <button class="secondary-button danger" data-planning-route-cancel="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.planned ? "" : "disabled"}>
+              ${icon("close")}<span>Отменить заказ</span>
+            </button>
             <button class="primary-button" data-planning-route-to-gantt="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.steps.length ? "" : "disabled"}>
               ${icon("gantt")}<span>Передать в Гант</span>
             </button>
@@ -3144,11 +3427,12 @@ function renderPlanningPage() {
               <span>${escapeHtml(specificationTitle)}</span>
             </div>
             <div class="planning-route-meta">
-              <article><span>Спецификация</span><strong>${escapeHtml(specificationTitle)}</strong><small>${escapeHtml(activeProject?.orderNumber || "заказ не задан")}</small></article>
+              <article><span>Состав изделия</span><strong>${escapeHtml(specificationTitle)}</strong><small>${escapeHtml(activeProject?.orderNumber || "заказ не задан")}</small></article>
               <article><span>Операций</span><strong>${stats.steps.length}</strong><small>${stats.required} обязательных</small></article>
-              <article><span>Задач</span><strong>${routeTasks.length}</strong><small>из структуры спецификации</small></article>
+              <article><span>Задач</span><strong>${routeTasks.length}</strong><small>из структуры состава изделия</small></article>
               <article><span>Партий</span><strong>${transferSummary.batches.length}</strong><small>к размещению</small></article>
               <article><span>Мультипликаций</span><strong>${Number(transferSummary.totalPanels || 0).toLocaleString("ru-RU")}</strong><small>расчет для заказа</small></article>
+              <article class="${escapeAttribute(orderState.tone)}"><span>Состояние</span><strong>${escapeHtml(orderState.label)}</strong><small>${activeRoute?.canceledAt ? `отмена ${formatDateTime(activeRoute.canceledAt)}` : "производственный заказ"}</small></article>
               <article><span>В Ганте</span><strong>${transferSummary.planned}/${transferSummary.expected}</strong><small>${transferSummary.missing ? `${transferSummary.missing} осталось` : "все размещено"}</small></article>
             </div>
             <div class="planning-route-quantity">
@@ -3162,7 +3446,7 @@ function renderPlanningPage() {
               </div>
             </div>
             ${transferSummary.multiplicationRows.length ? `
-              <div class="planning-multiplication-list" aria-label="Расчет мультипликаций для заказа на пр-во">
+              <div class="planning-multiplication-list" aria-label="Расчет мультипликаций для планирования">
                 ${transferSummary.multiplicationRows.map((row) => `
                   <article>
                     <div class="planning-multiplication-head">
@@ -3188,7 +3472,7 @@ function renderPlanningPage() {
             ` : ""}
             <div class="planning-route-note">
               ${icon("info")}
-              <span>Заказ на пр-во теперь единственный вход для заданий в Гант. Кнопка «Передать в Гант» автоматически разложит операции по ближайшим доступным 15-минутным слотам с учетом подразделения, партии и последовательности задач.</span>
+              <span>Планирование теперь единственный вход для заданий в Гант. Кнопка «Передать в Гант» автоматически разложит операции по ближайшим доступным 15-минутным слотам с учетом подразделения, партии и последовательности задач.</span>
             </div>
           </section>
 
@@ -3210,7 +3494,7 @@ function renderPlanningPage() {
             ${renderModulePreviewEmpty({
               iconName: "calendar",
               title: "Маршрутная карта не выбрана",
-              text: "Выберите карту слева или передайте ее сюда из модуля «Маршрутная карта», чтобы подготовить заказ к Ганту.",
+              text: "Выберите карту слева или передайте ее сюда из модуля «Маршрутная карта», чтобы подготовить план к Ганту.",
             })}
           </section>
           `}
@@ -3327,8 +3611,8 @@ function renderTreePage() {
   const stats = getObjectTreeStats();
   const productionContexts = getProductionContexts();
   const layers = [
-    { title: "Производство", value: productionContexts.length, meta: "спецификации, партии, слоты" },
-    { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "спеки, BOM, маршруты" },
+    { title: "Производство", value: productionContexts.length, meta: "состав изделия, партии, слоты" },
+    { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "состав, спецификации, маршруты" },
     { title: "Справочники", value: getDirectoryObjectCount(), meta: "подразделения, ресурсы, сотрудники" },
   ];
 
@@ -3366,7 +3650,7 @@ function renderTreePage() {
           <div>
             <span class="eyebrow">Структура объектов</span>
             <h2>Дерево связей MES</h2>
-            <p>Просмотр без редактирования: как спецификации, BOM, маршрутные карты, партии, слоты Ганта и справочники связаны между собой.</p>
+            <p>Просмотр без редактирования: как состав изделия, спецификации, маршрутные карты, партии, слоты Ганта и справочники связаны между собой.</p>
           </div>
         </header>
 
@@ -3406,8 +3690,8 @@ function getObjectTreeStats() {
   const importedBomRows = (directoryState.bomLists || []).reduce((sum, bom) => sum + getBomImportRows(bom).length, 0);
   const productionCount = getProductionContexts().length;
   return [
-    { label: "Спецификации", value: String((directoryState.specifications || []).length), caption: `${productionCount} в производстве` },
-    { label: "BOM-листы", value: String((directoryState.bomLists || []).length), caption: `${importedBomRows.toLocaleString("ru-RU")} импортированных строк` },
+    { label: PRODUCT_COMPOSITION_TERM, value: String((directoryState.specifications || []).length), caption: `${productionCount} в производстве` },
+    { label: BOARD_SPEC_LIST_TERM, value: String((directoryState.bomLists || []).length), caption: `${importedBomRows.toLocaleString("ru-RU")} импортированных строк` },
     { label: "Маршрутные карты", value: String(planningState.routes.length), caption: `${planningState.routeSteps.length} операций` },
     { label: "Слоты Ганта", value: String(planningState.slots.length), caption: `${planningState.batches.length} партий` },
     { label: "Номенклатура", value: String((directoryState.nomenclature || []).length), caption: "позиции справочника" },
@@ -3419,7 +3703,6 @@ function getDirectoryObjectCount() {
   return [
     planningState.workCenters,
     getProductionResources({ includeInactive: true }),
-    directoryState.employees,
     directoryState.componentTypes,
     directoryState.norms,
     directoryState.statuses,
@@ -3449,7 +3732,7 @@ function renderProductionTree() {
   const productionContexts = getProductionContexts();
   const projectNodes = productionContexts.length
     ? productionContexts.map((project) => renderProductionProjectTree(project)).join("")
-    : renderObjectTreeLeaf("Спецификации в производстве отсутствуют", "Создайте спецификацию и маршрутную карту, затем передайте маршрут в заказ на пр-во.", "empty");
+    : renderObjectTreeLeaf("Состав изделия в производстве отсутствует", "Создайте состав изделия и маршрутную карту, затем передайте маршрут в планирование.", "empty");
 
   return renderObjectTreeNode({
     title: "Производство",
@@ -3468,13 +3751,13 @@ function renderProductionProjectTree(project) {
   const slots = planningState.slots.filter((slot) => slot.specificationId === project.id || slot.projectId === project.id);
   const routeNodes = routes.length
     ? routes.map((route) => renderRouteObjectTree(route)).join("")
-    : renderObjectTreeLeaf("Маршрутная карта не создана", "Для передачи в заказ на пр-во нужен маршрут.", "warning");
+    : renderObjectTreeLeaf("Маршрутная карта не создана", "Для передачи в планирование нужен маршрут.", "warning");
   const batchNodes = batches.length
     ? batches.map((batch) => renderBatchObjectTree(batch, slots.filter((slot) => slot.batchId === batch.id))).join("")
-    : renderObjectTreeLeaf("Партии не созданы", "Партии появятся при подготовке спецификации к производству.", "empty");
+    : renderObjectTreeLeaf("Партии не созданы", "Партии появятся при подготовке состава изделия к производству.", "empty");
 
   return renderObjectTreeNode({
-    title: getProjectDisplayName(project) || project.name || "Спецификация в производстве",
+    title: getProjectDisplayName(project) || project.name || "Состав изделия в производстве",
     meta: `${PROJECT_STATUS_LABELS[project.status] || project.status || "статус не задан"} · ${Number(project.totalQuantity || 0).toLocaleString("ru-RU")} шт.`,
     badge: project.orderNumber || "заказ",
     tone: "project",
@@ -3482,7 +3765,7 @@ function renderProductionProjectTree(project) {
     children: [
       specification
         ? renderSpecificationObjectTree(specification, { open: true, includeRoutes: false })
-        : renderObjectTreeLeaf("Спецификация не связана", "Производственный объект есть, но карточка спецификации не найдена.", "warning"),
+        : renderObjectTreeLeaf("Состав изделия не связан", "Производственный объект есть, но карточка состава изделия не найдена.", "warning"),
       renderObjectTreeNode({
         title: "Маршрутные карты",
         meta: `${routes.length} карт · ${routes.reduce((sum, route) => sum + getRouteStepsForModule(route.id).length, 0)} операций`,
@@ -3510,22 +3793,22 @@ function renderTechnologyTree() {
     open: true,
     children: [
       renderObjectTreeNode({
-        title: "Спецификации",
+        title: PRODUCT_COMPOSITION_TERM,
         meta: "структура изделия и вложенные объекты",
         badge: (directoryState.specifications || []).length,
         tone: "specification",
         children: [(directoryState.specifications || []).length
           ? (directoryState.specifications || []).map((specification) => renderSpecificationObjectTree(specification)).join("")
-          : renderObjectTreeLeaf("Спецификаций пока нет", "Создайте спецификацию в модуле «Спецификации».", "empty")],
+          : renderObjectTreeLeaf("Состав изделия пока не создан", "Создайте состав изделия в модуле «РКД».", "empty")],
       }),
       renderObjectTreeNode({
-        title: "BOM-листы",
+        title: BOARD_SPEC_LIST_TERM,
         meta: "компонентный состав печатных плат",
         badge: (directoryState.bomLists || []).length,
         tone: "bom",
         children: [(directoryState.bomLists || []).length
           ? (directoryState.bomLists || []).map((bom) => renderBomObjectTree(bom)).join("")
-          : renderObjectTreeLeaf("BOM-листов пока нет", "Создайте BOM или импортируйте Excel-шаблон.", "empty")],
+          : renderObjectTreeLeaf("Спецификаций пока нет", "Создайте спецификацию или импортируйте Excel-шаблон.", "empty")],
       }),
       renderObjectTreeNode({
         title: "Номенклатура",
@@ -3543,13 +3826,13 @@ function renderTechnologyTree() {
 function renderSpecificationObjectTree(specification, options = {}) {
   const visitedSpecificationIds = new Set(options.visitedSpecificationIds || []);
   if (visitedSpecificationIds.has(specification.id)) {
-    return renderObjectTreeLeaf(specification.name || "Повторная спецификация", "Повторная ссылка уже показана выше, ветка остановлена.", "warning");
+    return renderObjectTreeLeaf(specification.name || "Повторный состав изделия", "Повторная ссылка уже показана выше, ветка остановлена.", "warning");
   }
   visitedSpecificationIds.add(specification.id);
   const structureItems = getSpecificationStructureItems(specification);
   const productionQuantity = getSpecificationProductionQuantity(specification);
   return renderObjectTreeNode({
-    title: specification.name || "Спецификация без названия",
+    title: specification.name || "Состав изделия без названия",
     meta: `${specification.outputItem || "выход не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(specification)] || "статус не задан"} · ${Number(productionQuantity || 0).toLocaleString("ru-RU")} шт.`,
     badge: structureItems.length,
     tone: "specification",
@@ -3557,7 +3840,7 @@ function renderSpecificationObjectTree(specification, options = {}) {
     children: [
       structureItems.length
         ? renderSpecificationStructureObjectTree(specification, structureItems, visitedSpecificationIds)
-        : renderObjectTreeLeaf("Структура спецификации пуста", "Добавьте BOM, номенклатуру или узлы в модуле «Спецификации».", "warning"),
+        : renderObjectTreeLeaf("Структура состава изделия пуста", "Добавьте спецификацию, номенклатуру или узлы в модуле «РКД».", "warning"),
     ],
   });
 }
@@ -3619,8 +3902,8 @@ function renderSpecificationItemObjectTree(item, nestedChildren = "", level = 0,
 function getSpecificationTreeItemTypeLabel(type) {
   const labels = {
     assembly: "узел",
-    bom: "BOM",
-    specification: "спецификация",
+    bom: BOARD_SPEC_TERM,
+    specification: PRODUCT_COMPOSITION_TERM_LOWER,
     nomenclature: "номенклатура",
     part: "позиция",
   };
@@ -3641,14 +3924,14 @@ function renderBomObjectTree(bom, options = {}) {
   const hiddenCount = Math.max(0, rows.length - (options.compact ? 4 : 10));
 
   return renderObjectTreeNode({
-    title: bom.name || "BOM без названия",
+    title: bom.name || "Спецификация без названия",
     meta: `${bom.boardCode || "код платы не задан"} · ${bom.resultItem || "результат не задан"} · ${componentTotal.toLocaleString("ru-RU")} компонентов`,
     badge: rows.length || "ручн.",
     tone: "bom",
     open: !options.compact,
     children: [
-      renderObjectTreeLeaf("Результат BOM", bom.resultItem || "смонтированная печатная плата не задана", "output"),
-      renderObjectTreeLeaf("Где используется", linkedSpecifications.length ? linkedSpecifications.map((specification) => specification.name).join(", ") : "пока не включен в спецификации", linkedSpecifications.length ? "link" : "empty"),
+      renderObjectTreeLeaf("Результат спецификации", bom.resultItem || "смонтированная печатная плата не задана", "output"),
+      renderObjectTreeLeaf("Где используется", linkedSpecifications.length ? linkedSpecifications.map((specification) => specification.name).join(", ") : "пока не включена в состав изделия", linkedSpecifications.length ? "link" : "empty"),
       rows.length
         ? renderObjectTreeNode({
           title: "Импортированные строки",
@@ -3657,7 +3940,7 @@ function renderBomObjectTree(bom, options = {}) {
           tone: "component",
           children: [rowPreview, hiddenCount ? renderObjectTreeLeaf(`Еще ${hiddenCount.toLocaleString("ru-RU")} строк`, "скрыто в компактном просмотре", "empty") : ""],
         })
-        : renderObjectTreeLeaf("Импортированных строк нет", "BOM заполнен вручную или пока пустой.", "warning"),
+        : renderObjectTreeLeaf("Импортированных строк нет", "Спецификация заполнена вручную или пока пустая.", "warning"),
     ],
   });
 }
@@ -3667,7 +3950,7 @@ function renderRouteObjectTree(route) {
   const tasks = getRouteTasksForModule(route);
   return renderObjectTreeNode({
     title: route.name || "Маршрутная карта",
-    meta: `${getRouteSpecification(route)?.name || "спецификация не найдена"} · ${steps.length} операций`,
+    meta: `${getRouteSpecification(route)?.name || "состав изделия не найден"} · ${steps.length} операций`,
     badge: steps.length,
     tone: "route",
     children: [
@@ -3726,25 +4009,25 @@ function renderBatchObjectTree(batch, slots) {
             .join("")],
         });
       }).join("")
-      : renderObjectTreeLeaf("Слоты еще не размещены", "Передайте маршрут из модуля «Заказ на пр-во» в Гант.", "warning")],
+      : renderObjectTreeLeaf("Слоты еще не размещены", "Передайте маршрут из модуля «Планирование» в Гант.", "warning")],
   });
 }
 
 function renderDirectoryTree() {
   const unitNodes = (planningState.workCenters || []).map((unit) => {
-    const employees = (directoryState.employees || []).filter((employee) => employee.department === unit.name);
+    const resources = getProductionResourcesForWorkCenter(unit.id, { includeInactive: true, includePassive: true });
     const typeLabel = UNIT_TYPE_LABELS[unit.unitType] || "Подразделение";
     const planningLabel = isPlanningWorkCenter(unit)
-      ? `${Number(unit.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час · ${unit.shift || "смена не задана"}`
+      ? `${Number(unit.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час · ${getWorkCalendarLabel(unit)}`
       : "не участвует в Ганте";
     return renderObjectTreeNode({
       title: unit.name || "Подразделение без названия",
       meta: `${typeLabel} · ${unit.code || "код не задан"} · ${planningLabel}`,
-      badge: employees.length,
+      badge: resources.length,
       tone: isPlanningWorkCenter(unit) ? "workcenter" : "directory",
-      children: [employees.length
-        ? employees.map((employee) => renderObjectTreeLeaf(employee.name || "Сотрудник", `${employee.position || employee.role || "должность не задана"} · ${getRoleName(employee.roleId)}`, "employee")).join("")
-        : renderObjectTreeLeaf("Сотрудников нет", "Подразделение пока пустое.", "empty")],
+      children: [resources.length
+        ? resources.map((resource) => renderObjectTreeLeaf(resource.name || "Ресурс", `${PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "тип"} · ${resource.capacity || "мощность не задана"}`, "resource")).join("")
+        : renderObjectTreeLeaf("Ресурсы не заданы", "Добавьте линии, станки или рабочие места в справочник производственных ресурсов.", "empty")],
     });
   }).join("");
 
@@ -3756,8 +4039,8 @@ function renderDirectoryTree() {
     open: true,
     children: [
       renderObjectTreeNode({
-        title: "Подразделения и сотрудники",
-        meta: "организация, ответственность и расчетные зоны",
+        title: "Подразделения и ресурсы",
+        meta: "организация, мощности и расчетные зоны",
         badge: planningState.workCenters.length,
         tone: "workcenter",
         children: [unitNodes || renderObjectTreeLeaf("Подразделений пока нет", "Заполните справочник подразделений.", "empty")],
@@ -3816,45 +4099,15 @@ function formatDateTimeShort(value) {
   });
 }
 
-function getAuthEmployee() {
-  return (directoryState.employees || []).find((employee) => employee.id === authState.employeeId)
-    || (authState.employeeId === SYSTEM_AUTH_EMPLOYEE.id ? SYSTEM_AUTH_EMPLOYEE : null);
-}
-
-function getEmployeeRole(employee = getAuthEmployee()) {
-  if (employee?.roleId === SYSTEM_AUTH_ROLE.id) return SYSTEM_AUTH_ROLE;
-  return (directoryState.roles || []).find((role) => role.id === employee?.roleId)
-    || (directoryState.roles || []).find((role) => role.id === "role-viewer")
-    || (directoryState.roles || [])[0]
-    || SYSTEM_AUTH_ROLE;
-}
-
-function getRoleName(roleId) {
-  if (roleId === SYSTEM_AUTH_ROLE.id) return SYSTEM_AUTH_ROLE.name;
-  return (directoryState.roles || []).find((role) => role.id === roleId)?.name || "Роль не задана";
-}
-
-function parseAccessList(value) {
-  const text = String(value || "").trim();
-  if (!text) return new Set();
-  if (text === "*") return new Set(["*"]);
-  return new Set(text.split(",").map((item) => item.trim()).filter(Boolean));
-}
-
-function roleAllowsValue(listValue, value) {
-  const list = parseAccessList(listValue);
-  return list.has("*") || list.has(value);
-}
-
 function getModuleDefinitions() {
   return [
     { id: "gantt", label: "Гант", icon: "gantt" },
-    { id: "planning", label: "Заказ на пр-во", icon: "calendar" },
-    { id: "operationMap", label: "Карта операций", icon: "chart" },
-    { id: "speki", label: "Спецификации", icon: "book" },
+    { id: "planning", label: "Планирование", icon: "calendar" },
+    { id: "shopMap", label: "Карта цеха", icon: "map" },
+    { id: "rkd", label: "РКД", icon: "document" },
     { id: "calculator", label: "Калькулятор", icon: "calculator" },
     { id: "routes", label: "Маршрутная карта", icon: "split" },
-    { id: "bomLists", label: "BOM-листы", icon: "bom" },
+    { id: "bomLists", label: BOARD_SPEC_TERM, icon: "bom" },
     { id: "nomenclature", label: "Номенклатура", icon: "package" },
     { id: "directories", label: "Справочники", icon: "settings" },
   ];
@@ -3862,8 +4115,8 @@ function getModuleDefinitions() {
 
 function getModuleGroups(modules) {
   const groupMap = [
-    { label: "Производство", ids: ["gantt", "planning"] },
-    { label: "Технологии", ids: ["operationMap", "routes", "speki", "bomLists", "nomenclature"] },
+    { label: "Производство", ids: ["gantt", "planning", "shopMap"] },
+    { label: "Технологии", ids: ["rkd", "routes", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
     { label: "MVP", ids: ["calculator"] },
   ];
@@ -3876,19 +4129,16 @@ function getModuleGroups(modules) {
     .filter((group) => group.modules.length);
 }
 
-function getAvailableModules(role = getEmployeeRole()) {
-  const modules = getModuleDefinitions().filter((moduleItem) => (
-    roleAllowsValue(role?.modules, moduleItem.id)
-  ));
-  return modules.length ? modules : getModuleDefinitions().filter((moduleItem) => moduleItem.id === "gantt");
+function getAvailableModules() {
+  return getModuleDefinitions();
 }
 
 function ensureAuthorizedModule() {
-  if (ui.activeModule === "dashboard" || ui.activeModule === "reports" || ui.activeModule === "debug") {
+  if (ui.activeModule === "dashboard" || ui.activeModule === "reports" || ui.activeModule === "debug" || ui.activeModule === "operationMap") {
     ui.activeModule = "gantt";
   }
-  if (ui.activeModule === "specifications") {
-    ui.activeModule = "speki";
+  if (ui.activeModule === "specifications" || ui.activeModule === "speki") {
+    ui.activeModule = "rkd";
   }
   const availableModules = getAvailableModules();
   if (!availableModules.some((moduleItem) => moduleItem.id === ui.activeModule)) {
@@ -3897,9 +4147,7 @@ function ensureAuthorizedModule() {
 }
 
 function getVisibleDirectorySections() {
-  const role = getEmployeeRole();
-  const visibleSections = directorySections.filter((section) => roleAllowsValue(role?.directories, section.id));
-  return visibleSections.length ? visibleSections : directorySections.filter((section) => section.id === "workCenters");
+  return directorySections;
 }
 
 function getVisibleDirectoryGroups(visibleSections = getVisibleDirectorySections()) {
@@ -3926,48 +4174,8 @@ function getVisibleDirectoryGroups(visibleSections = getVisibleDirectorySections
   return groups;
 }
 
-function renderAuthPage() {
-  const directoryEmployees = (directoryState.employees || []).filter((employee) => employee.status !== "Уволен");
-  const employees = directoryEmployees.length ? directoryEmployees : [SYSTEM_AUTH_EMPLOYEE];
-  const defaultEmployee = employees.find((employee) => employee.roleId === "role-admin") || employees[0];
-
-  return `
-    <main class="auth-shell" aria-label="Авторизация MES">
-      <section class="auth-card">
-        <div class="auth-card-head">
-          <span class="eyebrow">Авторизация</span>
-          <h1>Вход по ФИО</h1>
-          <p>${directoryEmployees.length ? "Для отладки пароль у всех сотрудников пока пустой. Оставьте поле пароля пустым и выберите сотрудника." : "Справочник сотрудников пуст. Доступен служебный вход администратора без записи в справочнике."}</p>
-        </div>
-        <form class="auth-form" id="authForm">
-          <label class="form-field command-field">
-            <span>ФИО сотрудника</span>
-            <select name="employeeId" required>
-              ${employees.map((employee) => {
-                const role = getEmployeeRole(employee);
-                return `<option value="${employee.id}" ${selected(defaultEmployee?.id, employee.id)}>${escapeHtml(employee.name)} · ${escapeHtml(role?.name || "роль не задана")}</option>`;
-              }).join("")}
-            </select>
-          </label>
-          <label class="form-field">
-            <span>Пароль</span>
-            <input name="password" type="password" placeholder="Пустой пароль для отладки" autocomplete="current-password" />
-          </label>
-          <div class="auth-hint">
-            ${icon("lock")}
-            <span>Права доступа берутся из справочника ролей, назначение роли выполняется в справочнике сотрудников.</span>
-          </div>
-          <button class="primary-button" type="submit">${icon("unlock")}<span>Войти в систему</span></button>
-        </form>
-      </section>
-    </main>
-  `;
-}
-
 function renderModuleMenu() {
-  const employee = getAuthEmployee();
-  const role = getEmployeeRole(employee);
-  const modules = getAvailableModules(role);
+  const modules = getAvailableModules();
   const groups = getModuleGroups(modules);
 
   return `
@@ -3988,20 +4196,17 @@ function renderModuleMenu() {
           </div>
         `).join("")}
       </div>
-      <div class="module-menu-meta auth-menu-meta">
-        <div class="auth-user-chip">
-          ${icon("lock")}
-          <span><strong>${escapeHtml(employee?.name || "Пользователь")}</strong><small>${escapeHtml(role?.name || "Роль не задана")}</small></span>
+      <div class="module-menu-meta access-menu-meta">
+        <div class="access-user-chip">
+          ${icon("unlock")}
+          <span><strong>Обычный доступ</strong><small>без ролей и авторизации</small></span>
         </div>
-        <button class="module-logout-button" data-auth-logout type="button" title="Выйти из системы">${icon("unlock")}</button>
       </div>
     </nav>
   `;
 }
 
 function renderAppTopbar() {
-  const employee = getAuthEmployee();
-  const role = getEmployeeRole(employee);
   const activeModule = getModuleDefinitions().find((moduleItem) => moduleItem.id === ui.activeModule) || getModuleDefinitions()[0];
   const activeContext = ui.activeModule === "directories"
       ? directorySections.find((section) => section.id === ui.activeDirectory)?.label || "Справочники"
@@ -4021,13 +4226,13 @@ function renderAppTopbar() {
       </div>
       <label class="app-global-search">
         ${icon("search")}
-        <input type="search" placeholder="Поиск по спецификациям, операциям, справочникам" aria-label="Глобальный поиск" />
+        <input type="search" placeholder="Поиск по составу изделия, спецификациям, операциям" aria-label="Глобальный поиск" />
       </label>
       <div class="app-topbar-actions">
         <span class="app-time" data-clock>${formatDateTime(ui.now)}</span>
         <div class="app-topbar-user">
-          <strong>${escapeHtml(employee?.name || "Пользователь")}</strong>
-          <span>${escapeHtml(role?.name || "Роль не задана")}</span>
+          <strong>Обычный доступ</strong>
+          <span>все модули доступны</span>
         </div>
       </div>
     </header>
@@ -4038,10 +4243,10 @@ function renderCalculatorPage() {
   const calc = calculateComplexityResult();
   const inputStatus = getCalculatorInputStatus(calc);
   const bomOptions = [
-    { value: "", label: "Выберите BOM-лист", meta: "из модуля BOM-листы" },
+    { value: "", label: "Выберите спецификацию", meta: "компонентный состав платы" },
     ...(directoryState.bomLists || []).map((bom) => ({
       value: bom.id,
-      label: bom.name || "BOM без названия",
+      label: bom.name || "Спецификация без названия",
       meta: [bom.boardCode, bom.resultItem].filter(Boolean).join(" · ") || "компонентный состав",
     })),
   ];
@@ -4075,7 +4280,7 @@ function renderCalculatorPage() {
           <div>
             <span class="eyebrow">SMT расчет</span>
             <h1>Калькулятор SMT-операции</h1>
-            <p>Выберите BOM из модуля BOM-листы, конфигурацию SMT-линии и параметры запуска. Результат расчета - длительность одной SMT-операции.</p>
+            <p>Выберите спецификацию платы, конфигурацию SMT-линии и параметры запуска. Результат расчета - длительность одной SMT-операции.</p>
           </div>
           <div class="calculator-header-metrics">
             <span class="status-pill neutral">${calc.panelCount.toLocaleString("ru-RU")} мультипл.</span>
@@ -4088,11 +4293,11 @@ function renderCalculatorPage() {
           <section class="calculator-panel calculator-input-panel calculator-smt-input-panel">
             <div class="report-card-head">
               <strong>Входные данные</strong>
-              <span>${inputStatus.complete ? "готово к расчету SMT" : "выберите BOM, линию и количество"}</span>
+              <span>${inputStatus.complete ? "готово к расчету SMT" : "выберите спецификацию, линию и количество"}</span>
             </div>
             <div class="calculator-form-grid calculator-input-grid">
               <div class="field">
-                <span>BOM-лист</span>
+                <span>Спецификация</span>
                 ${renderDenseInlineSelect("bomListId", calculatorState.bomListId, bomOptions, { type: "calc" })}
               </div>
               <div class="field">
@@ -4129,7 +4334,7 @@ function renderCalculatorPage() {
           <section class="calculator-panel calculator-result-panel calculator-smt-result-panel">
             <div class="report-card-head">
               <strong>Результат расчета SMT</strong>
-              <span>${inputStatus.complete ? escapeHtml(calc.bomList?.name || "BOM") : "расчет появится после заполнения вводных"}</span>
+              <span>${inputStatus.complete ? escapeHtml(calc.bomList?.name || BOARD_SPEC_TERM) : "расчет появится после заполнения вводных"}</span>
             </div>
             <div class="calculator-kpis">
               <article><span>Компонентов / плата</span><strong>${componentTotal.toLocaleString("ru-RU")}</strong><small>${activeTypes} типов компонентов</small></article>
@@ -4143,8 +4348,8 @@ function renderCalculatorPage() {
 
           <section class="calculator-panel component-matrix-panel calculator-smt-component-panel">
             <div class="directory-table-toolbar">
-              <strong>Расчет по компонентам BOM</strong>
-              <span>${componentRows.length ? `${componentRows.length} типов · ${totalPlacements.toLocaleString("ru-RU")} установок` : "выберите BOM и параметры запуска"}</span>
+              <strong>Расчет по компонентам спецификации</strong>
+              <span>${componentRows.length ? `${componentRows.length} типов · ${totalPlacements.toLocaleString("ru-RU")} установок` : "выберите спецификацию и параметры запуска"}</span>
             </div>
             <div class="directory-table-wrap" data-layout="table">
               <table class="directory-table calculator-table bom-table">
@@ -4152,7 +4357,7 @@ function renderCalculatorPage() {
                   <tr>
                     <th>Тип компонента</th>
                     <th>Корпус</th>
-                    <th>BOM / плата</th>
+                    <th>Спецификация / плата</th>
                     <th>Коэф.</th>
                     <th>Эфф. скорость</th>
                     <th>1 плата</th>
@@ -4179,7 +4384,7 @@ function renderCalculatorPage() {
                     <tr>
                       <td class="primary-cell" colspan="8">
                         <span class="component-name">Расчет пока пустой</span>
-                        <small>Выберите BOM-лист, SMT-линию, количество плат и плат в мультипликации.</small>
+                        <small>Выберите спецификацию, SMT-линию, количество плат и плат в мультипликации.</small>
                       </td>
                     </tr>
                   `}
@@ -4206,11 +4411,11 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
     const slots = project ? planningState.slots.filter((slot) => slot.projectId === project.id) : [];
     const isActive = specification.id === calc.specification?.id;
     const bomSummary = bomEntries.length
-      ? `${bomEntries.length} BOM · ${bomEntries.map((entry) => `${entry.quantity}x ${entry.bom.name}`).join(", ")}`
-      : "BOM не привязан";
+      ? `${bomEntries.length} спецификаций · ${bomEntries.map((entry) => `${entry.quantity}x ${entry.bom.name}`).join(", ")}`
+      : "спецификация не привязана";
     const specificationSummary = specification
       ? `${specification.name} · ${specification.outputItem}`
-      : "спецификация не привязана";
+      : "состав изделия не привязан";
     const routeSummary = routeSteps.length
       ? `${routeSteps.length} оп. · ${route?.name || "маршрут"}`
       : "маршрут не сохранен";
@@ -4234,8 +4439,8 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
   return `
     <section class="calculator-panel project-bindings-panel" data-calculator-block="bindings"${visibilityAttr}>
       <div class="directory-table-toolbar">
-        <strong>Текущие спецификации</strong>
-        <span>спецификация, BOM, маршрут и запуск</span>
+        <strong>Текущий состав изделия</strong>
+        <span>состав изделия, спецификация, маршрут и запуск</span>
       </div>
       <div class="project-list-table" role="list">
         ${rows.map((row) => `
@@ -4246,7 +4451,7 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
             </div>
             <div class="project-list-meta">
               <span><b>Изделие</b>${escapeHtml(row.specification.outputItem || "-")}</span>
-              <span><b>BOM</b>${escapeHtml(row.bomSummary)}</span>
+              <span><b>Спецификация</b>${escapeHtml(row.bomSummary)}</span>
               <span><b>Маршрут</b>${escapeHtml(row.routeSummary)}</span>
               <span><b>Запуск</b>${escapeHtml(row.launchSummary)}</span>
             </div>
@@ -4272,11 +4477,11 @@ function renderCalculatorSavePanel(calc, visibilityAttr = "") {
     <section class="calculator-panel calculator-save-panel" data-calculator-block="save"${visibilityAttr}>
       <div class="report-card-head">
         <strong>Передача в план</strong>
-        <span>${savedReady ? `сохранено ${formatDateTime(calculatorState.lastSavedAt)}` : "сохраните маршрут спецификации для Ганта"}</span>
+        <span>${savedReady ? `сохранено ${formatDateTime(calculatorState.lastSavedAt)}` : "сохраните маршрут состава изделия для Ганта"}</span>
       </div>
       <div class="calculator-kpis">
         <article>
-          <span>Спецификация</span>
+          <span>Состав изделия</span>
           <strong>${escapeHtml(calc.specification?.name || "-")}</strong>
           <small>${escapeHtml(getSpecificationProductionOrder(calc.specification) || "заказ не задан")}</small>
         </article>
@@ -4293,21 +4498,21 @@ function renderCalculatorSavePanel(calc, visibilityAttr = "") {
         <article>
           <span>Гант</span>
           <strong>${projectSlots.length}</strong>
-          <small>слотов спецификации в плане</small>
+          <small>слотов состава изделия в плане</small>
         </article>
       </div>
       <div class="calculator-save-summary">
         <div>
           ${icon(savedReady ? "check" : "info")}
           <span>${savedReady
-            ? "Маршрутная карта сохранена в спецификацию. Следующий шаг - постановка операций на диаграмму Ганта."
+            ? "Маршрутная карта сохранена в состав изделия. Следующий шаг - постановка операций на диаграмму Ганта."
             : routeReady
-              ? "Проверьте маршрут и сохраните его в спецификацию, чтобы заказ на пр-во использовал актуальные операции."
+              ? "Проверьте маршрут и сохраните его в состав изделия, чтобы планирование использовало актуальные операции."
               : "Сначала сформируйте маршрутную карту на этапе 04."}</span>
         </div>
       </div>
       <div class="calculator-panel-actions">
-        <button class="primary-button" data-calculator-save-route type="button" ${routeReady ? "" : "disabled"}>${icon("save")}<span>Сохранить маршрут спецификации</span></button>
+        <button class="primary-button" data-calculator-save-route type="button" ${routeReady ? "" : "disabled"}>${icon("save")}<span>Сохранить маршрут состава</span></button>
       </div>
     </section>
   `;
@@ -4323,22 +4528,22 @@ function renderProjectReadinessPanel(calc) {
   const stages = [
     {
       code: "01",
-      title: "Спецификация",
-      status: specification ? "Готова" : "Нет спецификации",
+      title: PRODUCT_COMPOSITION_TERM,
+      status: specification ? "Готов" : "Нет состава изделия",
       complete: Boolean(project),
-      meta: specification ? `${getSpecificationProductionOrder(specification) || "заказ не задан"} · ${Number(getSpecificationProductionQuantity(specification) || 0).toLocaleString("ru-RU")} шт.` : "выберите спецификацию",
+      meta: specification ? `${getSpecificationProductionOrder(specification) || "заказ не задан"} · ${Number(getSpecificationProductionQuantity(specification) || 0).toLocaleString("ru-RU")} шт.` : "выберите состав изделия",
     },
     {
       code: "02",
-      title: "Спецификация",
+      title: PRODUCT_COMPOSITION_TERM,
       status: specification ? "Привязана" : "Нет СП",
       complete: Boolean(specification),
       meta: specification?.outputItem || "состав изделия не выбран",
     },
     {
       code: "03",
-      title: "BOM",
-      status: bomEntries.length ? `${bomEntries.length} BOM` : "Нет BOM",
+      title: BOARD_SPEC_TERM,
+      status: bomEntries.length ? `${bomEntries.length} спецификаций` : "Нет спецификации",
       complete: bomEntries.length > 0,
       meta: bomEntries.length
         ? bomEntries.map((entry) => `${entry.quantity}x ${entry.bom.name}`).join(" · ")
@@ -4364,7 +4569,7 @@ function renderProjectReadinessPanel(calc) {
   return `
     <section class="calculator-panel project-readiness-panel">
       <div class="directory-table-toolbar">
-        <strong>Готовность спецификации</strong>
+        <strong>Готовность состава изделия</strong>
         <span>${escapeHtml(specification?.name || "сквозной сценарий подготовки")}</span>
       </div>
       <div class="project-readiness-steps">
@@ -4408,8 +4613,8 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
   return `
     <section class="calculator-panel spec-bom-plan-panel" data-calculator-block="specBom"${visibilityAttr}>
       <div class="directory-table-toolbar">
-        <strong>BOM из спецификации</strong>
-        <span>${rows.length ? "каждый BOM станет отдельной SMT-операцией" : "BOM пока не привязаны"}</span>
+        <strong>Спецификации из состава изделия</strong>
+        <span>${rows.length ? "каждая спецификация станет отдельной SMT-операцией" : "спецификации пока не привязаны"}</span>
       </div>
       <div class="spec-bom-plan-list">
         ${rows.length ? rows.map((row) => `
@@ -4417,7 +4622,7 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
             <span>${String(row.index).padStart(2, "0")}</span>
             <div>
               <strong>${escapeHtml(row.entry.bom.name)}</strong>
-              <small>${escapeHtml(row.entry.bom.resultItem || row.entry.bom.boardCode || "результат BOM")}</small>
+              <small>${escapeHtml(row.entry.bom.resultItem || row.entry.bom.boardCode || "результат спецификации")}</small>
             </div>
             <em>${row.entry.quantity}x в изделии</em>
             <em>${row.boards.toLocaleString("ru-RU")} плат</em>
@@ -4428,8 +4633,8 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
         `).join("") : `
           <div class="calculator-empty-panel compact">
             ${icon("info")}
-            <strong>BOM не найдены</strong>
-            <span>Заполните спецификацию изделия в справочнике.</span>
+            <strong>Спецификации не найдены</strong>
+            <span>Заполните состав изделия в РКД.</span>
           </div>
         `}
       </div>
@@ -4461,8 +4666,6 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
       ? `data-dense-speki-structure-department="${escapeAttribute(options.itemId || "")}"`
     : options.type === "routeStep"
     ? `data-dense-route-step-field="${escapeAttribute(name)}" data-route-step-id="${escapeAttribute(options.stepId || "")}"`
-    : options.type === "operationMapForm"
-      ? `data-dense-operation-map-field="${escapeAttribute(name)}"`
     : options.type === "routeModule"
       ? `data-dense-route-field="${escapeAttribute(name)}"`
       : options.type === "route"
@@ -4564,7 +4767,7 @@ function getCalculatorWorkflow(calc) {
       id: "inputs",
       sequence: "01",
       title: "Входные данные",
-      caption: "BOM, SMT-линия и размер запуска",
+      caption: "спецификация, SMT-линия и размер запуска",
       complete: inputStatus.complete,
       locked: false,
     },
@@ -4572,7 +4775,7 @@ function getCalculatorWorkflow(calc) {
       id: "bom",
       sequence: "02",
       title: "Компоненты",
-      caption: inputStatus.bom ? "компоненты подтянуты из BOM" : "выберите BOM-лист",
+      caption: inputStatus.bom ? "компоненты подтянуты из спецификации" : "выберите спецификацию",
       complete: inputStatus.complete && bomRows.some((row) => row.count > 0),
       locked: !inputStatus.complete,
     },
@@ -4678,6 +4881,9 @@ function calculateComplexityResult() {
 }
 
 function calculateSmtBomOperation(bomList, smtLine, context) {
+  const directoryOperation = getOperationMapRows({ includeInactive: false })
+    .find((operation) => isSmtOperationWorkCenter(operation.workCenterId, operation))
+    || null;
   const setupMs = Math.max(0, Number(smtLine?.changeoverMin || 0) * 60 * 1000);
   const resourceBaseCph = getResourceBaseCph(smtLine);
   const efficiency = Math.max(0.1, Number(calculatorState.efficiency || smtLine?.efficiency || 100) / 100);
@@ -4704,8 +4910,9 @@ function calculateSmtBomOperation(bomList, smtLine, context) {
   const totalMs = perPanelSeconds * context.panelCount * 1000 + setupMs;
   return {
     id: "smt-operation",
-    operationName: "SMT-монтаж",
-    workCenterId: "smt",
+    operationId: directoryOperation?.id || "",
+    operationName: directoryOperation?.name || "SMT-операция не выбрана",
+    workCenterId: directoryOperation?.workCenterId || smtLine?.workCenterId || "D3_L1",
     calculationType: "components",
     resource: smtLine,
     resourceId: smtLine?.id || "",
@@ -4832,12 +5039,12 @@ function calculateRouteOperation(operation, context) {
 
   const fallbackSeconds = getDefaultSecondsPerPanel(operation.workCenterId, operationBoardsPerPanel);
   const perPanelSeconds = Math.max(0, Number(operation.secondsPerPanel || fallbackSeconds));
-  const employeeCount = calculationType === "manual" ? getWorkCenterEmployeeCount(operation.workCenterId, planningState) : 1;
+  const manualCapacity = calculationType === "manual" ? getWorkCenterManualCapacity(operation.workCenterId, planningState) : 1;
   const operationUnitCount = calculationType === "manual" ? operationBoardQuantity : operationPanelCount;
   const perBoardSeconds = calculationType === "manual"
-    ? perPanelSeconds / employeeCount
+    ? perPanelSeconds / manualCapacity
     : perPanelSeconds / operationBoardsPerPanel;
-  const totalMs = perPanelSeconds * operationUnitCount * 1000 / Math.max(1, employeeCount) + setupMs;
+  const totalMs = perPanelSeconds * operationUnitCount * 1000 / Math.max(1, manualCapacity) + setupMs;
   return {
     ...operation,
     calculationType,
@@ -4853,7 +5060,7 @@ function calculateRouteOperation(operation, context) {
     perPanelSeconds,
     setupMs,
     totalMs,
-    employeeCount,
+    manualCapacity,
     flowBoardsPerHour: perBoardSeconds > 0 ? 3600 / perBoardSeconds : 0,
     flowPanelsPerHour: perPanelSeconds > 0 ? 3600 / perPanelSeconds : 0,
     activeComponentCount: 0,
@@ -4869,7 +5076,7 @@ function getCalculatorWorkCenter() {
   const selectedOperation = getRouteOperations().find((operation) => operation.id === calculatorState.selectedOperationId);
   const planningCenters = getPlanningWorkCenters();
   return planningCenters.find((center) => center.id === selectedOperation?.workCenterId)
-    || planningCenters.find((center) => center.id === "smt")
+    || planningCenters.find((center) => center.id === "D3_L1")
     || planningCenters[0];
 }
 
@@ -4883,15 +5090,18 @@ function getRouteOperations() {
 }
 
 function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
-  const workCenterId = operation.workCenterId || "smt";
+  const directoryOperation = getOperationMapItem(operation.operationId)
+    || findOperationMapItemByNameAndWorkCenter(operation.operationName, operation.workCenterId);
+  const workCenterId = directoryOperation?.workCenterId || mapLegacyWorkCenterId(operation.workCenterId) || "D3_L1";
   const resources = getResourcesForWorkCenter(workCenterId);
   const resource = resources.find((item) => item.id === operation.resourceId) || resources[0];
   const calculationType = getDefaultOperationCalculationType(workCenterId, operation);
   const normalizedBoardsPerPanel = normalizeBoardsPerPanel(operation.boardsPerPanel, boardsPerPanel || 1);
   return {
     id: operation.id || makeId("op"),
+    operationId: directoryOperation?.id || operation.operationId || "",
     stepOrder: Math.max(1, Number(operation.stepOrder || stepOrder)),
-    operationName: operation.operationName || getWorkCenter(workCenterId)?.name || "Операция",
+    operationName: directoryOperation?.name || operation.operationName || getWorkCenter(workCenterId)?.name || "Операция",
     workCenterId,
     resourceId: resource?.id || operation.resourceId || "",
     calculationType,
@@ -4915,30 +5125,31 @@ function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalcula
   const bomEntries = calculatorState.noSpecification && selectedBom
     ? [{ bom: selectedBom, quantity: 1, boardsPerPanel, slot: "PCB" }]
     : getSpecificationBomEntries(specification?.id);
-  const source = steps.length ? steps : [
-    { workCenterId: "smt", operationName: "SMT-монтаж", stepOrder: 1 },
-    { workCenterId: "aoi", operationName: "AOI-контроль", stepOrder: 2 },
-    { workCenterId: "wash", operationName: "Отмывка", stepOrder: 3 },
-    { workCenterId: "manual", operationName: "Ручной монтаж", stepOrder: 4 },
-    { workCenterId: "test", operationName: "Тестирование", stepOrder: 5 },
-    { workCenterId: "assembly", operationName: "Сборка", stepOrder: 6 },
-    { workCenterId: "warehouse", operationName: "Склад", stepOrder: 7 },
-  ];
+  const source = steps.length
+    ? steps
+    : getOperationMapRows({ includeInactive: false }).map((operation, index) => ({
+        operationId: operation.id,
+        workCenterId: operation.workCenterId,
+        operationName: operation.name,
+        stepOrder: index + 1,
+        unitsPerHour: operation.unitsPerHour,
+        requiresBatch: operation.requiresBatch,
+        isWarehouseOperation: operation.isWarehouse,
+      }));
 
   const operations = [];
   source.forEach((step) => {
     const resource = getResourcesForWorkCenter(step.workCenterId)[0];
-    const isExpandableSmt = step.workCenterId === "smt" && bomEntries.length > 0 && !step.bomListId;
+    const isExpandableSmt = MES_SMT_WORK_CENTER_IDS.includes(mapLegacyWorkCenterId(step.workCenterId)) && bomEntries.length > 0 && !step.bomListId;
     const entries = isExpandableSmt ? bomEntries : [{ bom: getBomList(step.bomListId), quantity: step.quantityMultiplier || 1, boardsPerPanel: step.boardsPerPanel || boardsPerPanel || 1, slot: step.bomSlot || "" }];
 
     entries.forEach((entry) => {
       const entryLabel = entry.bom?.resultItem || entry.bom?.name || "";
-      const operationName = isExpandableSmt && entryLabel
-        ? `SMT-монтаж · ${entryLabel}`
-        : step.operationName || getWorkCenter(step.workCenterId)?.name || "Операция";
+      const operationName = step.operationName || getOperationMapItem(step.operationId)?.name || getWorkCenter(step.workCenterId)?.name || "Операция";
 
       operations.push(normalizeRouteOperation({
         id: step.bomListId ? `op-${step.workCenterId}-${step.id || operations.length + 1}` : makeRouteOperationId(step, entry, operations.length + 1),
+        operationId: step.operationId || "",
         stepOrder: Number(step.stepOrder || operations.length + 1),
         operationName,
         workCenterId: step.workCenterId,
@@ -4970,18 +5181,21 @@ function makeRouteOperationId(step, entry, index) {
 
 function getDefaultSecondsPerPanel(workCenterId, boardsPerPanel = 1) {
   const defaults = {
-    aoi: 40,
-    wash: 180,
-    manual: 900,
-    test: 300,
-    coating: 240,
-    mechanic: 360,
-    assembly: 420,
-    warehouse: 60,
+    D3_AOI: 40,
+    D3_UW: 180,
+    D3_MANUAL_CC: 240,
+    D3_CC: 240,
+    D4: 300,
+    D5: 900,
+    D6: 300,
+    D9: 360,
+    D11: 120,
+    D1: 60,
   };
-  if (workCenterId === "smt") return 0;
-  if (defaults[workCenterId]) return defaults[workCenterId];
-  const rate = Math.max(1, getWorkCenterUnitsPerHour(workCenterId));
+  const mappedWorkCenterId = mapLegacyWorkCenterId(workCenterId);
+  if (MES_SMT_WORK_CENTER_IDS.includes(mappedWorkCenterId)) return 0;
+  if (defaults[mappedWorkCenterId]) return defaults[mappedWorkCenterId];
+  const rate = Math.max(1, getWorkCenterUnitsPerHour(mappedWorkCenterId));
   return Math.max(30, Math.round((Math.max(1, Number(boardsPerPanel || 1)) / rate) * 3600));
 }
 
@@ -5024,18 +5238,20 @@ function normalizeSpecificationStructureItem(item, index = 0) {
     : type === "nomenclature" || type === "part"
       ? getDefaultNomenclatureExecutionType(nomenclatureItem)
       : "make";
-  const defaultOperationName = type === "nomenclature" || type === "part"
-    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType)
-    : getDefaultSpekiOperationName(type, executionType);
-  const operationName = String(item?.operationName || item?.operation || item?.routeOperation || defaultOperationName);
+  const linkedOperation = executionType === "buy" ? null : getOperationMapItem(item?.operationId);
+  const operationName = executionType === "buy"
+    ? ""
+    : String(linkedOperation?.name || item?.operationName || item?.operation || item?.routeOperation || "");
+  const operationDepartment = linkedOperation ? getWorkCenter(linkedOperation.workCenterId)?.name || "" : "";
   const bomListId = type === "bom" ? String(item?.bomListId || item?.bomId || "") : "";
   return {
     id: String(item?.id || makeId("spi")),
     parentId: String(item?.parentId || "root"),
     type,
     executionType,
+    operationId: executionType === "buy" ? "" : linkedOperation?.id || String(item?.operationId || ""),
     operationName,
-    departmentName: String(item?.departmentName || item?.department || ""),
+    departmentName: executionType === "buy" ? "" : String(operationDepartment || item?.departmentName || item?.department || ""),
     bomListId,
     specificationId: type === "specification" ? String(item?.specificationId || item?.linkedSpecificationId || "") : "",
     nomenclatureId: type === "nomenclature" ? String(item?.nomenclatureId || item?.itemId || "") : "",
@@ -5063,14 +5279,15 @@ function buildDefaultSpecificationStructureItems(specification) {
       bomListId: resultNomenclature ? "" : bom.id,
       nomenclatureId: resultNomenclature?.id || "",
       executionType: "make",
-      operationName: "SMT-монтаж",
-      departmentName: getDefaultSpekiDepartmentName("SMT-монтаж"),
+      operationId: "",
+      operationName: "",
+      departmentName: "",
       name: resultNomenclature?.name || bom.name,
       quantity: Number(quantity || 1),
       unit: resultNomenclature?.unit || "шт.",
       boardsPerPanel: 1,
       resultItem: resultNomenclature?.name || bom.resultItem || bom.boardCode || "",
-      note: resultNomenclature ? `Результат BOM ${slot}` : `BOM ${slot}`,
+      note: resultNomenclature ? `Результат спецификации ${slot}` : `Спецификация ${slot}`,
       position: rows.length + 1,
     }, rows.length));
   };
@@ -5141,36 +5358,21 @@ function pickDefaultBomForSpecificationItem(specification, items = [], currentIt
 }
 
 function getDefaultSpekiOperationName(type, executionType = "make") {
-  if (executionType === "buy") return "";
-  if (type === "bom") return "SMT-монтаж";
-  if (type === "assembly" || type === "specification") return "Сборка";
   return "";
 }
 
 function getSpekiOperationOptions() {
-  const options = new Map();
-  const addOption = (value, label, meta) => {
-    const key = String(value || "");
-    if (options.has(key)) return;
-    options.set(key, { value: key, label: label || key || "Операция не требуется", meta: meta || "" });
-  };
-
-  addOption("", "Операция не требуется", "для покупных изделий");
-  (planningState.routeSteps || []).forEach((step) => {
-    const operationName = String(step.operationName || "").trim();
-    if (!operationName) return;
-    const center = getWorkCenter(step.workCenterId);
-    addOption(operationName, operationName, center?.name || "маршрутная операция");
-  });
-  getPlanningWorkCenters().forEach((center) => {
-    if (!center?.name) return;
-    addOption(center.name, center.name, center.code || "подразделение");
-  });
-
-  ["SMT-монтаж", "AOI-контроль", "Отмывка", "Ручной монтаж", "Тестирование", "Лакировка", "Слесарное подразделение", "Сборка", "Склад"]
-    .forEach((name) => addOption(name, name, "типовая операция"));
-
-  return [...options.values()];
+  return [
+    { value: "", label: "Операция не требуется", meta: "для покупных изделий" },
+    ...getOperationMapRows({ includeInactive: false }).map((operation) => {
+      const center = getWorkCenter(operation.workCenterId);
+      return {
+        value: operation.id,
+        label: operation.name || "Операция без названия",
+        meta: center?.name || "подразделение не выбрано",
+      };
+    }),
+  ];
 }
 
 function getSpekiDepartmentOptions() {
@@ -5214,11 +5416,11 @@ function getSpecificationStructureRows(specification) {
     position: "00",
     type: "Узел",
     name: specification.outputItem || specification.name || "Итоговое изделие",
-    source: "Производственная спецификация",
+    source: "Состав изделия",
     quantity: 1,
     unit: "изд.",
     result: specification.outputItem || specification.name || "",
-    note: "Производственная спецификация",
+    note: "Состав изделия",
   }];
 
   const items = getSpecificationStructureItems(specification);
@@ -5234,15 +5436,15 @@ function getSpecificationStructureRows(specification) {
     return {
       level,
       position: String(index + 1).padStart(2, "0"),
-      type: item.type === "bom" ? "Плата BOM" : item.type === "specification" ? "Спецификация" : item.type === "assembly" ? "Узел" : "Номенклатура",
+      type: item.type === "bom" ? "Спецификация платы" : item.type === "specification" ? PRODUCT_COMPOSITION_TERM : item.type === "assembly" ? "Узел" : "Номенклатура",
       name: item.type === "bom"
-        ? bom?.name || item.name || "BOM не выбран"
+        ? bom?.name || item.name || "Спецификация не выбрана"
         : item.type === "specification"
-          ? linkedSpecification?.name || item.name || "Спецификация не выбрана"
+          ? linkedSpecification?.name || item.name || "Состав изделия не выбран"
           : item.type === "nomenclature"
             ? nomenclatureItem?.name || item.name || "Позиция не выбрана"
             : item.name || "Позиция не задана",
-      source: item.type === "bom" ? bom?.boardCode || "BOM" : item.type === "specification" ? "Вложенная спецификация" : item.type === "assembly" ? "Внутренний узел" : item.type === "nomenclature" ? nomenclatureItem?.article || "Номенклатура" : "Спецификация",
+      source: item.type === "bom" ? bom?.boardCode || BOARD_SPEC_TERM : item.type === "specification" ? "Вложенный состав изделия" : item.type === "assembly" ? "Внутренний узел" : item.type === "nomenclature" ? nomenclatureItem?.article || "Номенклатура" : PRODUCT_COMPOSITION_TERM,
       quantity: item.quantity,
       unit: item.unit,
       boardsPerPanel: getSpecificationItemBoardsPerPanel(item),
@@ -5366,17 +5568,17 @@ function getCalculatorBomSource(project, specification, noSpecification = false)
 }
 
 function buildSpecificationSummary(specification) {
-  if (!specification) return "Выберите спецификацию к производству.";
+  if (!specification) return "Выберите состав изделия к производству.";
   const bomText = getSpecificationBomEntries(specification.id)
     .map((entry) => `${entry.quantity}x ${entry.bom.resultItem || entry.bom.name}`)
     .join(" + ");
   const extras = specification.extraItems ? ` + ${specification.extraItems}` : "";
-  return `${bomText || "BOM не выбран"}${extras}`;
+  return `${bomText || "спецификация не выбрана"}${extras}`;
 }
 
 function buildNoSpecificationSummary(calc) {
-  if (!calc.specification) return "Выберите спецификацию, затем BOM печатной платы.";
-  if (!calc.bomList) return "Для спецификации без структуры BOM можно использовать маршрут ручных работ.";
+  if (!calc.specification) return "Выберите состав изделия, затем спецификацию печатной платы.";
+  if (!calc.bomList) return "Для состава изделия без спецификации платы можно использовать маршрут ручных работ.";
   return `${calc.specification.name}: результат SMT считается как ${calc.bomList.resultItem || calc.bomList.name}.`;
 }
 
@@ -5477,9 +5679,9 @@ function getBomImportHeaders(bom) {
 }
 
 function getFileBaseName(fileName) {
-  return String(fileName || "BOM")
+  return String(fileName || BOARD_SPEC_TERM)
     .replace(/\.[^.]+$/, "")
-    .trim() || "BOM";
+    .trim() || BOARD_SPEC_TERM;
 }
 
 function classifyBomPackage(row) {
@@ -5557,7 +5759,7 @@ function makeBomImportNomenclaturePayload(row, bom, stamp) {
   const descriptionParts = [
     normalizedRow.designator ? `Обозначение: ${normalizedRow.designator}` : "",
     normalizedRow.note ? `Примечание: ${normalizedRow.note}` : "",
-    bom?.name ? `Источник BOM: ${bom.name}` : "",
+    bom?.name ? `Источник спецификации: ${bom.name}` : "",
   ].filter(Boolean);
 
   return normalizeDirectoryRow("nomenclature", {
@@ -5581,7 +5783,7 @@ function makeBomResultNomenclaturePayload(bom, stamp = new Date().toISOString())
   if (!name) return null;
 
   const descriptionParts = [
-    bom?.name ? `Результат BOM: ${bom.name}` : "",
+    bom?.name ? `Результат спецификации: ${bom.name}` : "",
     bom?.boardCode ? `Код платы: ${bom.boardCode}` : "",
     "Тип позиции: печатная плата",
   ].filter(Boolean);
@@ -5838,7 +6040,7 @@ function updateBomImportRows(bomId, rows, options = {}) {
   persistDirectoryState();
   persistUiState();
   if (options.notify !== false) {
-    notifySaveSuccess(options.message || "Таблица BOM сохранена");
+    notifySaveSuccess(options.message || "Таблица спецификации сохранена");
   }
   return nextBom;
 }
@@ -5874,7 +6076,7 @@ function addNomenclatureToBom(bomId, nomenclatureId) {
   const nomenclatureItem = (directoryState.nomenclature || []).find((item) => item.id === nomenclatureId);
   if (!bom || !nomenclatureItem) return;
   if (!isReaNomenclatureItem(nomenclatureItem)) {
-    alert("В BOM можно добавить только номенклатуру из раздела «РЭА компоненты».");
+    alert("В спецификацию можно добавить только номенклатуру из раздела «РЭА компоненты».");
     return;
   }
 
@@ -5949,20 +6151,20 @@ function migrateSpecificationBomRowsToNomenclature() {
       if (!bom || !resultNomenclature) return item;
 
       changed = true;
-      const operationName = item.operationName || "SMT-монтаж";
       return normalizeSpecificationStructureItem({
         ...item,
         type: "nomenclature",
         bomListId: "",
         nomenclatureId: resultNomenclature.id,
         executionType: "make",
-        operationName,
-        departmentName: item.departmentName || getDefaultSpekiDepartmentName(operationName),
+        operationId: item.operationId || "",
+        operationName: item.operationName || "",
+        departmentName: item.departmentName || "",
         name: resultNomenclature.name || bom.resultItem || item.name || bom.name || "",
         unit: resultNomenclature.unit || "шт.",
         boardsPerPanel: 1,
         resultItem: resultNomenclature.name || bom.resultItem || item.resultItem || "",
-        note: item.note && !/^bom\b/i.test(item.note) ? item.note : "Результат BOM",
+        note: item.note && !/^bom\b/i.test(item.note) ? item.note : "Результат спецификации",
       });
     });
 
@@ -6110,7 +6312,7 @@ async function importBomFromXlsxFile(file, projectId = "") {
   ui.activeProjectId = projectId || "";
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess("BOM импортирован");
+  notifySaveSuccess("Спецификация импортирована");
 }
 
 async function parseXlsxBomFile(file) {
@@ -6137,7 +6339,7 @@ async function parseXlsxBomFile(file) {
     rows.push(Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, columnIndex) => source[columnIndex] ?? ""));
   }
 
-  if (!rows.length) throw new Error("BOM не содержит строк: первая пустая ячейка A найдена сразу после заголовка.");
+  if (!rows.length) throw new Error("Спецификация не содержит строк: первая пустая ячейка A найдена сразу после заголовка.");
   return { sheetName, headers, rows };
 }
 
@@ -6274,22 +6476,24 @@ function getResourcesForWorkCenter(workCenterId) {
 function getDefaultSmtLineConfigurations() {
   return [
     {
-      id: "smt-line-1",
-      name: "SMT линия 1 · Hanwha S2/L2",
-      type: "Линия",
-      workCenter: "SMT-монтаж",
-      capacity: "Hanwha S2 + Hanwha L2",
+      id: "D3_L1",
+      name: "Участок поверхностного монтажа 1",
+      type: "aggregate",
+      workCenterId: "D3_L1",
+      workCenter: "Участок поверхностного монтажа 1",
+      capacity: "Принтер -> Hanwha S2 -> Hanwha L2 -> Печь",
       baseCph: 32000,
       efficiency: 88,
       changeoverMin: 18,
       status: "Готова",
     },
     {
-      id: "smt-line-2",
-      name: "SMT линия 2 · Hanwha S2",
-      type: "Линия",
-      workCenter: "SMT-монтаж",
-      capacity: "Hanwha S2",
+      id: "D3_L2",
+      name: "Участок поверхностного монтажа 2",
+      type: "aggregate",
+      workCenterId: "D3_L2",
+      workCenter: "Участок поверхностного монтажа 2",
+      capacity: "Принтер -> Hanwha S2 -> Печь",
       baseCph: 28000,
       efficiency: 82,
       changeoverMin: 24,
@@ -6299,9 +6503,9 @@ function getDefaultSmtLineConfigurations() {
 }
 
 function getSmtLineConfigurations() {
-  const resources = getProductionResourcesForWorkCenter("smt")
+  const resources = MES_SMT_WORK_CENTER_IDS.flatMap((workCenterId) => getProductionResourcesForWorkCenter(workCenterId))
     .filter((resource) => resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource))
-    .filter((resource) => resolveProductionResourceType(resource.type) === "line" || getSmtLineNumberFromText(`${resource.name} ${resource.code} ${resource.id}`))
+    .filter((resource) => resolveProductionResourceType(resource.type) === "aggregate" || getSmtLineNumberFromText(`${resource.name} ${resource.code} ${resource.id}`))
     .filter((resource) => resource.status !== "Отключен");
   return resources.length ? resources : getDefaultSmtLineConfigurations();
 }
@@ -6352,6 +6556,8 @@ function getSmtGanttLineCenters() {
     code: "SMT",
     unitsPerHour: WORK_CENTER_RATES.smt,
     capacity: 1,
+    workSchedule: "5/2",
+    workMode: "08:00-20:00",
     shift: "5/2 08:00-20:00",
     isActive: true,
   };
@@ -6440,7 +6646,23 @@ function getGanttResourcesForWorkCenter(workCenterId) {
 }
 
 function applyGanttRowToSlot(slot, row) {
-  if (!slot || !["workCenter", "resource"].includes(row?.type)) return;
+  if (!slot || !["operation", "workCenter", "resource"].includes(row?.type)) return;
+  if (row.type === "operation") {
+    const step = row.routeStep || planningState.routeSteps.find((item) => item.id === row.routeStepId);
+    if (!step) return;
+    slot.routeStepId = step.id;
+    slot.workCenterId = step.workCenterId;
+    slot.operationName = step.operationName || getOperationMapItem(step.operationId)?.name || slot.operationName || "Операция";
+    slot.unitsPerHour = Number(step.unitsPerHour || slot.unitsPerHour || 0) || undefined;
+    slot.boardsPerPanel = getRouteStepBoardsPerPanel(step);
+    slot.resourceId = step.resourceId || "";
+    slot.calculationType = step.calculationType || slot.calculationType || "";
+    slot.secondsPerPanel = Number(step.secondsPerPanel || slot.secondsPerPanel || 0);
+    slot.setupMin = Number(step.setupMin || slot.setupMin || 0);
+    slot.bomListId = step.bomListId || slot.bomListId || "";
+    return;
+  }
+
   if (row.type === "resource") {
     slot.workCenterId = row.workCenterId;
     slot.resourceId = row.resourceId || "";
@@ -6520,7 +6742,7 @@ function getSpecificationProductionDueDate(specification) {
 }
 
 function getSpecificationProductionName(specification) {
-  return specification?.outputItem || specification?.name || "Спецификация";
+  return specification?.outputItem || specification?.name || PRODUCT_COMPOSITION_TERM;
 }
 
 function getSpecificationProductionOrder(specification) {
@@ -6533,7 +6755,7 @@ function getSpecificationProductionCustomer(specification) {
   return specification?.customer || project?.customer || "";
 }
 
-function ensureSpecificationPlanningUnit(specification, routeTemplate = "full", options = {}) {
+function ensureSpecificationPlanningUnit(specification, options = {}) {
   const includeRoute = options.includeRoute !== false;
   const stamp = new Date().toISOString();
   const quantity = normalizeOptionalPositiveInteger(specification.productionQuantity) || 1;
@@ -6550,7 +6772,6 @@ function ensureSpecificationPlanningUnit(specification, routeTemplate = "full", 
     totalQuantity: quantity,
     dueDate,
     status,
-    routeTemplate,
   });
 
   if (!includeRoute && !existingRoute) {
@@ -6610,6 +6831,697 @@ function getBomLinkedSpecifications(bomId) {
   ));
 }
 
+function clampShopMapCoordinate(value, fallback = 50) {
+  const numeric = Number(value);
+  const safeValue = Number.isFinite(numeric) ? numeric : Number(fallback);
+  const clamped = Math.max(SHOP_MAP_COORDINATE_MIN, Math.min(SHOP_MAP_COORDINATE_MAX, safeValue));
+  return Math.round(clamped * 100) / 100;
+}
+
+function normalizeShopMapLayout(layout = {}, fallback = {}) {
+  return {
+    x: clampShopMapCoordinate(layout.x, fallback.x || 50),
+    y: clampShopMapCoordinate(layout.y, fallback.y || 50),
+    tone: fallback.tone || layout.tone || "slate",
+  };
+}
+
+function normalizeShopMapLayoutStore(value) {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value)
+    .map(([id, layout]) => {
+      if (!id || !layout || typeof layout !== "object") return null;
+      return [id, {
+        x: clampShopMapCoordinate(layout.x, 50),
+        y: clampShopMapCoordinate(layout.y, 50),
+      }];
+    })
+    .filter(Boolean));
+}
+
+function getShopMapDraftLayouts() {
+  if (!shopMapLayoutDraft) {
+    shopMapLayoutDraft = normalizeShopMapLayoutStore(ui.shopMapWidgetLayouts);
+  }
+  return shopMapLayoutDraft;
+}
+
+function getActiveShopMapLayoutStore() {
+  return ui.shopMapEditMode ? getShopMapDraftLayouts() : normalizeShopMapLayoutStore(ui.shopMapWidgetLayouts);
+}
+
+function getShopFloorDefaultWidgetLayout(center = {}, index = 0) {
+  const lookup = normalizeLookupText(`${center.id || ""} ${center.name || ""} ${center.code || ""}`);
+  const directLayout = SHOP_FLOOR_WIDGET_LAYOUTS.find((layout) => lookup.includes(layout.match));
+  if (directLayout) return directLayout;
+
+  const fallbackColumns = [18, 34, 50, 66, 82];
+  const fallbackRows = [28, 42, 56, 70];
+  return {
+    x: fallbackColumns[index % fallbackColumns.length],
+    y: fallbackRows[Math.floor(index / fallbackColumns.length) % fallbackRows.length],
+    tone: "slate",
+  };
+}
+
+function getShopFloorWidgetLayout(center = {}, index = 0) {
+  const fallback = getShopFloorDefaultWidgetLayout(center, index);
+  const savedLayout = getActiveShopMapLayoutStore()[center.id];
+  return normalizeShopMapLayout(savedLayout, fallback);
+}
+
+function getShopFloorWidgets() {
+  const centers = getPlanningWorkCenters({ includeWarehouse: true });
+  const resources = getProductionResources({ includeInactive: true });
+  const operations = getOperationMapRows({ includeInactive: true });
+
+  return centers.map((center, index) => {
+    const centerResources = resources.filter((resource) => getProductionResourceWorkCenterId(resource) === center.id);
+    const centerOperations = operations.filter((operation) => operation.workCenterId === center.id);
+    const layout = getShopFloorWidgetLayout(center, index);
+    return {
+      center,
+      resources: centerResources,
+      operations: centerOperations,
+      activeResourceCount: centerResources.filter((resource) => !["Отключен", "inactive"].includes(resource.status)).length,
+      layout,
+    };
+  });
+}
+
+function renderShopFloorMapPage() {
+  const widgets = getShopFloorWidgets();
+  const isEditing = Boolean(ui.shopMapEditMode);
+  const resources = getProductionResources({ includeInactive: true });
+  const activeResources = resources.filter((resource) => !["Отключен", "inactive"].includes(resource.status));
+  const operations = getOperationMapRows({ includeInactive: true });
+  const locatedResources = resources.filter((resource) => getProductionResourceWorkCenterId(resource));
+  const sideLayers = [
+    { title: "SVG-план", note: `${SHOP_FLOOR_PLAN_META.source} · ${SHOP_FLOOR_PLAN_META.viewBox}`, count: "1" },
+    { title: "Подразделения", note: "виджеты из текущего справочника", count: widgets.length },
+    { title: "Ресурсы", note: "линии, станки, посты и оборудование", count: resources.length },
+    { title: "Операции", note: "только счетчики по справочнику операций", count: operations.length },
+  ];
+
+  return `
+    <section class="shop-map-page module-data-page ${isEditing ? "is-editing" : "is-viewing"}" data-layout="main-content" aria-label="Карта цеха">
+      <aside class="directory-sidebar module-data-sidebar shop-map-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">План производства</span>
+          <h1>Карта цеха</h1>
+        </div>
+        <div class="shop-map-sidebar-note">
+          ${icon(isEditing ? "edit" : "map")}
+          <span>Координаты виджетов сохраняются отдельным визуальным слоем и не меняют справочники, планирование или расчеты.</span>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Слои отображения</div>
+          ${sideLayers.map((layer, index) => `
+            <article class="module-entity-item ${index === 0 ? "is-active" : ""}">
+              <span>
+                <strong>${escapeHtml(layer.title)}</strong>
+                <small>${escapeHtml(layer.note)}</small>
+              </span>
+              <em>${escapeHtml(layer.count)}</em>
+            </article>
+          `).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">SVG-подложка и координаты виджетов</span>
+            <h2>Расстановка подразделений и производственных ресурсов</h2>
+            <p>В режиме редактирования виджеты можно двигать по SVG. Новые координаты попадут в систему только после сохранения.</p>
+          </div>
+          <div class="shop-map-readonly-badge">
+            ${icon(isEditing ? "edit" : "lock")}
+            <span>${isEditing ? "Редактирование" : "Просмотр"}</span>
+          </div>
+        </header>
+
+        <div class="module-data-content shop-map-content">
+          <section class="module-panel shop-map-canvas-panel">
+            <div class="report-card-head shop-map-panel-head">
+              <div>
+                <strong>${escapeHtml(SHOP_FLOOR_PLAN_META.title)}</strong>
+                <span>${isEditing ? "перетащите виджеты и сохраните координаты" : `подложка ${escapeHtml(SHOP_FLOOR_PLAN_META.source)} · виджеты поверх плана`}</span>
+              </div>
+              <div class="shop-map-actions">
+                ${isEditing ? `
+                  <button class="secondary-button" data-shop-map-cancel-layout type="button">${icon("close")}<span>Отмена</span></button>
+                  <button class="primary-button" data-shop-map-save-layout type="button" ${shopMapLayoutDirty ? "" : "disabled"}>${icon("save")}<span>Сохранить координаты</span></button>
+                ` : `
+                  <button class="secondary-button" data-shop-map-edit-layout type="button">${icon("edit")}<span>Редактировать карту</span></button>
+                `}
+              </div>
+            </div>
+            <div class="shop-map-canvas-frame">
+              <div class="shop-map-canvas-inner" data-shop-map-canvas>
+                <img class="shop-map-svg" src="${SHOP_FLOOR_PLAN_ASSET}" alt="SVG-план производственной зоны" />
+                <div class="shop-map-overlay" aria-label="Виджеты подразделений">
+                  ${widgets.map((widget) => `
+                    <button
+                      type="button"
+                      class="shop-map-widget is-${escapeAttribute(widget.layout.tone)} ${isEditing ? "is-draggable" : ""}"
+                      data-shop-map-widget-id="${escapeAttribute(widget.center.id)}"
+                      data-shop-map-x="${Number(widget.layout.x)}"
+                      data-shop-map-y="${Number(widget.layout.y)}"
+                      data-shop-map-draggable="${isEditing ? "true" : "false"}"
+                      aria-label="${isEditing ? "Переместить виджет подразделения" : "Открыть карточку подразделения"} ${escapeAttribute(widget.center.name)}"
+                      title="${escapeAttribute(widget.center.name)}"
+                      style="--shop-map-x: ${Number(widget.layout.x)}%; --shop-map-y: ${Number(widget.layout.y)}%;"
+                    >
+                      <strong title="${escapeAttribute(widget.center.name)}">${escapeHtml(widget.center.name)}</strong>
+                      <span>${escapeHtml(getWorkCalendarLabel(widget.center))}</span>
+                      <em>${widget.activeResourceCount.toLocaleString("ru-RU")} рес. · ${widget.operations.length.toLocaleString("ru-RU")} оп.</em>
+                      <i class="shop-map-widget-coords">${Number(widget.layout.x).toFixed(1)} / ${Number(widget.layout.y).toFixed(1)}</i>
+                    </button>
+                  `).join("")}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="module-panel shop-map-resources-panel">
+            <div class="report-card-head">
+              <strong>Виджеты ресурсов</strong>
+              <span>данные берутся из справочников, без создания новых связей</span>
+            </div>
+            ${resources.length ? `
+              <div class="directory-table-wrap shop-map-resource-table" data-layout="table">
+                <table class="directory-table">
+                  <thead>
+                    <tr>
+                      <th>Ресурс</th>
+                      <th>Подразделение</th>
+                      <th>Тип</th>
+                      <th>План</th>
+                      <th>Расчет</th>
+                      <th>Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${resources.map((resource) => {
+                      const center = getWorkCenter(getProductionResourceWorkCenterId(resource));
+                      return `
+                        <tr>
+                          <td class="primary-cell" title="${escapeAttribute(resource.name)}">${escapeHtml(resource.name)}</td>
+                          <td>${escapeHtml(center?.name || "не привязан")}</td>
+                          <td>${escapeHtml(PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "-")}</td>
+                          <td>${escapeHtml(resource.participatesInPlanning === "no" ? "Нет" : "Да")}</td>
+                          <td>${escapeHtml(resource.participatesInCalculation === "no" ? "Нет" : "Да")}</td>
+                          <td>${escapeHtml(resource.status || "-")}</td>
+                        </tr>
+                      `;
+                    }).join("")}
+                  </tbody>
+                </table>
+              </div>
+            ` : `
+              <div class="bom-import-empty module-preview-empty">
+                ${icon("map")}
+                <strong>Производственные ресурсы не заполнены</strong>
+                <span>Когда в справочнике появятся ресурсы, они отобразятся в этом списке и в виджетах карты.</span>
+              </div>
+            `}
+          </section>
+
+          <section class="module-panel shop-map-overview-panel">
+            <article>
+              <span>Подразделения</span>
+              <strong>${widgets.length.toLocaleString("ru-RU")}</strong>
+              <small>выведены на карту</small>
+            </article>
+            <article>
+              <span>Ресурсы</span>
+              <strong>${activeResources.length.toLocaleString("ru-RU")}</strong>
+              <small>активных из ${resources.length.toLocaleString("ru-RU")}</small>
+            </article>
+            <article>
+              <span>Операции</span>
+              <strong>${operations.length.toLocaleString("ru-RU")}</strong>
+              <small>из справочника</small>
+            </article>
+            <article>
+              <span>Привязка</span>
+              <strong>${locatedResources.length.toLocaleString("ru-RU")}</strong>
+              <small>ресурсов с подразделением</small>
+            </article>
+          </section>
+
+          <section class="module-panel shop-map-next-panel">
+            <div class="report-card-head">
+              <strong>Правила визуального слоя</strong>
+              <span>координаты не вмешиваются в бизнес-логику</span>
+            </div>
+            <div class="shop-map-next-grid">
+              <article><b>Координаты SVG</b><span>позиции хранятся в процентах от области плана и не съезжают при масштабировании.</span></article>
+              <article><b>Только после сохранения</b><span>перетаскивание меняет черновик, а не сохраненный слой.</span></article>
+              <article><b>Без новых связей</b><span>виджет остается визуальным отображением подразделения из справочника.</span></article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderShopMapWidgetModal() {
+  if (!ui.activeShopMapWidgetId) return "";
+  const widget = getShopFloorWidgets().find((item) => item.center.id === ui.activeShopMapWidgetId);
+  if (!widget) return "";
+  const typeLabel = UNIT_TYPE_LABELS[widget.center.unitType] || widget.center.unitType || "Подразделение";
+  const resources = widget.resources || [];
+  const operations = widget.operations || [];
+  const activeResources = resources.filter((resource) => !["Отключен", "inactive"].includes(resource.status));
+  return `
+    <div class="modal-backdrop shop-map-widget-backdrop" data-shop-map-widget-backdrop>
+      <section class="modal large-modal form-modal shop-map-widget-modal" role="dialog" aria-modal="true" aria-label="Карточка подразделения ${escapeAttribute(widget.center.name)}">
+        <div class="modal-header">
+          <div>
+            <span class="eyebrow">Карта цеха · Виджет подразделения</span>
+            <h2>${escapeHtml(widget.center.name)}</h2>
+          </div>
+          <button class="icon-button" data-shop-map-widget-close type="button" title="Закрыть">${icon("close")}</button>
+        </div>
+        <div class="shop-map-modal-body">
+          <section class="shop-map-modal-summary">
+            <article>
+              <span>Тип</span>
+              <strong>${escapeHtml(typeLabel)}</strong>
+            </article>
+            <article>
+              <span>График</span>
+              <strong>${escapeHtml(getWorkCalendarLabel(widget.center))}</strong>
+            </article>
+            <article>
+              <span>Ресурсы</span>
+              <strong>${activeResources.length.toLocaleString("ru-RU")} / ${resources.length.toLocaleString("ru-RU")}</strong>
+            </article>
+            <article>
+              <span>Операции</span>
+              <strong>${operations.length.toLocaleString("ru-RU")}</strong>
+            </article>
+          </section>
+
+          <section class="shop-map-modal-section">
+            <div class="report-card-head">
+              <strong>Производственные ресурсы</strong>
+              <span>линии, посты и оборудование, привязанные к подразделению</span>
+            </div>
+            ${resources.length ? `
+              <div class="shop-map-modal-list">
+                ${resources.map((resource) => `
+                  <article>
+                    <div>
+                      <strong title="${escapeAttribute(resource.name)}">${escapeHtml(resource.name)}</strong>
+                      <span>${escapeHtml(PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "тип не задан")}</span>
+                    </div>
+                    <em>${escapeHtml(resource.status || "статус не задан")}</em>
+                  </article>
+                `).join("")}
+              </div>
+            ` : `
+              <div class="module-preview-empty shop-map-modal-empty">
+                ${icon("map")}
+                <strong>Ресурсы не привязаны</strong>
+                <span>Добавьте производственные ресурсы в справочнике, чтобы они появились в этой карточке.</span>
+              </div>
+            `}
+          </section>
+
+          <section class="shop-map-modal-section">
+            <div class="report-card-head">
+              <strong>Операции подразделения</strong>
+              <span>операции из справочника операций</span>
+            </div>
+            ${operations.length ? `
+              <div class="shop-map-modal-list">
+                ${operations.map((operation) => `
+                  <article>
+                    <div>
+                      <strong title="${escapeAttribute(operation.name)}">${escapeHtml(operation.name)}</strong>
+                      <span>${escapeHtml(operation.code || operation.id || "код не задан")}</span>
+                    </div>
+                    <em>${escapeHtml(operation.status || "статус не задан")}</em>
+                  </article>
+                `).join("")}
+              </div>
+            ` : `
+              <div class="module-preview-empty shop-map-modal-empty">
+                ${icon("route")}
+                <strong>Операции не заданы</strong>
+                <span>Заполните справочник операций с привязкой к этому подразделению.</span>
+              </div>
+            `}
+          </section>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary-button" data-shop-map-widget-close type="button">Закрыть</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function getRkdSteps() {
+  return [
+    { id: "kit", title: "Комплект РКД", note: "документы и карточка" },
+    { id: "composition", title: PRODUCT_COMPOSITION_TERM, note: "структура изделия" },
+    { id: "boardSpecs", title: BOARD_SPEC_LIST_TERM, note: "печатные платы" },
+    { id: "readiness", title: "Проверка комплектности", note: "что готово к технологии" },
+    { id: "handoff", title: "Передача в технологию", note: "переход к маршрутам" },
+  ];
+}
+
+function normalizeRkdStepId(value) {
+  const stepId = String(value || "");
+  return getRkdSteps().some((step) => step.id === stepId) ? stepId : "kit";
+}
+
+function getRkdContext() {
+  const documentItems = [
+    { group: "Электроника", name: "Схема электрическая принципиальная", source: "ECAD / PDF", required: "Да" },
+    { group: "Плата", name: "Файлы печатной платы и сборочные данные", source: "Gerber / ODB++ / Pick&Place", required: "Да" },
+    { group: "Сборка", name: "Чертеж или инструкция сборки", source: "PDF / DOCX", required: "Да" },
+    { group: "Компоненты", name: "Спецификация как источник компонентного состава", source: "XLSX", required: "Да" },
+    { group: "ПО", name: "Файлы прошивки или программа подготовки", source: "HEX / BIN / архив", required: "По изделию" },
+    { group: "Контроль", name: "Методика контроля и испытаний", source: "PDF / инструкция", required: "Да" },
+    { group: "Механика", name: "Механические чертежи, корпус, кабели", source: "STEP / PDF / DWG", required: "По изделию" },
+    { group: "Выпуск", name: "Маркировка, этикетка, упаковка", source: "PDF / шаблон", required: "По изделию" },
+  ];
+  const readinessItems = [
+    { title: "Комплектность", text: "все обязательные документы приложены или явно отмечены как не требуются" },
+    { title: "Привязка", text: `понятно, к какой номенклатуре или ${PRODUCT_COMPOSITION_TERM_LOWER} относится комплект` },
+    { title: "Актуальность", text: `файлы не устарели относительно ${BOARD_SPEC_TERM_LOWER} и состава изделия` },
+    { title: "Технологичность", text: "у технолога достаточно данных для маршрутной карты и нормирования" },
+  ];
+  const contractRows = [
+    { field: "Название комплекта", owner: "Пользователь", rule: "обязательное поле" },
+    { field: "Связанный объект", owner: "Пользователь", rule: "только после согласования модели связи" },
+    { field: "Документы РКД", owner: "Пользователь", rule: "таблица файлов или ссылок" },
+    { field: "Примечание", owner: "Пользователь", rule: "не влияет на расчеты" },
+  ];
+  const validationQuestions = [
+    `РКД связываем с номенклатурой, ${PRODUCT_COMPOSITION_TERM_LOWER} или обоими объектами?`,
+    "Какие документы обязательны для запуска в производство?",
+    "Нужно ли хранить сами файлы в системе или только ссылки на хранилище?",
+    "Нужен ли отдельный признак полноты комплекта перед созданием маршрутной карты?",
+    "Кто подтверждает готовность РКД: технолог, конструктор, ОТК или директор производства?",
+  ];
+
+  return { documentItems, readinessItems, contractRows, validationQuestions };
+}
+
+function renderRkdPage() {
+  const rkdSteps = getRkdSteps();
+  const activeStepId = normalizeRkdStepId(ui.activeRkdStep);
+  const activeStep = rkdSteps.find((step) => step.id === activeStepId) || rkdSteps[0];
+  const rkdContext = getRkdContext();
+
+  return `
+    <section class="rkd-page module-data-page" data-layout="main-content" aria-label="РКД">
+      <aside class="directory-sidebar module-data-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Технологии</span>
+          <h1>РКД</h1>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Линейный процесс</div>
+          ${rkdSteps.map((section, index) => `
+            <button class="module-entity-item rkd-step-item ${section.id === activeStepId ? "is-active" : ""}" data-rkd-step="${escapeAttribute(section.id)}" type="button">
+              <em>${String(index + 1).padStart(2, "0")}</em>
+              <span>
+                <strong>${escapeHtml(section.title)}</strong>
+                <small>${escapeHtml(section.note)}</small>
+              </span>
+            </button>
+          `).join("")}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">Рабочая конструкторская документация</span>
+            <h2>${escapeHtml(activeStep.title)}</h2>
+            <p>РКД ведет пользователя линейно: сначала комплект документов, затем состав изделия, спецификации плат, проверка полноты и только после этого переход к маршрутной карте.</p>
+          </div>
+        </header>
+
+        <div class="module-data-content rkd-module-content">
+          ${renderRkdStepContent(activeStepId, rkdContext)}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderRkdStepContent(stepId, context) {
+  switch (normalizeRkdStepId(stepId)) {
+    case "composition":
+      return renderRkdCompositionStep();
+    case "boardSpecs":
+      return renderRkdBoardSpecsStep();
+    case "readiness":
+      return renderRkdReadinessStep(context.readinessItems, context.validationQuestions);
+    case "handoff":
+      return renderRkdHandoffStep();
+    case "kit":
+    default:
+      return renderRkdKitStep(context.documentItems, context.contractRows);
+  }
+}
+
+function renderRkdKitStep(documentItems = [], contractRows = []) {
+  return `
+    <section class="module-panel rkd-workspace-panel">
+      <div class="report-card-head">
+        <strong>Карточка комплекта РКД</strong>
+        <span>пока без отдельной сущности и скрытых автосвязей</span>
+      </div>
+      <div class="rkd-workspace-brief">
+        <article>
+          ${icon("document")}
+          <div>
+            <strong>РКД фиксирует комплект документации</strong>
+            <span>Этот шаг собирает документы и инструкции до технологической подготовки. Он не создает операции, маршруты и задания Ганта.</span>
+          </div>
+        </article>
+        <div class="rkd-status-list">
+          <span><b>Файлы</b> документы изделия</span>
+          <span><b>Карточка</b> минимальные поля</span>
+          <span><b>Решение</b> готово / не готово</span>
+        </div>
+      </div>
+      <div class="rkd-rule-list">
+        <article><b>Хранит</b><span>документы, файлы, инструкции, контрольные методики.</span></article>
+        <article><b>Не делает</b><span>не меняет состав изделия, спецификации плат, маршруты и план.</span></article>
+        <article><b>Открывает</b><span>следующий шаг: построение состава изделия по данным РКД.</span></article>
+      </div>
+    </section>
+
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Минимальная карточка</strong>
+        <span>поля, которые стоит реализовать после согласования</span>
+      </div>
+      <div class="rkd-contract-table" role="table" aria-label="Минимальный контракт РКД">
+        <div class="rkd-contract-row is-head" role="row">
+          <span>Поле</span>
+          <span>Кто заполняет</span>
+          <span>Правило</span>
+        </div>
+        ${contractRows.map((row) => `
+          <div class="rkd-contract-row" role="row">
+            <strong>${escapeHtml(row.field)}</strong>
+            <span>${escapeHtml(row.owner)}</span>
+            <span>${escapeHtml(row.rule)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Документы комплекта</strong>
+        <span>что может входить в РКД</span>
+      </div>
+      <div class="rkd-document-matrix" role="table" aria-label="Матрица документов РКД">
+        <div class="rkd-document-row is-head" role="row">
+          <span>Раздел</span>
+          <span>Документ</span>
+          <span>Источник</span>
+          <span>Обяз.</span>
+        </div>
+        ${documentItems.map((item) => `
+          <div class="rkd-document-row" role="row">
+            <span>${escapeHtml(item.group)}</span>
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>${escapeHtml(item.source)}</span>
+            <em>${escapeHtml(item.required)}</em>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderRkdCompositionStep() {
+  return renderRkdSpecificationsPanel();
+}
+
+function renderRkdBoardSpecsStep() {
+  const bomLists = directoryState.bomLists || [];
+  return `
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>${BOARD_SPEC_LIST_TERM}</strong>
+        <span>компонентный состав печатных плат, используемый в составе изделия</span>
+      </div>
+      <div class="rkd-board-spec-summary">
+        <article><span>Всего</span><strong>${bomLists.length}</strong><small>спецификаций</small></article>
+        <article><span>С импортом</span><strong>${bomLists.filter((bom) => getBomImportRows(bom).length).length}</strong><small>есть строки Excel</small></article>
+        <article><span>Черновики</span><strong>${bomLists.filter((bom) => !getBomImportRows(bom).length).length}</strong><small>таблица пустая</small></article>
+      </div>
+      <div class="rkd-board-spec-list" role="table" aria-label="${BOARD_SPEC_LIST_TERM}">
+        <div class="rkd-board-spec-row is-head" role="row">
+          <span>Название</span>
+          <span>Код платы</span>
+          <span>Результат</span>
+          <span>Строк</span>
+        </div>
+        ${bomLists.length ? bomLists.map((bom) => `
+          <div class="rkd-board-spec-row" role="row">
+            <strong>${escapeHtml(bom.name || "Спецификация без названия")}</strong>
+            <span>${escapeHtml(bom.boardCode || "не задан")}</span>
+            <span>${escapeHtml(bom.resultItem || "печатная плата")}</span>
+            <em>${getBomImportRows(bom).length}</em>
+          </div>
+        `).join("") : `
+          <div class="rkd-board-spec-row is-empty" role="row">
+            <strong>${BOARD_SPEC_LIST_TERM} не созданы</strong>
+            <span>Создайте спецификацию платы в отдельном модуле.</span>
+            <span></span>
+            <em>0</em>
+          </div>
+        `}
+      </div>
+      <div class="module-form-actions rkd-step-actions">
+        <button class="secondary-button" data-rkd-open-module="bomLists" type="button">${icon("book")}<span>Открыть спецификации</span></button>
+      </div>
+    </section>
+  `;
+}
+
+function renderRkdReadinessStep(readinessItems = [], validationQuestions = []) {
+  const activeSpecification = getActiveSpecificationForModule();
+  const rows = activeSpecification ? getSpekiStructureTableRows(activeSpecification) : [];
+  const staleIds = new Set(ui.spekiStaleItemIds || []);
+  const issueCount = activeSpecification
+    ? rows.filter(({ item }) => getSpekiTreeItemIssues(item, activeSpecification.id, staleIds).length).length
+    : 0;
+  const bomCount = rows.filter(({ item }) => Boolean(getSpecificationItemBomId(item))).length;
+  const readyState = activeSpecification && rows.length && !issueCount ? "Готово к технологической подготовке" : "Нужна проверка";
+
+  return `
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Итоговая проверка РКД</strong>
+        <span>контроль перед работой технолога</span>
+      </div>
+      <div class="rkd-readiness-dashboard">
+        <article class="${activeSpecification ? "is-ok" : "is-warning"}"><span>${PRODUCT_COMPOSITION_TERM}</span><strong>${activeSpecification ? "выбран" : "не выбран"}</strong><small>${escapeHtml(activeSpecification?.name || "откройте шаг состава изделия")}</small></article>
+        <article class="${rows.length ? "is-ok" : "is-warning"}"><span>Строк состава</span><strong>${rows.length}</strong><small>${rows.length ? "есть структура" : "структура пустая"}</small></article>
+        <article class="${bomCount ? "is-ok" : "is-warning"}"><span>${BOARD_SPEC_LIST_TERM}</span><strong>${bomCount}</strong><small>${bomCount ? "используются в составе" : "не добавлены"}</small></article>
+        <article class="${issueCount ? "is-warning" : "is-ok"}"><span>Замечания</span><strong>${issueCount}</strong><small>${readyState}</small></article>
+      </div>
+      <div class="rkd-readiness-grid">
+        ${readinessItems.map((item) => `
+          <article>
+            ${icon("check")}
+            <div>
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.text)}</span>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Вопросы перед автоматизацией</strong>
+        <span>не превращаем в скрытые связи без подтверждения</span>
+      </div>
+      <div class="rkd-question-list">
+        ${validationQuestions.map((question) => `<article>${icon("info")}<span>${escapeHtml(question)}</span></article>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderRkdHandoffStep() {
+  const activeSpecification = getActiveSpecificationForModule();
+  const existingRoute = activeSpecification
+    ? (planningState.routes || []).find((route) => route.specificationId === activeSpecification.id || route.projectId === activeSpecification.id)
+    : null;
+  return `
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Передача в технологическую подготовку</strong>
+        <span>РКД не строит маршрут автоматически, а переводит пользователя к следующему рабочему модулю</span>
+      </div>
+      <div class="rkd-handoff-flow">
+        <article><strong>РКД</strong><span>комплект документов и состав изделия</span></article>
+        <i></i>
+        <article><strong>Маршрутная карта</strong><span>подразделения, операции и последовательность работ</span></article>
+        <i></i>
+        <article><strong>Планирование</strong><span>партии, количество и передача в Гант</span></article>
+      </div>
+      <div class="rkd-handoff-status">
+        <article class="${activeSpecification ? "is-ok" : "is-warning"}">
+          ${icon(activeSpecification ? "check" : "info")}
+          <div>
+            <strong>${activeSpecification ? escapeHtml(activeSpecification.name || PRODUCT_COMPOSITION_TERM) : `${PRODUCT_COMPOSITION_TERM} не выбран`}</strong>
+            <span>${activeSpecification ? "Можно открыть маршрутную карту и продолжить работу." : "Сначала выберите состав изделия на предыдущем шаге."}</span>
+          </div>
+        </article>
+        <article class="${existingRoute ? "is-ok" : "is-warning"}">
+          ${icon(existingRoute ? "route" : "info")}
+          <div>
+            <strong>${existingRoute ? escapeHtml(existingRoute.name || "Маршрутная карта") : "Маршрут еще не найден"}</strong>
+            <span>${existingRoute ? "Для состава изделия уже есть маршрут." : "Маршрут будет создан или выбран в модуле маршрутной карты."}</span>
+          </div>
+        </article>
+      </div>
+      <div class="module-form-actions rkd-step-actions">
+        <button class="primary-button" data-rkd-open-module="routes" type="button">${icon("route")}<span>Открыть маршрутную карту</span></button>
+      </div>
+    </section>
+  `;
+}
+
+function renderRkdSpecificationsPanel() {
+  return `
+    <section class="module-panel rkd-specifications-panel">
+      <div class="report-card-head">
+        <strong>${PRODUCT_COMPOSITION_TERM}</strong>
+        <span>рабочий конструктор состава изделия внутри модуля РКД</span>
+      </div>
+      <div class="rkd-specifications-embedded speki-page" aria-label="${PRODUCT_COMPOSITION_TERM}">
+        ${renderSpekiWorkspace({
+          sidebarEyebrow: "Состав изделия",
+          sidebarTitle: PRODUCT_COMPOSITION_TERM,
+          listLabel: PRODUCT_COMPOSITION_LIST_TERM,
+        })}
+      </div>
+    </section>
+  `;
+}
+
 function renderSpecificationsPage() {
   const activeSpecification = getActiveSpecificationForModule();
   const isNewSpecification = ui.activeSpecificationId === "__new__" || !activeSpecification;
@@ -6640,18 +7552,18 @@ function renderSpecificationsPage() {
   const structureRows = getSpecificationStructureRows(specification);
 
   return `
-    <section class="specifications-page module-data-page" data-layout="main-content" aria-label="Спецификации изделий">
+    <section class="specifications-page module-data-page" data-layout="main-content" aria-label="Состав изделия">
       <aside class="directory-sidebar module-data-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Состав изделия</span>
-          <h1>Спецификации</h1>
+        <h1>${PRODUCT_COMPOSITION_TERM}</h1>
         </div>
         <div class="module-sidebar-actions">
-          <button class="primary-button" data-specification-create type="button">${icon("plus")}<span>Новая спецификация</span></button>
+          <button class="primary-button" data-specification-create type="button">${icon("plus")}<span>Новый состав</span></button>
         </div>
         <div class="module-entity-list">
-          <div class="module-list-label">Спецификации изделий</div>
-          ${isNewSpecification ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая спецификация</strong><small>заполните форму справа</small></span><em>new</em></button>` : ""}
+          <div class="module-list-label">${PRODUCT_COMPOSITION_LIST_TERM}</div>
+          ${isNewSpecification ? `<button class="module-entity-item is-active" type="button"><span><strong>Новый состав изделия</strong><small>заполните форму справа</small></span><em>new</em></button>` : ""}
           ${(directoryState.specifications || []).map((item) => `
             <button class="module-entity-item ${item.id === activeSpecification?.id ? "is-active" : ""}" data-specification-open="${item.id}" type="button">
               <span><strong>${escapeHtml(item.name)}</strong><small>${Number(getSpecificationProductionQuantity(item) || 0).toLocaleString("ru-RU")} шт. · срок ${formatDate(getSpecificationProductionDueDate(item))}</small></span>
@@ -6665,11 +7577,11 @@ function renderSpecificationsPage() {
         <header class="directory-header">
           <div>
             <span class="eyebrow">Конструктор состава</span>
-            <h2>${escapeHtml(isNewSpecification ? "Новая спецификация изделия" : specification.name)}</h2>
-            <p>${escapeHtml(activeProject ? `${getSpecificationProductionName(specification)}: спецификация является центральным объектом планирования и мониторинга.` : "Соберите спецификацию, укажите количество к производству и сохраните ее для планирования.")}</p>
+            <h2>${escapeHtml(isNewSpecification ? "Новый состав изделия" : specification.name)}</h2>
+            <p>${escapeHtml(activeProject ? `${getSpecificationProductionName(specification)}: состав изделия является центральным объектом планирования и мониторинга.` : "Соберите состав изделия, укажите количество к производству и сохраните его для планирования.")}</p>
           </div>
           <div class="directory-actions">
-            <button class="secondary-button" data-open-spec-boms type="button">${icon("book")}<span>BOM-листы</span></button>
+            <button class="secondary-button" data-open-spec-boms type="button">${icon("book")}<span>${BOARD_SPEC_LIST_TERM}</span></button>
             <button class="secondary-button" data-specification-to-calculator type="button" ${activeSpecification ? "" : "disabled"}>${icon("calculator")}<span>В калькулятор</span></button>
             <button class="secondary-button danger" data-specification-delete="${escapeAttribute(specification.id)}" type="button" ${activeSpecification ? "" : "disabled"}>${icon("trash")}<span>Удалить</span></button>
           </div>
@@ -6678,8 +7590,8 @@ function renderSpecificationsPage() {
         <div class="module-data-content specification-module-content">
           <section class="module-panel specification-editor-panel">
             <div class="report-card-head">
-              <strong>Спецификация изделия</strong>
-              <span>${isNewSpecification ? "создание производственной спецификации" : "центральный объект планирования"}</span>
+              <strong>${PRODUCT_COMPOSITION_TERM}</strong>
+              <span>${isNewSpecification ? "создание состава изделия" : "центральный объект планирования"}</span>
             </div>
             <form id="specificationModuleForm" class="module-form">
               <input type="hidden" name="specificationId" value="${escapeAttribute(specification.id)}" />
@@ -6691,9 +7603,9 @@ function renderSpecificationsPage() {
               <label class="form-field"><span>Срок выпуска</span><input name="dueDate" type="date" value="${escapeAttribute(dueDate)}" /></label>
               <label class="form-field"><span>Заказ / партия</span><input name="orderNumber" value="${escapeAttribute(getSpecificationProductionOrder(specification))}" placeholder="№ / партия" /></label>
               <label class="form-field"><span>Заказчик</span><input name="customer" value="${escapeAttribute(getSpecificationProductionCustomer(specification))}" placeholder="Компания / внутренний заказ" /></label>
-              <label class="form-field"><span>BOM A</span><select name="bomListA"><option value="">Не выбран</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Спецификация A</span><select name="bomListA"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во A</span><input name="bomQtyA" type="number" min="0" step="1" value="${Number(specification.bomQtyA || 0)}" /></label>
-              <label class="form-field"><span>BOM B</span><select name="bomListB"><option value="">Не выбран</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Спецификация B</span><select name="bomListB"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во B</span><input name="bomQtyB" type="number" min="0" step="1" value="${Number(specification.bomQtyB || 0)}" /></label>
               <label class="form-field full"><span>Дополнительный состав</span><input name="extraItems" value="${escapeAttribute(specification.extraItems)}" placeholder="Корпус; кабель; крепеж; маркировка" /></label>
               <label class="form-field"><span>Статус</span><input name="status" value="${escapeAttribute(specification.status)}" /></label>
@@ -6707,22 +7619,22 @@ function renderSpecificationsPage() {
                 </div>
               </div>
               <div class="module-form-actions full">
-                <button class="primary-button" type="submit">${icon("save")}<span>${isNewSpecification ? "Создать спецификацию" : "Сохранить спецификацию"}</span></button>
+                <button class="primary-button" type="submit">${icon("save")}<span>${isNewSpecification ? "Создать состав" : "Сохранить состав"}</span></button>
               </div>
             </form>
           </section>
 
           <section class="module-panel spec-structure-panel">
             <div class="report-card-head">
-              <strong>Конструктор спецификации</strong>
-              <span>узел изделия, платы BOM и дополнительные позиции</span>
+              <strong>Конструктор состава изделия</strong>
+              <span>узел изделия, спецификации плат и дополнительные позиции</span>
             </div>
             ${renderSpecificationConstructor(specification, structureItems, structureBomOptions, isNewSpecification)}
           </section>
 
           <section class="module-panel spec-structure-table-panel">
             <div class="report-card-head">
-              <strong>Таблица структуры спецификации</strong>
+              <strong>Таблица структуры состава изделия</strong>
               <span>${structureRows.length ? `${structureRows.length} строк состава изделия` : "после заполнения конструктора здесь появится состав"}</span>
             </div>
             ${renderSpecificationStructureTable(structureRows)}
@@ -6734,52 +7646,63 @@ function renderSpecificationsPage() {
   `;
 }
 
-function renderSpekiPage() {
+function renderSpekiPage(options = {}) {
+  const ariaLabel = options.ariaLabel || PRODUCT_COMPOSITION_TERM;
+
+  return `
+    <section class="speki-page module-data-page" data-layout="main-content" aria-label="${escapeAttribute(ariaLabel)}">
+      ${renderSpekiWorkspace(options)}
+    </section>
+  `;
+}
+
+function renderSpekiWorkspace(options = {}) {
   const specifications = directoryState.specifications || [];
   const activeSpecification = specifications.find((specification) => specification.id === ui.activeSpecificationId) || null;
   const isEditing = Boolean(activeSpecification && ui.spekiEditingId === activeSpecification.id);
+  const sidebarEyebrow = options.sidebarEyebrow || "Перечень";
+  const sidebarTitle = options.sidebarTitle || PRODUCT_COMPOSITION_TERM;
+  const listLabel = options.listLabel || PRODUCT_COMPOSITION_LIST_TERM;
 
   return `
-    <section class="speki-page module-data-page" data-layout="main-content" aria-label="Спецификации">
-      <aside class="directory-sidebar module-data-sidebar speki-sidebar">
-        <div class="directory-sidebar-head">
-          <span class="eyebrow">Перечень</span>
-          <h1>Спецификации</h1>
-        </div>
-        <div class="module-sidebar-actions">
-          <button class="primary-button" data-speki-create-specification type="button">${icon("plus")}<span>Новая спецификация</span></button>
-        </div>
-        <div class="module-entity-list speki-spec-list">
-          <div class="module-list-label">Спецификации</div>
-          ${specifications.length ? specifications.map((specification) => `
-              <button class="module-entity-item ${specification.id === activeSpecification?.id ? "is-active" : ""}" data-speki-spec-open="${escapeAttribute(specification.id)}" type="button">
-                <span>
-                  <strong>${escapeHtml(specification.name || "Спецификация без названия")}</strong>
-                </span>
-              </button>
-            `).join("") : `
-            <article class="module-empty-note">
-              <strong>Спецификаций пока нет</strong>
-              <span>Когда в системе появятся спецификации, они будут отображаться в этом перечне.</span>
-            </article>
-          `}
-        </div>
-      </aside>
-
-      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
-        <div class="module-data-content speki-module-content">
-          ${activeSpecification ? `
-          <section class="module-panel speki-spec-table-panel">
-            <div class="report-card-head">
-              <strong>Таблица спецификации</strong>
-              <span>${escapeHtml(activeSpecification.name || "выбранная спецификация")}</span>
-            </div>
-            ${renderSpekiStructureTable(activeSpecification, isEditing)}
-          </section>
-          ` : ""}
-        </div>
+    <aside class="directory-sidebar module-data-sidebar speki-sidebar">
+      <div class="directory-sidebar-head">
+        <span class="eyebrow">${escapeHtml(sidebarEyebrow)}</span>
+        <h1>${escapeHtml(sidebarTitle)}</h1>
       </div>
-    </section>
+      <div class="module-sidebar-actions">
+        <button class="primary-button" data-speki-create-specification type="button">${icon("plus")}<span>Новый состав</span></button>
+      </div>
+      <div class="module-entity-list speki-spec-list">
+        <div class="module-list-label">${escapeHtml(listLabel)}</div>
+        ${specifications.length ? specifications.map((specification) => `
+            <button class="module-entity-item ${specification.id === activeSpecification?.id ? "is-active" : ""}" data-speki-spec-open="${escapeAttribute(specification.id)}" type="button">
+              <span>
+                  <strong>${escapeHtml(specification.name || "Состав изделия без названия")}</strong>
+              </span>
+            </button>
+          `).join("") : `
+          <article class="module-empty-note">
+            <strong>Состав изделия пока не создан</strong>
+            <span>Когда в системе появится состав изделия, он будет отображаться в этом перечне.</span>
+          </article>
+        `}
+      </div>
+    </aside>
+
+    <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+      <div class="module-data-content speki-module-content">
+        ${activeSpecification ? `
+        <section class="module-panel speki-spec-table-panel">
+          <div class="report-card-head">
+            <strong>Таблица состава изделия</strong>
+            <span>${escapeHtml(activeSpecification.name || "выбранный состав изделия")}</span>
+          </div>
+          ${renderSpekiStructureTable(activeSpecification, isEditing)}
+        </section>
+        ` : ""}
+      </div>
+    </div>
   `;
 }
 
@@ -6788,20 +7711,20 @@ function renderSpekiStructureTable(specification, isEditing = false) {
     return `
       <div class="bom-import-empty">
         ${icon("book")}
-        <strong>Спецификация не выбрана</strong>
-        <span>Выберите спецификацию в левом перечне, чтобы управлять ее составом.</span>
+        <strong>Состав изделия не выбран</strong>
+        <span>Выберите состав изделия в левом перечне, чтобы управлять его структурой.</span>
       </div>
     `;
   }
 
   const rows = getSpekiStructureTableRows(specification);
   const specificationOptions = [
-    { value: "", label: "Выберите спецификацию", meta: "вложенный состав" },
+    { value: "", label: "Выберите состав изделия", meta: "вложенный состав" },
     ...(directoryState.specifications || [])
       .filter((item) => item.id !== specification.id)
       .map((item) => ({
         value: item.id,
-        label: item.name || "Спецификация без названия",
+        label: item.name || "Состав изделия без названия",
         meta: `${getSpecificationStructureItems(item).length} строк состава`,
       })),
   ];
@@ -6815,7 +7738,7 @@ function renderSpekiStructureTable(specification, isEditing = false) {
   ];
   const typeOptions = [
     { value: "assembly", label: "Узел", meta: "группа строк состава" },
-    { value: "specification", label: "Спецификация", meta: "вложенный узел изделия" },
+    { value: "specification", label: "Состав изделия", meta: "вложенный состав" },
     { value: "nomenclature", label: "Номенклатура", meta: "материал, плата или изделие" },
   ];
   const compositionSummary = getSpekiCompositionSummary(specification, rows);
@@ -6823,14 +7746,14 @@ function renderSpekiStructureTable(specification, isEditing = false) {
   const miniCardMarkup = `
     <article class="speki-spec-mini-card">
       <label class="speki-spec-name-field">
-        <span>Название спецификации</span>
-        <input data-speki-spec-name="${escapeAttribute(specification.id)}" value="${escapeAttribute(specification.name || "")}" placeholder="Введите название спецификации" ${isEditing ? "" : "disabled"} />
+        <span>Название состава изделия</span>
+        <input data-speki-spec-name="${escapeAttribute(specification.id)}" value="${escapeAttribute(specification.name || "")}" placeholder="Введите название состава изделия" ${isEditing ? "" : "disabled"} />
       </label>
-      <div class="speki-composition-strip" aria-label="Сводка состава спецификации">
+      <div class="speki-composition-strip" aria-label="Сводка состава изделия">
         <article><span>Строк</span><strong>${compositionSummary.totalRows}</strong></article>
         <article><span>Узлов</span><strong>${compositionSummary.nodeCount}</strong></article>
         <article><span>Номенклатура</span><strong>${compositionSummary.nomenclatureCount}</strong></article>
-        <article><span>Вложенные спеки</span><strong>${compositionSummary.nestedSpecificationCount}</strong></article>
+        <article><span>Вложенный состав</span><strong>${compositionSummary.nestedSpecificationCount}</strong></article>
       </div>
       <div class="speki-spec-card-actions">
         ${isEditing
@@ -6871,14 +7794,14 @@ function renderSpekiStructureTable(specification, isEditing = false) {
                 ? `<input class="speki-node-name-input" data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="name" value="${escapeAttribute(item.name || "Новый узел")}" placeholder="Название узла" ${isEditing ? "" : "disabled"} />`
                 : renderDenseInlineSelect("nomenclatureId", item.nomenclatureId || nomenclatureItem?.id || "", nomenclatureOptions, { type: "spekiStructureNomenclature", itemId: item.id });
             const objectLabel = rowType === "specification"
-              ? linkedSpecification?.name || item.name || "Спецификация не выбрана"
+              ? linkedSpecification?.name || item.name || "Состав изделия не выбран"
               : rowType === "assembly"
                 ? item.name || "Новый узел"
                 : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
             const typeLabel = rowType === "assembly"
               ? "Узел"
               : rowType === "specification"
-                ? "Спецификация"
+                ? "Состав изделия"
                 : "Номенклатура";
             const nextSibling = rows.slice(index + 1)
               .find((row) => row.level === level && (row.item.parentId || "root") === (item.parentId || "root"));
@@ -6916,7 +7839,7 @@ function renderSpekiStructureTable(specification, isEditing = false) {
             <tr>
               <td colspan="6" class="primary-cell">
                 <span class="component-name">Структура пока пустая</span>
-                <small>Добавьте строку под таблицей и выберите тип: узел, спецификация или номенклатура.</small>
+                <small>Добавьте строку под таблицей и выберите тип: узел, состав изделия или номенклатура.</small>
               </td>
             </tr>
           `}
@@ -6969,7 +7892,7 @@ function renderSpekiSourcePalette(specification, compositionSummary = getSpekiCo
       <article class="speki-source-row">
         <div>
           <strong>${escapeHtml(resultName)}</strong>
-          <span>${escapeHtml(bom.name || "BOM без названия")} · ${rowsCount || componentTotal} поз.</span>
+          <span>${escapeHtml(bom.name || "Спецификация без названия")} · ${rowsCount || componentTotal} поз.</span>
         </div>
         <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
         <button class="secondary-button" data-speki-quick-add="bomResult" data-speki-source-id="${escapeAttribute(bom.id)}" type="button">${icon("plus")}<span>Добавить</span></button>
@@ -6982,7 +7905,7 @@ function renderSpekiSourcePalette(specification, compositionSummary = getSpekiCo
     .map((item) => `
       <article class="speki-source-row">
         <div>
-          <strong>${escapeHtml(item.name || "Спецификация без названия")}</strong>
+          <strong>${escapeHtml(item.name || "Состав изделия без названия")}</strong>
           <span>${getSpecificationStructureItems(item).length} строк состава</span>
         </div>
         <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
@@ -7001,10 +7924,10 @@ function renderSpekiSourcePalette(specification, compositionSummary = getSpekiCo
     .filter((group) => group.items.length);
 
   return `
-    <section class="speki-source-palette" aria-label="Источники состава спецификации">
+    <section class="speki-source-palette" aria-label="Источники состава изделия">
       <div class="report-card-head">
-        <strong>Добавить в спецификацию</strong>
-        <span>выберите готовый источник состава: результат BOM, номенклатуру или вложенную спецификацию</span>
+        <strong>Добавить в состав изделия</strong>
+        <span>выберите готовый источник состава: результат спецификации, номенклатуру или вложенный состав изделия</span>
       </div>
       <div class="speki-source-summary">
         ${Object.entries(compositionSummary.byNomenclatureType).length
@@ -7013,15 +7936,15 @@ function renderSpekiSourcePalette(specification, compositionSummary = getSpekiCo
       </div>
       <div class="speki-source-grid">
         <details class="speki-source-group" open>
-          <summary><strong>Печатные платы из BOM</strong><span>${(directoryState.bomLists || []).length}</span></summary>
+          <summary><strong>Печатные платы из спецификаций</strong><span>${(directoryState.bomLists || []).length}</span></summary>
           <div class="speki-source-list">
-            ${bomCards || `<article class="module-empty-note"><strong>BOM-листов нет</strong><span>Импортируйте BOM в отдельном модуле, чтобы его результат появился как печатная плата.</span></article>`}
+            ${bomCards || `<article class="module-empty-note"><strong>Спецификаций пока нет</strong><span>Импортируйте спецификацию в отдельном модуле, чтобы ее результат появился как печатная плата.</span></article>`}
           </div>
         </details>
         <details class="speki-source-group">
-          <summary><strong>Вложенные спецификации</strong><span>${(directoryState.specifications || []).filter((item) => item.id !== specification.id).length}</span></summary>
+          <summary><strong>Вложенный состав изделия</strong><span>${(directoryState.specifications || []).filter((item) => item.id !== specification.id).length}</span></summary>
           <div class="speki-source-list">
-            ${nestedSpecificationCards || `<article class="module-empty-note"><strong>Других спецификаций нет</strong><span>Этот источник станет доступен после создания второй спецификации.</span></article>`}
+            ${nestedSpecificationCards || `<article class="module-empty-note"><strong>Другого состава изделия нет</strong><span>Этот источник станет доступен после создания второго состава изделия.</span></article>`}
           </div>
         </details>
         <details class="speki-source-group" open>
@@ -7043,12 +7966,12 @@ function renderSpekiSourcePalette(specification, compositionSummary = getSpekiCo
                   `).join("")}
                 </div>
               </details>
-            `).join("") : `<article class="module-empty-note"><strong>Номенклатуры нет</strong><span>Добавьте позиции вручную или импортируйте BOM, чтобы РЭА компоненты появились автоматически.</span></article>`}
+            `).join("") : `<article class="module-empty-note"><strong>Номенклатуры нет</strong><span>Добавьте позиции вручную или импортируйте спецификацию, чтобы РЭА компоненты появились автоматически.</span></article>`}
           </div>
         </details>
         <article class="speki-source-group speki-source-node-card">
           <div>
-            <strong>Узел спецификации</strong>
+            <strong>Узел состава изделия</strong>
             <span>объединяет несколько строк состава под общей операцией</span>
           </div>
           <button class="secondary-button" data-speki-quick-add="assembly" type="button">${icon("split")}<span>Добавить узел</span></button>
@@ -7103,7 +8026,7 @@ function renderSpekiSpecificationTree(specification, rows = getSpekiStructureTab
     <div class="speki-tree-view">
       <div class="speki-tree-summary">
         <article><span>Строк состава</span><strong>${rows.length}</strong><small>${nodeCount} узлов</small></article>
-        <article><span>Печатных плат</span><strong>${bomCount}</strong><small>из BOM</small></article>
+        <article><span>Печатных плат</span><strong>${bomCount}</strong><small>из спецификаций</small></article>
         <article><span>Покупных</span><strong>${buyCount}</strong><small>без операции</small></article>
         <article class="${issueCount ? "is-warning" : "is-ok"}"><span>Проверка</span><strong>${issueCount}</strong><small>${issueCount ? "требует внимания" : "замечаний нет"}</small></article>
       </div>
@@ -7117,9 +8040,9 @@ function renderSpekiSpecificationTree(specification, rows = getSpekiStructureTab
 }
 
 function renderSpekiSpecificationTreeNode(specification, rows = getSpekiStructureTableRows(specification), staleItemIds = new Set(), duplicateBomItemIds = new Set(), visitedSpecificationIds = new Set(), open = false) {
-  if (!specification) return renderObjectTreeLeaf("Спецификация не найдена", "Связанный объект был удален или еще не создан.", "warning");
+  if (!specification) return renderObjectTreeLeaf("Состав изделия не найден", "Связанный объект был удален или еще не создан.", "warning");
   if (visitedSpecificationIds.has(specification.id)) {
-    return renderObjectTreeLeaf(specification.name || "Повторная спецификация", "Повторная ссылка уже показана выше, ветка остановлена.", "warning");
+    return renderObjectTreeLeaf(specification.name || "Повторный состав изделия", "Повторная ссылка уже показана выше, ветка остановлена.", "warning");
   }
 
   const nextVisitedSpecificationIds = new Set(visitedSpecificationIds);
@@ -7131,9 +8054,9 @@ function renderSpekiSpecificationTreeNode(specification, rows = getSpekiStructur
   const children = renderSpekiTreeChildren(items, "root", rowMetaById, staleItemIds, duplicateBomItemIds, nextVisitedSpecificationIds, specification.id);
 
   return renderObjectTreeNode({
-    title: specification.name || "Спецификация без названия",
+    title: specification.name || "Состав изделия без названия",
     meta: `${specification.outputItem || "выход не задан"} · ${items.length} позиций состава`,
-    badge: "спека",
+    badge: "состав",
     tone: "specification",
     open,
     children: [children || renderObjectTreeLeaf("Структура пока пустая", "Нажмите «Редактировать» и добавьте строки состава.", "empty")],
@@ -7165,18 +8088,16 @@ function renderSpekiTreeItemNode(item, rowMeta = {}, staleItemIds = new Set(), d
     ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
     : null;
   const title = item.type === "bom"
-    ? bom?.name || item.name || "BOM не выбран"
+    ? bom?.name || item.name || "Спецификация не выбрана"
     : item.type === "specification"
-      ? linkedSpecification?.name || item.name || "Спецификация не выбрана"
+      ? linkedSpecification?.name || item.name || "Состав изделия не выбран"
       : item.type === "assembly"
         ? item.name || "Узел без названия"
         : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
   const executionValue = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
   const executionLabel = executionValue === "buy" ? "покупное" : "к обеспечению";
-  const defaultOperationLabel = item.type === "nomenclature" || item.type === "part"
-    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionValue)
-    : getDefaultSpekiOperationName(item.type, executionValue);
-  const operationLabel = executionValue === "buy" ? "операция не требуется" : item.operationName || defaultOperationLabel || "операция не задана";
+  const operation = getOperationMapItem(item.operationId);
+  const operationLabel = executionValue === "buy" ? "операция не требуется" : operation?.name || item.operationName || "операция не задана";
   const departmentLabel = executionValue === "buy" ? "" : item.departmentName || "подразделение не выбрано";
   const quantityLabel = `${Number(item.quantity || 0).toLocaleString("ru-RU")} ${item.unit || "шт."}`;
   const issues = getSpekiTreeItemIssues(item, currentSpecificationId, staleItemIds, duplicateBomItemIds);
@@ -7212,9 +8133,9 @@ function renderSpekiTreeItemNode(item, rowMeta = {}, staleItemIds = new Set(), d
 function getSpekiTreeItemIssues(item, specificationId = "", staleItemIds = new Set(), duplicateBomItemIds = new Set()) {
   const issues = [];
   const executionValue = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
-  if (item.type === "bom" && !getBomList(item.bomListId)) issues.push("BOM не выбран или удален");
-  if (item.type === "nomenclature" && getNomenclatureSourceBomId(item.nomenclatureId) && !getSpecificationItemBom(item)) issues.push("исходный BOM для печатной платы удален");
-  if (item.type === "specification" && !(directoryState.specifications || []).some((entry) => entry.id === item.specificationId && entry.id !== specificationId)) issues.push("вложенная спецификация не выбрана или удалена");
+  if (item.type === "bom" && !getBomList(item.bomListId)) issues.push("спецификация не выбрана или удалена");
+  if (item.type === "nomenclature" && getNomenclatureSourceBomId(item.nomenclatureId) && !getSpecificationItemBom(item)) issues.push("исходная спецификация для печатной платы удалена");
+  if (item.type === "specification" && !(directoryState.specifications || []).some((entry) => entry.id === item.specificationId && entry.id !== specificationId)) issues.push("вложенный состав изделия не выбран или удален");
   if ((item.type === "nomenclature" || item.type === "part") && !(directoryState.nomenclature || []).some((entry) => entry.id === item.nomenclatureId)) issues.push("номенклатура не выбрана или удалена");
   if (item.type === "assembly" && !String(item.name || "").trim()) issues.push("название узла не заполнено");
   if (Number(item.quantity || 0) <= 0) issues.push("количество не заполнено");
@@ -7222,13 +8143,10 @@ function getSpekiTreeItemIssues(item, specificationId = "", staleItemIds = new S
   const nomenclatureItem = item.type === "nomenclature" || item.type === "part"
     ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
     : null;
-  const defaultOperation = item.type === "nomenclature" || item.type === "part"
-    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionValue)
-    : getDefaultSpekiOperationName(item.type, executionValue);
-  if (executionValue === "make" && !String(item.operationName || defaultOperation || "").trim()) issues.push("операция не задана");
+  if (executionValue === "make" && !getOperationMapItem(item.operationId)) issues.push("операция не выбрана из справочника");
   if (executionValue === "make" && !String(item.departmentName || "").trim()) issues.push("подразделение не выбрано");
   if (staleItemIds.has(item.id)) issues.push("ссылка на объект удалена");
-  if (duplicateBomItemIds.has(item.id)) issues.push("BOM уже выбран выше");
+  if (duplicateBomItemIds.has(item.id)) issues.push("спецификация уже выбрана выше");
   return issues;
 }
 
@@ -7243,14 +8161,14 @@ function renderSpekiBomTreePreview(bom) {
   const hiddenCount = Math.max(0, rows.length - 8);
 
   return renderObjectTreeNode({
-    title: "Состав BOM",
+    title: "Состав спецификации",
     meta: rows.length ? `${rows.length} строк · ${componentTotal.toLocaleString("ru-RU")} компонентов` : `${componentTotal.toLocaleString("ru-RU")} компонентов по категориям`,
     badge: rows.length || componentTotal,
     tone: "bom",
     children: [
       rows.length
         ? previewRows
-        : renderObjectTreeLeaf("Импортированных строк нет", "BOM заполнен вручную или пока пустой.", "warning"),
+        : renderObjectTreeLeaf("Импортированных строк нет", "Спецификация заполнена вручную или пока пустая.", "warning"),
       hiddenCount ? renderObjectTreeLeaf(`Еще ${hiddenCount.toLocaleString("ru-RU")} строк`, "скрыто в компактном просмотре", "empty") : "",
     ],
   });
@@ -7320,21 +8238,21 @@ function renderSpekiBomNomenclatureRows(item, bom, number, level, isCollapsed = 
     return `
       <tr class="is-speki-bom-item is-empty" data-speki-bom-child="${escapeAttribute(item.id)}" style="--speki-level: ${childLevel};">
         <td><span class="speki-row-number">${escapeHtml(`${number}.0`)}</span></td>
-        <td><span class="speki-static-cell">Номенклатура BOM</span></td>
-        <td><span class="speki-static-cell">BOM импортирован без табличной номенклатуры</span></td>
+        <td><span class="speki-static-cell">Номенклатура спецификации</span></td>
+        <td><span class="speki-static-cell">Спецификация импортирована без табличной номенклатуры</span></td>
         <td><span class="speki-static-cell">Покупное изделие</span></td>
         <td><span class="speki-static-cell">Операция не требуется</span></td>
         <td><span class="speki-static-cell">-</span></td>
         <td><span class="speki-static-cell">-</span></td>
         <td><span class="speki-static-cell">шт.</span></td>
-        <td><span class="speki-bom-source-note">из BOM</span></td>
+        <td><span class="speki-bom-source-note">из спецификации</span></td>
       </tr>
     `;
   }
 
   return bomRows.map((row, index) => {
     const quantity = Math.max(0, Number(row.quantity || 0)) * bomQuantity;
-    const description = row.description || row.manufacturerPart || row.designator || "Позиция BOM";
+    const description = row.description || row.manufacturerPart || row.designator || "Позиция спецификации";
     const details = [
       row.designator ? `Поз.: ${row.designator}` : "",
       row.manufacturerPart ? `PN: ${row.manufacturerPart}` : "",
@@ -7345,7 +8263,7 @@ function renderSpekiBomNomenclatureRows(item, bom, number, level, isCollapsed = 
     return `
       <tr class="is-speki-bom-item" data-speki-bom-child="${escapeAttribute(item.id)}" style="--speki-level: ${childLevel};">
         <td><span class="speki-row-number">${escapeHtml(`${number}.${index + 1}`)}</span></td>
-        <td><span class="speki-static-cell">Номенклатура BOM</span></td>
+        <td><span class="speki-static-cell">Номенклатура спецификации</span></td>
         <td>
           <span class="speki-static-cell speki-bom-item-name" title="${escapeAttribute(details || description)}">${escapeHtml(description)}</span>
           ${details ? `<small class="speki-bom-item-meta">${escapeHtml(details)}</small>` : ""}
@@ -7355,7 +8273,7 @@ function renderSpekiBomNomenclatureRows(item, bom, number, level, isCollapsed = 
         <td><span class="speki-static-cell">-</span></td>
         <td><span class="speki-static-cell">${Number.isFinite(quantity) && quantity > 0 ? escapeHtml(formatReportNumber(quantity)) : "-"}</span></td>
         <td><span class="speki-static-cell">шт.</span></td>
-        <td><span class="speki-bom-source-note">из BOM</span></td>
+        <td><span class="speki-bom-source-note">из спецификации</span></td>
       </tr>
     `;
   }).join("");
@@ -7420,10 +8338,11 @@ function getSpekiWorkBreakdownRows(specification) {
     const executionType = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
     if (executionType !== "make") return;
 
-    const operationName = item.operationName || getDefaultSpekiOperationName(item.type, executionType);
+    const operation = getOperationMapItem(item.operationId);
+    const operationName = operation?.name || item.operationName || "";
     if (!operationName) return;
 
-    const departmentName = item.departmentName || "Подразделение не выбрано";
+    const departmentName = operation ? getWorkCenter(operation.workCenterId)?.name || item.departmentName || "Подразделение не выбрано" : item.departmentName || "Подразделение не выбрано";
     const key = `${operationName}::${departmentName}`;
     if (!groups.has(key)) {
       groups.set(key, {
@@ -7483,11 +8402,11 @@ function compareStructureNumbers(left, right) {
 
 function getSpekiStructureItemLabel(item) {
   if (!item) return "Позиция";
-  if (item.type === "bom") return getBomList(item.bomListId)?.name || item.name || "BOM не выбран";
+  if (item.type === "bom") return getBomList(item.bomListId)?.name || item.name || "Спецификация не выбрана";
   if (item.type === "specification") {
     return (directoryState.specifications || []).find((entry) => entry.id === item.specificationId)?.name
       || item.name
-      || "Спецификация не выбрана";
+      || "Состав изделия не выбран";
   }
   if (item.type === "nomenclature" || item.type === "part") {
     return (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)?.name
@@ -7504,7 +8423,7 @@ function createSpekiSpecification() {
   const id = makeId("spec");
   const row = normalizeDirectoryRow("specifications", {
     id,
-    name: `Новая спецификация ${String(index).padStart(2, "0")}`,
+    name: `Новый состав изделия ${String(index).padStart(2, "0")}`,
     projectId: "",
     outputItem: `Изделие ${String(index).padStart(2, "0")}`,
     productionQuantity: 1,
@@ -7532,7 +8451,7 @@ function createSpekiSpecification() {
   ui.spekiStaleItemIds = [];
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess("Спецификация создана");
+  notifySaveSuccess("Состав изделия создан");
   render();
 }
 
@@ -7625,7 +8544,7 @@ function renderNomenclaturePage() {
           <div>
             <span class="eyebrow">Список компонентов</span>
             <h2>${escapeHtml(hasPreviewObject ? (isNewItem ? "Новая позиция номенклатуры" : item.name || "Позиция без названия") : "Объект не выбран")}</h2>
-            <p>${hasPreviewObject ? "Номенклатура разделяется по типам: РЭА для BOM, платы, механика, кабели, расходники и другие производственные позиции." : "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактирования."}</p>
+            <p>${hasPreviewObject ? "Номенклатура разделяется по типам: РЭА для спецификаций, платы, механика, кабели, расходники и другие производственные позиции." : "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактирования."}</p>
           </div>
         </header>
 
@@ -7736,18 +8655,18 @@ function renderBomListsPage() {
   const importHeaders = hasPreviewBom ? getBomImportHeaders(bom) : [];
 
   return `
-    <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="BOM-листы SMT">
+    <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="Спецификации печатных плат">
       <aside class="directory-sidebar module-data-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Печатные платы</span>
-          <h1>BOM-листы</h1>
+          <h1>${BOARD_SPEC_LIST_TERM}</h1>
         </div>
         <div class="module-sidebar-actions">
-          <button class="primary-button" data-bom-create type="button">${icon("plus")}<span>Новый BOM</span></button>
+          <button class="primary-button" data-bom-create type="button">${icon("plus")}<span>Новая спецификация</span></button>
         </div>
         <div class="module-entity-list">
-          <div class="module-list-label">BOM SMT</div>
-          ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новый BOM</strong><small>компонентный состав платы</small></span><em>new</em></button>` : ""}
+          <div class="module-list-label">${BOARD_SPEC_LIST_TERM}</div>
+          ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая спецификация</strong><small>компонентный состав платы</small></span><em>new</em></button>` : ""}
           ${(directoryState.bomLists || []).map((item) => {
             const hasImportRows = getBomImportRows(item).length > 0;
             const total = hasImportRows ? Object.values(getBomComponentCounts(item)).reduce((sum, count) => sum + Number(count || 0), 0) : 0;
@@ -7755,7 +8674,7 @@ function renderBomListsPage() {
               <button class="module-entity-item ${item.id === activeBom?.id ? "is-active" : ""}" data-bom-open="${item.id}" type="button">
                 <span>
                   <strong class="module-entity-title"><span>${escapeHtml(item.name)}</span>${hasImportRows ? "" : ` <b class="module-status-chip">Черновик</b>`}</strong>
-                  <small>${escapeHtml(item.boardCode || "код платы не задан")} · ${escapeHtml(item.resultItem || "результат BOM не задан")}</small>
+                  <small>${escapeHtml(item.boardCode || "код платы не задан")} · ${escapeHtml(item.resultItem || "результат спецификации не задан")}</small>
                 </span>
                 <em>${total}</em>
               </button>
@@ -7767,9 +8686,9 @@ function renderBomListsPage() {
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
-            <span class="eyebrow">BOM SMT</span>
-            <h2>${escapeHtml(hasPreviewBom ? (isNewBom ? "Новый BOM-лист" : bom.name || "BOM без названия") : "BOM не выбран")}</h2>
-            <p>${hasPreviewBom ? "BOM описывает компонентный состав печатной платы и создается без привязки к спецификации." : "Выберите BOM в левом перечне или создайте новый, чтобы открыть карточку и таблицу компонентов."}</p>
+            <span class="eyebrow">Спецификация платы</span>
+            <h2>${escapeHtml(hasPreviewBom ? (isNewBom ? "Новая спецификация" : bom.name || "Спецификация без названия") : "Спецификация не выбрана")}</h2>
+            <p>${hasPreviewBom ? "Спецификация описывает компонентный состав печатной платы и создается без привязки к составу изделия." : "Выберите спецификацию в левом перечне или создайте новую, чтобы открыть карточку и таблицу компонентов."}</p>
           </div>
         </header>
 
@@ -7777,24 +8696,24 @@ function renderBomListsPage() {
           ${hasPreviewBom ? `
           <section class="module-panel bom-editor-panel bom-combined-panel">
             <div class="report-card-head">
-              <strong>BOM и компоненты</strong>
+              <strong>Спецификация и компоненты</strong>
               <span>${isNewBom ? "создание компонентного состава" : `${importRows.length ? `${importRows.length} строк` : "таблица пока пустая"} · покомпонентный расчет платы`}</span>
             </div>
             <form id="bomModuleForm" class="module-form">
               <input type="hidden" name="bomId" value="${escapeAttribute(bom.id)}" />
               <input type="hidden" name="isNew" value="${isNewBom ? "yes" : "no"}" />
-              <label class="form-field"><span>Название BOM</span><input name="name" value="${escapeAttribute(bom.name)}" placeholder="BOM PCB" /></label>
+              <label class="form-field"><span>Название спецификации</span><input name="name" value="${escapeAttribute(bom.name)}" placeholder="Спецификация PCB" /></label>
               <label class="form-field"><span>Код платы</span><input name="boardCode" value="${escapeAttribute(bom.boardCode)}" placeholder="PCB-..." /></label>
-              <label class="form-field full"><span>Результат BOM</span><input name="resultItem" value="${escapeAttribute(bom.resultItem)}" placeholder="Печатная плата" /></label>
+              <label class="form-field full"><span>Результат спецификации</span><input name="resultItem" value="${escapeAttribute(bom.resultItem)}" placeholder="Печатная плата" /></label>
               <div class="module-form-actions full">
-                <button class="primary-button" type="submit">${icon("save")}<span>${isNewBom ? "Создать BOM" : "Сохранить BOM"}</span></button>
+                <button class="primary-button" type="submit">${icon("save")}<span>${isNewBom ? "Создать спецификацию" : "Сохранить спецификацию"}</span></button>
                 ${renderBomImportButton()}
-                ${isNewBom ? "" : `<button class="secondary-button danger" data-bom-delete="${escapeAttribute(bom.id)}" type="button">${icon("trash")}<span>Удалить BOM</span></button>`}
+                ${isNewBom ? "" : `<button class="secondary-button danger" data-bom-delete="${escapeAttribute(bom.id)}" type="button">${icon("trash")}<span>Удалить спецификацию</span></button>`}
               </div>
             </form>
             <div class="bom-combined-table-block">
               <div class="bom-combined-table-head">
-                <strong>Таблица импортированного BOM</strong>
+                <strong>Таблица импортированной спецификации</strong>
                 <span>${importRows.length ? `${escapeHtml(bom.sourceFileName || bom.name)} · ${importRows.length} строк` : "стандартные поля Excel A:I"}</span>
               </div>
               ${renderBomImportTable(bom, importHeaders, importRows, componentCounts, componentTotal, isNewBom)}
@@ -7857,7 +8776,7 @@ function renderBomNomenclatureAddControl(bom, isNewBom = false) {
     return `
       <div class="bom-nomenclature-add is-disabled">
         ${icon("package")}
-        <span>Сначала сохраните карточку BOM, затем можно будет добавлять РЭА-компоненты из номенклатуры.</span>
+        <span>Сначала сохраните карточку спецификации, затем можно будет добавлять РЭА-компоненты из номенклатуры.</span>
       </div>
     `;
   }
@@ -7866,7 +8785,7 @@ function renderBomNomenclatureAddControl(bom, isNewBom = false) {
     return `
       <div class="bom-nomenclature-add is-disabled">
         ${icon("package")}
-        <span>В номенклатуре пока нет позиций типа «${NOMENCLATURE_REA_COMPONENT_TYPE}». Импортируйте BOM или создайте компонент в модуле «Номенклатура».</span>
+        <span>В номенклатуре пока нет позиций типа «${NOMENCLATURE_REA_COMPONENT_TYPE}». Импортируйте спецификацию или создайте компонент в модуле «Номенклатура».</span>
       </div>
     `;
   }
@@ -7901,7 +8820,7 @@ function renderBomImportCellInput(bomId, rowIndex, columnIndex, value) {
       data-bom-column-index="${columnIndex}"
       ${isQuantity ? `type="number" min="0" step="1"` : `type="text"`}
       value="${escapeAttribute(value)}"
-      aria-label="Поле BOM ${rowIndex + 1}.${columnIndex + 1}"
+      aria-label="Поле спецификации ${rowIndex + 1}.${columnIndex + 1}"
     />
   `;
 }
@@ -7948,7 +8867,7 @@ function renderBomImportTable(bom, headers, rows, componentCounts, componentTota
                 </td>
               `).join("")}
               <td class="actions-cell bom-row-action-cell">
-                <button class="table-icon-button danger-soft" data-bom-import-delete="${escapeAttribute(bom.id)}" data-bom-row-index="${rowIndex}" type="button" title="Удалить строку BOM">${icon("trash")}</button>
+                <button class="table-icon-button danger-soft" data-bom-import-delete="${escapeAttribute(bom.id)}" data-bom-row-index="${rowIndex}" type="button" title="Удалить строку спецификации">${icon("trash")}</button>
               </td>
             </tr>
           `).join("")}
@@ -7974,7 +8893,7 @@ function renderSpecificationConstructor(specification, structureItems, bomOption
     .map((item) => ({
       value: item.id,
       label: item.name || "Узел без названия",
-      meta: "узел спецификации",
+      meta: "узел состава изделия",
     }));
   const parentOptions = [
     { value: "root", label: "Итоговое изделие", meta: rootTitle },
@@ -7987,27 +8906,27 @@ function renderSpecificationConstructor(specification, structureItems, bomOption
         <span class="spec-constructor-root-icon">${icon("split")}</span>
         <span>
           <strong>${escapeHtml(rootTitle)}</strong>
-          <small>${escapeHtml(specification.name || "сначала заполните карточку спецификации")}</small>
+          <small>${escapeHtml(specification.name || "сначала заполните карточку состава изделия")}</small>
         </span>
         <em>${structureItems.length ? `${structureItems.length} позиций` : "пусто"}</em>
       </article>
       <div class="spec-constructor-actions">
         <button class="secondary-button" data-spec-add-item="assembly" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить узел</span></button>
-        <button class="secondary-button" data-spec-add-item="bom" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить плату BOM</span></button>
+        <button class="secondary-button" data-spec-add-item="bom" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить спецификацию платы</span></button>
         <button class="secondary-button" data-spec-add-item="part" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить позицию</span></button>
       </div>
       <div class="spec-constructor-list">
         ${isNewSpecification ? `
           <div class="bom-import-empty compact">
             ${icon("info")}
-            <strong>Сначала сохраните спецификацию</strong>
-            <span>После создания карточки здесь можно будет собирать структуру изделия из узлов, BOM-плат и дополнительных позиций.</span>
+            <strong>Сначала сохраните состав изделия</strong>
+            <span>После создания карточки здесь можно будет собирать структуру изделия из узлов, спецификаций плат и дополнительных позиций.</span>
           </div>
         ` : structureItems.length ? structureItems.map((item, index) => renderSpecificationConstructorItem(item, index, structureItems.length, bomOptions, parentOptions)).join("") : `
           <div class="bom-import-empty compact">
             ${icon("plus")}
             <strong>Структура пока пустая</strong>
-            <span>Добавьте узел изделия, одну или несколько плат BOM и дополнительные материалы.</span>
+            <span>Добавьте узел изделия, одну или несколько спецификаций плат и дополнительные материалы.</span>
           </div>
         `}
       </div>
@@ -8019,17 +8938,17 @@ function renderSpecificationConstructorItem(item, index, total, bomOptions, pare
   const bom = item.type === "bom" ? getBomList(item.bomListId) : null;
   const typeLabels = {
     assembly: "Узел",
-    bom: "Плата BOM",
+    bom: "Спецификация платы",
     part: "Позиция",
   };
   const typeOptions = [
     { value: "assembly", label: "Узел" },
-    { value: "bom", label: "BOM" },
+    { value: "bom", label: BOARD_SPEC_TERM },
     { value: "part", label: "Позиция" },
   ];
   const safeParentOptions = parentOptions.filter((option) => option.value !== item.id);
   const bomSelectOptions = [
-    { value: "", label: "Выберите BOM", meta: "результат SMT-операции" },
+    { value: "", label: "Выберите спецификацию", meta: "результат SMT-операции" },
     ...bomOptions.map((option) => ({
       value: option.id,
       label: option.name,
@@ -8045,13 +8964,13 @@ function renderSpecificationConstructorItem(item, index, total, bomOptions, pare
         <span>${String(index + 1).padStart(2, "0")}</span>
         <small>${escapeHtml(typeLabels[item.type] || "Позиция")}</small>
       </div>
-      <div class="spec-constructor-type" role="group" aria-label="Тип позиции спецификации">
+      <div class="spec-constructor-type" role="group" aria-label="Тип позиции состава изделия">
         ${typeOptions.map((option) => `
           <button class="${item.type === option.value ? "is-active" : ""}" data-spec-structure-type="${escapeAttribute(item.id)}" data-spec-structure-type-value="${escapeAttribute(option.value)}" type="button">${escapeHtml(option.label)}</button>
         `).join("")}
       </div>
       <div class="spec-constructor-field is-main">
-        <span>${item.type === "bom" ? "BOM-лист" : "Название"}</span>
+        <span>${item.type === "bom" ? BOARD_SPEC_TERM : "Название"}</span>
         ${item.type === "bom" ? renderDenseInlineSelect("bomListId", item.bomListId, bomSelectOptions, { type: "specStructureBom", itemId: item.id }) : `
           <input data-spec-structure-input="${escapeAttribute(item.id)}" data-spec-structure-field="name" value="${escapeAttribute(item.name)}" placeholder="${escapeAttribute(namePlaceholder)}" />
         `}
@@ -8086,7 +9005,7 @@ function renderSpecificationStructureTable(rows) {
     return `
       <div class="bom-import-empty">
         ${icon("info")}
-        <strong>Структура спецификации пока не заполнена</strong>
+        <strong>Структура состава изделия пока не заполнена</strong>
         <span>Добавьте позиции в конструкторе выше, чтобы получить табличный состав изделия.</span>
       </div>
     `;
@@ -8141,7 +9060,7 @@ function getRouteSpecification(route) {
 
 function ensureRouteModuleProjectForSpecification(specification) {
   if (!specification) return "";
-  const specificationId = ensureSpecificationPlanningUnit(specification, "full", { includeRoute: false });
+  const specificationId = ensureSpecificationPlanningUnit(specification, { includeRoute: false });
   if (!specificationId) return "";
   if (!specification.projectId) return specificationId;
 
@@ -8182,7 +9101,7 @@ function getRouteModuleSelectionValue(route, fallbackSpecification = null) {
 
 function getRouteModuleSelectionName(route, fallbackSpecification = null) {
   const specification = getRouteSpecification(route) || fallbackSpecification;
-  if (specification) return specification.name || "Спецификация без названия";
+  if (specification) return specification.name || "Состав изделия без названия";
   return getProjectDisplayName(getProject(route?.projectId)) || "";
 }
 
@@ -8221,89 +9140,18 @@ function getWorkCenterIdForRouteTask(task) {
   if (targetUnit) return targetUnit.id;
 
   const text = `${task?.operationName || ""} ${task?.departmentName || ""} ${task?.title || ""}`.toLowerCase();
-  if (text.includes("smt") || text.includes("smd") || text.includes("паяль") || text.includes("оплав")) return "smt";
-  if (text.includes("aoi") || text.includes("аои") || text.includes("инспек")) return "aoi";
-  if (text.includes("отмыв")) return "wash";
-  if (text.includes("tht") || text.includes("ручн") || text.includes("выводн")) return "manual";
-  if (text.includes("тест") || text.includes("контрол") || text.includes("испыт")) return "test";
-  if (text.includes("лакир")) return "coating";
-  if (text.includes("слесар") || text.includes("механ")) return "mechanic";
-  if (text.includes("сбор")) return "assembly";
-  return getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "manual";
+  if (text.includes("smt") || text.includes("smd") || text.includes("паяль") || text.includes("оплав")) return "D3_L1";
+  if (text.includes("aoi") || text.includes("аои") || text.includes("инспек")) return "D3_AOI";
+  if (text.includes("отмыв")) return "D3_UW";
+  if (text.includes("tht") || text.includes("ручн") || text.includes("выводн")) return "D5";
+  if (text.includes("тест") || text.includes("контрол") || text.includes("испыт")) return "D4";
+  if (text.includes("селектив") || text.includes("влагозащ")) return "D3_CC";
+  if (text.includes("лакир")) return "D3_MANUAL_CC";
+  if (text.includes("прошив")) return "D6";
+  if (text.includes("слесар") || text.includes("механ") || text.includes("сбор")) return "D9";
+  if (text.includes("маркир") || text.includes("упаков")) return "D11";
+  return getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "D5";
 }
-
-function getRouteStepTemplate(workCenterId, operationName = "") {
-  const center = getWorkCenter(workCenterId);
-  const resolvedWorkCenterId = center?.id || workCenterId;
-  const resources = getResourcesForWorkCenter(resolvedWorkCenterId);
-  const resource = resources[0] || null;
-  const calculationType = getDefaultOperationCalculationType(resolvedWorkCenterId);
-  return {
-    workCenterId: resolvedWorkCenterId,
-    operationName: operationName || center?.name || "Операция",
-    unitsPerHour: getWorkCenterUnitsPerHour(resolvedWorkCenterId),
-    resourceId: resource?.id || "",
-    calculationType,
-    secondsPerPanel: calculationType === "manual" || calculationType === "normative"
-      ? getDefaultSecondsPerPanel(resolvedWorkCenterId, 1)
-      : 0,
-    setupMin: Number(resource?.changeoverMin || 0),
-  };
-}
-
-function getRouteTaskTemplateSteps(task) {
-  const templates = [];
-  const addTemplate = (workCenterId, operationName = "") => {
-    const center = getWorkCenter(workCenterId);
-    if (!center) return;
-    const key = `${center.id}::${operationName || center.name}`;
-    if (templates.some((template) => `${template.workCenterId}::${template.operationName}` === key)) return;
-    templates.push(getRouteStepTemplate(center.id, operationName || center.name));
-  };
-
-  if (task?.type === "bom") {
-    addTemplate(task.workCenterId || "smt", task.operationName || "SMT-монтаж");
-    addTemplate("aoi", "AOI-контроль");
-    addTemplate("wash", "Отмывка");
-    addTemplate("warehouse", "Склад");
-    return templates;
-  }
-
-  if (task?.type === "assembly" || task?.type === "specification") {
-    addTemplate(task.workCenterId || "assembly", task.operationName || "Сборка");
-    addTemplate("test", "Тестирование");
-    addTemplate("warehouse", "Склад");
-    return templates;
-  }
-
-  addTemplate(task?.workCenterId || "manual", task?.operationName || "Операция");
-  addTemplate("warehouse", "Склад");
-  return templates;
-}
-
-function createRouteStepFromTaskTemplate(routeId, task, template, stepOrder, stamp = new Date().toISOString()) {
-  return {
-    id: makeId("rs"),
-    routeId,
-    specTaskId: task.id === MAIN_ROUTE_TASK_ID ? "" : task.id,
-    specTaskSourceItemId: task.sourceItemId || "",
-    specTaskName: task.title || "",
-    specTaskQuantity: Math.max(1, Number(task.quantity || 1)),
-    bomListId: task.bomListId || "",
-    boardsPerPanel: task.type === "bom" ? normalizeBoardsPerPanel(task.boardsPerPanel, 1) : 1,
-	    workCenterId: template.workCenterId,
-	    operationName: template.operationName || getWorkCenter(template.workCenterId)?.name || "Операция",
-	    stepOrder,
-	    isRequired: true,
-	    quantityMultiplier: Math.max(1, Number(task.quantity || 1)),
-	    unitsPerHour: Number(template.unitsPerHour || getWorkCenterUnitsPerHour(template.workCenterId) || 0),
-	    resourceId: template.resourceId || "",
-	    calculationType: template.calculationType || getDefaultOperationCalculationType(template.workCenterId, template),
-	    secondsPerPanel: Number(template.secondsPerPanel || 0),
-	    setupMin: Number(template.setupMin || 0),
-	    updatedAt: stamp,
-	  };
-	}
 
 function getSpecificationRouteTasks(specification, context = {}) {
   if (!specification) return [];
@@ -8333,7 +9181,11 @@ function getSpecificationRouteTasks(specification, context = {}) {
     const title = getSpekiStructureItemLabel(item);
     const bomId = getSpecificationItemBomId(item);
     const taskType = bomId ? "bom" : item.type;
-    const operationName = item.operationName || getDefaultSpekiOperationName(taskType, "make") || "Операция";
+    const operation = getOperationMapItem(item.operationId);
+    const operationName = operation?.name || item.operationName || "";
+    const departmentName = operation
+      ? getWorkCenter(operation.workCenterId)?.name || item.departmentName || ""
+      : item.departmentName || "";
     const task = {
       id: context.numberPrefix ? `spec-item:${specification.id}:${item.id}` : `spec-item:${item.id}`,
       sourceItemId: item.id,
@@ -8343,8 +9195,9 @@ function getSpecificationRouteTasks(specification, context = {}) {
       level: Number(context.levelOffset || 0) + level,
       type: taskType,
       title,
+      operationId: operation?.id || item.operationId || "",
       operationName,
-      departmentName: item.departmentName || getDefaultSpekiDepartmentName(operationName) || "Подразделение не выбрано",
+      departmentName: departmentName || "Подразделение не выбрано",
       quantity: Math.max(1, Number(item.quantity || 1)),
       unit: item.unit || "шт.",
       bomListId: bomId,
@@ -8352,7 +9205,7 @@ function getSpecificationRouteTasks(specification, context = {}) {
     };
     tasks.push({
       ...task,
-      workCenterId: getWorkCenterIdForRouteTask(task),
+      workCenterId: operation?.workCenterId || getWorkCenterIdForRouteTask(task),
     });
   });
 
@@ -8366,12 +9219,12 @@ function getRouteMainTask(route = null) {
     number: "00",
     level: 0,
     type: "route",
-    title: "Общий маршрут спецификации",
+    title: "Общий маршрут состава изделия",
     operationName: "Финальная последовательность",
-    departmentName: "Заказ на пр-во",
+    departmentName: "Планирование",
     quantity: 1,
     unit: "маршрут",
-    workCenterId: getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "manual",
+    workCenterId: getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "D5",
     isMain: true,
     routeId: route?.id || "",
   };
@@ -8393,12 +9246,12 @@ function getRouteTasksForModule(route) {
         number: "??",
         level: 0,
         type: "orphan",
-        title: step?.specTaskName || "Задача больше не найдена в спецификации",
-        operationName: "Проверьте структуру спецификации",
+        title: step?.specTaskName || "Задача больше не найдена в составе изделия",
+        operationName: "Проверьте структуру состава изделия",
         departmentName: "Связь потеряна",
         quantity: 1,
         unit: "задача",
-        workCenterId: step?.workCenterId || "manual",
+        workCenterId: step?.workCenterId || "D5",
         isOrphan: true,
       };
     });
@@ -8411,13 +9264,20 @@ function getRouteTasksForModule(route) {
 }
 
 function getSchedulableRouteSteps(routeId) {
-  const steps = getRouteStepsForModule(routeId).filter((step) => step.isRequired);
+  const steps = getRouteStepsForModule(routeId)
+    .filter((step) => step.isRequired)
+    .filter((step) => Boolean(getOperationMapItem(step.operationId)));
   const taskSteps = steps.filter((step) => getRouteStepTaskId(step) !== MAIN_ROUTE_TASK_ID);
   return (taskSteps.length ? taskSteps : steps)
     .sort((left, right) => (
       getRouteStepTaskId(left).localeCompare(getRouteStepTaskId(right), "ru")
       || Number(left.stepOrder || 0) - Number(right.stepOrder || 0)
     ));
+}
+
+function getInvalidRouteOperationSteps(routeId) {
+  return getRouteStepsForModule(routeId)
+    .filter((step) => step.isRequired && !getOperationMapItem(step.operationId));
 }
 
 function getSchedulableProjectRouteSteps(projectId) {
@@ -8433,9 +9293,6 @@ function ensureRouteTaskSeedSteps(routeId, specification) {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   let changed = false;
 
-  const existingTaskIds = new Set((planningState.routeSteps || [])
-    .filter((step) => step.routeId === routeId)
-    .map((step) => getRouteStepTaskId(step)));
   planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
     if (step.routeId !== routeId) return step;
     const task = taskById.get(getRouteStepTaskId(step));
@@ -8467,20 +9324,7 @@ function ensureRouteTaskSeedSteps(routeId, specification) {
     changed = true;
     return { ...step, ...patch, updatedAt: new Date().toISOString() };
   });
-  const stamp = new Date().toISOString();
-  const additions = tasks.flatMap((task) => {
-    if (existingTaskIds.has(task.id)) return [];
-    const routeTask = task.type === "bom"
-      ? { ...task, boardsPerPanel: getPlanningBoardsPerPanel(route, task.sourceItemId || task.id, task.boardsPerPanel || 1) }
-      : task;
-    return getRouteTaskTemplateSteps(task)
-      .map((template, index) => createRouteStepFromTaskTemplate(routeId, routeTask, template, index + 1, stamp));
-  });
-
-  if (!additions.length) return changed;
-  planningState.routeSteps = [...planningState.routeSteps, ...additions];
-  tasks.forEach((task) => normalizeRouteStepOrders(routeId, task.id));
-  return true;
+  return changed;
 }
 
 function getProjectRouteForModule(projectId) {
@@ -8645,6 +9489,34 @@ function getPlanningBatchSlots(batch, route = null) {
     slot.batchId === batch.id
     && (!route || slot.routeId === route.id || slot.specificationId === route.specificationId || slot.projectId === route.projectId)
   ));
+}
+
+function getPlanningRouteSlots(route) {
+  if (!route?.id) return [];
+  const stepIds = new Set(getRouteStepsForModule(route.id).map((step) => step.id));
+  const batchIds = new Set(getRoutePlanningBatches(route)
+    .filter((batch) => !batch.routeId || batch.routeId === route.id)
+    .map((batch) => batch.id));
+  return (planningState.slots || []).filter((slot) => (
+    slot.routeId === route.id
+    || stepIds.has(slot.routeStepId)
+    || (batchIds.has(slot.batchId) && (!slot.routeId || slot.routeId === route.id))
+  ));
+}
+
+function getPlanningRouteOrderState(route, summary = null) {
+  if (!route) return { id: "empty", label: "Не выбран", tone: "neutral" };
+  const transferSummary = summary || getPlanningRouteTransferSummary(route);
+  if (route.planningStatus === "canceled" && !transferSummary.planned) {
+    return { id: "canceled", label: "Отменен", tone: "critical" };
+  }
+  if (transferSummary.expected && transferSummary.planned >= transferSummary.expected) {
+    return { id: "scheduled", label: "В Ганте", tone: "ok" };
+  }
+  if (transferSummary.planned > 0) {
+    return { id: "partial", label: "Частично", tone: "warning" };
+  }
+  return { id: "queued", label: "В очереди", tone: "neutral" };
 }
 
 function getPlanningBatchQuantityTotal(batches) {
@@ -9100,7 +9972,7 @@ function createSlotFromRouteStep(project, batch, routeStep, window, quantity, st
     actualStart: "",
     actualEnd: "",
     status: "planned",
-    comment: "Передано из модуля «Заказ на пр-во».",
+    comment: "Передано из модуля «Планирование».",
     createdAt: stamp,
     updatedAt: stamp,
   };
@@ -9171,7 +10043,7 @@ function schedulePlanningRouteToGantt(routeId) {
   const route = (planningState.routes || []).find((item) => item.id === routeId);
   const project = getProject(route?.specificationId || route?.projectId);
   if (!route || !project) {
-    alert("Не удалось передать маршрут в Гант: маршрутная карта не связана со спецификацией в производстве.");
+    alert("Не удалось передать маршрут в Гант: маршрутная карта не связана с составом изделия в производстве.");
     return;
   }
 
@@ -9179,6 +10051,11 @@ function schedulePlanningRouteToGantt(routeId) {
   if (specification) ensureRouteTaskSeedSteps(route.id, specification);
   const planningQuantity = getPlanningRouteQuantity(route);
   syncPlanningRouteQuantity(route.id, planningQuantity, { updateSlots: true, persist: false, render: false, notify: false });
+  const invalidSteps = getInvalidRouteOperationSteps(route.id);
+  if (invalidSteps.length) {
+    alert(`Не удалось передать маршрут в Гант: ${invalidSteps.length} операций не выбраны из справочника операций.`);
+    return;
+  }
   const routeSteps = getSchedulableRouteSteps(route.id);
   const batches = ensureRouteBatches(route, project);
   if (!routeSteps.length || !batches.length) {
@@ -9189,6 +10066,17 @@ function schedulePlanningRouteToGantt(routeId) {
   const stamp = new Date().toISOString();
   const anchorStart = getPlanningScheduleAnchorStart();
   const createdIds = batches.flatMap((batch) => scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, stamp));
+  planningState.routes = (planningState.routes || []).map((item) => (
+    item.id === route.id
+      ? { ...item, planningStatus: "scheduled", canceledAt: "", updatedAt: stamp }
+      : item
+  ));
+  const batchIds = new Set(batches.map((batch) => batch.id));
+  planningState.batches = (planningState.batches || []).map((batch) => (
+    batchIds.has(batch.id)
+      ? { ...batch, status: "planned", updatedAt: stamp }
+      : batch
+  ));
   planningState = normalizePlanningState(planningState);
   ui.activeModule = "gantt";
   ui.activeProjectId = project.id;
@@ -9202,6 +10090,40 @@ function schedulePlanningRouteToGantt(routeId) {
   if (!createdIds.length) {
     alert("Все операции этой маршрутной карты уже находятся в Ганте.");
   }
+}
+
+function cancelPlanningRoute(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  if (!route) return;
+
+  const routeSlots = getPlanningRouteSlots(route);
+  const slotIds = new Set(routeSlots.map((slot) => slot.id));
+  const stamp = new Date().toISOString();
+
+  planningState.slots = (planningState.slots || []).filter((slot) => !slotIds.has(slot.id));
+  planningState.routes = (planningState.routes || []).map((item) => (
+    item.id === route.id
+      ? { ...item, planningStatus: "canceled", canceledAt: stamp, updatedAt: stamp }
+      : item
+  ));
+  const routeBatchIds = new Set(getRoutePlanningBatches(route)
+    .filter((batch) => !batch.routeId || batch.routeId === route.id)
+    .map((batch) => batch.id));
+  planningState.batches = (planningState.batches || []).map((batch) => (
+    routeBatchIds.has(batch.id)
+      ? { ...batch, status: "canceled", updatedAt: stamp }
+      : batch
+  ));
+
+  if (slotIds.has(ui.selectedSlotId)) ui.selectedSlotId = null;
+  ui.activeModule = "planning";
+  ui.activeRouteId = route.id;
+  ui.activeProjectId = route.specificationId || route.projectId || ui.activeProjectId || "";
+  planningState = normalizePlanningState(planningState);
+  withPlanningEntityRemovalAllowed(() => persistState());
+  persistUiState();
+  notifySaveSuccess(routeSlots.length ? "Заказ отменен, операции сняты из Ганта" : "Заказ отменен");
+  render();
 }
 
 function openPlanningForProject(projectId = "") {
@@ -9252,14 +10174,14 @@ function renderRoutesPage() {
   const routeSpecification = hasPreviewRoute ? getSpecificationById(routeSelectionValue) || getRouteSpecification(route) : null;
   const project = hasPreviewRoute ? getProject(routeSelectionValue || route.specificationId || route.projectId) : null;
   const routeTargetName = hasPreviewRoute
-    ? routeSpecification?.name || getProjectDisplayName(project) || "выберите спецификацию"
+    ? routeSpecification?.name || getProjectDisplayName(project) || "выберите состав изделия"
     : "выберите карту слева";
   const canOpenRouteTarget = Boolean(hasPreviewRoute);
   const stats = getRouteModuleStats(activeRoute);
   const specificationOptions = (directoryState.specifications || [])
     .map((item) => ({
       value: item.id,
-      label: item.name || "Спецификация без названия",
+      label: item.name || "Состав изделия без названия",
       meta: `${getSpecificationProductionOrder(item) || "заказ не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(item)] || "статус"}`,
     }));
 
@@ -9274,7 +10196,7 @@ function renderRoutesPage() {
           <button class="primary-button" data-route-create type="button">${icon("plus")}<span>Новая карта</span></button>
         </div>
         <div class="module-entity-list">
-          <div class="module-list-label">Маршрутные карты спецификаций</div>
+          <div class="module-list-label">Маршрутные карты состава изделия</div>
           ${isNewRoute ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая маршрутная карта</strong><small>${escapeHtml(routeTargetName)}</small></span><em>new</em></button>` : ""}
           ${getRoutesForModule().map((item) => {
             const routeProject = getProject(item.projectId);
@@ -9284,7 +10206,7 @@ function renderRoutesPage() {
               <button class="module-entity-item ${item.id === activeRoute?.id ? "is-active" : ""}" data-route-open="${item.id}" type="button">
                 <span>
                   <strong>${escapeHtml(item.name || "Маршрутная карта")}</strong>
-                  <small>${escapeHtml(itemSpecification?.name || getProjectDisplayName(routeProject) || "спецификация не найдена")} · ${steps.length} шагов</small>
+                  <small>${escapeHtml(itemSpecification?.name || getProjectDisplayName(routeProject) || "состав изделия не найден")} · ${steps.length} шагов</small>
                 </span>
                 <em>${steps.length}</em>
               </button>
@@ -9298,10 +10220,10 @@ function renderRoutesPage() {
           <div>
             <span class="eyebrow">Маршрутная карта</span>
             <h2>${escapeHtml(hasPreviewRoute ? (isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта") : "Карта не выбрана")}</h2>
-            <p>${escapeHtml(hasPreviewRoute ? (routeSpecification || project ? `${routeTargetName}: последовательность подразделений и нормативов для передачи в Гант.` : "Выберите спецификацию и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
+            <p>${escapeHtml(hasPreviewRoute ? (routeSpecification || project ? `${routeTargetName}: последовательность подразделений и нормативов для передачи в Гант.` : "Выберите состав изделия и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
           </div>
           <div class="directory-actions">
-            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>В Заказ на пр-во</span></button>
+            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>В Планирование</span></button>
           </div>
         </header>
 
@@ -9310,7 +10232,7 @@ function renderRoutesPage() {
           <section class="module-panel route-editor-panel">
             <div class="report-card-head">
               <strong>Карточка маршрута</strong>
-              <span>${isNewRoute ? "создание технологической карты" : "спецификация, статус и применение в плане"}</span>
+              <span>${isNewRoute ? "создание технологической карты" : "состав изделия, статус и применение в плане"}</span>
             </div>
             <form id="routeModuleForm" class="module-form route-module-form">
               <input type="hidden" name="routeId" value="${escapeAttribute(route.id)}" />
@@ -9318,7 +10240,7 @@ function renderRoutesPage() {
               <input type="hidden" name="routeBindingId" value="${escapeAttribute(routeSelectionValue)}" />
               <label class="form-field full"><span>Название маршрутной карты</span><input name="name" value="${escapeAttribute(route.name || "")}" placeholder="Основной маршрут" /></label>
               <label class="form-field full">
-                <span>Спецификация</span>
+                <span>Состав изделия</span>
                 ${renderDenseInlineSelect("routeBindingId", routeSelectionValue, specificationOptions, { type: "routeModule" })}
               </label>
               <div class="module-form-actions full">
@@ -9328,15 +10250,15 @@ function renderRoutesPage() {
             </form>
           </section>
 
-          <section class="module-panel route-steps-panel">
-            <div class="report-card-head">
-              <strong>Операции маршрута</strong>
-              <div class="route-steps-head-actions">
-                <span>Добавляйте только операции подразделения или склада.</span>
-                <button class="secondary-button" data-route-add-step="workCenter" type="button">${icon("plus")}<span>Подразделение</span></button>
-                <button class="secondary-button" data-route-add-step="warehouse" type="button">${icon("package")}<span>Склад</span></button>
-              </div>
-            </div>
+	          <section class="module-panel route-steps-panel">
+	            <div class="report-card-head">
+	              <strong>Операции маршрута</strong>
+	              <div class="route-steps-head-actions">
+	                <span>Операции выбираются только из справочника операций.</span>
+	                <button class="secondary-button" data-route-add-step="operation" type="button" ${getDefaultOperationMapItemForRouteKind("operation") ? "" : "disabled"}>${icon("plus")}<span>Добавить операцию</span></button>
+	                <button class="secondary-button" data-route-add-step="warehouse" type="button" ${getDefaultOperationMapItemForRouteKind("warehouse") ? "" : "disabled"}>${icon("package")}<span>Добавить склад</span></button>
+	              </div>
+	            </div>
             ${renderRouteStepsEditor(activeRoute, stats.steps)}
           </section>
           ` : ""}
@@ -9374,7 +10296,7 @@ function renderRouteModuleSequence(steps, route = null) {
                 <div class="route-task-sequence-steps">
                   ${taskSteps.map((step) => {
                     const center = getWorkCenter(step.workCenterId);
-                    return `<span class="${step.workCenterId === "warehouse" ? "is-warehouse" : ""}"><b>${Number(step.stepOrder || 0)}</b>${escapeHtml(step.operationName || "Операция")}<small>${escapeHtml(center?.name || step.workCenterId || "подразделение")}</small></span>`;
+                    return `<span class="${isWarehouseWorkCenterId(step.workCenterId) ? "is-warehouse" : ""}"><b>${Number(step.stepOrder || 0)}</b>${escapeHtml(step.operationName || "Операция")}<small>${escapeHtml(center?.name || step.workCenterId || "подразделение")}</small></span>`;
                   }).join("")}
                 </div>
               ` : `<div class="route-task-sequence-empty">Операции еще не заданы</div>`}
@@ -9390,7 +10312,7 @@ function renderRouteModuleSequence(steps, route = null) {
       ${steps.map((step) => {
         const center = getWorkCenter(step.workCenterId);
         return `
-          <article class="${step.workCenterId === "warehouse" ? "is-warehouse" : ""}">
+          <article class="${isWarehouseWorkCenterId(step.workCenterId) ? "is-warehouse" : ""}">
             <b>${Number(step.stepOrder || 0)}</b>
             <span><strong>${escapeHtml(step.operationName || "Операция")}</strong><small>${escapeHtml(center?.name || step.workCenterId || "подразделение")}</small></span>
           </article>
@@ -9404,7 +10326,7 @@ function getRouteTaskTypeLabel(task) {
   if (task?.isMain) return "общий";
   if (task?.isOrphan) return "проверить";
   if (task?.type === "bom") return "плата";
-  if (task?.type === "specification") return "спецификация";
+  if (task?.type === "specification") return "состав изделия";
   if (task?.type === "assembly") return "узел";
   if (task?.type === "nomenclature" || task?.type === "part") return "позиция";
   return "задача";
@@ -9421,42 +10343,39 @@ function renderRouteStepsEditor(route, steps) {
     `;
   }
 
-  const workCenterOptions = getPlanningWorkCenters().map((center) => ({
-    value: center.id,
-    label: center.name,
-    meta: center.code || "подразделение",
-  }));
   const orderedSteps = getRouteStepsForModule(route.id);
 
   return `
     <div class="route-step-editor-shell">
-      ${orderedSteps.length ? renderRouteStepRows(orderedSteps, workCenterOptions) : `
+      ${orderedSteps.length ? renderRouteStepRows(orderedSteps) : `
         <div class="route-module-empty">
           ${icon("info")}
           <strong>Операций пока нет</strong>
-          <span>Добавьте операцию подразделения или склада кнопками в заголовке блока.</span>
+          <span>Сначала заведите операции в справочнике, затем добавляйте их в маршрут.</span>
         </div>
       `}
     </div>
   `;
 }
 
-function renderRouteStepRows(steps, workCenterOptions) {
+function renderRouteStepRows(steps) {
   return `
     <div class="route-step-editor-list">
       ${steps.map((step, index) => {
         const operationOptions = getRouteStepOperationOptions(step);
         const operationValue = getRouteStepOperationSelectValue(step, operationOptions);
+        const operation = getOperationMapItem(step.operationId);
+        const center = getWorkCenter(operation?.workCenterId || step.workCenterId);
         return `
-          <article class="route-step-editor-row ${step.workCenterId === "warehouse" ? "is-warehouse" : ""}" data-route-step-row="${step.id}">
+          <article class="route-step-editor-row ${isWarehouseWorkCenterId(step.workCenterId) ? "is-warehouse" : ""}" data-route-step-row="${step.id}">
             <div class="route-step-index">
               <button class="icon-button" data-route-step-up="${step.id}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
               <span class="route-step-order-badge" title="Позиция в общем списке операций" aria-label="Позиция в общем списке операций">${index + 1}</span>
               <button class="icon-button" data-route-step-down="${step.id}" type="button" title="Опустить" ${index === steps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
             </div>
-            <label class="form-field route-step-center">
+            <label class="form-field route-step-center readonly">
               <span>Подразделение</span>
-              ${renderDenseInlineSelect("workCenterId", step.workCenterId, workCenterOptions, { type: "routeStep", stepId: step.id })}
+              <input value="${escapeAttribute(center?.name || "подразделение не выбрано")}" readonly />
             </label>
             <label class="form-field route-step-name">
               <span>Операция</span>
@@ -9472,41 +10391,30 @@ function renderRouteStepRows(steps, workCenterOptions) {
 
 function getRouteStepOperationSelectValue(step, options = getRouteStepOperationOptions(step)) {
   if (step.operationId && options.some((item) => item.value === step.operationId)) return step.operationId;
-  if (step.operationName) return `legacy:${step.id}`;
-  return options[0]?.value || "";
+  return "";
 }
 
 function getRouteStepOperationOptions(step = {}) {
   const operations = getOperationMapRows().map((operation) => {
     const center = getWorkCenter(operation.workCenterId);
-    const type = getOperationTypeOption(operation.type);
     return {
       value: operation.id,
       label: operation.name || "Операция без названия",
-      meta: `${type.label} · ${center?.name || "подразделение не выбрано"}`,
+      meta: center?.name || "подразделение не выбрано",
     };
   });
-  const hasLinkedOperation = step.operationId && operations.some((item) => item.value === step.operationId);
-  const hasNameMatch = operations.some((item) => normalizeLookupText(item.label) === normalizeLookupText(step.operationName));
-  if (step.operationName && (!hasLinkedOperation || !hasNameMatch)) {
-    operations.unshift({
-      value: `legacy:${step.id}`,
-      label: step.operationName,
-      meta: "текстовая операция",
-    });
-  }
-  if (!step.operationId && !step.operationName) {
+  if (!step.operationId || !operations.some((item) => item.value === step.operationId)) {
     operations.unshift({
       value: "",
       label: "Операция не выбрана",
-      meta: "выберите из карты операций",
+      meta: "выберите из справочника операций",
     });
   }
   if (!operations.length) {
     operations.push({
       value: "",
       label: "Операция не выбрана",
-      meta: "создайте операцию в карте операций",
+      meta: "создайте операцию в справочнике операций",
     });
   }
   return operations;
@@ -9566,7 +10474,6 @@ function renderDirectoryPage() {
         </header>
 
         <div class="directory-content">
-          ${activeSection.id === "employees" ? renderEmployeeDepartmentConstructor() : ""}
           <section class="directory-table-card">
             ${renderDirectoryTable(directoryData)}
           </section>
@@ -9695,7 +10602,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить операцию?",
       body: `Слот "${slot?.operationName || "операция"}" будет удален из диаграммы планирования.`,
-      meta: "Это изменит план спецификации и пересчитает отчеты.",
+      meta: "Это изменит план состава изделия и пересчитает связанные данные.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -9717,13 +10624,27 @@ function getConfirmDialogConfig(dialog) {
     };
   }
 
+  if (dialog?.action === "planningCancelRoute") {
+    const route = (planningState.routes || []).find((item) => item.id === payload.routeId);
+    const slotsCount = getPlanningRouteSlots(route).length;
+    return {
+      title: "Отменить заказ на производство?",
+      body: `Заказ "${route?.name || "маршрутная карта"}" будет отменен, а ${slotsCount} операций будут сняты из Ганта.`,
+      meta: "Маршрутная карта и партийность останутся в планировании, чтобы их можно было скорректировать и передать в Гант заново.",
+      confirmLabel: "Отменить заказ",
+      confirmIcon: "close",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
   if (dialog?.action === "spekiDeleteSpecification") {
     const specification = (directoryState.specifications || []).find((item) => item.id === payload.specificationId);
     const usage = getSpecificationDeleteUsage(payload.specificationId);
     return {
-      title: "Удалить спецификацию?",
-      body: `Спецификация "${specification?.name || "без названия"}" будет удалена из перечня и больше не будет доступна в конструкторе.`,
-      meta: `Ссылки в других спецификациях будут очищены. Также будет удалено: ${usage.routesCount} маршрутных карт, ${usage.batchesCount} партий, ${usage.slotsCount} слотов Ганта.`,
+      title: "Удалить состав изделия?",
+      body: `Состав изделия "${specification?.name || "без названия"}" будет удален из перечня и больше не будет доступен в конструкторе.`,
+      meta: `Ссылки в другом составе изделия будут очищены. Также будет удалено: ${usage.routesCount} маршрутных карт, ${usage.batchesCount} партий, ${usage.slotsCount} слотов Ганта.`,
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -9736,11 +10657,11 @@ function getConfirmDialogConfig(dialog) {
     const linkedSpecifications = getBomLinkedSpecifications(payload.bomId);
     const rowsCount = getBomImportRows(bom).length;
     return {
-      title: "Удалить BOM-лист?",
-      body: `BOM "${bom?.name || "без названия"}" будет удален вместе с импортированной таблицей${rowsCount ? ` на ${rowsCount} строк` : ""}.`,
+      title: "Удалить спецификацию?",
+      body: `Спецификация "${bom?.name || "без названия"}" будет удалена вместе с импортированной таблицей${rowsCount ? ` на ${rowsCount} строк` : ""}.`,
       meta: linkedSpecifications.length
-        ? `BOM используется в ${linkedSpecifications.length} спецификациях. Ссылки на него будут очищены.`
-        : "Связанных спецификаций не найдено.",
+        ? `Спецификация используется в ${linkedSpecifications.length} составах изделия. Ссылки на нее будут очищены.`
+        : "Связанных составов изделия не найдено.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -9768,7 +10689,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить позицию номенклатуры?",
       body: `Позиция "${item?.name || "без названия"}" будет удалена из номенклатуры.`,
-      meta: `Ссылки будут очищены: ${usage.specificationsCount} спецификаций, ${usage.bomRowsCount} строк BOM.`,
+      meta: `Ссылки будут очищены: ${usage.specificationsCount} составов изделия, ${usage.bomRowsCount} строк спецификаций.`,
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -9781,7 +10702,7 @@ function getConfirmDialogConfig(dialog) {
     const usageCount = planningState.routeSteps.filter((step) => step.operationId === payload.operationId).length;
     return {
       title: "Удалить операцию?",
-      body: `Операция "${operation?.name || "без названия"}" будет удалена из карты операций.`,
+      body: `Операция "${operation?.name || "без названия"}" будет удалена из справочника операций.`,
       meta: usageCount ? `В ${usageCount} шагах маршрутов связь будет очищена, текст операции останется.` : "Связанных маршрутных карт не найдено.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
@@ -9820,7 +10741,7 @@ function getConfirmDialogConfig(dialog) {
   if (dialog?.action === "calculatorResetRoute") {
     return {
       title: "Сбросить маршрут?",
-      body: "Маршрутная карта калькулятора будет возвращена к шаблону спецификации. Выбранная спецификация и BOM останутся.",
+      body: "Маршрутная карта калькулятора будет возвращена к шаблону состава изделия. Выбранный состав изделия и спецификация платы останутся.",
       meta: "Используй это, если нужно заново собрать последовательность операций.",
       confirmLabel: "Сбросить",
       confirmIcon: "reset",
@@ -9834,7 +10755,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить операцию маршрута?",
       body: `Шаг "${operation?.operationName || "операция"}" будет удален из маршрутной карты калькулятора.`,
-      meta: "После сохранения маршрута это может изменить маршрут спецификации.",
+      meta: "После сохранения маршрута это может изменить маршрут состава изделия.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -9845,8 +10766,8 @@ function getConfirmDialogConfig(dialog) {
   if (dialog?.action === "calculatorSaveRoute") {
     const calc = calculateComplexityResult();
     return {
-      title: "Сохранить маршрут спецификации?",
-      body: `Маршрутная карта спецификации "${calc.specification?.name || getProjectDisplayName(calc.project) || "спецификация"}" будет обновлена по расчету калькулятора.`,
+      title: "Сохранить маршрут состава изделия?",
+      body: `Маршрутная карта состава изделия "${calc.specification?.name || getProjectDisplayName(calc.project) || "состав изделия"}" будет обновлена по расчету калькулятора.`,
       meta: "Действие влияет на справочник маршрутов и будущую постановку операций на Гант.",
       confirmLabel: "Сохранить",
       confirmIcon: "save",
@@ -9861,7 +10782,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить шаг маршрута?",
       body: `Операция "${step?.operationName || "шаг маршрута"}" будет удалена из маршрутной карты.`,
-      meta: slotsCount ? `Этот шаг используют ${slotsCount} операций Ганта. После удаления они получат предупреждение маршрута.` : "Действие изменит технологическую последовательность спецификации.",
+      meta: slotsCount ? `Этот шаг используют ${slotsCount} операций Ганта. После удаления они получат предупреждение маршрута.` : "Действие изменит технологическую последовательность состава изделия.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -10016,8 +10937,8 @@ function buildWorkloadInsights(workload, warnings) {
 function buildDeadlineInsights(deadlineRows) {
   const risky = deadlineRows.filter((row) => !row.status.includes("Заверш") && row.progress < 40);
   return [
-    { icon: risky.length ? "alert" : "check", tone: risky.length ? "warning" : "ok", text: risky.length ? `${risky.length} спецификации имеют низкую готовность.` : "Спецификации выглядят устойчиво по готовности." },
-    { icon: "info", text: deadlineRows[0] ? `Ближайший срок: ${deadlineRows[0].project}, ${deadlineRows[0].due}.` : "Нет спецификаций со сроками." },
+    { icon: risky.length ? "alert" : "check", tone: risky.length ? "warning" : "ok", text: risky.length ? `${risky.length} состава изделия имеют низкую готовность.` : "Состав изделия выглядит устойчиво по готовности." },
+    { icon: "info", text: deadlineRows[0] ? `Ближайший срок: ${deadlineRows[0].project}, ${deadlineRows[0].due}.` : "Нет состава изделия со сроками." },
   ];
 }
 
@@ -10045,96 +10966,6 @@ function getSlotDurationHours(slot) {
 
 function formatReportNumber(value) {
   return String(Math.round(Number(value || 0) * 10) / 10);
-}
-
-function getEmployeeDepartmentNames() {
-  const names = new Set([
-    ...(planningState.workCenters || []).map((center) => center.name),
-    ...(directoryState.employees || []).map((employee) => employee.department),
-  ].filter(Boolean));
-  return [...names].sort((left, right) => left.localeCompare(right, "ru"));
-}
-
-function renderEmployeeDepartmentConstructor() {
-  const departmentNames = getEmployeeDepartmentNames();
-  const roles = directoryState.roles || [];
-  const employees = directoryState.employees || [];
-  const departmentOptions = departmentNames.map((name) => ({ value: name, label: name, meta: `${employees.filter((employee) => employee.department === name).length} сотр.` }));
-  const roleOptions = roles.map((role) => ({ value: role.id, label: role.name, meta: role.code || "роль" }));
-
-  return `
-    <section class="employee-constructor-card">
-      <div class="directory-table-toolbar">
-        <strong>Конструктор подразделений</strong>
-        <span>перетаскивайте сотрудников между подразделениями, меняйте должность и роль доступа</span>
-      </div>
-      <div class="employee-department-board">
-        ${departmentNames.map((departmentName) => {
-          const departmentEmployees = employees.filter((employee) => employee.department === departmentName);
-          return `
-            <article class="employee-department-column" data-employee-drop-department="${escapeAttribute(departmentName)}">
-              <div class="employee-department-head">
-                <strong>${escapeHtml(departmentName)}</strong>
-                <span>${departmentEmployees.length}</span>
-              </div>
-              <div class="employee-card-list">
-                ${departmentEmployees.length ? departmentEmployees.map((employee) => `
-                  <div class="employee-assignment-card" draggable="true" data-employee-drag-id="${employee.id}">
-                    <div class="employee-assignment-main">
-                      <strong>${escapeHtml(employee.name)}</strong>
-                      <small>${escapeHtml(getRoleName(employee.roleId))}</small>
-                    </div>
-                    <label class="employee-position-field">
-                      <span>Должность</span>
-                      <input data-employee-inline-field="role" data-employee-id="${employee.id}" type="text" value="${escapeAttribute(employee.role || "")}" />
-                    </label>
-                    <div class="employee-assignment-controls">
-                      <div class="field compact">
-                        <span>Подразделение</span>
-                        ${renderEmployeeDenseSelect(employee.id, "department", employee.department, departmentOptions)}
-                      </div>
-                      <div class="field compact">
-                        <span>Роль</span>
-                        ${renderEmployeeDenseSelect(employee.id, "roleId", employee.roleId, roleOptions)}
-                      </div>
-                    </div>
-                  </div>
-                `).join("") : `
-                  <div class="employee-drop-empty">Перетащите сотрудника в это подразделение</div>
-                `}
-              </div>
-            </article>
-          `;
-        }).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderEmployeeDenseSelect(employeeId, field, value, items) {
-  const selectedItem = items.find((item) => String(item.value) === String(value))
-    || items[0]
-    || { value: "", label: "Не выбрано", meta: "" };
-
-  return `
-    <details class="dense-inline-select employee-dense-select" data-employee-select="${escapeAttribute(field)}" data-employee-id="${escapeAttribute(employeeId)}">
-      <summary>
-        <span>
-          <strong>${escapeHtml(selectedItem.label)}</strong>
-          ${selectedItem.meta ? `<small>${escapeHtml(selectedItem.meta)}</small>` : ""}
-        </span>
-        ${icon("chevronDown")}
-      </summary>
-      <div class="dense-inline-options">
-        ${items.map((item) => `
-          <button class="${String(item.value) === String(value) ? "is-selected" : ""}" data-employee-value="${escapeAttribute(item.value)}" type="button">
-            <strong>${escapeHtml(item.label)}</strong>
-            ${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ""}
-          </button>
-        `).join("")}
-      </div>
-    </details>
-  `;
 }
 
 function renderDirectoryTable(directoryData) {
@@ -10205,8 +11036,8 @@ function getDirectoryData(sectionId) {
   if (sectionId === "workCenters") {
     return makeDirectoryData(sectionId, {
       caption: "Подразделения объединяют организационную ответственность и производственные мощности. Только производственные подразделения участвуют в Ганте.",
-      columns: ["Подразделение", "Код", "Тип", "В плане", "Изд./час", "Емкость", "Смена", "Ответственный", "Описание", "Активность"],
-      keys: ["name", "code", "unitType", "planningStatus", "unitsPerHour", "capacity", "shift", "owner", "description", "status"],
+      columns: ["Подразделение", "Код", "Тип", "В плане", "Изд./час", "Емкость", "График", "Режим работы", "Ответственный", "Описание", "Активность"],
+      keys: ["name", "code", "unitType", "planningStatus", "unitsPerHour", "capacity", "workSchedule", "workMode", "owner", "description", "status"],
       rows: planningState.workCenters.map((center) => ({
         id: center.id,
         name: center.name,
@@ -10215,7 +11046,8 @@ function getDirectoryData(sectionId) {
         planningStatus: center.isPlanningUnit === false ? "no" : "yes",
         unitsPerHour: center.unitsPerHour,
         capacity: center.capacity,
-        shift: center.shift,
+        workSchedule: center.workSchedule,
+        workMode: center.workMode,
         owner: center.owner || "",
         description: center.description || "-",
         status: center.isActive ? "active" : "inactive",
@@ -10225,20 +11057,23 @@ function getDirectoryData(sectionId) {
 
   if (sectionId === "statuses") {
     return makeDirectoryData(sectionId, {
-      caption: "Единые статусы для производственного планирования и мониторинга.",
+      caption: "Единые статусы для производственного планирования, мониторинга, ресурсов, оборудования и системных справочников.",
       columns: ["Статус", "Тип", "Код", "Использование"],
       keys: ["name", "type", "code", "usage"],
       rows: directoryState.statuses,
     });
   }
 
+  if (sectionId === "operations") {
+    return makeDirectoryData(sectionId, {
+      caption: "Операции используются в маршрутных картах и привязаны к подразделениям.",
+      columns: ["Операция", "Подразделение", "Статус"],
+      keys: ["name", "workCenterId", "status"],
+      rows: getOperationMapRows(),
+    });
+  }
+
   const configs = {
-    roles: {
-      caption: "Роли управляют доступом к модулям, справочникам и действиям пользователя.",
-      columns: ["Роль", "Код", "Уровень", "Модули", "Справочники", "Права", "Статус"],
-      keys: ["name", "code", "accessLevel", "modules", "directories", "permissions", "status"],
-      rows: directoryState.roles,
-    },
     productionResources: {
       caption: "Производственные ресурсы объединяют линии, станки, посты и оборудование. В Ганте операции привязываются к ресурсам внутри подразделений.",
       columns: ["Ресурс", "Тип", "Подразделение", "Родитель", "В Ганте", "В расчете", "Мощность", "База комп./ч", "Эфф., %", "Setup, мин", "Инв. номер", "ТО", "Статус"],
@@ -10256,12 +11091,6 @@ function getDirectoryData(sectionId) {
       columns: ["Тип номенклатуры", "Код", "Описание", "Статус"],
       keys: ["name", "code", "description", "status"],
       rows: directoryState.nomenclatureTypes,
-    },
-    employees: {
-      caption: "Сотрудники получают роли доступа из справочника ролей и используются для авторизации по ФИО.",
-      columns: ["Сотрудник", "Роль доступа", "Должность", "Подразделение", "Смена", "Пароль", "Статус"],
-      keys: ["name", "roleId", "role", "department", "shift", "password", "status"],
-      rows: directoryState.employees,
     },
     norms: {
       caption: "Нормативы используются для ограничений, смен и будущего автопланирования.",
@@ -10289,19 +11118,18 @@ function makeDirectoryData(sectionId, config) {
 
 function getDirectoryFieldType(sectionId, key) {
   if (sectionId === "specifications" && (key === "bomListA" || key === "bomListB")) return "bom-link";
-  if (sectionId === "employees" && key === "roleId") return "role-link";
-  if (sectionId === "employees" && key === "password") return "password";
   if (sectionId === "workCenters" && key === "unitType") return "unit-type";
   if (sectionId === "workCenters" && key === "planningStatus") return "yes-no";
-  if (sectionId === "workCenters" && key === "shift") return "work-shift";
+  if (sectionId === "workCenters" && key === "workSchedule") return "work-schedule";
+  if (sectionId === "workCenters" && key === "workMode") return "work-mode";
   if (sectionId === "productionResources" && key === "type") return "production-resource-type";
   if (sectionId === "productionResources" && key === "workCenterId") return "work-center-link";
   if (sectionId === "productionResources" && key === "parentResourceId") return "production-resource-parent-link";
   if (sectionId === "productionResources" && (key === "participatesInPlanning" || key === "participatesInCalculation")) return "yes-no";
+  if (sectionId === "operations" && key === "workCenterId") return "work-center-link";
   if (
     key === "totalQuantity"
     || key === "steps"
-    || (sectionId === "roles" && key === "accessLevel")
     || key === "unitsPerHour"
     || (sectionId === "workCenters" && key === "capacity")
     || key === "baseCph"
@@ -10337,6 +11165,8 @@ function formatDirectoryCell(sectionId, key, value) {
   if (sectionId === "workCenters" && key === "planningStatus") return value === "yes" ? "Да" : "Нет";
   if (sectionId === "workCenters" && key === "unitsPerHour") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} изд./час` : "-";
   if (sectionId === "workCenters" && key === "capacity") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} паралл.` : "-";
+  if (sectionId === "workCenters" && key === "workSchedule") return value || "-";
+  if (sectionId === "workCenters" && key === "workMode") return value || "-";
   if (sectionId === "specifications" && (key === "bomListA" || key === "bomListB")) return getBomList(value)?.name || "-";
   if (sectionId === "specifications" && (key === "bomQtyA" || key === "bomQtyB")) return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
   if (sectionId === "bomLists" && BOM_COMPONENT_FIELDS.some((field) => field.key === key)) return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
@@ -10347,13 +11177,11 @@ function formatDirectoryCell(sectionId, key, value) {
   if (sectionId === "productionResources" && key === "baseCph") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} комп./ч` : "-";
   if (sectionId === "productionResources" && key === "efficiency") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} %` : "-";
   if (sectionId === "productionResources" && key === "changeoverMin") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} мин` : "-";
+  if (sectionId === "operations" && key === "workCenterId") return getWorkCenter(value)?.name || value || "-";
   if (sectionId === "componentTypes" && key === "coefficient") return formatCalculatorNumber(value, 2);
   if (sectionId === "componentTypes" && key === "placementsPerHour") return `${Number(value || 0).toLocaleString("ru-RU")} комп./ч`;
   if (sectionId === "componentTypes" && key === "setupSeconds") return `${Number(value || 0).toLocaleString("ru-RU")} сек`;
   if (sectionId === "componentTypes" && key === "defaultCount") return `${Number(value || 0).toLocaleString("ru-RU")} шт.`;
-  if (sectionId === "roles" && key === "accessLevel") return `${Number(value || 0).toLocaleString("ru-RU")} / 100`;
-  if (sectionId === "employees" && key === "roleId") return getRoleName(value);
-  if (sectionId === "employees" && key === "password") return value ? "Задан" : "Пустой";
   if (key === "default") return value === "yes" ? "Да" : "Нет";
   return value ?? "";
 }
@@ -10483,14 +11311,25 @@ function renderDirectoryField(field, value) {
     `;
   }
 
-  if (field.type === "work-shift") {
-    const hasCustomValue = value && !WORK_SHIFT_OPTIONS.some((option) => option.value === value);
+  if (field.type === "work-schedule") {
+    return `
+      <label class="form-field command-field">
+        <span>${escapeHtml(field.label)}</span>
+        <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
+          ${WORK_SCHEDULE_OPTIONS.map((option) => `<option value="${escapeAttribute(option.value)}" ${selected(value, option.value)}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  if (field.type === "work-mode") {
+    const hasCustomValue = value && !WORK_MODE_OPTIONS.some((option) => option.value === value);
     return `
       <label class="form-field command-field">
         <span>${escapeHtml(field.label)}</span>
         <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
           ${hasCustomValue ? `<option value="${escapedValue}" selected>${escapeHtml(value)}</option>` : ""}
-          ${WORK_SHIFT_OPTIONS.map((option) => `<option value="${escapeAttribute(option.value)}" ${selected(value, option.value)}>${escapeHtml(option.label)}</option>`).join("")}
+          ${WORK_MODE_OPTIONS.map((option) => `<option value="${escapeAttribute(option.value)}" ${selected(value, option.value)}>${escapeHtml(option.label)}</option>`).join("")}
         </select>
       </label>
     `;
@@ -10519,17 +11358,6 @@ function renderDirectoryField(field, value) {
     `;
   }
 
-  if (field.type === "role-link") {
-    return `
-      <label class="form-field command-field">
-        <span>${escapeHtml(field.label)}</span>
-        <select name="${field.key}">
-          ${(directoryState.roles || []).map((role) => `<option value="${role.id}" ${selected(value, role.id)}>${escapeHtml(role.name)} · ${escapeHtml(role.code || "")}</option>`).join("")}
-        </select>
-      </label>
-    `;
-  }
-
   return `
     <label class="form-field ${readonlyClass}">
       <span>${escapeHtml(field.label)}</span>
@@ -10546,13 +11374,13 @@ function createEmptyDirectoryRow(directoryData) {
     if (directoryData.sectionId === "workCenters" && key === "unitType") row[key] = "production";
     if (directoryData.sectionId === "workCenters" && key === "planningStatus") row[key] = "yes";
     if (directoryData.sectionId === "productionResources" && key === "type") row[key] = "workplace";
-    if (directoryData.sectionId === "productionResources" && key === "workCenterId") row[key] = getPlanningWorkCenters()[0]?.id || "manual";
+    if (directoryData.sectionId === "productionResources" && key === "workCenterId") row[key] = getPlanningWorkCenters()[0]?.id || "D5";
     if (directoryData.sectionId === "productionResources" && key === "participatesInPlanning") row[key] = "yes";
     if (directoryData.sectionId === "productionResources" && key === "participatesInCalculation") row[key] = "yes";
+    if (directoryData.sectionId === "operations" && key === "workCenterId") row[key] = getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || getPlanningWorkCenters()[0]?.id || "D3_L1";
     if (key === "totalQuantity" || key === "steps") row[key] = 0;
     if (key === "unitsPerHour") row[key] = 40;
     if (key === "capacity") row[key] = directoryData.sectionId === "workCenters" ? 1 : "1 партия / смена";
-    if (key === "accessLevel") row[key] = 10;
     if (key === "baseCph") row[key] = 30000;
     if (key === "efficiency") row[key] = 85;
     if (key === "changeoverMin") row[key] = 15;
@@ -10566,16 +11394,12 @@ function createEmptyDirectoryRow(directoryData) {
     if (key === "bomListB") row[key] = "";
     if (key === "bomQtyA") row[key] = 1;
     if (key === "bomQtyB") row[key] = 0;
-    if (key === "shift") row[key] = "5/2 08:00-20:00";
-    if (key === "roleId") row[key] = directoryState.roles?.[0]?.id || "role-admin";
-    if (key === "password") row[key] = "";
-    if (directoryData.sectionId === "roles" && key === "modules") row[key] = "gantt";
-    if (directoryData.sectionId === "roles" && key === "directories") row[key] = "statuses";
-    if (directoryData.sectionId === "roles" && key === "permissions") row[key] = "read";
+    if (key === "workSchedule") row[key] = "5/2";
+    if (key === "workMode") row[key] = "08:00-20:00";
     if (key === "default") row[key] = "no";
     if (key === "dueDate") row[key] = toDateInput(addMs(new Date(), 14 * 24 * 60 * 60 * 1000));
     return row;
-  }, { id: makeId("dir") });
+  }, { id: makeId(directoryData.sectionId === "operations" ? "op" : "dir") });
 }
 
 function getDirectoryHealth(sectionId) {
@@ -10587,46 +11411,7 @@ function getDirectoryHealth(sectionId) {
   };
 }
 
-function bindAuthEvents() {
-  const form = app.querySelector("#authForm");
-  if (!form) return;
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const data = new FormData(form);
-    const authEmployees = (directoryState.employees || []).filter((employee) => employee.status !== "Уволен");
-    const employeeSource = authEmployees.length ? authEmployees : [SYSTEM_AUTH_EMPLOYEE];
-    const employee = employeeSource.find((item) => item.id === String(data.get("employeeId")));
-    const password = String(data.get("password") || "");
-    const expectedPassword = String(employee?.password || "");
-
-    if (!employee) {
-      alert("Выберите сотрудника для входа.");
-      return;
-    }
-
-    if (password !== expectedPassword) {
-      alert("Пароль не совпадает. Для отладки пароль у всех сотрудников пустой.");
-      return;
-    }
-
-    authState = {
-      employeeId: employee.id,
-      loggedInAt: new Date().toISOString(),
-    };
-    persistAuthState();
-    ensureAuthorizedModule();
-    render();
-  });
-}
-
-function bindGlobalNavigation() {
-  app.querySelector("[data-auth-logout]")?.addEventListener("click", () => {
-    authState = { employeeId: "", loggedInAt: "" };
-    persistAuthState();
-    render();
-  });
-}
+function bindGlobalNavigation() {}
 
 function navigateToModule(moduleId) {
   if (!getAvailableModules().some((moduleItem) => moduleItem.id === moduleId)) return;
@@ -10637,17 +11422,19 @@ function navigateToModule(moduleId) {
   ui.splitSlotId = null;
   ui.projectModal = false;
   ui.confirmDialog = null;
+  ui.activeShopMapWidgetId = "";
   if (moduleId === "nomenclature" && previousModule !== "nomenclature") {
     ui.activeNomenclatureId = "";
   }
   if (moduleId === "bomLists" && previousModule !== "bomLists") {
     ui.activeBomId = "";
   }
-  if (moduleId === "speki" && previousModule !== "speki") {
+  if (moduleId === "rkd" && previousModule !== "rkd") {
     ui.activeSpecificationId = "";
     ui.spekiEditingId = "";
     ui.spekiCheckedSpecificationId = "";
     ui.spekiStaleItemIds = [];
+    ui.activeRkdStep = "kit";
   }
   if (moduleId === "routes" && previousModule !== "routes") {
     ui.activeRouteId = "";
@@ -10696,6 +11483,11 @@ function performConfirmedAction(dialog) {
 
   if (dialog.action === "planningDeleteBatch") {
     deletePlanningBatch(payload.batchId, { deleteSlots: true });
+    return;
+  }
+
+  if (dialog.action === "planningCancelRoute") {
+    cancelPlanningRoute(payload.routeId);
     return;
   }
 
@@ -10759,6 +11551,203 @@ function performConfirmedAction(dialog) {
   if (dialog.action === "routeDeleteMap") {
     deleteRouteMapConfirmed(payload.routeId);
   }
+}
+
+function setShopMapLayoutDirty(isDirty) {
+  shopMapLayoutDirty = Boolean(isDirty);
+  const saveButton = app.querySelector("[data-shop-map-save-layout]");
+  if (saveButton) {
+    saveButton.toggleAttribute("disabled", !shopMapLayoutDirty);
+  }
+}
+
+function getShopMapPointerCoordinates(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const x = rect.width ? ((event.clientX - rect.left) / rect.width) * 100 : 50;
+  const y = rect.height ? ((event.clientY - rect.top) / rect.height) * 100 : 50;
+  return {
+    x: clampShopMapCoordinate(x, 50),
+    y: clampShopMapCoordinate(y, 50),
+  };
+}
+
+function updateShopMapWidgetPosition(widgetButton, layout) {
+  const normalized = normalizeShopMapLayout(layout, layout);
+  widgetButton.style.setProperty("--shop-map-x", `${normalized.x}%`);
+  widgetButton.style.setProperty("--shop-map-y", `${normalized.y}%`);
+  widgetButton.dataset.shopMapX = String(normalized.x);
+  widgetButton.dataset.shopMapY = String(normalized.y);
+  const coordinateLabel = widgetButton.querySelector(".shop-map-widget-coords");
+  if (coordinateLabel) {
+    coordinateLabel.textContent = `${normalized.x.toFixed(1)} / ${normalized.y.toFixed(1)}`;
+  }
+  return normalized;
+}
+
+function startShopMapWidgetDrag(event, widgetButton) {
+  if (!ui.shopMapEditMode || widgetButton.dataset.shopMapDraggable !== "true") return;
+  if (widgetButton.classList.contains("is-dragging")) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  const canvas = app.querySelector("[data-shop-map-canvas]");
+  if (!canvas) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const widgetId = widgetButton.dataset.shopMapWidgetId || "";
+  if (!widgetId) return;
+
+  const startClientX = event.clientX;
+  const startClientY = event.clientY;
+  widgetButton.classList.add("is-dragging");
+  widgetButton.dataset.shopMapWasDragged = "";
+  widgetButton.setPointerCapture?.(event.pointerId);
+
+  const handlePointerMove = (moveEvent) => {
+    moveEvent.preventDefault();
+    const distance = Math.abs(moveEvent.clientX - startClientX) + Math.abs(moveEvent.clientY - startClientY);
+    if (distance > 2) widgetButton.dataset.shopMapWasDragged = "true";
+    const layout = updateShopMapWidgetPosition(widgetButton, getShopMapPointerCoordinates(moveEvent, canvas));
+    const draftLayouts = getShopMapDraftLayouts();
+    draftLayouts[widgetId] = { x: layout.x, y: layout.y };
+    setShopMapLayoutDirty(true);
+  };
+
+  const finishDrag = () => {
+    widgetButton.classList.remove("is-dragging");
+    widgetButton.releasePointerCapture?.(event.pointerId);
+    document.removeEventListener("pointermove", handlePointerMove);
+    document.removeEventListener("pointerup", finishDrag);
+    document.removeEventListener("pointercancel", finishDrag);
+  };
+
+  document.addEventListener("pointermove", handlePointerMove);
+  document.addEventListener("pointerup", finishDrag, { once: true });
+  document.addEventListener("pointercancel", finishDrag, { once: true });
+}
+
+function startShopMapWidgetMouseDrag(event, widgetButton) {
+  if (!ui.shopMapEditMode || widgetButton.dataset.shopMapDraggable !== "true") return;
+  if (widgetButton.classList.contains("is-dragging")) return;
+  if (event.button !== 0) return;
+  const canvas = app.querySelector("[data-shop-map-canvas]");
+  if (!canvas) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const widgetId = widgetButton.dataset.shopMapWidgetId || "";
+  if (!widgetId) return;
+
+  const startClientX = event.clientX;
+  const startClientY = event.clientY;
+  widgetButton.classList.add("is-dragging");
+  widgetButton.dataset.shopMapWasDragged = "";
+
+  const handleMouseMove = (moveEvent) => {
+    moveEvent.preventDefault();
+    const distance = Math.abs(moveEvent.clientX - startClientX) + Math.abs(moveEvent.clientY - startClientY);
+    if (distance > 2) widgetButton.dataset.shopMapWasDragged = "true";
+    const layout = updateShopMapWidgetPosition(widgetButton, getShopMapPointerCoordinates(moveEvent, canvas));
+    const draftLayouts = getShopMapDraftLayouts();
+    draftLayouts[widgetId] = { x: layout.x, y: layout.y };
+    setShopMapLayoutDirty(true);
+  };
+
+  const finishMouseDrag = () => {
+    widgetButton.classList.remove("is-dragging");
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", finishMouseDrag);
+  };
+
+  document.addEventListener("mousemove", handleMouseMove);
+  document.addEventListener("mouseup", finishMouseDrag, { once: true });
+}
+
+function enterShopMapEditMode() {
+  shopMapLayoutDraft = normalizeShopMapLayoutStore(ui.shopMapWidgetLayouts);
+  shopMapLayoutDirty = false;
+  ui.shopMapEditMode = true;
+  ui.activeShopMapWidgetId = "";
+  persistUiState();
+  render();
+}
+
+function cancelShopMapEditMode() {
+  shopMapLayoutDraft = null;
+  shopMapLayoutDirty = false;
+  ui.shopMapEditMode = false;
+  persistUiState();
+  render();
+}
+
+function saveShopMapLayout() {
+  if (!shopMapLayoutDirty || !shopMapLayoutDraft) return;
+  const existingCenterIds = new Set(getPlanningWorkCenters({ includeWarehouse: true }).map((center) => center.id));
+  ui.shopMapWidgetLayouts = Object.fromEntries(Object.entries(normalizeShopMapLayoutStore(shopMapLayoutDraft))
+    .filter(([centerId]) => existingCenterIds.has(centerId)));
+  shopMapLayoutDraft = null;
+  shopMapLayoutDirty = false;
+  ui.shopMapEditMode = false;
+  persistUiState();
+  notifySaveSuccess("Координаты карты сохранены");
+  render();
+}
+
+function bindShopMapEvents() {
+  app.querySelector("[data-shop-map-edit-layout]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    enterShopMapEditMode();
+  });
+
+  app.querySelector("[data-shop-map-cancel-layout]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    cancelShopMapEditMode();
+  });
+
+  app.querySelector("[data-shop-map-save-layout]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    saveShopMapLayout();
+  });
+
+  app.querySelectorAll("[data-shop-map-widget-id]").forEach((widgetButton) => {
+    widgetButton.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse") return;
+      startShopMapWidgetDrag(event, widgetButton);
+    });
+
+    widgetButton.addEventListener("mousedown", (event) => {
+      startShopMapWidgetMouseDrag(event, widgetButton);
+    });
+
+    widgetButton.addEventListener("click", () => {
+      if (ui.shopMapEditMode || widgetButton.dataset.shopMapWasDragged === "true") {
+        delete widgetButton.dataset.shopMapWasDragged;
+        return;
+      }
+      ui.activeShopMapWidgetId = widgetButton.dataset.shopMapWidgetId || "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-shop-map-widget-backdrop]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      if (event.target !== element) return;
+      ui.activeShopMapWidgetId = "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-shop-map-widget-close]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      event.preventDefault();
+      ui.activeShopMapWidgetId = "";
+      persistUiState();
+      render();
+    });
+  });
 }
 
 function bindDirectoryEvents() {
@@ -10830,74 +11819,7 @@ function bindDirectoryEvents() {
     });
   });
 
-  bindEmployeeConstructorEvents();
   bindDirectoryForm();
-}
-
-function bindEmployeeConstructorEvents() {
-  app.querySelectorAll("[data-employee-select] [data-employee-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-employee-select]");
-      if (!root) return;
-      updateEmployeeDirectoryField(root.dataset.employeeId, root.dataset.employeeSelect, button.dataset.employeeValue || "");
-    });
-  });
-
-  app.querySelectorAll("[data-employee-inline-field]").forEach((field) => {
-    const commit = () => updateEmployeeDirectoryField(field.dataset.employeeId, field.dataset.employeeInlineField, field.value);
-    field.addEventListener("change", commit);
-    field.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      commit();
-    });
-  });
-
-  app.querySelectorAll("[data-employee-drag-id]").forEach((card) => {
-    card.addEventListener("dragstart", (event) => {
-      card.classList.add("is-dragging");
-      event.dataTransfer?.setData("text/plain", card.dataset.employeeDragId || "");
-      event.dataTransfer?.setDragImage(card, 16, 16);
-    });
-    card.addEventListener("dragend", () => {
-      card.classList.remove("is-dragging");
-      app.querySelectorAll("[data-employee-drop-department]").forEach((column) => column.classList.remove("is-drop-target"));
-    });
-  });
-
-  app.querySelectorAll("[data-employee-drop-department]").forEach((column) => {
-    column.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      column.classList.add("is-drop-target");
-    });
-    column.addEventListener("dragleave", (event) => {
-      if (event.relatedTarget && column.contains(event.relatedTarget)) return;
-      column.classList.remove("is-drop-target");
-    });
-    column.addEventListener("drop", (event) => {
-      event.preventDefault();
-      column.classList.remove("is-drop-target");
-      const employeeId = event.dataTransfer?.getData("text/plain");
-      updateEmployeeDirectoryField(employeeId, "department", column.dataset.employeeDropDepartment || "");
-    });
-  });
-}
-
-function updateEmployeeDirectoryField(employeeId, field, value) {
-  if (!employeeId || !field) return;
-  const stamp = new Date().toISOString();
-  directoryState.employees = (directoryState.employees || []).map((employee) => (
-    employee.id === employeeId
-      ? { ...employee, [field]: String(value || "").trim(), updatedAt: stamp }
-      : employee
-  ));
-  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
-  ensureAuthorizedModule();
-  persistDirectoryState();
-  persistUiState();
-  notifySaveSuccess("Данные сотрудника сохранены");
-  render();
 }
 
 function bindPlanningEvents() {
@@ -10971,6 +11893,12 @@ function bindPlanningEvents() {
     schedulePlanningRouteToGantt(routeId);
   });
 
+  app.querySelector("[data-planning-route-cancel]")?.addEventListener("click", (event) => {
+    const routeId = event.currentTarget.dataset.planningRouteCancel || "";
+    if (!routeId) return;
+    openConfirmDialog("planningCancelRoute", { routeId });
+  });
+
   app.querySelectorAll("[data-planning-route-open]").forEach((button) => {
     button.addEventListener("click", () => {
       const route = planningState.routes.find((item) => item.id === button.dataset.planningRouteOpen);
@@ -10985,105 +11913,6 @@ function bindPlanningEvents() {
   });
 }
 
-function bindOperationMapEvents() {
-  app.querySelector("[data-operation-create]")?.addEventListener("click", () => {
-    ui.activeOperationId = "__new__";
-    persistUiState();
-    render();
-  });
-
-  app.querySelectorAll("[data-operation-open]").forEach((button) => {
-    button.addEventListener("click", () => {
-      ui.activeOperationId = button.dataset.operationOpen || "";
-      persistUiState();
-      render();
-    });
-  });
-
-  app.querySelector("#operationMapForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveOperationMapForm(event.currentTarget);
-  });
-
-  app.querySelectorAll("[data-dense-operation-map-field] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-operation-map-field]");
-      const field = root?.dataset.denseOperationMapField || "";
-      const form = button.closest("form");
-      const hidden = form?.querySelector(`[data-operation-map-hidden="${CSS.escape(field)}"]`);
-      if (hidden) hidden.value = button.dataset.denseValue || "";
-      updateDenseInlineSelected(root, button);
-    });
-  });
-
-  app.querySelector("[data-operation-delete]")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    const operationId = event.currentTarget.dataset.operationDelete || "";
-    if (!operationId) return;
-    openConfirmDialog("operationMapDelete", { operationId });
-  });
-}
-
-function updateDenseInlineSelected(root, button) {
-  if (!root || !button) return;
-  root.querySelectorAll("[data-dense-value]").forEach((item) => {
-    item.classList.toggle("is-selected", item === button);
-  });
-  const summary = root.querySelector("summary span");
-  const label = button.querySelector("strong")?.textContent || "Не выбрано";
-  const meta = button.querySelector("small")?.textContent || "";
-  if (summary) {
-    summary.innerHTML = `
-      <strong>${escapeHtml(label)}</strong>
-      ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
-    `;
-  }
-  root.open = false;
-}
-
-function saveOperationMapForm(form) {
-  const data = new FormData(form);
-  const isNew = data.get("isNew") === "yes";
-  const existing = isNew ? null : getOperationMapItem(String(data.get("operationId") || ""));
-  const name = String(data.get("name") || "").trim();
-  const workCenterId = String(data.get("workCenterId") || "");
-  if (!name || !workCenterId) {
-    alert("Заполните название операции и подразделение по умолчанию.");
-    return;
-  }
-
-  const type = OPERATION_TYPE_OPTIONS.some((item) => item.value === data.get("type"))
-    ? String(data.get("type"))
-    : "production";
-  const stamp = new Date().toISOString();
-  const row = normalizeDirectoryRow("operationMap", {
-    ...(existing || {}),
-    id: existing?.id || makeId("op"),
-    name,
-    code: String(data.get("code") || "").trim(),
-    type,
-    workCenterId,
-    unitsPerHour: Math.max(0, Math.round(Number(data.get("unitsPerHour") || 0) * 10) / 10),
-    requiresBatch: data.get("requiresBatch") === "on",
-    isWarehouse: type === "warehouse" || workCenterId === "warehouse",
-    status: "Активен",
-    updatedAt: stamp,
-  });
-
-  directoryState.operationMap = [
-    ...(directoryState.operationMap || []).filter((item) => item.id !== row.id),
-    row,
-  ];
-  applyOperationMapChangesToRoutes(row);
-  ui.activeOperationId = row.id;
-  persistDirectoryState();
-  persistState();
-  persistUiState();
-  notifySaveSuccess(isNew ? "Операция создана" : "Операция сохранена");
-  render();
-}
-
 function applyOperationMapChangesToRoutes(operation) {
   if (!operation?.id) return;
   planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
@@ -11092,7 +11921,6 @@ function applyOperationMapChangesToRoutes(operation) {
     return {
       ...step,
 	      operationName: operation.name || step.operationName,
-	      operationType: operation.type,
 	      workCenterId: nextWorkCenterId,
 	      unitsPerHour: operation.unitsPerHour || step.unitsPerHour || getWorkCenterUnitsPerHour(nextWorkCenterId),
 	      calculationType: step.calculationType || getDefaultOperationCalculationType(nextWorkCenterId, operation),
@@ -11127,11 +11955,31 @@ function deleteOperationMapItem(operationId) {
   const operation = getOperationMapItem(operationId);
   if (!operation) return;
   directoryState.operationMap = (directoryState.operationMap || []).filter((item) => item.id !== operationId);
+  const affectedStepIds = new Set((planningState.routeSteps || [])
+    .filter((step) => step.operationId === operationId)
+    .map((step) => step.id));
   planningState.routeSteps = (planningState.routeSteps || []).map((step) => (
     step.operationId === operationId
-      ? { ...step, operationId: "", operationName: step.operationName || operation.name || "", operationType: "", updatedAt: new Date().toISOString() }
+      ? { ...step, operationId: "", operationName: "", updatedAt: new Date().toISOString() }
       : step
   ));
+  planningState.slots = (planningState.slots || []).map((slot) => (
+    affectedStepIds.has(slot.routeStepId)
+      ? { ...slot, operationName: "", updatedAt: new Date().toISOString() }
+      : slot
+  ));
+  directoryState.specifications = (directoryState.specifications || []).map((specification) => {
+    if (!Array.isArray(specification.structureItems) || !specification.structureItems.some((item) => item.operationId === operationId)) return specification;
+    return {
+      ...specification,
+      structureItems: specification.structureItems.map((item) => (
+        item.operationId === operationId
+          ? { ...item, operationId: "", operationName: "", departmentName: "" }
+          : item
+      )),
+      updatedAt: new Date().toISOString(),
+    };
+  });
   if (ui.activeOperationId === operationId) ui.activeOperationId = "";
   persistDirectoryState();
   persistState();
@@ -11199,7 +12047,7 @@ function bindRoutesEvents() {
 
   app.querySelectorAll("[data-route-add-step]").forEach((button) => {
     button.addEventListener("click", () => {
-      addRouteModuleStep(button.dataset.routeAddStep || "workCenter");
+      addRouteModuleStep(button.dataset.routeAddStep || "operation");
     });
   });
 
@@ -11220,13 +12068,13 @@ function bindRoutesEvents() {
   app.querySelector("[data-route-to-planning]")?.addEventListener("click", () => {
     const route = getActiveRouteForModule();
     if (!route) {
-      alert("Сначала сохраните маршрутную карту, затем передайте ее в заказ на пр-во.");
+      alert("Сначала сохраните маршрутную карту, затем передайте ее в планирование.");
       return;
     }
     const specification = getRouteSpecification(route);
     const production = getProject(route.specificationId || route.projectId);
     if (!specification && !production) {
-      alert("Чтобы передать маршрутную карту в заказ на пр-во, выберите спецификацию в карточке маршрута и сохраните карту.");
+      alert("Чтобы передать маршрутную карту в планирование, выберите состав изделия в карточке маршрута и сохраните карту.");
       return;
     }
     if (specification && !production) {
@@ -11249,7 +12097,7 @@ function saveRouteModuleForm(form) {
   const selectedSpecification = getSpecificationById(routeBindingId) || getSpecificationByProjectId(projectId);
   const name = String(data.get("name") || "").trim();
   if (!name || !projectId) {
-    alert("Заполните название маршрутной карты и спецификацию.");
+    alert("Заполните название маршрутной карты и состав изделия.");
     return;
   }
 
@@ -11316,7 +12164,10 @@ function updateRouteStepField(stepId, field, rawValue) {
   if (!step || !field) return;
   const oldCenter = getWorkCenter(step.workCenterId);
   let value = rawValue;
-  if (field === "operationId" && String(value || "").startsWith("legacy:")) return;
+  if (field === "operationId" && !getOperationMapItem(value)) {
+    alert("Выберите операцию из справочника операций.");
+    return;
+  }
   if (["stepOrder", "setupMin", "secondsPerPanel"].includes(field)) {
     value = Math.max(field === "stepOrder" ? 1 : 0, Math.round(Number(rawValue || 0)));
   }
@@ -11330,21 +12181,9 @@ function updateRouteStepField(stepId, field, rawValue) {
     if (field === "operationId") {
       const operation = getOperationMapItem(value);
       if (operation) {
-        next.operationId = operation.id;
-        next.operationName = operation.name || "Операция";
-	        next.operationType = operation.type;
-	        next.workCenterId = operation.workCenterId || next.workCenterId;
-	        next.workCenterOverride = false;
-	        next.unitsPerHour = operation.unitsPerHour || getWorkCenterUnitsPerHour(next.workCenterId);
-	        next.calculationType = getDefaultOperationCalculationType(next.workCenterId, operation);
-	        next.secondsPerPanel = next.calculationType === "manual" || next.calculationType === "normative"
-	          ? Number(next.secondsPerPanel || getDefaultSecondsPerPanel(next.workCenterId, next.boardsPerPanel || 1))
-	          : 0;
-	        next.setupMin = Math.max(0, Number(next.setupMin || 0));
-	        next.requiresBatch = operation.requiresBatch;
-	        next.isWarehouseOperation = operation.isWarehouse;
-	      }
-	    }
+        return applyOperationMapItemToRouteStep(next, operation);
+      }
+    }
 	    if (field === "workCenterId") {
 	      const center = getWorkCenter(value);
 	      const resources = getResourcesForWorkCenter(value);
@@ -11392,27 +12231,7 @@ function updateRouteStepField(stepId, field, rawValue) {
 }
 
 function appendRouteTaskTemplateSteps(route, task) {
-  if (!route || !task || task.isMain || task.isOrphan) return 0;
-  const steps = getRouteStepsForModule(route.id);
-  const taskSteps = getRouteStepsForTask(steps, task.id);
-  const existingKeys = new Set(taskSteps.map((step) => `${step.workCenterId}::${normalizeLookupText(step.operationName)}`));
-  const templates = getRouteTaskTemplateSteps(task)
-    .filter((template) => !existingKeys.has(`${template.workCenterId}::${normalizeLookupText(template.operationName)}`));
-  if (!templates.length) return 0;
-
-  const warehouseStep = taskSteps.find((step) => step.workCenterId === "warehouse");
-  const insertOrder = warehouseStep?.stepOrder || Math.max(0, ...taskSteps.map((step) => Number(step.stepOrder || 0))) + 1;
-  const stamp = new Date().toISOString();
-  planningState.routeSteps = [
-    ...planningState.routeSteps.map((step) => (
-      step.routeId === route.id && getRouteStepTaskId(step) === task.id && Number(step.stepOrder || 0) >= insertOrder
-        ? { ...step, stepOrder: Number(step.stepOrder || 0) + templates.length }
-        : step
-    )),
-    ...templates.map((template, index) => createRouteStepFromTaskTemplate(route.id, task, template, insertOrder + index, stamp)),
-  ];
-  normalizeRouteStepOrders(route.id, task.id);
-  return templates.length;
+  return 0;
 }
 
 function seedRouteTaskTemplate(taskId = "") {
@@ -11421,7 +12240,7 @@ function seedRouteTaskTemplate(taskId = "") {
   const task = getRouteTasksForModule(route).find((item) => item.id === taskId);
   const addedCount = appendRouteTaskTemplateSteps(route, task);
   if (!addedCount) {
-    alert("Для этой задачи уже есть все операции типового маршрута.");
+    alert("Типовые операции отключены. Добавьте операцию из справочника операций.");
     return;
   }
   persistState();
@@ -11435,80 +12254,86 @@ function seedAllRouteTaskTemplates() {
   const tasks = getRouteTasksForModule(route).filter((task) => !task.isMain && !task.isOrphan);
   const addedCount = tasks.reduce((sum, task) => sum + appendRouteTaskTemplateSteps(route, task), 0);
   if (!addedCount) {
-    alert("Для всех задач уже сформированы типовые маршруты.");
+    alert("Типовые операции отключены. Добавляйте операции из справочника операций.");
     return;
   }
   persistState();
   render();
 }
 
-function getDefaultOperationMapItemForRouteKind(operationKind = "workCenter") {
+function getDefaultOperationMapItemForRouteKind(operationKind = "operation") {
   const operations = getOperationMapRows();
   if (operationKind === "warehouse") {
-    return operations.find((operation) => operation.type === "warehouse" || operation.workCenterId === "warehouse") || null;
+    return operations.find((operation) => operation.isWarehouse || isWarehouseWorkCenterId(operation.workCenterId)) || null;
   }
-  return operations.find((operation) => operation.type !== "warehouse" && operation.workCenterId !== "warehouse")
-    || operations.find((operation) => operation.type !== "warehouse")
+  return operations.find((operation) => !operation.isWarehouse && !isWarehouseWorkCenterId(operation.workCenterId) && operation.coverage !== "blocked")
+    || operations.find((operation) => !operation.isWarehouse)
     || null;
 }
 
-function addRouteModuleStep(operationKind = "workCenter") {
+function createRouteStepFromOperationMapItem(route, operation, insertOrder, stamp = new Date().toISOString()) {
+  const workCenterId = operation.workCenterId;
+  const resources = getResourcesForWorkCenter(workCenterId);
+  const resource = resources[0] || null;
+  const calculationType = getDefaultOperationCalculationType(workCenterId, operation);
+  return normalizeRouteStepCalculationFields({
+    id: makeId("rs"),
+    routeId: route.id,
+    specTaskId: "",
+    specTaskSourceItemId: "",
+    specTaskName: "",
+    specTaskQuantity: 1,
+    bomListId: "",
+    boardsPerPanel: 1,
+    operationId: operation.id,
+    workCenterId,
+    workCenterOverride: false,
+    operationName: operation.name || "",
+    stepOrder: insertOrder,
+    isRequired: true,
+    quantityMultiplier: 1,
+    unitsPerHour: operation.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId),
+    resourceId: resource?.id || "",
+    calculationType,
+    secondsPerPanel: calculationType === "manual" || calculationType === "normative"
+      ? getDefaultSecondsPerPanel(workCenterId, 1)
+      : 0,
+    requiresBatch: operation.requiresBatch,
+    isWarehouseOperation: operation.isWarehouse,
+    setupMin: Number(resource?.changeoverMin || 0),
+    updatedAt: stamp,
+  }, planningState);
+}
+
+function addRouteModuleStep(operationKind = "operation") {
   const route = getActiveRouteForModule();
   if (!route) return;
   const steps = getRouteStepsForModule(route.id);
-  const warehouseStep = steps.find((step) => step.workCenterId === "warehouse");
+  const warehouseStep = steps.find((step) => isWarehouseWorkCenterId(step.workCenterId));
   const isWarehouse = operationKind === "warehouse";
   const operation = getDefaultOperationMapItemForRouteKind(operationKind);
+  if (!operation) {
+    alert(isWarehouse
+      ? "Создайте складскую операцию в справочнике операций, затем добавьте ее в маршрут."
+      : "Создайте операцию в справочнике операций, затем добавьте ее в маршрут.");
+    return;
+  }
   const insertOrder = isWarehouse
     ? Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1
     : warehouseStep?.stepOrder || Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
-	  const workCenterId = isWarehouse
-	    ? operation?.workCenterId || "warehouse"
-	    : getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "manual";
-	  const routeWorkCenterId = operation?.workCenterId || workCenterId;
-	  const center = getWorkCenter(workCenterId);
-	  const resources = getResourcesForWorkCenter(routeWorkCenterId);
-	  const resource = resources[0] || null;
-	  const calculationType = getDefaultOperationCalculationType(routeWorkCenterId, operation);
+  const stamp = new Date().toISOString();
 
-	  planningState.routeSteps = [
+  planningState.routeSteps = [
     ...planningState.routeSteps.map((step) => (
       step.routeId === route.id && Number(step.stepOrder || 0) >= insertOrder
         ? { ...step, stepOrder: Number(step.stepOrder || 0) + 1 }
         : step
     )),
-    {
-      id: makeId("rs"),
-      routeId: route.id,
-      specTaskId: "",
-      specTaskSourceItemId: "",
-      specTaskName: "",
-      specTaskQuantity: 1,
-      bomListId: "",
-      boardsPerPanel: 1,
-      operationId: operation?.id || "",
-      operationType: operation?.type || (isWarehouse ? "warehouse" : "production"),
-      workCenterId: routeWorkCenterId,
-      workCenterOverride: false,
-      operationName: operation?.name || (isWarehouse ? "Склад" : center?.name || "Новая операция"),
-      stepOrder: insertOrder,
-      isRequired: true,
-	      quantityMultiplier: 1,
-	      unitsPerHour: operation?.unitsPerHour || getWorkCenterUnitsPerHour(routeWorkCenterId),
-	      resourceId: resource?.id || "",
-	      calculationType,
-	      secondsPerPanel: calculationType === "manual" || calculationType === "normative"
-	        ? getDefaultSecondsPerPanel(routeWorkCenterId, 1)
-	        : 0,
-	      requiresBatch: operation?.requiresBatch ?? !isWarehouse,
-	      isWarehouseOperation: operation?.isWarehouse || isWarehouse,
-	      setupMin: Number(resource?.changeoverMin || 0),
-	      updatedAt: new Date().toISOString(),
-	    },
+    createRouteStepFromOperationMapItem(route, operation, insertOrder, stamp),
   ];
   normalizeRouteStepOrders(route.id);
   persistState();
-  notifySaveSuccess(isWarehouse ? "Операция склада добавлена" : "Операция подразделения добавлена");
+  notifySaveSuccess(isWarehouse ? "Операция склада добавлена" : "Операция добавлена");
   render();
 }
 
@@ -11546,7 +12371,7 @@ function normalizeRouteStepOrders(routeId, taskId = null) {
 function deleteRouteStepConfirmed(stepId) {
   const step = planningState.routeSteps.find((item) => item.id === stepId);
   if (!step) return;
-  if (step.workCenterId === "warehouse") {
+  if (isWarehouseWorkCenterId(step.workCenterId)) {
     alert("Склад должен оставаться конечным этапом маршрута.");
     return;
   }
@@ -11559,6 +12384,20 @@ function deleteRouteStepConfirmed(stepId) {
 }
 
 function bindSpekiEvents() {
+  app.querySelectorAll("[data-rkd-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.activeRkdStep = normalizeRkdStepId(button.dataset.rkdStep);
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-rkd-open-module]").forEach((button) => {
+    button.addEventListener("click", () => {
+      navigateToModule(button.dataset.rkdOpenModule || "");
+    });
+  });
+
   app.querySelector("[data-speki-create-specification]")?.addEventListener("click", () => {
     createSpekiSpecification();
   });
@@ -11784,7 +12623,7 @@ function bindSpecificationsEvents() {
 function updateSpecificationStructure(updater) {
   const activeSpecification = getActiveSpecificationForModule();
   if (!activeSpecification) {
-    alert("Сначала сохраните карточку спецификации.");
+    alert("Сначала сохраните карточку состава изделия.");
     return;
   }
 
@@ -11804,14 +12643,14 @@ function updateSpecificationStructure(updater) {
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess("Структура спецификации сохранена");
+  notifySaveSuccess("Структура состава изделия сохранена");
   render();
 }
 
 function addSpecificationStructureItem(type) {
   const activeSpecification = getActiveSpecificationForModule();
   if (!activeSpecification) {
-    alert("Сначала сохраните карточку спецификации.");
+    alert("Сначала сохраните карточку состава изделия.");
     return;
   }
 
@@ -11821,9 +12660,6 @@ function addSpecificationStructureItem(type) {
   const linkedSpecification = (directoryState.specifications || []).find((specification) => specification.id !== activeSpecification.id) || null;
   const nomenclatureItem = (directoryState.nomenclature || [])[0] || null;
   const executionType = nextType === "nomenclature" || nextType === "part" ? getDefaultNomenclatureExecutionType(nomenclatureItem) : "make";
-  const operationName = nextType === "nomenclature" || nextType === "part"
-    ? getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType)
-    : getDefaultSpekiOperationName(nextType, executionType);
   updateSpecificationStructure((items) => [
     ...items,
     normalizeSpecificationStructureItem({
@@ -11833,10 +12669,11 @@ function addSpecificationStructureItem(type) {
       specificationId: nextType === "specification" ? linkedSpecification?.id || "" : "",
       nomenclatureId: nextType === "nomenclature" ? nomenclatureItem?.id || "" : "",
       executionType,
-      operationName,
-      departmentName: getDefaultSpekiDepartmentName(operationName),
+      operationId: "",
+      operationName: "",
+      departmentName: "",
       name: nextType === "specification"
-          ? linkedSpecification?.name || "Вложенная спецификация"
+          ? linkedSpecification?.name || "Вложенный состав изделия"
           : nextType === "assembly"
             ? "Новый узел"
             : nomenclatureItem?.name || "Номенклатура не выбрана",
@@ -11848,7 +12685,7 @@ function addSpecificationStructureItem(type) {
           : nextType === "assembly"
             ? "Новый узел"
             : nomenclatureItem?.name || "",
-      note: nextType === "assembly" ? "Узел" : nextType === "specification" ? "Спецификация" : nextType === "nomenclature" ? "Номенклатура" : "",
+      note: nextType === "assembly" ? "Узел" : nextType === "specification" ? "Состав изделия" : nextType === "nomenclature" ? "Номенклатура" : "",
       position: items.length + 1,
     }, items.length),
   ]);
@@ -11861,18 +12698,13 @@ function getDefaultNomenclatureExecutionType(item) {
 }
 
 function getDefaultSpekiOperationForNomenclature(item, executionType) {
-  if (executionType === "buy") return "";
-  const type = normalizeNomenclatureType(item?.type);
-  if (item?.sourceBomResultId) return "SMT-монтаж";
-  if (type === "Производимые узлы") return "Сборка";
-  if (type === "Печатные платы") return "Входной контроль";
-  return "Подготовка";
+  return "";
 }
 
 function addSpecificationStructureItemFromSource(sourceType, sourceId = "", options = {}) {
   const activeSpecification = getActiveSpecificationForModule();
   if (!activeSpecification) {
-    alert("Сначала создайте спецификацию.");
+    alert("Сначала создайте состав изделия.");
     return;
   }
 
@@ -11892,21 +12724,21 @@ function addSpecificationStructureItemFromSource(sourceType, sourceId = "", opti
     const nomenclatureItem = getBomResultNomenclatureItem(bom.id) || upsertBomResultToNomenclature(bom, stamp);
     if (!nomenclatureItem) return;
     const executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
-    const operationName = getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType);
     nextItem = normalizeSpecificationStructureItem({
       id: makeId("spi"),
       parentId: "root",
       type: "nomenclature",
       nomenclatureId: nomenclatureItem.id,
       executionType,
-      operationName,
-      departmentName: executionType === "make" ? getDefaultSpekiDepartmentName(operationName) : "",
+      operationId: "",
+      operationName: "",
+      departmentName: "",
       name: nomenclatureItem.name || bom.resultItem || bom.name || "",
       quantity,
       unit: nomenclatureItem.unit || "шт.",
       boardsPerPanel: 1,
       resultItem: nomenclatureItem.name || bom.resultItem || bom.boardCode || "",
-      note: "Результат BOM",
+      note: "Результат спецификации",
       position: stampIndex + 1,
     }, stampIndex);
   }
@@ -11915,20 +12747,20 @@ function addSpecificationStructureItemFromSource(sourceType, sourceId = "", opti
     const linkedSpecification = (directoryState.specifications || [])
       .find((specification) => specification.id === sourceId && specification.id !== activeSpecification.id);
     if (!linkedSpecification) return;
-    const operationName = getDefaultSpekiOperationName("specification", "make");
     nextItem = normalizeSpecificationStructureItem({
       id: makeId("spi"),
       parentId: "root",
       type: "specification",
       specificationId: linkedSpecification.id,
       executionType: "make",
-      operationName,
-      departmentName: getDefaultSpekiDepartmentName(operationName),
+      operationId: "",
+      operationName: "",
+      departmentName: "",
       name: linkedSpecification.name || "",
       quantity,
       unit: "спец.",
       resultItem: linkedSpecification.outputItem || "",
-      note: "Спецификация",
+      note: "Состав изделия",
       position: stampIndex + 1,
     }, stampIndex);
   }
@@ -11937,15 +12769,15 @@ function addSpecificationStructureItemFromSource(sourceType, sourceId = "", opti
     const nomenclatureItem = (directoryState.nomenclature || []).find((item) => item.id === sourceId);
     if (!nomenclatureItem) return;
     const executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
-    const operationName = getDefaultSpekiOperationForNomenclature(nomenclatureItem, executionType);
     nextItem = normalizeSpecificationStructureItem({
       id: makeId("spi"),
       parentId: "root",
       type: "nomenclature",
       nomenclatureId: nomenclatureItem.id,
       executionType,
-      operationName,
-      departmentName: executionType === "make" ? getDefaultSpekiDepartmentName(operationName) : "",
+      operationId: "",
+      operationName: "",
+      departmentName: "",
       name: nomenclatureItem.name || "",
       quantity,
       unit: nomenclatureItem.unit || "шт.",
@@ -11975,10 +12807,9 @@ function updateSpecificationStructureItem(itemId, field, value) {
           ? (directoryState.nomenclature || []).find((entry) => entry.id === nextItem.nomenclatureId) || (directoryState.nomenclature || [])[0]
           : null;
         nextItem.executionType = nextItem.type === "nomenclature" || nextItem.type === "part" ? getDefaultNomenclatureExecutionType(selectedNomenclature) : "make";
-        nextItem.operationName = nextItem.type === "nomenclature" || nextItem.type === "part"
-          ? getDefaultSpekiOperationForNomenclature(selectedNomenclature, nextItem.executionType)
-          : getDefaultSpekiOperationName(nextItem.type, nextItem.executionType);
-        nextItem.departmentName = getDefaultSpekiDepartmentName(nextItem.operationName);
+        nextItem.operationId = "";
+        nextItem.operationName = "";
+        nextItem.departmentName = "";
         shouldMoveChildrenToRoot = nextItem.type !== "assembly";
         if (nextItem.type !== "bom") {
           nextItem.bomListId = "";
@@ -12013,7 +12844,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.name = nextItem.type === "bom"
           ? bom?.name || nextItem.name
           : nextItem.type === "specification"
-            ? linkedSpecification?.name || nextItem.name || "Вложенная спецификация"
+            ? linkedSpecification?.name || nextItem.name || "Вложенный состав изделия"
             : nextItem.type === "nomenclature"
               ? nomenclatureItem?.name || nextItem.name || "Номенклатура не выбрана"
               : nextItem.name || (nextItem.type === "assembly" ? "Новый узел" : "Новая позиция");
@@ -12036,7 +12867,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.name = bom?.name || "";
         nextItem.resultItem = bom?.resultItem || bom?.boardCode || "";
         nextItem.boardsPerPanel = normalizeBoardsPerPanel(nextItem.boardsPerPanel, 1);
-        if (!nextItem.note) nextItem.note = "BOM";
+        if (!nextItem.note) nextItem.note = BOARD_SPEC_TERM;
         return nextItem;
       }
 
@@ -12047,7 +12878,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.specificationId = linkedSpecification?.id || "";
         nextItem.name = linkedSpecification?.name || "";
         nextItem.resultItem = linkedSpecification?.outputItem || "";
-        if (!nextItem.note) nextItem.note = "Спецификация";
+        if (!nextItem.note) nextItem.note = PRODUCT_COMPOSITION_TERM;
         return nextItem;
       }
 
@@ -12058,8 +12889,9 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.resultItem = nomenclatureItem?.name || "";
         nextItem.unit = nomenclatureItem?.unit || nextItem.unit || "шт.";
         nextItem.executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
-        nextItem.operationName = getDefaultSpekiOperationForNomenclature(nomenclatureItem, nextItem.executionType);
-        nextItem.departmentName = nextItem.executionType === "make" ? getDefaultSpekiDepartmentName(nextItem.operationName) : "";
+        nextItem.operationId = "";
+        nextItem.operationName = "";
+        nextItem.departmentName = "";
         if (!nextItem.note) nextItem.note = "Номенклатура";
         return nextItem;
       }
@@ -12072,22 +12904,27 @@ function updateSpecificationStructureItem(itemId, field, value) {
 
       if (field === "executionType") {
         nextItem.executionType = value === "buy" ? "buy" : "make";
-        nextItem.operationName = nextItem.executionType === "buy"
-          ? ""
-          : nextItem.operationName || getDefaultSpekiOperationName(nextItem.type, nextItem.executionType);
-        nextItem.departmentName = nextItem.executionType === "buy"
-          ? ""
-          : nextItem.departmentName || getDefaultSpekiDepartmentName(nextItem.operationName);
+        if (nextItem.executionType === "buy") {
+          nextItem.operationId = "";
+          nextItem.operationName = "";
+          nextItem.departmentName = "";
+        }
+        return nextItem;
+      }
+
+      if (field === "operationId") {
+        const operation = getOperationMapItem(value);
+        nextItem.operationId = operation?.id || "";
+        nextItem.operationName = operation?.name || "";
+        nextItem.departmentName = operation ? getWorkCenter(operation.workCenterId)?.name || "" : "";
         return nextItem;
       }
 
       if (field === "operationName") {
-        nextItem.operationName = String(value || "").trim();
-        if (!nextItem.operationName) {
-          nextItem.departmentName = "";
-        } else if (!nextItem.departmentName) {
-          nextItem.departmentName = getDefaultSpekiDepartmentName(nextItem.operationName);
-        }
+        const operation = getOperationMapItem(value) || findOperationMapItemByNameAndWorkCenter(value, resolveWorkCenterIdFromName(nextItem.departmentName));
+        nextItem.operationId = operation?.id || "";
+        nextItem.operationName = operation?.name || "";
+        nextItem.departmentName = operation ? getWorkCenter(operation.workCenterId)?.name || "" : "";
         return nextItem;
       }
 
@@ -12172,8 +13009,6 @@ function createSpekiNodeFromRow(itemId) {
 
   const nodeId = makeId("spi");
   const nodeName = `Узел ${row.number}`;
-  const nodeOperationName = getDefaultSpekiOperationName("assembly", "make");
-  const nodeDepartmentName = getDefaultSpekiDepartmentName(nodeOperationName);
   const childIds = new Set([row.item.id, nextSibling.item.id]);
   updateSpecificationStructure((items) => {
     const nextItems = [];
@@ -12185,8 +13020,9 @@ function createSpekiNodeFromRow(itemId) {
           parentId: rowParentId,
           type: "assembly",
           executionType: "make",
-          operationName: nodeOperationName,
-          departmentName: nodeDepartmentName,
+          operationId: "",
+          operationName: "",
+          departmentName: "",
           name: nodeName,
           quantity: 1,
           unit: "узел",
@@ -12218,7 +13054,7 @@ function createSpekiNodeFromRow(itemId) {
 
 function saveSpekiSpecification(specificationId, value) {
   if (!specificationId) return;
-  const name = String(value || "").trim() || "Спецификация без названия";
+  const name = String(value || "").trim() || "Состав изделия без названия";
   directoryState.specifications = (directoryState.specifications || []).map((specification) => (
     specification.id === specificationId
       ? { ...specification, name, updatedAt: new Date().toISOString() }
@@ -12229,7 +13065,7 @@ function saveSpekiSpecification(specificationId, value) {
   ui.spekiEditingId = "";
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess("Спецификация сохранена");
+  notifySaveSuccess("Состав изделия сохранен");
   render();
 }
 
@@ -12487,7 +13323,7 @@ function bindBomListsEvents() {
       await importBomFromXlsxFile(file);
       render();
     } catch (error) {
-      alert(error?.message || "Не удалось импортировать BOM из Excel.");
+      alert(error?.message || "Не удалось импортировать спецификацию из Excel.");
     } finally {
       event.target.value = "";
     }
@@ -12533,7 +13369,7 @@ function saveSpecificationModuleForm(form) {
   const name = String(data.get("name") || "").trim();
   const productionQuantity = normalizeOptionalPositiveInteger(data.get("productionQuantity"));
   if (!name || !productionQuantity) {
-    alert("Заполните название спецификации и количество к производству.");
+    alert("Заполните название состава изделия и количество к производству.");
     return;
   }
 
@@ -12557,7 +13393,7 @@ function saveSpecificationModuleForm(form) {
     structureItems: previousSpecification?.structureManaged ? getSpecificationStructureItems(previousSpecification) : [],
     updatedAt: new Date().toISOString(),
   };
-  ensureSpecificationPlanningUnit(row, String(data.get("routeTemplate") || "full"));
+  ensureSpecificationPlanningUnit(row);
   if (!row.structureManaged) {
     row.structureItems = buildDefaultSpecificationStructureItems(row);
   }
@@ -12572,7 +13408,7 @@ function saveSpecificationModuleForm(form) {
   if (row.bomListA) ui.activeBomId = row.bomListA;
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess(isNew ? "Спецификация создана" : "Спецификация сохранена");
+  notifySaveSuccess(isNew ? "Состав изделия создан" : "Состав изделия сохранен");
   render();
 }
 
@@ -12585,7 +13421,7 @@ function saveBomModuleForm(form) {
   const boardCode = String(data.get("boardCode") || "").trim();
   const resultItem = String(data.get("resultItem") || "").trim() || `Печатная плата ${boardCode || name}`;
   if (!name) {
-    alert("Заполните название BOM.");
+    alert("Заполните название спецификации.");
     return;
   }
 
@@ -12619,7 +13455,7 @@ function saveBomModuleForm(form) {
   ui.activeProjectId = "";
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess(isNew ? "BOM создан" : "BOM сохранен");
+  notifySaveSuccess(isNew ? "Спецификация создана" : "Спецификация сохранена");
   render();
 }
 
@@ -12748,10 +13584,8 @@ function bindCalculatorEvents() {
         return;
       }
       if (button.dataset.denseAction === "createSpecification") {
-        ui.activeModule = "speki";
-        ui.activeSpecificationId = "__new__";
-        persistUiState();
-        render();
+        ui.activeModule = "rkd";
+        createSpekiSpecification();
         return;
       }
       commitCalculatorSelect(root.dataset.denseCalcSelect, button.dataset.denseValue || "");
@@ -12955,7 +13789,7 @@ function applyBomToComponentOperation() {
 function createCalculatorSpecification() {
   const project = getCalculatorProject();
   if (!project) {
-    alert("Сначала выберите или создайте спецификацию.");
+    alert("Сначала выберите или создайте состав изделия.");
     return;
   }
 
@@ -12995,7 +13829,7 @@ function saveCalculatorInputs() {
   const calc = calculateComplexityResult();
   const inputStatus = getCalculatorInputStatus(calc);
   if (!inputStatus.complete) {
-    alert("Выберите BOM-лист, SMT-линию, количество плат и плат в мультипликации.");
+    alert("Выберите спецификацию, SMT-линию, количество плат и плат в мультипликации.");
     return;
   }
 
@@ -13017,10 +13851,14 @@ function getNextCalculatorStep() {
 
 function buildCalculatorRouteFromTemplate() {
   if (!isCalculatorInputsComplete()) {
-    alert("Заполните спецификацию, BOM при наличии печатных плат, количество плат и плат в мультипликации перед формированием маршрута.");
+    alert("Заполните состав изделия, спецификацию при наличии печатных плат, количество плат и плат в мультипликации перед формированием маршрута.");
     return;
   }
   calculatorState.routeOperations = createDefaultRouteOperations(calculatorState.projectId, calculatorState.boardsPerPanel);
+  if (!calculatorState.routeOperations.length) {
+    alert("В справочнике операций нет доступных операций для формирования маршрута.");
+    return;
+  }
   calculatorState.selectedOperationId = calculatorState.routeOperations[0]?.id || "";
   calculatorState.lastSavedAt = "";
   calculatorState = normalizeCalculatorState(calculatorState);
@@ -13089,7 +13927,8 @@ function updateSelectedRouteOperation(key, value) {
     if (key === "workCenterId") {
 	      const resource = getResourcesForWorkCenter(value)[0];
 	      next.resourceId = resource?.id || "";
-	      next.operationName = operation.operationName || getWorkCenter(value)?.name || "Операция";
+	      next.operationId = "";
+	      next.operationName = "";
 	      next.calculationType = getDefaultOperationCalculationType(value, next);
 	      next.secondsPerPanel = next.calculationType === "manual" || next.calculationType === "normative"
 	        ? getDefaultSecondsPerPanel(value, calculatorState.boardsPerPanel)
@@ -13117,15 +13956,23 @@ function addRouteOperation() {
   }
   const operations = getRouteOperations();
   const last = operations[operations.length - 1];
-  const workCenterId = "manual";
+  const directoryOperation = getOperationMapRows({ includeInactive: false })
+    .find((operation) => !operation.isWarehouse && operation.workCenterId !== "warehouse")
+    || null;
+  if (!directoryOperation) {
+    alert("Создайте операцию в справочнике операций, затем добавьте ее в маршрут калькулятора.");
+    return;
+  }
+  const workCenterId = directoryOperation.workCenterId;
   const resource = getResourcesForWorkCenter(workCenterId)[0];
   const operation = normalizeRouteOperation({
     id: makeId("op"),
+    operationId: directoryOperation.id,
     stepOrder: Number(last?.stepOrder || operations.length) + 1,
-    operationName: "Новая операция",
+    operationName: directoryOperation.name,
     workCenterId,
     resourceId: resource?.id || "",
-    calculationType: "manual",
+    calculationType: getDefaultOperationCalculationType(workCenterId, directoryOperation),
     secondsPerPanel: getDefaultSecondsPerPanel(workCenterId, calculatorState.boardsPerPanel),
     setupMin: Number(resource?.changeoverMin || 0),
     comment: "",
@@ -13146,9 +13993,14 @@ function resetCalculatorRoute() {
     return;
   }
   const project = getCalculatorProject();
+  const routeOperations = createDefaultRouteOperations(project?.id, calculatorState.boardsPerPanel);
+  if (!routeOperations.length) {
+    alert("В справочнике операций нет доступных операций для маршрута.");
+    return;
+  }
   calculatorState = normalizeCalculatorState({
     ...calculatorState,
-    routeOperations: createDefaultRouteOperations(project?.id, calculatorState.boardsPerPanel),
+    routeOperations,
     selectedOperationId: null,
     componentCountsByOperation: {},
     componentCounts: getBomComponentCounts(getBomList(calculatorState.bomListId)),
@@ -13191,6 +14043,11 @@ function saveCalculatorRouteToProject() {
     alert("Не удалось сохранить маршрут: заполните входные данные и сформируйте операции.");
     return;
   }
+  const unresolvedOperation = calc.operationResults.find((operation) => !getOperationMapItem(operation.operationId));
+  if (unresolvedOperation) {
+    alert(`Операция "${unresolvedOperation.operationName || "SMT"}" не выбрана из справочника операций. Создайте или выберите операцию в справочнике.`);
+    return;
+  }
 
   const stamp = new Date().toISOString();
   let route = planningState.routes.find((item) => (item.specificationId === calc.project.id || item.projectId === calc.project.id) && item.isDefault)
@@ -13211,15 +14068,15 @@ function saveCalculatorRouteToProject() {
   const existingSteps = planningState.routeSteps.filter((step) => step.routeId === route.id);
   const usedStepIds = new Set();
   const nextSteps = calc.operationResults.map((operation, index) => {
+    const directoryOperation = getOperationMapItem(operation.operationId);
     const sameOperation = existingSteps.find((step) => (
       !usedStepIds.has(step.id)
-      && step.workCenterId === operation.workCenterId
-      && step.operationName === operation.operationName
+      && step.operationId === directoryOperation.id
       && String(step.bomListId || "") === String(operation.bomListId || "")
     ));
     const sameOrder = existingSteps.find((step) => (
       !usedStepIds.has(step.id)
-      && step.workCenterId === operation.workCenterId
+      && step.workCenterId === directoryOperation.workCenterId
       && Number(step.stepOrder) === index + 1
     ));
     const existing = sameOperation || sameOrder;
@@ -13227,8 +14084,9 @@ function saveCalculatorRouteToProject() {
     return {
       id: existing?.id || makeId("rs"),
       routeId: route.id,
-      workCenterId: operation.workCenterId,
-      operationName: operation.operationName,
+      operationId: directoryOperation.id,
+      workCenterId: directoryOperation.workCenterId,
+      operationName: directoryOperation.name,
       stepOrder: index + 1,
       isRequired: true,
       secondsPerPanel: Math.round(operation.perPanelSeconds),
@@ -13295,7 +14153,7 @@ function applyCalculatorRateToWorkCenter() {
 function applyCalculatorToProjectSlots() {
   const calc = calculateComplexityResult();
   if (!calc.project || !calc.workCenter || calc.perBoardSeconds <= 0) {
-    alert("Не удалось применить расчет: выберите спецификацию, подразделение и заполните состав платы.");
+    alert("Не удалось применить расчет: выберите спецификацию платы, подразделение и заполните состав платы.");
     return;
   }
 
@@ -13307,7 +14165,7 @@ function applyCalculatorToProjectSlots() {
   ));
 
   if (!targetSlots.length) {
-    alert(`В спецификации "${calc.specification?.name || getProjectDisplayName(calc.project)}" нет доступных операций подразделения "${calc.workCenter.name}".`);
+    alert(`В составе изделия "${calc.specification?.name || getProjectDisplayName(calc.project)}" нет доступных операций подразделения "${calc.workCenter.name}".`);
     return;
   }
 
@@ -13379,10 +14237,31 @@ function bindDirectoryForm() {
 
 function saveDirectoryRow(sectionId, rowIndex, row) {
   if (sectionId === "workCenters") {
-    saveWorkCenterDirectoryRow(rowIndex, row);
+    const rescheduledCount = saveWorkCenterDirectoryRow(rowIndex, row);
     persistState();
     persistDirectoryState();
-    notifySaveSuccess(rowIndex >= 0 ? "Запись справочника сохранена" : "Запись справочника создана");
+    notifySaveSuccess(
+      `${rowIndex >= 0 ? "Запись справочника сохранена" : "Запись справочника создана"}${rescheduledCount ? ` · Гант пересчитан: ${rescheduledCount}` : ""}`,
+    );
+    return;
+  }
+
+  if (sectionId === "operations") {
+    const normalizedOperation = normalizeDirectoryRow("operations", {
+      ...row,
+      id: row.id || makeId("op"),
+      unitsPerHour: row.unitsPerHour || 0,
+      requiresBatch: row.requiresBatch === undefined ? !isWarehouseWorkCenterId(row.workCenterId) : row.requiresBatch,
+      updatedAt: new Date().toISOString(),
+    });
+    const operationExists = (directoryState.operationMap || []).some((item) => item.id === normalizedOperation.id);
+    directoryState.operationMap = operationExists
+      ? (directoryState.operationMap || []).map((item) => item.id === normalizedOperation.id ? normalizedOperation : item)
+      : [...(directoryState.operationMap || []), normalizedOperation];
+    applyOperationMapChangesToRoutes(normalizedOperation);
+    persistDirectoryState();
+    persistState();
+    notifySaveSuccess(rowIndex >= 0 ? "Операция сохранена" : "Операция создана");
     return;
   }
 
@@ -13418,6 +14297,12 @@ function deleteDirectoryRow(sectionId, rowIndex) {
 
   if (sectionId === "workCenters") {
     deleteWorkCenterDirectoryRow(row.id);
+  } else if (sectionId === "operations") {
+    ui.directoryEditor = null;
+    const nextCount = Math.max(0, getOperationMapRows().length - 1);
+    ui.selectedDirectoryRows[sectionId] = nextCount ? Math.min(index, nextCount - 1) : 0;
+    deleteOperationMapItem(row.id);
+    return;
   } else {
     deleteDirectoryStateRow(sectionId, row);
   }
@@ -13443,19 +14328,6 @@ function deleteDirectoryStateRow(sectionId, row) {
     ...directoryState,
     [sectionId]: (directoryState[sectionId] || []).filter((item) => item.id !== rowId),
   };
-
-  if (sectionId === "departments") {
-    directoryState.employees = (directoryState.employees || []).map((employee) => (
-      employee.department === row.name ? { ...employee, department: "" } : employee
-    ));
-  }
-
-  if (sectionId === "roles") {
-    const fallbackRoleId = (directoryState.roles || []).find((role) => role.id !== rowId)?.id || "";
-    directoryState.employees = (directoryState.employees || []).map((employee) => (
-      employee.roleId === rowId ? { ...employee, roleId: fallbackRoleId } : employee
-    ));
-  }
 
   if (sectionId === "resources" || sectionId === "productionResources") {
     if (calculatorState.resourceId === rowId) calculatorState.resourceId = "";
@@ -13544,11 +14416,6 @@ function deleteDirectoryStateRow(sectionId, row) {
     }
   }
 
-  if (sectionId === "employees" && authState.employeeId === rowId) {
-    authState = { employeeId: "", loggedInAt: "" };
-    persistAuthState();
-  }
-
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
   calculatorState = normalizeCalculatorState(calculatorState);
 }
@@ -13570,17 +14437,24 @@ function deleteWorkCenterDirectoryRow(workCenterId) {
 
 function saveWorkCenterDirectoryRow(rowIndex, row) {
   const previousCenter = rowIndex >= 0 ? planningState.workCenters[rowIndex] : null;
+  const previousCalendarLabel = previousCenter ? getWorkCalendarLabel(previousCenter) : "";
   const isPlanningUnit = row.planningStatus !== "no";
+  const unitType = normalizeUnitType(row.unitType, row);
+  const isWarehouse = isWarehouseWorkCenterId(row.id) || unitType === "warehouse";
+  const workSchedule = isPlanningUnit ? normalizeWorkSchedule(row.workSchedule || row.shift, isWarehouse ? "24/7" : "5/2") : "";
+  const workMode = isPlanningUnit ? normalizeWorkMode(row.workMode || row.shift, getDefaultWorkMode(workSchedule, isWarehouse)) : "";
   const normalizedCenter = normalizeWorkCenterUnit({
     id: row.id || makeId("wc"),
     name: row.name || "Новое подразделение",
     code: row.code || "NEW",
-    unitType: normalizeUnitType(row.unitType, row),
+    unitType,
     isPlanningUnit,
     showInGantt: isPlanningUnit,
     unitsPerHour: isPlanningUnit ? Math.max(1, Number(row.unitsPerHour || 40)) : 0,
     capacity: isPlanningUnit ? Math.max(1, Number(row.capacity || 1)) : 0,
-    shift: isPlanningUnit ? row.shift || "5/2 08:00-20:00" : row.shift || "",
+    workSchedule,
+    workMode,
+    shift: formatWorkShift(workSchedule, workMode),
     owner: row.owner || "",
     description: row.description || "",
     isActive: row.status !== "inactive",
@@ -13592,13 +14466,14 @@ function saveWorkCenterDirectoryRow(rowIndex, row) {
   if (previousCenter?.name && previousCenter.name !== normalizedCenter.name) {
     updateDepartmentNameReferences(previousCenter.name, normalizedCenter.name);
   }
+
+  const nextCalendarLabel = getWorkCalendarLabel(normalizedCenter);
+  const calendarChanged = previousCenter && previousCalendarLabel !== nextCalendarLabel;
+  return calendarChanged ? rescheduleSlotsForWorkCenterCalendarChange(normalizedCenter.id) : 0;
 }
 
 function updateDepartmentNameReferences(previousName = "", nextName = "") {
   if (!previousName) return;
-  directoryState.employees = (directoryState.employees || []).map((employee) => (
-    employee.department === previousName ? { ...employee, department: nextName, updatedAt: new Date().toISOString() } : employee
-  ));
   directoryState.specifications = (directoryState.specifications || []).map((specification) => {
     let changed = false;
     const structureItems = getSpecificationStructureItems(specification).map((item) => {
@@ -13687,7 +14562,7 @@ function renderToolbar(scaleInfo, stats) {
 
         <label class="field search-field">
           ${icon("search")}
-          <input id="searchInput" type="search" placeholder="Маршрутная карта, спецификация, заказ" value="${escapeAttribute(ui.search)}" />
+          <input id="searchInput" type="search" placeholder="Маршрутная карта, состав изделия, заказ" value="${escapeAttribute(ui.search)}" />
         </label>
 
         <label class="field">
@@ -13704,6 +14579,11 @@ function renderToolbar(scaleInfo, stats) {
           <button class="segment ${ui.rowMode === "route" ? "is-active" : ""}" data-row-mode="route" type="button">Маршрут</button>
           <button class="segment ${ui.rowMode === "all" ? "is-active" : ""}" data-row-mode="all" type="button">Все подразделения</button>
         </div>
+
+        <label class="gantt-checkbox-control" title="Не показывать вертикальный серый фон, если все видимые подразделения одновременно не работают">
+          <input id="hideSharedNonWorkingZones" type="checkbox" ${ui.hideSharedNonWorkingZones ? "checked" : ""} />
+          <span>Скрыть общие нерабочие зоны</span>
+        </label>
       </div>
 
       <div class="toolbar-actions">
@@ -13745,7 +14625,7 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
       || right.warnings - left.warnings
       || right.backlog - left.backlog
     ));
-  const warehouseSlots = planningState.slots.filter((slot) => slot.workCenterId === "warehouse");
+  const warehouseSlots = planningState.slots.filter((slot) => isWarehouseWorkCenterId(slot.workCenterId));
   const completedWarehouse = warehouseSlots.filter((slot) => slot.status === "completed").length;
   const activeSlots = planningState.slots.filter((slot) => ["in_progress", "problem", "overdue"].includes(slot.status)).length;
   const plannedHours = planningState.slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
@@ -13792,7 +14672,7 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
           <strong>Портфель → очередь → Гант → контроль → выпуск</strong>
         </div>
         <div class="director-command-actions">
-          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Заказ на пр-во</span></button>
+          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Планирование</span></button>
           <button class="secondary-button ${critical.length ? "danger" : ""}" data-fix-all-warnings type="button" ${warnings.length ? "" : "disabled"}>${icon("refresh")}<span>Исправить конфликты</span></button>
           <button class="secondary-button" data-save-plan-snapshot type="button">${icon("save")}<span>Снимок</span></button>
         </div>
@@ -13832,11 +14712,11 @@ function renderTimeline(scaleInfo) {
   return `
     <div class="timeline-row" style="height:${TIMELINE_HEIGHT}px;">
       <div class="timeline-corner">
-        <span>Маршрутные карты и подразделения</span>
+        <span>Маршрутные карты и операции</span>
       </div>
       <div class="timeline-cells" style="width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;">
         ${scaleInfo.ticks.map((tick, index) => `
-          <div class="timeline-cell ${getTimelineCellClass(tick)}" style="left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;">
+          <div class="timeline-cell" style="left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;">
             <strong>${escapeHtml(tick.label)}</strong>
             <small>${escapeHtml(tick.sublabel)}</small>
           </div>
@@ -13846,15 +14726,17 @@ function renderTimeline(scaleInfo) {
   `;
 }
 
-function getTimelineCellClass(tick) {
-  return isWeekendDate(tick.start) ? "is-weekend" : "";
-}
-
-function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) {
+function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap, sharedNonWorkingIntervals = []) {
   const layout = rowLayout.map[row.id];
   const height = layout.height;
   const isAggregateRow = row.type === "route" || row.type === "project";
-  const laneClass = isAggregateRow ? "project-lane route-lane" : row.type === "resource" ? "workcenter-lane resource-lane" : "workcenter-lane department-lane";
+  const laneClass = isAggregateRow
+    ? "project-lane route-lane"
+    : row.type === "resource"
+      ? "workcenter-lane resource-lane"
+      : row.type === "operation"
+        ? "workcenter-lane operation-lane"
+        : "workcenter-lane department-lane";
   const rowSlots = getRowSlots(row);
   const rowPlacements = slotPlacementMap[row.id] || {};
   const isDropTarget = ui.drag?.targetRowId === row.id;
@@ -13863,7 +14745,7 @@ function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) 
     <div class="gantt-row ${row.type}-row ${isDropTarget ? "is-drop-target" : ""}" data-row-id="${row.id}" style="height:${height}px; top:${layout.top}px;">
       ${renderRowLabel(row, slotWarningMap)}
       <div class="lane ${laneClass}" data-lane-row-id="${row.id}" style="left:${LEFT_WIDTH}px; width:${scaleInfo.width}px; height:${height}px; --cell-width:${scaleInfo.cellWidth}px;">
-        ${renderNonWorkingLayer(row, scaleInfo, height)}
+        ${renderNonWorkingLayer(row, scaleInfo, height, sharedNonWorkingIntervals)}
         ${renderTodayMarker(scaleInfo, height)}
         ${rowSlots.map((slot) => renderSlot(slot, row, scaleInfo, slotWarningMap, rowPlacements[slot.id])).join("")}
       </div>
@@ -13871,13 +14753,8 @@ function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) 
   `;
 }
 
-function isWeekendDate(value) {
-  const day = toDate(value).getDay();
-  return day === 0 || day === 6;
-}
-
-function parseShiftMinutes(shift) {
-  const match = String(shift || "").match(/(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/);
+function parseShiftMinutes(mode) {
+  const match = String(mode || "").match(/(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/);
   if (!match) return { start: 8 * 60, end: 20 * 60 };
 
   const startHour = Math.max(0, Math.min(23, Number(match[1])));
@@ -13892,48 +14769,41 @@ function parseShiftMinutes(shift) {
 }
 
 function getWorkCenterCalendar(workCenter) {
-  const shiftText = String(workCenter?.shift || "").trim();
-  const normalized = shiftText.toLowerCase();
-
-  if (normalized.includes("24/7") || normalized.includes("7/0")) {
-    return {
-      isAlwaysOn: true,
-      scheduleType: "24/7",
-      workDays: new Set([0, 1, 2, 3, 4, 5, 6]),
-      start: 0,
-      end: 24 * 60,
-      label: "24/7",
-    };
-  }
+  const fallbackSchedule = isWarehouseWorkCenterId(workCenter?.id) || workCenter?.unitType === "warehouse" ? "24/7" : "5/2";
+  const scheduleType = normalizeWorkSchedule(workCenter?.workSchedule || workCenter?.shift, fallbackSchedule);
+  const modeText = normalizeWorkMode(workCenter?.workMode || workCenter?.shift, getDefaultWorkMode(scheduleType, scheduleType === "24/7"));
+  const normalized = scheduleType.toLowerCase();
 
   let workDays = new Set([1, 2, 3, 4, 5]);
-  let scheduleType = "5/2";
+  if (normalized.includes("24/7") || normalized.includes("7/0")) {
+    workDays = new Set([0, 1, 2, 3, 4, 5, 6]);
+  }
   if (normalized.includes("6/1")) workDays = new Set([1, 2, 3, 4, 5, 6]);
-  if (normalized.includes("6/1")) scheduleType = "6/1";
   if (normalized.includes("5/2")) {
     workDays = new Set([1, 2, 3, 4, 5]);
-    scheduleType = "5/2";
   }
   if (normalized.includes("2/2")) {
     workDays = new Set([0, 1, 2, 3, 4, 5, 6]);
-    scheduleType = "2/2";
   }
 
-  const shift = parseShiftMinutes(shiftText);
+  const shift = parseShiftMinutes(modeText);
+  const isAlwaysOn = scheduleType === "24/7" && shift.start === 0 && shift.end === 24 * 60;
   return {
-    isAlwaysOn: false,
+    isAlwaysOn,
     scheduleType,
     workDays,
     ...shift,
-    label: shiftText || "5/2 08:00-20:00",
+    label: formatWorkShift(scheduleType, modeText),
   };
 }
 
-function isCalendarWorkDay(calendar, dayStart) {
+function isScheduleWorkDay(calendar, dayStart) {
   if (!calendar) return true;
   if (calendar.isAlwaysOn) return true;
   const normalizedDayStart = startOfDay(dayStart);
 
+  // Гант не имеет отдельного глобального календаря выходных.
+  // Рабочий/нерабочий день определяется только графиком конкретного подразделения.
   if (calendar.scheduleType === "2/2") {
     const anchor = startOfDay(fromDateInput(SHIFT_CYCLE_ANCHOR_DATE));
     const dayIndex = Math.floor((normalizedDayStart.getTime() - anchor.getTime()) / DAY_MS);
@@ -13945,8 +14815,8 @@ function isCalendarWorkDay(calendar, dayStart) {
 }
 
 function getCalendarWorkCenterId(workCenterId) {
-  const id = String(workCenterId || "");
-  if (isSmtLineWorkCenterId(id)) return "smt";
+  const id = mapLegacyWorkCenterId(workCenterId);
+  if (isSmtLineWorkCenterId(id)) return getSmtLineIdFromWorkCenterId(id) || "D3_L1";
   return id;
 }
 
@@ -13959,17 +14829,26 @@ function getCalendarWorkCenter(workCenterId, state = null) {
     || {
       id: calendarWorkCenterId || requestedId,
       name: calendarWorkCenterId || requestedId || "Подразделение",
-      shift: calendarWorkCenterId === "smt" ? "5/2 08:00-20:00" : "24/7",
+      workSchedule: MES_SMT_WORK_CENTER_IDS.includes(calendarWorkCenterId) ? "2/2" : "24/7",
+      workMode: MES_SMT_WORK_CENTER_IDS.includes(calendarWorkCenterId) ? "08:00-20:00" : "00:00-24:00",
+      shift: MES_SMT_WORK_CENTER_IDS.includes(calendarWorkCenterId) ? "2/2 08:00-20:00" : "24/7 00:00-24:00",
       isPlanningUnit: true,
     };
 }
 
 function getGanttRowCalendar(row) {
-  if (!["workCenter", "resource"].includes(row?.type)) return null;
+  if (!["operation", "workCenter", "resource"].includes(row?.type)) return null;
   const calendarWorkCenterId = row.workCenter?.calendarWorkCenterId
     || row.workCenter?.parentWorkCenterId
     || getCalendarWorkCenterId(row.workCenterId);
   return getWorkCenterCalendar(getCalendarWorkCenter(calendarWorkCenterId, planningState));
+}
+
+function getGanttRowCalendarWorkCenterId(row) {
+  if (!["operation", "workCenter", "resource"].includes(row?.type)) return "";
+  return row.workCenter?.calendarWorkCenterId
+    || row.workCenter?.parentWorkCenterId
+    || getCalendarWorkCenterId(row.workCenterId);
 }
 
 function getWorkingIntervalsForCalendar(calendar, value) {
@@ -13984,20 +14863,20 @@ function getWorkingIntervalsForCalendar(calendar, value) {
   const previousDayStart = addMs(dayStart, -DAY_MS);
 
   if (calendar.start < calendar.end) {
-    if (isCalendarWorkDay(calendar, dayStart)) {
+    if (isScheduleWorkDay(calendar, dayStart)) {
       intervals.push({
         start: minuteToDate(dayStart, calendar.start),
         end: minuteToDate(dayStart, calendar.end),
       });
     }
   } else {
-    if (isCalendarWorkDay(calendar, previousDayStart)) {
+    if (isScheduleWorkDay(calendar, previousDayStart)) {
       intervals.push({
         start: dayStart,
         end: minuteToDate(dayStart, calendar.end),
       });
     }
-    if (isCalendarWorkDay(calendar, dayStart)) {
+    if (isScheduleWorkDay(calendar, dayStart)) {
       intervals.push({
         start: minuteToDate(dayStart, calendar.start),
         end: nextDay,
@@ -14105,24 +14984,101 @@ function addNonWorkingSegment(segments, start, end, type, scaleInfo) {
 
   segments.push({
     type,
+    start: clippedStart,
+    end: clippedEnd,
     left: Math.max(0, left),
     width: Math.max(1, Math.min(scaleInfo.width, right) - Math.max(0, left)),
   });
 }
 
-function buildNonWorkingSegments(row, scaleInfo) {
+function buildVisibleSharedNonWorkingIntervals(rows, scaleInfo) {
+  if (!ui.hideSharedNonWorkingZones) return [];
+
+  const calendarWorkCenterIds = [...new Set(rows
+    .map((row) => getGanttRowCalendarWorkCenterId(row))
+    .filter(Boolean))]
+    .filter((workCenterId) => {
+      const calendar = getWorkCenterCalendar(getCalendarWorkCenter(workCenterId, planningState));
+      return !calendar?.isAlwaysOn;
+    });
+  if (!calendarWorkCenterIds.length) return [];
+
+  const sharedIntervals = [];
+  let cursor = startOfDay(scaleInfo.start);
+
+  while (cursor < scaleInfo.end) {
+    const dayStart = cursor;
+    const dayEnd = addMs(dayStart, DAY_MS);
+    const rangeStart = new Date(Math.max(dayStart.getTime(), scaleInfo.start.getTime()));
+    const rangeEnd = new Date(Math.min(dayEnd.getTime(), scaleInfo.end.getTime()));
+
+    const workingUnion = calendarWorkCenterIds
+      .flatMap((workCenterId) => getWorkingIntervalsForDay(workCenterId, dayStart, planningState))
+      .map((interval) => ({
+        start: new Date(Math.max(interval.start.getTime(), rangeStart.getTime())),
+        end: new Date(Math.min(interval.end.getTime(), rangeEnd.getTime())),
+      }))
+      .filter((interval) => interval.end > interval.start)
+      .sort((left, right) => left.start - right.start);
+
+    const mergedWorking = [];
+    workingUnion.forEach((interval) => {
+      const previous = mergedWorking[mergedWorking.length - 1];
+      if (!previous || interval.start > previous.end) {
+        mergedWorking.push({ ...interval });
+        return;
+      }
+      if (interval.end > previous.end) previous.end = interval.end;
+    });
+
+    let offCursor = rangeStart;
+    mergedWorking.forEach((interval) => {
+      if (interval.start > offCursor) {
+        sharedIntervals.push({ start: offCursor, end: interval.start });
+      }
+      if (interval.end > offCursor) offCursor = interval.end;
+    });
+
+    if (offCursor < rangeEnd) sharedIntervals.push({ start: offCursor, end: rangeEnd });
+    cursor = dayEnd;
+  }
+
+  return sharedIntervals;
+}
+
+function removeSharedNonWorkingIntervals(segments, sharedIntervals, scaleInfo) {
+  if (!sharedIntervals.length || !segments.length) return segments;
+
+  const visibleSegments = [];
+  segments.forEach((segment) => {
+    let pieces = [{ start: segment.start, end: segment.end }];
+
+    sharedIntervals.forEach((sharedInterval) => {
+      pieces = pieces.flatMap((piece) => {
+        if (sharedInterval.end <= piece.start || sharedInterval.start >= piece.end) return [piece];
+        const nextPieces = [];
+        if (sharedInterval.start > piece.start) nextPieces.push({ start: piece.start, end: sharedInterval.start });
+        if (sharedInterval.end < piece.end) nextPieces.push({ start: sharedInterval.end, end: piece.end });
+        return nextPieces;
+      });
+    });
+
+    pieces.forEach((piece) => addNonWorkingSegment(visibleSegments, piece.start, piece.end, segment.type, scaleInfo));
+  });
+
+  return visibleSegments;
+}
+
+function buildNonWorkingSegments(row, scaleInfo, sharedNonWorkingIntervals = []) {
   const segments = [];
+  if (!["operation", "workCenter", "resource"].includes(row?.type)) return segments;
+
   const calendar = getGanttRowCalendar(row);
   if (calendar?.isAlwaysOn) return segments;
 
   let cursor = startOfDay(scaleInfo.start);
   while (cursor < scaleInfo.end) {
     const nextDay = addMs(cursor, DAY_MS);
-    if (row.type === "project" || row.type === "route") {
-      if (isWeekendDate(cursor)) addNonWorkingSegment(segments, cursor, nextDay, "day-off", scaleInfo);
-      cursor = nextDay;
-      continue;
-    }
 
     if (!row.workCenter?.id || calendar.start === calendar.end) {
       addNonWorkingSegment(segments, cursor, nextDay, "day-off", scaleInfo);
@@ -14159,16 +15115,14 @@ function buildNonWorkingSegments(row, scaleInfo) {
     cursor = nextDay;
   }
 
-  return segments;
+  return removeSharedNonWorkingIntervals(segments, sharedNonWorkingIntervals, scaleInfo);
 }
 
-function renderNonWorkingLayer(row, scaleInfo, height) {
-  const segments = buildNonWorkingSegments(row, scaleInfo);
+function renderNonWorkingLayer(row, scaleInfo, height, sharedNonWorkingIntervals = []) {
+  const segments = buildNonWorkingSegments(row, scaleInfo, sharedNonWorkingIntervals);
   if (!segments.length) return "";
 
-  const label = ["workCenter", "resource"].includes(row.type)
-    ? `Нерабочее время подразделения: ${row.workCenter.shift || "5/2 08:00-20:00"}`
-    : "Нерабочие дни";
+  const label = `Нерабочее время по графику подразделения: ${getWorkCalendarLabel(row.workCenter)}`;
 
   return `
     <div class="non-working-layer" style="height:${height}px;" aria-hidden="true">
@@ -14192,7 +15146,6 @@ function renderRowLabel(row, slotWarningMap = {}) {
       (warning.slotIds || []).some((slotId) => routeSlotIds.has(slotId))
     )).length;
     const dueState = project ? getProjectDeadlineState(project) : { tone: "neutral", label: "срок не задан" };
-    const routeSteps = getRouteStepsForModule(route?.id || "");
 
     return `
       <div class="row-label project-label route-label">
@@ -14205,8 +15158,7 @@ function renderRowLabel(row, slotWarningMap = {}) {
             ${issueCount ? `<span class="mini-alert" title="Есть предупреждения">${issueCount}</span>` : ""}
             <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
           </div>
-          <div class="project-meta">${escapeHtml(specification?.name || getProjectDisplayName(project) || "спецификация не выбрана")} · ${Number(getPlanningRouteQuantity(route) || project?.totalQuantity || 0).toLocaleString("ru-RU")} шт. · ${routeSteps.length} оп.</div>
-          ${renderRouteTaskMini(route, slotWarningMap)}
+          <div class="project-meta">${escapeHtml(specification?.name || getProjectDisplayName(project) || "состав изделия не выбран")} · ${Number(getPlanningRouteQuantity(route) || project?.totalQuantity || 0).toLocaleString("ru-RU")} шт.</div>
         </div>
         <div class="project-side">
           <span class="project-status status-${project?.status || "planned"}">${PROJECT_STATUS_LABELS[project?.status] || "В плане"}</span>
@@ -14227,7 +15179,7 @@ function renderRowLabel(row, slotWarningMap = {}) {
 
     return `
       <div class="row-label project-label">
-        <button class="chevron" data-toggle-project="${project.id}" type="button" title="${isExpanded ? "Свернуть" : "Раскрыть"} спецификацию">
+        <button class="chevron" data-toggle-project="${project.id}" type="button" title="${isExpanded ? "Свернуть" : "Раскрыть"} состав изделия">
           ${icon(isExpanded ? "chevronDown" : "chevronRight")}
         </button>
         <div class="project-main">
@@ -14248,6 +15200,31 @@ function renderRowLabel(row, slotWarningMap = {}) {
     `;
   }
 
+  if (row.type === "operation") {
+    const step = row.routeStep || {};
+    const workCenter = row.workCenter || getWorkCenter(step.workCenterId) || {};
+    const operation = getOperationMapItem(step.operationId);
+    const stepSlots = getSlotsForRouteStep(row.routeId, step.id);
+    const stepSlotIds = new Set(stepSlots.map((slot) => slot.id));
+    const issueCount = getSlotWarnings(planningState).warnings.filter((warning) => (
+      (warning.slotIds || []).some((slotId) => stepSlotIds.has(slotId))
+    )).length;
+    const taskName = getRouteStepTaskId(step) !== MAIN_ROUTE_TASK_ID ? String(step.specTaskName || "").trim() : "";
+    const operationName = step.operationName || operation?.name || "Операция";
+    const orderLabel = Number(step.stepOrder || 0) > 0 ? String(step.stepOrder).padStart(2, "0") : "Оп";
+
+    return `
+      <div class="row-label workcenter-label operation-label">
+        <span class="workcenter-code">${escapeHtml(orderLabel)}</span>
+        <span class="workcenter-name">
+          <strong>${escapeHtml(operationName)}</strong>
+          <small>${escapeHtml([workCenter.name || "подразделение не выбрано", taskName].filter(Boolean).join(" · "))}</small>
+        </span>
+        ${issueCount ? `<span class="mini-alert" title="Есть предупреждения">${issueCount}</span>` : ""}
+      </div>
+    `;
+  }
+
   if (row.type === "resource") {
     const resource = row.resource || {};
     const parent = resource.parentResourceId ? getProductionResource(resource.parentResourceId) : null;
@@ -14256,8 +15233,6 @@ function renderRowLabel(row, slotWarningMap = {}) {
       <div class="row-label workcenter-label resource-label ${passiveClass}">
         <span class="workcenter-code">${escapeHtml(parent ? "Доч." : PRODUCTION_RESOURCE_TYPE_CODES[resource.type] || "Рес")}</span>
         <span class="workcenter-name">${escapeHtml(resource.name || "Производственный ресурс")}</span>
-        ${parent ? `<span class="outside-route">${escapeHtml(parent.name)}</span>` : ""}
-        ${resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource) ? "" : `<span class="outside-route">инфо</span>`}
       </div>
     `;
   }
@@ -14354,12 +15329,67 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const durationMs = Math.max(0, toDate(slot.plannedEnd) - toDate(slot.plannedStart));
   const operationLabel = String(slot.operationName || workCenter?.name || "Операция").trim();
   const workingSegments = getSlotWorkingVisualSegments(slot, scaleInfo, visualRect);
-  const segmentedClass = workingSegments.length > 1 ? "is-segmented" : "";
+  const nonWorkingSegments = getSlotNonWorkingVisualSegments(slot, scaleInfo, visualRect, workingSegments);
+  const segmentedClass = workingSegments.length > 1 || nonWorkingSegments.length ? "is-segmented" : "";
 
-  if (workingSegments.length > 1) {
-    const primaryIndex = workingSegments.reduce((bestIndex, segment, index, segments) => (
+  if (workingSegments.length > 1 || nonWorkingSegments.length) {
+    const contentSegments = workingSegments.length ? workingSegments : nonWorkingSegments;
+    const primaryIndex = contentSegments.reduce((bestIndex, segment, index, segments) => (
       segment.width > segments[bestIndex].width ? index : bestIndex
     ), 0);
+    const renderWorkingSegment = (segment, index) => `
+      <div class="slot-working-segment ${index === primaryIndex ? "is-primary" : ""}" style="left:${segment.offset}px; width:${segment.width}px;">
+        <div class="slot-accent"></div>
+        ${index === primaryIndex ? `
+          <div class="slot-content">
+            ${renderGanttSlotLine({
+              slot,
+              batch,
+              routeMeta,
+              operationLabel,
+              quantity,
+              isWeekSlot,
+              isAggregate,
+              warningList,
+            })}
+            ${!isAggregate && !isWeekSlot ? `
+              <div class="slot-footer">
+                <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
+                <span>${formatTime(segment.start)}-${formatTime(segment.end)}</span>
+              </div>
+            ` : ""}
+          </div>
+        ` : `<span class="slot-continuation-mark" title="${escapeAttribute(`${formatTime(segment.start)}-${formatTime(segment.end)}`)}"></span>`}
+        ${index === workingSegments.length - 1 && !isAggregate && !isWeekSlot ? `<button class="resize-handle" data-resize-slot="${slot.id}" type="button" title="Изменить длительность"></button>` : ""}
+      </div>
+    `;
+    const renderNonWorkingSlotSegment = (segment, index, includeContent = false) => `
+      <div class="slot-non-working-segment ${includeContent && index === primaryIndex ? "is-primary" : ""}" style="left:${segment.offset}px; width:${segment.width}px;" title="${escapeAttribute(`Нерабочее время ${formatTime(segment.start)}-${formatTime(segment.end)}`)}">
+        ${includeContent && index === primaryIndex ? `
+          <div class="slot-accent"></div>
+          <div class="slot-content">
+            ${renderGanttSlotLine({
+              slot,
+              batch,
+              routeMeta,
+              operationLabel,
+              quantity,
+              isWeekSlot,
+              isAggregate,
+              warningList,
+            })}
+            ${!isAggregate && !isWeekSlot ? `
+              <div class="slot-footer">
+                <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
+                <span>${formatTime(segment.start)}-${formatTime(segment.end)}</span>
+              </div>
+            ` : ""}
+          </div>
+          ${!isAggregate && !isWeekSlot ? `<button class="resize-handle" data-resize-slot="${slot.id}" type="button" title="Изменить длительность"></button>` : ""}
+        ` : ""}
+      </div>
+    `;
+
     return `
       <article
         class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass} ${segmentedClass}"
@@ -14368,32 +15398,8 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
         title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · рабочее время ${formatDuration(getWorkingDurationBetween(slot.workCenterId, slot.plannedStart, slot.plannedEnd, planningState))}`)}"
         tabindex="0"
       >
-        ${workingSegments.map((segment, index) => `
-          <div class="slot-working-segment ${index === primaryIndex ? "is-primary" : ""}" style="left:${segment.offset}px; width:${segment.width}px;">
-            <div class="slot-accent"></div>
-            ${index === primaryIndex ? `
-              <div class="slot-content">
-                ${renderGanttSlotLine({
-                  slot,
-                  batch,
-                  routeMeta,
-                  operationLabel,
-                  quantity,
-                  isWeekSlot,
-                  isAggregate,
-                  warningList,
-                })}
-                ${!isAggregate && !isWeekSlot ? `
-                  <div class="slot-footer">
-                    <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
-                    <span>${formatTime(segment.start)}-${formatTime(segment.end)}</span>
-                  </div>
-                ` : ""}
-              </div>
-            ` : `<span class="slot-continuation-mark" title="${escapeAttribute(`${formatTime(segment.start)}-${formatTime(segment.end)}`)}"></span>`}
-            ${index === workingSegments.length - 1 && !isAggregate && !isWeekSlot ? `<button class="resize-handle" data-resize-slot="${slot.id}" type="button" title="Изменить длительность"></button>` : ""}
-          </div>
-        `).join("")}
+        ${nonWorkingSegments.map((segment, index) => renderNonWorkingSlotSegment(segment, index, !workingSegments.length)).join("")}
+        ${workingSegments.map((segment, index) => renderWorkingSegment(segment, index)).join("")}
       </article>
     `;
   }
@@ -14440,16 +15446,15 @@ function renderGanttSlotLine({ slot, batch, routeMeta, operationLabel, quantity,
         <span>шт.</span>
       </label>`;
   const warningDot = warningList.length ? `<span class="slot-warning-dot">${icon("alert")}</span>` : "";
-  const stepChip = `<b class="slot-step-chip">${escapeHtml(routeMeta.orderLabel)}</b>`;
   const operationName = `<strong class="slot-operation-name">${escapeHtml(operationLabel)}</strong>`;
   const batchLabel = `<strong class="slot-operation-name">Партия ${escapeHtml(batch?.batchNumber || "-")}</strong>`;
   const quantityLabel = `<strong class="slot-operation-name slot-quantity-label">${Number(quantity || 0).toLocaleString("ru-RU")} шт.</strong>`;
 
   const contentByMode = {
-    operationQuantity: `${stepChip}${operationName}${quantityInput}${warningDot}`,
-    operation: `${stepChip}${operationName}${warningDot}`,
-    quantity: `${stepChip}${quantityInput}${warningDot}`,
-    batchStep: `${stepChip}${batchLabel}${warningDot}`,
+    operationQuantity: `${operationName}${quantityInput}${warningDot}`,
+    operation: `${operationName}${warningDot}`,
+    quantity: `${quantityInput}${warningDot}`,
+    batchStep: `${batchLabel}${warningDot}`,
   };
 
   return `<div class="${lineClass} slot-content-${escapeAttribute(mode)}">${contentByMode[mode] || contentByMode.operationQuantity}</div>`;
@@ -14475,7 +15480,7 @@ function getSlotVisualRect(slot, scaleInfo, isAggregate = false) {
   const timeWidth = dateToX(slot.plannedEnd, scaleInfo) - x;
   const zoom = Number(scaleInfo.zoom || 1);
   if (ui.scale === "weeks") {
-    const width = Math.max((isAggregate ? 18 : 20) * zoom, timeWidth);
+    const width = Math.max(1, timeWidth);
     return { x, width, right: x + width };
   }
 
@@ -14491,7 +15496,7 @@ function getSlotVisualRect(slot, scaleInfo, isAggregate = false) {
 
 function getSlotWorkingVisualSegments(slot, scaleInfo, visualRect) {
   const intervals = getWorkingIntervalsBetween(slot.workCenterId, slot.plannedStart, slot.plannedEnd, planningState);
-  if (intervals.length <= 1) return intervals.map((interval) => {
+  return intervals.map((interval) => {
     const left = Math.max(visualRect.x, dateToX(interval.start, scaleInfo));
     const right = Math.min(visualRect.right, dateToX(interval.end, scaleInfo));
     return {
@@ -14502,22 +15507,42 @@ function getSlotWorkingVisualSegments(slot, scaleInfo, visualRect) {
       width: Math.max(1, right - left),
       right,
     };
-  });
+  }).filter((segment) => segment.right > segment.x);
+}
 
-  return intervals
-    .map((interval) => {
-      const left = Math.max(visualRect.x, dateToX(interval.start, scaleInfo));
-      const right = Math.min(visualRect.right, dateToX(interval.end, scaleInfo));
-      return {
-        start: interval.start,
-        end: interval.end,
-        x: left,
-        offset: Math.max(0, left - visualRect.x),
-        width: Math.max(1, right - left),
-        right,
-      };
-    })
-    .filter((segment) => segment.right > segment.x);
+function getSlotNonWorkingVisualSegments(slot, scaleInfo, visualRect, workingSegments = null) {
+  const rangeStart = toDate(slot.plannedStart);
+  const rangeEnd = toDate(slot.plannedEnd);
+  if (rangeEnd <= rangeStart) return [];
+
+  const workingRanges = (workingSegments || getSlotWorkingVisualSegments(slot, scaleInfo, visualRect))
+    .map((segment) => ({
+      start: new Date(Math.max(toDate(segment.start).getTime(), rangeStart.getTime())),
+      end: new Date(Math.min(toDate(segment.end).getTime(), rangeEnd.getTime())),
+    }))
+    .filter((segment) => segment.end > segment.start)
+    .sort((left, right) => left.start - right.start);
+
+  const ranges = [];
+  let cursor = rangeStart;
+  workingRanges.forEach((segment) => {
+    if (segment.start > cursor) ranges.push({ start: cursor, end: segment.start });
+    if (segment.end > cursor) cursor = segment.end;
+  });
+  if (cursor < rangeEnd) ranges.push({ start: cursor, end: rangeEnd });
+
+  return ranges.map((range) => {
+    const left = Math.max(visualRect.x, dateToX(range.start, scaleInfo));
+    const right = Math.min(visualRect.right, dateToX(range.end, scaleInfo));
+    return {
+      start: range.start,
+      end: range.end,
+      x: left,
+      offset: Math.max(0, left - visualRect.x),
+      width: Math.max(1, right - left),
+      right,
+    };
+  }).filter((segment) => segment.right > segment.x);
 }
 
 function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) {
@@ -14824,7 +15849,7 @@ function renderPlanningAssistantDock(warnings) {
         <div class="assistant-panel-head">
           <div>
             <strong>Очередь из Планирования</strong>
-            <span>${backlog.length ? "операции доступны только через модуль Заказ на пр-во" : "очередь пуста"}</span>
+            <span>${backlog.length ? "операции доступны только через модуль Планирование" : "очередь пуста"}</span>
           </div>
           <em>${backlog.length}</em>
         </div>
@@ -14838,7 +15863,7 @@ function renderPlanningAssistantDock(warnings) {
               <div class="assistant-item-meta">
                 <span>${escapeHtml(item.workCenter?.code || "")}</span>
                 <span>${formatDateTime(item.plannedStart)}</span>
-                <button class="mini-action" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">Открыть Заказ на пр-во</button>
+                <button class="mini-action" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">Открыть Планирование</button>
               </div>
             </article>
           `).join("") : `
@@ -14846,7 +15871,7 @@ function renderPlanningAssistantDock(warnings) {
           `}
         </div>
         <div class="assistant-panel-actions">
-          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Заказ на пр-во</span></button>
+          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Планирование</span></button>
         </div>
       </section>
 
@@ -14982,7 +16007,7 @@ function renderSlotDrawer(slotWarningMap) {
       </div>
 
       <dl class="detail-grid">
-        <div><dt>Спецификация</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
+        <div><dt>Состав изделия</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
         <div><dt>Заказ</dt><dd>${escapeHtml(project?.orderNumber || "")}</dd></div>
         <div><dt>Подразделение</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
         <div><dt>Шаг маршрута</dt><dd>${currentStep?.stepOrder || "-"} · ${escapeHtml(currentStep?.operationName || "")}</dd></div>
@@ -15055,9 +16080,11 @@ function renderEditorModal() {
 
   const project = getProject(slot.projectId);
   const projectBatches = planningState.batches.filter((batch) => batch.projectId === slot.projectId);
-  const routeSteps = getProjectRouteSteps(slot.projectId, planningState);
+  const routeSteps = getProjectRouteSteps(slot.projectId, planningState)
+    .filter((step) => getOperationMapItem(step.operationId));
   const routeStep = routeSteps.find((step) => step.id === slot.routeStepId) || routeSteps.find((step) => step.workCenterId === slot.workCenterId) || routeSteps[0];
   const batch = getBatch(slot.batchId) || projectBatches[0];
+  const routeStepWorkCenter = getWorkCenter(routeStep?.workCenterId || slot.workCenterId);
 
   return `
     <div class="modal-backdrop" data-modal-backdrop>
@@ -15066,7 +16093,7 @@ function renderEditorModal() {
           <div class="modal-header">
             <div>
               <span class="eyebrow">MOD · Form Modal · ${isEdit ? "Редактирование" : "Новый слот"}</span>
-              <h2>${escapeHtml(getProjectDisplayName(project) || "Спецификация")}</h2>
+              <h2>${escapeHtml(getProjectDisplayName(project) || PRODUCT_COMPOSITION_TERM)}</h2>
             </div>
             <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
           </div>
@@ -15076,7 +16103,7 @@ function renderEditorModal() {
 
           <div class="form-grid">
             <label class="form-field readonly">
-              <span>Спецификация</span>
+              <span>Состав изделия</span>
               <input type="text" value="${escapeAttribute(getProjectDisplayName(project) || "")}" readonly />
             </label>
 
@@ -15094,16 +16121,15 @@ function renderEditorModal() {
               </select>
             </label>
 
-            <label class="form-field command-field">
+            <label class="form-field readonly">
               <span>Подразделение</span>
-              <select name="workCenterId" id="workCenterField" required>
-                ${getPlanningWorkCenters().map((center) => `<option value="${center.id}" ${selected(slot.workCenterId || routeStep?.workCenterId, center.id)}>${escapeHtml(center.name)}</option>`).join("")}
-              </select>
+              <input id="workCenterField" name="workCenterId" type="hidden" value="${escapeAttribute(routeStep?.workCenterId || slot.workCenterId || "")}" />
+              <input type="text" value="${escapeAttribute(routeStepWorkCenter?.name || "подразделение не выбрано")}" readonly />
             </label>
 
-            <label class="form-field">
+            <label class="form-field readonly">
               <span>Название операции</span>
-              <input name="operationName" id="operationField" type="text" value="${escapeAttribute(slot.operationName || routeStep?.operationName || "")}" required />
+              <input name="operationName" id="operationField" type="text" value="${escapeAttribute(routeStep?.operationName || slot.operationName || "")}" readonly required />
             </label>
 
             <label class="form-field readonly">
@@ -15176,7 +16202,7 @@ function renderSplitModal() {
           <div class="confirm-body warning">
             <div class="confirm-icon">${icon("split")}</div>
             <div>
-              <p>Новый слот сохранит спецификацию, маршрутный шаг и подразделение. Исходный слот будет уменьшен на указанное количество.</p>
+              <p>Новый слот сохранит состав изделия, маршрутный шаг и подразделение. Исходный слот будет уменьшен на указанное количество.</p>
               <span>Действие влияет на план партии и последующую цепочку операций.</span>
             </div>
           </div>
@@ -15204,7 +16230,7 @@ function renderProjectModal() {
 
   return `
     <div class="modal-backdrop" data-modal-backdrop>
-      <section class="modal large-modal wizard-modal" role="dialog" aria-modal="true" aria-label="Добавление спецификации">
+      <section class="modal large-modal wizard-modal" role="dialog" aria-modal="true" aria-label="Добавление состава изделия">
         <form id="projectForm">
           <div class="modal-header">
             <div>
@@ -15215,15 +16241,15 @@ function renderProjectModal() {
           </div>
 
           <div class="debug-steps modal-steps">
-            <span class="is-active">1 Спецификация</span>
+            <span class="is-active">1 Состав изделия</span>
             <span class="is-active">2 Заказ</span>
-            <span class="is-active">3 Маршрут</span>
+            <span>3 Маршрут</span>
             <span>4 План</span>
           </div>
 
           <div class="form-grid">
             <label class="form-field">
-              <span>Название спецификации</span>
+              <span>Название состава изделия</span>
               <input name="name" type="text" value="Новый контроллер" required />
             </label>
             <label class="form-field">
@@ -15248,17 +16274,11 @@ function renderProjectModal() {
                 ${PROJECT_STATUSES.map((status) => `<option value="${status}" ${selected(status, "planned")}>${PROJECT_STATUS_LABELS[status]}</option>`).join("")}
               </select>
             </label>
-            <label class="form-field full command-field">
-              <span>Шаблон маршрута</span>
-              <select name="routeTemplate">
-                ${routeTemplateOptions.map((option) => `<option value="${option.value}">${escapeHtml(option.label)}</option>`).join("")}
-              </select>
-            </label>
           </div>
 
           <div class="modal-footer">
             <button class="secondary-button" data-close-modal type="button">Отмена</button>
-            <button class="primary-button" type="submit">${icon("plus")}<span>Добавить спецификацию</span></button>
+            <button class="primary-button" type="submit">${icon("plus")}<span>Добавить состав</span></button>
           </div>
         </form>
       </section>
@@ -15302,6 +16322,12 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     });
   });
 
+  app.querySelector("#hideSharedNonWorkingZones")?.addEventListener("change", (event) => {
+    ui.hideSharedNonWorkingZones = event.target.checked;
+    persistUiState();
+    render();
+  });
+
   app.querySelector("#searchInput")?.addEventListener("input", (event) => {
     ui.search = event.target.value;
     render();
@@ -15342,7 +16368,14 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     render();
   });
 
-  app.querySelector("#refreshButton")?.addEventListener("click", () => render());
+  app.querySelector("#refreshButton")?.addEventListener("click", () => {
+    const rescheduledCount = rescheduleAllGanttSlotsByCurrentCalendars();
+    if (rescheduledCount) {
+      persistState();
+      notifySaveSuccess(`Гант перестроен по графикам подразделений: ${rescheduledCount}`);
+    }
+    render();
+  });
 
   app.querySelector("#resetButton")?.addEventListener("click", () => {
     openConfirmDialog("resetDemo");
@@ -15393,7 +16426,7 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     lane.addEventListener("click", (event) => {
       if (event.target.closest(".operation-slot")) return;
       const row = rows.find((item) => item.id === lane.dataset.laneRowId);
-      if (!row || row.type !== "workCenter") return;
+      if (!row || !["operation", "workCenter"].includes(row.type)) return;
       openPlanningForRoute(row.routeId);
     });
   });
@@ -15577,12 +16610,16 @@ function bindSlotForm() {
     plannedEndField.value = isoLocal(plannedEnd);
   };
 
-  routeStepField?.addEventListener("change", () => {
-    const option = routeStepField.selectedOptions[0];
-    if (option?.dataset.workCenter && workCenterField) workCenterField.value = option.dataset.workCenter;
-    if (option?.dataset.operation && operationField) operationField.value = option.dataset.operation;
-    syncPlannedEndField();
-  });
+	  routeStepField?.addEventListener("change", () => {
+	    const option = routeStepField.selectedOptions[0];
+	    if (option?.dataset.workCenter && workCenterField) {
+	      workCenterField.value = option.dataset.workCenter;
+	      const display = workCenterField.parentElement?.querySelector("input[type='text']");
+	      if (display) display.value = getWorkCenter(option.dataset.workCenter)?.name || "подразделение не выбрано";
+	    }
+	    if (option?.dataset.operation && operationField) operationField.value = option.dataset.operation;
+	    syncPlannedEndField();
+	  });
 
   [workCenterField, quantityField, batchField, plannedStartField].forEach((field) => {
     field?.addEventListener("change", syncPlannedEndField);
@@ -15607,12 +16644,17 @@ function bindSlotForm() {
     const boardsPerPanel = normalizeBoardsPerPanel(selectedRouteStep?.boardsPerPanel || currentSlot?.boardsPerPanel, 1);
 	    const slotContext = selectedRouteStep || currentSlot;
 	    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity, planningState, unitsPerHour || null, boardsPerPanel, slotContext));
-    const slotData = {
-      projectId: data.get("projectId"),
-      batchId: data.get("batchId"),
-      workCenterId: data.get("workCenterId"),
-      routeStepId: data.get("routeStepId"),
-      operationName: String(data.get("operationName") || "").trim(),
+	    if (!selectedRouteStep || !getOperationMapItem(selectedRouteStep.operationId)) {
+	      alert("Выберите операцию маршрута из справочника операций.");
+	      return;
+	    }
+
+	    const slotData = {
+	      projectId: data.get("projectId"),
+	      batchId: data.get("batchId"),
+	      workCenterId: selectedRouteStep.workCenterId,
+	      routeStepId: data.get("routeStepId"),
+	      operationName: selectedRouteStep.operationName || "",
 	      quantity,
 	      unitsPerHour: unitsPerHour || undefined,
 	      boardsPerPanel,
@@ -15759,7 +16801,6 @@ function bindProjectForm() {
       totalQuantity: specification.productionQuantity,
       dueDate: specification.dueDate,
       status: specification.productionStatus,
-      routeTemplate: data.get("routeTemplate"),
     });
 
     directoryState.specifications = [...(directoryState.specifications || []), specification];
@@ -15850,7 +16891,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
 	      const rawStart = snapDate(addMs(ui.drag.originalStart, msDelta), snapMs);
 
 	      const targetRow = rowFromPointer(moveEvent, rows, rowLayout);
-	      if (["workCenter", "resource"].includes(targetRow?.type) && targetRow.routeId === ui.drag.routeId) {
+	      if (["operation", "workCenter", "resource"].includes(targetRow?.type) && targetRow.routeId === ui.drag.routeId) {
 	        applyGanttRowToSlot(targetSlot, targetRow);
 	        ui.drag.targetRowId = targetRow.id;
 	      }
@@ -16210,11 +17251,13 @@ function focusProject(projectId) {
 }
 
 function closeModals() {
+  ui.selectedSlotId = null;
   ui.editor = null;
   ui.splitSlotId = null;
   ui.projectModal = false;
   ui.directoryEditor = null;
   ui.confirmDialog = null;
+  ui.activeShopMapWidgetId = "";
   render();
 }
 
@@ -16238,40 +17281,26 @@ function buildRows(scaleInfo) {
 
     if (!routeExpanded) continue;
 
-    const centers = getRouteCenters(route.id);
-    for (const center of centers) {
-      if (!ganttCenterMatchesFilter(center)) continue;
-      const routeSteps = getRouteStepsForModule(route.id);
-      const inRoute = routeSteps.some((step) => step.workCenterId === getGanttCenterRouteWorkCenterId(center));
+    const routeSteps = getRouteStepsForModule(route.id);
+    for (const step of routeSteps) {
+      if (!ganttRouteStepMatchesFilter(step)) continue;
+      const center = getWorkCenter(step.workCenterId) || {
+        id: step.workCenterId || "unknown",
+        name: "Подразделение не выбрано",
+        code: "—",
+        isActive: true,
+      };
+      const stepSlots = getSlotsForRouteStep(route.id, step.id);
       rows.push({
-        id: `work:${route.id}:${center.id}`,
-        type: "workCenter",
+        id: `operation:${route.id}:${step.id}`,
+        type: "operation",
         routeId: route.id,
         projectId: route.projectId,
-        workCenterId: center.id,
+        routeStepId: step.id,
+        routeStep: step,
+        workCenterId: step.workCenterId,
         workCenter: center,
-        parentWorkCenterId: center.parentWorkCenterId || center.id,
-        smtLineId: center.smtLineId || "",
-        isSmtLine: Boolean(center.isSmtLine),
-        isOutsideRoute: !inRoute,
-        height: WORK_ROW_HEIGHT,
-      });
-
-      getGanttResourcesForWorkCenter(getGanttCenterRouteWorkCenterId(center)).forEach((resource) => {
-        const resourceSlots = getSlotsForRouteResource(route.id, getGanttCenterRouteWorkCenterId(center), resource.id);
-        rows.push({
-          id: getResourceRowId(route.id, getGanttCenterRouteWorkCenterId(center), resource.id),
-          type: "resource",
-          routeId: route.id,
-          projectId: route.projectId,
-          workCenterId: getGanttCenterRouteWorkCenterId(center),
-          workCenter: getWorkCenter(getGanttCenterRouteWorkCenterId(center)) || center,
-          resourceId: resource.id,
-          resource,
-          parentResourceId: resource.parentResourceId || "",
-          isOutsideRoute: !inRoute,
-          height: getScaledRowHeight(WORK_ROW_HEIGHT, resourceSlots, scaleInfo, false),
-        });
+        height: getScaledRowHeight(WORK_ROW_HEIGHT, stepSlots, scaleInfo, false),
       });
     }
   }
@@ -16416,12 +17445,20 @@ function getSlotRoute(slot) {
 
 function getRouteSlots(routeId) {
   const stepIds = getRouteStepIds(routeId);
-  return (planningState.slots || []).filter((slot) => stepIds.has(slot.routeStepId));
+  return (planningState.slots || []).filter((slot) => (
+    slot.routeId === routeId
+    || stepIds.has(slot.routeStepId)
+  ));
 }
 
 function getSlotsForRouteCenter(routeId, workCenterId) {
   const routeSlots = getRouteSlots(routeId);
   return routeSlots.filter((slot) => slot.workCenterId === workCenterId);
+}
+
+function getSlotsForRouteStep(routeId, routeStepId) {
+  const routeSlots = getRouteSlots(routeId);
+  return routeSlots.filter((slot) => slot.routeStepId === routeStepId);
 }
 
 function getSlotsForRouteResource(routeId, workCenterId, resourceId) {
@@ -16430,7 +17467,7 @@ function getSlotsForRouteResource(routeId, workCenterId, resourceId) {
 }
 
 function getGanttCenterRouteWorkCenterId(center) {
-  return center?.parentWorkCenterId || (isSmtLineWorkCenterId(center?.id) ? "smt" : center?.id);
+  return center?.parentWorkCenterId || mapLegacyWorkCenterId(center?.id);
 }
 
 function ganttCenterMatchesFilter(center) {
@@ -16439,10 +17476,19 @@ function ganttCenterMatchesFilter(center) {
   return getGanttCenterRouteWorkCenterId(center) === ui.workCenterFilter;
 }
 
+function ganttRouteStepMatchesFilter(step) {
+  if (ui.workCenterFilter === "all") return true;
+  const workCenterId = mapLegacyWorkCenterId(step?.workCenterId || "");
+  if (workCenterId === ui.workCenterFilter) return true;
+  const center = getWorkCenter(workCenterId);
+  if (center?.parentWorkCenterId === ui.workCenterFilter) return true;
+  return false;
+}
+
 function isFinishedGoodsSlot(slot) {
   const operationName = String(slot.operationName || "").toLowerCase();
   const outputName = String(slot.output || "").toLowerCase();
-  return slot.workCenterId === "warehouse"
+  return isWarehouseWorkCenterId(slot.workCenterId)
     || operationName.includes("склад")
     || operationName.includes("готов")
     || outputName.includes("готов");
@@ -16470,8 +17516,8 @@ function projectMatchesFilters(project) {
 
   if (ui.workCenterFilter !== "all") {
     const hasRouteCenter = getProjectRouteSteps(project.id, planningState).some((step) => (
-      step.workCenterId === ui.workCenterFilter
-      || (ui.workCenterFilter === "smt" && step.workCenterId === "smt")
+      mapLegacyWorkCenterId(step.workCenterId) === ui.workCenterFilter
+      || getWorkCenter(mapLegacyWorkCenterId(step.workCenterId))?.parentWorkCenterId === ui.workCenterFilter
     ));
     const hasSlotCenter = isSmtLineWorkCenterId(ui.workCenterFilter)
       ? getSlotsForProjectCenter(project.id, ui.workCenterFilter).length > 0
@@ -16485,6 +17531,8 @@ function projectMatchesFilters(project) {
 function routeMatchesGanttFilters(route) {
   const project = getProject(route?.projectId);
   if (!route || !project) return false;
+  if (route.planningStatus === "canceled") return false;
+  if (!getRouteSlots(route.id).length) return false;
   if (ui.statusFilter !== "all" && project.status !== ui.statusFilter) return false;
 
   const specification = getRouteSpecification(route);
@@ -16495,9 +17543,8 @@ function routeMatchesGanttFilters(route) {
 
   if (ui.workCenterFilter !== "all") {
     const hasRouteCenter = getRouteStepsForModule(route.id).some((step) => (
-      step.workCenterId === ui.workCenterFilter
-      || (ui.workCenterFilter === "smt" && step.workCenterId === "smt")
-      || (isSmtLineWorkCenterId(ui.workCenterFilter) && step.workCenterId === "smt")
+      mapLegacyWorkCenterId(step.workCenterId) === ui.workCenterFilter
+      || getWorkCenter(mapLegacyWorkCenterId(step.workCenterId))?.parentWorkCenterId === ui.workCenterFilter
     ));
     const hasSlotCenter = getSlotsForRouteCenter(route.id, ui.workCenterFilter).length > 0;
     if (!hasRouteCenter && !hasSlotCenter) return false;
@@ -16515,8 +17562,16 @@ function getRowSlots(row) {
     return getProjectSummarySlots(row.projectId);
   }
 
+  if (row.type === "operation") {
+    return getSlotsForRouteStep(row.routeId, row.routeStepId);
+  }
+
   if (row.type === "workCenter") {
-    return [];
+    const workCenterId = getGanttCenterRouteWorkCenterId({
+      id: row.workCenterId,
+      parentWorkCenterId: row.parentWorkCenterId,
+    });
+    return getSlotsForRouteCenter(row.routeId, workCenterId);
   }
 
   if (row.type === "resource") {
@@ -16536,7 +17591,8 @@ function getVisibleSlotRowId(slot) {
   if (!isGanttRouteExpanded(route)) {
     return isFinishedGoodsSlot(slot) ? `route:${route.id}` : null;
   }
-  return getResourceRowId(route.id, slot.workCenterId, getSlotGanttResourceId(slot));
+  if (slot.routeStepId) return `operation:${route.id}:${slot.routeStepId}`;
+  return null;
 }
 
 function buildStats(warnings) {
@@ -16645,7 +17701,9 @@ function icon(name) {
     search: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>`,
     bug: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2l1.5 2.5M16 2l-1.5 2.5"></path><rect x="7" y="5" width="10" height="14" rx="5"></rect><path d="M3 9h4M17 9h4M3 14h4M17 14h4M12 5v14M8 19l-2 3M16 19l2 3"></path></svg>`,
     monitor: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path><path d="M7 10h3l2-3 2 6 2-3h1"></path></svg>`,
+    map: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18-6 3V6l6-3 6 3 6-3v15l-6 3Z"></path><path d="M9 3v15M15 6v15"></path></svg>`,
     book: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z"></path><path d="M8 7h8M8 11h8"></path></svg>`,
+    document: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M14 3v6h6M8 13h8M8 17h6"></path></svg>`,
     bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z"></path><path d="M2 8h2M2 12h2M2 16h2M20 8h2M20 12h2M20 16h2M8 2v2M12 2v2M16 2v2M8 20v2M12 20v2M16 20v2"></path></svg>`,
     package: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"></path><path d="M4 7.5 12 12l8-4.5M12 12v9"></path><path d="m8 5.2 8 4.5"></path></svg>`,
     settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,
@@ -16683,7 +17741,6 @@ function icon(name) {
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    ui.selectedSlotId = null;
     closeModals();
   }
 });

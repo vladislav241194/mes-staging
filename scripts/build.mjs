@@ -54,6 +54,11 @@ await copyFile(join(projectRoot, "index.html"), join(distDir, "index.html"));
 await copyFile(join(projectRoot, "styles.css"), join(distDir, "styles.css"));
 await copyDirectory(join(projectRoot, "src"), join(distDir, "src"));
 
+const assetsPath = join(projectRoot, "assets");
+if (await pathExists(assetsPath)) {
+  await copyDirectory(assetsPath, join(distDir, "assets"));
+}
+
 const faviconPath = join(projectRoot, "favicon.svg");
 if (await pathExists(faviconPath)) {
   await copyFile(faviconPath, join(distDir, "favicon.svg"));
