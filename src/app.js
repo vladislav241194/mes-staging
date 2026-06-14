@@ -1,4 +1,4 @@
-import { createDefaultPlanningState, createProductionBundle } from "./data.js";
+import { createDefaultPlanningState } from "./data.js";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUSES, SLOT_STATUSES, STATUS_LABELS } from "./types.js";
 import {
   addMs,
@@ -13,6 +13,7 @@ import {
   scaleConfig,
   snapDate,
   startOfDay,
+  startOfWeek,
   toDate,
   toDateInput,
 } from "./time.js";
@@ -40,8 +41,11 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defaults-restored-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
+const WORKFLOW_PRESET_STORAGE_KEY = "mes-planning-prototype-workflow-preset-v1";
+const WORKFLOW_PRESET_FILE_URL = "./workflow-preset.json";
+const WORKFLOW_PRESET_API_URL = "./api/workflow-preset";
 const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
-const APP_VERSION = "v.1.208";
+const APP_VERSION = "v.1.210";
 const UPDATE_CHECK_INTERVAL_MS = 10000;
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -58,26 +62,63 @@ const STORAGE_KEYS = [
   DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
   WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
 ];
+const WORKFLOW_PRESET_VALUE_KEYS = [
+  STORAGE_KEY,
+  UI_STORAGE_KEY,
+  DIRECTORY_STORAGE_KEY,
+  DIRECTORY_DEFAULTS_STORAGE_KEY,
+  CALCULATOR_STORAGE_KEY,
+  DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
+  WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
+];
 const CRITICAL_DIRECTORY_SECTION_IDS = ["bomLists", "specifications"];
+const RKD_SERVICE_ENABLED = false;
+const DEFAULT_INTERFACE_ROLE_ID = "operator";
+const INTERFACE_ROLES = [
+  {
+    id: DEFAULT_INTERFACE_ROLE_ID,
+    label: "Обычный доступ",
+    caption: "все модули доступны",
+    icon: "unlock",
+    moduleIds: null,
+    defaultModule: "gantt",
+  },
+  {
+    id: "warehouseClerk",
+    label: "Кладовщик",
+    caption: "склад и поступления",
+    icon: "warehouse",
+    moduleIds: ["warehouse", "gantt"],
+    defaultModule: "warehouse",
+  },
+];
 const LEFT_WIDTH = 360;
 const TIMELINE_HEIGHT = 48;
 const GANTT_SNAP_MS = 15 * 60 * 1000;
+const GANTT_DEPENDENCY_ARROW_LENGTH_MS = 90 * 60 * 1000;
+const GANTT_DEPENDENCY_ENTRY_MS = 90 * 60 * 1000;
 const TIMELINE_LOAD_CHUNK = { hours: 48, days: 30, weeks: 12 };
 const TIMELINE_MAX_COUNT = { hours: 2880, days: 540, weeks: 156 };
-const PROJECT_ROW_HEIGHT = 82;
-const WORK_ROW_HEIGHT = 58;
+const PROJECT_ROW_HEIGHT = 88;
+const WORK_ROW_HEIGHT = 68;
 const WEEK_SLOT_HEIGHT = 18;
 const WEEK_SLOT_GAP = 3;
 const WEEK_SLOT_TOP = 6;
-const STANDARD_SLOT_TOP = 6;
+const STANDARD_SLOT_TOP = 21;
 const STANDARD_SLOT_HEIGHT = 26;
-const AGGREGATE_SLOT_TOP = 12;
-const AGGREGATE_SLOT_HEIGHT = 22;
+const AGGREGATE_SLOT_TOP = 31;
+const AGGREGATE_SLOT_HEIGHT = STANDARD_SLOT_HEIGHT;
 const MIN_OPERATION_DURATION_MS = 5 * 60 * 1000;
 const DEFAULT_ROUTE_BUFFER_MS = 30 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const SHIFT_CYCLE_ANCHOR_DATE = "2026-06-01";
 const DEFAULT_RESOURCE_CPH = 30000;
+const DEPENDENCY_CROSSING_GAP_RADIUS = 7;
+const SMT_MIN_PACKAGE_COEFFICIENT = 0.01;
+const SMT_MACHINE_BASE_CPH = {
+  s2: 92000,
+  l2: 56000,
+};
+const SMT_SPLIT_EXHAUSTIVE_VARIANT_LIMIT = 32768;
 const SMT_LINE_WORKCENTER_PREFIX = "smt-line:";
 const GANTT_ZOOM_LEVELS = [0.75, 1, 1.5, 2, 3, 4, 6, 8];
 const GANTT_SLOT_CONTENT_MODES = [
@@ -108,8 +149,8 @@ const OBSOLETE_DIRECTORY_ROW_IDS = {
 };
 const EMPLOYEE_DEPARTMENT_MIGRATION = {
   "ПДО": "Отдел программной подготовки изделий",
-  "Производство": "SMT отдел",
-  "STM отдел": "SMT отдел",
+  "Производство": "Отдел поверхностного монтажа",
+  "STM отдел": "Отдел поверхностного монтажа",
 };
 const UNIT_TYPE_LABELS = {
   production: "Производственное",
@@ -119,7 +160,7 @@ const UNIT_TYPE_LABELS = {
   service: "Сервисное",
 };
 const PRODUCTION_RESOURCE_TYPE_LABELS = {
-  aggregate: "Агрегированный производственный ресурс",
+  aggregate: "Производственный ресурс",
   line: "Производственная линия",
   machine: "Станок",
   workplace: "Рабочее место",
@@ -127,10 +168,10 @@ const PRODUCTION_RESOURCE_TYPE_LABELS = {
   equipment: "Оборудование",
   staff: "Исполнители",
   tool: "Оснастка",
-  normative: "Норматив подразделения",
+  normative: "Норматив отдела",
 };
 const PRODUCTION_RESOURCE_TYPE_CODES = {
-  aggregate: "Агр.",
+  aggregate: "Рес.",
   line: "Лин.",
   machine: "Ст.",
   workplace: "РМ",
@@ -143,7 +184,7 @@ const PRODUCTION_RESOURCE_TYPE_CODES = {
 const WORK_SCHEDULE_OPTIONS = [
   { value: "5/2", label: "5/2" },
   { value: "6/1", label: "6/1" },
-  { value: "2/2", label: "2/2" },
+  { value: "2/2", label: "2/2 бригады" },
   { value: "24/7", label: "24/7" },
 ];
 const WORK_MODE_OPTIONS = [
@@ -161,6 +202,8 @@ const LEGACY_WORK_CENTER_NAME_MIGRATION = {
 const DEFAULT_DEPARTMENTS = [];
 
 const app = document.querySelector("#app");
+let appBootstrapped = false;
+let suppressedGanttSlotClick = null;
 
 function renderFatalStartupError(error) {
   if (!app) return;
@@ -184,15 +227,25 @@ function renderFatalStartupError(error) {
   `;
 }
 
+function handleGlobalRuntimeError(error) {
+  if (!appBootstrapped) {
+    renderFatalStartupError(error);
+    return;
+  }
+
+  console.error("[MES] Runtime error after startup", error);
+}
+
 window.addEventListener("error", (event) => {
-  renderFatalStartupError(event.error || event.message);
+  handleGlobalRuntimeError(event.error || event.message);
 });
 
 window.addEventListener("unhandledrejection", (event) => {
-  renderFatalStartupError(event.reason || "Unhandled promise rejection");
+  handleGlobalRuntimeError(event.reason || "Unhandled promise rejection");
 });
 
 const defaultUiState = {
+  activeRole: DEFAULT_INTERFACE_ROLE_ID,
   activeModule: "gantt",
   activeDirectory: "workCenters",
   activeProjectId: "",
@@ -202,11 +255,15 @@ const defaultUiState = {
   spekiStaleItemIds: [],
   spekiCollapsedBomIds: [],
   activeRkdStep: "kit",
+  activeRkdId: "",
   activeBomId: "",
   activeNomenclatureId: "",
   activeOperationId: "",
   nomenclatureTypeFilter: "all",
   activeRouteId: "",
+  routeDraftBindingId: "",
+  routeBindingMode: "product",
+  planningWorkItem: "",
   activeShopMapWidgetId: "",
   shopMapEditMode: false,
   shopMapWidgetLayouts: {},
@@ -224,12 +281,16 @@ const defaultUiState = {
   hideSharedNonWorkingZones: false,
   ganttZoom: 1,
   ganttSlotContent: "operationQuantity",
+  ganttDependencyEditMode: false,
+  ganttDependencyRoutes: {},
+  ganttDependencyRouteDrafts: null,
+  ganttDependencyDrag: null,
   timelineCounts: { hours: scaleConfig.hours.count, days: scaleConfig.days.count, weeks: scaleConfig.weeks.count },
   expandedProjects: new Set(["p-x100", "p-v2", "p-mes"]),
   selectedSlotId: null,
   editor: null,
   splitSlotId: null,
-  projectModal: false,
+  routeSmtPopup: null,
   drag: null,
   scrollLeft: 0,
   scrollTop: 0,
@@ -248,6 +309,8 @@ const defaultCalculatorState = {
   efficiency: 88,
   componentCounts: {},
   componentCountsByOperation: {},
+  machineSplitByBom: {},
+  smtPackageCoefficientsByMachine: {},
   routeOperations: [],
   selectedOperationId: "",
   lastSavedAt: "",
@@ -269,15 +332,34 @@ const BOM_COMPONENT_FIELDS = [
   { key: "cconnector", componentId: "ct-connector", label: "Разъемы" },
 ];
 const DEFAULT_COMPONENT_TYPES = [
-  { id: "ct-0402", name: "Чип 0402", package: "0402", family: "R/C/L", coefficient: 0.85, placementsPerHour: 36000, setupSeconds: 12, defaultCount: 42, status: "Активен" },
-  { id: "ct-0603", name: "Чип 0603", package: "0603", family: "R/C/L", coefficient: 1, placementsPerHour: 32000, setupSeconds: 12, defaultCount: 36, status: "Активен" },
-  { id: "ct-0805", name: "Чип 0805", package: "0805", family: "R/C/L", coefficient: 1.15, placementsPerHour: 28000, setupSeconds: 12, defaultCount: 18, status: "Активен" },
-  { id: "ct-sot23", name: "SOT-23 / SOD", package: "SOT-23", family: "Дискреты", coefficient: 1.55, placementsPerHour: 19000, setupSeconds: 18, defaultCount: 6, status: "Активен" },
-  { id: "ct-soic", name: "SOIC / TSSOP", package: "SOIC/TSSOP", family: "Микросхемы", coefficient: 2.2, placementsPerHour: 12000, setupSeconds: 26, defaultCount: 2, status: "Активен" },
-  { id: "ct-qfn", name: "QFN / DFN", package: "QFN", family: "Микросхемы", coefficient: 3.8, placementsPerHour: 6200, setupSeconds: 34, defaultCount: 1, status: "Активен" },
+  { id: "ct-0402", name: "Чип 0402", package: "0402", family: "R/C/L", coefficient: 0.70, placementsPerHour: 64400, setupSeconds: 12, defaultCount: 42, status: "Активен" },
+  { id: "ct-0603", name: "Чип 0603", package: "0603", family: "R/C/L", coefficient: 0.70, placementsPerHour: 64400, setupSeconds: 12, defaultCount: 36, status: "Активен" },
+  { id: "ct-0805", name: "Чип 0805", package: "0805", family: "R/C/L", coefficient: 0.63, placementsPerHour: 58000, setupSeconds: 12, defaultCount: 18, status: "Активен" },
+  { id: "ct-sot23", name: "SOT-23 / SOD", package: "SOT-23", family: "Дискреты", coefficient: 0.22, placementsPerHour: 20200, setupSeconds: 18, defaultCount: 6, status: "Активен" },
+  { id: "ct-soic", name: "SOIC / TSSOP", package: "SOIC/TSSOP", family: "Микросхемы", coefficient: 0.22, placementsPerHour: 20200, setupSeconds: 26, defaultCount: 2, status: "Активен" },
+  { id: "ct-qfn", name: "QFN / DFN", package: "QFN", family: "Микросхемы", coefficient: 0.06, placementsPerHour: 5500, setupSeconds: 34, defaultCount: 1, status: "Активен" },
   { id: "ct-bga", name: "BGA", package: "BGA", family: "Микросхемы", coefficient: 5.5, placementsPerHour: 3600, setupSeconds: 45, defaultCount: 0, status: "Активен" },
-  { id: "ct-connector", name: "Разъем / крупный корпус", package: "Connector", family: "Крупные", coefficient: 4.6, placementsPerHour: 4200, setupSeconds: 40, defaultCount: 3, status: "Активен" },
+  { id: "ct-connector", name: "Разъем / крупный корпус", package: "Connector", family: "Крупные", coefficient: 0.06, placementsPerHour: 5520, setupSeconds: 40, defaultCount: 3, status: "Активен" },
 ];
+const SMT_COMPONENT_TYPE_COEFFICIENT_DEFAULTS = {
+  "ct-0402": { coefficient: 0.70, placementsPerHour: 64400, machineCoefficients: { s2: 0.70, l2: 0.68 } },
+  "ct-0603": { coefficient: 0.70, placementsPerHour: 64400, machineCoefficients: { s2: 0.70, l2: 0.68 } },
+  "ct-0805": { coefficient: 0.63, placementsPerHour: 58000, machineCoefficients: { s2: 0.63, l2: 0.61 } },
+  "ct-sot23": { coefficient: 0.22, placementsPerHour: 20200, machineCoefficients: { s2: 0.22, l2: 0.27 } },
+  "ct-soic": { coefficient: 0.22, placementsPerHour: 20200, machineCoefficients: { s2: 0.22, l2: 0.27 } },
+  "ct-qfn": { coefficient: 0.06, placementsPerHour: 5500, machineCoefficients: { s2: 0.06, l2: 0.09 } },
+  "ct-connector": { coefficient: 0.06, placementsPerHour: 5520, machineCoefficients: { s2: 0.06, l2: 0.07 } },
+};
+const SMT_COMPONENT_TYPE_PREVIOUS_COEFFICIENTS = {
+  "ct-0402": { coefficient: 0.85, placementsPerHour: 36000 },
+  "ct-0603": { coefficient: 1, placementsPerHour: 32000 },
+  "ct-0805": { coefficient: 1.15, placementsPerHour: 28000 },
+  "ct-sot23": { coefficient: 1.55, placementsPerHour: 19000 },
+  "ct-soic": { coefficient: 2.2, placementsPerHour: 12000 },
+  "ct-qfn": { coefficient: 3.8, placementsPerHour: 6200 },
+  "ct-connector": { coefficient: 4.6, placementsPerHour: 4200 },
+};
+const SMT_SECONDARY_MACHINE_COMPONENT_IDS = new Set(["ct-soic", "ct-qfn", "ct-bga", "ct-connector"]);
 
 const DEFAULT_RESOURCES = [];
 
@@ -287,44 +369,83 @@ const DEFAULT_SPECIFICATIONS = [];
 const DEFAULT_EQUIPMENT = [];
 
 const DEFAULT_NORMS = [
-  { id: "norm-day", name: "Рабочая смена дневная", value: "08:00-20:00", scope: "Все подразделения", status: "Активен" },
+  { id: "norm-day", name: "Рабочая смена дневная", value: "08:00-20:00", scope: "Все отделы", status: "Активен" },
   { id: "norm-night", name: "Рабочая смена ночная", value: "20:00-08:00", scope: "SMT / Тестирование", status: "Активен" },
   { id: "norm-buffer", name: "Буфер между операциями", value: "30 минут", scope: "Маршрутная карта", status: "Активен" },
-  { id: "norm-capacity", name: "Емкость подразделения", value: "1 операция одновременно", scope: "Планирование", status: "Активен" },
+  { id: "norm-capacity", name: "Емкость отдела", value: "1 операция одновременно", scope: "Планирование", status: "Активен" },
 ];
 
 // Business terminology after the 2026-06 rename:
-// - directoryState.specifications stores "Состав изделия".
-// - directoryState.bomLists stores board/component "Спецификация".
+// - directoryState.specifications stores "Изделия" with a production structure.
+// - directoryState.bomLists stores boards with a BOM/component table.
 // Technical keys stay unchanged to preserve existing localStorage data.
-const PRODUCT_COMPOSITION_TERM = "Состав изделия";
-const PRODUCT_COMPOSITION_TERM_LOWER = "состав изделия";
-const PRODUCT_COMPOSITION_LIST_TERM = "Состав изделия";
-const BOARD_SPEC_TERM = "Спецификация";
-const BOARD_SPEC_TERM_LOWER = "спецификация";
-const BOARD_SPEC_LIST_TERM = "Спецификации";
+const PRODUCT_COMPOSITION_TERM = "Изделие";
+const PRODUCT_COMPOSITION_TERM_LOWER = "изделие";
+const PRODUCT_COMPOSITION_LIST_TERM = "Изделия";
+const PRODUCT_STRUCTURE_TERM = "Состав изделия";
+const PRODUCT_STRUCTURE_TERM_LOWER = "состав изделия";
+const BOARD_SPEC_TERM = "Плата";
+const BOARD_SPEC_TERM_LOWER = "плата";
+const BOARD_SPEC_LIST_TERM = "Платы";
+const BOARD_BOM_TERM = "BOM платы";
 
 const DEFAULT_STATUSES = [
   ...PROJECT_STATUSES.map((status) => ({ id: `project-${status}`, name: PROJECT_STATUS_LABELS[status], type: PRODUCT_COMPOSITION_TERM, code: status, usage: `Карточка: ${PRODUCT_COMPOSITION_TERM_LOWER}` })),
   ...SLOT_STATUSES.map((status) => ({ id: `slot-${status}`, name: STATUS_LABELS[status], type: "Операция", code: status, usage: "Слот Ганта" })),
   { id: "route-scheduled", name: "Запланирован", type: "Маршрут / партия", code: "scheduled", usage: "Маршрутная карта перенесена в Гант" },
   { id: "route-canceled", name: "Отменен", type: "Маршрут / партия", code: "canceled", usage: "Отмена производственного заказа и связанной партии" },
-  { id: "directory-active-ru", name: "Активен", type: "Справочник", code: "Активен", usage: "Подразделения, операции, типы компонентов, номенклатура, нормативы" },
+  { id: "directory-active-ru", name: "Активен", type: "Справочник", code: "Активен", usage: "Отделы, операции, типы компонентов, номенклатура, нормативы" },
   { id: "directory-disabled-ru", name: "Отключен", type: "Справочник", code: "Отключен", usage: "Исключение ресурса или строки справочника из активного использования" },
-  { id: "work-center-active", name: "Активен", type: "Подразделение", code: "active", usage: "Внутренний код активности подразделения" },
-  { id: "work-center-inactive", name: "Отключен", type: "Подразделение", code: "inactive", usage: "Внутренний код отключенного подразделения или ресурса" },
-  { id: "participation-yes", name: "Да", type: "Признак участия", code: "yes", usage: "Подразделение или ресурс участвует в планировании/расчёте" },
-  { id: "participation-no", name: "Нет", type: "Признак участия", code: "no", usage: "Подразделение или ресурс исключён из планирования/расчёта" },
+  { id: "work-center-active", name: "Активен", type: "Отдел", code: "active", usage: "Внутренний код активности отдела" },
+  { id: "work-center-inactive", name: "Отключен", type: "Отдел", code: "inactive", usage: "Внутренний код отключенного отдела или ресурса" },
+  { id: "participation-yes", name: "Да", type: "Признак участия", code: "yes", usage: "Отдел или ресурс участвует в планировании/расчёте" },
+  { id: "participation-no", name: "Нет", type: "Признак участия", code: "no", usage: "Отдел или ресурс исключён из планирования/расчёта" },
   { id: "resource-available", name: "Доступен", type: "Производственный ресурс", code: "Доступен", usage: "Линии, посты, стенды и оборудование доступны для планирования" },
   { id: "resource-loaded", name: "Загружен", type: "Производственный ресурс", code: "Загружен", usage: "Ресурс уже занят или имеет высокую загрузку" },
   { id: "equipment-working", name: "Работает", type: "Оборудование", code: "Работает", usage: "Оборудование в составе производственного ресурса исправно" },
   { id: "equipment-check", name: "Проверка", type: "Оборудование", code: "Проверка", usage: "Оборудование или проверка данных требует внимания" },
-  { id: "resource-normative", name: "Норматив", type: "Производственный ресурс", code: "Норматив", usage: "Расчётный ресурс подразделения, созданный из норматива мощности" },
-  { id: "document-draft", name: "Черновик", type: "Технологические данные", code: "Черновик", usage: "Состав изделия, спецификация или BOM-лист ещё не утверждены" },
-  { id: "document-ready", name: "Готова", type: "Технологические данные", code: "Готова", usage: "Импортированная спецификация или связанная запись готова к использованию" },
+  { id: "resource-normative", name: "Норматив", type: "Производственный ресурс", code: "Норматив", usage: "Расчётный ресурс отдела, созданный из норматива мощности" },
+  { id: "document-draft", name: "Черновик", type: "Технологические данные", code: "Черновик", usage: "Изделие, плата или BOM ещё не утверждены" },
+  { id: "document-ready", name: "Готова", type: "Технологические данные", code: "Готова", usage: "Импортированный BOM или связанная запись готовы к использованию" },
+];
+const RKD_STATUSES = [
+  "Черновик",
+  "На проверке",
+  "Требует доработки",
+  "Готово к маршрутизации",
+  "Маршруты созданы",
+  "Готово к планированию",
+  "В производстве",
+  "Завершено",
+  "Архив",
 ];
 const BOM_IMPORT_COLUMN_COUNT = 9;
 const MAIN_ROUTE_TASK_ID = "__main__";
+const STRUCTURE_FULFILLMENT_MODES = ["not_selected", "produce", "from_stock", "purchase", "external"];
+const STRUCTURE_FULFILLMENT_LABELS = {
+  not_selected: "Не выбрано",
+  produce: "Произвести",
+  from_stock: "Со склада",
+  purchase: "Закупить",
+  external: "Внешнее",
+};
+const STRUCTURE_FULFILLMENT_META = {
+  not_selected: "требует решения",
+  produce: "производственная ветка",
+  from_stock: "резерв и выдача",
+  purchase: "вне производства",
+  external: "подрядчик / вне MES",
+};
+const STRUCTURE_SCHEDULABLE_FULFILLMENT_MODES = new Set(["produce", "from_stock"]);
+const WAREHOUSE_MOVEMENT_TYPES = [
+  { value: "receipt", label: "Приход", direction: "in", tone: "ok", meta: "поступление на склад" },
+  { value: "issue", label: "Выдача", direction: "out", tone: "warning", meta: "выдача или списание" },
+  { value: "production_receipt", label: "Приемка производства", direction: "in", tone: "ok", meta: "готовое изделие или полуфабрикат" },
+  { value: "production_issue", label: "Выдача в производство", direction: "out", tone: "active", meta: "материалы под заказ-наряд" },
+  { value: "adjustment_in", label: "Корректировка +", direction: "in", tone: "neutral", meta: "ручное увеличение остатка" },
+  { value: "adjustment_out", label: "Корректировка -", direction: "out", tone: "neutral", meta: "ручное уменьшение остатка" },
+];
+const WAREHOUSE_MOVEMENT_TYPE_VALUES = new Set(WAREHOUSE_MOVEMENT_TYPES.map((item) => item.value));
 const NOMENCLATURE_REA_COMPONENT_TYPE = "РЭА компоненты";
 const DEFAULT_NOMENCLATURE_TYPES = [
   { id: "nom-type-rea", name: NOMENCLATURE_REA_COMPONENT_TYPE, code: "REA", description: "Резисторы, конденсаторы, микросхемы", status: "Активен" },
@@ -369,7 +490,7 @@ const SHOP_FLOOR_WIDGET_LAYOUTS = [
   { match: "coating", x: 81, y: 33, tone: "green" },
   { match: "mechanic", x: 28, y: 69, tone: "slate" },
   { match: "assembly", x: 52, y: 49, tone: "violet" },
-  { match: "warehouse", x: 88, y: 72, tone: "green" },
+  { match: "warehouse", x: 88, y: 72, tone: "slate" },
 ];
 const SHOP_MAP_COORDINATE_MIN = 2;
 const SHOP_MAP_COORDINATE_MAX = 98;
@@ -377,9 +498,12 @@ const SHOP_MAP_COORDINATE_MAX = 98;
 let directoryEntityRemovalAllowed = false;
 let planningEntityRemovalAllowed = false;
 let directoryState = null;
-let planningState = loadState();
+let calculatorState = null;
+let planningState = null;
 directoryState = loadDirectoryState();
+planningState = loadState();
 applyMesOrgStructureDefaults();
+applySmtComponentTypeCoefficientDefaults();
 ensureStatusDirectoryDefaults();
 migrateDepartmentsToUnifiedWorkCenters();
 migrateProjectEntityToSpecifications();
@@ -387,20 +511,25 @@ migrateSpecificationBomRowsToNomenclature();
 syncNomenclatureTypesFromItems({ persist: true });
 migrateLegacyOperationsToDirectory();
 ensureWorkCenterOperations();
-let calculatorState = loadCalculatorState();
+calculatorState = loadCalculatorState();
 let ui = loadUiState();
+alignGanttWindowToPlan({ onlyWhenFar: true });
 let shopMapLayoutDraft = null;
 let shopMapLayoutDirty = false;
 let updateCheckTimer = null;
 let updateNoticeVersion = "";
 let saveFeedbackTimer = null;
 let saveUxRefreshTimer = null;
+let calculatorDeferredRenderTimer = null;
 let pendingSaveFeedback = null;
+let bundledWorkflowPreset = null;
+let workflowPresetBootstrapStarted = false;
+ensureInitialWorkflowPreset();
 
 const directorySections = [
-  { id: "workCenters", label: "Подразделения", description: "Единый справочник оргподразделений, производственных зон и складов", count: () => planningState.workCenters.length },
+  { id: "workCenters", label: "Отделы", description: "Единый справочник отделов, производственных зон и складов", count: () => planningState.workCenters.length },
   { id: "productionResources", label: "Производственные ресурсы", description: "Линии, станки, посты и оборудование", count: () => getProductionResources({ includeInactive: true }).length },
-  { id: "operations", label: "Операции", description: "Операции с привязкой к подразделениям", count: () => getOperationMapRows().length },
+  { id: "operations", label: "Операции", description: "Операции с привязкой к отделам", count: () => getOperationMapRows().length },
   { id: "componentTypes", label: "Типы компонентов", description: "Корпуса, коэффициенты и скорости установки", count: () => directoryState.componentTypes.length },
   { id: "nomenclatureTypes", label: "Типы номенклатуры", description: "Разделы, которые используются в модуле номенклатуры", count: () => directoryState.nomenclatureTypes.length },
   { id: "statuses", label: "Статусы", description: "Единый перечень статусов планирования, ресурсов, оборудования и справочников", count: () => directoryState.statuses.length },
@@ -410,7 +539,7 @@ const directorySections = [
 const directorySectionGroups = [
   {
     label: "Производство",
-    description: "подразделения, мощности, оборудование",
+    description: "отделы, мощности, оборудование",
     ids: ["workCenters", "productionResources", "norms"],
   },
   {
@@ -420,7 +549,7 @@ const directorySectionGroups = [
   },
   {
     label: "Технологии",
-    description: "операции, спецификации, SMT и номенклатура",
+    description: "операции, изделия, платы, SMT и номенклатура",
     ids: ["operations", "componentTypes", "nomenclatureTypes"],
   },
 ];
@@ -479,6 +608,206 @@ function backupLocalStateBeforeReset() {
   }));
 }
 
+function parseJsonObject(value) {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function getWorkflowPresetCountsFromState(sourcePlanning = planningState, sourceDirectory = directoryState) {
+  return {
+    specifications: Array.isArray(sourceDirectory?.specifications) ? sourceDirectory.specifications.length : 0,
+    bomLists: Array.isArray(sourceDirectory?.bomLists) ? sourceDirectory.bomLists.length : 0,
+    nomenclature: Array.isArray(sourceDirectory?.nomenclature) ? sourceDirectory.nomenclature.length : 0,
+    routes: Array.isArray(sourcePlanning?.routes) ? sourcePlanning.routes.length : 0,
+    routeSteps: Array.isArray(sourcePlanning?.routeSteps) ? sourcePlanning.routeSteps.length : 0,
+    batches: Array.isArray(sourcePlanning?.batches) ? sourcePlanning.batches.length : 0,
+    slots: Array.isArray(sourcePlanning?.slots) ? sourcePlanning.slots.length : 0,
+    warehouseMovements: Array.isArray(sourcePlanning?.warehouseMovements) ? sourcePlanning.warehouseMovements.length : 0,
+    warehouseReservations: Array.isArray(sourcePlanning?.warehouseReservations) ? sourcePlanning.warehouseReservations.length : 0,
+  };
+}
+
+function getWorkflowPresetCountsFromValues(values = {}) {
+  return getWorkflowPresetCountsFromState(
+    parsePlanningStateSnapshot(values[STORAGE_KEY]) || createDefaultPlanningState(),
+    parseDirectoryStateSnapshot(values[DIRECTORY_STORAGE_KEY]) || createDefaultDirectoryState(),
+  );
+}
+
+function isMeaningfulWorkflowPresetCounts(counts = {}) {
+  return Boolean(
+    counts.specifications
+    || counts.bomLists
+    || counts.nomenclature
+    || counts.routes
+    || counts.routeSteps
+    || counts.batches
+    || counts.slots
+    || counts.warehouseMovements
+    || counts.warehouseReservations
+  );
+}
+
+function isUsableWorkflowPreset(preset) {
+  if (!preset?.values || typeof preset.values !== "object") return false;
+  if (preset.source === "codex-localstorage-import") return false;
+  const counts = isMeaningfulWorkflowPresetCounts(preset.counts)
+    ? preset.counts
+    : getWorkflowPresetCountsFromValues(preset.values);
+  return isMeaningfulWorkflowPresetCounts(counts);
+}
+
+function getWorkflowPreset() {
+  const preset = parseJsonObject(localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY));
+  if (isUsableWorkflowPreset(preset)) return preset;
+  if (isUsableWorkflowPreset(bundledWorkflowPreset)) return bundledWorkflowPreset;
+  return null;
+}
+
+function formatWorkflowPresetCounts(counts = {}) {
+  const parts = [];
+  if (counts.specifications) parts.push(`${counts.specifications} сост.`);
+  if (counts.bomLists) parts.push(`${counts.bomLists} BOM`);
+  if (counts.routes) parts.push(`${counts.routes} карт`);
+  if (counts.slots) parts.push(`${counts.slots} слотов`);
+  if (counts.warehouseMovements) parts.push(`${counts.warehouseMovements} склад`);
+  return parts.length ? parts.slice(0, 3).join(" · ") : "нет объектов";
+}
+
+async function saveWorkflowPresetSnapshot(options = {}) {
+  rememberScroll();
+  persistUiState();
+  persistCalculatorState();
+
+  const values = Object.fromEntries(WORKFLOW_PRESET_VALUE_KEYS.map((key) => [key, localStorage.getItem(key)]));
+  values[STORAGE_KEY] = JSON.stringify(planningState);
+  values[DIRECTORY_STORAGE_KEY] = JSON.stringify(directoryState);
+  values[CALCULATOR_STORAGE_KEY] = JSON.stringify(calculatorState);
+  values[UI_STORAGE_KEY] = localStorage.getItem(UI_STORAGE_KEY);
+
+  const counts = getWorkflowPresetCountsFromValues(values);
+  if (!isMeaningfulWorkflowPresetCounts(counts)) {
+    if (!options.silent) notifySaveSuccess("Пресет не сохранен: в системе нет объектов");
+    return null;
+  }
+
+  const previous = getWorkflowPreset();
+  const stamp = new Date().toISOString();
+  const preset = {
+    id: "workflow-current-gantt",
+    name: "Рабочий пресет до Ганта",
+    createdAt: previous?.createdAt || stamp,
+    updatedAt: stamp,
+    source: options.source || "manual",
+    version: APP_VERSION,
+    counts,
+    values,
+  };
+
+  if (options.persistToFile === true) {
+    const savedToFile = await persistWorkflowPresetToServer(preset, { ...options, silent: true });
+    if (!savedToFile) {
+      localStorage.setItem(WORKFLOW_PRESET_STORAGE_KEY, JSON.stringify(preset));
+      if (!options.silent) {
+        notifySaveSuccess("Пресет сохранен только в этой сессии: файл не обновлен");
+        render();
+      }
+      return preset;
+    }
+  }
+
+  localStorage.setItem(WORKFLOW_PRESET_STORAGE_KEY, JSON.stringify(preset));
+  if (!options.silent) {
+    notifySaveSuccess(options.persistToFile === true
+      ? `Пресет сохранен в файл: ${formatWorkflowPresetCounts(counts)}`
+      : `Пресет сохранен: ${formatWorkflowPresetCounts(counts)}`);
+    render();
+  }
+  return preset;
+}
+
+function ensureInitialWorkflowPreset() {
+  const preset = getWorkflowPreset();
+  if (preset) return;
+  startWorkflowPresetBootstrap();
+}
+
+async function startWorkflowPresetBootstrap() {
+  if (workflowPresetBootstrapStarted || typeof fetch !== "function") return;
+  workflowPresetBootstrapStarted = true;
+
+  try {
+    const response = await fetch(`${WORKFLOW_PRESET_FILE_URL}?v=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const preset = await response.json();
+    if (!isUsableWorkflowPreset(preset)) return;
+    bundledWorkflowPreset = preset;
+    if (!localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY)) {
+      localStorage.setItem(WORKFLOW_PRESET_STORAGE_KEY, JSON.stringify(preset));
+      render();
+    }
+  } catch {
+    // File presets are optional in static deployments.
+  }
+}
+
+async function persistWorkflowPresetToServer(preset, options = {}) {
+  if (!preset?.values || typeof fetch !== "function") return false;
+
+  try {
+    const response = await fetch(WORKFLOW_PRESET_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(preset),
+    });
+    if (!response.ok) return false;
+    if (!options.silent) notifySaveSuccess("Пресет сохранен в файл");
+    return true;
+  } catch {
+    if (!options.silent) notifySaveSuccess("Пресет сохранен в браузере. Файл пресета недоступен");
+    return false;
+  }
+}
+
+function restoreWorkflowPreset() {
+  const preset = getWorkflowPreset();
+  if (!preset) {
+    notifySaveSuccess("Пресет еще не сохранен");
+    return;
+  }
+
+  backupLocalStateBeforeReset();
+  WORKFLOW_PRESET_VALUE_KEYS.forEach((key) => {
+    const value = preset.values[key];
+    if (value === null || typeof value === "undefined") {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, value);
+    }
+  });
+
+  directoryState = loadDirectoryState();
+  planningState = loadState();
+  calculatorState = loadCalculatorState();
+  ui = loadUiState();
+  ui.activeModule = "gantt";
+  ui.confirmDialog = null;
+  ui.selectedSlotId = null;
+  ui.expandedProjects = new Set([
+    ...ui.expandedProjects,
+    ...(planningState.routes || []).map((route) => route.id),
+  ]);
+  alignGanttWindowToPlan({ force: true });
+  persistUiState();
+  notifySaveSuccess(`Пресет восстановлен: ${formatWorkflowPresetCounts(preset.counts || {})}`);
+  render();
+}
+
 function createDefaultDirectoryState() {
   return {
     departments: DEFAULT_DEPARTMENTS,
@@ -489,6 +818,7 @@ function createDefaultDirectoryState() {
     nomenclature: [],
     bomLists: DEFAULT_BOM_LISTS,
     specifications: DEFAULT_SPECIFICATIONS,
+    rkdKits: [],
     componentTypes: DEFAULT_COMPONENT_TYPES,
     // Legacy compatibility bucket only. Employees are no longer an active
     // planning directory and should not be auto-seeded.
@@ -500,6 +830,7 @@ function createDefaultDirectoryState() {
 }
 
 render();
+appBootstrapped = true;
 startUpdateNotifier();
 setInterval(() => {
   ui.now = new Date();
@@ -956,6 +1287,43 @@ function ensureStatusDirectoryDefaults() {
   persistDirectoryState();
 }
 
+function isSameNumericValue(left, right, precision = 0.000001) {
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  return Number.isFinite(leftNumber)
+    && Number.isFinite(rightNumber)
+    && Math.abs(leftNumber - rightNumber) <= precision;
+}
+
+function applySmtComponentTypeCoefficientDefaults() {
+  if (!directoryState) return;
+  const rows = Array.isArray(directoryState.componentTypes) ? directoryState.componentTypes : [];
+  let changed = false;
+  const nextRows = rows.map((row) => {
+    const defaults = SMT_COMPONENT_TYPE_COEFFICIENT_DEFAULTS[row?.id];
+    const previous = SMT_COMPONENT_TYPE_PREVIOUS_COEFFICIENTS[row?.id];
+    if (!defaults || !previous) return row;
+
+    const shouldUpdateCoefficient = isSameNumericValue(row.coefficient, previous.coefficient);
+    const shouldUpdatePlacements = isSameNumericValue(row.placementsPerHour, previous.placementsPerHour);
+    if (!shouldUpdateCoefficient && !shouldUpdatePlacements) return row;
+
+    changed = true;
+    return normalizeDirectoryRow("componentTypes", {
+      ...row,
+      coefficient: shouldUpdateCoefficient ? defaults.coefficient : row.coefficient,
+      placementsPerHour: shouldUpdatePlacements ? defaults.placementsPerHour : row.placementsPerHour,
+    });
+  });
+
+  if (!changed) return;
+  directoryState = {
+    ...directoryState,
+    componentTypes: nextRows,
+  };
+  persistDirectoryState();
+}
+
 function persistDirectoryState() {
   const previousRaw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
   const previousState = parseDirectoryStateSnapshot(previousRaw);
@@ -993,6 +1361,251 @@ function isWarehouseWorkCenterId(workCenterId = "") {
   return mapLegacyWorkCenterId(workCenterId) === "D1";
 }
 
+function hasManufacturingOutputReceiptText(value = "") {
+  const text = normalizeLookupText(value);
+  if (!text) return false;
+  const hasReceiptAction = text.includes("поступ") || text.includes("прием") || text.includes("приём");
+  const hasManufacturingSource = text.includes("производ") || text.includes("готов") || text.includes("полуфаб") || text.includes("издел");
+  return (
+    (hasReceiptAction && hasManufacturingSource)
+    || text.includes("выпуск")
+    || text.includes("готовой продукции")
+    || text.includes("готовых изделий")
+    || text.includes("полуфаб")
+  );
+}
+
+function hasNonOutputWarehouseText(value = "") {
+  const text = normalizeLookupText(value);
+  return [
+    "поставщик",
+    "выдач",
+    "возврат",
+    "перемещ",
+    "списан",
+    "инвентар",
+    "комплектующ",
+    "материал",
+  ].some((token) => text.includes(token));
+}
+
+function isManufacturingOutputReceiptOperation(operation = {}) {
+  if (!operation) return false;
+  if (operation.id === "D1_OP2" || operation.isOutputReceipt || operation.warehouseFlow === "production_receipt") return true;
+  if (!isWarehouseWorkCenterId(operation.workCenterId)) return false;
+  const text = `${operation.name || ""} ${operation.code || ""} ${operation.businessOutput || ""} ${operation.comment || ""}`;
+  return hasManufacturingOutputReceiptText(text) && !hasNonOutputWarehouseText(text);
+}
+
+function isManufacturingOutputReceiptRouteStep(step = {}) {
+  if (!step) return false;
+  if (step.operationId === "D1_OP2") return true;
+  const operation = getOperationMapItem(step.operationId);
+  if (isManufacturingOutputReceiptOperation(operation)) return true;
+  if (!isWarehouseWorkCenterId(step.workCenterId)) return false;
+  const text = `${step.operationName || ""} ${step.comment || ""}`;
+  return hasManufacturingOutputReceiptText(text) && !hasNonOutputWarehouseText(text);
+}
+
+function isManufacturingOutputReceiptSlot(slot = {}, state = null) {
+  if (!slot) return false;
+  const sourceState = state || getRuntimePlanningState();
+  const step = (sourceState?.routeSteps || []).find((item) => item.id === slot.routeStepId);
+  if (isManufacturingOutputReceiptRouteStep(step)) return true;
+  if (slot.operationId === "D1_OP2") return true;
+  const operation = getOperationMapItem(slot.operationId);
+  if (isManufacturingOutputReceiptOperation(operation)) return true;
+  if (!isWarehouseWorkCenterId(slot.workCenterId)) return false;
+  const text = `${slot.operationName || ""} ${slot.comment || ""}`;
+  return hasManufacturingOutputReceiptText(text) && !hasNonOutputWarehouseText(text);
+}
+
+function isSmtRouteInstructionWorkCenterId(workCenterId = "") {
+  const raw = String(workCenterId || "").trim();
+  if (!raw) return false;
+  if (raw === "D3" || raw === "smt" || isSmtLineWorkCenterId(raw)) return true;
+  const mapped = mapLegacyWorkCenterId(raw);
+  return mapped === "D3" || MES_SMT_WORK_CENTER_IDS.includes(mapped);
+}
+
+function getRouteInstructionWorkCenterId(workCenterId = "") {
+  const raw = String(workCenterId || "").trim();
+  if (!raw) return "";
+  if (isSmtRouteInstructionWorkCenterId(raw)) return "D3";
+  return mapLegacyWorkCenterId(raw);
+}
+
+function getOperationRouteWorkCenterId(operation = {}) {
+  return getRouteInstructionWorkCenterId(operation.routeWorkCenterId || operation.workCenterId || "");
+}
+
+function getPlanningCandidateWorkCenterIdsForRouteWorkCenter(workCenterId = "", operation = null, state = null) {
+  const sourceState = state || getRuntimePlanningState();
+  const activePlanningIds = new Set((sourceState?.workCenters || [])
+    .filter((center) => isPlanningWorkCenter(center))
+    .map((center) => center.id));
+  const explicitIds = Array.isArray(operation?.planningWorkCenterIds)
+    ? operation.planningWorkCenterIds
+    : [];
+  const normalizedExplicitIds = explicitIds
+    .map((id) => mapLegacyWorkCenterId(id))
+    .filter((id) => id && activePlanningIds.has(id));
+  if (normalizedExplicitIds.length) return [...new Set(normalizedExplicitIds)];
+
+  const routeWorkCenterId = getRouteInstructionWorkCenterId(workCenterId);
+  if (!routeWorkCenterId) return [];
+  if (routeWorkCenterId === "D3" || isSmtOperationWorkCenter(routeWorkCenterId, operation, sourceState)) {
+    const smtIds = MES_SMT_WORK_CENTER_IDS.filter((id) => activePlanningIds.has(id));
+    return smtIds.length ? smtIds : [...MES_SMT_WORK_CENTER_IDS];
+  }
+
+  const center = sourceState?.workCenters?.find((item) => item.id === routeWorkCenterId);
+  if (center && !isPlanningWorkCenter(center)) {
+    const children = (sourceState?.workCenters || [])
+      .filter((item) => item.parentWorkCenterId === center.id && isPlanningWorkCenter(item))
+      .map((item) => item.id);
+    if (children.length) return children;
+  }
+
+  return activePlanningIds.has(routeWorkCenterId) || !sourceState?.workCenters?.length
+    ? [routeWorkCenterId]
+    : [];
+}
+
+function getRouteStepPlanningCandidateWorkCenterIds(step = {}, state = null) {
+  const operation = getOperationMapItem(step.operationId);
+  return getPlanningCandidateWorkCenterIdsForRouteWorkCenter(step.workCenterId, operation, state);
+}
+
+function getRouteStepExplicitPlanningWorkCenterId(step = {}) {
+  return mapLegacyWorkCenterId(step.planningWorkCenterId || step.planningLineWorkCenterId || "");
+}
+
+function routeStepRequiresManualPlanningLine(step = {}, state = null) {
+  return getRouteStepPlanningCandidateWorkCenterIds(step, state).length > 1;
+}
+
+function getRouteStepSelectedPlanningWorkCenterId(step = {}, state = null, options = {}) {
+  const sourceState = state || getRuntimePlanningState();
+  const candidates = getRouteStepPlanningCandidateWorkCenterIds(step, sourceState);
+  if (!candidates.length) return mapLegacyWorkCenterId(step.workCenterId || "");
+  const explicitWorkCenterId = getRouteStepExplicitPlanningWorkCenterId(step);
+  if (explicitWorkCenterId && candidates.includes(explicitWorkCenterId)) return explicitWorkCenterId;
+  const currentWorkCenterId = mapLegacyWorkCenterId(options.currentWorkCenterId || "");
+  if (currentWorkCenterId && candidates.includes(currentWorkCenterId)) return currentWorkCenterId;
+  return candidates.length === 1 ? candidates[0] : "";
+}
+
+function isPlanningWorkCenterCompatibleWithRouteStep(step = {}, planningWorkCenterId = "", state = null) {
+  const normalizedId = mapLegacyWorkCenterId(planningWorkCenterId);
+  return getRouteStepPlanningCandidateWorkCenterIds(step, state).includes(normalizedId);
+}
+
+function getPlanningResourceForRouteStep(step = {}, planningWorkCenterId = "", preferredResourceId = "") {
+  const normalizedWorkCenterId = mapLegacyWorkCenterId(planningWorkCenterId);
+  const preferredResource = preferredResourceId ? getProductionResource(preferredResourceId) : null;
+  if (
+    preferredResource
+    && getProductionResourceWorkCenterId(preferredResource) === normalizedWorkCenterId
+    && (resourceParticipatesInPlanning(preferredResource) || resourceParticipatesInCalculation(preferredResource))
+  ) {
+    return preferredResource.id;
+  }
+  const resources = getResourcesForWorkCenter(normalizedWorkCenterId);
+  return resources[0]?.id || "";
+}
+
+function getPlanningAssignmentForRouteStep(step = {}, quantity = 1, readyAt = null, options = {}) {
+  const sourceState = options.state || getRuntimePlanningState();
+  const candidates = getRouteStepPlanningCandidateWorkCenterIds(step, sourceState);
+  const fallbackWorkCenterId = mapLegacyWorkCenterId(step.workCenterId || "");
+  const candidateIds = candidates.length ? candidates : [fallbackWorkCenterId].filter(Boolean);
+  let fallbackStart = new Date();
+  try {
+    fallbackStart = fromDateInput(ui?.windowStart || defaultUiState.windowStart);
+  } catch {
+    fallbackStart = new Date();
+  }
+  const earliestStart = readyAt || fallbackStart;
+  const assignments = candidateIds.map((workCenterId) => {
+    const resourceId = getPlanningResourceForRouteStep(step, workCenterId, options.preferredResourceId || step.resourceId || "");
+    const route = getRouteForStep(step);
+    const context = getRouteStepEffectiveOperationContext(route, step, workCenterId, resourceId);
+    const durationMs = calculateRequiredDurationMs(workCenterId, quantity, sourceState, null, context.boardsPerPanel || null, context);
+    const window = findFreeWindow(workCenterId, durationMs, earliestStart, options.ignoreSlotId || null, resourceId || "");
+    return {
+      workCenterId,
+      resourceId,
+      durationMs,
+      window,
+    };
+  });
+  return assignments.sort((left, right) => (
+    toDate(left.window.end) - toDate(right.window.end)
+    || toDate(left.window.start) - toDate(right.window.start)
+  ))[0] || {
+    workCenterId: fallbackWorkCenterId,
+    resourceId: step.resourceId || "",
+    durationMs: 0,
+    window: { start: earliestStart, end: earliestStart },
+  };
+}
+
+function getManualPlanningAssignmentForRouteStep(step = {}, quantity = 1, readyAt = null, options = {}) {
+  const sourceState = options.state || getRuntimePlanningState();
+  const workCenterId = getRouteStepSelectedPlanningWorkCenterId(step, sourceState, {
+    currentWorkCenterId: options.currentWorkCenterId || "",
+  });
+  if (!workCenterId) return null;
+  let fallbackStart = new Date();
+  try {
+    fallbackStart = fromDateInput(ui?.windowStart || defaultUiState.windowStart);
+  } catch {
+    fallbackStart = new Date();
+  }
+  const earliestStart = readyAt || fallbackStart;
+  const resourceId = getPlanningResourceForRouteStep(step, workCenterId, options.preferredResourceId || step.resourceId || "");
+  const route = getRouteForStep(step);
+  const context = getRouteStepEffectiveOperationContext(route, step, workCenterId, resourceId);
+  const durationMs = calculateRequiredDurationMs(workCenterId, quantity, sourceState, null, context.boardsPerPanel || null, context);
+  const window = findFreeWindow(workCenterId, durationMs, earliestStart, options.ignoreSlotId || null, resourceId || "");
+  return {
+    workCenterId,
+    resourceId,
+    durationMs,
+    window,
+  };
+}
+
+function getRouteStepPlanningAssignmentForSlot(step = {}, slot = {}, options = {}) {
+  const sourceState = options.state || getRuntimePlanningState();
+  const quantity = normalizeQuantity(options.quantity ?? slot.quantity ?? 1, 1);
+  const readyAt = options.readyAt || slot.plannedStart || null;
+  const preferredResourceId = options.preferredResourceId ?? slot.resourceId ?? step.resourceId ?? "";
+  const currentWorkCenterId = mapLegacyWorkCenterId(options.workCenterId || slot.workCenterId || "");
+  if (currentWorkCenterId && isPlanningWorkCenterCompatibleWithRouteStep(step, currentWorkCenterId, sourceState)) {
+    return {
+      workCenterId: currentWorkCenterId,
+      resourceId: getPlanningResourceForRouteStep(step, currentWorkCenterId, preferredResourceId),
+      durationMs: 0,
+      window: null,
+    };
+  }
+  const manualAssignment = getManualPlanningAssignmentForRouteStep(step, quantity, readyAt, {
+    state: sourceState,
+    ignoreSlotId: options.ignoreSlotId ?? slot.id ?? null,
+    preferredResourceId,
+    currentWorkCenterId,
+  });
+  if (manualAssignment) return manualAssignment;
+  if (routeStepRequiresManualPlanningLine(step, sourceState)) return null;
+  return getPlanningAssignmentForRouteStep(step, quantity, readyAt, {
+    state: sourceState,
+    ignoreSlotId: options.ignoreSlotId ?? slot.id ?? null,
+    preferredResourceId,
+  });
+}
+
 function resolveWorkCenterIdFromName(value = "") {
   const normalized = normalizeLookupText(value);
   if (!normalized) return "";
@@ -1004,8 +1617,8 @@ function resolveWorkCenterIdFromName(value = "") {
     .find(([name]) => normalizeLookupText(name) === normalized)?.[1];
   if (mappedByName) return mappedByName;
   const lineNumber = getSmtLineNumberFromText(value);
-  if (lineNumber === "1") return "D3_L1";
-  if (lineNumber === "2") return "D3_L2";
+  if (lineNumber === 1) return "D3_L1";
+  if (lineNumber === 2) return "D3_L2";
   if (normalized.includes("офлайн") && (normalized.includes("аои") || normalized.includes("aoi"))) return "D3_AOI";
   const exact = (getRuntimePlanningState()?.workCenters || []).find((center) => (
     normalizeLookupText(center.id) === normalized
@@ -1014,7 +1627,7 @@ function resolveWorkCenterIdFromName(value = "") {
     || (center.legacyDepartmentNames || []).some((name) => normalizeLookupText(name) === normalized)
   ));
   if (exact) return exact.id;
-  if (normalized.includes("smt") || normalized.includes("смт") || normalized.includes("поверхност")) return "D3_L1";
+  if (normalized.includes("smt") || normalized.includes("смт") || normalized.includes("поверхност")) return "D3";
   if (normalized.includes("aoi") || normalized.includes("аои")) return "D3_AOI";
   if (normalized.includes("отмыв")) return "D3_UW";
   if (normalized.includes("руч") || normalized.includes("tht") || normalized.includes("вывод")) return "D5";
@@ -1144,15 +1757,22 @@ function findMesOperationReplacement(source = {}) {
   const mappedWorkCenterId = mapLegacyWorkCenterId(source.workCenterId || source.departmentName || source.workCenter || "");
   const normalizedName = normalizeLookupText(source.operationName || source.name || "");
   const byId = MES_OPERATION_MAP.find((operation) => operation.id === source.operationId || operation.id === source.id);
+  if (byId?.legacyAliasOf) return MES_OPERATION_MAP.find((operation) => operation.id === byId.legacyAliasOf) || byId;
   if (byId) return byId;
   const exact = MES_OPERATION_MAP.find((operation) => (
     operation.workCenterId === mappedWorkCenterId
     && normalizeLookupText(operation.name) === normalizedName
   ));
   if (exact) return exact;
-  if (mappedWorkCenterId === "D1" || normalizedName.includes("склад") || normalizedName.includes("готов")) return MES_OPERATION_MAP.find((operation) => operation.id === "D1_OP2");
+  if (
+    (mappedWorkCenterId === "D1" || normalizedName.includes("склад") || normalizedName.includes("готов") || normalizedName.includes("полуфаб"))
+    && hasManufacturingOutputReceiptText(normalizedName)
+    && !hasNonOutputWarehouseText(normalizedName)
+  ) {
+    return MES_OPERATION_MAP.find((operation) => operation.id === "D1_OP2");
+  }
   if (MES_SMT_WORK_CENTER_IDS.includes(mappedWorkCenterId) || normalizedName.includes("smt") || normalizedName.includes("смт")) {
-    return MES_OPERATION_MAP.find((operation) => operation.workCenterId === (mappedWorkCenterId === "D3_L2" ? "D3_L2" : "D3_L1"));
+    return MES_OPERATION_MAP.find((operation) => operation.id === "D3_L1_OP");
   }
   if (mappedWorkCenterId === "D3_AOI" || normalizedName.includes("aoi") || normalizedName.includes("аои")) return MES_OPERATION_MAP.find((operation) => operation.id === "D3_AOI_OP");
   if (mappedWorkCenterId === "D3_UW" || normalizedName.includes("отмыв")) return MES_OPERATION_MAP.find((operation) => operation.id === "D3_UW_OP");
@@ -1199,17 +1819,63 @@ function mergeMesOperationMap(rows = []) {
 
 function normalizeMesRouteEntity(entity = {}) {
   const replacementOperation = findMesOperationReplacement(entity);
-  const nextWorkCenterId = mapLegacyWorkCenterId(replacementOperation?.workCenterId || entity.workCenterId || "");
+  const nextWorkCenterId = replacementOperation
+    ? getOperationRouteWorkCenterId(replacementOperation)
+    : getRouteInstructionWorkCenterId(entity.workCenterId || "");
+  const planningCandidates = getPlanningCandidateWorkCenterIdsForRouteWorkCenter(nextWorkCenterId, replacementOperation, planningState);
+  const explicitPlanningWorkCenterId = mapLegacyWorkCenterId(entity.planningWorkCenterId || "");
+  const selectedPlanningWorkCenterId = explicitPlanningWorkCenterId && planningCandidates.includes(explicitPlanningWorkCenterId)
+    ? explicitPlanningWorkCenterId
+    : planningCandidates.length === 1 ? planningCandidates[0] : "";
   return {
     ...entity,
     operationId: replacementOperation?.id || entity.operationId || "",
     operationName: replacementOperation?.name || entity.operationName || entity.name || "",
     workCenterId: nextWorkCenterId || entity.workCenterId || "",
-    resourceId: mapLegacyResourceId(entity.resourceId || ""),
+    planningWorkCenterId: selectedPlanningWorkCenterId && planningCandidates.length > 1 ? selectedPlanningWorkCenterId : "",
+    resourceId: selectedPlanningWorkCenterId
+      ? getPlanningResourceForRouteStep({ ...entity, workCenterId: nextWorkCenterId }, selectedPlanningWorkCenterId, mapLegacyResourceId(entity.resourceId || ""))
+      : "",
     unitsPerHour: replacementOperation?.unitsPerHour || entity.unitsPerHour || getWorkCenterUnitsPerHour(nextWorkCenterId) || 0,
     requiresBatch: replacementOperation?.requiresBatch ?? entity.requiresBatch,
     isWarehouseOperation: replacementOperation?.isWarehouse ?? entity.isWarehouseOperation,
   };
+}
+
+function replaceLegacyOrganizationTerms(value) {
+  return String(value || "")
+    .replace(/Все подразделения/g, "Все отделы")
+    .replace(/все подразделения/g, "все отделы")
+    .replace(/Подразделения,/g, "Отделы,")
+    .replace(/подразделения,/g, "отделы,")
+    .replace(/подразделениями/gi, "отделами")
+    .replace(/подразделениях/gi, "отделах")
+    .replace(/подразделениям/gi, "отделам")
+    .replace(/подразделений/gi, "отделов")
+    .replace(/подразделения/gi, "отдела")
+    .replace(/подразделение/gi, "отдел");
+}
+
+function normalizeDirectoryOrganizationTerminology() {
+  if (!directoryState) return false;
+  let changed = false;
+  const normalizeRowFields = (row, fields) => {
+    let rowChanged = false;
+    const nextRow = { ...row };
+    fields.forEach((field) => {
+      if (!Object.prototype.hasOwnProperty.call(nextRow, field)) return;
+      const nextValue = replaceLegacyOrganizationTerms(nextRow[field]);
+      if (nextValue === String(nextRow[field] || "")) return;
+      nextRow[field] = nextValue;
+      rowChanged = true;
+    });
+    if (rowChanged) changed = true;
+    return rowChanged ? nextRow : row;
+  };
+
+  directoryState.norms = (directoryState.norms || []).map((row) => normalizeRowFields(row, ["name", "value", "scope", "status"]));
+  directoryState.statuses = (directoryState.statuses || []).map((row) => normalizeRowFields(row, ["name", "type", "usage"]));
+  return changed;
 }
 
 function applyMesOrgStructureDefaults() {
@@ -1229,13 +1895,27 @@ function applyMesOrgStructureDefaults() {
   const routeStepById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
   const nextSlots = (planningState.slots || []).map((slot) => {
     const step = routeStepById.get(slot.routeStepId);
+    const currentWorkCenterId = mapLegacyWorkCenterId(slot.workCenterId || "");
+    const planningWorkCenterId = step && isPlanningWorkCenterCompatibleWithRouteStep(step, currentWorkCenterId, planningState)
+      ? currentWorkCenterId
+      : step
+        ? getManualPlanningAssignmentForRouteStep(step, slot.quantity || 1, slot.plannedStart || new Date(), {
+          state: planningState,
+          ignoreSlotId: slot.id,
+          currentWorkCenterId,
+        })?.workCenterId || currentWorkCenterId
+        : currentWorkCenterId;
+    const resourceId = step
+      ? getPlanningResourceForRouteStep(step, planningWorkCenterId, slot.resourceId || step.resourceId || "")
+      : mapLegacyResourceId(slot.resourceId || "");
     return recalculateSlotEndByQuantity({
       ...slot,
-      workCenterId: mapLegacyWorkCenterId(step?.workCenterId || slot.workCenterId),
+      routeWorkCenterId: step?.workCenterId || slot.routeWorkCenterId || "",
+      workCenterId: planningWorkCenterId,
       routeStepId: slot.routeStepId,
       operationName: step?.operationName || slot.operationName || "",
       operationId: step?.operationId || slot.operationId || "",
-      resourceId: mapLegacyResourceId(step?.resourceId || slot.resourceId || ""),
+      resourceId,
       unitsPerHour: step?.unitsPerHour || slot.unitsPerHour || 0,
       calculationType: step?.calculationType || slot.calculationType || "",
       secondsPerPanel: step?.secondsPerPanel || slot.secondsPerPanel || 0,
@@ -1264,6 +1944,10 @@ function applyMesOrgStructureDefaults() {
     directoryState.resources = [];
     directoryState.equipment = [];
     directoryState.departments = [];
+    directoryChanged = true;
+  }
+
+  if (normalizeDirectoryOrganizationTerminology()) {
     directoryChanged = true;
   }
 
@@ -1315,7 +1999,7 @@ function getProductionResourcesForWorkCenter(workCenterId, { includeInactive = f
 }
 
 function makeFallbackProductionResource(workCenterId) {
-  const center = getWorkCenter(workCenterId) || { id: workCenterId, name: "Подразделение", code: workCenterId };
+  const center = getWorkCenter(workCenterId) || { id: workCenterId, name: "Отдел", code: workCenterId };
   return normalizeProductionResource({
     id: `resource-${center.id}-norm`,
     name: `${center.name} · норматив`,
@@ -1347,8 +2031,23 @@ function isPlanningWorkCenter(center) {
 }
 
 function getPlanningWorkCenters({ includeWarehouse = true } = {}) {
-  return (planningState.workCenters || [])
+  const sourceState = getRuntimePlanningState({ workCenters: MES_WORK_CENTERS });
+  return (sourceState?.workCenters || [])
     .filter((center) => isPlanningWorkCenter(center))
+    .filter((center) => includeWarehouse || !isWarehouseWorkCenterId(center.id));
+}
+
+function isRouteInstructionWorkCenter(center) {
+  if (!center || center.isActive === false) return false;
+  if (center.id === "D3") return true;
+  if (MES_SMT_WORK_CENTER_IDS.includes(center.id)) return false;
+  return isPlanningWorkCenter(center);
+}
+
+function getRouteInstructionWorkCenters({ includeWarehouse = true } = {}) {
+  const sourceState = getRuntimePlanningState({ workCenters: MES_WORK_CENTERS });
+  return (sourceState?.workCenters || [])
+    .filter((center) => isRouteInstructionWorkCenter(center))
     .filter((center) => includeWarehouse || !isWarehouseWorkCenterId(center.id));
 }
 
@@ -1379,6 +2078,7 @@ function getDefaultWorkMode(workSchedule, isWarehouse = false) {
 
 function formatWorkShift(workSchedule, workMode) {
   if (!workSchedule) return "";
+  if (workSchedule === "2/2") return `2/2 бригады · ежедневно${workMode ? ` ${workMode}` : ""}`.trim();
   return `${workSchedule}${workMode ? ` ${workMode}` : ""}`.trim();
 }
 
@@ -1427,7 +2127,8 @@ function getLegacyDepartmentTargetCenterId(departmentName = "") {
   const direct = LEGACY_DEPARTMENT_TO_WORK_CENTER_ID[departmentName];
   if (direct) return direct;
   const normalized = normalizeLookupText(EMPLOYEE_DEPARTMENT_MIGRATION[departmentName] || departmentName);
-  const exact = (planningState.workCenters || []).find((center) => (
+  const sourceState = getRuntimePlanningState({ workCenters: MES_WORK_CENTERS });
+  const exact = (sourceState?.workCenters || []).find((center) => (
     normalizeLookupText(center.name) === normalized
     || normalizeLookupText(center.code) === normalized
   ));
@@ -1516,7 +2217,7 @@ function migrateDepartmentsToUnifiedWorkCenters() {
       workSchedule: "",
       workMode: "",
       shift: "",
-      description: "Мигрировано из прежнего справочника подразделений.",
+      description: "Мигрировано из прежнего справочника отделов.",
       isActive: department.status !== "Отключен",
     }));
     planningChanged = true;
@@ -1782,7 +2483,7 @@ function isUnsavedCreateForm(form) {
   const rowIndexValue = form.querySelector('[name="rowIndex"]')?.value;
   if (isNewValue === "yes" || rowIndexValue === "-1") return true;
   if (form.id === "slotForm" && !form.querySelector('[name="slotId"]')?.value) return true;
-  return ["splitForm", "projectForm"].includes(form.id);
+  return ["splitForm"].includes(form.id);
 }
 
 function setSaveButtonDisabled(button, disabled) {
@@ -1880,6 +2581,8 @@ function normalizeCalculatorState(state) {
       ...(state?.componentCounts || {}),
     },
     componentCountsByOperation,
+    machineSplitByBom: normalizeSmtMachineSplitStore(state?.machineSplitByBom),
+    smtPackageCoefficientsByMachine: normalizeSmtPackageCoefficientStore(state?.smtPackageCoefficientsByMachine),
     lastSavedAt: String(state?.lastSavedAt || ""),
     inputsSavedAt: String(state?.inputsSavedAt || ""),
     inputsSavedSignature: String(state?.inputsSavedSignature || ""),
@@ -1887,11 +2590,78 @@ function normalizeCalculatorState(state) {
   };
 }
 
+function normalizeSmtMachineSplitStore(store = {}) {
+  if (!store || typeof store !== "object" || Array.isArray(store)) return {};
+  return Object.fromEntries(Object.entries(store)
+    .map(([key, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return [key, {}];
+      return [key, Object.fromEntries(Object.entries(value)
+        .map(([componentId, count]) => [componentId, Math.max(0, Math.round(Number(count || 0)))])
+        .filter(([, count]) => Number.isFinite(count)))];
+    })
+    .filter(([key]) => key));
+}
+
+function normalizeSmtPackageCoefficientStore(store = {}) {
+  if (!store || typeof store !== "object" || Array.isArray(store)) return {};
+  return Object.fromEntries(Object.entries(store)
+    .map(([machineId, packageValues]) => {
+      if (!packageValues || typeof packageValues !== "object" || Array.isArray(packageValues)) return [machineId, {}];
+      return [machineId, Object.fromEntries(Object.entries(packageValues)
+        .map(([packageKey, coefficient]) => {
+          const normalizedCoefficient = normalizeSmtPackageCoefficientValue(coefficient);
+          return [
+            normalizeSmtPackageCoefficientKey(packageKey),
+            normalizedCoefficient ?? 0,
+          ];
+        })
+        .filter(([packageKey, coefficient]) => packageKey && coefficient > 0))];
+    })
+    .filter(([machineId]) => machineId));
+}
+
+function normalizeSmtPackageCoefficientValue(value) {
+  const number = typeof value === "number"
+    ? value
+    : Number(String(value ?? "").trim().replace(",", "."));
+  if (!Number.isFinite(number) || number <= 0) return null;
+  const scale = 100;
+  return Math.max(SMT_MIN_PACKAGE_COEFFICIENT, Math.trunc((number + 1e-9) * scale) / scale);
+}
+
 function normalizeOptionalPositiveInteger(value) {
   if (value === "" || value === null || value === undefined) return "";
   const number = Math.round(Number(value));
   if (!Number.isFinite(number) || number <= 0) return "";
   return number;
+}
+
+function normalizeGanttDependencyRouteStore(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  return Object.fromEntries(Object.entries(value).map(([routeKey, route]) => {
+    const offsets = route?.offsets && typeof route.offsets === "object" && !Array.isArray(route.offsets)
+      ? route.offsets
+      : {};
+    const normalizedOffsets = Object.fromEntries(Object.entries(offsets).flatMap(([pointIndex, offset]) => {
+      const index = Number(pointIndex);
+      const x = Number(offset?.x || 0);
+      const y = Number(offset?.y || 0);
+      if (!Number.isInteger(index) || index < 0 || (!Number.isFinite(x) && !Number.isFinite(y))) return [];
+      const normalized = {
+        x: Number.isFinite(x) ? round(x) : 0,
+        y: Number.isFinite(y) ? round(y) : 0,
+      };
+      if (Math.abs(normalized.x) < 0.1 && Math.abs(normalized.y) < 0.1) return [];
+      return [[String(index), normalized]];
+    }));
+
+    return [String(routeKey), { offsets: normalizedOffsets }];
+  }).filter(([, route]) => Object.keys(route.offsets).length));
+}
+
+function cloneGanttDependencyRouteStore(value = {}) {
+  return normalizeGanttDependencyRouteStore(JSON.parse(JSON.stringify(value || {})));
 }
 
 function loadUiState() {
@@ -1902,19 +2672,27 @@ function loadUiState() {
     return {
       ...defaultUiState,
       ...parsed,
+      activeRole: normalizeInterfaceRoleId(parsed.activeRole),
       expandedProjects: new Set(parsed.expandedProjects || defaultUiState.expandedProjects),
       selectedDirectoryRows: parsed.selectedDirectoryRows || {},
       spekiStaleItemIds: Array.isArray(parsed.spekiStaleItemIds) ? parsed.spekiStaleItemIds : [],
       spekiCollapsedBomIds: Array.isArray(parsed.spekiCollapsedBomIds) ? parsed.spekiCollapsedBomIds : [],
+      routeBindingMode: parsed.routeBindingMode === "bom" ? "bom" : "product",
+      planningWorkItem: String(parsed.planningWorkItem || ""),
       activeRkdStep: normalizeRkdStepId(parsed.activeRkdStep),
+      activeRkdId: String(parsed.activeRkdId || ""),
       shopMapEditMode: Boolean(parsed.shopMapEditMode),
       shopMapWidgetLayouts: normalizeShopMapLayoutStore(parsed.shopMapWidgetLayouts),
+      ganttDependencyEditMode: false,
+      ganttDependencyRoutes: normalizeGanttDependencyRouteStore(parsed.ganttDependencyRoutes),
+      ganttDependencyRouteDrafts: null,
+      ganttDependencyDrag: null,
       directoryEditor: null,
       confirmDialog: null,
       selectedSlotId: null,
       editor: null,
       splitSlotId: null,
-      projectModal: false,
+      routeSmtPopup: null,
       drag: null,
       timelineCounts: {
         ...defaultUiState.timelineCounts,
@@ -1930,14 +2708,15 @@ function loadUiState() {
   }
 }
 
-function persistUiState() {
+function persistUiState(options = {}) {
   const shell = app.querySelector("[data-gantt-shell]");
-  if (shell) {
+  if (shell && !options.skipRememberScroll) {
     ui.scrollLeft = shell.scrollLeft;
     ui.scrollTop = shell.scrollTop;
   }
 
   localStorage.setItem(UI_STORAGE_KEY, JSON.stringify({
+      activeRole: normalizeInterfaceRoleId(ui.activeRole),
       activeModule: ui.activeModule,
       activeDirectory: ui.activeDirectory,
       activeProjectId: ui.activeProjectId,
@@ -1947,10 +2726,13 @@ function persistUiState() {
       spekiStaleItemIds: ui.spekiStaleItemIds,
       spekiCollapsedBomIds: ui.spekiCollapsedBomIds,
       activeRkdStep: ui.activeRkdStep,
+      activeRkdId: ui.activeRkdId,
       activeBomId: ui.activeBomId,
       activeNomenclatureId: ui.activeNomenclatureId,
       activeOperationId: ui.activeOperationId,
-      activeRouteId: ui.activeRouteId,
+	      activeRouteId: ui.activeRouteId,
+	      routeBindingMode: ui.routeBindingMode,
+      planningWorkItem: ui.planningWorkItem,
       activeShopMapWidgetId: ui.activeShopMapWidgetId,
       shopMapEditMode: ui.shopMapEditMode,
       shopMapWidgetLayouts: ui.shopMapWidgetLayouts,
@@ -1966,6 +2748,7 @@ function persistUiState() {
     hideSharedNonWorkingZones: ui.hideSharedNonWorkingZones,
     ganttZoom: ui.ganttZoom,
     ganttSlotContent: ui.ganttSlotContent,
+    ganttDependencyRoutes: normalizeGanttDependencyRouteStore(ui.ganttDependencyRoutes),
     timelineCounts: ui.timelineCounts,
     expandedProjects: [...ui.expandedProjects],
     scrollLeft: ui.scrollLeft,
@@ -2048,18 +2831,26 @@ function normalizeDirectoryRow(sectionId, row) {
   if (sectionId === "operationMap" || sectionId === "operations") {
     const { type: _legacyType, operationType: _legacyOperationType, ...rowWithoutType } = row || {};
     const legacyWarehouse = _legacyType === "warehouse" || Boolean(row.isWarehouse);
-    const fallbackCenterId = legacyWarehouse ? "D1" : planningState?.workCenters?.find((center) => center.id !== "D1" && center.isPlanningUnit !== false)?.id || "D5";
+    const fallbackCenterId = legacyWarehouse ? "D1" : getRouteInstructionWorkCenters({ includeWarehouse: false })[0]?.id || "D5";
     const mappedWorkCenterId = mapLegacyWorkCenterId(row.workCenterId || fallbackCenterId);
-    const workCenterId = String(mappedWorkCenterId || fallbackCenterId);
+    const workCenterId = getRouteInstructionWorkCenterId(mappedWorkCenterId || fallbackCenterId) || String(mappedWorkCenterId || fallbackCenterId);
     const isWarehouse = workCenterId === "D1" || legacyWarehouse;
+    const isOutputReceipt = row.isOutputReceipt === true
+      || row.isOutputReceipt === "true"
+      || row.warehouseFlow === "production_receipt";
     return {
       ...rowWithoutType,
       name: String(row.name || row.operationName || "").trim(),
       code: String(row.code || "").trim(),
       workCenterId,
+      routeWorkCenterId: getRouteInstructionWorkCenterId(row.routeWorkCenterId || workCenterId),
+      planningWorkCenterIds: Array.isArray(row.planningWorkCenterIds) ? row.planningWorkCenterIds.map((id) => String(id || "").trim()).filter(Boolean) : [],
       unitsPerHour: Math.max(0, Math.round(Number(row.unitsPerHour || row.rate || 0) * 10) / 10),
       requiresBatch: row.requiresBatch === undefined ? !isWarehouse : Boolean(row.requiresBatch),
       isWarehouse,
+      isOutputReceipt,
+      warehouseFlow: String(row.warehouseFlow || (isOutputReceipt ? "production_receipt" : "")).trim(),
+      legacyAliasOf: String(row.legacyAliasOf || "").trim(),
       status: String(row.status || "Активен").trim(),
       updatedAt: row.updatedAt || "",
     };
@@ -2099,6 +2890,30 @@ function normalizeDirectoryRow(sectionId, row) {
     };
   }
 
+  if (sectionId === "rkdKits") {
+    const boardLinks = Array.isArray(row.boardLinks) ? row.boardLinks : Array.isArray(row.boards) ? row.boards : [];
+    const fileLinks = Array.isArray(row.fileLinks) ? row.fileLinks : Array.isArray(row.files) ? row.files : [];
+    const status = RKD_STATUSES.includes(row.status) ? row.status : "Черновик";
+    return {
+      ...row,
+      id: String(row.id || ""),
+      number: String(row.number || "").trim(),
+      name: String(row.name || "").trim(),
+      type: String(row.type || "").trim(),
+      revision: String(row.revision || "").trim(),
+      status,
+      nomenclatureItemId: String(row.nomenclatureItemId || "").trim(),
+      productSpecificationId: String(row.productSpecificationId || "").trim(),
+      responsibleUserId: String(row.responsibleUserId || "").trim(),
+      technicalRequirements: String(row.technicalRequirements || "").trim(),
+      comment: String(row.comment || "").trim(),
+      boardLinks: boardLinks.map((item, index) => normalizeRkdBoardLink(item, index)),
+      fileLinks: fileLinks.map((item, index) => normalizeRkdFileLink(item, index)),
+      createdAt: row.createdAt || "",
+      updatedAt: row.updatedAt || "",
+    };
+  }
+
   if (sectionId === "employees") {
     let migratedDepartment = EMPLOYEE_DEPARTMENT_MIGRATION[row.department] || row.department || "Отдел поверхностного монтажа";
     if (row.department === "Производство") {
@@ -2114,9 +2929,40 @@ function normalizeDirectoryRow(sectionId, row) {
   return row;
 }
 
+function normalizeRkdBoardLink(row = {}, index = 0) {
+  const quantity = normalizeOptionalPositiveInteger(row.quantityInProduct ?? row.quantity ?? 1) || 1;
+  return {
+    id: String(row.id || makeId("rkd-board")),
+    boardNomenclatureItemId: String(row.boardNomenclatureItemId || row.nomenclatureItemId || "").trim(),
+    designation: String(row.designation || "").trim(),
+    quantityInProduct: quantity,
+    bomListId: String(row.bomListId || row.specificationId || "").trim(),
+    productionSpecificationId: String(row.productionSpecificationId || "").trim(),
+    routeMapId: String(row.routeMapId || row.routeId || "").trim(),
+    mountingSide: String(row.mountingSide || "").trim(),
+    mountingType: String(row.mountingType || "").trim(),
+    sortOrder: Math.max(1, Math.round(Number(row.sortOrder || index + 1))),
+    comment: String(row.comment || "").trim(),
+  };
+}
+
+function normalizeRkdFileLink(row = {}, index = 0) {
+  return {
+    id: String(row.id || makeId("rkd-file")),
+    boardLinkId: String(row.boardLinkId || "").trim(),
+    fileId: String(row.fileId || "").trim(),
+    fileName: String(row.fileName || row.name || "").trim(),
+    fileType: String(row.fileType || row.type || "").trim(),
+    externalRef: String(row.externalRef || row.url || "").trim(),
+    isActual: row.isActual === undefined ? true : Boolean(row.isActual),
+    sortOrder: Math.max(1, Math.round(Number(row.sortOrder || index + 1))),
+    comment: String(row.comment || "").trim(),
+  };
+}
+
 function shouldKeepDirectoryRow(sectionId, row) {
   if (!row || typeof row !== "object") return false;
-  if ((sectionId === "bomLists" || sectionId === "specifications") && row.id) return true;
+  if ((sectionId === "bomLists" || sectionId === "specifications" || sectionId === "rkdKits") && row.id) return true;
   return !isBlankDirectoryRow(row);
 }
 
@@ -2132,12 +2978,16 @@ function mergeMesWorkCenters(rows = []) {
   const existingById = new Map((Array.isArray(rows) ? rows : [])
     .filter((center) => center?.id && !MES_OBSOLETE_WORK_CENTER_IDS.has(center.id))
     .map((center) => [center.id, center]));
+  const forcedDescriptionIds = new Set(["D3", "D3_L1", "D3_L2"]);
   const merged = MES_WORK_CENTERS.map((center) => normalizeWorkCenterUnit({
     ...center,
     ...(existingById.get(center.id) || {}),
     id: center.id,
     name: center.name,
     code: center.code,
+    description: forcedDescriptionIds.has(center.id)
+      ? center.description
+      : (existingById.get(center.id)?.description || center.description || ""),
     parentWorkCenterId: center.parentWorkCenterId || "",
   }));
   const mesIds = new Set(MES_WORK_CENTERS.map((center) => center.id));
@@ -2148,20 +2998,95 @@ function mergeMesWorkCenters(rows = []) {
 }
 
 function normalizePlanningState(state) {
-  state.projects = [];
-  state.batches = Array.isArray(state.batches) ? state.batches : [];
-  state.routes = Array.isArray(state.routes) ? state.routes : [];
-  state.routeSteps = Array.isArray(state.routeSteps) ? state.routeSteps : [];
-  state.slots = Array.isArray(state.slots) ? state.slots : [];
-  state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
-  state.workCenters = mergeMesWorkCenters(state.workCenters);
-  state.routeSteps = state.routeSteps.map((step) => normalizeRouteStepCalculationFields(step, state));
+  const previousRuntimeState = planningState;
+  const shouldUseStateAsRuntime = !planningState;
+  if (shouldUseStateAsRuntime) planningState = state;
 
-  removeCanceledRouteGanttSlots(state);
-  state.slots = state.slots.map((slot) => recalculateSlotEndByQuantity(slot, state));
-  addMissingWarehouseSlots(state);
-  state.slots = state.slots.map((slot) => recalculateSlotEndByQuantity(slot, state));
-  return state;
+  try {
+    state.projects = [];
+    state.batches = Array.isArray(state.batches) ? state.batches : [];
+    state.routes = Array.isArray(state.routes) ? state.routes : [];
+    state.routeSteps = Array.isArray(state.routeSteps) ? state.routeSteps : [];
+    state.slots = Array.isArray(state.slots) ? state.slots : [];
+    state.warehouseMovements = Array.isArray(state.warehouseMovements)
+      ? state.warehouseMovements.map(normalizeWarehouseMovement).filter(Boolean)
+      : [];
+    state.warehouseReservations = Array.isArray(state.warehouseReservations)
+      ? state.warehouseReservations.map(normalizeWarehouseReservation).filter(Boolean)
+      : [];
+    state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
+    state.workCenters = mergeMesWorkCenters(state.workCenters);
+    state.routeSteps = state.routeSteps.map((step) => normalizeRouteStepCalculationFields(step, state));
+
+    removeCanceledRouteGanttSlots(state);
+    state.slots = state.slots.map((slot) => recalculateSlotEndByQuantity(slot, state));
+    return state;
+  } finally {
+    if (shouldUseStateAsRuntime) planningState = previousRuntimeState;
+  }
+}
+
+function normalizeWarehouseQuantity(value) {
+  const quantity = Number(String(value ?? "").replace(",", "."));
+  if (!Number.isFinite(quantity) || quantity <= 0) return 0;
+  return Math.round(quantity * 1000) / 1000;
+}
+
+function normalizeWarehouseMovement(row = {}) {
+  const movementType = WAREHOUSE_MOVEMENT_TYPE_VALUES.has(row.movementType || row.type)
+    ? String(row.movementType || row.type)
+    : "receipt";
+  const quantity = normalizeWarehouseQuantity(row.quantity);
+  if (!row?.id || !row?.nomenclatureItemId || quantity <= 0) {
+    return row?.id ? {
+      ...row,
+      movementType,
+      quantity,
+      nomenclatureItemId: String(row.nomenclatureItemId || ""),
+      routeId: String(row.routeId || ""),
+      slotId: String(row.slotId || ""),
+      warehouseName: String(row.warehouseName || ""),
+      locationName: String(row.locationName || ""),
+      comment: String(row.comment || ""),
+      createdAt: row.createdAt || new Date().toISOString(),
+    } : null;
+  }
+  return {
+    ...row,
+    id: String(row.id),
+    movementType,
+    quantity,
+    nomenclatureItemId: String(row.nomenclatureItemId || ""),
+    routeId: String(row.routeId || ""),
+    slotId: String(row.slotId || ""),
+    warehouseName: String(row.warehouseName || ""),
+    locationName: String(row.locationName || ""),
+    comment: String(row.comment || ""),
+    createdAt: row.createdAt || new Date().toISOString(),
+  };
+}
+
+function normalizeWarehouseReservation(row = {}) {
+  const quantity = normalizeWarehouseQuantity(row.quantity);
+  if (!row?.id || !row?.nomenclatureItemId || quantity <= 0) {
+    return row?.id ? {
+      ...row,
+      quantity,
+      nomenclatureItemId: String(row.nomenclatureItemId || ""),
+      routeId: String(row.routeId || ""),
+      comment: String(row.comment || ""),
+      createdAt: row.createdAt || new Date().toISOString(),
+    } : null;
+  }
+  return {
+    ...row,
+    id: String(row.id),
+    quantity,
+    nomenclatureItemId: String(row.nomenclatureItemId || ""),
+    routeId: String(row.routeId || ""),
+    comment: String(row.comment || ""),
+    createdAt: row.createdAt || new Date().toISOString(),
+  };
 }
 
 function removeCanceledRouteGanttSlots(state) {
@@ -2178,48 +3103,6 @@ function removeCanceledRouteGanttSlots(state) {
     canceledRouteIds.has(slot.routeId)
     || canceledStepIds.has(slot.routeStepId)
   ));
-}
-
-function addMissingWarehouseSlots(state) {
-  const stamp = new Date().toISOString();
-  const groups = Object.values(state.slots.reduce((map, slot) => {
-    const key = `${slot.routeId || slot.projectId}:${slot.batchId}`;
-    if (!map[key]) map[key] = [];
-    map[key].push(slot);
-    return map;
-  }, {}));
-
-  for (const slots of groups) {
-    if (!slots.length || slots.some((slot) => isWarehouseWorkCenterId(slot.workCenterId))) continue;
-
-    const latest = [...slots].sort((left, right) => toDate(right.plannedEnd) - toDate(left.plannedEnd))[0];
-    const route = state.routes.find((item) => item.id === latest.routeId)
-      || state.routes.find((item) => (item.specificationId === latest.specificationId || item.projectId === latest.projectId) && item.isDefault)
-      || state.routes.find((item) => item.specificationId === latest.specificationId || item.projectId === latest.projectId);
-    const warehouseStep = state.routeSteps.find((step) => step.routeId === route?.id && isWarehouseWorkCenterId(step.workCenterId));
-    if (!warehouseStep) continue;
-
-    const plannedStart = addMs(latest.plannedEnd, 60 * 60 * 1000);
-    const quantity = normalizeQuantity(latest.quantity);
-    const plannedEnd = calculatePlannedEndByQuantity(plannedStart, "D1", quantity, state, warehouseStep.unitsPerHour || null, warehouseStep.boardsPerPanel || null, warehouseStep);
-    state.slots.push({
-      id: `s-${latest.projectId}-${latest.batchId}-warehouse`,
-      routeId: route.id,
-      specificationId: latest.specificationId || route.specificationId || latest.projectId,
-      projectId: latest.specificationId || route.specificationId || latest.projectId,
-      batchId: latest.batchId,
-      workCenterId: "D1",
-      routeStepId: warehouseStep.id,
-      operationName: warehouseStep.operationName || "",
-      quantity,
-      plannedStart: toSlotDateTime(plannedStart),
-      plannedEnd: toSlotDateTime(plannedEnd),
-      status: "planned",
-      comment: "Финальная приемка партии на склад.",
-      createdAt: stamp,
-      updatedAt: stamp,
-    });
-  }
 }
 
 function getWorkCenterUnitsPerHour(workCenterId, state = null) {
@@ -2251,7 +3134,7 @@ function normalizeBoardsPerPanel(value, fallback = 1) {
 }
 
 function workCenterUsesPanelBatching(workCenterId) {
-  return ["D3_L1", "D3_L2", "D3_AOI", "D3_UW", "D3_CC", "D3_MANUAL_CC"].includes(mapLegacyWorkCenterId(workCenterId));
+  return ["D3", "D3_L1", "D3_L2", "D3_AOI", "D3_UW", "D3_CC", "D3_MANUAL_CC"].includes(mapLegacyWorkCenterId(workCenterId));
 }
 
 function getSpecificationItemBoardsPerPanel(item) {
@@ -2318,42 +3201,65 @@ function getDefaultOperationCalculationType(workCenterId, operationContext = nul
 
 function normalizeRouteStepCalculationFields(step = {}, state = null) {
   const { operationType: _legacyOperationType, ...stepWithoutOperationType } = step || {};
-  const workCenterId = mapLegacyWorkCenterId(stepWithoutOperationType.workCenterId || "D5");
+  const hasWorkCenterField = Object.prototype.hasOwnProperty.call(stepWithoutOperationType, "workCenterId");
+  const rawWorkCenterId = String(stepWithoutOperationType.workCenterId || "").trim();
+  const workCenterId = hasWorkCenterField && !rawWorkCenterId
+    ? ""
+    : mapLegacyWorkCenterId(rawWorkCenterId || "D5");
   const calculationType = getDefaultOperationCalculationType(workCenterId, stepWithoutOperationType);
   const boardsPerPanel = normalizeBoardsPerPanel(stepWithoutOperationType.boardsPerPanel, 1);
-  const resources = getDurationResourcesForWorkCenter(workCenterId, state);
-  const resource = resources.find((item) => item.id === stepWithoutOperationType.resourceId) || resources[0] || null;
+  const operation = stepWithoutOperationType.operationId ? getOperationMapItem(stepWithoutOperationType.operationId) : null;
+  const planningCandidates = getPlanningCandidateWorkCenterIdsForRouteWorkCenter(workCenterId, operation, state);
+  const singlePlanningWorkCenterId = planningCandidates.length === 1 ? planningCandidates[0] : "";
+  const explicitPlanningWorkCenterId = mapLegacyWorkCenterId(stepWithoutOperationType.planningWorkCenterId || "");
+  const selectedPlanningWorkCenterId = explicitPlanningWorkCenterId && planningCandidates.includes(explicitPlanningWorkCenterId)
+    ? explicitPlanningWorkCenterId
+    : singlePlanningWorkCenterId;
+  const resources = selectedPlanningWorkCenterId ? getDurationResourcesForWorkCenter(selectedPlanningWorkCenterId, state) : getDurationResourcesForWorkCenter(workCenterId, state);
+  const resource = selectedPlanningWorkCenterId
+    ? resources.find((item) => item.id === stepWithoutOperationType.resourceId) || resources[0] || null
+    : null;
   const secondsPerPanel = Number(stepWithoutOperationType.secondsPerPanel || 0) > 0
     ? Math.max(1, Number(stepWithoutOperationType.secondsPerPanel))
-    : calculationType === "components" || calculationType === "rate"
+    : !workCenterId || calculationType === "components" || calculationType === "rate"
       ? 0
       : getDefaultSecondsPerPanel(workCenterId, boardsPerPanel);
 
-  return {
-    ...stepWithoutOperationType,
-    workCenterId,
-    calculationType,
-    boardsPerPanel,
-    resourceId: stepWithoutOperationType.resourceId || resource?.id || "",
-    secondsPerPanel,
-    unitsPerHour: Number(stepWithoutOperationType.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId, state) || 0),
-    setupMin: Math.max(0, Number(stepWithoutOperationType.setupMin ?? resource?.changeoverMin ?? 0)),
-  };
-}
+	  return {
+	    ...stepWithoutOperationType,
+	    workCenterId,
+	    planningWorkCenterId: selectedPlanningWorkCenterId && planningCandidates.length > 1 ? selectedPlanningWorkCenterId : "",
+	    calculationType,
+	    boardsPerPanel,
+	    resourceId: selectedPlanningWorkCenterId ? stepWithoutOperationType.resourceId || resource?.id || "" : "",
+	    secondsPerPanel,
+	    unitsPerHour: Number(stepWithoutOperationType.unitsPerHour || (workCenterId ? getWorkCenterUnitsPerHour(workCenterId, state) : 0) || 0),
+	    setupMin: Math.max(0, Number(stepWithoutOperationType.setupMin ?? resource?.changeoverMin ?? 0)),
+	    operationInputs: normalizeRouteStepFlowItems(stepWithoutOperationType.operationInputs, "input"),
+	    operationOutputs: normalizeRouteStepFlowItems(stepWithoutOperationType.operationOutputs, "output"),
+	  };
+	}
 
 function getDurationOperationContext(operationContext, workCenterId, state = null, unitsPerHourOverride = null, boardsPerPanelOverride = null) {
   const sourceState = state || getRuntimePlanningState();
   const routeStep = operationContext?.routeStepId
     ? sourceState?.routeSteps?.find((step) => step.id === operationContext.routeStepId)
     : null;
+  const route = routeStep
+    ? (sourceState?.routes || []).find((item) => item.id === routeStep.routeId) || null
+    : null;
+  const effectiveContext = routeStep
+    ? getRouteStepEffectiveOperationContext(route, routeStep, workCenterId || operationContext?.workCenterId || "", operationContext?.resourceId || "")
+    : null;
   const context = {
-    ...(routeStep || {}),
+    ...(effectiveContext || routeStep || {}),
     ...(operationContext || {}),
   };
   const resolvedWorkCenterId = workCenterId || context.workCenterId || routeStep?.workCenterId || "";
-  const boardsPerPanel = normalizeBoardsPerPanel(boardsPerPanelOverride || context.boardsPerPanel, 1);
+  const boardsPerPanel = normalizeBoardsPerPanel(effectiveContext?.boardsPerPanel || boardsPerPanelOverride || context.boardsPerPanel, 1);
   return {
     ...context,
+    bomListId: effectiveContext?.bomListId || context.bomListId || "",
     workCenterId: resolvedWorkCenterId,
     unitsPerHour: unitsPerHourOverride || context.unitsPerHour || "",
     boardsPerPanel,
@@ -2411,9 +3317,8 @@ function buildSmtComponentDurationRows(bom, resource, boardsPerPanel, boardQuant
   const counts = getDurationComponentCounts(bom);
   return getDurationComponentTypes().map((type) => {
     const count = Math.max(0, Math.round(Number(counts[type.id] ?? 0)));
-    const coefficient = Math.max(0.1, Number(type.coefficient || 1));
-    const typeLimitCph = Math.max(1, Number(type.placementsPerHour || resourceBaseCph / coefficient));
-    const effectiveCph = Math.max(1, Math.min(typeLimitCph, resourceBaseCph / coefficient) * efficiency);
+    const coefficient = Math.max(SMT_MIN_PACKAGE_COEFFICIENT, Number(type.coefficient || 1));
+    const effectiveCph = Math.max(1, resourceBaseCph * coefficient * efficiency);
     const secondsPerBoard = count > 0 ? count / effectiveCph * 3600 : 0;
     return {
       type,
@@ -2434,6 +3339,19 @@ function calculateSmtOperationDurationMs(operationContext, quantity, state = nul
   const panelCount = Math.max(1, Math.ceil(boardQuantity / boardsPerPanel));
   const resource = getOperationSmtResource(operationContext, state);
   const bom = getDurationBomList(operationContext);
+  const coefficientStore = operationContext?.smtPackageCoefficientsByMachine || operationContext?.machineCoefficients || null;
+  const splitResult = bom ? calculateSmtMachineSplitResult(bom, resource, {
+    boardQuantity,
+    boardsPerPanel,
+    panelCount,
+    setupMs: getOperationSetupMs(operationContext, resource),
+    efficiency: operationContext?.efficiency || resource?.efficiency || 100,
+    machineSplitByBom: operationContext?.machineSplitByBom || {},
+    smtPackageCoefficientsByMachine: coefficientStore,
+    machineCoefficients: coefficientStore,
+  }, operationContext?.machineSplit, true) : null;
+  if (splitResult) return splitResult.totalMs;
+
   const componentRows = buildSmtComponentDurationRows(bom, resource, boardsPerPanel, boardQuantity);
   const perBoardSeconds = componentRows.reduce((sum, row) => sum + row.secondsPerBoard, 0);
   if (perBoardSeconds <= 0) return null;
@@ -2529,6 +3447,21 @@ function calculateQuantityByDuration(workCenterId, plannedStart, plannedEnd, ope
     const resource = getOperationSmtResource(context, planningState);
     const bom = getDurationBomList(context);
     const boardsPerPanel = normalizeBoardsPerPanel(context.boardsPerPanel, 1);
+    const splitResult = bom ? calculateSmtMachineSplitResult(bom, resource, {
+      boardQuantity: boardsPerPanel,
+      boardsPerPanel,
+      panelCount: 1,
+      setupMs: getOperationSetupMs(context, resource),
+      efficiency: context.efficiency || resource?.efficiency || 100,
+      machineSplitByBom: context.machineSplitByBom || {},
+      smtPackageCoefficientsByMachine: context.smtPackageCoefficientsByMachine || context.machineCoefficients || null,
+      machineCoefficients: context.smtPackageCoefficientsByMachine || context.machineCoefficients || null,
+    }, context.machineSplit, true) : null;
+    if (splitResult?.perBoardSeconds > 0) {
+      const setupMs = getOperationSetupMs(context, resource);
+      const productiveMs = Math.max(0, durationMs - setupMs);
+      return normalizeQuantity(Math.max(1, Math.floor(productiveMs / (splitResult.perBoardSeconds * boardsPerPanel * 1000)) * boardsPerPanel));
+    }
     const perBoardSeconds = buildSmtComponentDurationRows(bom, resource, boardsPerPanel).reduce((sum, row) => sum + row.secondsPerBoard, 0);
     if (perBoardSeconds > 0) {
       const setupMs = getOperationSetupMs(context, resource);
@@ -2547,16 +3480,74 @@ function calculateQuantityByDuration(workCenterId, plannedStart, plannedEnd, ope
   return normalizeQuantity(durationHours * getWorkCenterUnitsPerHour(workCenterId));
 }
 
+function getSlotEffectiveOperationContext(slot = {}, state = null) {
+  const sourceState = state || planningState;
+  const step = slot?.routeStepId
+    ? (sourceState?.routeSteps || []).find((item) => item.id === slot.routeStepId)
+    : null;
+  if (!step) {
+    return {
+      ...(slot || {}),
+      bomListId: slot?.bomListId || "",
+      boardsPerPanel: normalizeBoardsPerPanel(slot?.boardsPerPanel, 1),
+    };
+  }
+  const route = (sourceState?.routes || []).find((item) => item.id === step.routeId) || null;
+  const baseContext = getRouteStepEffectiveOperationContext(
+    route,
+    step,
+    slot.workCenterId || step.workCenterId || "",
+    slot.resourceId || step.resourceId || "",
+  );
+  return {
+    ...baseContext,
+    ...(slot || {}),
+    routeWorkCenterId: slot.routeWorkCenterId || baseContext.routeWorkCenterId || step.workCenterId || "",
+    workCenterId: slot.workCenterId || baseContext.workCenterId || step.workCenterId || "",
+    resourceId: slot.resourceId || baseContext.resourceId || "",
+    bomListId: baseContext.bomListId || slot.bomListId || "",
+    boardsPerPanel: normalizeBoardsPerPanel(baseContext.boardsPerPanel || slot.boardsPerPanel, 1),
+  };
+}
+
+function getSlotRequiredDurationMs(slot = {}, state = null) {
+  const sourceState = state || planningState;
+  const context = getSlotEffectiveOperationContext(slot, sourceState);
+  return calculateRequiredDurationMs(
+    context.workCenterId || slot.workCenterId,
+    slot.quantity,
+    sourceState,
+    slot.unitsPerHour || context.unitsPerHour || null,
+    context.boardsPerPanel || null,
+    context,
+  );
+}
+
 function recalculateSlotEndByQuantity(slot, state = null) {
   const quantity = normalizeQuantity(slot.quantity);
   const plannedStart = toSlotDateTime(snapToWorkingTime(slot.workCenterId, slot.plannedStart, state));
+  const sourceState = state || planningState;
+  const effectiveContext = getSlotEffectiveOperationContext({
+    ...slot,
+    quantity,
+    plannedStart,
+  }, sourceState);
+  const boardsPerPanel = normalizeBoardsPerPanel(effectiveContext.boardsPerPanel, 1);
   return {
     ...slot,
     quantity,
-    boardsPerPanel: normalizeBoardsPerPanel(slot.boardsPerPanel, 1),
+    bomListId: effectiveContext.bomListId || "",
+    boardsPerPanel,
+    resourceId: effectiveContext.resourceId || slot.resourceId || "",
     plannedStart,
-    plannedEnd: toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, slot.workCenterId, quantity, state, slot.unitsPerHour, slot.boardsPerPanel, slot)),
+    plannedEnd: toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, slot.workCenterId, quantity, state, slot.unitsPerHour, boardsPerPanel, effectiveContext)),
   };
+}
+
+function applyRecalculatedSlotTiming(slot, state = null) {
+  if (!slot) return slot;
+  Object.assign(slot, recalculateSlotEndByQuantity(slot, state || planningState));
+  return slot;
 }
 
 function rescheduleSlotsForWorkCenterCalendarChange(workCenterId) {
@@ -2583,14 +3574,8 @@ function rescheduleSlotsForWorkCenterCalendarChange(workCenterId) {
   affectedSlots.forEach((slot) => {
     planningState.slots = [...preservedSlots, ...rescheduledSlots];
     const quantity = normalizeQuantity(slot.quantity);
-    const durationMs = calculateRequiredDurationMs(
-      slot.workCenterId,
-      quantity,
-      planningState,
-      slot.unitsPerHour || null,
-      slot.boardsPerPanel || null,
-      slot,
-    );
+    const effectiveContext = getSlotEffectiveOperationContext({ ...slot, quantity }, planningState);
+    const durationMs = getSlotRequiredDurationMs({ ...slot, quantity }, planningState);
     const earliestStart = snapToWorkingTime(slot.workCenterId, slot.plannedStart, planningState);
     const resourceId = slot.resourceId || getSlotGanttResourceId(slot);
     const window = findFreeWindow(slot.workCenterId, durationMs, earliestStart, slot.id, resourceId);
@@ -2598,7 +3583,8 @@ function rescheduleSlotsForWorkCenterCalendarChange(workCenterId) {
     rescheduledSlots.push({
       ...slot,
       quantity,
-      boardsPerPanel: normalizeBoardsPerPanel(slot.boardsPerPanel, 1),
+      bomListId: effectiveContext.bomListId || slot.bomListId || "",
+      boardsPerPanel: normalizeBoardsPerPanel(effectiveContext.boardsPerPanel, 1),
       plannedStart: toSlotDateTime(window.start),
       plannedEnd: toSlotDateTime(window.end),
       updatedAt: stamp,
@@ -2672,9 +3658,220 @@ function getRouteNeighbor(slot, direction) {
   return orderedSlots[index + direction] || null;
 }
 
+function getRouteBatchSlots(routeId = "", projectId = "", batchId = "") {
+  if (!routeId || !batchId) return [];
+  return getRouteSlots(routeId).filter((slot) => (
+    slot.batchId === batchId
+    && (!projectId || slot.projectId === projectId || slot.specificationId === projectId)
+  ));
+}
+
+function normalizeRouteFlowLaunchMode(value, route = null) {
+  if (value === "complete" || value === "transfer_batch") return value;
+  const concreteTasks = route ? getRouteConcreteTasksForPlanning(route) : [];
+  const hasMainSteps = route ? getRouteStepsForModule(route.id).some((step) => getRouteStepTaskId(step) === MAIN_ROUTE_TASK_ID) : false;
+  return concreteTasks.length > 1 && hasMainSteps ? "transfer_batch" : "complete";
+}
+
+function getPlanningTransferBatchQuantity(route = null, batch = null) {
+  const explicitQuantity = normalizeOptionalPositiveInteger(route?.transferBatchQuantity);
+  const batchQuantity = normalizeOptionalPositiveInteger(batch?.quantity) || getPlanningRouteQuantity(route);
+  const fallbackQuantity = Math.min(50, Math.max(1, batchQuantity || 1));
+  return Math.max(1, Math.min(explicitQuantity || fallbackQuantity, Math.max(1, batchQuantity || fallbackQuantity)));
+}
+
+function getRouteFlowLaunchSettings(route = null, batch = null) {
+  const mode = normalizeRouteFlowLaunchMode(route?.flowLaunchMode, route);
+  const transferBatchQuantity = getPlanningTransferBatchQuantity(route, batch);
+  return {
+    mode,
+    transferBatchQuantity,
+    modeLabel: mode === "transfer_batch" ? `по комплекту ${transferBatchQuantity} шт.` : "после полного выпуска",
+  };
+}
+
+function getRouteBranchCompletionSlots(routeId = "", projectId = "", batchId = "") {
+  const groups = new Map();
+  getRouteBatchSlots(routeId, projectId, batchId)
+    .filter((slot) => getSlotRouteTaskId(slot) !== MAIN_ROUTE_TASK_ID)
+    .forEach((slot) => {
+      const taskId = getSlotRouteTaskId(slot);
+      if (!groups.has(taskId)) groups.set(taskId, []);
+      groups.get(taskId).push(slot);
+    });
+
+  return [...groups.values()].map((slots) => slots
+    .filter((slot) => planningState.routeSteps.some((step) => step.id === slot.routeStepId))
+    .sort((left, right) => (
+      getSlotStepOrder(right) - getSlotStepOrder(left)
+      || toDate(right.plannedEnd) - toDate(left.plannedEnd)
+    ))[0])
+    .filter(Boolean);
+}
+
+function getSlotReadyAtQuantity(slot = null, quantity = 1) {
+  if (!slot) return null;
+  const slotQuantity = Math.max(1, normalizeQuantity(slot.quantity));
+  const requiredQuantity = Math.min(slotQuantity, Math.max(1, normalizeQuantity(quantity)));
+  const durationMs = Math.max(0, getSlotRequiredDurationMs(slot, planningState));
+  if (!durationMs) return toDate(slot.plannedStart);
+  return addWorkingDuration(slot.workCenterId, slot.plannedStart, durationMs * (requiredQuantity / slotQuantity), planningState);
+}
+
+function getSlotProducedQuantityAt(slot = null, at = ui.now) {
+  if (!slot) return 0;
+  const quantity = normalizeQuantity(slot.quantity);
+  if (!quantity) return 0;
+
+  const start = toDate(slot.actualStart || slot.plannedStart);
+  const end = toDate(slot.actualEnd || slot.plannedEnd);
+  const reference = toDate(at);
+  if (slot.status === "completed" || reference >= end) return quantity;
+  if (reference <= start) return 0;
+
+  const totalMs = Math.max(1, getWorkingDurationBetween(slot.workCenterId, start, end, planningState));
+  const elapsedMs = Math.max(0, Math.min(totalMs, getWorkingDurationBetween(slot.workCenterId, start, reference, planningState)));
+  return Math.max(0, Math.min(quantity, Math.floor(quantity * (elapsedMs / totalMs))));
+}
+
+function getRouteBatchWipBranchDetails(routeId = "", projectId = "", batchId = "", at = ui.now) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId) || null;
+  const batch = getBatch(batchId);
+  const settings = getRouteFlowLaunchSettings(route, batch);
+  const consumedKits = getRouteBatchSlots(routeId, projectId, batchId)
+    .filter((slot) => getSlotRouteTaskId(slot) === MAIN_ROUTE_TASK_ID)
+    .reduce((sum, slot) => sum + getSlotProducedQuantityAt(slot, at), 0);
+
+  return getRouteBranchCompletionSlots(routeId, projectId, batchId).map((slot) => {
+    const step = (planningState.routeSteps || []).find((item) => item.id === slot.routeStepId) || null;
+    const task = getRouteStepPlanningTask(route, step) || null;
+    const flow = getSlotOperationFlow(slot, route, step);
+    const producedQuantity = getSlotProducedQuantityAt(slot, at);
+    const availableQuantity = Math.max(0, producedQuantity - consumedKits);
+    const requiredQuantity = settings.mode === "transfer_batch"
+      ? Math.min(settings.transferBatchQuantity, normalizeQuantity(slot.quantity))
+      : normalizeQuantity(slot.quantity);
+    const readyAt = settings.mode === "transfer_batch"
+      ? getSlotReadyAtQuantity(slot, settings.transferBatchQuantity)
+      : toDate(slot.plannedEnd);
+
+    return {
+      id: slot.id,
+      slot,
+      step,
+      task,
+      title: task?.title || step?.specTaskName || flow.outputLabel || slot.operationName || "Ветка производства",
+      inputLabel: flow.inputLabel,
+      outputLabel: flow.outputLabel,
+      producedQuantity,
+      consumedKits,
+      availableQuantity,
+      requiredQuantity,
+      readyAt,
+      isReadyForStart: availableQuantity >= Math.max(1, settings.transferBatchQuantity || requiredQuantity),
+      progress: requiredQuantity ? Math.max(0, Math.min(1, producedQuantity / requiredQuantity)) : 0,
+      unit: "шт.",
+    };
+  });
+}
+
+function getRouteBatchAvailableKitCount(routeId = "", projectId = "", batchId = "", at = ui.now) {
+  const branchDetails = getRouteBatchWipBranchDetails(routeId, projectId, batchId, at);
+  if (!branchDetails.length) return 0;
+  return Math.max(0, Math.min(...branchDetails.map((branch) => branch.availableQuantity)));
+}
+
+function getMainRouteDependencyReadiness(routeId = "", projectId = "", batchId = "") {
+  const route = (planningState.routes || []).find((item) => item.id === routeId) || null;
+  const batch = getBatch(batchId);
+  const branchSlots = getRouteBranchCompletionSlots(routeId, projectId, batchId);
+  if (!branchSlots.length) return null;
+
+  const settings = getRouteFlowLaunchSettings(route, batch);
+  const branchDetails = getRouteBatchWipBranchDetails(routeId, projectId, batchId, ui.now);
+  const sourceReadyDates = branchSlots.map((slot) => (
+    settings.mode === "transfer_batch"
+      ? getSlotReadyAtQuantity(slot, settings.transferBatchQuantity)
+      : toDate(slot.plannedEnd)
+  )).filter(Boolean);
+  if (!sourceReadyDates.length) return null;
+
+  const latestReadyAt = sourceReadyDates.reduce((latest, date) => (
+    new Date(Math.max(latest.getTime(), toDate(date).getTime()))
+  ), sourceReadyDates[0]);
+
+  return {
+    ...settings,
+    readyAt: addMs(latestReadyAt, getRouteBufferMs()),
+    sourceReadyAt: latestReadyAt,
+    availableKitsNow: branchDetails.length
+      ? Math.max(0, Math.min(...branchDetails.map((branch) => branch.availableQuantity)))
+      : getRouteBatchAvailableKitCount(routeId, projectId, batchId, ui.now),
+    branchDetails,
+    sourceSlotIds: new Set(branchSlots.map((slot) => slot.id)),
+    sourceSlots: branchSlots,
+  };
+}
+
+function getMainRouteDependencyReadyAt(routeId = "", projectId = "", batchId = "") {
+  return getMainRouteDependencyReadiness(routeId, projectId, batchId)?.readyAt || null;
+}
+
+function alignMainRouteSlotsAfterBranches(routeId = "", projectId = "", batchId = "") {
+  const batchSlots = getRouteBatchSlots(routeId, projectId, batchId);
+  const mainSlots = batchSlots
+    .filter((slot) => getSlotRouteTaskId(slot) === MAIN_ROUTE_TASK_ID)
+    .sort((left, right) => (
+      getSlotStepOrder(left) - getSlotStepOrder(right)
+      || toDate(left.plannedStart) - toDate(right.plannedStart)
+    ));
+  const dependencyReadiness = getMainRouteDependencyReadiness(routeId, projectId, batchId);
+  const dependencyReadyAt = dependencyReadiness?.readyAt || null;
+  if (!mainSlots.length || !dependencyReadyAt) return [];
+
+  const changedSlotIds = [];
+  let readyAt = dependencyReadyAt;
+  mainSlots.forEach((slot) => {
+    if (slot.locked || slot.status === "completed") {
+      readyAt = addMs(new Date(Math.max(toDate(readyAt).getTime(), toDate(slot.plannedEnd).getTime())), getRouteBufferMs());
+      return;
+    }
+
+    const shouldPullForward = dependencyReadiness?.mode === "transfer_batch" && toDate(slot.plannedStart) > toDate(readyAt);
+    if (toDate(slot.plannedStart) < toDate(readyAt) || shouldPullForward) {
+      const durationMs = getSlotRequiredDurationMs(slot, planningState);
+      const window = findFreeWindow(slot.workCenterId, durationMs, readyAt, slot.id, slot.resourceId || "");
+      slot.plannedStart = toSlotDateTime(window.start);
+      slot.plannedEnd = toSlotDateTime(window.end);
+      const effectiveContext = getSlotEffectiveOperationContext(slot, planningState);
+      slot.bomListId = effectiveContext.bomListId || slot.bomListId || "";
+      slot.boardsPerPanel = effectiveContext.boardsPerPanel;
+      slot.updatedAt = new Date().toISOString();
+      changedSlotIds.push(slot.id);
+    }
+
+    readyAt = addMs(slot.plannedEnd, getRouteBufferMs());
+  });
+
+  return changedSlotIds;
+}
+
+function alignRouteMainSlotsAfterBranches(routeId = "") {
+  const routeSlots = getRouteSlots(routeId);
+  const batchKeys = [...new Set(routeSlots.map((slot) => `${slot.projectId || slot.specificationId || ""}:${slot.batchId || ""}`))];
+  return batchKeys.flatMap((key) => {
+    const [projectId, batchId] = key.split(":");
+    return alignMainRouteSlotsAfterBranches(routeId, projectId, batchId);
+  });
+}
+
 function getEarliestRouteStart(projectId, batchId, routeStepId) {
   const step = planningState.routeSteps.find((item) => item.id === routeStepId);
   const taskId = getRouteStepTaskId(step);
+  if (taskId === MAIN_ROUTE_TASK_ID) {
+    const dependencyReadyAt = getMainRouteDependencyReadyAt(step?.routeId || "", projectId, batchId);
+    if (dependencyReadyAt) return dependencyReadyAt;
+  }
   const previousSlots = getOrderedBatchSlots(projectId, batchId, taskId)
     .filter((slot) => getSlotStepOrder(slot) < Number(step?.stepOrder || 0));
   const previous = previousSlots[previousSlots.length - 1];
@@ -2693,7 +3890,7 @@ function buildBacklogItems(limit = 14) {
   const routes = getVisibleGanttRoutes();
 
   for (const route of routes) {
-    const project = getProject(route.specificationId || route.projectId);
+    const project = getRoutePlanningContext(route);
     if (!project) continue;
     const routeSteps = getSchedulableRouteSteps(route.id);
     const batches = planningState.batches.filter((batch) => batch.routeId === route.id || batch.specificationId === project.id || batch.projectId === project.id);
@@ -2702,25 +3899,25 @@ function buildBacklogItems(limit = 14) {
       const plannedStepIds = getPlannedStepIds(route.id, batch.id);
       const nextStep = routeSteps.find((step) => (
         !plannedStepIds.has(step.id)
-        && (!isWarehouseWorkCenterId(step.workCenterId) || plannedStepIds.size > 0)
+        && (!isManufacturingOutputReceiptRouteStep(step) || plannedStepIds.size > 0)
       ));
       if (!nextStep) continue;
 
       const quantity = getRouteStepQuantityForBatch(nextStep, batch);
       const earliestStart = getEarliestRouteStart(project.id, batch.id, nextStep.id);
-      const durationMs = calculateRequiredDurationMs(nextStep.workCenterId, quantity, planningState, nextStep.unitsPerHour || null, nextStep.boardsPerPanel || null, nextStep);
-      const window = findFreeWindow(nextStep.workCenterId, durationMs, earliestStart, null, nextStep.resourceId || "");
+      const assignment = getManualPlanningAssignmentForRouteStep(nextStep, quantity, earliestStart, { state: planningState });
       const dueState = getProjectDeadlineState(project);
 
       items.push({
         project,
         batch,
         routeStep: nextStep,
-        workCenter: getWorkCenter(nextStep.workCenterId),
+        workCenter: getWorkCenter(assignment?.workCenterId) || getWorkCenter(nextStep.workCenterId),
         quantity,
         earliestStart,
-        plannedStart: window.start,
-        plannedEnd: window.end,
+        plannedStart: assignment?.window?.start || earliestStart,
+        plannedEnd: assignment?.window?.end || earliestStart,
+        requiresPlanningLine: !assignment && routeStepRequiresManualPlanningLine(nextStep, planningState),
         dueState,
       });
     }
@@ -2857,6 +4054,14 @@ function getGanttSnapWidth(scaleInfo) {
   return scaleInfo.cellWidth * (getGanttSnapMs() / scaleInfo.unitMs);
 }
 
+function getGanttDependencyArrowLength(scaleInfo) {
+  return scaleInfo.cellWidth * (GANTT_DEPENDENCY_ARROW_LENGTH_MS / scaleInfo.unitMs);
+}
+
+function getGanttDependencyEntryWidth(scaleInfo) {
+  return scaleInfo.cellWidth * (GANTT_DEPENDENCY_ENTRY_MS / scaleInfo.unitMs);
+}
+
 function getTimelineCount(scale, startValue = null) {
   const base = scaleConfig[scale]?.count || 1;
   const configuredCount = Math.max(base, Math.round(Number(ui.timelineCounts?.[scale] || base)));
@@ -2865,6 +4070,39 @@ function getTimelineCount(scale, startValue = null) {
   const maxSlotEnd = planningState.slots.reduce((max, slot) => Math.max(max, toDate(slot.plannedEnd).getTime()), start.getTime());
   const requiredCount = Math.ceil((maxSlotEnd - start.getTime()) / unitMs) + Math.max(2, Math.round((TIMELINE_LOAD_CHUNK[scale] || base) / 3));
   return Math.min(TIMELINE_MAX_COUNT[scale] || configuredCount, Math.max(base, configuredCount, requiredCount));
+}
+
+function getEarliestPlannedSlotStart(state = null) {
+  const sourceState = state || planningState;
+  const timestamps = (sourceState?.slots || [])
+    .map((slot) => toDate(slot.plannedStart).getTime())
+    .filter((time) => Number.isFinite(time));
+  if (!timestamps.length) return null;
+  return new Date(Math.min(...timestamps));
+}
+
+function getGanttWindowAnchorForSlot(slotStart, scale = "days") {
+  if (!slotStart) return null;
+  if (scale === "weeks") return startOfWeek(slotStart);
+  if (scale === "days") return startOfWeek(slotStart);
+  return startOfDay(slotStart);
+}
+
+function alignGanttWindowToPlan(options = {}) {
+  if (!ui || ui.activeModule !== "gantt") return false;
+  const earliestStart = getEarliestPlannedSlotStart();
+  const anchor = getGanttWindowAnchorForSlot(earliestStart, ui.scale);
+  if (!anchor) return false;
+
+  const currentStart = startOfDay(fromDateInput(ui.windowStart || defaultUiState.windowStart));
+  const farThresholdMs = ui.scale === "hours" ? 36 * 60 * 60 * 1000 : ui.scale === "weeks" ? 4 * 7 * DAY_MS : 5 * DAY_MS;
+  const isFarAhead = earliestStart.getTime() - currentStart.getTime() > farThresholdMs;
+  if (!options.force && (!options.onlyWhenFar || !isFarAhead || Number(ui.scrollLeft || 0) > 0)) return false;
+
+  ui.windowStart = toDateInput(anchor);
+  ui.scrollLeft = 0;
+  ui.scrollTop = 0;
+  return true;
 }
 
 function getVisiblePlanningProjects() {
@@ -2877,15 +4115,18 @@ function getVisibleGanttRoutes() {
     .sort((left, right) => {
       const leftSpecification = getRouteSpecification(left);
       const rightSpecification = getRouteSpecification(right);
+      const leftBom = getRouteBomList(left);
+      const rightBom = getRouteBomList(right);
       const leftProject = getProject(left.projectId);
       const rightProject = getProject(right.projectId);
-      return String(leftSpecification?.name || getProjectDisplayName(leftProject) || "").localeCompare(String(rightSpecification?.name || getProjectDisplayName(rightProject) || ""), "ru")
+      return String(leftBom?.name || leftSpecification?.name || getProjectDisplayName(leftProject) || "").localeCompare(String(rightBom?.name || rightSpecification?.name || getProjectDisplayName(rightProject) || ""), "ru")
         || String(left.name || "").localeCompare(String(right.name || ""), "ru");
     });
 }
 
 function isGanttRouteExpanded(route) {
-  return Boolean(route?.id && (ui.expandedProjects.has(route.id) || ui.expandedProjects.has(route.projectId)));
+  const productionId = getRouteProductionId(route);
+  return Boolean(route?.id && (ui.expandedProjects.has(route.id) || ui.expandedProjects.has(productionId)));
 }
 
 function areAllVisibleProjectsExpanded() {
@@ -2919,9 +4160,38 @@ function extendTimelineIfNeeded(shell, scaleInfo) {
   return true;
 }
 
+function prependTimelineIfNeeded(shell, scaleInfo, options = {}) {
+  if (!shell || !scaleInfo) return false;
+
+  const threshold = Math.max(shell.clientWidth * 0.18, scaleInfo.cellWidth * 1.5);
+  if (!options.force && shell.scrollLeft > threshold) return false;
+
+  const current = getTimelineCount(ui.scale, scaleInfo.start);
+  const chunk = TIMELINE_LOAD_CHUNK[ui.scale] || scaleConfig[ui.scale]?.count || 1;
+  const maxCount = TIMELINE_MAX_COUNT[ui.scale] || current;
+  const next = current < maxCount ? Math.min(maxCount, current + chunk) : current;
+  const shiftedUnits = current < maxCount ? Math.max(1, next - current) : chunk;
+  const shiftedWidth = shiftedUnits * scaleInfo.cellWidth;
+  const nextStart = addMs(scaleInfo.start, -shiftedUnits * scaleInfo.unitMs);
+
+  ui.windowStart = toDateInput(nextStart);
+  ui.timelineCounts = {
+    ...defaultUiState.timelineCounts,
+    ...(ui.timelineCounts || {}),
+    [ui.scale]: next,
+  };
+  ui.scrollLeft = Math.max(0, shell.scrollLeft + shiftedWidth);
+  ui.scrollTop = shell.scrollTop;
+  persistUiState({ skipRememberScroll: true });
+  render({ skipRememberScroll: true });
+  return true;
+}
+
 function cascadeBatchFromSlot(slotId) {
   const changedSlot = planningState.slots.find((slot) => slot.id === slotId);
   if (!changedSlot) return;
+  const changedRoute = getSlotRoute(changedSlot);
+  const changedTaskId = getSlotRouteTaskId(changedSlot);
 
   const orderedSlots = getOrderedBatchSlots(changedSlot.projectId, changedSlot.batchId, getSlotRouteTaskId(changedSlot));
   const startIndex = orderedSlots.findIndex((slot) => slot.id === slotId);
@@ -2935,15 +4205,23 @@ function cascadeBatchFromSlot(slotId) {
       continue;
     }
 
-    const earliestStart = addMs(previous.plannedEnd, getRouteBufferMs());
-    if (toDate(current.plannedStart) < earliestStart) {
-      const durationMs = calculateRequiredDurationMs(current.workCenterId, current.quantity, planningState, current.unitsPerHour || null, current.boardsPerPanel || null, current);
-      const window = findFreeWindow(current.workCenterId, durationMs, earliestStart, current.id, current.resourceId || "");
-      current.plannedStart = toSlotDateTime(window.start);
-      current.plannedEnd = toSlotDateTime(window.end);
-      current.updatedAt = new Date().toISOString();
-    }
+	    const earliestStart = addMs(previous.plannedEnd, getRouteBufferMs());
+	    if (toDate(current.plannedStart) < earliestStart) {
+	      const durationMs = getSlotRequiredDurationMs(current, planningState);
+	      const window = findFreeWindow(current.workCenterId, durationMs, earliestStart, current.id, current.resourceId || "");
+	      current.plannedStart = toSlotDateTime(window.start);
+	      current.plannedEnd = toSlotDateTime(window.end);
+	      Object.assign(current, {
+	        bomListId: getSlotEffectiveOperationContext(current, planningState).bomListId || current.bomListId || "",
+	        boardsPerPanel: getSlotEffectiveOperationContext(current, planningState).boardsPerPanel,
+	      });
+	      current.updatedAt = new Date().toISOString();
+	    }
     previous = current;
+  }
+
+  if (changedRoute?.id && changedTaskId !== MAIN_ROUTE_TASK_ID) {
+    alignMainRouteSlotsAfterBranches(changedRoute.id, changedSlot.projectId || changedSlot.specificationId || "", changedSlot.batchId || "");
   }
 }
 
@@ -2965,12 +4243,19 @@ function getProjectDeadlineState(project) {
   return { tone: "ok", label: `запас ${days} д`, slackMs };
 }
 
-function render() {
-  rememberScroll();
-  persistUiState();
-  scheduleGlobalSaveUxRefresh();
+function resetRemovedGanttFilters() {
+  ui.statusFilter = "all";
+  ui.workCenterFilter = "all";
+  ui.rowMode = "route";
+  ui.hideSharedNonWorkingZones = false;
+}
 
+function render(options = {}) {
+  if (!options.skipRememberScroll) rememberScroll();
   ensureAuthorizedModule();
+  resetRemovedGanttFilters();
+  persistUiState({ skipRememberScroll: options.skipRememberScroll });
+  scheduleGlobalSaveUxRefresh();
 
   if (ui.activeModule === "directories") {
     app.innerHTML = `
@@ -2983,23 +4268,6 @@ function render() {
     `;
     bindGlobalNavigation();
     bindDirectoryEvents();
-    bindConfirmEvents();
-    return;
-  }
-
-  if (ui.activeModule === "calculator") {
-    calculatorState = normalizeCalculatorState(calculatorState);
-    app.innerHTML = `
-      <main class="app-shell calculator-app-shell" data-layout="app-shell" data-layout-page="calculator">
-        ${renderModuleMenu()}
-        ${renderAppTopbar()}
-        ${renderCalculatorPage()}
-        ${renderProjectModal()}
-        ${renderConfirmModal()}
-      </main>
-    `;
-    bindGlobalNavigation();
-    bindCalculatorEvents();
     bindConfirmEvents();
     return;
   }
@@ -3035,6 +4303,21 @@ function render() {
     return;
   }
 
+  if (ui.activeModule === "products") {
+    app.innerHTML = `
+      <main class="app-shell products-app-shell" data-layout="app-shell" data-layout-page="products">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderProductsPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindProductsEvents();
+    bindConfirmEvents();
+    return;
+  }
+
   if (ui.activeModule === "rkd") {
     app.innerHTML = `
       <main class="app-shell rkd-app-shell" data-layout="app-shell" data-layout-page="rkd">
@@ -3045,7 +4328,7 @@ function render() {
       </main>
     `;
     bindGlobalNavigation();
-    bindSpekiEvents();
+    bindRkdUxEvents();
     bindConfirmEvents();
     return;
   }
@@ -3082,15 +4365,45 @@ function render() {
 
   if (ui.activeModule === "planning") {
     app.innerHTML = `
-      <main class="app-shell planning-empty-app-shell" data-layout="app-shell" data-layout-page="planning">
+      <main class="app-shell planning-empty-app-shell planning-workbench-v2-shell" data-layout="app-shell" data-layout-page="planning">
         ${renderModuleMenu()}
         ${renderAppTopbar()}
-        ${renderPlanningPage()}
+        ${renderPlanningWorkbenchV2Page()}
+        ${renderRouteSmtModal()}
         ${renderConfirmModal()}
       </main>
     `;
     bindGlobalNavigation();
     bindPlanningEvents();
+    bindConfirmEvents();
+    return;
+  }
+
+  if (ui.activeModule === "dispatch") {
+    app.innerHTML = `
+      <main class="app-shell dispatch-app-shell" data-layout="app-shell" data-layout-page="dispatch">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderDispatchPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindConfirmEvents();
+    return;
+  }
+
+  if (ui.activeModule === "warehouse") {
+    app.innerHTML = `
+      <main class="app-shell warehouse-app-shell" data-layout="app-shell" data-layout-page="warehouse">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderWarehousePage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindWarehouseEvents();
     bindConfirmEvents();
     return;
   }
@@ -3111,7 +4424,7 @@ function render() {
       <section class="planner-workspace planner-workspace-gantt-only" data-layout="planning-page" aria-label="Рабочая область планирования">
         ${renderToolbar(scaleInfo, stats)}
         <section class="planner-frame" aria-label="Производственный план">
-          <div class="gantt-shell" data-layout="gantt" data-gantt-shell>
+          <div class="gantt-shell ${ui.ganttDependencyEditMode ? "is-dependency-editing" : ""}" data-layout="gantt" data-gantt-shell>
             <div class="gantt-canvas" style="--left-width:${LEFT_WIDTH}px; --timeline-width:${scaleInfo.width}px; --total-height:${rowLayout.totalHeight}px;">
               ${renderTimeline(scaleInfo)}
               <div class="rows-layer" style="top:${TIMELINE_HEIGHT}px;">
@@ -3126,7 +4439,6 @@ function render() {
       ${renderSlotDrawer(warningsContext.slotWarningMap)}
       ${renderEditorModal()}
       ${renderSplitModal()}
-      ${renderProjectModal()}
       ${renderConfirmModal()}
     </main>
   `;
@@ -3145,16 +4457,21 @@ function getOperationMapRows({ includeInactive = true } = {}) {
 }
 
 function getOperationMapItem(operationId) {
-  return getOperationMapRows().find((item) => item.id === operationId) || null;
+  const item = getOperationMapRows().find((row) => row.id === operationId) || null;
+  if (item?.legacyAliasOf && item.legacyAliasOf !== item.id) {
+    return getOperationMapRows().find((row) => row.id === item.legacyAliasOf) || item;
+  }
+  return item;
 }
 
 function findOperationMapItemByNameAndWorkCenter(operationName = "", workCenterId = "") {
   const normalizedName = normalizeLookupText(operationName);
+  const routeWorkCenterId = getRouteInstructionWorkCenterId(workCenterId);
   if (!normalizedName) return null;
   const rows = getOperationMapRows();
   const exact = rows.find((operation) => (
     normalizeLookupText(operation.name) === normalizedName
-    && (!workCenterId || operation.workCenterId === workCenterId)
+    && (!routeWorkCenterId || getOperationRouteWorkCenterId(operation) === routeWorkCenterId)
   ));
   if (exact) return exact;
   const nameMatches = rows.filter((operation) => normalizeLookupText(operation.name) === normalizedName);
@@ -3166,7 +4483,7 @@ function getLegacyOperationWorkCenterId(source = {}) {
   if (explicitWorkCenterId && getWorkCenter(explicitWorkCenterId)) return explicitWorkCenterId;
   return resolveWorkCenterIdFromName(source.departmentName || source.department || source.workCenter || "")
     || resolveWorkCenterIdFromName(source.operationName || source.name || "")
-    || getPlanningWorkCenters({ includeWarehouse: false })[0]?.id
+    || getRouteInstructionWorkCenters({ includeWarehouse: false })[0]?.id
     || "D5";
 }
 
@@ -3187,18 +4504,27 @@ function ensureOperationMapItemFromLegacyOperation(source = {}, stamp = new Date
 }
 
 function applyOperationMapItemToRouteStep(step = {}, operation = {}, stamp = new Date().toISOString()) {
-  const workCenterId = operation.workCenterId || step.workCenterId || getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "D5";
-  const resources = getResourcesForWorkCenter(workCenterId);
-  const resource = resources.find((item) => item.id === step.resourceId) || resources[0] || null;
+  const workCenterId = getOperationRouteWorkCenterId(operation) || step.workCenterId || getRouteInstructionWorkCenters({ includeWarehouse: false })[0]?.id || "D5";
+  const planningCandidates = getPlanningCandidateWorkCenterIdsForRouteWorkCenter(workCenterId, operation, planningState);
+  const singlePlanningWorkCenterId = planningCandidates.length === 1 ? planningCandidates[0] : "";
+  const explicitPlanningWorkCenterId = mapLegacyWorkCenterId(step.planningWorkCenterId || "");
+  const selectedPlanningWorkCenterId = explicitPlanningWorkCenterId && planningCandidates.includes(explicitPlanningWorkCenterId)
+    ? explicitPlanningWorkCenterId
+    : singlePlanningWorkCenterId;
+  const resourceId = selectedPlanningWorkCenterId
+    ? getPlanningResourceForRouteStep({ ...step, workCenterId }, selectedPlanningWorkCenterId, step.resourceId)
+    : "";
+  const resource = resourceId ? getProductionResource(resourceId) : null;
   const calculationType = step.calculationType || getDefaultOperationCalculationType(workCenterId, operation);
   return normalizeRouteStepCalculationFields({
     ...step,
     operationId: operation.id || "",
     operationName: operation.name || "",
     workCenterId,
+    planningWorkCenterId: selectedPlanningWorkCenterId && planningCandidates.length > 1 ? selectedPlanningWorkCenterId : "",
     workCenterOverride: false,
     unitsPerHour: operation.unitsPerHour || step.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId),
-    resourceId: step.resourceId || resource?.id || "",
+    resourceId,
     calculationType,
     secondsPerPanel: calculationType === "manual" || calculationType === "normative"
       ? Number(step.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, step.boardsPerPanel || 1))
@@ -3215,7 +4541,7 @@ function getDefaultOperationNameForWorkCenter(center = {}) {
   const normalizedCode = normalizeLookupText(center.code || "");
 
   if (center.id === "warehouse" || center.unitType === "warehouse" || normalizedName.includes("склад")) {
-    return "Приемка на склад";
+    return "Поступление из производства";
   }
   if (normalizedName.includes("smt") || normalizedCode.includes("smt")) return "SMT-монтаж компонентов";
   if (normalizedName.includes("aoi") || normalizedCode.includes("aoi")) return "AOI-контроль";
@@ -3230,7 +4556,7 @@ function getDefaultOperationNameForWorkCenter(center = {}) {
   if (normalizedName.includes("программ")) return "Программирование";
   if (normalizedName.includes("закуп") || normalizedName.includes("снабжен")) return "Закупка материалов";
 
-  return `Работа подразделения ${center.name || center.code || "без названия"}`;
+  return `Работа отдела ${center.name || center.code || "без названия"}`;
 }
 
 function makeDefaultOperationCode(center = {}) {
@@ -3286,6 +4612,7 @@ function migrateLegacyOperationsToDirectory() {
     if (!step || !step.operationId) return slot;
     const nextSlot = recalculateSlotEndByQuantity({
       ...slot,
+      operationId: step.operationId || slot.operationId || "",
       operationName: step.operationName || slot.operationName,
       workCenterId: step.workCenterId || slot.workCenterId,
       unitsPerHour: step.unitsPerHour || slot.unitsPerHour,
@@ -3296,7 +4623,7 @@ function migrateLegacyOperationsToDirectory() {
       bomListId: step.bomListId || slot.bomListId || "",
       updatedAt: stamp,
     }, planningState);
-    const changed = ["operationName", "workCenterId", "unitsPerHour", "resourceId", "calculationType", "secondsPerPanel", "setupMin", "bomListId"]
+    const changed = ["operationId", "operationName", "workCenterId", "unitsPerHour", "resourceId", "calculationType", "secondsPerPanel", "setupMin", "bomListId"]
       .some((key) => String(slot[key] ?? "") !== String(nextSlot[key] ?? ""));
     if (changed) planningChanged = true;
     return changed ? nextSlot : slot;
@@ -3306,7 +4633,7 @@ function migrateLegacyOperationsToDirectory() {
     if (!Array.isArray(specification.structureItems) || !specification.structureItems.length) return specification;
     let specificationChanged = false;
     const structureItems = specification.structureItems.map((item) => {
-      if ((item.executionType || "") === "buy") return item;
+      if (!isSchedulableFulfillmentMode(item.fulfillmentMode || item.executionType || "")) return item;
       const operation = getOperationMapItem(item.operationId)
         || ensureOperationMapItemFromLegacyOperation({
           operationName: item.operationName,
@@ -3347,16 +4674,12 @@ function renderPlanningPage() {
   const activeRoute = getActiveRouteForModule();
   const activeProject = getProject(activeRoute?.specificationId || activeRoute?.projectId);
   const activeSpecification = getRouteSpecification(activeRoute);
-  if (activeRoute && activeSpecification && ensureRouteTaskSeedSteps(activeRoute.id, activeSpecification)) {
-    persistState();
-  }
+  const activeBom = getRouteBomList(activeRoute);
   const stats = getRouteModuleStats(activeRoute);
-  const routeTasks = getRouteTasksForModule(activeRoute);
   const transferSummary = getPlanningRouteTransferSummary(activeRoute);
-  const orderState = getPlanningRouteOrderState(activeRoute, transferSummary);
-  const routeTitle = activeRoute?.name || "Маршрутная карта не выбрана";
+  const routeTitle = activeRoute?.name || "Заказ-наряд не выбран";
   const specificationTitle = activeRoute
-    ? activeSpecification?.name || getProjectDisplayName(activeProject) || "состав изделия не выбран"
+    ? activeBom?.name || activeSpecification?.name || getProjectDisplayName(activeProject) || "BOM или состав изделия не выбран"
     : "выберите карту слева";
 
   if (!routes.length) {
@@ -3367,7 +4690,7 @@ function renderPlanningPage() {
           <div>
             <span class="eyebrow">Новый модуль</span>
             <h2>Планирование</h2>
-            <p>Маршрутных карт пока нет. Создайте маршрутную карту в модуле «Маршрутная карта», затем передайте ее сюда кнопкой «В Планирование».</p>
+            <p>Заказ-нарядов пока нет. Создайте маршрутную карту в модуле «Маршрутная карта», затем создайте по ней заказ-наряд.</p>
           </div>
         </section>
       </section>
@@ -3382,18 +4705,19 @@ function renderPlanningPage() {
           <h1>Планирование</h1>
         </div>
         <div class="module-entity-list">
-          <div class="module-list-label">Маршрутные карты</div>
+          <div class="module-list-label">Заказ-наряды</div>
           ${routes.map((route) => {
-            const routeProject = getProject(route.projectId);
+            const routeProject = getRouteProductionContext(route);
             const routeSpecification = getRouteSpecification(route);
+            const routeBom = getRouteBomList(route);
             const steps = getRouteStepsForModule(route.id);
             const routeSummary = getPlanningRouteTransferSummary(route);
             const routeOrderState = getPlanningRouteOrderState(route, routeSummary);
             return `
               <button class="module-entity-item ${route.id === activeRoute?.id ? "is-active" : ""}" data-planning-route-open="${escapeAttribute(route.id)}" type="button">
                 <span>
-                  <strong>${escapeHtml(route.name || "Маршрутная карта")}</strong>
-                  <small>${escapeHtml(routeSpecification?.name || getProjectDisplayName(routeProject) || "состав изделия не найден")} · ${steps.length} шагов · ${escapeHtml(routeOrderState.label)}</small>
+                  <strong>${escapeHtml(route.name || "Заказ-наряд")}</strong>
+                  <small>${escapeHtml(routeBom?.name || routeSpecification?.name || getProjectDisplayName(routeProject) || "BOM или состав изделия не найден")} · ${steps.length} операций · ${escapeHtml(routeOrderState.label)}</small>
                 </span>
                 <em class="${escapeAttribute(routeOrderState.tone)}">${routeSummary.planned || steps.length}</em>
               </button>
@@ -3405,9 +4729,9 @@ function renderPlanningPage() {
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
-            <span class="eyebrow">Маршрут в планировании</span>
+            <span class="eyebrow">Заказ-наряд</span>
             <h2>${escapeHtml(routeTitle)}</h2>
-            <p>${escapeHtml(activeRoute ? `${specificationTitle}: маршрутная карта передана в модуль планирования для подготовки к Ганту.` : "Выберите маршрутную карту в перечне, чтобы настроить количество, партийность и передачу в Гант.")}</p>
+            <p>${escapeHtml(activeRoute ? `${specificationTitle}: заказ-наряд создан на основе маршрутной карты для подготовки к Ганту.` : "Выберите заказ-наряд в перечне, чтобы настроить количество, партийность и передачу в Гант.")}</p>
           </div>
           <div class="directory-actions">
             <button class="secondary-button danger" data-planning-route-cancel="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.planned ? "" : "disabled"}>
@@ -3421,85 +4745,3046 @@ function renderPlanningPage() {
 
         <div class="module-data-content planning-route-content">
           ${activeRoute ? `
-          <section class="module-panel planning-route-card">
-            <div class="report-card-head">
-              <strong>Принятая маршрутная карта</strong>
-              <span>${escapeHtml(specificationTitle)}</span>
-            </div>
-            <div class="planning-route-meta">
-              <article><span>Состав изделия</span><strong>${escapeHtml(specificationTitle)}</strong><small>${escapeHtml(activeProject?.orderNumber || "заказ не задан")}</small></article>
-              <article><span>Операций</span><strong>${stats.steps.length}</strong><small>${stats.required} обязательных</small></article>
-              <article><span>Задач</span><strong>${routeTasks.length}</strong><small>из структуры состава изделия</small></article>
-              <article><span>Партий</span><strong>${transferSummary.batches.length}</strong><small>к размещению</small></article>
-              <article><span>Мультипликаций</span><strong>${Number(transferSummary.totalPanels || 0).toLocaleString("ru-RU")}</strong><small>расчет для заказа</small></article>
-              <article class="${escapeAttribute(orderState.tone)}"><span>Состояние</span><strong>${escapeHtml(orderState.label)}</strong><small>${activeRoute?.canceledAt ? `отмена ${formatDateTime(activeRoute.canceledAt)}` : "производственный заказ"}</small></article>
-              <article><span>В Ганте</span><strong>${transferSummary.planned}/${transferSummary.expected}</strong><small>${transferSummary.missing ? `${transferSummary.missing} осталось` : "все размещено"}</small></article>
-            </div>
-            <div class="planning-route-quantity">
-              <label class="form-field">
-                <span>Планируемое количество для Ганта</span>
-                <input data-planning-quantity="${escapeAttribute(activeRoute?.id || "")}" type="number" min="1" step="1" value="${escapeAttribute(transferSummary.planningQuantity || 1)}" ${activeRoute ? "" : "disabled"} />
-              </label>
-              <div>
-                <strong>${Number(transferSummary.planningQuantity || 1).toLocaleString("ru-RU")} шт.</strong>
-                <small>количество партии для создания операций в Ганте</small>
-              </div>
-            </div>
-            ${transferSummary.multiplicationRows.length ? `
-              <div class="planning-multiplication-list" aria-label="Расчет мультипликаций для планирования">
-                ${transferSummary.multiplicationRows.map((row) => `
-                  <article>
-                    <div class="planning-multiplication-head">
-                      <span>${escapeHtml(row.label)}</span>
-                      <strong>${row.panels.toLocaleString("ru-RU")} мультипл.</strong>
-                    </div>
-                    <label class="planning-bpp-field">
-                      <span>Плат в мультиплате</span>
-                      <input
-                        data-planning-boards-per-panel="${escapeAttribute(row.sourceId || row.id)}"
-                        data-planning-bpp-route="${escapeAttribute(activeRoute?.id || "")}"
-                        type="number"
-                        inputmode="numeric"
-                        min="1"
-                        step="1"
-                        value="${escapeAttribute(row.boardsPerPanel)}"
-                      />
-                    </label>
-                    <small>${row.boards.toLocaleString("ru-RU")} плат для заказа</small>
-                  </article>
-                `).join("")}
-              </div>
-            ` : ""}
-            <div class="planning-route-note">
-              ${icon("info")}
-              <span>Планирование теперь единственный вход для заданий в Гант. Кнопка «Передать в Гант» автоматически разложит операции по ближайшим доступным 15-минутным слотам с учетом подразделения, партии и последовательности задач.</span>
-            </div>
-          </section>
-
-          ${renderPlanningBatchConstructor(activeRoute, transferSummary)}
-
-          <section class="module-panel planning-route-steps">
-            <div class="report-card-head">
-              <strong>Последовательность операций</strong>
-              <span>${stats.steps.length ? "маршрут готов к разложению по партиям" : "операции еще не заданы"}</span>
-            </div>
-            ${renderRouteModuleSequence(stats.steps, activeRoute)}
-          </section>
+          ${renderPlanningWorkbench(activeRoute, transferSummary, stats.steps)}
           ` : `
           <section class="module-panel planning-route-card">
             <div class="report-card-head">
-              <strong>Принятая маршрутная карта</strong>
-              <span>маршрут не выбран</span>
+              <strong>Заказ-наряд</strong>
+              <span>не выбран</span>
             </div>
             ${renderModulePreviewEmpty({
               iconName: "calendar",
-              title: "Маршрутная карта не выбрана",
-              text: "Выберите карту слева или передайте ее сюда из модуля «Маршрутная карта», чтобы подготовить план к Ганту.",
+              title: "Заказ-наряд не выбран",
+              text: "Выберите заказ-наряд слева или создайте его из модуля «Маршрутная карта», чтобы подготовить план к Ганту.",
             })}
           </section>
           `}
         </div>
       </div>
+    </section>
+  `;
+}
+
+function renderPlanningWorkbenchV2Page() {
+  const routes = getRoutesForModule();
+  const activeRoute = getActiveRouteForModule();
+  const stats = getRouteModuleStats(activeRoute);
+  const transferSummary = getPlanningRouteTransferSummary(activeRoute);
+  const routeSteps = stats.steps || getRouteStepsForModule(activeRoute?.id || "");
+  const tasks = getPlanningTasksForRoute(activeRoute, routeSteps);
+  const selectedItem = activeRoute ? getPlanningActiveWorkItem(activeRoute, tasks, routeSteps) : "";
+  const routeTitle = activeRoute?.name || "Заказ-наряд не выбран";
+
+  if (!routes.length) {
+    return `
+      <section class="planning-empty-page planning-v2-empty" data-layout="main-content" aria-label="Планирование">
+        <section class="planning-empty-panel">
+          <div class="planning-empty-icon">${icon("calendar")}</div>
+          <div>
+            <h2>Планирование</h2>
+            <p>Нет заказ-нарядов.</p>
+          </div>
+        </section>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="planning-page module-data-page planning-v2-page is-heroui" data-layout="main-content" aria-label="Планирование">
+      ${renderPlanningWorkbenchV2Queue(routes, activeRoute)}
+
+      <div class="planning-v2-main" data-layout="page-workspace">
+        <header class="planning-v2-header">
+          <div>
+            <h2>${escapeHtml(routeTitle)}</h2>
+          </div>
+          <div class="directory-actions planning-v2-actions">
+            <button class="secondary-button danger" data-planning-route-cancel="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.planned ? "" : "disabled"}>
+              ${icon("close")}<span>Отменить заказ</span>
+            </button>
+            <button class="primary-button" data-planning-route-to-gantt="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.steps.length ? "" : "disabled"}>
+              ${icon("gantt")}<span>Передать в Гант</span>
+            </button>
+          </div>
+        </header>
+
+        ${activeRoute ? `
+          <div class="planning-v2-workspace">
+            ${renderPlanningWorkbenchV2RouteMap(activeRoute, transferSummary, tasks, routeSteps, selectedItem)}
+            <div class="planning-v2-detail planning-work-detail" aria-label="Детали выбранного этапа">
+              ${renderPlanningWorkbenchV2Detail(activeRoute, transferSummary, tasks, routeSteps, selectedItem)}
+            </div>
+          </div>
+        ` : `
+          <section class="module-panel planning-v2-route-map">
+            ${renderModulePreviewEmpty({
+              iconName: "calendar",
+              title: "Заказ-наряд не выбран",
+              text: "Выберите заказ-наряд слева.",
+            })}
+          </section>
+        `}
+      </div>
+    </section>
+  `;
+}
+
+function renderPlanningWorkbenchV2Queue(routes, activeRoute) {
+  return `
+    <aside class="directory-sidebar module-data-sidebar planning-v2-queue">
+      <div class="directory-sidebar-head">
+        <h1>Заказ-наряды</h1>
+      </div>
+      <div class="module-entity-list planning-v2-route-list">
+        ${routes.map((route) => {
+          return `
+            <button class="module-entity-item planning-v2-route-item ${route.id === activeRoute?.id ? "is-active" : ""}" data-planning-route-open="${escapeAttribute(route.id)}" type="button">
+              <span>
+                <strong>${escapeHtml(route.name || "Заказ-наряд")}</strong>
+              </span>
+            </button>
+          `;
+        }).join("")}
+      </div>
+    </aside>
+  `;
+}
+
+function renderPlanningWorkbenchV2RouteMap(route, transferSummary, tasks, routeSteps, selectedItem) {
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+  const supplySummary = getPlanningSupplySummary(route, transferSummary, routeSteps);
+  const chain = buildPlanningProductionChain(route, transferSummary, tasks, routeSteps);
+  const batchExpected = Number(transferSummary?.expected || 0);
+  const batchPlanned = Number(transferSummary?.planned || 0);
+  const batchMissing = Math.max(0, batchExpected - batchPlanned);
+  const batchTone = batchExpected && !batchMissing ? "ok" : batchExpected ? "warning" : "neutral";
+  const batchStatus = batchExpected && !batchMissing ? "готово" : batchMissing ? `${batchMissing} не размещено` : "подготовить";
+
+  return `
+    <section class="module-panel planning-v2-route-map" aria-label="Маршрут работы с заказ-нарядом">
+      <div class="planning-v2-map-head">
+        <div>
+          <strong>Структура работ</strong>
+        </div>
+      </div>
+
+      <div class="planning-v2-flow">
+        ${renderPlanningWorkbenchV2Phase({
+          id: "supply",
+          selectedItem,
+          title: "Состав и обеспечение",
+          meta: "",
+          status: supplySummary.blocking ? `${supplySummary.blocking} проблем` : "готово",
+          tone: supplySummary.blocking ? "warning" : "ok",
+        })}
+
+        ${renderPlanningWorkbenchV2Phase({
+          id: "chain",
+          selectedItem,
+          title: "Правило запуска",
+          meta: "",
+          status: chain.issues.length ? `${chain.issues.length} проблем` : "готово",
+          tone: chain.issues.length ? "warning" : "ok",
+        })}
+
+        <div class="planning-v2-lanes" aria-label="Составные части и операции">
+          ${tasks.length ? tasks.map((task) => renderPlanningWorkbenchV2TaskLane(route, task, routeSteps, selectedItem, planningQuantity)).join("") : `
+            <div class="planning-muted-state">
+              ${icon("info")}
+              <span>Состав заказ-наряда не найден.</span>
+            </div>
+          `}
+        </div>
+
+        ${renderPlanningWorkbenchV2Phase({
+          id: "batches",
+          selectedItem,
+          title: "Партии",
+          meta: "",
+          status: batchStatus,
+          tone: batchTone,
+        })}
+      </div>
+    </section>
+  `;
+}
+
+function renderPlanningWorkbenchV2Phase({ id, selectedItem, number, title, meta, status, tone = "neutral" }) {
+  return `
+    <button class="planning-v2-phase is-${escapeAttribute(tone)} ${id === selectedItem ? "is-active" : ""}" data-planning-work-item="${escapeAttribute(id)}" type="button">
+      ${number ? `<b>${escapeHtml(number)}</b>` : ""}
+      <span>
+        <strong>${escapeHtml(title)}</strong>
+        ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+      </span>
+      <em>${escapeHtml(status || "")}</em>
+    </button>
+  `;
+}
+
+function renderPlanningWorkbenchV2TaskLane(route, task, routeSteps, selectedItem, planningQuantity) {
+  const stats = getPlanningTaskOperationStats(route, task, routeSteps);
+  const taskQuantity = normalizeQuantity(task.quantity || 1);
+  const orderQuantity = normalizeQuantity(planningQuantity * taskQuantity);
+  const taskUnit = /маршрут/i.test(task.unit || "") ? "шт." : task.unit || "шт.";
+
+  return `
+    <article class="planning-v2-lane ${task.isMain ? "is-main" : ""}">
+      <button class="planning-v2-lane-head ${getPlanningWorkItemId("task", task.id) === selectedItem ? "is-active" : ""}" data-planning-work-item="${escapeAttribute(getPlanningWorkItemId("task", task.id))}" type="button">
+        <span>
+          <strong>${escapeHtml(task.title || "Составная часть")}</strong>
+        </span>
+        <b>${orderQuantity.toLocaleString("ru-RU")} ${escapeHtml(taskUnit)}</b>
+      </button>
+
+      ${stats.steps.length ? `
+        <div class="planning-v2-step-row">
+          ${stats.steps.map((step) => renderPlanningWorkbenchV2StepPill(step, selectedItem)).join("")}
+        </div>
+      ` : `
+        <div class="planning-v2-lane-empty">операции для этой части не заданы</div>
+      `}
+    </article>
+  `;
+}
+
+function renderPlanningWorkbenchV2StepPill(step, selectedItem) {
+  const itemId = getPlanningWorkItemId("step", step.id);
+  const tone = getPlanningStepTone(step);
+  const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
+  return `
+    <button class="planning-v2-step-pill is-${escapeAttribute(tone)} ${itemId === selectedItem ? "is-active" : ""}" data-planning-work-item="${escapeAttribute(itemId)}" type="button">
+      <b>${Number(step.stepOrder || 0)}</b>
+      <span>
+        <strong>${escapeHtml(step.operationName || "Операция")}</strong>
+        <small>${escapeHtml(getPlanningStepLineLabel(step))}</small>
+      </span>
+      ${isSmtStep ? `<em>SMT</em>` : isManufacturingOutputReceiptRouteStep(step) ? `<em>приемка</em>` : ""}
+    </button>
+  `;
+}
+
+function renderPlanningWorkbenchV2Detail(route, transferSummary, tasks, routeSteps, selectedItem) {
+  const { type, id } = parsePlanningWorkItemId(selectedItem);
+  if (type === "supply") return renderPlanningWorkbenchV2SupplyDetail(route, transferSummary, tasks, routeSteps);
+  if (type === "chain") return renderPlanningWorkbenchV2ChainDetail(route, transferSummary, tasks, routeSteps);
+  if (type === "batches") return renderPlanningWorkbenchV2BatchesDetail(route, transferSummary);
+  if (type === "task") {
+    const task = tasks.find((item) => item.id === id) || tasks.find((item) => item.isMain) || tasks[0];
+    return renderPlanningWorkbenchV2TaskDetail(route, task, transferSummary, routeSteps);
+  }
+  if (type === "step") {
+    const step = routeSteps.find((item) => item.id === id);
+    if (step) return renderPlanningWorkbenchV2StepDetail(route, step, transferSummary, routeSteps);
+  }
+  return renderPlanningWorkbenchV2SupplyDetail(route, transferSummary, tasks, routeSteps);
+}
+
+function renderPlanningWorkbenchV2Record({ eyebrow, title, subtitle, status = "", tone = "neutral", body = "" }) {
+  return `
+    <section class="module-panel planning-v2-record is-${escapeAttribute(tone)}">
+      <header class="planning-v2-record-head">
+        <div>
+          ${eyebrow ? `<span class="eyebrow">${escapeHtml(eyebrow)}</span>` : ""}
+          <h3>${escapeHtml(title || "Этап")}</h3>
+          ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}
+        </div>
+        ${status ? `<em class="planning-v2-record-status">${escapeHtml(status)}</em>` : ""}
+      </header>
+
+      ${body}
+    </section>
+  `;
+}
+
+function renderPlanningWorkbenchV2Section(title, subtitle, content, options = {}) {
+  return `
+    <section class="planning-v2-record-section ${options.className ? escapeAttribute(options.className) : ""}">
+      <header>
+        <div>
+          <strong>${escapeHtml(title || "")}</strong>
+          ${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ""}
+        </div>
+        ${options.badge ? `<em>${escapeHtml(options.badge)}</em>` : ""}
+      </header>
+      ${content}
+    </section>
+  `;
+}
+
+function renderPlanningWorkbenchV2SupplyDetail(route, transferSummary, tasks, routeSteps) {
+  const rows = getPlanningSupplyRows(route, transferSummary, routeSteps, tasks);
+  const summary = getPlanningSupplySummary(route, transferSummary, routeSteps);
+  const body = `
+    ${renderPlanningWorkbenchV2Section("Обеспечение", "", `
+      ${rows.length ? `
+        <div class="planning-v2-register-table is-supply" role="table" aria-label="Табличная часть состава">
+          ${rows.map((row) => {
+            const warehouseBalance = row.mode === "from_stock" && row.nomenclatureItemId
+              ? getWarehouseBalanceForNomenclature(row.nomenclatureItemId)
+              : null;
+            const warehouseMeta = row.mode === "from_stock"
+              ? warehouseBalance
+                ? `доступно ${formatWarehouseQuantity(warehouseBalance.available, warehouseBalance.unit)}${warehouseBalance.shortage ? `, дефицит ${formatWarehouseQuantity(warehouseBalance.shortage, warehouseBalance.unit)}` : ""}`
+                : "остаток не найден"
+              : row.mode === "produce" ? "производственный маршрут" : "без автосоздания";
+            return `
+              <div class="planning-v2-register-row is-${escapeAttribute(row.statusTone)}" role="row">
+                <div>
+                  <small>${escapeHtml(row.number)} · ${escapeHtml(row.typeLabel)}</small>
+                  <strong>${escapeHtml(row.title || "Составная часть")}</strong>
+                </div>
+                <div>
+                  <strong>${Number(row.quantity || 0).toLocaleString("ru-RU")} ${escapeHtml(row.unit || "шт.")}</strong>
+                </div>
+                <div class="planning-v2-segmented-actions" role="group" aria-label="Способ обеспечения">
+                  ${STRUCTURE_FULFILLMENT_MODES.map((mode) => `
+                    <button
+                      class="${mode === row.mode ? "is-active" : ""}"
+                      data-planning-supply-mode="${escapeAttribute(mode)}"
+                      data-planning-supply-route="${escapeAttribute(route?.id || "")}"
+                      data-planning-supply-item="${escapeAttribute(row.id)}"
+                      type="button"
+                      ${row.editable && route ? "" : "disabled"}
+                      title="${escapeAttribute(getFulfillmentMeta(mode))}"
+                    >${escapeHtml(STRUCTURE_FULFILLMENT_LABELS[mode])}</button>
+                  `).join("")}
+                </div>
+                <div>
+                  <strong>${row.stats.stepsCount ? `${row.stats.stepsCount} оп.` : row.mode === "purchase" || row.mode === "external" ? "не требуется" : "нет операций"}</strong>
+                  <em>${escapeHtml(warehouseMeta)}</em>
+                </div>
+                <span class="planning-v2-state-token is-${escapeAttribute(row.statusTone)}">${escapeHtml(row.status)}</span>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>Состав изделия не найден. Выберите изделие или плату в маршрутной карте.</span>
+        </div>
+      `}
+    `)}
+  `;
+
+  return renderPlanningWorkbenchV2Record({
+    title: "Состав и обеспечение",
+    status: summary.blocking ? `${summary.blocking} проблем` : "готово",
+    tone: summary.blocking ? "warning" : "ok",
+    body,
+  });
+}
+
+function renderPlanningWorkbenchV2ChainDetail(route, transferSummary, tasks, routeSteps) {
+  const chain = buildPlanningProductionChain(route, transferSummary, tasks, routeSteps);
+  const summary = getPlanningFlowReadinessSummary(route);
+  const { settings } = summary;
+  const canUseTransfer = summary.branchCount > 1 && chain.finalNode;
+  const isTransferMode = settings.mode === "transfer_batch";
+  const branchRows = summary.branchDetails || [];
+  const body = `
+    ${renderPlanningWorkbenchV2Section("Правило запуска", "", `
+      <div class="planning-v2-rule-editor">
+        <div class="planning-v2-mode-buttons" role="group" aria-label="Способ запуска сборки">
+          <button
+            class="${settings.mode === "complete" ? "is-active" : ""}"
+            data-planning-flow-mode="complete"
+            data-planning-flow-route="${escapeAttribute(route?.id || "")}"
+            type="button"
+            ${!canUseTransfer ? "disabled" : ""}
+          >После полного выпуска</button>
+          <button
+            class="${settings.mode === "transfer_batch" ? "is-active" : ""}"
+            data-planning-flow-mode="transfer_batch"
+            data-planning-flow-route="${escapeAttribute(route?.id || "")}"
+            type="button"
+            ${!canUseTransfer ? "disabled" : ""}
+          >По комплекту</button>
+        </div>
+        <label>
+          <span>Комплект для старта</span>
+          <input
+            data-planning-transfer-batch="${escapeAttribute(route?.id || "")}"
+            type="number"
+            min="1"
+            step="1"
+            value="${escapeAttribute(settings.transferBatchQuantity)}"
+            ${canUseTransfer && isTransferMode ? "" : "disabled"}
+          >
+        </label>
+      </div>
+    `)}
+    ${renderPlanningWorkbenchV2Section("WIP", "", `
+      ${branchRows.length ? `
+        <div class="planning-v2-register-table is-wip" role="table" aria-label="WIP по входным веткам">
+          <div class="planning-v2-register-row is-head" role="row">
+            <span>Ветка</span>
+            <span>Выпущено</span>
+            <span>Свободно</span>
+            <span>Старт</span>
+          </div>
+          ${branchRows.map((branch) => `
+            <div class="planning-v2-register-row is-${branch.isReadyForStart ? "ok" : "warning"}" role="row">
+              <div>
+                <strong>${escapeHtml(branch.outputLabel || branch.title || "Выход ветки")}</strong>
+                <em>${escapeHtml(branch.inputLabel || "вход не указан")}</em>
+              </div>
+              <strong>${Number(branch.producedQuantity || 0).toLocaleString("ru-RU")} шт.</strong>
+              <strong>${Number(branch.availableQuantity || 0).toLocaleString("ru-RU")} шт.</strong>
+              <span class="planning-v2-state-token is-${branch.isReadyForStart ? "ok" : "warning"}">${branch.readyAt ? escapeHtml(formatDateTimeShort(branch.readyAt)) : "нет даты"}</span>
+            </div>
+          `).join("")}
+        </div>
+      ` : `
+          <div class="planning-muted-state">
+            ${icon("info")}
+            <span>WIP появится после размещения в Ганте.</span>
+          </div>
+        `}
+    `)}
+  `;
+
+  return renderPlanningWorkbenchV2Record({
+    title: "Правило запуска",
+    status: chain.issues.length ? `${chain.issues.length} проблем` : "готово",
+    tone: chain.issues.length ? "warning" : "ok",
+    body,
+  });
+}
+
+function renderPlanningWorkbenchV2TaskDetail(route, task, transferSummary, routeSteps) {
+  if (!task) return renderPlanningWorkbenchV2BatchesDetail(route, transferSummary);
+  const stats = getPlanningTaskOperationStats(route, task, routeSteps);
+  const readiness = getPlanningTaskReadiness(task, stats);
+  const body = `
+    ${renderPlanningWorkbenchV2Section("Операции", "", `
+      ${stats.steps.length ? `
+        <div class="planning-v2-register-table is-operations" role="table" aria-label="Операции составной части">
+          <div class="planning-v2-register-row is-head" role="row">
+            <span>Операция</span>
+            <span>Ресурс</span>
+            <span>Тип</span>
+            <span>Состояние</span>
+          </div>
+          ${stats.steps.map((step) => {
+            const tone = getPlanningStepTone(step);
+            const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
+            return `
+              <button class="planning-v2-register-row is-clickable is-${escapeAttribute(tone)}" data-planning-work-item="${escapeAttribute(getPlanningWorkItemId("step", step.id))}" type="button" role="row">
+                <div>
+                  <small>${Number(step.stepOrder || 0)}</small>
+                  <strong>${escapeHtml(step.operationName || "Операция")}</strong>
+                </div>
+                <span>${escapeHtml(getPlanningStepLineLabel(step))}</span>
+                <span>${isSmtStep ? "SMT" : isManufacturingOutputReceiptRouteStep(step) ? "приемка" : "маршрут"}</span>
+                <span class="planning-v2-state-token is-${escapeAttribute(tone)}">${escapeHtml(tone === "warning" ? "проверьте" : "готово")}</span>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>Операции для этой части не заданы в маршрутной карте.</span>
+        </div>
+      `}
+    `)}
+  `;
+
+  return renderPlanningWorkbenchV2Record({
+    title: task.title || "Составная часть",
+    status: readiness.label,
+    tone: readiness.tone,
+    body,
+  });
+}
+
+function renderPlanningWorkbenchV2StepDetail(route, step, transferSummary, routeSteps) {
+  const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
+  const tone = getPlanningStepTone(step);
+  const body = `
+    ${isSmtStep ? renderPlanningWorkbenchV2Section("SMT-калькулятор", "", `
+      <div class="planning-v2-tool-panel">
+        ${renderRouteSmtStepCalculator(route, step, { context: "planning", variant: "operation" })}
+      </div>
+    `, { className: "is-tool" }) : ""}
+  `;
+
+  return renderPlanningWorkbenchV2Record({
+    title: step.operationName || "Операция",
+    status: isSmtStep ? "SMT" : isManufacturingOutputReceiptRouteStep(step) ? "приемка" : "маршрут",
+    tone,
+    body,
+  });
+}
+
+function renderPlanningWorkbenchV2BatchesDetail(route, summary) {
+  const quantityDelta = Number(summary?.quantityDelta || 0);
+  const deltaTone = quantityDelta === 0 ? "ok" : quantityDelta > 0 ? "warning" : "critical";
+  const body = `
+    ${renderPlanningWorkbenchV2Section("Настройка партий", "", `
+      ${renderPlanningWorkbenchV2BatchEditor(route, summary)}
+    `)}
+  `;
+
+  return renderPlanningWorkbenchV2Record({
+    title: "Партии",
+    status: quantityDelta === 0 ? "готово" : "проверьте партии",
+    tone: deltaTone,
+    body,
+  });
+}
+
+function renderPlanningWorkbenchV2BatchEditor(route, summary) {
+  const batches = summary?.batches || [];
+  const realBatches = batches.filter((batch) => batch.id !== "__pending__");
+  const routeId = route?.id || "";
+
+  return `
+    <div class="planning-v2-batch-editor">
+      <div class="planning-v2-batch-actions">
+        <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("plus")}<span>Партия</span></button>
+        <button class="secondary-button" data-planning-batches-distribute="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("refresh")}<span>Поровну</span></button>
+        <button class="secondary-button" data-planning-batches-accept-total="${escapeAttribute(routeId)}" type="button" ${route && realBatches.length ? "" : "disabled"}>${icon("check")}<span>Принять</span></button>
+      </div>
+
+      <div class="planning-v2-batch-grid" role="table" aria-label="Настройка партий">
+        <div class="planning-v2-batch-row is-head" role="row">
+          <span>Партия</span>
+          <span>Кол-во</span>
+          <span></span>
+        </div>
+        ${batches.map((batch) => {
+          const isPending = batch.id === "__pending__";
+          return `
+            <div class="planning-v2-batch-row ${isPending ? "is-pending" : ""}" role="row">
+              <label>
+                <span>Партия</span>
+                <input
+                  aria-label="Номер партии"
+                  data-planning-batch-field="batchNumber"
+                  data-planning-batch-id="${escapeAttribute(batch.id)}"
+                  type="text"
+                  value="${escapeAttribute(batch.batchNumber || "")}"
+                  ${isPending ? "disabled" : ""}
+                />
+              </label>
+              <label>
+                <span>Кол-во</span>
+                <input
+                  aria-label="Количество в партии"
+                  data-planning-batch-field="quantity"
+                  data-planning-batch-id="${escapeAttribute(batch.id)}"
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  step="1"
+                  value="${escapeAttribute(batch.quantity || 1)}"
+                  ${isPending ? "disabled" : ""}
+                />
+              </label>
+              <div class="planning-v2-batch-row-actions">
+                ${isPending ? `
+                  <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button">${icon("plus")}<span>Создать</span></button>
+                ` : `
+                  <button class="icon-button danger-soft" data-planning-batch-delete="${escapeAttribute(batch.id)}" type="button" title="Удалить партию">${icon("trash")}</button>
+                `}
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function getWarehouseMovementTypeConfig(value = "") {
+  return WAREHOUSE_MOVEMENT_TYPES.find((item) => item.value === value) || WAREHOUSE_MOVEMENT_TYPES[0];
+}
+
+function getWarehouseMovementSignedQuantity(movement = {}) {
+  const config = getWarehouseMovementTypeConfig(movement.movementType || movement.type);
+  const quantity = normalizeWarehouseQuantity(movement.quantity);
+  return config.direction === "out" ? -quantity : quantity;
+}
+
+function formatWarehouseQuantity(value, unit = "шт.") {
+  const quantity = Number(value || 0);
+  const text = quantity.toLocaleString("ru-RU", {
+    maximumFractionDigits: quantity % 1 ? 3 : 0,
+  });
+  return `${text} ${unit || "шт."}`;
+}
+
+function getWarehouseNomenclatureOptions() {
+  return [...(directoryState.nomenclature || [])]
+    .filter((item) => item?.id)
+    .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru"))
+    .map((item) => ({
+      value: item.id,
+      label: item.name || "Позиция без названия",
+      meta: [item.article, normalizeNomenclatureType(item.type), item.package].filter(Boolean).join(" · "),
+    }));
+}
+
+function getWarehouseRouteOptions() {
+  return getRoutesForModule().map((route) => ({
+    value: route.id,
+    label: route.name || "Заказ-наряд без названия",
+    meta: getRouteModuleSelectionName(route) || getRoutePlanningContext(route)?.name || "связь не выбрана",
+  }));
+}
+
+function stripWarehouseReceiptLabel(label = "") {
+  return String(label || "")
+    .replace(/^Складской остаток:\s*/i, "")
+    .replace(/^Готовый выпуск:\s*/i, "")
+    .trim();
+}
+
+function normalizeWarehouseLookupText(value = "") {
+  return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function getWarehouseNomenclatureIdByExactLabel(label = "") {
+  const lookup = normalizeWarehouseLookupText(stripWarehouseReceiptLabel(label));
+  if (!lookup) return "";
+  const item = (directoryState.nomenclature || []).find((entry) => (
+    normalizeWarehouseLookupText(entry.name) === lookup
+    || normalizeWarehouseLookupText(entry.article) === lookup
+  ));
+  return item?.id || "";
+}
+
+function getWarehouseNomenclatureIdForRouteTask(task = {}) {
+  if (!task) return "";
+  if (task.nomenclatureItemId) return task.nomenclatureItemId;
+  if (task.bomListId || task.type === "bom") {
+    return getBomResultNomenclatureItem(task.bomListId || task.sourceItemId)?.id || "";
+  }
+  if ((task.type === "nomenclature" || task.type === "part") && task.sourceSpecificationId && task.sourceItemId) {
+    const specification = getSpecificationById(task.sourceSpecificationId);
+    const item = getSpecificationStructureItems(specification).find((entry) => entry.id === task.sourceItemId);
+    return getWarehouseNomenclatureIdForSpecificationItem(item);
+  }
+  return "";
+}
+
+function getWarehouseNomenclatureIdForReceiptOutput(output = {}, route = null) {
+  const sourceId = String(output?.sourceId || "");
+  if (!sourceId) return "";
+
+  if (output.sourceType === "bom-result" || output.sourceType === "bom" || sourceId.startsWith("bom")) {
+    const directBom = getBomList(sourceId);
+    if (directBom) return getBomResultNomenclatureItem(directBom.id)?.id || "";
+  }
+
+  const routeSpecification = getRouteSpecification(route);
+  const structureItem = getSpecificationStructureItems(routeSpecification).find((item) => item.id === sourceId);
+  if (structureItem) return getWarehouseNomenclatureIdForSpecificationItem(structureItem);
+
+  return "";
+}
+
+function getWarehouseProductionReceiptNomenclatureId(slot = {}, route = null, step = null, task = null, flow = null) {
+  const context = getSlotEffectiveOperationContext(slot);
+  const contextBomId = context.bomListId || slot.bomListId || task?.bomListId || "";
+  if (contextBomId) {
+    const bomResultItem = getBomResultNomenclatureItem(contextBomId);
+    if (bomResultItem) return bomResultItem.id;
+  }
+
+  const taskItemId = getWarehouseNomenclatureIdForRouteTask(task);
+  if (taskItemId) return taskItemId;
+
+  const receiptOutput = (flow?.outputs || []).find((output) => output.sourceType === "warehouse-receipt")
+    || (flow?.outputs || [])[0];
+  const outputItemId = getWarehouseNomenclatureIdForReceiptOutput(receiptOutput, route);
+  if (outputItemId) return outputItemId;
+
+  return getWarehouseNomenclatureIdByExactLabel(
+    receiptOutput?.label || slot.operationOutputLabel || flow?.outputLabel || task?.title || "",
+  );
+}
+
+function getWarehouseProductionReceiptRows() {
+  return (planningState.slots || [])
+    .filter((slot) => isManufacturingOutputReceiptSlot(slot))
+    .map((slot) => {
+      const route = getSlotRoute(slot);
+      const step = (planningState.routeSteps || []).find((item) => item.id === slot.routeStepId) || null;
+      const task = route && step ? getRouteStepPlanningTask(route, step) : null;
+      const flow = getSlotOperationFlow(slot, route, step);
+      const itemId = getWarehouseProductionReceiptNomenclatureId(slot, route, step, task, flow);
+      const item = getNomenclatureItem(itemId);
+      const operationOutput = stripWarehouseReceiptLabel(slot.operationOutputLabel || flow.outputLabel);
+      const name = item?.name || operationOutput || task?.title || route?.name || "Результат производства";
+      const quantity = normalizeWarehouseQuantity(slot.quantity || 0);
+      const producedQuantity = Math.min(quantity, normalizeWarehouseQuantity(getSlotProducedQuantityAt(slot, ui.now)));
+      return {
+        id: slot.id,
+        slotId: slot.id,
+        routeId: route?.id || slot.routeId || "",
+        routeName: route?.name || "Заказ-наряд не выбран",
+        operationName: slot.operationName || step?.operationName || "Поступление из производства",
+        itemId,
+        item,
+        name,
+        article: item?.article || "",
+        type: item ? normalizeNomenclatureType(item.type) : "нет связи с номенклатурой",
+        unit: item?.unit || task?.unit || "шт.",
+        quantity,
+        producedQuantity,
+        status: slot.status || "planned",
+        plannedStart: slot.plannedStart || "",
+        plannedEnd: slot.plannedEnd || "",
+        outputLabel: operationOutput,
+      };
+    })
+    .filter((row) => row.quantity > 0)
+    .sort((left, right) => (
+      toDate(left.plannedEnd) - toDate(right.plannedEnd)
+      || left.name.localeCompare(right.name, "ru")
+    ));
+}
+
+function getWarehouseBalanceRows() {
+  const itemById = new Map((directoryState.nomenclature || []).map((item) => [item.id, item]));
+  const rowsByItem = new Map();
+
+  const ensureRow = (itemId) => {
+    const item = itemById.get(itemId);
+    const existing = rowsByItem.get(itemId);
+    if (existing) return existing;
+    const row = {
+      itemId,
+      item,
+      name: item?.name || "Номенклатура не выбрана",
+      article: item?.article || "",
+      type: item ? normalizeNomenclatureType(item.type) : "нет связи",
+      unit: item?.unit || "шт.",
+      incoming: 0,
+      outgoing: 0,
+      onHand: 0,
+      reserved: 0,
+      productionIncoming: 0,
+      productionAcceptedNow: 0,
+      available: 0,
+      availableWithProduction: 0,
+      shortage: 0,
+    };
+    rowsByItem.set(itemId, row);
+    return row;
+  };
+
+  (planningState.warehouseMovements || []).forEach((movement) => {
+    if (!movement.nomenclatureItemId) return;
+    const row = ensureRow(movement.nomenclatureItemId);
+    const signedQuantity = getWarehouseMovementSignedQuantity(movement);
+    if (signedQuantity >= 0) row.incoming += signedQuantity;
+    if (signedQuantity < 0) row.outgoing += Math.abs(signedQuantity);
+    row.onHand += signedQuantity;
+  });
+
+  (planningState.warehouseReservations || []).forEach((reservation) => {
+    if (!reservation.nomenclatureItemId) return;
+    const row = ensureRow(reservation.nomenclatureItemId);
+    row.reserved += normalizeWarehouseQuantity(reservation.quantity);
+  });
+
+  getWarehouseProductionReceiptRows().forEach((receipt) => {
+    if (!receipt.itemId) return;
+    const row = ensureRow(receipt.itemId);
+    row.productionIncoming += normalizeWarehouseQuantity(receipt.quantity);
+    row.productionAcceptedNow += normalizeWarehouseQuantity(receipt.producedQuantity);
+  });
+
+  return [...rowsByItem.values()]
+    .map((row) => {
+      const available = row.onHand - row.reserved;
+      const productionIncoming = Math.max(0, row.productionIncoming);
+      return {
+        ...row,
+        incoming: Math.max(0, row.incoming),
+        outgoing: Math.max(0, row.outgoing),
+        onHand: Math.max(0, row.onHand),
+        productionIncoming,
+        productionAcceptedNow: Math.max(0, row.productionAcceptedNow),
+        available: Math.max(0, available),
+        availableWithProduction: Math.max(0, available + productionIncoming),
+        shortage: Math.max(0, -available),
+      };
+    })
+    .sort((left, right) => (
+      Number(right.shortage > 0) - Number(left.shortage > 0)
+      || right.productionIncoming - left.productionIncoming
+      || right.available - left.available
+      || left.name.localeCompare(right.name, "ru")
+    ));
+}
+
+function getWarehouseBalanceForNomenclature(nomenclatureItemId) {
+  return getWarehouseBalanceRows().find((row) => row.itemId === nomenclatureItemId) || null;
+}
+
+function renderWarehouseSelectOptions(options, selectedValue = "", emptyLabel = "Не выбрано") {
+  return `
+    <option value="" ${selected(selectedValue, "")}>${escapeHtml(emptyLabel)}</option>
+    ${options.map((option) => `
+      <option value="${escapeAttribute(option.value)}" ${selected(selectedValue, option.value)}>
+        ${escapeHtml(option.label)}${option.meta ? ` · ${escapeHtml(option.meta)}` : ""}
+      </option>
+    `).join("")}
+  `;
+}
+
+function getDispatchWindow() {
+  const fallbackStart = getEarliestPlannedSlotStart() || ui.now || new Date();
+  const anchor = fromDateInput(ui.windowStart || toDateInput(fallbackStart));
+  const start = startOfDay(anchor);
+  const end = addMs(start, DAY_MS);
+  return {
+    start,
+    end,
+    label: `${formatDate(start)} · ${formatTime(start)}-${formatTime(end)}`,
+  };
+}
+
+function isSlotInsideDispatchWindow(slot, window) {
+  if (!slot?.plannedStart || !slot?.plannedEnd) return false;
+  return windowsOverlap(window.start, window.end, slot.plannedStart, slot.plannedEnd);
+}
+
+function getDispatchSlotTone(slot = {}) {
+  if (slot.status === "completed") return "ok";
+  if (slot.status === "problem" || slot.status === "overdue") return "critical";
+  if (slot.status === "in_progress") return "active";
+  if (slot.status === "paused") return "warning";
+  return "neutral";
+}
+
+function getDispatchSlotWindowStyle(slot, window) {
+  const startMs = window.start.getTime();
+  const endMs = window.end.getTime();
+  const totalMs = Math.max(1, endMs - startMs);
+  const slotStart = Math.max(startMs, toDate(slot.plannedStart).getTime());
+  const slotEnd = Math.min(endMs, toDate(slot.plannedEnd).getTime());
+  const left = Math.max(0, Math.min(100, (slotStart - startMs) / totalMs * 100));
+  const width = Math.max(2, Math.min(100 - left, (slotEnd - slotStart) / totalMs * 100));
+  return `--slot-left:${Math.round(left * 10) / 10}%; --slot-width:${Math.round(width * 10) / 10}%;`;
+}
+
+function buildDispatchWorkCenterRows(window, slotWarningMap) {
+  const shiftSlots = (planningState.slots || []).filter((slot) => isSlotInsideDispatchWindow(slot, window));
+  const now = toDate(ui.now || new Date());
+
+  return getPlanningWorkCenters().map((center) => {
+    const slots = shiftSlots
+      .filter((slot) => {
+        const slotWorkCenterId = mapLegacyWorkCenterId(getSlotGanttWorkCenterId(slot) || slot.workCenterId || "");
+        return slotWorkCenterId === center.id || slotMatchesRouteWorkCenterId(slot, center.id);
+      })
+      .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart));
+    const activeSlots = slots.filter((slot) => (
+      ["in_progress", "problem", "overdue"].includes(slot.status)
+      || (toDate(slot.plannedStart) <= now && toDate(slot.plannedEnd) >= now && slot.status !== "completed")
+    ));
+    const warnings = slots.reduce((sum, slot) => sum + (slotWarningMap[slot.id]?.length || 0), 0);
+    const hours = slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
+    const capacity = Math.max(1, getWorkCenterCapacity(center.id));
+    const utilization = Math.max(0, Math.min(100, Math.round(hours / Math.max(1, 12 * capacity) * 100)));
+
+    return {
+      center,
+      slots,
+      activeSlots,
+      warnings,
+      hours,
+      capacity,
+      utilization,
+      tone: warnings ? "warning" : activeSlots.length ? "active" : slots.length ? "ok" : "neutral",
+    };
+  }).filter((row) => row.slots.length || row.center.id === "D1")
+    .sort((left, right) => (
+      right.warnings - left.warnings
+      || right.activeSlots.length - left.activeSlots.length
+      || right.hours - left.hours
+      || String(left.center.name || "").localeCompare(String(right.center.name || ""), "ru")
+    ));
+}
+
+function buildDispatchRouteRows(warnings, window) {
+  return (planningState.routes || [])
+    .filter((route) => route.planningStatus !== "canceled")
+    .map((route) => {
+      const project = getRoutePlanningContext(route);
+      const slots = getRouteSlots(route.id);
+      const slotIds = new Set(slots.map((slot) => slot.id));
+      const routeWarnings = warnings.filter((warning) => (
+        warning.projectId === project?.id
+        || (warning.slotIds || []).some((slotId) => slotIds.has(slotId))
+      ));
+      const critical = routeWarnings.filter((warning) => warning.severity === "critical").length;
+      const progress = project
+        ? calculateProjectProgress(project, planningState)
+        : slots.length ? Math.round(slots.filter((slot) => slot.status === "completed").length / slots.length * 100) : 0;
+      const dueState = project ? getProjectDeadlineState(project) : { tone: "neutral", label: "срок не задан", slackMs: null };
+      const nextSlot = slots
+        .filter((slot) => toDate(slot.plannedEnd) >= window.start)
+        .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))[0] || null;
+      const shiftSlots = slots.filter((slot) => isSlotInsideDispatchWindow(slot, window));
+      const tone = critical
+        ? "critical"
+        : routeWarnings.length || dueState.tone === "warning"
+          ? "warning"
+          : dueState.tone === "critical"
+            ? "critical"
+            : progress >= 80
+              ? "ok"
+              : shiftSlots.length
+                ? "active"
+                : "neutral";
+
+      return {
+        route,
+        project,
+        slots,
+        shiftSlots,
+        warnings: routeWarnings.length,
+        critical,
+        progress,
+        dueState,
+        nextSlot,
+        tone,
+        statusLabel: route.planningStatus === "scheduled" ? "На Ганте" : "В плане",
+      };
+    })
+    .sort((left, right) => (
+      right.critical - left.critical
+      || right.warnings - left.warnings
+      || Number(left.dueState.slackMs ?? Number.MAX_SAFE_INTEGER) - Number(right.dueState.slackMs ?? Number.MAX_SAFE_INTEGER)
+      || toDate(left.nextSlot?.plannedStart || "9999-12-31") - toDate(right.nextSlot?.plannedStart || "9999-12-31")
+    ));
+}
+
+function buildDispatchSignals(warnings, backlog, window) {
+  const warningSignals = warnings
+    .sort((left, right) => Number(right.severity === "critical") - Number(left.severity === "critical"))
+    .slice(0, 5)
+    .map((warning) => ({
+      tone: warning.severity === "critical" ? "critical" : "warning",
+      title: formatWarningType(warning.type),
+      meta: getProjectDisplayName(getProject(warning.projectId)) || "Производство",
+      text: warning.message,
+    }));
+
+  const backlogSignals = backlog.slice(0, 4).map((item) => ({
+    tone: item.requiresPlanningLine ? "warning" : "neutral",
+    title: "Очередь",
+    meta: getProjectDisplayName(item.project) || item.project?.name || "Изделие",
+    text: `${item.routeStep?.operationName || "Операция"} · ${item.workCenter?.name || "отдел не выбран"}`,
+  }));
+
+  const receiptSignals = (planningState.slots || [])
+    .filter((slot) => isManufacturingOutputReceiptSlot(slot))
+    .filter((slot) => isSlotInsideDispatchWindow(slot, window) || toDate(slot.plannedEnd) >= window.start)
+    .sort((left, right) => toDate(left.plannedEnd) - toDate(right.plannedEnd))
+    .slice(0, 4)
+    .map((slot) => ({
+      tone: slot.status === "completed" ? "ok" : "active",
+      title: "Выпуск",
+      meta: formatDateTimeShort(slot.plannedEnd),
+      text: `${slot.operationName || "Поступление из производства"} · ${Number(slot.quantity || 0).toLocaleString("ru-RU")} шт.`,
+    }));
+
+  return [...warningSignals, ...backlogSignals, ...receiptSignals].slice(0, 10);
+}
+
+function getDispatchCheckpointReferenceTime(window, shiftSlots = []) {
+  const now = toDate(ui.now || new Date());
+  if (now >= window.start && now <= window.end) return now;
+
+  const nextPlannedStart = [...shiftSlots]
+    .filter((slot) => slot.status !== "completed")
+    .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))[0]?.plannedStart;
+
+  return nextPlannedStart ? toDate(nextPlannedStart) : addMs(window.start, 8 * 60 * 60 * 1000);
+}
+
+function buildDispatchCheckpoints(data) {
+  const hourMs = 60 * 60 * 1000;
+  const shiftStart = addMs(data.window.start, 8 * hourMs);
+  const shiftMiddle = addMs(data.window.start, 12 * hourMs);
+  const riskTime = addMs(data.window.start, 16 * hourMs);
+  const shiftClose = addMs(data.window.start, 19.5 * hourMs);
+  const referenceTime = getDispatchCheckpointReferenceTime(data.window, data.shiftSlots);
+  const referenceMs = referenceTime.getTime();
+  const startedStatuses = new Set(["in_progress", "completed", "problem", "overdue"]);
+  const startSlots = data.shiftSlots.filter((slot) => {
+    const start = toDate(slot.plannedStart);
+    return start >= shiftStart && start < addMs(shiftStart, 2 * hourMs);
+  });
+  const startedSlots = startSlots.filter((slot) => startedStatuses.has(slot.status));
+  const flowSlots = data.shiftSlots.filter((slot) => (
+    toDate(slot.plannedStart) <= shiftMiddle
+    && toDate(slot.plannedEnd) >= shiftMiddle
+    && slot.status !== "completed"
+  ));
+  const endRiskSlots = data.shiftSlots.filter((slot) => (
+    toDate(slot.plannedEnd) >= riskTime
+    && toDate(slot.plannedEnd) <= addMs(data.window.start, 20 * hourMs)
+    && slot.status !== "completed"
+  ));
+  const openSlots = data.shiftSlots.filter((slot) => slot.status !== "completed");
+  const outputSlotsInWindow = data.outputReceiptSlots.filter((slot) => isSlotInsideDispatchWindow(slot, data.window));
+  const completedOutputSlots = outputSlotsInWindow.filter((slot) => slot.status === "completed");
+  const checkpoints = [
+    {
+      id: "prepare",
+      at: addMs(data.window.start, 7.75 * hourMs),
+      time: "07:45",
+      title: "Готовность",
+      value: `${data.shiftSlots.length.toLocaleString("ru-RU")} оп.`,
+      caption: `${data.routeRows.length.toLocaleString("ru-RU")} маршрут`,
+      tone: data.criticalWarnings.length ? "critical" : data.warnings.length ? "warning" : "ok",
+      checks: [
+        { label: "План в окне", value: `${data.shiftSlots.length.toLocaleString("ru-RU")} операций` },
+        { label: "Сигналы Ганта", value: `${data.warnings.length.toLocaleString("ru-RU")} всего` },
+        { label: "Участки", value: `${data.workCenterRows.length.toLocaleString("ru-RU")} в срезе` },
+      ],
+    },
+    {
+      id: "start",
+      at: shiftStart,
+      time: "08:00",
+      title: "Старт",
+      value: `${startedSlots.length}/${startSlots.length || 0}`,
+      caption: "запуски",
+      tone: startSlots.length && startedSlots.length < startSlots.length ? "warning" : startSlots.length ? "ok" : "neutral",
+      checks: [
+        { label: "К старту", value: `${startSlots.length.toLocaleString("ru-RU")} операций` },
+        { label: "Подтверждено", value: `${startedSlots.length.toLocaleString("ru-RU")} операций` },
+        { label: "Без старта", value: `${Math.max(0, startSlots.length - startedSlots.length).toLocaleString("ru-RU")}` },
+      ],
+    },
+    {
+      id: "flow",
+      at: shiftMiddle,
+      time: "12:00",
+      title: "Поток",
+      value: `${flowSlots.length.toLocaleString("ru-RU")} в работе`,
+      caption: `${data.backlog.length.toLocaleString("ru-RU")} очередь`,
+      tone: data.backlog.length ? "warning" : flowSlots.length ? "active" : "neutral",
+      checks: [
+        { label: "Операции на полдень", value: `${flowSlots.length.toLocaleString("ru-RU")}` },
+        { label: "Очередь размещения", value: `${data.backlog.length.toLocaleString("ru-RU")}` },
+        { label: "Сигналы участков", value: `${data.workCenterRows.reduce((sum, row) => sum + row.warnings, 0).toLocaleString("ru-RU")}` },
+      ],
+    },
+    {
+      id: "risk",
+      at: riskTime,
+      time: "16:00",
+      title: "Финиш",
+      value: `${endRiskSlots.length.toLocaleString("ru-RU")} оп.`,
+      caption: `${data.criticalWarnings.length.toLocaleString("ru-RU")} крит.`,
+      tone: data.criticalWarnings.length ? "critical" : endRiskSlots.length || data.warnings.length ? "warning" : "ok",
+      checks: [
+        { label: "Финиш до вечера", value: `${endRiskSlots.length.toLocaleString("ru-RU")} операций` },
+        { label: "Критичные сигналы", value: `${data.criticalWarnings.length.toLocaleString("ru-RU")}` },
+        { label: "Маршруты с риском", value: `${data.routeRows.filter((row) => row.tone === "critical" || row.tone === "warning").length.toLocaleString("ru-RU")}` },
+      ],
+    },
+    {
+      id: "close",
+      at: shiftClose,
+      time: "19:30",
+      title: "Закрытие",
+      value: `${completedOutputSlots.length}/${outputSlotsInWindow.length || 0}`,
+      caption: "приемка",
+      tone: outputSlotsInWindow.length && completedOutputSlots.length < outputSlotsInWindow.length ? "warning" : outputSlotsInWindow.length ? "ok" : "neutral",
+      checks: [
+        { label: "Приемка выпуска", value: `${completedOutputSlots.length}/${outputSlotsInWindow.length || 0}` },
+        { label: "Незавершенка", value: `${openSlots.length.toLocaleString("ru-RU")} операций` },
+        { label: "Передача смены", value: `${data.signals.length.toLocaleString("ru-RU")} сигналов` },
+      ],
+    },
+  ];
+  const activeIndex = Math.max(0, checkpoints.findIndex((checkpoint, index) => {
+    const next = checkpoints[index + 1];
+    return referenceMs >= checkpoint.at.getTime() && (!next || referenceMs < next.at.getTime());
+  }));
+
+  return checkpoints.map((checkpoint, index) => ({
+    ...checkpoint,
+    isActive: index === activeIndex,
+  }));
+}
+
+function buildDispatchBoardData() {
+  const window = getDispatchWindow();
+  const warningsContext = getSlotWarnings(planningState);
+  const warnings = warningsContext.warnings || [];
+  const criticalWarnings = warnings.filter((warning) => warning.severity === "critical");
+  const shiftSlots = (planningState.slots || []).filter((slot) => isSlotInsideDispatchWindow(slot, window));
+  const backlog = buildBacklogItems(80);
+  const routeRows = buildDispatchRouteRows(warnings, window);
+  const workCenterRows = buildDispatchWorkCenterRows(window, warningsContext.slotWarningMap || {});
+  const outputReceiptSlots = (planningState.slots || []).filter((slot) => isManufacturingOutputReceiptSlot(slot));
+  const completedOutputReceipt = outputReceiptSlots.filter((slot) => slot.status === "completed").length;
+  const plannedHours = shiftSlots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
+
+  const data = {
+    window,
+    warnings,
+    criticalWarnings,
+    shiftSlots,
+    backlog,
+    routeRows,
+    workCenterRows,
+    signals: buildDispatchSignals(warnings, backlog, window),
+    outputReceiptSlots,
+    completedOutputReceipt,
+    plannedHours,
+  };
+  data.checkpoints = buildDispatchCheckpoints(data);
+  data.activeCheckpoint = data.checkpoints.find((checkpoint) => checkpoint.isActive) || data.checkpoints[0] || null;
+  return data;
+}
+
+function renderDispatchPage() {
+  const data = buildDispatchBoardData();
+  const routeRows = data.routeRows.slice(0, 8);
+  const kpis = [
+    {
+      label: "Операции в окне",
+      value: data.shiftSlots.length.toLocaleString("ru-RU"),
+      meta: `${Math.round(data.plannedHours * 10) / 10} ч в плане`,
+      tone: data.shiftSlots.length ? "active" : "neutral",
+      iconName: "gantt",
+    },
+    {
+      label: "Сигналы",
+      value: data.warnings.length.toLocaleString("ru-RU"),
+      meta: `${data.criticalWarnings.length} критичных`,
+      tone: data.criticalWarnings.length ? "critical" : data.warnings.length ? "warning" : "ok",
+      iconName: data.warnings.length ? "alert" : "check",
+    },
+    {
+      label: "Очередь",
+      value: data.backlog.length.toLocaleString("ru-RU"),
+      meta: "ожидает размещения",
+      tone: data.backlog.length ? "warning" : "ok",
+      iconName: "calendar",
+    },
+    {
+      label: "Выпуск",
+      value: `${data.completedOutputReceipt}/${data.outputReceiptSlots.length || 0}`,
+      meta: "приемка из Ганта",
+      tone: data.outputReceiptSlots.length && data.completedOutputReceipt === data.outputReceiptSlots.length ? "ok" : "active",
+      iconName: "warehouse",
+    },
+  ];
+
+  return `
+    <section class="dispatch-page module-data-page" data-layout="main-content" aria-label="Диспетчерская">
+      <aside class="directory-sidebar module-data-sidebar dispatch-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Оперативный контур</span>
+          <h1>Диспетчерская</h1>
+        </div>
+        <div class="dispatch-sidebar-summary">
+          <article>
+            <span>Окно</span>
+            <strong>${escapeHtml(data.window.label)}</strong>
+          </article>
+          <article>
+            <span>Маршруты</span>
+            <strong>${data.routeRows.length.toLocaleString("ru-RU")}</strong>
+          </article>
+        </div>
+        <div class="module-entity-list dispatch-route-list">
+          <div class="module-list-label">Контроль маршрутов</div>
+          ${routeRows.length ? routeRows.map(renderDispatchSidebarRoute).join("") : renderModulePreviewEmpty({
+            iconName: "gantt",
+            title: "Маршрутов нет",
+            text: "Для диспетчерской нужен план в Ганте.",
+          })}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace dispatch-workspace" data-layout="page-workspace">
+        <header class="directory-header dispatch-header">
+          <div>
+            <span class="eyebrow">Первый оперативный уровень</span>
+            <h2>Оперативный контроль</h2>
+            <p>Сменный срез Ганта, выпуск и сигналы производства.</p>
+          </div>
+        </header>
+
+        <div class="module-data-content dispatch-content">
+          <section class="dispatch-kpi-grid" aria-label="Ключевые показатели диспетчерской">
+            ${kpis.map(renderDispatchKpi).join("")}
+          </section>
+
+          <section class="module-panel dispatch-rhythm-panel" aria-label="Реперные точки смены">
+            <div class="report-card-head">
+              <div>
+                <strong>Реперные точки смены</strong>
+                <span>${data.activeCheckpoint ? `текущий фокус: ${escapeHtml(data.activeCheckpoint.title)}` : "контроль по смене"}</span>
+              </div>
+            </div>
+            <div class="dispatch-rhythm-body">
+              <div class="dispatch-checkpoint-strip">
+                ${data.checkpoints.map(renderDispatchCheckpoint).join("")}
+              </div>
+              ${data.activeCheckpoint ? renderDispatchCurrentFocus(data.activeCheckpoint) : ""}
+            </div>
+          </section>
+
+          <section class="dispatch-board-grid" aria-label="Сменный контроль">
+            <article class="module-panel dispatch-shift-panel">
+              <div class="report-card-head">
+                <div>
+                  <strong>Сменный срез</strong>
+                  <span>${escapeHtml(data.window.label)}</span>
+                </div>
+              </div>
+              <div class="dispatch-window-ruler">
+                <span>${formatTime(data.window.start)}</span>
+                <span>${formatTime(addMs(data.window.start, 6 * 60 * 60 * 1000))}</span>
+                <span>${formatTime(addMs(data.window.start, 12 * 60 * 60 * 1000))}</span>
+                <span>${formatTime(addMs(data.window.start, 18 * 60 * 60 * 1000))}</span>
+                <span>${formatTime(data.window.end)}</span>
+              </div>
+              <div class="dispatch-workcenter-list">
+                ${data.workCenterRows.length ? data.workCenterRows.map((row) => renderDispatchWorkCenterRow(row, data.window)).join("") : renderModulePreviewEmpty({
+                  iconName: "calendar",
+                  title: "Нет операций в окне",
+                  text: "Сменный срез появится при наличии слотов Ганта.",
+                })}
+              </div>
+            </article>
+
+            <article class="module-panel dispatch-signal-panel">
+              <div class="report-card-head">
+                <div>
+                  <strong>Оперативные сигналы</strong>
+                  <span>${data.signals.length ? `${data.signals.length} событий` : "без событий"}</span>
+                </div>
+              </div>
+              <div class="dispatch-signal-list">
+                ${data.signals.length ? data.signals.map(renderDispatchSignal).join("") : renderModulePreviewEmpty({
+                  iconName: "check",
+                  title: "Сигналов нет",
+                  text: "Конфликты и очередь по текущему окну не найдены.",
+                })}
+              </div>
+            </article>
+          </section>
+
+          <article class="module-panel dispatch-route-panel">
+            <div class="report-card-head">
+              <div>
+                <strong>Контроль маршрутных карт</strong>
+                <span>по действующему плану</span>
+              </div>
+            </div>
+            <div class="dispatch-table-wrap" data-layout="table">
+              <table class="dispatch-table">
+                <thead>
+                  <tr>
+                    <th>Маршрут</th>
+                    <th>Статус</th>
+                    <th>Прогресс</th>
+                    <th>Срок</th>
+                    <th>Ближайшая операция</th>
+                    <th>Сигналы</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${data.routeRows.length ? data.routeRows.map(renderDispatchRouteTableRow).join("") : `
+                    <tr>
+                      <td colspan="6">Нет маршрутных карт для контроля.</td>
+                    </tr>
+                  `}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderDispatchCheckpoint(checkpoint) {
+  return `
+    <article class="dispatch-checkpoint-card is-${escapeAttribute(checkpoint.tone)} ${checkpoint.isActive ? "is-active" : ""}">
+      <span>${escapeHtml(checkpoint.time)}</span>
+      <strong>${escapeHtml(checkpoint.title)}</strong>
+      <b>${escapeHtml(checkpoint.value)}</b>
+      <em>${escapeHtml(checkpoint.caption)}</em>
+    </article>
+  `;
+}
+
+function renderDispatchCurrentFocus(checkpoint) {
+  return `
+    <aside class="dispatch-current-focus is-${escapeAttribute(checkpoint.tone)}">
+      <div>
+        <span>Фокус контроля</span>
+        <strong>${escapeHtml(checkpoint.title)}</strong>
+      </div>
+      <ul>
+        ${checkpoint.checks.map((check) => `
+          <li>
+            <span>${escapeHtml(check.label)}</span>
+            <strong>${escapeHtml(check.value)}</strong>
+          </li>
+        `).join("")}
+      </ul>
+    </aside>
+  `;
+}
+
+function renderDispatchKpi(item) {
+  return `
+    <article class="dispatch-kpi-card is-${escapeAttribute(item.tone)}">
+      <span>${icon(item.iconName)}</span>
+      <div>
+        <small>${escapeHtml(item.label)}</small>
+        <strong>${escapeHtml(item.value)}</strong>
+        <em>${escapeHtml(item.meta)}</em>
+      </div>
+    </article>
+  `;
+}
+
+function renderDispatchSidebarRoute(row) {
+  const title = row.project ? getProjectDisplayName(row.project) || row.project.name : row.route.name || "Маршрут";
+  return `
+    <article class="dispatch-route-card is-${escapeAttribute(row.tone)}">
+      <span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(row.route.name || "маршрутная карта")}</small>
+      </span>
+      <em>${row.progress}%</em>
+      <div class="dispatch-progress" aria-hidden="true"><span style="width:${row.progress}%"></span></div>
+    </article>
+  `;
+}
+
+function renderDispatchWorkCenterRow(row, window) {
+  const nextSlot = row.slots[0] || null;
+  return `
+    <article class="dispatch-workcenter-row is-${escapeAttribute(row.tone)}">
+      <div class="dispatch-workcenter-meta">
+        <strong>${escapeHtml(row.center.name || row.center.id)}</strong>
+        <span>${row.slots.length} оп. · ${Math.round(row.hours * 10) / 10} ч · ${row.utilization}%</span>
+      </div>
+      <div class="dispatch-lane" aria-label="${escapeAttribute(row.center.name || row.center.id)}">
+        ${row.slots.slice(0, 8).map((slot) => renderDispatchSlotBar(slot, window)).join("")}
+      </div>
+      <div class="dispatch-workcenter-state">
+        <span>${nextSlot ? escapeHtml(nextSlot.operationName || "операция") : "нет слотов"}</span>
+        <em>${row.warnings ? `${row.warnings} сигн.` : row.activeSlots.length ? "активно" : "план"}</em>
+      </div>
+    </article>
+  `;
+}
+
+function renderDispatchSlotBar(slot, window) {
+  return `
+    <span
+      class="dispatch-slot-bar is-${escapeAttribute(getDispatchSlotTone(slot))}"
+      style="${getDispatchSlotWindowStyle(slot, window)}"
+      title="${escapeAttribute(`${slot.operationName || "Операция"} · ${formatDateTimeShort(slot.plannedStart)}-${formatDateTimeShort(slot.plannedEnd)}`)}"
+    ></span>
+  `;
+}
+
+function renderDispatchSignal(signal) {
+  return `
+    <article class="dispatch-signal-item is-${escapeAttribute(signal.tone)}">
+      <b>${signal.tone === "critical" ? icon("alert") : signal.tone === "ok" ? icon("check") : icon("info")}</b>
+      <div>
+        <strong>${escapeHtml(signal.title)}</strong>
+        <span>${escapeHtml(signal.text)}</span>
+        <em>${escapeHtml(signal.meta)}</em>
+      </div>
+    </article>
+  `;
+}
+
+function renderDispatchRouteTableRow(row) {
+  const title = row.project ? getProjectDisplayName(row.project) || row.project.name : row.route.name || "Маршрут";
+  const nextSlot = row.nextSlot;
+  return `
+    <tr class="is-${escapeAttribute(row.tone)}">
+      <td class="primary-cell">
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(row.route.name || "маршрутная карта")}</small>
+      </td>
+      <td><span class="dispatch-status-token is-${escapeAttribute(row.tone)}">${escapeHtml(row.statusLabel)}</span></td>
+      <td>
+        <div class="dispatch-table-progress">
+          <span style="width:${row.progress}%"></span>
+          <em>${row.progress}%</em>
+        </div>
+      </td>
+      <td>${escapeHtml(row.dueState.label)}</td>
+      <td>${nextSlot ? `${escapeHtml(nextSlot.operationName || "операция")} · ${formatDateTimeShort(nextSlot.plannedStart)}` : "-"}</td>
+      <td>${row.warnings ? `${row.warnings} / ${row.critical} крит.` : "нет"}</td>
+    </tr>
+  `;
+}
+
+function renderWarehousePage() {
+  const activeRole = getActiveInterfaceRole();
+  const isWarehouseClerkRole = activeRole.id === "warehouseClerk";
+  const movements = [...(planningState.warehouseMovements || [])]
+    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+  const reservations = [...(planningState.warehouseReservations || [])]
+    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+  const productionReceipts = getWarehouseProductionReceiptRows();
+  const balanceRows = getWarehouseBalanceRows();
+  const nomenclatureOptions = getWarehouseNomenclatureOptions();
+  const routeOptions = getWarehouseRouteOptions();
+  const totalOnHand = balanceRows.reduce((sum, row) => sum + row.onHand, 0);
+  const totalReserved = balanceRows.reduce((sum, row) => sum + row.reserved, 0);
+  const totalProductionIncoming = productionReceipts.reduce((sum, row) => sum + row.quantity, 0);
+  const shortageRows = balanceRows.filter((row) => row.shortage > 0);
+  const formDisabled = nomenclatureOptions.length ? "" : "disabled";
+
+  return `
+    <section class="warehouse-page module-data-page" data-layout="main-content" aria-label="Склад">
+      <aside class="directory-sidebar module-data-sidebar warehouse-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Регистр</span>
+          <h1>Склад</h1>
+        </div>
+        <div class="warehouse-sidebar-summary">
+          <article>
+            <span>Позиции</span>
+            <strong>${balanceRows.length.toLocaleString("ru-RU")}</strong>
+          </article>
+          <article>
+            <span>Поступит</span>
+            <strong>${formatWarehouseQuantity(totalProductionIncoming)}</strong>
+          </article>
+        </div>
+        <div class="module-entity-list warehouse-balance-list">
+          <div class="module-list-label">Остатки и поступления</div>
+          ${balanceRows.length ? balanceRows.map((row) => `
+            <article class="warehouse-balance-card ${row.shortage ? "is-shortage" : ""}">
+              <span>
+                <strong>${escapeHtml(row.name)}</strong>
+                <small>${escapeHtml([row.article, row.type].filter(Boolean).join(" · ") || "позиция номенклатуры")}</small>
+              </span>
+              <em>
+                ${formatWarehouseQuantity(row.available, row.unit)}
+                ${row.productionIncoming ? `<small>+${formatWarehouseQuantity(row.productionIncoming, row.unit)}</small>` : ""}
+              </em>
+            </article>
+          `).join("") : renderModulePreviewEmpty({
+            iconName: "warehouse",
+            title: "Остатков пока нет",
+            text: "Добавьте движение или передайте в Гант операцию поступления из производства.",
+          })}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">${isWarehouseClerkRole ? "Рабочее место" : "Материальный контур"}</span>
+            <h2>${isWarehouseClerkRole ? "Кладовщик" : "Склад"}</h2>
+            <p>${isWarehouseClerkRole ? "Приемка выпуска, складские движения и резервы по текущему производственному плану." : "Фактический остаток считается из явных движений и резервов. Поступления из производства показываются динамически из Ганта без создания складских записей."}</p>
+          </div>
+        </header>
+
+        <div class="module-data-content warehouse-content">
+          <section class="module-panel warehouse-kpi-panel">
+            <div class="warehouse-kpi-grid">
+              <article><span>На складе</span><strong>${formatWarehouseQuantity(totalOnHand)}</strong><small>по всем движениям</small></article>
+              <article><span>Поступит из производства</span><strong>${formatWarehouseQuantity(totalProductionIncoming)}</strong><small>по операциям Ганта</small></article>
+              <article><span>Зарезервировано</span><strong>${formatWarehouseQuantity(totalReserved)}</strong><small>под заказ-наряды</small></article>
+              <article class="${shortageRows.length ? "is-warning" : "is-ok"}"><span>Дефицит</span><strong>${shortageRows.length.toLocaleString("ru-RU")}</strong><small>${shortageRows.length ? "позиций требуют внимания" : "не обнаружен"}</small></article>
+            </div>
+          </section>
+
+          ${isWarehouseClerkRole ? renderWarehouseClerkPanel({
+            productionReceipts,
+            reservations,
+            movements,
+            shortageRows,
+          }) : ""}
+
+          <section class="module-panel warehouse-actions-panel">
+            <div class="report-card-head">
+              <strong>Новое движение</strong>
+              <span>приход, выдача, приемка производства или корректировка</span>
+            </div>
+            <form id="warehouseMovementForm" class="module-form warehouse-form">
+              <input type="hidden" name="isNew" value="yes" />
+              <label class="form-field full">
+                <span>Номенклатура</span>
+                <select name="nomenclatureItemId" ${formDisabled}>
+                  ${renderWarehouseSelectOptions(nomenclatureOptions, "", "Выберите существующую позицию")}
+                </select>
+              </label>
+              <label class="form-field">
+                <span>Тип движения</span>
+                <select name="movementType" ${formDisabled}>
+                  ${WAREHOUSE_MOVEMENT_TYPES.map((item) => `
+                    <option value="${escapeAttribute(item.value)}">${escapeHtml(item.label)}</option>
+                  `).join("")}
+                </select>
+              </label>
+              <label class="form-field">
+                <span>Количество</span>
+                <input name="quantity" type="number" min="0.001" step="0.001" placeholder="0" ${formDisabled} />
+              </label>
+              <label class="form-field">
+                <span>Склад</span>
+                <input name="warehouseName" placeholder="Не указан" ${formDisabled} />
+              </label>
+              <label class="form-field">
+                <span>Ячейка</span>
+                <input name="locationName" placeholder="Не указана" ${formDisabled} />
+              </label>
+              <label class="form-field full">
+                <span>Связанный заказ-наряд</span>
+                <select name="routeId" ${formDisabled}>
+                  ${renderWarehouseSelectOptions(routeOptions, "", "Без заказ-наряда")}
+                </select>
+              </label>
+              <label class="form-field full">
+                <span>Комментарий</span>
+                <textarea name="comment" rows="2" placeholder="Основание движения, накладная, пояснение" ${formDisabled}></textarea>
+              </label>
+              <div class="module-form-actions full">
+                <button class="primary-button" type="submit" ${formDisabled}>${icon("save")}<span>Добавить движение</span></button>
+              </div>
+            </form>
+          </section>
+
+          <section class="module-panel warehouse-reserve-panel">
+            <div class="report-card-head">
+              <strong>Резерв под заказ-наряд</strong>
+              <span>резерв не списывает склад, а фиксирует потребность</span>
+            </div>
+            <form id="warehouseReservationForm" class="module-form warehouse-form">
+              <input type="hidden" name="isNew" value="yes" />
+              <label class="form-field">
+                <span>Номенклатура</span>
+                <select name="nomenclatureItemId" ${formDisabled}>
+                  ${renderWarehouseSelectOptions(nomenclatureOptions, "", "Выберите позицию")}
+                </select>
+              </label>
+              <label class="form-field">
+                <span>Заказ-наряд</span>
+                <select name="routeId" ${formDisabled}>
+                  ${renderWarehouseSelectOptions(routeOptions, "", "Не выбран")}
+                </select>
+              </label>
+              <label class="form-field">
+                <span>Количество</span>
+                <input name="quantity" type="number" min="0.001" step="0.001" placeholder="0" ${formDisabled} />
+              </label>
+              <label class="form-field">
+                <span>Комментарий</span>
+                <input name="comment" placeholder="Причина резерва" ${formDisabled} />
+              </label>
+              <div class="module-form-actions full">
+                <button class="secondary-button" type="submit" ${formDisabled}>${icon("lock")}<span>Зарезервировать</span></button>
+              </div>
+            </form>
+          </section>
+
+          <section class="module-panel warehouse-table-panel">
+            <div class="report-card-head">
+              <strong>Остатки и резервы</strong>
+              <span>${balanceRows.length ? `${balanceRows.length} позиций` : "нет данных"}</span>
+            </div>
+            ${balanceRows.length ? renderWarehouseBalanceTable(balanceRows) : renderModulePreviewEmpty({
+              iconName: "package",
+              title: "Нет складских данных",
+              text: "Остатки появятся после явного движения, резерва или планового поступления из производства.",
+            })}
+          </section>
+
+          <section class="module-panel warehouse-table-panel">
+            <div class="report-card-head">
+              <strong>Поступления из производства</strong>
+              <span>${productionReceipts.length ? `${productionReceipts.length} операций` : "операций нет"}</span>
+            </div>
+            ${productionReceipts.length ? renderWarehouseProductionReceiptTable(productionReceipts) : renderModulePreviewEmpty({
+              iconName: "gantt",
+              title: "Поступлений из Ганта нет",
+              text: "Добавьте в маршрут операцию приемки результата производства и передайте заказ-наряд в Гант.",
+            })}
+          </section>
+
+          <section class="module-panel warehouse-table-panel">
+            <div class="report-card-head">
+              <strong>Журнал движений</strong>
+              <span>${movements.length ? `${movements.length} записей` : "движений нет"}</span>
+            </div>
+            ${movements.length ? renderWarehouseMovementTable(movements) : renderModulePreviewEmpty({
+              iconName: "warehouse",
+              title: "Движений пока нет",
+              text: "Склад не заполняется тестовыми строками. Добавьте движение вручную.",
+            })}
+          </section>
+
+          <section class="module-panel warehouse-table-panel">
+            <div class="report-card-head">
+              <strong>Резервы</strong>
+              <span>${reservations.length ? `${reservations.length} записей` : "резервов нет"}</span>
+            </div>
+            ${reservations.length ? renderWarehouseReservationTable(reservations) : renderModulePreviewEmpty({
+              iconName: "lock",
+              title: "Резервов пока нет",
+              text: "Резерв создается только явным действием пользователя.",
+            })}
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderWarehouseClerkPanel({ productionReceipts = [], reservations = [], movements = [], shortageRows = [] } = {}) {
+  const plannedReceipts = productionReceipts.filter((receipt) => receipt.status !== "completed");
+  const totalReceiptQuantity = plannedReceipts.reduce((sum, receipt) => sum + receipt.quantity, 0);
+  const totalReservationQuantity = reservations.reduce((sum, reservation) => sum + normalizeWarehouseQuantity(reservation.quantity), 0);
+
+  return `
+    <section class="module-panel warehouse-role-panel">
+      <div class="report-card-head">
+        <strong>Задачи кладовщика</strong>
+        <span>оперативный складской контур</span>
+      </div>
+      <div class="warehouse-role-grid">
+        <article class="${plannedReceipts.length ? "is-active" : "is-ok"}">
+          <span>Принять из производства</span>
+          <strong>${formatWarehouseQuantity(totalReceiptQuantity)}</strong>
+          <small>${plannedReceipts.length ? `${plannedReceipts.length} операций Ганта` : "нет ожиданий"}</small>
+        </article>
+        <article class="${shortageRows.length ? "is-warning" : "is-ok"}">
+          <span>Дефицит</span>
+          <strong>${shortageRows.length.toLocaleString("ru-RU")}</strong>
+          <small>${shortageRows.length ? "позиций" : "не обнаружен"}</small>
+        </article>
+        <article>
+          <span>Резервы</span>
+          <strong>${formatWarehouseQuantity(totalReservationQuantity)}</strong>
+          <small>${reservations.length ? `${reservations.length} записей` : "нет резервов"}</small>
+        </article>
+        <article>
+          <span>Движения</span>
+          <strong>${movements.length.toLocaleString("ru-RU")}</strong>
+          <small>ручной журнал</small>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function renderWarehouseBalanceTable(rows) {
+  return `
+    <div class="warehouse-table-wrap">
+      <table class="warehouse-table">
+        <thead>
+          <tr>
+            <th>Номенклатура</th>
+            <th>Приход</th>
+            <th>Расход</th>
+            <th>На складе</th>
+            <th>Поступит</th>
+            <th>Резерв</th>
+            <th>Доступно</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr class="${row.shortage ? "is-shortage" : ""}">
+              <td class="primary-cell">
+                <strong>${escapeHtml(row.name)}</strong>
+                <small>${escapeHtml([row.article, row.type].filter(Boolean).join(" · ") || "позиция номенклатуры")}</small>
+              </td>
+              <td>${formatWarehouseQuantity(row.incoming, row.unit)}</td>
+              <td>${formatWarehouseQuantity(row.outgoing, row.unit)}</td>
+              <td>${formatWarehouseQuantity(row.onHand, row.unit)}</td>
+              <td>${row.productionIncoming ? formatWarehouseQuantity(row.productionIncoming, row.unit) : "&mdash;"}</td>
+              <td>${formatWarehouseQuantity(row.reserved, row.unit)}</td>
+              <td>
+                <span class="warehouse-availability ${row.shortage ? "is-shortage" : "is-ok"}">
+                  ${row.shortage ? `-${formatWarehouseQuantity(row.shortage, row.unit)}` : formatWarehouseQuantity(row.available, row.unit)}
+                  ${row.productionIncoming ? `<small>с выпуском ${formatWarehouseQuantity(row.availableWithProduction, row.unit)}</small>` : ""}
+                </span>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderWarehouseProductionReceiptTable(receipts) {
+  return `
+    <div class="warehouse-table-wrap">
+      <table class="warehouse-table warehouse-production-table">
+        <thead>
+          <tr>
+            <th>Поступит</th>
+            <th>Результат</th>
+            <th>Количество</th>
+            <th>Заказ-наряд</th>
+            <th>Операция</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${receipts.map((receipt) => `
+            <tr class="${receipt.itemId ? "" : "is-warning"}">
+              <td>${escapeHtml(formatDateTimeShort(receipt.plannedEnd))}</td>
+              <td class="primary-cell">
+                <strong>${escapeHtml(receipt.name)}</strong>
+                <small>${escapeHtml(receipt.itemId ? [receipt.article, receipt.type].filter(Boolean).join(" · ") : "нет связи с номенклатурой")}</small>
+              </td>
+              <td>
+                <span class="warehouse-production-quantity">
+                  ${formatWarehouseQuantity(receipt.quantity, receipt.unit)}
+                  ${receipt.producedQuantity > 0 && receipt.producedQuantity < receipt.quantity ? `<small>сейчас ${formatWarehouseQuantity(receipt.producedQuantity, receipt.unit)}</small>` : ""}
+                </span>
+              </td>
+              <td>${escapeHtml(receipt.routeName)}</td>
+              <td>${escapeHtml(receipt.operationName)}</td>
+              <td><span class="warehouse-type is-${receipt.status === "completed" ? "ok" : "active"}">${escapeHtml(STATUS_LABELS[receipt.status] || receipt.status || "статус")}</span></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderWarehouseMovementTable(movements) {
+  return `
+    <div class="warehouse-table-wrap">
+      <table class="warehouse-table">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Тип</th>
+            <th>Номенклатура</th>
+            <th>Количество</th>
+            <th>Склад / ячейка</th>
+            <th>Заказ-наряд</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${movements.map((movement) => {
+            const item = getNomenclatureItem(movement.nomenclatureItemId);
+            const route = (planningState.routes || []).find((entry) => entry.id === movement.routeId);
+            const config = getWarehouseMovementTypeConfig(movement.movementType);
+            return `
+              <tr>
+                <td>${escapeHtml(formatDateTimeShort(movement.createdAt))}</td>
+                <td><span class="warehouse-type is-${escapeAttribute(config.tone)}">${escapeHtml(config.label)}</span></td>
+                <td class="primary-cell">
+                  <strong>${escapeHtml(item?.name || "Номенклатура не выбрана")}</strong>
+                  <small>${escapeHtml(item?.article || item?.type || "нет связи")}</small>
+                </td>
+                <td>${config.direction === "out" ? "-" : "+"}${formatWarehouseQuantity(movement.quantity, item?.unit || "шт.")}</td>
+                <td>${escapeHtml([movement.warehouseName || "Не указан", movement.locationName].filter(Boolean).join(" · "))}</td>
+                <td>${escapeHtml(route?.name || "Без заказ-наряда")}</td>
+                <td><button class="table-icon-button danger-soft" data-warehouse-delete-movement="${escapeAttribute(movement.id)}" type="button" title="Удалить движение">${icon("trash")}</button></td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderWarehouseReservationTable(reservations) {
+  return `
+    <div class="warehouse-table-wrap">
+      <table class="warehouse-table">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Номенклатура</th>
+            <th>Количество</th>
+            <th>Заказ-наряд</th>
+            <th>Состояние</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${reservations.map((reservation) => {
+            const item = getNomenclatureItem(reservation.nomenclatureItemId);
+            const route = (planningState.routes || []).find((entry) => entry.id === reservation.routeId);
+            const balance = getWarehouseBalanceForNomenclature(reservation.nomenclatureItemId);
+            const isShortage = Boolean(balance?.shortage);
+            return `
+              <tr class="${isShortage ? "is-shortage" : ""}">
+                <td>${escapeHtml(formatDateTimeShort(reservation.createdAt))}</td>
+                <td class="primary-cell">
+                  <strong>${escapeHtml(item?.name || "Номенклатура не выбрана")}</strong>
+                  <small>${escapeHtml(reservation.comment || item?.article || "резерв")}</small>
+                </td>
+                <td>${formatWarehouseQuantity(reservation.quantity, item?.unit || "шт.")}</td>
+                <td>${escapeHtml(route?.name || "Заказ-наряд не выбран")}</td>
+                <td><span class="warehouse-availability ${isShortage ? "is-shortage" : "is-ok"}">${isShortage ? "дефицит" : "обеспечен"}</span></td>
+                <td><button class="table-icon-button danger-soft" data-warehouse-delete-reservation="${escapeAttribute(reservation.id)}" type="button" title="Удалить резерв">${icon("trash")}</button></td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function getPlanningWorkItemId(type, id = "") {
+  return id ? `${type}:${id}` : type;
+}
+
+function parsePlanningWorkItemId(value = "") {
+  const [type, ...rest] = String(value || "").split(":");
+  return { type: type || "task", id: rest.join(":") };
+}
+
+function getPlanningWorkItemSet(route, tasks, routeSteps) {
+  const itemIds = new Set(["supply", "chain", "batches"]);
+  tasks.forEach((task) => itemIds.add(getPlanningWorkItemId("task", task.id)));
+  routeSteps.forEach((step) => itemIds.add(getPlanningWorkItemId("step", step.id)));
+  return itemIds;
+}
+
+function getDefaultPlanningWorkItem(route, tasks, routeSteps) {
+  const mainTask = tasks.find((task) => task.isMain) || tasks[0];
+  if (mainTask?.id) return getPlanningWorkItemId("task", mainTask.id);
+  const firstUnconfiguredSmtStep = routeSteps.find((step) => (
+    (routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState))
+    && !getRouteStepSelectedPlanningWorkCenterId(step, planningState)
+  ));
+  if (firstUnconfiguredSmtStep) return getPlanningWorkItemId("step", firstUnconfiguredSmtStep.id);
+  const firstSmtStep = routeSteps.find((step) => (
+    routeStepRequiresManualPlanningLine(step, planningState)
+    || isSmtOperationWorkCenter(step.workCenterId, step, planningState)
+  ));
+  if (firstSmtStep) return getPlanningWorkItemId("step", firstSmtStep.id);
+  return "batches";
+}
+
+function getPlanningActiveWorkItem(route, tasks, routeSteps) {
+  const availableItems = getPlanningWorkItemSet(route, tasks, routeSteps);
+  const currentItem = String(ui.planningWorkItem || "");
+  if (availableItems.has(currentItem)) return currentItem;
+  const nextItem = getDefaultPlanningWorkItem(route, tasks, routeSteps);
+  ui.planningWorkItem = nextItem;
+  return nextItem;
+}
+
+function renderPlanningWorkbench(route, transferSummary, steps) {
+  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
+  const tasks = getPlanningTasksForRoute(route, routeSteps);
+  const selectedItem = getPlanningActiveWorkItem(route, tasks, routeSteps);
+
+  return `
+    <section class="planning-workbench">
+      ${renderPlanningWorkNavigator(route, transferSummary, tasks, routeSteps, selectedItem)}
+      <div class="planning-work-detail">
+        ${renderPlanningWorkDetail(route, transferSummary, tasks, routeSteps, selectedItem)}
+      </div>
+    </section>
+  `;
+}
+
+function renderPlanningWorkNavigator(route, transferSummary, tasks, routeSteps, selectedItem) {
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+  const totalSteps = routeSteps.length;
+  const smtCount = routeSteps.filter((step) => (
+    routeStepRequiresManualPlanningLine(step, planningState)
+    || isSmtOperationWorkCenter(step.workCenterId, step, planningState)
+  )).length;
+  const supplySummary = getPlanningSupplySummary(route, transferSummary, routeSteps);
+  const productionChain = buildPlanningProductionChain(route, transferSummary, tasks, routeSteps);
+  const batchExpected = Number(transferSummary?.expected || 0);
+  const batchPlanned = Number(transferSummary?.planned || 0);
+  const batchMissing = Math.max(0, batchExpected - batchPlanned);
+  const batchTone = batchExpected && !batchMissing ? "ok" : batchExpected ? "warning" : "neutral";
+  const batchStatus = batchExpected && !batchMissing ? "готово" : batchMissing ? `${batchMissing} не размещено` : "передача";
+
+  return `
+    <aside class="module-panel planning-work-nav" aria-label="Структура заказ-наряда">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>Структура работ</strong>
+            <span>${planningQuantity.toLocaleString("ru-RU")} шт. · ${tasks.length} частей · ${totalSteps} операций</span>
+          </div>
+        </div>
+        <em class="planning-section-tag">${smtCount ? `SMT ${smtCount}` : "маршрут"}</em>
+      </div>
+
+      <div class="planning-work-nav-list">
+        ${renderPlanningWorkNavButton({
+          id: "supply",
+          selectedItem,
+          eyebrow: "Обеспечение",
+          title: "Состав изделия",
+          meta: `${supplySummary.total} строк · ${supplySummary.produce} произв. · ${supplySummary.stock} склад`,
+          status: supplySummary.blocking ? `${supplySummary.blocking} проблем` : "готово",
+          tone: supplySummary.blocking ? "warning" : "ok",
+          level: "supply",
+        })}
+
+        ${renderPlanningWorkNavButton({
+          id: "chain",
+          selectedItem,
+          eyebrow: "Связи",
+          title: "Производственная цепочка",
+          meta: `${productionChain.nodes.length} входов · ${productionChain.links.length} связей`,
+          status: productionChain.issues.length ? `${productionChain.issues.length} проблем` : "готово",
+          tone: productionChain.issues.length ? "warning" : "ok",
+          level: "chain",
+        })}
+
+        <div class="planning-work-nav-group">
+          <div class="planning-work-nav-group-title">Состав и операции</div>
+          ${tasks.length ? tasks.map((task) => {
+            const stats = getPlanningTaskOperationStats(route, task, routeSteps);
+            const readiness = getPlanningTaskReadiness(task, stats);
+            return `
+              <div class="planning-work-nav-task">
+                ${renderPlanningWorkNavButton({
+                  id: getPlanningWorkItemId("task", task.id),
+                  selectedItem,
+                  eyebrow: `${task.number} · ${getRouteTaskTypeLabel(task)}`,
+                  title: task.title || "Составная часть",
+                  meta: getPlanningTaskBomLabel(task),
+                  status: readiness.label,
+                  tone: readiness.tone,
+                  level: "task",
+                })}
+                ${stats.steps.length ? `
+                  <div class="planning-work-nav-steps">
+                    ${stats.steps.map((step) => {
+                      const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
+                      return renderPlanningWorkNavButton({
+                        id: getPlanningWorkItemId("step", step.id),
+                        selectedItem,
+                        eyebrow: `Операция ${Number(step.stepOrder || 0)}`,
+                        title: step.operationName || "Операция",
+                        meta: getPlanningStepLineLabel(step),
+                        status: isSmtStep ? "SMT" : "маршрут",
+                        tone: getPlanningStepTone(step),
+                        level: "step",
+                      });
+                    }).join("")}
+                  </div>
+                ` : ""}
+              </div>
+            `;
+          }).join("") : `
+            <div class="planning-work-nav-empty">Состав заказ-наряда не найден</div>
+          `}
+        </div>
+
+        ${renderPlanningWorkNavButton({
+          id: "batches",
+          selectedItem,
+          eyebrow: "Гант",
+          title: "Партии",
+          meta: `${transferSummary?.batches?.length || 0} партий · ${transferSummary?.planned || 0}/${transferSummary?.expected || 0} слотов`,
+          status: batchStatus,
+          tone: batchTone,
+        })}
+      </div>
+    </aside>
+  `;
+}
+
+function getPlanningWorkNavStateLabel(tone = "neutral") {
+  if (["ok", "regular", "smt", "output"].includes(tone)) return "Заполнено";
+  if (["warning", "critical"].includes(tone)) return "Требует внимания";
+  return "Информация";
+}
+
+function renderPlanningWorkNavButton({ id, selectedItem, eyebrow, title, meta, status, tone = "neutral", level = "" }) {
+  const stateLabel = getPlanningWorkNavStateLabel(tone);
+  return `
+    <button
+      class="planning-work-nav-item ${id === selectedItem ? "is-active" : ""} ${level ? `is-${escapeAttribute(level)}` : ""} is-${escapeAttribute(tone)}"
+      data-planning-work-item="${escapeAttribute(id)}"
+      aria-label="${escapeAttribute(`${title || "Раздел"}: ${stateLabel}${status ? `, ${status}` : ""}`)}"
+      type="button"
+      title="${escapeAttribute(stateLabel)}"
+    >
+      <i class="planning-work-nav-state" aria-hidden="true"></i>
+      <span>
+        <small>${escapeHtml(eyebrow || "")}</small>
+        <strong>${escapeHtml(title || "Раздел")}</strong>
+        <em>${escapeHtml(meta || "")}</em>
+      </span>
+      <b>${escapeHtml(status || "")}</b>
+    </button>
+  `;
+}
+
+function renderPlanningWorkDetail(route, transferSummary, tasks, routeSteps, selectedItem) {
+  const { type, id } = parsePlanningWorkItemId(selectedItem);
+  if (type === "supply") return renderPlanningSupplyDetail(route, transferSummary, tasks, routeSteps);
+  if (type === "chain") return renderPlanningProductionChainDetail(route, transferSummary, tasks, routeSteps);
+  if (type === "batches") return renderPlanningBatchConstructor(route, transferSummary);
+  if (type === "task") {
+    const task = tasks.find((item) => item.id === id);
+    return task ? renderPlanningTaskDetail(route, task, transferSummary, routeSteps) : renderPlanningTaskDetail(route, tasks.find((item) => item.isMain) || tasks[0], transferSummary, routeSteps);
+  }
+  if (type === "step") {
+    const step = routeSteps.find((item) => item.id === id);
+    return step ? renderPlanningStepDetail(route, step, transferSummary, routeSteps) : renderPlanningTaskDetail(route, tasks.find((item) => item.isMain) || tasks[0], transferSummary, routeSteps);
+  }
+  return renderPlanningTaskDetail(route, tasks.find((item) => item.isMain) || tasks[0], transferSummary, routeSteps);
+}
+
+function renderPlanningTaskDetail(route, task, transferSummary, routeSteps) {
+  if (!task) return renderPlanningBatchConstructor(route, transferSummary);
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+  const taskQuantity = normalizeQuantity(task.quantity || 1);
+  const orderQuantity = normalizeQuantity(planningQuantity * taskQuantity);
+  const stats = getPlanningTaskOperationStats(route, task, routeSteps);
+  const readiness = getPlanningTaskReadiness(task, stats);
+
+  return `
+    <section class="module-panel planning-work-detail-panel">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>${escapeHtml(task.title || "Составная часть")}</strong>
+            <span>${escapeHtml(task.number)} · ${escapeHtml(getRouteTaskTypeLabel(task))}</span>
+          </div>
+        </div>
+        <em class="planning-section-tag">${escapeHtml(readiness.label)}</em>
+      </div>
+
+      ${task.isMain ? renderPlanningOrderQuantityBlock(route, transferSummary) : `
+	      <div class="planning-work-summary-grid">
+        <article>
+          <span>BOM / источник</span>
+          <strong>${escapeHtml(getPlanningTaskBomLabel(task))}</strong>
+        </article>
+        <article>
+          <span>Количество к выпуску</span>
+          <strong>${orderQuantity.toLocaleString("ru-RU")} ${escapeHtml(task.unit || "шт.")}</strong>
+        </article>
+        <article>
+          <span>На изделие</span>
+          <strong>${taskQuantity.toLocaleString("ru-RU")} ${escapeHtml(task.unit || "шт.")}</strong>
+        </article>
+        <article>
+          <span>Операции</span>
+          <strong>${stats.stepsCount.toLocaleString("ru-RU")}</strong>
+        </article>
+      </div>
+      `}
+
+      ${stats.steps.length ? `
+        <div class="planning-work-step-table">
+          ${stats.steps.map((step) => renderPlanningStepSummaryRow(route, step)).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>Операции для этой составной части не заданы в маршрутной карте.</span>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function renderPlanningOrderQuantityBlock(route, transferSummary) {
+  const multiplicationRows = transferSummary.multiplicationRows || [];
+  return `
+    <div class="planning-required-main is-route-task">
+      <div class="planning-required-field-card">
+        <label class="form-field is-required">
+          <span>Количество в заказ-наряде</span>
+          <input data-planning-quantity="${escapeAttribute(route?.id || "")}" type="number" min="1" step="1" value="${escapeAttribute(transferSummary.planningQuantity || 1)}" ${route ? "" : "disabled"} />
+        </label>
+        <small>Используется для партий, SMT-расчета и размещения в Ганте.</small>
+      </div>
+      <div class="planning-required-summary">
+        <article>
+          <span>К выпуску</span>
+          <strong>${Number(transferSummary.planningQuantity || 1).toLocaleString("ru-RU")} шт.</strong>
+        </article>
+        <article>
+          <span>Мультипликаций</span>
+          <strong>${Number(transferSummary.totalPanels || 0).toLocaleString("ru-RU")}</strong>
+        </article>
+        <article>
+          <span>BOM/плат</span>
+          <strong>${multiplicationRows.length}</strong>
+        </article>
+      </div>
+    </div>
+
+    ${multiplicationRows.length ? `
+      <div class="planning-muted-state">
+        ${icon("info")}
+        <span>Платы в мультипликации задаются в SMT-калькуляторе конкретной платы. Здесь показаны только общие итоги заказ-наряда.</span>
+      </div>
+    ` : `
+      <div class="planning-muted-state">
+        ${icon("info")}
+        <span>Связанные платы/BOM не найдены. Мультипликация будет доступна после привязки платы к заказу-наряду.</span>
+      </div>
+    `}
+  `;
+}
+
+function getPlanningSupplyRows(route, transferSummary = null, routeSteps = null, tasks = null) {
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+  const specification = getRouteSpecification(route);
+  const steps = routeSteps || getRouteStepsForModule(route?.id || "");
+  const taskList = tasks || getPlanningTasksForRoute(route, steps);
+
+  if (!specification) {
+    const bom = getRouteBomList(route);
+    if (!bom) return [];
+    const task = taskList.find((item) => item.bomListId === bom.id) || null;
+    const stats = task ? getPlanningTaskOperationStats(route, task, steps) : { stepsCount: steps.length, steps };
+    const profile = getRouteStepFulfillmentProfile(stats);
+    const mode = "produce";
+    return [{
+      id: `bom:${bom.id}`,
+      number: "01",
+      level: 0,
+      title: bom.resultItem || bom.name || "Плата",
+      typeLabel: BOARD_SPEC_TERM,
+      sourceLabel: bom.boardCode || BOARD_BOM_TERM,
+      nomenclatureItemId: getBomResultNomenclatureItem(bom.id)?.id || "",
+      quantity: planningQuantity,
+      unit: "шт.",
+      mode,
+      modeLabel: getFulfillmentLabel(mode),
+      modeMeta: getFulfillmentMeta(mode),
+      tone: getFulfillmentTone(mode),
+      task,
+      stats,
+      profile,
+      status: !stats.stepsCount ? "нужен маршрут" : profile.productionCount ? "операции заданы" : "нет производственной операции",
+      statusTone: stats.stepsCount && profile.productionCount ? "ok" : "warning",
+      editable: false,
+    }];
+  }
+
+  return getSpekiStructureTableRows(specification).map(({ item, number, level }) => {
+    const mode = getSpecificationItemFulfillmentMode(item);
+    const task = taskList.find((candidate) => candidate.sourceItemId === item.id) || null;
+    const stats = task ? getPlanningTaskOperationStats(route, task, steps) : { steps: [], stepsCount: 0, smtCount: 0, outputCount: 0 };
+    const profile = getRouteStepFulfillmentProfile(stats);
+    const requiredQuantity = Math.max(0, Math.round(planningQuantity * Number(item.quantity || 0)));
+    const isSchedulable = isSchedulableFulfillmentMode(mode);
+    let status = "вне маршрута";
+    let statusTone = "neutral";
+
+    if (mode === "not_selected") {
+      status = "выберите обеспечение";
+      statusTone = "critical";
+    } else if (mode === "produce") {
+      if (!stats.stepsCount) {
+        status = "нужен маршрут";
+        statusTone = "warning";
+      } else if (!profile.productionCount) {
+        status = "нет производственной операции";
+        statusTone = "warning";
+      } else {
+        status = "производственная ветка";
+        statusTone = "ok";
+      }
+    } else if (mode === "from_stock") {
+      if (profile.productionCount) {
+        status = "уберите производственные операции";
+        statusTone = "warning";
+      } else if (!profile.warehouseIssueCount) {
+        status = "нужна складская выдача";
+        statusTone = "warning";
+      } else {
+        status = "складская выдача";
+        statusTone = "ok";
+      }
+    } else if (!isSchedulable) {
+      status = mode === "purchase" ? "закупка вне Ганта" : "внешнее обеспечение";
+      statusTone = "neutral";
+    }
+
+    return {
+      id: item.id,
+      number,
+      level,
+      title: getSpekiStructureItemLabel(item),
+      typeLabel: getRouteTaskTypeLabel({ type: item.type, fulfillmentMode: mode }),
+      sourceLabel: getPlanningSupplySourceLabel(item),
+      nomenclatureItemId: getWarehouseNomenclatureIdForSpecificationItem(item),
+      quantity: requiredQuantity,
+      unit: item.unit || "шт.",
+      mode,
+      modeLabel: getFulfillmentLabel(mode),
+      modeMeta: getFulfillmentMeta(mode),
+      tone: getFulfillmentTone(mode),
+      task,
+      stats,
+      profile,
+      status,
+      statusTone,
+      editable: true,
+    };
+  });
+}
+
+function getWarehouseNomenclatureIdForSpecificationItem(item = {}) {
+  if (item.type === "nomenclature" || item.type === "part") return item.nomenclatureId || "";
+  if (item.type === "bom") return getBomResultNomenclatureItem(getSpecificationItemBomId(item))?.id || "";
+  return "";
+}
+
+function getPlanningSupplySourceLabel(item = {}) {
+  if (item.type === "bom") {
+    const bom = getBomList(getSpecificationItemBomId(item));
+    return bom?.boardCode || bom?.name || "плата не выбрана";
+  }
+  if (item.type === "specification") {
+    const specification = getSpecificationById(item.specificationId);
+    return specification?.outputItem || specification?.name || "изделие не выбрано";
+  }
+  if (item.type === "nomenclature" || item.type === "part") {
+    const nomenclature = (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId);
+    return [nomenclature?.article, nomenclature?.type].filter(Boolean).join(" · ") || "номенклатура";
+  }
+  return "внутренний узел";
+}
+
+function getPlanningSupplySummary(route, transferSummary = null, routeSteps = null) {
+  const rows = getPlanningSupplyRows(route, transferSummary, routeSteps);
+  return {
+    rows,
+    total: rows.length,
+    produce: rows.filter((row) => row.mode === "produce").length,
+    stock: rows.filter((row) => row.mode === "from_stock").length,
+    external: rows.filter((row) => row.mode === "purchase" || row.mode === "external").length,
+    blocking: rows.filter((row) => row.statusTone === "critical" || row.statusTone === "warning").length,
+  };
+}
+
+function getPlanningSupplyBlockingIssues(route, transferSummary = null, routeSteps = null) {
+  return getPlanningSupplyRows(route, transferSummary, routeSteps)
+    .filter((row) => row.statusTone === "critical" || row.statusTone === "warning")
+    .map((row) => {
+      if (row.mode === "not_selected") return `${row.number}. ${row.title}: способ обеспечения не выбран.`;
+      if (row.mode === "produce" && !row.stats.stepsCount) return `${row.number}. ${row.title}: нужна производственная операция в маршрутной карте.`;
+      if (row.mode === "produce" && !row.profile?.productionCount) return `${row.number}. ${row.title}: нужна не складская производственная операция.`;
+      if (row.mode === "from_stock" && row.profile?.productionCount) return `${row.number}. ${row.title}: выбрано «Со склада», но в маршруте остались производственные операции.`;
+      if (row.mode === "from_stock" && !row.profile?.warehouseIssueCount) return `${row.number}. ${row.title}: нужна складская операция выдачи в маршрутной карте.`;
+      return `${row.number}. ${row.title}: ${row.status}.`;
+    });
+}
+
+function getProductionChainStepFlowLabel(route, steps = [], kind = "input") {
+  const orderedSteps = [...(steps || [])].sort((left, right) => Number(left.stepOrder || 0) - Number(right.stepOrder || 0));
+  const candidates = kind === "output" ? orderedSteps.reverse() : orderedSteps;
+  const step = candidates.find((item) => item?.id);
+  if (!step) return "";
+  const flow = getRouteStepFlowModel(route, step);
+  return kind === "output" ? flow.outputLabel : flow.inputLabel;
+}
+
+function getProductionChainOperationRows(route, steps = []) {
+  return [...(steps || [])]
+    .sort((left, right) => Number(left.stepOrder || 0) - Number(right.stepOrder || 0))
+    .map((step) => ({
+      id: step.id,
+      order: Number(step.stepOrder || 0),
+      name: step.operationName || "Операция",
+      line: getPlanningStepLineLabel(step),
+      tone: getPlanningStepTone(step),
+      isSmt: routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState),
+      isOutput: isManufacturingOutputReceiptRouteStep(step),
+      missingLine: routeStepRequiresManualPlanningLine(step, planningState) && !getRouteStepSelectedPlanningWorkCenterId(step, planningState),
+    }));
+}
+
+function getProductionChainSourceInputLabel(row, route) {
+  const fromStep = getProductionChainStepFlowLabel(route, row.stats?.steps || [], "input");
+  if (fromStep) return fromStep;
+  if (row.mode === "from_stock") return `Остаток склада: ${row.title}`;
+  if (row.mode === "purchase") return `Закупка: ${row.title}`;
+  if (row.mode === "external") return `Внешнее обеспечение: ${row.title}`;
+  if (row.mode === "not_selected") return "Способ обеспечения не выбран";
+  return `Материалы: ${row.title}`;
+}
+
+function getProductionChainSourceOutputLabel(row, route) {
+  const fromStep = getProductionChainStepFlowLabel(route, row.stats?.steps || [], "output");
+  if (fromStep) return fromStep;
+  if (row.mode === "from_stock") return `Выдано в производство: ${row.title}`;
+  if (row.mode === "purchase") return `Поставка: ${row.title}`;
+  if (row.mode === "external") return `Внешний результат: ${row.title}`;
+  if (row.mode === "not_selected") return "Выход не определен";
+  return row.title || "Результат составной части";
+}
+
+function buildPlanningProductionChain(route, transferSummary = null, tasks = null, routeSteps = null) {
+  const steps = routeSteps || getRouteStepsForModule(route?.id || "");
+  const taskList = tasks || getPlanningTasksForRoute(route, steps);
+  const rows = getPlanningSupplyRows(route, transferSummary, steps, taskList);
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+  const production = getRoutePlanningContext(route);
+  const supplyIssues = getPlanningSupplyBlockingIssues(route, transferSummary, steps);
+  const sourceNodes = rows.map((row) => {
+    const operations = getProductionChainOperationRows(route, row.stats?.steps || []);
+    return {
+      id: row.id,
+      kind: "source",
+      number: row.number,
+      title: row.title || "Составная часть",
+      typeLabel: row.typeLabel || "часть",
+      sourceLabel: row.sourceLabel || "",
+      mode: row.mode,
+      modeLabel: row.modeLabel,
+      quantity: row.quantity,
+      unit: row.unit || "шт.",
+      status: row.status,
+      tone: row.statusTone || "neutral",
+      inputLabel: getProductionChainSourceInputLabel(row, route),
+      outputLabel: getProductionChainSourceOutputLabel(row, route),
+      operations,
+      smtCount: row.stats?.smtCount || 0,
+      outputCount: row.stats?.outputCount || 0,
+      missingLineCount: operations.filter((item) => item.missingLine).length,
+      isSchedulable: isSchedulableFulfillmentMode(row.mode),
+    };
+  });
+
+  const mainTask = taskList.find((task) => task.isMain) || null;
+  const mainSteps = getRouteStepsForTask(steps, MAIN_ROUTE_TASK_ID);
+  const mainStats = mainTask
+    ? getPlanningTaskOperationStats(route, mainTask, steps)
+    : {
+      steps: mainSteps,
+      stepsCount: mainSteps.length,
+      smtCount: mainSteps.filter((step) => isSmtOperationWorkCenter(step.workCenterId, step, planningState) || routeStepRequiresManualPlanningLine(step, planningState)).length,
+      outputCount: mainSteps.filter((step) => isManufacturingOutputReceiptRouteStep(step)).length,
+    };
+  const shouldShowFinalNode = sourceNodes.length > 1 || mainStats.stepsCount > 0;
+  const finalInputNodes = sourceNodes.filter((node) => node.mode !== "not_selected");
+  const finalOutputLabel = getProjectDisplayOutput(production)
+    || getProjectDisplayName(production)
+    || route?.name
+    || getProductionChainStepFlowLabel(route, mainStats.steps || [], "output")
+    || "Готовое изделие";
+  const finalNode = shouldShowFinalNode ? {
+    id: "final",
+    kind: "final",
+    number: "Финиш",
+    title: mainTask?.title || "Общая сборка изделия",
+    typeLabel: "общий маршрут",
+    sourceLabel: getProjectDisplayName(production) || route?.name || "",
+    mode: "produce",
+    modeLabel: "Произвести",
+    quantity: planningQuantity,
+    unit: "шт.",
+    status: mainStats.stepsCount ? "общие операции заданы" : "нужна общая операция",
+    tone: mainStats.stepsCount ? "ok" : "warning",
+    inputLabel: getProductionChainStepFlowLabel(route, mainStats.steps || [], "input")
+      || joinRouteStepFlowLabels(finalInputNodes.map((node) => node.outputLabel), "Полуфабрикаты состава изделия"),
+    outputLabel: finalOutputLabel,
+    operations: getProductionChainOperationRows(route, mainStats.steps || []),
+    smtCount: mainStats.smtCount || 0,
+    outputCount: mainStats.outputCount || 0,
+    missingLineCount: 0,
+    isSchedulable: true,
+  } : null;
+
+  const links = finalNode
+    ? sourceNodes
+      .filter((node) => node.mode !== "not_selected")
+      .map((node) => ({
+        id: `${node.id}->${finalNode.id}`,
+        from: node.title,
+        to: finalNode.title,
+        label: node.mode === "from_stock" ? "через склад" : node.isSchedulable ? "в производство" : "вне Ганта",
+        tone: node.isSchedulable ? "ok" : "neutral",
+      }))
+    : [];
+  const lineIssues = steps
+    .filter((step) => routeStepRequiresManualPlanningLine(step, planningState) && !getRouteStepSelectedPlanningWorkCenterId(step, planningState))
+    .map((step) => `${step.operationName || "SMT-операция"}: выберите конкретный SMT-участок.`);
+  const finalIssues = sourceNodes.length > 1 && !mainStats.stepsCount
+    ? ["Для нескольких составных частей нужна общая операция сборки или приемки в общем маршруте."]
+    : [];
+  const issues = [...new Set([...supplyIssues, ...lineIssues, ...finalIssues])];
+
+  return {
+    nodes: sourceNodes,
+    finalNode,
+    allNodes: finalNode ? [...sourceNodes, finalNode] : sourceNodes,
+    links,
+    issues,
+    summary: {
+      branches: sourceNodes.length,
+      links: links.length,
+      smt: steps.filter((step) => routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState)).length,
+      issues: issues.length,
+    },
+  };
+}
+
+function renderPlanningProductionChainNode(node) {
+  const visibleOperations = node.operations.slice(0, 4);
+  const hiddenCount = Math.max(0, node.operations.length - visibleOperations.length);
+  return `
+    <article class="planning-chain-node is-${escapeAttribute(node.tone)} ${node.kind === "final" ? "is-final" : ""}">
+      <header>
+        <span>${escapeHtml(node.number)} · ${escapeHtml(node.typeLabel)}</span>
+        <strong>${escapeHtml(node.title)}</strong>
+        <em>${escapeHtml(node.status)}</em>
+      </header>
+      <div class="planning-chain-node-flow">
+        <span>
+          <b>Вход</b>
+          <strong>${escapeHtml(node.inputLabel)}</strong>
+        </span>
+        <i aria-hidden="true">&rarr;</i>
+        <span>
+          <b>Выход</b>
+          <strong>${escapeHtml(node.outputLabel)}</strong>
+        </span>
+      </div>
+      <div class="planning-chain-node-facts">
+        <span>${escapeHtml(node.modeLabel || "обеспечение")}</span>
+        <span>${Number(node.quantity || 0).toLocaleString("ru-RU")} ${escapeHtml(node.unit || "шт.")}</span>
+        <span>${node.operations.length ? `${node.operations.length} оп.` : "нет операций"}</span>
+        ${node.smtCount ? `<span>SMT ${node.smtCount}</span>` : ""}
+      </div>
+      ${visibleOperations.length ? `
+        <div class="planning-chain-steps">
+          ${visibleOperations.map((operation) => `
+            <button class="is-${escapeAttribute(operation.tone)}" data-planning-work-item="${escapeAttribute(getPlanningWorkItemId("step", operation.id))}" type="button">
+              <b>${operation.order}</b>
+              <span>${escapeHtml(operation.name)}</span>
+              <em>${escapeHtml(operation.line)}</em>
+            </button>
+          `).join("")}
+          ${hiddenCount ? `<small>+${hiddenCount} оп.</small>` : ""}
+        </div>
+      ` : ""}
+    </article>
+  `;
+}
+
+function getPlanningFlowReadinessSummary(route = null) {
+  const production = getRoutePlanningContext(route);
+  const batches = route && production ? getRoutePlanningBatches(route, production) : [];
+  const settings = getRouteFlowLaunchSettings(route, batches[0] || null);
+  const details = batches.map((batch) => {
+    const readiness = getMainRouteDependencyReadiness(route.id, production.id, batch.id);
+    const branchDetails = readiness?.branchDetails || getRouteBatchWipBranchDetails(route.id, production.id, batch.id, ui.now);
+    return {
+      batch,
+      readiness,
+      branchDetails,
+      availableKitsNow: readiness?.availableKitsNow || getRouteBatchAvailableKitCount(route.id, production.id, batch.id, ui.now),
+    };
+  });
+  const readyDates = details
+    .map((detail) => detail.readiness?.readyAt)
+    .filter(Boolean)
+    .sort((left, right) => toDate(left) - toDate(right));
+  const branchCount = details[0]?.readiness?.sourceSlots?.length || getRouteConcreteTasksForPlanning(route).length;
+
+  return {
+    settings,
+    batches: details,
+    branchDetails: details[0]?.branchDetails || [],
+    branchCount,
+    availableKitsNow: details.reduce((sum, detail) => sum + normalizeQuantity(detail.availableKitsNow), 0),
+    nextReadyAt: readyDates[0] || null,
+  };
+}
+
+function renderPlanningWipBranchCards(summary) {
+  const branches = summary.branchDetails || [];
+  if (!branches.length) {
+    return `
+      <div class="planning-flow-wip-empty">
+        ${icon("info")}
+        <span>WIP появится после передачи входных веток в Гант.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="planning-flow-wip-list" aria-label="WIP по входным веткам сборки">
+      ${branches.map((branch) => {
+        const produced = Number(branch.producedQuantity || 0);
+        const available = Number(branch.availableQuantity || 0);
+        const required = Math.max(1, Number(branch.requiredQuantity || summary.settings.transferBatchQuantity || 1));
+        const progress = Math.max(0, Math.min(100, Math.round((produced / required) * 100)));
+        const tone = available >= Math.max(1, Number(summary.settings.transferBatchQuantity || required)) ? "ok" : progress > 0 ? "warning" : "neutral";
+        return `
+          <article class="planning-flow-wip-card is-${escapeAttribute(tone)}">
+            <header>
+              <span>${escapeHtml(branch.outputLabel || "Выход ветки")}</span>
+              <strong>${available.toLocaleString("ru-RU")} свободно</strong>
+            </header>
+            <div class="planning-flow-wip-bar" style="--wip-progress:${progress}%;">
+              <i></i>
+            </div>
+            <footer>
+              <span>${produced.toLocaleString("ru-RU")} выпущено · старт от ${required.toLocaleString("ru-RU")}</span>
+              <em>${branch.readyAt ? escapeHtml(formatDateTimeShort(branch.readyAt)) : "нет даты"}</em>
+            </footer>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderPlanningFlowRulePanel(route, chain) {
+  const summary = getPlanningFlowReadinessSummary(route);
+  const { settings } = summary;
+  const canUseTransfer = summary.branchCount > 1 && chain.finalNode;
+  const isTransferMode = settings.mode === "transfer_batch";
+  const canEditTransferBatch = canUseTransfer && isTransferMode;
+  const ruleHint = canUseTransfer
+    ? (isTransferMode
+      ? `Сборка стартует, когда каждая входная ветка накопила минимум ${settings.transferBatchQuantity.toLocaleString("ru-RU")} компл.`
+      : "Сборка стартует только после полного выпуска всех входных веток.")
+    : "Правило доступно для маршрута с несколькими входными ветками и общей сборкой.";
+
+  return `
+    <div class="planning-flow-rule ${canUseTransfer ? "" : "is-muted"}">
+      <div class="planning-flow-rule-head">
+        <div>
+          <strong>Правило запуска сборки</strong>
+          <span>${canUseTransfer
+            ? "когда финальная сборка может брать готовые платы из входных веток"
+            : "передаточная партия доступна, когда есть несколько входных веток и общая сборка"}</span>
+        </div>
+        <em class="planning-section-tag ${isTransferMode ? "is-calculated" : "is-info"}">
+          ${escapeHtml(settings.modeLabel)}
+        </em>
+      </div>
+      <div class="planning-flow-rule-body">
+        <div class="planning-flow-mode-group" role="group" aria-label="Способ запуска сборки">
+          <button
+            class="${settings.mode === "complete" ? "is-active" : ""}"
+            data-planning-flow-mode="complete"
+            data-planning-flow-route="${escapeAttribute(route?.id || "")}"
+            type="button"
+            ${!canUseTransfer ? "disabled" : ""}
+          >После полного выпуска</button>
+          <button
+            class="${settings.mode === "transfer_batch" ? "is-active" : ""}"
+            data-planning-flow-mode="transfer_batch"
+            data-planning-flow-route="${escapeAttribute(route?.id || "")}"
+            type="button"
+            ${!canUseTransfer ? "disabled" : ""}
+          >По комплекту</button>
+        </div>
+        <label class="planning-flow-input ${canEditTransferBatch ? "" : "is-inactive"}">
+          <span>Комплект для старта</span>
+          <input
+            data-planning-transfer-batch="${escapeAttribute(route?.id || "")}"
+            type="number"
+            min="1"
+            step="1"
+            value="${escapeAttribute(settings.transferBatchQuantity)}"
+            ${canEditTransferBatch ? "" : "disabled"}
+          >
+          <small>${isTransferMode ? "минимум по каждой входной ветке" : "не применяется в полном выпуске"}</small>
+        </label>
+        <div class="planning-flow-live">
+          <article>
+            <span>Можно собрать сейчас</span>
+            <strong>${summary.availableKitsNow.toLocaleString("ru-RU")} компл.</strong>
+            <small>минимум по входным веткам</small>
+          </article>
+          <article>
+            <span>Ближайший старт</span>
+            <strong>${summary.nextReadyAt ? escapeHtml(formatDateTimeShort(summary.nextReadyAt)) : "после Ганта"}</strong>
+            <small>${isTransferMode ? "по комплекту для старта" : "после выпуска веток"}</small>
+          </article>
+        </div>
+        ${renderPlanningWipBranchCards(summary)}
+      </div>
+      <p class="planning-flow-rule-note">${escapeHtml(ruleHint)}</p>
+    </div>
+  `;
+}
+
+function renderPlanningProductionChainDetail(route, transferSummary, tasks, routeSteps) {
+  const chain = buildPlanningProductionChain(route, transferSummary, tasks, routeSteps);
+
+  return `
+    <section class="module-panel planning-work-detail-panel planning-chain-panel">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>Производственная цепочка</strong>
+            <span>как входы состава переходят в операции, полуфабрикаты и готовое изделие</span>
+          </div>
+        </div>
+        <em class="planning-section-tag ${chain.issues.length ? "is-required" : "is-calculated"}">${chain.issues.length ? `${chain.issues.length} проблем` : "готово"}</em>
+      </div>
+
+      <div class="planning-work-summary-grid">
+        <article><span>Входные ветки</span><strong>${chain.summary.branches.toLocaleString("ru-RU")}</strong></article>
+        <article><span>Связи к сборке</span><strong>${chain.summary.links.toLocaleString("ru-RU")}</strong></article>
+        <article><span>SMT-операции</span><strong>${chain.summary.smt.toLocaleString("ru-RU")}</strong></article>
+        <article><span>Требует внимания</span><strong>${chain.summary.issues.toLocaleString("ru-RU")}</strong></article>
+      </div>
+
+      ${renderPlanningFlowRulePanel(route, chain)}
+
+      ${chain.allNodes.length ? `
+        <div class="planning-chain-flow" aria-label="Производственная цепочка заказ-наряда">
+          ${chain.nodes.map(renderPlanningProductionChainNode).join("")}
+          ${chain.finalNode ? `
+            <div class="planning-chain-join" aria-hidden="true">&darr;</div>
+            ${renderPlanningProductionChainNode(chain.finalNode)}
+          ` : ""}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>Состав заказ-наряда не найден. Цепочка появится после выбора изделия или платы в маршрутной карте.</span>
+        </div>
+      `}
+
+      ${chain.links.length ? `
+        <div class="planning-chain-dependencies">
+          <div class="planning-section-note">
+            <em class="planning-section-tag is-info">зависимости</em>
+            <span>Эти связи используются как смысловая основа для порядка операций в Ганте.</span>
+          </div>
+          <div>
+            ${chain.links.map((link) => `
+              <span class="is-${escapeAttribute(link.tone)}">
+                <strong>${escapeHtml(link.from)}</strong>
+                <i aria-hidden="true">&rarr;</i>
+                <strong>${escapeHtml(link.to)}</strong>
+                <em>${escapeHtml(link.label)}</em>
+              </span>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+
+      ${chain.issues.length ? `
+        <div class="planning-chain-issues">
+          ${chain.issues.map((issue) => `<span>${escapeHtml(issue)}</span>`).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("check")}
+          <span>Критичных разрывов цепочки не найдено. Проверьте партии и передайте заказ-наряд в Гант.</span>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function renderPlanningSupplyDetail(route, transferSummary, tasks, routeSteps) {
+  const rows = getPlanningSupplyRows(route, transferSummary, routeSteps, tasks);
+  const summary = getPlanningSupplySummary(route, transferSummary, routeSteps);
+
+  return `
+    <section class="module-panel planning-work-detail-panel planning-supply-panel">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>Обеспечение состава</strong>
+            <span>что производим, что берем со склада, что идет вне производственного маршрута</span>
+          </div>
+        </div>
+        <em class="planning-section-tag ${summary.blocking ? "is-required" : "is-calculated"}">${summary.blocking ? `${summary.blocking} проблем` : "готово"}</em>
+      </div>
+
+      <div class="planning-work-summary-grid">
+        <article><span>Строк состава</span><strong>${summary.total.toLocaleString("ru-RU")}</strong></article>
+        <article><span>Произвести</span><strong>${summary.produce.toLocaleString("ru-RU")}</strong></article>
+        <article><span>Со склада</span><strong>${summary.stock.toLocaleString("ru-RU")}</strong></article>
+        <article><span>Вне маршрута</span><strong>${summary.external.toLocaleString("ru-RU")}</strong></article>
+      </div>
+
+      ${rows.length ? `
+        <div class="planning-supply-table" role="table" aria-label="Обеспечение состава изделия">
+          <div class="planning-supply-row is-head" role="row">
+            <span>Составная часть</span>
+            <span>Потребность</span>
+            <span>Обеспечение</span>
+            <span>Маршрут / склад</span>
+            <span>Состояние</span>
+          </div>
+          ${rows.map((row) => {
+            const warehouseBalance = row.mode === "from_stock" && row.nomenclatureItemId
+              ? getWarehouseBalanceForNomenclature(row.nomenclatureItemId)
+              : null;
+            const warehouseMeta = row.mode === "from_stock"
+              ? warehouseBalance
+                ? `склад: доступно ${formatWarehouseQuantity(warehouseBalance.available, warehouseBalance.unit)}${warehouseBalance.shortage ? `, дефицит ${formatWarehouseQuantity(warehouseBalance.shortage, warehouseBalance.unit)}` : ""}`
+                : "склад: остаток не найден"
+              : row.mode === "produce" ? "производственный маршрут" : "без автосоздания";
+            return `
+            <div class="planning-supply-row is-${escapeAttribute(row.statusTone)}" role="row" style="--supply-level: ${Math.min(4, Math.max(0, Number(row.level || 0)))};">
+              <div class="planning-supply-part">
+                <span>${escapeHtml(row.number)} · ${escapeHtml(row.typeLabel)}</span>
+                <strong>${escapeHtml(row.title || "Составная часть")}</strong>
+                <small>${escapeHtml(row.sourceLabel || "источник не выбран")}</small>
+              </div>
+              <div class="planning-supply-quantity">
+                <strong>${Number(row.quantity || 0).toLocaleString("ru-RU")} ${escapeHtml(row.unit || "шт.")}</strong>
+                <small>на заказ-наряд</small>
+              </div>
+              <div class="planning-supply-mode-group" role="group" aria-label="Способ обеспечения">
+                ${STRUCTURE_FULFILLMENT_MODES.map((mode) => `
+                  <button
+                    class="is-${escapeAttribute(getFulfillmentTone(mode))} ${mode === row.mode ? "is-active" : ""}"
+                    data-planning-supply-mode="${escapeAttribute(mode)}"
+                    data-planning-supply-route="${escapeAttribute(route?.id || "")}"
+                    data-planning-supply-item="${escapeAttribute(row.id)}"
+                    type="button"
+                    ${row.editable && route ? "" : "disabled"}
+                    title="${escapeAttribute(getFulfillmentMeta(mode))}"
+                  >${escapeHtml(STRUCTURE_FULFILLMENT_LABELS[mode])}</button>
+                `).join("")}
+              </div>
+              <div class="planning-supply-route">
+                <strong>${row.stats.stepsCount ? `${row.stats.stepsCount} оп.` : row.mode === "purchase" || row.mode === "external" ? "не требуется" : "нет операций"}</strong>
+                <small>${escapeHtml(warehouseMeta)}</small>
+              </div>
+              <div class="planning-supply-status is-${escapeAttribute(row.statusTone)}">${escapeHtml(row.status)}</div>
+            </div>
+          `; }).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>Состав изделия не найден. Выберите изделие или плату в маршрутной карте.</span>
+        </div>
+      `}
+
+      <div class="planning-muted-state">
+        ${icon("info")}
+        <span>Остатки берутся из модуля «Склад» только как read-only расчет по явным движениям и резервам. “Со склада” не создает складскую выдачу автоматически.</span>
+      </div>
+    </section>
+  `;
+}
+
+function renderPlanningStepSummaryRow(route, step) {
+  const center = getWorkCenter(step.workCenterId);
+  const tone = getPlanningStepTone(step);
+  return `
+    <button class="planning-work-step-row is-${escapeAttribute(tone)}" data-planning-work-item="${escapeAttribute(getPlanningWorkItemId("step", step.id))}" type="button">
+      <b>${Number(step.stepOrder || 0)}</b>
+      <span>
+        <strong>${escapeHtml(step.operationName || "Операция")}</strong>
+        <small>${escapeHtml(center?.name || step.workCenterId || "Отдел не выбран")}</small>
+      </span>
+      <em>${escapeHtml(getPlanningStepLineLabel(step))}</em>
+    </button>
+  `;
+}
+
+function renderPlanningStepDetail(route, step, transferSummary, routeSteps) {
+  const task = getRouteStepPlanningTask(route, step, routeSteps);
+  const center = getWorkCenter(step.workCenterId);
+  const lineLabel = getPlanningStepLineLabel(step);
+  const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
+  const operationContext = getRouteStepEffectiveOperationContext(route, step, getRouteStepSelectedPlanningWorkCenterId(step, planningState) || step.workCenterId, step.resourceId || "");
+  const quantity = getRouteStepQuantityForBatch(step, { quantity: transferSummary?.planningQuantity || getPlanningRouteQuantity(route) });
+
+  return `
+    <section class="module-panel planning-work-detail-panel planning-step-detail-panel ${isSmtStep ? "is-smt" : ""}">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>${escapeHtml(step.operationName || "Операция")}</strong>
+            <span>${task ? `${escapeHtml(task.number)} · ${escapeHtml(task.title || "Составная часть")}` : "общий маршрут"}</span>
+          </div>
+        </div>
+        <em class="planning-section-tag">${isSmtStep ? "SMT" : "операция"}</em>
+      </div>
+
+      <div class="planning-work-summary-grid">
+        <article>
+          <span>Отдел маршрута</span>
+          <strong>${escapeHtml(center?.name || step.workCenterId || "Не выбран")}</strong>
+        </article>
+        <article>
+          <span>Ресурс для плана</span>
+          <strong>${escapeHtml(lineLabel)}</strong>
+        </article>
+        <article>
+          <span>Количество операции</span>
+          <strong>${quantity.toLocaleString("ru-RU")} шт.</strong>
+        </article>
+        <article>
+          <span>Тип расчета</span>
+          <strong>${escapeHtml(operationContext.calculationType || (isSmtStep ? "SMT" : "маршрут"))}</strong>
+        </article>
+	      </div>
+
+	      ${renderOperationFlowMap(getRouteStepFlowModel(route, step), { compact: true })}
+
+	      ${isSmtStep ? `
+        <div class="planning-operation-smt-tools is-detail">
+          ${renderRouteSmtStepCalculator(route, step, { context: "planning", variant: "operation" })}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>Для этой операции отдельный SMT-калькулятор не требуется. В Гант будет передан ресурс из маршрутной карты или выбранный ресурс планирования.</span>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function getPlanningTaskOperationStats(route, task, steps = null) {
+  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
+  const taskSteps = getRouteStepsForPlanningTask(route, task, routeSteps);
+  const smtSteps = taskSteps.filter((step) => (
+    isSmtOperationWorkCenter(step.workCenterId, step, planningState)
+    || routeStepRequiresManualPlanningLine(step, planningState)
+  ));
+  const outputSteps = taskSteps.filter((step) => isManufacturingOutputReceiptRouteStep(step));
+  return {
+    steps: taskSteps,
+    smtSteps,
+    outputSteps,
+    stepsCount: taskSteps.length,
+    smtCount: smtSteps.length,
+    outputCount: outputSteps.length,
+  };
+}
+
+function isWarehouseIssueRouteStep(step = {}) {
+  return isWarehouseWorkCenterId(step.workCenterId) && !isManufacturingOutputReceiptRouteStep(step);
+}
+
+function getRouteStepFulfillmentProfile(stats = {}) {
+  const steps = Array.isArray(stats.steps) ? stats.steps : [];
+  const warehouseIssueSteps = steps.filter((step) => isWarehouseIssueRouteStep(step));
+  const outputReceiptSteps = steps.filter((step) => isManufacturingOutputReceiptRouteStep(step));
+  const productionSteps = steps.filter((step) => !isWarehouseWorkCenterId(step.workCenterId));
+  return {
+    warehouseIssueCount: warehouseIssueSteps.length,
+    outputReceiptCount: outputReceiptSteps.length,
+    productionCount: productionSteps.length,
+  };
+}
+
+function getPlanningTaskBomLabel(task) {
+  const fulfillmentMode = normalizeStructureFulfillmentMode(task?.fulfillmentMode || "", task?.isMain ? "produce" : "not_selected");
+  if (task && !task.isMain) {
+    const prefix = getFulfillmentLabel(fulfillmentMode);
+    const bom = getBomList(task?.bomListId || "");
+    if (bom) return `${prefix} · ${bom.resultItem || bom.name || "BOM"}`;
+    if (task?.type === "bom") return `${prefix} · BOM не привязан`;
+    return `${prefix} · BOM не требуется`;
+  }
+  const bom = getBomList(task?.bomListId || "");
+  if (bom) return bom.resultItem || bom.name || "BOM";
+  if (task?.type === "bom") return "BOM не привязан";
+  if (task?.isMain) return "общий маршрут";
+  return "BOM не требуется";
+}
+
+function getPlanningTaskReadiness(task, stats) {
+  if (task?.isOrphan) return { label: "проверьте связь", tone: "critical" };
+  const fulfillmentMode = normalizeStructureFulfillmentMode(task?.fulfillmentMode || "", task?.isMain ? "produce" : "not_selected");
+  if (!task?.isMain && fulfillmentMode === "not_selected") return { label: "обеспечение не выбрано", tone: "critical" };
+  if (!task?.isMain && !isSchedulableFulfillmentMode(fulfillmentMode)) return { label: "вне маршрута", tone: "neutral" };
+  if (!stats.stepsCount) return { label: "нет операций", tone: "warning" };
+  const fulfillmentProfile = getRouteStepFulfillmentProfile(stats);
+  if (!task?.isMain && fulfillmentMode === "produce" && !fulfillmentProfile.productionCount) {
+    return { label: "нет производственной операции", tone: "warning" };
+  }
+  if (fulfillmentMode === "from_stock") {
+    if (fulfillmentProfile.productionCount) return { label: "лишние производственные операции", tone: "warning" };
+    if (!fulfillmentProfile.warehouseIssueCount) return { label: "нужна складская выдача", tone: "warning" };
+  }
+  if (stats.smtSteps.some((step) => routeStepRequiresManualPlanningLine(step, planningState) && !getRouteStepSelectedPlanningWorkCenterId(step, planningState))) {
+    return { label: "выберите SMT-участок", tone: "warning" };
+  }
+  if (task?.type === "bom" && !task.bomListId) return { label: "BOM не привязан", tone: "warning" };
+  return { label: "готово к плану", tone: "ok" };
+}
+
+function renderPlanningCompositionPanel(route, transferSummary) {
+  const routeSteps = getRouteStepsForModule(route?.id || "");
+  const tasks = getPlanningTasksForRoute(route, routeSteps);
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+
+  return `
+    <section class="module-panel planning-composition-panel">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>Состав заказ-наряда</strong>
+            <span>из чего состоит выпуск и какие части требуют отдельного планирования</span>
+          </div>
+        </div>
+        <em class="planning-section-tag is-info">${tasks.length} поз.</em>
+      </div>
+
+      ${tasks.length ? `
+        <div class="planning-composition-table" role="table" aria-label="Состав заказ-наряда">
+          <div class="planning-composition-row is-head" role="row">
+            <span>Составная часть</span>
+            <span>BOM / источник</span>
+            <span>Количество</span>
+            <span>Операции</span>
+            <span>Состояние</span>
+          </div>
+          ${tasks.map((task) => {
+            const stats = getPlanningTaskOperationStats(route, task, routeSteps);
+            const readiness = getPlanningTaskReadiness(task, stats);
+            const taskQuantity = normalizeQuantity(task.quantity || 1);
+            const orderQuantity = normalizeQuantity(planningQuantity * taskQuantity);
+            return `
+              <div class="planning-composition-row ${task.isOrphan ? "is-warning" : ""}" role="row">
+                <div class="planning-composition-part">
+                  <span>${escapeHtml(task.number)} · ${escapeHtml(getRouteTaskTypeLabel(task))}</span>
+                  <strong>${escapeHtml(task.title || "Составная часть")}</strong>
+                  ${task.parentTitle ? `<small>${escapeHtml(task.parentTitle)}</small>` : ""}
+                </div>
+                <div class="planning-composition-muted">${escapeHtml(getPlanningTaskBomLabel(task))}</div>
+                <div class="planning-composition-quantity">
+                  <strong>${orderQuantity.toLocaleString("ru-RU")} ${escapeHtml(task.unit || "шт.")}</strong>
+                  <small>${taskQuantity.toLocaleString("ru-RU")} на изделие</small>
+                </div>
+                <div class="planning-composition-counters">
+                  <span>${stats.stepsCount} оп.</span>
+                  ${stats.smtCount ? `<em>SMT ${stats.smtCount}</em>` : ""}
+                  ${stats.outputCount ? `<em class="is-output">приемка</em>` : ""}
+                </div>
+                <div class="planning-composition-status is-${escapeAttribute(readiness.tone)}">${escapeHtml(readiness.label)}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>Состав заказ-наряда не найден. Проверьте связанное изделие, плату или маршрутную карту.</span>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function getPlanningStepTone(step) {
+  if (!getOperationMapItem(step.operationId)) return "warning";
+  if (routeStepRequiresManualPlanningLine(step, planningState) && !getRouteStepSelectedPlanningWorkCenterId(step, planningState)) return "warning";
+  if (isManufacturingOutputReceiptRouteStep(step)) return "output";
+  if (routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState)) return "smt";
+  return "regular";
+}
+
+function getPlanningStepLineLabel(step) {
+  const selectedLineId = getRouteStepSelectedPlanningWorkCenterId(step, planningState);
+  if (selectedLineId) return getWorkCenter(selectedLineId)?.name || selectedLineId;
+  if (routeStepRequiresManualPlanningLine(step, planningState)) return "SMT-участок не выбран";
+  return getWorkCenter(step.workCenterId)?.name || step.workCenterId || "Отдел не выбран";
+}
+
+function renderPlanningOperationsByComposition(route, steps) {
+  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
+  const tasks = getPlanningTasksForRoute(route, routeSteps);
+  const operationGroups = tasks
+    .map((task) => ({ task, stats: getPlanningTaskOperationStats(route, task, routeSteps) }))
+    .filter(({ stats }) => stats.stepsCount > 0);
+  const smtStepIds = new Set(getRouteSmtSteps(route).map((step) => step.id));
+
+  return `
+    <section class="module-panel planning-operations-panel">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>Операции по составу</strong>
+            <span>планируйте не абстрактный маршрут, а конкретные работы по каждой части</span>
+          </div>
+        </div>
+        <em class="planning-section-tag is-calculated">${routeSteps.length} оп.</em>
+      </div>
+
+      ${operationGroups.length ? `
+        <div class="planning-operation-groups">
+          ${operationGroups.map(({ task, stats }) => `
+              <article class="planning-operation-group ${task.isMain ? "is-main" : ""} ${task.isOrphan ? "is-orphan" : ""}">
+                <header class="planning-operation-group-head">
+                  <div>
+                    <span>${escapeHtml(task.number)} · ${escapeHtml(getRouteTaskTypeLabel(task))}</span>
+                    <strong>${escapeHtml(task.title || "Составная часть")}</strong>
+                  </div>
+                  <em>${stats.stepsCount ? `${stats.stepsCount} оп.` : "нет операций"}</em>
+                </header>
+
+                <div class="planning-operation-list">
+                  ${stats.steps.map((step) => {
+                    const center = getWorkCenter(step.workCenterId);
+                    const tone = getPlanningStepTone(step);
+                    const isSmtStep = smtStepIds.has(step.id);
+                    return `
+                      <article class="planning-operation-item is-${escapeAttribute(tone)}">
+                        <div class="planning-operation-line">
+                          <b>${Number(step.stepOrder || 0)}</b>
+                          <div class="planning-operation-title">
+                            <strong>${escapeHtml(step.operationName || "Операция")}</strong>
+                            <small>${escapeHtml(center?.name || step.workCenterId || "Отдел не выбран")}</small>
+                          </div>
+                          <div class="planning-operation-facts">
+                            <span>${escapeHtml(getPlanningStepLineLabel(step))}</span>
+                            ${isManufacturingOutputReceiptRouteStep(step) ? `<em class="is-output">приемка выпуска</em>` : ""}
+                            ${isSmtStep ? `<em class="is-smt">SMT расчет</em>` : ""}
+	                          </div>
+		                        </div>
+		                        ${isSmtStep ? `
+	                          <div class="planning-operation-smt-tools">
+                            ${renderRouteSmtStepCalculator(route, step, { context: "planning", variant: "operation" })}
+                          </div>
+                        ` : ""}
+                      </article>
+                    `;
+                  }).join("")}
+                </div>
+              </article>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+          <span>В маршрутной карте пока нет операций для планирования. Отсутствующие операции по составу показаны выше в блоке состава.</span>
+        </div>
+      `}
     </section>
   `;
 }
@@ -3520,14 +7805,20 @@ function renderPlanningBatchConstructor(route, summary) {
     <section class="module-panel planning-batch-constructor">
       <div class="report-card-head planning-batch-head">
         <div>
-          <strong>Конструктор партий</strong>
-          <span>соберите партии перед автоматическим размещением в Ганте</span>
+          <div>
+            <strong>Партии</strong>
+            <span>разделите заказ перед автоматическим размещением в Ганте</span>
+          </div>
         </div>
         <div class="planning-batch-actions">
           <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("plus")}<span>Партия</span></button>
           <button class="secondary-button" data-planning-batches-distribute="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("refresh")}<span>Разделить поровну</span></button>
           <button class="secondary-button" data-planning-batches-accept-total="${escapeAttribute(routeId)}" type="button" ${route && realBatches.length ? "" : "disabled"}>${icon("check")}<span>Принять сумму</span></button>
         </div>
+      </div>
+      <div class="planning-section-note">
+        <em class="planning-section-tag is-required">заполняется</em>
+        <span>Если партии не созданы вручную, система подготовит одну партию из планируемого количества.</span>
       </div>
 
       <div class="planning-batch-summary">
@@ -3612,8 +7903,8 @@ function renderTreePage() {
   const productionContexts = getProductionContexts();
   const layers = [
     { title: "Производство", value: productionContexts.length, meta: "состав изделия, партии, слоты" },
-    { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "состав, спецификации, маршруты" },
-    { title: "Справочники", value: getDirectoryObjectCount(), meta: "подразделения, ресурсы, сотрудники" },
+    { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "изделия, платы, маршруты" },
+    { title: "Справочники", value: getDirectoryObjectCount(), meta: "отделы, ресурсы, сотрудники" },
   ];
 
   return `
@@ -3650,7 +7941,7 @@ function renderTreePage() {
           <div>
             <span class="eyebrow">Структура объектов</span>
             <h2>Дерево связей MES</h2>
-            <p>Просмотр без редактирования: как состав изделия, спецификации, маршрутные карты, партии, слоты Ганта и справочники связаны между собой.</p>
+            <p>Просмотр без редактирования: как изделия, платы, маршрутные карты, партии, слоты Ганта и справочники связаны между собой.</p>
           </div>
         </header>
 
@@ -3799,7 +8090,7 @@ function renderTechnologyTree() {
         tone: "specification",
         children: [(directoryState.specifications || []).length
           ? (directoryState.specifications || []).map((specification) => renderSpecificationObjectTree(specification)).join("")
-          : renderObjectTreeLeaf("Состав изделия пока не создан", "Создайте состав изделия в модуле «РКД».", "empty")],
+          : renderObjectTreeLeaf("Изделия пока нет", "Создайте изделие или работайте напрямую с платой/BOM.", "empty")],
       }),
       renderObjectTreeNode({
         title: BOARD_SPEC_LIST_TERM,
@@ -3808,7 +8099,7 @@ function renderTechnologyTree() {
         tone: "bom",
         children: [(directoryState.bomLists || []).length
           ? (directoryState.bomLists || []).map((bom) => renderBomObjectTree(bom)).join("")
-          : renderObjectTreeLeaf("Спецификаций пока нет", "Создайте спецификацию или импортируйте Excel-шаблон.", "empty")],
+          : renderObjectTreeLeaf("Плат пока нет", "Создайте плату или импортируйте Excel-шаблон BOM.", "empty")],
       }),
       renderObjectTreeNode({
         title: "Номенклатура",
@@ -3840,7 +8131,7 @@ function renderSpecificationObjectTree(specification, options = {}) {
     children: [
       structureItems.length
         ? renderSpecificationStructureObjectTree(specification, structureItems, visitedSpecificationIds)
-        : renderObjectTreeLeaf("Структура состава изделия пуста", "Добавьте спецификацию, номенклатуру или узлы в модуле «РКД».", "warning"),
+        : renderObjectTreeLeaf("Структура состава изделия пуста", "Добавьте плату, номенклатуру или узлы в модуле «Изделия».", "warning"),
     ],
   });
 }
@@ -3924,13 +8215,13 @@ function renderBomObjectTree(bom, options = {}) {
   const hiddenCount = Math.max(0, rows.length - (options.compact ? 4 : 10));
 
   return renderObjectTreeNode({
-    title: bom.name || "Спецификация без названия",
-    meta: `${bom.boardCode || "код платы не задан"} · ${bom.resultItem || "результат не задан"} · ${componentTotal.toLocaleString("ru-RU")} компонентов`,
+    title: bom.name || "Плата без названия",
+    meta: `${bom.boardCode || "децимальный номер не задан"} · ${bom.resultItem || "результат не задан"} · ${componentTotal.toLocaleString("ru-RU")} компонентов`,
     badge: rows.length || "ручн.",
     tone: "bom",
     open: !options.compact,
     children: [
-      renderObjectTreeLeaf("Результат спецификации", bom.resultItem || "смонтированная печатная плата не задана", "output"),
+      renderObjectTreeLeaf("Результат производства", bom.resultItem || "смонтированная печатная плата не задана", "output"),
       renderObjectTreeLeaf("Где используется", linkedSpecifications.length ? linkedSpecifications.map((specification) => specification.name).join(", ") : "пока не включена в состав изделия", linkedSpecifications.length ? "link" : "empty"),
       rows.length
         ? renderObjectTreeNode({
@@ -3940,7 +8231,7 @@ function renderBomObjectTree(bom, options = {}) {
           tone: "component",
           children: [rowPreview, hiddenCount ? renderObjectTreeLeaf(`Еще ${hiddenCount.toLocaleString("ru-RU")} строк`, "скрыто в компактном просмотре", "empty") : ""],
         })
-        : renderObjectTreeLeaf("Импортированных строк нет", "Спецификация заполнена вручную или пока пустая.", "warning"),
+        : renderObjectTreeLeaf("Импортированных строк нет", "BOM заполнен вручную или пока пустой.", "warning"),
     ],
   });
 }
@@ -3965,14 +8256,14 @@ function renderRouteObjectTree(route) {
             const center = getWorkCenter(step.workCenterId);
             return renderObjectTreeLeaf(
               `${step.stepOrder}. ${step.operationName || center?.name || "Операция"}`,
-              `${center?.name || "подразделение не найдено"} · ${Number(step.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час`,
+              `${center?.name || "отдел не найден"} · ${Number(step.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час`,
               "operation",
             );
           }).join("")],
         });
       }).join("") : steps.map((step) => {
         const center = getWorkCenter(step.workCenterId);
-        return renderObjectTreeLeaf(`${step.stepOrder}. ${step.operationName || "Операция"}`, center?.name || "подразделение не найдено", "operation");
+        return renderObjectTreeLeaf(`${step.stepOrder}. ${step.operationName || "Операция"}`, center?.name || "отдел не найден", "operation");
       }).join(""),
     ],
   });
@@ -3995,7 +8286,7 @@ function renderBatchObjectTree(batch, slots) {
       ? [...slotsByCenter.entries()].map(([workCenterId, centerSlots]) => {
         const center = getWorkCenter(workCenterId);
         return renderObjectTreeNode({
-          title: center?.name || "Подразделение не найдено",
+          title: center?.name || "Отдел не найден",
           meta: `${centerSlots.length} слотов Ганта`,
           badge: centerSlots.length,
           tone: "gantt",
@@ -4016,12 +8307,12 @@ function renderBatchObjectTree(batch, slots) {
 function renderDirectoryTree() {
   const unitNodes = (planningState.workCenters || []).map((unit) => {
     const resources = getProductionResourcesForWorkCenter(unit.id, { includeInactive: true, includePassive: true });
-    const typeLabel = UNIT_TYPE_LABELS[unit.unitType] || "Подразделение";
+    const typeLabel = UNIT_TYPE_LABELS[unit.unitType] || "Отдел";
     const planningLabel = isPlanningWorkCenter(unit)
       ? `${Number(unit.unitsPerHour || 0).toLocaleString("ru-RU")} изд./час · ${getWorkCalendarLabel(unit)}`
       : "не участвует в Ганте";
     return renderObjectTreeNode({
-      title: unit.name || "Подразделение без названия",
+      title: unit.name || "Отдел без названия",
       meta: `${typeLabel} · ${unit.code || "код не задан"} · ${planningLabel}`,
       badge: resources.length,
       tone: isPlanningWorkCenter(unit) ? "workcenter" : "directory",
@@ -4039,11 +8330,11 @@ function renderDirectoryTree() {
     open: true,
     children: [
       renderObjectTreeNode({
-        title: "Подразделения и ресурсы",
+        title: "Отделы и ресурсы",
         meta: "организация, мощности и расчетные зоны",
         badge: planningState.workCenters.length,
         tone: "workcenter",
-        children: [unitNodes || renderObjectTreeLeaf("Подразделений пока нет", "Заполните справочник подразделений.", "empty")],
+        children: [unitNodes || renderObjectTreeLeaf("Отделов пока нет", "Заполните справочник отделов.", "empty")],
       }),
       renderObjectTreeNode({
         title: "Производственные ресурсы",
@@ -4051,7 +8342,7 @@ function renderDirectoryTree() {
         badge: getProductionResources({ includeInactive: true }).length,
         tone: "resource",
         children: [
-          ...getProductionResources({ includeInactive: true }).map((resource) => renderObjectTreeLeaf(resource.name || "Ресурс", `${PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "тип"} · ${getWorkCenter(resource.workCenterId)?.name || "подразделение не задано"} · ${resource.status || "статус"}`, "resource")),
+          ...getProductionResources({ includeInactive: true }).map((resource) => renderObjectTreeLeaf(resource.name || "Ресурс", `${PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "тип"} · ${getWorkCenter(resource.workCenterId)?.name || "отдел не задан"} · ${resource.status || "статус"}`, "resource")),
         ].join("") || renderObjectTreeLeaf("Ресурсы не заполнены", "Добавьте производственные ресурсы в справочниках.", "empty"),
       }),
     ],
@@ -4099,26 +8390,42 @@ function formatDateTimeShort(value) {
   });
 }
 
+function normalizeInterfaceRoleId(roleId = "") {
+  const candidate = String(roleId || "");
+  return INTERFACE_ROLES.some((role) => role.id === candidate) ? candidate : DEFAULT_INTERFACE_ROLE_ID;
+}
+
+function getActiveInterfaceRole() {
+  const roleId = normalizeInterfaceRoleId(ui?.activeRole);
+  return INTERFACE_ROLES.find((role) => role.id === roleId) || INTERFACE_ROLES[0];
+}
+
+function isModuleAllowedForRole(moduleId = "", role = getActiveInterfaceRole()) {
+  return !Array.isArray(role.moduleIds) || role.moduleIds.includes(moduleId);
+}
+
 function getModuleDefinitions() {
   return [
     { id: "gantt", label: "Гант", icon: "gantt" },
     { id: "planning", label: "Планирование", icon: "calendar" },
+    { id: "dispatch", label: "Диспетчерская", icon: "monitor" },
+    { id: "warehouse", label: "Склад", icon: "warehouse" },
     { id: "shopMap", label: "Карта цеха", icon: "map" },
-    { id: "rkd", label: "РКД", icon: "document" },
-    { id: "calculator", label: "Калькулятор", icon: "calculator" },
+    { id: "products", label: PRODUCT_COMPOSITION_LIST_TERM, icon: "tree" },
     { id: "routes", label: "Маршрутная карта", icon: "split" },
-    { id: "bomLists", label: BOARD_SPEC_TERM, icon: "bom" },
+    { id: "bomLists", label: BOARD_SPEC_LIST_TERM, icon: "bom" },
     { id: "nomenclature", label: "Номенклатура", icon: "package" },
-    { id: "directories", label: "Справочники", icon: "settings" },
+    { id: "directories", label: "Справочники", icon: "directory" },
+    { id: "rkd", label: "РКД", icon: "document" },
   ];
 }
 
 function getModuleGroups(modules) {
   const groupMap = [
-    { label: "Производство", ids: ["gantt", "planning", "shopMap"] },
-    { label: "Технологии", ids: ["rkd", "routes", "bomLists", "nomenclature"] },
+    { label: "Производство", ids: ["gantt", "planning", "dispatch", "warehouse"] },
+    { label: "Технологии", ids: ["products", "routes", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
-    { label: "MVP", ids: ["calculator"] },
+    { label: "UX-макеты", ids: ["rkd"], tone: "test" },
   ];
 
   return groupMap
@@ -4130,19 +8437,30 @@ function getModuleGroups(modules) {
 }
 
 function getAvailableModules() {
-  return getModuleDefinitions();
+  const role = getActiveInterfaceRole();
+  return getModuleDefinitions().filter((moduleItem) => isModuleAllowedForRole(moduleItem.id, role));
 }
 
 function ensureAuthorizedModule() {
-  if (ui.activeModule === "dashboard" || ui.activeModule === "reports" || ui.activeModule === "debug" || ui.activeModule === "operationMap") {
+  ui.activeRole = normalizeInterfaceRoleId(ui.activeRole);
+  if (ui.activeModule === "dashboard" || ui.activeModule === "reports" || ui.activeModule === "debug" || ui.activeModule === "operationMap" || ui.activeModule === "instruction") {
     ui.activeModule = "gantt";
   }
   if (ui.activeModule === "specifications" || ui.activeModule === "speki") {
-    ui.activeModule = "rkd";
+    ui.activeModule = "products";
+  }
+  if (ui.activeModule === "calculator") {
+    ui.activeModule = "planning";
+  }
+  if (ui.activeModule === "planning2" || ui.activeModule === "planningWorkbench") {
+    ui.activeModule = "planning";
   }
   const availableModules = getAvailableModules();
   if (!availableModules.some((moduleItem) => moduleItem.id === ui.activeModule)) {
-    ui.activeModule = availableModules[0]?.id || "gantt";
+    const role = getActiveInterfaceRole();
+    ui.activeModule = role.defaultModule && availableModules.some((moduleItem) => moduleItem.id === role.defaultModule)
+      ? role.defaultModule
+      : availableModules[0]?.id || "gantt";
   }
 }
 
@@ -4177,6 +8495,7 @@ function getVisibleDirectoryGroups(visibleSections = getVisibleDirectorySections
 function renderModuleMenu() {
   const modules = getAvailableModules();
   const groups = getModuleGroups(modules);
+  const activeRole = getActiveInterfaceRole();
 
   return `
     <nav class="module-menu" data-layout="sidebar" aria-label="Основное меню">
@@ -4186,7 +8505,7 @@ function renderModuleMenu() {
       </div>
       <div class="module-tabs" role="tablist">
         ${groups.map((group) => `
-          <div class="module-group">
+          <div class="module-group ${group.tone ? `is-${escapeAttribute(group.tone)}-group` : ""}" ${group.tone ? `data-module-group-tone="${escapeAttribute(group.tone)}"` : ""}>
             <span class="module-group-title">${escapeHtml(group.label)}</span>
             ${group.modules.map((moduleItem) => `
               <button class="module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button" aria-label="${escapeAttribute(moduleItem.label)}" title="${escapeAttribute(moduleItem.label)}">
@@ -4196,45 +8515,84 @@ function renderModuleMenu() {
           </div>
         `).join("")}
       </div>
-      <div class="module-menu-meta access-menu-meta">
-        <div class="access-user-chip">
-          ${icon("unlock")}
-          <span><strong>Обычный доступ</strong><small>без ролей и авторизации</small></span>
+      <div class="module-menu-footer">
+        ${renderWorkflowPresetControl()}
+        <div class="module-menu-meta access-menu-meta">
+          <div class="access-user-chip">
+            ${icon(activeRole.icon)}
+            <span><strong>${escapeHtml(activeRole.label)}</strong><small>${escapeHtml(activeRole.caption)}</small></span>
+          </div>
+          ${renderInterfaceRoleSwitcher(activeRole.id)}
         </div>
       </div>
     </nav>
   `;
 }
 
+function renderInterfaceRoleSwitcher(activeRoleId = DEFAULT_INTERFACE_ROLE_ID) {
+  return `
+    <div class="access-role-switcher" role="group" aria-label="Переключение роли интерфейса">
+      ${INTERFACE_ROLES.map((role) => `
+        <button class="${role.id === activeRoleId ? "is-active" : ""}" data-role-switch="${escapeAttribute(role.id)}" type="button" title="${escapeAttribute(role.label)}">
+          ${icon(role.icon)}<span>${escapeHtml(role.label)}</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderWorkflowPresetControl() {
+  const preset = getWorkflowPreset();
+  const counts = preset?.counts || getWorkflowPresetCountsFromState();
+  const hasPreset = Boolean(preset);
+  const caption = hasPreset
+    ? formatWorkflowPresetCounts(counts)
+    : isMeaningfulWorkflowPresetCounts(counts)
+      ? "можно сохранить текущий набор"
+      : "нет объектов для пресета";
+
+  return `
+    <div class="module-menu-preset ${hasPreset ? "has-preset" : "is-empty"}" title="${escapeAttribute(hasPreset ? "Восстановить рабочий пресет" : "Сохранить текущий набор в пресет")}">
+      <button class="module-menu-preset-main" data-restore-workflow-preset type="button" ${hasPreset ? "" : "disabled"}>
+        ${icon("download")}
+        <span>
+          <strong>Рабочий пресет</strong>
+          <small>${escapeHtml(caption)}</small>
+        </span>
+      </button>
+      <button class="module-menu-preset-save" data-save-workflow-preset type="button" title="Сохранить текущие объекты в пресет">
+        ${icon("save")}
+      </button>
+    </div>
+  `;
+}
+
 function renderAppTopbar() {
-  const activeModule = getModuleDefinitions().find((moduleItem) => moduleItem.id === ui.activeModule) || getModuleDefinitions()[0];
+  const activeRole = getActiveInterfaceRole();
+  const availableModules = getAvailableModules();
+  const activeModule = availableModules.find((moduleItem) => moduleItem.id === ui.activeModule)
+    || getModuleDefinitions().find((moduleItem) => moduleItem.id === ui.activeModule)
+    || availableModules[0]
+    || getModuleDefinitions()[0];
+  const activeModuleGroup = getModuleGroups(availableModules)
+    .find((group) => group.modules.some((moduleItem) => moduleItem.id === activeModule.id));
   const activeContext = ui.activeModule === "directories"
       ? directorySections.find((section) => section.id === ui.activeDirectory)?.label || "Справочники"
-      : activeModule.label;
+      : activeModuleGroup?.label || "";
+  const searchPlaceholder = activeRole.id === "warehouseClerk"
+    ? "Поиск по складу, поступлениям и заказ-нарядам"
+    : "Поиск по изделиям, платам и операциям";
 
   return `
     <header class="app-topbar" data-layout="header" aria-label="Верхняя панель MES">
-      <div class="app-breadcrumbs">
-        <span>MES</span>
-        <i>/</i>
-        <strong>${escapeHtml(activeModule.label)}</strong>
-        ${activeContext && activeContext !== activeModule.label ? `<i>/</i><span>${escapeHtml(activeContext)}</span>` : ""}
-      </div>
       <div class="app-topbar-title">
         <h1>${escapeHtml(activeModule.label)}</h1>
-        <p>${escapeHtml(activeContext)}</p>
+        ${activeContext ? `<p>${escapeHtml(activeContext)}</p>` : ""}
       </div>
       <label class="app-global-search">
         ${icon("search")}
-        <input type="search" placeholder="Поиск по составу изделия, спецификациям, операциям" aria-label="Глобальный поиск" />
+        <input type="search" placeholder="${escapeAttribute(searchPlaceholder)}" aria-label="Глобальный поиск" />
       </label>
-      <div class="app-topbar-actions">
-        <span class="app-time" data-clock>${formatDateTime(ui.now)}</span>
-        <div class="app-topbar-user">
-          <strong>Обычный доступ</strong>
-          <span>все модули доступны</span>
-        </div>
-      </div>
     </header>
   `;
 }
@@ -4243,15 +8601,15 @@ function renderCalculatorPage() {
   const calc = calculateComplexityResult();
   const inputStatus = getCalculatorInputStatus(calc);
   const bomOptions = [
-    { value: "", label: "Выберите спецификацию", meta: "компонентный состав платы" },
+    { value: "", label: "Выберите плату", meta: "компонентный состав / BOM" },
     ...(directoryState.bomLists || []).map((bom) => ({
       value: bom.id,
-      label: bom.name || "Спецификация без названия",
+      label: bom.name || "Плата без названия",
       meta: [bom.boardCode, bom.resultItem].filter(Boolean).join(" · ") || "компонентный состав",
     })),
   ];
   const smtLineOptions = [
-    { value: "", label: "Выберите SMT-линию", meta: "конфигурация линии для расчета" },
+    { value: "", label: "Выберите SMT-участок", meta: "производственный ресурс для расчета" },
     ...getSmtLineConfigurations().map((line) => ({
       value: line.id,
       label: line.name,
@@ -4261,17 +8619,27 @@ function renderCalculatorPage() {
   const componentRows = inputStatus.complete
     ? (calc.rows?.length ? calc.rows : buildBomPreviewRows(calc))
     : [];
+  const usedComponentRows = componentRows.filter((row) => Number(row.count || 0) > 0);
   const componentTotal = componentRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
   const totalPlacements = componentRows.reduce((sum, row) => sum + Number(row.totalPlacements || 0), 0);
-  const activeTypes = componentRows.filter((row) => Number(row.count || 0) > 0).length;
+  const activeTypes = usedComponentRows.length;
   const efficiencyValue = Math.round(Number(calculatorState.efficiency || calc.smtLine?.efficiency || 100));
   const selectedLineValue = calc.smtLine?.id || calculatorState.resourceId || "";
   const selectedLineCaption = calc.smtLine
     ? `${Number(getResourceBaseCph(calc.smtLine) || 0).toLocaleString("ru-RU")} комп./ч · ${Number(calc.smtLine.changeoverMin || 0).toLocaleString("ru-RU")} мин переналадки · эффективность ${efficiencyValue}%`
-    : "выберите конфигурацию SMT-линии для расчета";
+    : "выберите SMT-участок для расчета";
   const saveCaption = calculatorState.inputsSavedAt
     ? `сохранено ${formatDateTime(calculatorState.inputsSavedAt)}`
     : "расчет не сохранен";
+  const machineSplit = calc.machineSplit?.enabled ? calc.machineSplit : null;
+  const primaryMachineName = getSmtMachineDisplayName(machineSplit?.primaryMachine, "Станок 1");
+  const secondaryMachineName = getSmtMachineDisplayName(machineSplit?.secondaryMachine, "Станок 2");
+  const primaryMachinePanelOutput = Number(machineSplit?.primaryPanelsPerHour || 0) > 0
+    ? `${formatCalculatorNumber(machineSplit.primaryPanelsPerHour)} мульт./ч`
+    : "нет установок";
+  const secondaryMachinePanelOutput = Number(machineSplit?.secondaryPanelsPerHour || 0) > 0
+    ? `${formatCalculatorNumber(machineSplit.secondaryPanelsPerHour)} мульт./ч`
+    : "нет установок";
 
   return `
     <section class="calculator-page" data-layout="main-content" aria-label="Калькулятор SMT-операции">
@@ -4280,11 +8648,11 @@ function renderCalculatorPage() {
           <div>
             <span class="eyebrow">SMT расчет</span>
             <h1>Калькулятор SMT-операции</h1>
-            <p>Выберите спецификацию платы, конфигурацию SMT-линии и параметры запуска. Результат расчета - длительность одной SMT-операции.</p>
+            <p>Выберите плату, SMT-участок и параметры запуска. Результат расчета - длительность одной SMT-операции.</p>
           </div>
           <div class="calculator-header-metrics">
             <span class="status-pill neutral">${calc.panelCount.toLocaleString("ru-RU")} мультипл.</span>
-            <span class="status-pill neutral">${activeTypes} типов</span>
+            <span class="status-pill neutral">${activeTypes} номенклатур</span>
             <span class="status-pill ok">${formatDuration(calc.totalMs)}</span>
           </div>
         </header>
@@ -4293,15 +8661,15 @@ function renderCalculatorPage() {
           <section class="calculator-panel calculator-input-panel calculator-smt-input-panel">
             <div class="report-card-head">
               <strong>Входные данные</strong>
-              <span>${inputStatus.complete ? "готово к расчету SMT" : "выберите спецификацию, линию и количество"}</span>
+              <span>${inputStatus.complete ? "готово к расчету SMT" : "выберите плату, линию и количество"}</span>
             </div>
             <div class="calculator-form-grid calculator-input-grid">
               <div class="field">
-                <span>Спецификация</span>
+                <span>Плата / BOM</span>
                 ${renderDenseInlineSelect("bomListId", calculatorState.bomListId, bomOptions, { type: "calc" })}
               </div>
               <div class="field">
-                <span>Конфигурация SMT-линии</span>
+                <span>SMT-участок</span>
                 ${renderDenseInlineSelect("resourceId", selectedLineValue, smtLineOptions, { type: "calc" })}
               </div>
               <label class="field">
@@ -4321,7 +8689,7 @@ function renderCalculatorPage() {
                 <input data-calc-number="efficiency" type="number" min="10" max="150" step="1" value="${efficiencyValue}" />
               </label>
               <div class="calculator-smt-line-card full">
-                <strong>${escapeHtml(calc.smtLine?.name || "SMT-линия не выбрана")}</strong>
+                <strong>${escapeHtml(calc.smtLine?.name || "SMT-участок не выбран")}</strong>
                 <span>${escapeHtml(selectedLineCaption)}</span>
               </div>
             </div>
@@ -4336,28 +8704,38 @@ function renderCalculatorPage() {
               <strong>Результат расчета SMT</strong>
               <span>${inputStatus.complete ? escapeHtml(calc.bomList?.name || BOARD_SPEC_TERM) : "расчет появится после заполнения вводных"}</span>
             </div>
-            <div class="calculator-kpis">
-              <article><span>Компонентов / плата</span><strong>${componentTotal.toLocaleString("ru-RU")}</strong><small>${activeTypes} типов компонентов</small></article>
+            <div class="calculator-kpis smt-result-kpi-row">
+              <article><span>Компонентов / плата</span><strong>${componentTotal.toLocaleString("ru-RU")}</strong><small>${activeTypes} номенклатурных позиций</small></article>
               <article><span>Установок на заказ</span><strong>${totalPlacements.toLocaleString("ru-RU")}</strong><small>${calc.boardQuantity.toLocaleString("ru-RU")} плат</small></article>
               <article><span>На плату</span><strong>${formatSecondsDuration(calc.perBoardSeconds)}</strong><small>${formatCalculatorNumber(calc.flowBoardsPerHour)} плат/ч</small></article>
-              <article><span>На мультипликацию</span><strong>${formatSecondsDuration(calc.perPanelSeconds)}</strong><small>${calc.boardsPerPanel.toLocaleString("ru-RU")} плат</small></article>
-              <article><span>Переналадка</span><strong>${formatDuration(calc.setupMs)}</strong><small>${escapeHtml(calc.smtLine?.name || "SMT-линия не выбрана")}</small></article>
+              <article class="smt-panel-kpi"><span>На мультипликацию</span><strong>${formatSecondsDuration(calc.perPanelSeconds)}</strong><small>${calc.boardsPerPanel.toLocaleString("ru-RU")} плат</small></article>
+              ${machineSplit ? `
+                <article><span>Цикл ${escapeHtml(primaryMachineName)}</span><strong>${formatSecondsDuration(machineSplit.primaryPerBoardSeconds)}</strong><small>на 1 плату по назначенным компонентам</small></article>
+                <article><span>Цикл ${escapeHtml(secondaryMachineName)}</span><strong>${formatSecondsDuration(machineSplit.secondaryPerBoardSeconds)}</strong><small>на 1 плату по назначенным компонентам</small></article>
+                <article class="smt-machine-kpi"><span>Мульт. ${escapeHtml(primaryMachineName)}</span><strong>${formatSecondsDuration(machineSplit.primaryPerPanelSeconds)}</strong><small>${calc.boardsPerPanel.toLocaleString("ru-RU")} плат · ${escapeHtml(primaryMachinePanelOutput)}</small></article>
+                <article class="smt-machine-kpi"><span>Мульт. ${escapeHtml(secondaryMachineName)}</span><strong>${formatSecondsDuration(machineSplit.secondaryPerPanelSeconds)}</strong><small>${calc.boardsPerPanel.toLocaleString("ru-RU")} плат · ${escapeHtml(secondaryMachinePanelOutput)}</small></article>
+              ` : ""}
+              <article><span>Переналадка</span><strong>${formatDuration(calc.setupMs)}</strong><small>${escapeHtml(calc.smtLine?.name || "SMT-участок не выбран")}</small></article>
               <article><span>На заказ</span><strong>${formatDuration(calc.totalMs)}</strong><small>${calc.panelCount.toLocaleString("ru-RU")} мультипликаций</small></article>
             </div>
           </section>
 
+          ${renderSmtMachineSplitPanel(calc, inputStatus)}
+          ${renderSmtMachineCoefficientPanel(calc, inputStatus)}
+
           <section class="calculator-panel component-matrix-panel calculator-smt-component-panel">
             <div class="directory-table-toolbar">
-              <strong>Расчет по компонентам спецификации</strong>
-              <span>${componentRows.length ? `${componentRows.length} типов · ${totalPlacements.toLocaleString("ru-RU")} установок` : "выберите спецификацию и параметры запуска"}</span>
+              <strong>Расчет по компонентам BOM</strong>
+              <span>${usedComponentRows.length ? `${usedComponentRows.length} номенклатур · ${totalPlacements.toLocaleString("ru-RU")} установок` : "в выбранной плате нет компонентов для расчета"}</span>
             </div>
             <div class="directory-table-wrap" data-layout="table">
-              <table class="directory-table calculator-table bom-table">
+              <table class="directory-table calculator-table bom-table ${machineSplit ? "is-machine-split" : "is-single-machine"}">
                 <thead>
                   <tr>
-                    <th>Тип компонента</th>
-                    <th>Корпус</th>
-                    <th>Спецификация / плата</th>
+                    <th>Номенклатура</th>
+                    <th>Типоразмер</th>
+                    <th>Плата / BOM</th>
+                    ${machineSplit ? `<th>${escapeHtml(primaryMachineName)}</th><th>${escapeHtml(secondaryMachineName)}</th>` : ""}
                     <th>Коэф.</th>
                     <th>Эфф. скорость</th>
                     <th>1 плата</th>
@@ -4366,15 +8744,21 @@ function renderCalculatorPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  ${componentRows.length ? componentRows.map((row) => `
+                  ${usedComponentRows.length ? usedComponentRows.map((row) => `
                     <tr>
-                      <td class="primary-cell">
-                        <span class="component-name">${escapeHtml(row.type.name)}</span>
-                        <small>${escapeHtml(row.type.family || "")}</small>
+                      <td class="primary-cell" title="${escapeAttribute([row.name || row.type.name, row.caption || row.type.name || row.type.family || ""].filter(Boolean).join(" · "))}">
+                        <span class="component-name">${escapeHtml(row.name || row.type.name)}</span>
+                        <small>${escapeHtml(row.caption || row.type.name || row.type.family || "")}</small>
                       </td>
-                      <td>${escapeHtml(row.type.package || "-")}</td>
+                      <td><span class="readonly-token">${escapeHtml(row.package || row.type.package || "-")}</span></td>
                       <td><span class="readonly-token">${row.count.toLocaleString("ru-RU")} шт.</span></td>
-                      <td>${formatCalculatorNumber(row.coefficient)}</td>
+                      ${machineSplit ? `
+                        <td><span class="readonly-token">${Number(row.primaryCount || 0).toLocaleString("ru-RU")} шт.</span><small>${formatSecondsDuration(row.primarySecondsPerBoard)}</small></td>
+                        <td><span class="readonly-token">${Number(row.secondaryCount || 0).toLocaleString("ru-RU")} шт.</span><small>${formatSecondsDuration(row.secondarySecondsPerBoard)}</small></td>
+                      ` : ""}
+                      <td>${machineSplit
+                        ? `<span class="readonly-token">${formatCalculatorNumber(row.primaryCoefficient, 2)} / ${formatCalculatorNumber(row.secondaryCoefficient, 2)}</span><small>${escapeHtml(primaryMachineName)} / ${escapeHtml(secondaryMachineName)}</small>`
+                        : formatCalculatorNumber(row.coefficient, 2)}</td>
                       <td>${formatCalculatorNumber(row.effectiveCph)} комп./ч</td>
                       <td>${formatSecondsDuration(row.secondsPerBoard)}</td>
                       <td>${formatSecondsDuration(row.secondsPerPanel)}</td>
@@ -4382,9 +8766,9 @@ function renderCalculatorPage() {
                     </tr>
                   `).join("") : `
                     <tr>
-                      <td class="primary-cell" colspan="8">
-                        <span class="component-name">Расчет пока пустой</span>
-                        <small>Выберите спецификацию, SMT-линию, количество плат и плат в мультипликации.</small>
+                      <td class="primary-cell" colspan="${machineSplit ? "10" : "8"}">
+                        <span class="component-name">Компоненты не найдены</span>
+                        <small>В выбранной плате нет номенклатурных позиций с количеством больше нуля.</small>
                       </td>
                     </tr>
                   `}
@@ -4396,6 +8780,352 @@ function renderCalculatorPage() {
       </div>
     </section>
   `;
+}
+
+function renderSmtMachineSplitPanel(calc, inputStatus) {
+  const machines = calc.smtLine ? getSmtPlacementMachinesForLine(calc.smtLine) : [];
+  const machineSplit = calc.machineSplit?.enabled ? calc.machineSplit : null;
+  if (!inputStatus.complete) {
+    return `
+      <section class="calculator-panel smt-machine-split-panel">
+        <div class="directory-table-toolbar">
+          <strong>Балансировка установщиков</strong>
+          <span>появится после выбора платы и SMT-участка</span>
+        </div>
+      </section>
+    `;
+  }
+
+  if (!machineSplit || machines.length < 2) {
+    return `
+      <section class="calculator-panel smt-machine-split-panel">
+        <div class="directory-table-toolbar">
+          <strong>Балансировка установщиков</strong>
+          <span>для выбранной линии найден один установщик компонентов</span>
+        </div>
+        <div class="calculator-empty-panel compact">
+          ${icon("info")}
+          <strong>Разбивка не требуется</strong>
+          <span>Выберите линию с двумя установщиками, например S2 и L2, чтобы настроить распределение компонентов.</span>
+        </div>
+      </section>
+    `;
+  }
+
+  const primaryName = getSmtMachineDisplayName(machineSplit.primaryMachine, "Станок 1");
+  const secondaryName = getSmtMachineDisplayName(machineSplit.secondaryMachine, "Станок 2");
+  const balancePercent = Math.round(Number(machineSplit.balanceRatio || 0) * 100);
+  const primaryPanelOutput = Number(machineSplit.primaryPanelsPerHour || 0) > 0
+    ? `${formatCalculatorNumber(machineSplit.primaryPanelsPerHour)} мульт./ч · ${formatCalculatorNumber(machineSplit.primaryBoardsPerHour)} плат/ч`
+    : "нет установок";
+  const secondaryPanelOutput = Number(machineSplit.secondaryPanelsPerHour || 0) > 0
+    ? `${formatCalculatorNumber(machineSplit.secondaryPanelsPerHour)} мульт./ч · ${formatCalculatorNumber(machineSplit.secondaryBoardsPerHour)} плат/ч`
+    : "нет установок";
+  const rows = (calc.rows || []).filter((row) => Number(row.count || 0) > 0);
+
+  return `
+    <section class="calculator-panel smt-machine-split-panel">
+      <div class="directory-table-toolbar">
+        <strong>Балансировка установщиков</strong>
+        <span>${escapeHtml(primaryName)} и ${escapeHtml(secondaryName)} · баланс ${balancePercent}% · разница ${formatSecondsDuration(machineSplit.imbalanceSeconds)}</span>
+      </div>
+      <div class="smt-machine-balance-summary">
+        <article>
+          <span>${escapeHtml(primaryName)}</span>
+          <strong>${formatSecondsDuration(machineSplit.primaryPerBoardSeconds)}</strong>
+          <small>${formatSecondsDuration(machineSplit.primaryPerPanelSeconds)} на 1 мультипликацию · ${escapeHtml(primaryPanelOutput)}</small>
+        </article>
+        <article>
+          <span>${escapeHtml(secondaryName)}</span>
+          <strong>${formatSecondsDuration(machineSplit.secondaryPerBoardSeconds)}</strong>
+          <small>${formatSecondsDuration(machineSplit.secondaryPerPanelSeconds)} на 1 мультипликацию · ${escapeHtml(secondaryPanelOutput)}</small>
+        </article>
+        <article>
+          <span>Ограничение линии</span>
+          <strong>${formatSecondsDuration(calc.perBoardSeconds)}</strong>
+          <small>${formatCalculatorNumber(calc.flowBoardsPerHour)} плат/ч</small>
+        </article>
+      </div>
+      <div class="smt-machine-actions">
+        <button class="secondary-button" data-smt-split-default type="button">${icon("reset")}<span>Базовая разбивка</span></button>
+        <button class="primary-button" data-smt-split-auto type="button">${icon("refresh")}<span>Автобаланс</span></button>
+      </div>
+      <div class="directory-table-wrap" data-layout="table">
+        <table class="directory-table calculator-table smt-machine-split-table">
+          <thead>
+            <tr>
+              <th>Номенклатура</th>
+              <th>Типоразмер</th>
+              <th>Всего / плата</th>
+              <th>Станок для установки</th>
+              <th>Время ${escapeHtml(primaryName)}</th>
+              <th>Время ${escapeHtml(secondaryName)}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.length ? rows.map((row) => {
+              const secondaryCount = Number(row.secondaryCount || 0);
+              const primaryCount = Number(row.primaryCount || 0);
+              const isSecondaryAssigned = secondaryCount > 0;
+              return `
+                <tr>
+                  <td class="primary-cell">
+                    <span class="component-name">${escapeHtml(row.name || row.type.name)}</span>
+                    <small>${escapeHtml(row.caption || (row.recommendedSecondary ? "по умолчанию на второй станок" : "можно переносить для балансировки"))}</small>
+                  </td>
+                  <td><span class="readonly-token">${escapeHtml(row.package || row.type.package || "-")}</span></td>
+                  <td><span class="readonly-token">${Number(row.count || 0).toLocaleString("ru-RU")} шт.</span></td>
+                  <td>
+                    <div class="smt-machine-choice" role="radiogroup" aria-label="Станок для ${escapeAttribute(row.name || row.type.name)}">
+                      <label class="${isSecondaryAssigned ? "" : "is-selected"}">
+                        <input
+                          data-smt-split-machine-component="${escapeAttribute(row.id)}"
+                          data-smt-split-machine="primary"
+                          name="smt-split-${escapeAttribute(row.id)}"
+                          type="radio"
+                          ${isSecondaryAssigned ? "" : "checked"}
+                        />
+                        <span>${escapeHtml(primaryName)}</span>
+                        <small>${primaryCount.toLocaleString("ru-RU")} шт.</small>
+                      </label>
+                      <label class="${isSecondaryAssigned ? "is-selected" : ""}">
+                        <input
+                          data-smt-split-machine-component="${escapeAttribute(row.id)}"
+                          data-smt-split-machine="secondary"
+                          name="smt-split-${escapeAttribute(row.id)}"
+                          type="radio"
+                          ${isSecondaryAssigned ? "checked" : ""}
+                        />
+                        <span>${escapeHtml(secondaryName)}</span>
+                        <small>${secondaryCount.toLocaleString("ru-RU")} шт.</small>
+                      </label>
+                    </div>
+                  </td>
+                  <td>${formatSmtBalancerTime(row.primarySecondsPerBoard)}</td>
+                  <td>${formatSmtBalancerTime(row.secondarySecondsPerBoard)}</td>
+                </tr>
+              `;
+            }).join("") : `
+              <tr>
+                <td class="primary-cell" colspan="6">
+                  <span class="component-name">Нет компонентов для распределения</span>
+                  <small>Проверьте импорт BOM и типы компонентов.</small>
+                </td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderSmtMachineCoefficientPanel(calc, inputStatus) {
+  const machineSplit = calc.machineSplit?.enabled ? calc.machineSplit : null;
+  const machines = machineSplit
+    ? [machineSplit.primaryMachine, machineSplit.secondaryMachine].filter(Boolean)
+    : calc.smtLine
+      ? (getSmtPlacementMachinesForLine(calc.smtLine).slice(0, 2).length
+        ? getSmtPlacementMachinesForLine(calc.smtLine).slice(0, 2)
+        : [calc.smtLine])
+      : [];
+
+  if (!inputStatus.complete) {
+    return `
+      <section class="calculator-panel smt-coefficients-panel">
+        <div class="directory-table-toolbar">
+          <strong>Коэффициенты типоразмеров</strong>
+          <span>появятся после выбора платы и оборудования · коэффициент применяется к базе станка: база x коэффициент x эффективность</span>
+        </div>
+      </section>
+    `;
+  }
+
+  const rows = getSmtCoefficientPackageRows(calc.rows || []);
+  const equipmentLabel = machines.map((machine) => getSmtMachineDisplayName(machine, "Оборудование")).join(" / ");
+  const efficiencyPercent = Math.round(Number(calculatorState.efficiency || calc.smtLine?.efficiency || 100));
+  const coefficientStore = calculatorState.smtPackageCoefficientsByMachine || {};
+
+  return `
+    <section class="calculator-panel smt-coefficients-panel">
+      <div class="directory-table-toolbar">
+        <strong>Коэффициенты типоразмеров</strong>
+        <span>${escapeHtml(equipmentLabel || "оборудование не выбрано")} · применяется к базе станка: база x коэффициент x эффективность</span>
+      </div>
+      <div class="smt-coefficients-basis">
+        ${machines.map((machine) => {
+          const machineBaseCph = getSmtMachineBaseCph(machine, calc.smtLine);
+          const effectiveBaseCph = machineBaseCph * Math.max(0.1, efficiencyPercent / 100);
+          return `
+            <article>
+              <span>${escapeHtml(getSmtMachineDisplayName(machine, "Оборудование"))}</span>
+              <strong>${formatCalculatorNumber(machineBaseCph, 0)} комп./ч</strong>
+              <small>база для коэффициента · ${efficiencyPercent}% = ${formatCalculatorNumber(effectiveBaseCph, 0)} комп./ч до поправки корпуса</small>
+            </article>
+          `;
+        }).join("")}
+      </div>
+      <div class="directory-table-wrap" data-layout="table">
+        <table class="directory-table calculator-table smt-coefficients-table">
+          <thead>
+            <tr>
+              <th>Типоразмер</th>
+              <th>Компонентов / плата</th>
+              <th>Базовый коэф.</th>
+              ${machines.map((machine) => `<th>${escapeHtml(getSmtMachineDisplayName(machine, "Оборудование"))}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.length ? rows.map((row) => `
+              <tr>
+                <td class="primary-cell">
+                  <span class="component-name">${escapeHtml(row.label)}</span>
+                  <small>${escapeHtml(row.caption || "типоразмер из BOM")}</small>
+                </td>
+                <td><span class="readonly-token">${row.count.toLocaleString("ru-RU")} шт.</span></td>
+                <td>${formatCalculatorNumber(row.baseCoefficient, 2)}</td>
+                ${machines.map((machine) => {
+                  const machineBaseCph = getSmtMachineBaseCph(machine, calc.smtLine);
+                  const timing = getSmtComponentPlacementTiming(row.referenceRow, machine, calc.smtLine, efficiencyPercent, coefficientStore);
+                  const coefficientBaseCph = machineBaseCph * Math.max(SMT_MIN_PACKAGE_COEFFICIENT, Number(timing.coefficient || 1));
+                  return `
+                    <td>
+                      <label class="smt-coefficient-field">
+                        <input
+                          data-smt-coefficient-machine="${escapeAttribute(getSmtMachineCoefficientId(machine))}"
+                          data-smt-coefficient-package="${escapeAttribute(row.key)}"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value="${formatCoefficientInputNumber(timing.coefficient)}"
+                        />
+                        <small>база ${formatCalculatorNumber(machineBaseCph, 0)} x коэф. = ${formatCalculatorNumber(coefficientBaseCph, 0)}</small>
+                        <small>итог ${formatCalculatorNumber(timing.effectiveCph, 0)} комп./ч с ${efficiencyPercent}%</small>
+                      </label>
+                    </td>
+                  `;
+                }).join("")}
+              </tr>
+            `).join("") : `
+              <tr>
+                <td class="primary-cell" colspan="${3 + Math.max(1, machines.length)}">
+                  <span class="component-name">Типоразмеры не найдены</span>
+                  <small>Проверьте BOM и импортированные корпуса компонентов.</small>
+                </td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function getCurrentSmtMachineSplitContext() {
+  const calc = calculateComplexityResult();
+  if (!calc.bomList || !calc.smtLine) return null;
+  const machines = getSmtPlacementMachinesForLine(calc.smtLine);
+  if (machines.length < 2) return null;
+  return {
+    calc,
+    key: getSmtMachineSplitKey(calc.bomList, calc.smtLine),
+    componentTypes: getComponentTypes(),
+    counts: getBomComponentCounts(calc.bomList),
+    componentRows: calc.rows || [],
+    primaryMachine: machines[0],
+    secondaryMachine: machines[1],
+  };
+}
+
+function setCurrentSmtMachineSplitCounts(splitCounts) {
+  const context = getCurrentSmtMachineSplitContext();
+  if (!context) return;
+  cancelDeferredCalculatorRender();
+  calculatorState.machineSplitByBom = {
+    ...(calculatorState.machineSplitByBom || {}),
+    [context.key]: normalizeSmtSplitCounts(context.componentRows, splitCounts),
+  };
+  calculatorState.inputsSavedAt = "";
+  calculatorState.lastSavedAt = "";
+  calculatorState = normalizeCalculatorState(calculatorState);
+  persistCalculatorState();
+  renderCalculatorPreservingScroll();
+}
+
+function setSmtMachinePackageCoefficient(machineId, packageKey, value, options = {}) {
+  const normalizedMachineId = String(machineId || "").trim();
+  const normalizedPackageKey = normalizeSmtPackageCoefficientKey(packageKey);
+  if (!normalizedMachineId || !normalizedPackageKey) return;
+
+  const currentMachineValues = {
+    ...(calculatorState.smtPackageCoefficientsByMachine?.[normalizedMachineId] || {}),
+  };
+  const normalizedCoefficient = normalizeSmtPackageCoefficientValue(value);
+  if (normalizedCoefficient !== null) {
+    currentMachineValues[normalizedPackageKey] = normalizedCoefficient;
+  } else {
+    delete currentMachineValues[normalizedPackageKey];
+  }
+
+  calculatorState.smtPackageCoefficientsByMachine = normalizeSmtPackageCoefficientStore({
+    ...(calculatorState.smtPackageCoefficientsByMachine || {}),
+    [normalizedMachineId]: currentMachineValues,
+  });
+  calculatorState.inputsSavedAt = "";
+  calculatorState.lastSavedAt = "";
+  calculatorState = normalizeCalculatorState(calculatorState);
+  persistCalculatorState();
+  if (options.render === false) return;
+  renderCalculatorPreservingScroll();
+}
+
+function commitSmtCoefficientField(field) {
+  if (!field) return;
+  setSmtMachinePackageCoefficient(
+    field.dataset.smtCoefficientMachine || "",
+    field.dataset.smtCoefficientPackage || "",
+    field.value,
+    { render: false },
+  );
+  const normalizedValue = formatCoefficientInputNumber(field.value);
+  if (normalizedValue) field.value = normalizedValue;
+}
+
+function getNextSmtCoefficientField(field) {
+  if (!field) return null;
+  const machineId = field.dataset.smtCoefficientMachine || "";
+  const fields = [...app.querySelectorAll("[data-smt-coefficient-machine]")]
+    .filter((item) => item.dataset.smtCoefficientMachine === machineId);
+  const currentIndex = fields.indexOf(field);
+  return currentIndex >= 0 ? fields[currentIndex + 1] || null : null;
+}
+
+function focusSmtCoefficientField(field) {
+  if (!field) return;
+  field.focus({ preventScroll: true });
+  field.select?.();
+}
+
+function getActiveSmtCoefficientFocusSnapshot() {
+  const field = document.activeElement;
+  if (!field?.matches?.("[data-smt-coefficient-machine]")) return null;
+  return {
+    machineId: field.dataset.smtCoefficientMachine || "",
+    packageKey: field.dataset.smtCoefficientPackage || "",
+    value: field.value,
+  };
+}
+
+function restoreSmtCoefficientFocusSnapshot(snapshot) {
+  if (!snapshot?.machineId || !snapshot?.packageKey) return;
+  const field = [...document.querySelectorAll("[data-smt-coefficient-machine]")]
+    .find((item) => (
+      item.dataset.smtCoefficientMachine === snapshot.machineId
+      && item.dataset.smtCoefficientPackage === snapshot.packageKey
+    ));
+  if (!field) return;
+  field.value = snapshot.value;
+  focusSmtCoefficientField(field);
 }
 
 function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
@@ -4411,8 +9141,8 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
     const slots = project ? planningState.slots.filter((slot) => slot.projectId === project.id) : [];
     const isActive = specification.id === calc.specification?.id;
     const bomSummary = bomEntries.length
-      ? `${bomEntries.length} спецификаций · ${bomEntries.map((entry) => `${entry.quantity}x ${entry.bom.name}`).join(", ")}`
-      : "спецификация не привязана";
+      ? `${bomEntries.length} плат · ${bomEntries.map((entry) => `${entry.quantity}x ${entry.bom.name}`).join(", ")}`
+      : "плата не привязана";
     const specificationSummary = specification
       ? `${specification.name} · ${specification.outputItem}`
       : "состав изделия не привязан";
@@ -4440,7 +9170,7 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
     <section class="calculator-panel project-bindings-panel" data-calculator-block="bindings"${visibilityAttr}>
       <div class="directory-table-toolbar">
         <strong>Текущий состав изделия</strong>
-        <span>состав изделия, спецификация, маршрут и запуск</span>
+        <span>изделие, платы, маршрут и запуск</span>
       </div>
       <div class="project-list-table" role="list">
         ${rows.map((row) => `
@@ -4451,7 +9181,7 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
             </div>
             <div class="project-list-meta">
               <span><b>Изделие</b>${escapeHtml(row.specification.outputItem || "-")}</span>
-              <span><b>Спецификация</b>${escapeHtml(row.bomSummary)}</span>
+              <span><b>Платы</b>${escapeHtml(row.bomSummary)}</span>
               <span><b>Маршрут</b>${escapeHtml(row.routeSummary)}</span>
               <span><b>Запуск</b>${escapeHtml(row.launchSummary)}</span>
             </div>
@@ -4543,7 +9273,7 @@ function renderProjectReadinessPanel(calc) {
     {
       code: "03",
       title: BOARD_SPEC_TERM,
-      status: bomEntries.length ? `${bomEntries.length} спецификаций` : "Нет спецификации",
+      status: bomEntries.length ? `${bomEntries.length} плат` : "Нет плат",
       complete: bomEntries.length > 0,
       meta: bomEntries.length
         ? bomEntries.map((entry) => `${entry.quantity}x ${entry.bom.name}`).join(" · ")
@@ -4613,8 +9343,8 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
   return `
     <section class="calculator-panel spec-bom-plan-panel" data-calculator-block="specBom"${visibilityAttr}>
       <div class="directory-table-toolbar">
-        <strong>Спецификации из состава изделия</strong>
-        <span>${rows.length ? "каждая спецификация станет отдельной SMT-операцией" : "спецификации пока не привязаны"}</span>
+        <strong>Платы из состава изделия</strong>
+        <span>${rows.length ? "каждая плата станет отдельной SMT-операцией" : "платы пока не привязаны"}</span>
       </div>
       <div class="spec-bom-plan-list">
         ${rows.length ? rows.map((row) => `
@@ -4622,7 +9352,7 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
             <span>${String(row.index).padStart(2, "0")}</span>
             <div>
               <strong>${escapeHtml(row.entry.bom.name)}</strong>
-              <small>${escapeHtml(row.entry.bom.resultItem || row.entry.bom.boardCode || "результат спецификации")}</small>
+              <small>${escapeHtml(row.entry.bom.resultItem || row.entry.bom.boardCode || "результат платы")}</small>
             </div>
             <em>${row.entry.quantity}x в изделии</em>
             <em>${row.boards.toLocaleString("ru-RU")} плат</em>
@@ -4633,8 +9363,8 @@ function renderSpecificationBomPlan(calc, visibilityAttr = "") {
         `).join("") : `
           <div class="calculator-empty-panel compact">
             ${icon("info")}
-            <strong>Спецификации не найдены</strong>
-            <span>Заполните состав изделия в РКД.</span>
+            <strong>Платы не найдены</strong>
+            <span>Создайте плату или выберите BOM напрямую в маршрутной карте.</span>
           </div>
         `}
       </div>
@@ -4646,6 +9376,8 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
   const selectedItem = items.find((item) => String(item.value) === String(value))
     || items[0]
     || { value: "", label: "Не выбрано", meta: "" };
+  const summaryLabel = selectedItem.summaryLabel || selectedItem.label;
+  const summaryMeta = Object.prototype.hasOwnProperty.call(selectedItem, "summaryMeta") ? selectedItem.summaryMeta : selectedItem.meta;
   const rootAttribute = options.type === "specStructureBom"
     ? `data-dense-spec-structure-bom="${escapeAttribute(options.itemId || "")}"`
     : options.type === "specStructureParent"
@@ -4658,6 +9390,8 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
       ? `data-dense-speki-structure-specification="${escapeAttribute(options.itemId || "")}"`
     : options.type === "spekiStructureNomenclature"
       ? `data-dense-speki-structure-nomenclature="${escapeAttribute(options.itemId || "")}"`
+    : options.type === "spekiStructureFulfillment"
+      ? `data-dense-speki-structure-fulfillment="${escapeAttribute(options.itemId || "")}"`
     : options.type === "spekiStructureExecution"
       ? `data-dense-speki-structure-execution="${escapeAttribute(options.itemId || "")}"`
     : options.type === "spekiStructureOperation"
@@ -4678,19 +9412,20 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
           ? `data-dense-toolbar-select="${escapeAttribute(name)}"`
           : `data-dense-calc-select="${escapeAttribute(name)}"`;
   const actionClass = items.some((item) => item.action) ? " has-actions" : "";
+  const disabledClass = options.disabled ? " is-disabled" : "";
 
   return `
-    <details class="dense-inline-select${options.type ? ` dense-select-${escapeAttribute(options.type)}` : ""}${actionClass}" ${rootAttribute}>
-      <summary>
+    <details class="dense-inline-select${options.type ? ` dense-select-${escapeAttribute(options.type)}` : ""}${actionClass}${disabledClass}" ${rootAttribute} ${options.disabled ? "aria-disabled=\"true\"" : ""}>
+      <summary ${options.disabled ? "tabindex=\"-1\"" : ""}>
         <span>
-          <strong>${escapeHtml(selectedItem.label)}</strong>
-          ${selectedItem.meta ? `<small>${escapeHtml(selectedItem.meta)}</small>` : ""}
+          <strong>${escapeHtml(summaryLabel)}</strong>
+          ${summaryMeta ? `<small>${escapeHtml(summaryMeta)}</small>` : ""}
         </span>
         ${icon("chevronDown")}
       </summary>
       <div class="dense-inline-options">
         ${items.map((item) => `
-          <button class="${String(item.value) === String(value) ? "is-selected" : ""} ${item.action ? "is-command" : ""}" data-dense-value="${escapeAttribute(item.value)}" ${item.action ? `data-dense-action="${escapeAttribute(item.action)}"` : ""} type="button">
+          <button class="${String(item.value) === String(value) ? "is-selected" : ""} ${item.action ? "is-command" : ""}" data-dense-value="${escapeAttribute(item.value)}" ${item.action ? `data-dense-action="${escapeAttribute(item.action)}"` : ""} type="button" ${options.disabled || item.disabled ? "disabled" : ""}>
             <strong>${escapeHtml(item.label)}</strong>
             ${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ""}
           </button>
@@ -4728,6 +9463,15 @@ function getCalculatorInputsSignature() {
     boardQuantity: normalizeOptionalPositiveInteger(calculatorState.boardQuantity) || "",
     boardsPerPanel: normalizeOptionalPositiveInteger(calculatorState.boardsPerPanel) || "",
     efficiency: Math.round(Number(calculatorState.efficiency || 0) * 100) / 100,
+    machineSplit: Object.entries(calculatorState.machineSplitByBom || {})
+      .sort(([left], [right]) => String(left).localeCompare(String(right)))
+      .map(([key, value]) => [key, Object.entries(value || {}).sort(([left], [right]) => String(left).localeCompare(String(right)))]),
+    machineCoefficients: Object.entries(calculatorState.smtPackageCoefficientsByMachine || {})
+      .sort(([left], [right]) => String(left).localeCompare(String(right)))
+      .map(([machineId, values]) => [
+        machineId,
+        Object.entries(values || {}).sort(([left], [right]) => String(left).localeCompare(String(right))),
+      ]),
   });
 }
 
@@ -4748,6 +9492,17 @@ function getCalculatorRouteSignature() {
     quantityMultiplier: Number(operation.quantityMultiplier || 1),
     boardsPerPanel: normalizeBoardsPerPanel(operation.boardsPerPanel, calculatorState.boardsPerPanel || 1),
     unitsPerHour: Number(operation.unitsPerHour || 0),
+    machineSplit: operation.machineSplit?.splitCounts
+      ? Object.entries(operation.machineSplit.splitCounts).sort(([left], [right]) => String(left).localeCompare(String(right)))
+      : [],
+    machineCoefficients: operation.machineSplit?.machineCoefficients
+      ? Object.entries(operation.machineSplit.machineCoefficients)
+        .sort(([left], [right]) => String(left).localeCompare(String(right)))
+        .map(([machineId, values]) => [
+          machineId,
+          Object.entries(values || {}).sort(([left], [right]) => String(left).localeCompare(String(right))),
+        ])
+      : [],
     counts: Object.entries(calculatorState.componentCountsByOperation?.[operation.id] || {})
       .sort(([left], [right]) => String(left).localeCompare(String(right))),
   })));
@@ -4767,7 +9522,7 @@ function getCalculatorWorkflow(calc) {
       id: "inputs",
       sequence: "01",
       title: "Входные данные",
-      caption: "спецификация, SMT-линия и размер запуска",
+      caption: "плата, SMT-участок и размер запуска",
       complete: inputStatus.complete,
       locked: false,
     },
@@ -4775,7 +9530,7 @@ function getCalculatorWorkflow(calc) {
       id: "bom",
       sequence: "02",
       title: "Компоненты",
-      caption: inputStatus.bom ? "компоненты подтянуты из спецификации" : "выберите спецификацию",
+      caption: inputStatus.bom ? "компоненты подтянуты из BOM" : "выберите плату",
       complete: inputStatus.complete && bomRows.some((row) => row.count > 0),
       locked: !inputStatus.complete,
     },
@@ -4877,6 +9632,443 @@ function calculateComplexityResult() {
     setupMs: selectedResult.setupMs,
     flowBoardsPerHour: selectedResult.flowBoardsPerHour,
     activeComponentCount: selectedResult.activeComponentCount,
+    machineSplit: selectedResult.machineSplit || null,
+  };
+}
+
+function getSmtPlacementMachinesForLine(smtLine) {
+  if (!smtLine?.id) return [];
+  const resources = getProductionResourcesForWorkCenter(smtLine.workCenterId || smtLine.id, {
+    includeInactive: false,
+    includePassive: true,
+  });
+  const childMachines = resources
+    .filter((resource) => String(resource.parentResourceId || "") === String(smtLine.id))
+    .filter(isSmtPlacementMachineResource)
+    .sort(compareSmtPlacementMachines);
+  if (childMachines.length >= 2) return childMachines.slice(0, 2);
+
+  const lineText = normalizeLookupText(`${smtLine.name || ""} ${smtLine.capacity || ""}`);
+  if (lineText.includes("s2") && lineText.includes("l2")) {
+    return [
+      {
+        id: `${smtLine.id}_S2`,
+        name: "Установщик компонентов DECAN S2",
+        type: "machine",
+        workCenterId: smtLine.workCenterId || smtLine.id,
+        parentResourceId: smtLine.id,
+        baseCph: SMT_MACHINE_BASE_CPH.s2,
+        efficiency: smtLine.efficiency || 100,
+      },
+      {
+        id: `${smtLine.id}_L2`,
+        name: "Установщик компонентов DECAN L2",
+        type: "machine",
+        workCenterId: smtLine.workCenterId || smtLine.id,
+        parentResourceId: smtLine.id,
+        baseCph: SMT_MACHINE_BASE_CPH.l2,
+        efficiency: smtLine.efficiency || 100,
+      },
+    ];
+  }
+
+  return childMachines;
+}
+
+function isSmtPlacementMachineResource(resource = {}) {
+  const text = normalizeLookupText(`${resource.id || ""} ${resource.name || ""} ${resource.inventory || ""} ${resource.capacity || ""}`);
+  if (!text) return false;
+  if (text.includes("принтер") || text.includes("printer") || text.includes("печ") || text.includes("oven")) return false;
+  if (text.includes("конвей") || text.includes("conveyor") || text.includes("loader") || text.includes("aoi") || text.includes("аои")) return false;
+  return text.includes("hanwha")
+    || text.includes("установ")
+    || /\b[sl]\s*2\b/.test(text)
+    || /\b[sl]\d\b/.test(text);
+}
+
+function compareSmtPlacementMachines(left, right) {
+  return getSmtPlacementMachineRank(left) - getSmtPlacementMachineRank(right)
+    || String(left.name || "").localeCompare(String(right.name || ""), "ru");
+}
+
+function getSmtPlacementMachineRank(machine = {}) {
+  const text = normalizeLookupText(`${machine.name || ""} ${machine.id || ""}`);
+  if (text.includes("s2")) return 1;
+  if (text.includes("l2")) return 2;
+  return 10;
+}
+
+function getSmtPlacementMachineKind(machine = {}) {
+  const text = normalizeLookupText(`${machine.name || ""} ${machine.id || ""} ${machine.inventory || ""} ${machine.capacity || ""}`);
+  if (text.includes("s2") || /\bs\s*2\b/.test(text)) return "s2";
+  if (text.includes("l2") || /\bl\s*2\b/.test(text)) return "l2";
+  return "";
+}
+
+function getSmtMachineDisplayName(machine = {}, fallback = "Станок") {
+  const name = String(machine?.name || fallback).trim();
+  const machineKind = getSmtPlacementMachineKind(machine);
+  if (machineKind === "s2") return "DECAN S2";
+  if (machineKind === "l2") return "DECAN L2";
+  return name || fallback;
+}
+
+function getSmtMachineCoefficientId(machine = {}) {
+  return String(machine?.id || machine?.name || "__equipment").trim();
+}
+
+function normalizeSmtPackageCoefficientKey(value = "") {
+  return normalizeLookupText(value)
+    .replace(/\s+/g, " ")
+    .slice(0, 96);
+}
+
+function getSmtPackageCoefficientKey(componentOrType = {}) {
+  const type = componentOrType?.type || componentOrType || {};
+  return normalizeSmtPackageCoefficientKey(componentOrType?.package || type.package || type.id || type.name || "__package");
+}
+
+function getSmtPackageCoefficientLabel(componentOrType = {}) {
+  const type = componentOrType?.type || componentOrType || {};
+  return String(componentOrType?.package || type.package || type.name || "Типоразмер").trim();
+}
+
+function getSmtBasePackageCoefficient(componentOrType = {}) {
+  const type = componentOrType?.type || componentOrType || {};
+  const defaults = SMT_COMPONENT_TYPE_COEFFICIENT_DEFAULTS[type.id];
+  return Math.max(SMT_MIN_PACKAGE_COEFFICIENT, Number(type?.coefficient || defaults?.coefficient || 1));
+}
+
+function getSmtDefaultMachinePackageCoefficient(machine = {}, componentOrType = {}) {
+  const type = componentOrType?.type || componentOrType || {};
+  const defaults = SMT_COMPONENT_TYPE_COEFFICIENT_DEFAULTS[type.id];
+  const machineKind = getSmtPlacementMachineKind(machine);
+  const coefficient = Number(defaults?.machineCoefficients?.[machineKind] || 0);
+  return Number.isFinite(coefficient) && coefficient > 0 ? coefficient : 0;
+}
+
+function getSmtMachinePackageCoefficient(machine = {}, componentOrType = {}, coefficientStore = null) {
+  const machineId = getSmtMachineCoefficientId(machine);
+  const packageKey = getSmtPackageCoefficientKey(componentOrType);
+  const sourceStore = coefficientStore || {};
+  const value = Number(sourceStore?.[machineId]?.[packageKey] || 0);
+  const hasOverride = Number.isFinite(value) && value > 0;
+  const baseCoefficient = getSmtBasePackageCoefficient(componentOrType);
+  const defaultMachineCoefficient = getSmtDefaultMachinePackageCoefficient(machine, componentOrType);
+  return {
+    machineId,
+    packageKey,
+    baseCoefficient,
+    coefficient: hasOverride
+      ? Math.max(SMT_MIN_PACKAGE_COEFFICIENT, value)
+      : defaultMachineCoefficient || baseCoefficient,
+    hasOverride,
+  };
+}
+
+function getSmtMachineCoefficientSnapshot(machines = [], componentRows = [], coefficientStore = null) {
+  const rows = getSmtCoefficientPackageRows(componentRows);
+  const snapshot = {};
+  machines.filter(Boolean).forEach((machine) => {
+    const machineId = getSmtMachineCoefficientId(machine);
+    snapshot[machineId] = Object.fromEntries(rows.map((row) => [
+      row.key,
+      getSmtMachinePackageCoefficient(machine, row.referenceRow, coefficientStore).coefficient,
+    ]));
+  });
+  return normalizeSmtPackageCoefficientStore(snapshot);
+}
+
+function getSmtCoefficientPackageRows(componentRows = []) {
+  const groups = new Map();
+  componentRows
+    .filter((row) => Number(row.count || 0) > 0)
+    .forEach((row) => {
+      const key = getSmtPackageCoefficientKey(row);
+      const current = groups.get(key) || {
+        key,
+        label: getSmtPackageCoefficientLabel(row),
+        caption: row.type?.name || row.type?.family || "",
+        count: 0,
+        baseCoefficient: getSmtBasePackageCoefficient(row),
+        referenceRow: row,
+      };
+      current.count += Math.max(0, Math.round(Number(row.count || 0)));
+      groups.set(key, current);
+    });
+  return [...groups.values()].sort((left, right) => String(left.label).localeCompare(String(right.label), "ru"));
+}
+
+function getSmtMachineSplitKey(bomList, smtLine) {
+  return `${bomList?.id || "__bom"}::${smtLine?.id || "__line"}`;
+}
+
+function getStoredSmtMachineSplitCounts(bomList, smtLine, splitStore = {}) {
+  const key = getSmtMachineSplitKey(bomList, smtLine);
+  const value = splitStore?.[key];
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+
+function isDefaultSecondarySmtComponent(type = {}) {
+  const text = normalizeLookupText(`${type.id || ""} ${type.name || ""} ${type.package || ""} ${type.family || ""}`);
+  return SMT_SECONDARY_MACHINE_COMPONENT_IDS.has(type.id)
+    || text.includes("разъем")
+    || text.includes("connector")
+    || text.includes("микросх")
+    || text.includes("bga")
+    || text.includes("qfn")
+    || text.includes("dfn")
+    || text.includes("soic")
+    || text.includes("tssop")
+    || text.includes("крупн");
+}
+
+function getSmtMachineBaseCph(machine = {}, smtLine = {}) {
+  const machineKind = getSmtPlacementMachineKind(machine);
+  if (machineKind && SMT_MACHINE_BASE_CPH[machineKind]) return SMT_MACHINE_BASE_CPH[machineKind];
+  const explicit = Number(machine?.baseCph || 0);
+  if (explicit > 0) return explicit;
+  return getResourceBaseCph(smtLine);
+}
+
+function getSmtComponentPlacementTiming(componentOrType, machine, smtLine, efficiencyPercent = null, coefficientStore = null) {
+  const type = componentOrType?.type || componentOrType || {};
+  const coefficientInfo = getSmtMachinePackageCoefficient(machine, componentOrType, coefficientStore);
+  const coefficient = coefficientInfo.coefficient;
+  const machineBaseCph = getSmtMachineBaseCph(machine, smtLine);
+  const efficiency = Math.max(0.1, Number(efficiencyPercent || machine?.efficiency || smtLine?.efficiency || 100) / 100);
+  const coefficientCph = machineBaseCph * coefficient;
+  const nominalCph = coefficientCph;
+  const effectiveCph = Math.max(1, nominalCph * efficiency);
+  return {
+    coefficient,
+    baseCoefficient: coefficientInfo.baseCoefficient,
+    coefficientOverride: coefficientInfo.hasOverride,
+    packageKey: coefficientInfo.packageKey,
+    effectiveCph,
+    secondsPerPlacement: 3600 / effectiveCph,
+  };
+}
+
+function buildDefaultSmtSplitCounts(componentRows, balance = false, primaryMachine = null, secondaryMachine = null, smtLine = null, efficiencyPercent = null, coefficientStore = null) {
+  const splitCounts = Object.fromEntries(componentRows.map((row) => {
+    const count = Math.max(0, Math.round(Number(row.count || 0)));
+    return [row.id, isDefaultSecondarySmtComponent(row.type) ? count : 0];
+  }));
+
+  if (!balance || !primaryMachine || !secondaryMachine || !smtLine) return splitCounts;
+
+  const movableRows = componentRows.filter((row) => {
+    const count = Math.max(0, Math.round(Number(row.count || 0)));
+    return count > 0 && !isDefaultSecondarySmtComponent(row.type);
+  });
+  if (!movableRows.length) return splitCounts;
+
+  const getScore = (candidate) => {
+    const times = calculateSmtStationTimes(componentRows, candidate, primaryMachine, secondaryMachine, smtLine, efficiencyPercent, coefficientStore);
+    return {
+      primarySeconds: times.primarySeconds,
+      secondarySeconds: times.secondarySeconds,
+      gap: Math.abs(times.primarySeconds - times.secondarySeconds),
+      cycle: Math.max(times.primarySeconds, times.secondarySeconds),
+    };
+  };
+  const isBetterScore = (candidate, best) => (
+    candidate.gap < best.gap - 0.000001
+    || (Math.abs(candidate.gap - best.gap) <= 0.000001 && candidate.cycle < best.cycle - 0.000001)
+  );
+  let bestSplit = { ...splitCounts };
+  let bestScore = getScore(bestSplit);
+
+  const variantCount = 2 ** movableRows.length;
+  if (variantCount <= SMT_SPLIT_EXHAUSTIVE_VARIANT_LIMIT) {
+    for (let mask = 0; mask < variantCount; mask += 1) {
+      const trial = { ...splitCounts };
+      movableRows.forEach((row, index) => {
+        const count = Math.max(0, Math.round(Number(row.count || 0)));
+        trial[row.id] = mask & (2 ** index) ? count : 0;
+      });
+      const score = getScore(trial);
+      if (isBetterScore(score, bestScore)) {
+        bestSplit = trial;
+        bestScore = score;
+      }
+    }
+    return bestSplit;
+  }
+
+  let improved = true;
+  while (improved) {
+    improved = false;
+    let nextSplit = bestSplit;
+    let nextScore = bestScore;
+    for (const row of movableRows) {
+      const count = Math.max(0, Math.round(Number(row.count || 0)));
+      const currentlySecondary = Number(bestSplit[row.id] || 0) > 0;
+      const trial = { ...bestSplit, [row.id]: currentlySecondary ? 0 : count };
+      const score = getScore(trial);
+      if (isBetterScore(score, nextScore)) {
+        nextSplit = trial;
+        nextScore = score;
+        improved = true;
+      }
+    }
+    bestSplit = nextSplit;
+    bestScore = nextScore;
+  }
+
+  return bestSplit;
+}
+
+function getRawSmtSplitCountForRow(row, rawSplit = {}) {
+  if (Object.prototype.hasOwnProperty.call(rawSplit || {}, row.id)) {
+    return Number(rawSplit?.[row.id] || 0);
+  }
+  return Number(rawSplit?.[row.type?.id] || 0);
+}
+
+function normalizeSmtSplitCounts(componentRows, rawSplit = {}) {
+  return Object.fromEntries(componentRows.map((row) => {
+    const count = Math.max(0, Math.round(Number(row.count || 0)));
+    const secondaryCount = Math.max(0, Math.round(Number(getRawSmtSplitCountForRow(row, rawSplit) || 0)));
+    return [row.id, secondaryCount > 0 ? count : 0];
+  }));
+}
+
+function hasPartialSmtSplitCounts(componentRows, rawSplit = {}) {
+  return componentRows.some((row) => {
+    const count = Math.max(0, Math.round(Number(row.count || 0)));
+    const secondaryCount = Math.max(0, Math.round(Number(getRawSmtSplitCountForRow(row, rawSplit) || 0)));
+    return secondaryCount > 0 && secondaryCount < count;
+  });
+}
+
+function hasConcreteSmtSplitCounts(componentRows, rawSplit = {}) {
+  return componentRows.some((row) => Object.prototype.hasOwnProperty.call(rawSplit || {}, row.id));
+}
+
+function calculateSmtStationTimes(componentRows, splitCounts, primaryMachine, secondaryMachine, smtLine, efficiencyPercent = null, coefficientStore = null) {
+  return componentRows.reduce((summary, row) => {
+    const count = Math.max(0, Math.round(Number(row.count || 0)));
+    const secondaryCount = Math.min(count, Math.max(0, Math.round(Number(splitCounts[row.id] || 0))));
+    const primaryCount = Math.max(0, count - secondaryCount);
+    const primaryTiming = getSmtComponentPlacementTiming(row, primaryMachine, smtLine, efficiencyPercent, coefficientStore);
+    const secondaryTiming = getSmtComponentPlacementTiming(row, secondaryMachine, smtLine, efficiencyPercent, coefficientStore);
+    return {
+      primarySeconds: summary.primarySeconds + primaryCount * primaryTiming.secondsPerPlacement,
+      secondarySeconds: summary.secondarySeconds + secondaryCount * secondaryTiming.secondsPerPlacement,
+    };
+  }, { primarySeconds: 0, secondarySeconds: 0 });
+}
+
+function calculateSmtMachineSplitResult(bomList, smtLine, context, explicitSplit = null, autoWhenMissing = true) {
+  const machines = getSmtPlacementMachinesForLine(smtLine);
+  if (machines.length < 2) return null;
+
+  const [primaryMachine, secondaryMachine] = machines;
+  const componentTypes = getComponentTypes();
+  const counts = context.componentCounts || getBomComponentCounts(bomList);
+  const placementRows = getSmtBomPlacementRows(bomList, componentTypes, counts);
+  const storedSplit = explicitSplit || (autoWhenMissing ? getStoredSmtMachineSplitCounts(bomList, smtLine, context.machineSplitByBom || {}) : null);
+  if (!storedSplit && !autoWhenMissing) return null;
+  const shouldRebalanceStoredSplit = autoWhenMissing
+    && storedSplit
+    && (!hasConcreteSmtSplitCounts(placementRows, storedSplit) || hasPartialSmtSplitCounts(placementRows, storedSplit));
+
+  const efficiencyPercent = context.efficiency || smtLine?.efficiency || 100;
+  const rawCoefficientStore = context.smtPackageCoefficientsByMachine || context.machineCoefficients || null;
+  const coefficientStore = rawCoefficientStore ? normalizeSmtPackageCoefficientStore(rawCoefficientStore) : null;
+  const resolvedCoefficientStore = coefficientStore || {};
+  const rawSplit = storedSplit && !shouldRebalanceStoredSplit
+    ? storedSplit
+    : buildDefaultSmtSplitCounts(placementRows, true, primaryMachine, secondaryMachine, smtLine, efficiencyPercent, resolvedCoefficientStore);
+  const splitCounts = normalizeSmtSplitCounts(placementRows, rawSplit);
+  const stationTimes = calculateSmtStationTimes(placementRows, splitCounts, primaryMachine, secondaryMachine, smtLine, efficiencyPercent, resolvedCoefficientStore);
+  const perBoardSeconds = Math.max(stationTimes.primarySeconds, stationTimes.secondarySeconds);
+  const perPanelSeconds = perBoardSeconds * context.boardsPerPanel;
+  const primaryPerPanelSeconds = stationTimes.primarySeconds * context.boardsPerPanel;
+  const secondaryPerPanelSeconds = stationTimes.secondarySeconds * context.boardsPerPanel;
+  const primaryPanelsPerHour = primaryPerPanelSeconds > 0 ? 3600 / primaryPerPanelSeconds : 0;
+  const secondaryPanelsPerHour = secondaryPerPanelSeconds > 0 ? 3600 / secondaryPerPanelSeconds : 0;
+  const hasExplicitSetupMs = Object.prototype.hasOwnProperty.call(context || {}, "setupMs");
+  const explicitSetupMs = Math.max(0, Number(context.setupMs || 0));
+  const setupMs = hasExplicitSetupMs
+    ? explicitSetupMs
+    : Math.max(0, Number(smtLine?.changeoverMin || 0) * 60 * 1000);
+  const componentRows = placementRows.map((row) => {
+    const count = Math.max(0, Math.round(Number(row.count || 0)));
+    const secondaryCount = Math.min(count, Math.max(0, Math.round(Number(splitCounts[row.id] || 0))));
+    const primaryCount = Math.max(0, count - secondaryCount);
+    const primaryTiming = getSmtComponentPlacementTiming(row, primaryMachine, smtLine, efficiencyPercent, resolvedCoefficientStore);
+    const secondaryTiming = getSmtComponentPlacementTiming(row, secondaryMachine, smtLine, efficiencyPercent, resolvedCoefficientStore);
+    const primarySecondsPerBoard = primaryCount * primaryTiming.secondsPerPlacement;
+    const secondarySecondsPerBoard = secondaryCount * secondaryTiming.secondsPerPlacement;
+    return {
+      id: row.id,
+      source: row.source,
+      type: row.type,
+      name: row.name || row.type.name,
+      caption: row.caption || row.type.family || "",
+      designator: row.designator || "",
+      package: row.package || row.type.package || "",
+      count,
+      primaryCount,
+      secondaryCount,
+      recommendedSecondary: isDefaultSecondarySmtComponent(row.type),
+      coefficient: count > 0
+        ? ((primaryCount * primaryTiming.coefficient) + (secondaryCount * secondaryTiming.coefficient)) / count
+        : getSmtBasePackageCoefficient(row),
+      primaryCoefficient: primaryTiming.coefficient,
+      secondaryCoefficient: secondaryTiming.coefficient,
+      coefficientPackageKey: primaryTiming.packageKey,
+      effectiveCph: count > 0
+        ? count / Math.max((primarySecondsPerBoard + secondarySecondsPerBoard) / 3600, 1 / DEFAULT_RESOURCE_CPH)
+        : 0,
+      primaryEffectiveCph: primaryTiming.effectiveCph,
+      secondaryEffectiveCph: secondaryTiming.effectiveCph,
+      secondsPerBoard: primarySecondsPerBoard + secondarySecondsPerBoard,
+      secondsPerPanel: Math.max(primarySecondsPerBoard, secondarySecondsPerBoard) * context.boardsPerPanel,
+      primarySecondsPerBoard,
+      secondarySecondsPerBoard,
+      totalPlacements: count * context.boardQuantity,
+      complexity: count * (count > 0
+        ? ((primaryCount * primaryTiming.coefficient) + (secondaryCount * secondaryTiming.coefficient)) / count
+        : getSmtBasePackageCoefficient(row)),
+    };
+  });
+
+  return {
+    resource: smtLine,
+    resourceId: smtLine?.id || "",
+    componentRows,
+    perBoardSeconds,
+    perPanelSeconds,
+    setupMs,
+    totalMs: perPanelSeconds * context.panelCount * 1000 + setupMs,
+    flowBoardsPerHour: perBoardSeconds > 0 ? 3600 / perBoardSeconds : 0,
+    flowPanelsPerHour: perPanelSeconds > 0 ? 3600 / perPanelSeconds : 0,
+    activeComponentCount: componentRows.filter((row) => row.count > 0).length,
+    complexityScore: componentRows.reduce((sum, row) => sum + row.complexity, 0),
+    machineSplit: {
+      enabled: true,
+      key: getSmtMachineSplitKey(bomList, smtLine),
+      primaryMachine,
+      secondaryMachine,
+      splitCounts,
+      machineCoefficients: getSmtMachineCoefficientSnapshot([primaryMachine, secondaryMachine], placementRows, coefficientStore),
+      primaryPerBoardSeconds: stationTimes.primarySeconds,
+      secondaryPerBoardSeconds: stationTimes.secondarySeconds,
+      primaryPerPanelSeconds,
+      secondaryPerPanelSeconds,
+      primaryPanelsPerHour,
+      secondaryPanelsPerHour,
+      primaryBoardsPerHour: primaryPanelsPerHour * context.boardsPerPanel,
+      secondaryBoardsPerHour: secondaryPanelsPerHour * context.boardsPerPanel,
+      imbalanceSeconds: Math.abs(stationTimes.primarySeconds - stationTimes.secondarySeconds),
+      balanceRatio: perBoardSeconds > 0
+        ? Math.min(stationTimes.primarySeconds, stationTimes.secondarySeconds) / perBoardSeconds
+        : 1,
+    },
   };
 }
 
@@ -4884,15 +10076,46 @@ function calculateSmtBomOperation(bomList, smtLine, context) {
   const directoryOperation = getOperationMapRows({ includeInactive: false })
     .find((operation) => isSmtOperationWorkCenter(operation.workCenterId, operation))
     || null;
-  const setupMs = Math.max(0, Number(smtLine?.changeoverMin || 0) * 60 * 1000);
+  const hasExplicitSetupMs = Object.prototype.hasOwnProperty.call(context || {}, "setupMs");
+  const explicitSetupMs = Math.max(0, Number(context.setupMs || 0));
+  const setupMs = hasExplicitSetupMs
+    ? explicitSetupMs
+    : Math.max(0, Number(smtLine?.changeoverMin || 0) * 60 * 1000);
+  const efficiencyPercent = context.efficiency || calculatorState.efficiency || smtLine?.efficiency || 100;
+  const machineSplitByBom = context.machineSplitByBom || calculatorState.machineSplitByBom || {};
+  const coefficientStore = context.smtPackageCoefficientsByMachine || context.machineCoefficients || calculatorState.smtPackageCoefficientsByMachine || {};
+  const splitResult = calculateSmtMachineSplitResult(bomList, smtLine, {
+    ...context,
+    setupMs,
+    efficiency: efficiencyPercent,
+    machineSplitByBom,
+    smtPackageCoefficientsByMachine: coefficientStore,
+  }, null, true);
+  if (splitResult) {
+    return {
+      id: "smt-operation",
+      operationId: directoryOperation?.id || "",
+      operationName: directoryOperation?.name || "SMT-операция не выбрана",
+      workCenterId: directoryOperation ? getOperationRouteWorkCenterId(directoryOperation) : "D3",
+      calculationType: "components",
+      bomList,
+      bomListId: bomList?.id || "",
+      boardsPerPanel: context.boardsPerPanel,
+      bomEntryQuantity: 1,
+      operationBoardQuantity: context.boardQuantity,
+      operationPanelCount: context.panelCount,
+      ...splitResult,
+    };
+  }
+
   const resourceBaseCph = getResourceBaseCph(smtLine);
-  const efficiency = Math.max(0.1, Number(calculatorState.efficiency || smtLine?.efficiency || 100) / 100);
+  const efficiency = Math.max(0.1, Number(efficiencyPercent) / 100);
   const counts = getBomComponentCounts(bomList);
   const componentRows = getComponentTypes().map((type) => {
     const count = Math.max(0, Math.round(Number(counts[type.id] ?? 0)));
-    const coefficient = Math.max(0.1, Number(type.coefficient || 1));
-    const typeLimitCph = Math.max(1, Number(type.placementsPerHour || resourceBaseCph / coefficient));
-    const effectiveCph = Math.max(1, Math.min(typeLimitCph, resourceBaseCph / coefficient) * efficiency);
+    const timing = getSmtComponentPlacementTiming(type, smtLine, smtLine, efficiencyPercent, coefficientStore);
+    const coefficient = timing.coefficient;
+    const effectiveCph = timing.effectiveCph || Math.max(1, resourceBaseCph * efficiency * coefficient);
     const secondsPerBoard = count > 0 ? count / effectiveCph * 3600 : 0;
     return {
       type,
@@ -4912,7 +10135,7 @@ function calculateSmtBomOperation(bomList, smtLine, context) {
     id: "smt-operation",
     operationId: directoryOperation?.id || "",
     operationName: directoryOperation?.name || "SMT-операция не выбрана",
-    workCenterId: directoryOperation?.workCenterId || smtLine?.workCenterId || "D3_L1",
+    workCenterId: directoryOperation ? getOperationRouteWorkCenterId(directoryOperation) : "D3",
     calculationType: "components",
     resource: smtLine,
     resourceId: smtLine?.id || "",
@@ -4956,11 +10179,12 @@ function buildBomPreviewRows(calc) {
   const resource = calc.smtLine || getSelectedSmtLineConfiguration();
   const resourceBaseCph = getResourceBaseCph(resource);
   const efficiency = Math.max(0.1, Number(calculatorState.efficiency || resource?.efficiency || 100) / 100);
+  const coefficientStore = calculatorState.smtPackageCoefficientsByMachine || {};
   return getComponentTypes().map((type) => {
     const count = Math.max(0, Math.round(Number(counts[type.id] ?? 0)));
-    const coefficient = Math.max(0.1, Number(type.coefficient || 1));
-    const typeLimitCph = Math.max(1, Number(type.placementsPerHour || resourceBaseCph / coefficient));
-    const effectiveCph = Math.max(1, Math.min(typeLimitCph, resourceBaseCph / coefficient) * efficiency);
+    const timing = getSmtComponentPlacementTiming(type, resource, resource, calculatorState.efficiency || resource?.efficiency, coefficientStore);
+    const coefficient = timing.coefficient;
+    const effectiveCph = timing.effectiveCph || Math.max(1, resourceBaseCph * efficiency * coefficient);
     const secondsPerBoard = count > 0 ? count / effectiveCph * 3600 : 0;
     return {
       type,
@@ -4995,11 +10219,12 @@ function calculateRouteOperation(operation, context) {
     const resourceBaseCph = getResourceBaseCph(resource);
     const efficiency = Math.max(0.1, Number(resource?.efficiency || 100) / 100);
     const counts = getOperationComponentCounts(operation);
+    const coefficientStore = operation.machineCoefficients || {};
     const componentRows = getComponentTypes().map((type) => {
       const count = Math.max(0, Math.round(Number(counts[type.id] ?? type.defaultCount ?? 0)));
-      const coefficient = Math.max(0.1, Number(type.coefficient || 1));
-      const typeLimitCph = Math.max(1, Number(type.placementsPerHour || resourceBaseCph / coefficient));
-      const effectiveCph = Math.max(1, Math.min(typeLimitCph, resourceBaseCph / coefficient) * efficiency);
+      const timing = getSmtComponentPlacementTiming(type, resource, resource, resource?.efficiency || 100, coefficientStore);
+      const coefficient = timing.coefficient;
+      const effectiveCph = timing.effectiveCph || Math.max(1, resourceBaseCph * efficiency * coefficient);
       const secondsPerBoard = count > 0 ? count / effectiveCph * 3600 : 0;
       return {
         type,
@@ -5075,7 +10300,8 @@ function getCalculatorProject() {
 function getCalculatorWorkCenter() {
   const selectedOperation = getRouteOperations().find((operation) => operation.id === calculatorState.selectedOperationId);
   const planningCenters = getPlanningWorkCenters();
-  return planningCenters.find((center) => center.id === selectedOperation?.workCenterId)
+  return getWorkCenter(selectedOperation?.workCenterId)
+    || planningCenters.find((center) => center.id === selectedOperation?.workCenterId)
     || planningCenters.find((center) => center.id === "D3_L1")
     || planningCenters[0];
 }
@@ -5092,9 +10318,14 @@ function getRouteOperations() {
 function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
   const directoryOperation = getOperationMapItem(operation.operationId)
     || findOperationMapItemByNameAndWorkCenter(operation.operationName, operation.workCenterId);
-  const workCenterId = directoryOperation?.workCenterId || mapLegacyWorkCenterId(operation.workCenterId) || "D3_L1";
-  const resources = getResourcesForWorkCenter(workCenterId);
-  const resource = resources.find((item) => item.id === operation.resourceId) || resources[0];
+  const workCenterId = directoryOperation
+    ? getOperationRouteWorkCenterId(directoryOperation)
+    : getRouteInstructionWorkCenterId(operation.workCenterId) || "D3";
+  const planningCandidates = getPlanningCandidateWorkCenterIdsForRouteWorkCenter(workCenterId, directoryOperation, planningState);
+  const singlePlanningWorkCenterId = planningCandidates.length === 1 ? planningCandidates[0] : "";
+  const resourceId = singlePlanningWorkCenterId
+    ? getPlanningResourceForRouteStep({ ...operation, workCenterId }, singlePlanningWorkCenterId, operation.resourceId)
+    : "";
   const calculationType = getDefaultOperationCalculationType(workCenterId, operation);
   const normalizedBoardsPerPanel = normalizeBoardsPerPanel(operation.boardsPerPanel, boardsPerPanel || 1);
   return {
@@ -5103,7 +10334,7 @@ function normalizeRouteOperation(operation, stepOrder, boardsPerPanel = 1) {
     stepOrder: Math.max(1, Number(operation.stepOrder || stepOrder)),
     operationName: directoryOperation?.name || operation.operationName || getWorkCenter(workCenterId)?.name || "Операция",
     workCenterId,
-    resourceId: resource?.id || operation.resourceId || "",
+    resourceId,
     calculationType,
     secondsPerPanel: Math.max(0, Number(operation.secondsPerPanel || getDefaultSecondsPerPanel(workCenterId, boardsPerPanel))),
     boardsPerPanel: normalizedBoardsPerPanel,
@@ -5140,7 +10371,7 @@ function createDefaultRouteOperations(projectId, boardsPerPanel = defaultCalcula
   const operations = [];
   source.forEach((step) => {
     const resource = getResourcesForWorkCenter(step.workCenterId)[0];
-    const isExpandableSmt = MES_SMT_WORK_CENTER_IDS.includes(mapLegacyWorkCenterId(step.workCenterId)) && bomEntries.length > 0 && !step.bomListId;
+    const isExpandableSmt = isSmtOperationWorkCenter(step.workCenterId, step, planningState) && bomEntries.length > 0 && !step.bomListId;
     const entries = isExpandableSmt ? bomEntries : [{ bom: getBomList(step.bomListId), quantity: step.quantityMultiplier || 1, boardsPerPanel: step.boardsPerPanel || boardsPerPanel || 1, slot: step.bomSlot || "" }];
 
     entries.forEach((entry) => {
@@ -5222,6 +10453,54 @@ function getProjectSpecification(projectId) {
   )) || null;
 }
 
+function normalizeStructureFulfillmentMode(value = "", fallback = "not_selected") {
+  const normalized = String(value || "").trim();
+  if (STRUCTURE_FULFILLMENT_MODES.includes(normalized)) return normalized;
+  if (normalized === "make" || normalized === "produce_in_house") return "produce";
+  if (normalized === "buy") return "purchase";
+  if (normalized === "stock" || normalized === "warehouse") return "from_stock";
+  return STRUCTURE_FULFILLMENT_MODES.includes(fallback) ? fallback : "not_selected";
+}
+
+function getDefaultStructureFulfillmentMode(type, nomenclatureItem = null, rawExecutionType = "") {
+  const executionType = String(rawExecutionType || "").trim();
+  if (executionType === "buy") return "purchase";
+  if (executionType === "make") return "produce";
+  if (type === "bom" || type === "specification" || type === "assembly") return "produce";
+  return getDefaultNomenclatureExecutionType(nomenclatureItem) === "make" ? "produce" : "purchase";
+}
+
+function getExecutionTypeForFulfillmentMode(mode = "") {
+  return normalizeStructureFulfillmentMode(mode) === "produce" ? "make" : "buy";
+}
+
+function getSpecificationItemFulfillmentMode(item = {}) {
+  return normalizeStructureFulfillmentMode(
+    item.fulfillmentMode || item.supplyMode || item.sourceMode || item.fulfillmentType || item.executionType || "",
+    getDefaultStructureFulfillmentMode(item.type || "", null, item.executionType || ""),
+  );
+}
+
+function isSchedulableFulfillmentMode(mode = "") {
+  return STRUCTURE_SCHEDULABLE_FULFILLMENT_MODES.has(normalizeStructureFulfillmentMode(mode));
+}
+
+function getFulfillmentLabel(mode = "") {
+  return STRUCTURE_FULFILLMENT_LABELS[normalizeStructureFulfillmentMode(mode)] || STRUCTURE_FULFILLMENT_LABELS.not_selected;
+}
+
+function getFulfillmentMeta(mode = "") {
+  return STRUCTURE_FULFILLMENT_META[normalizeStructureFulfillmentMode(mode)] || STRUCTURE_FULFILLMENT_META.not_selected;
+}
+
+function getFulfillmentTone(mode = "") {
+  const normalized = normalizeStructureFulfillmentMode(mode);
+  if (normalized === "produce") return "produce";
+  if (normalized === "from_stock") return "stock";
+  if (normalized === "purchase" || normalized === "external") return "external";
+  return "warning";
+}
+
 function normalizeSpecificationStructureItem(item, index = 0) {
   const allowedTypes = new Set(["assembly", "bom", "specification", "part", "nomenclature"]);
   const type = allowedTypes.has(item?.type) ? item.type : item?.bomListId ? "bom" : "part";
@@ -5231,15 +10510,13 @@ function normalizeSpecificationStructureItem(item, index = 0) {
   const nomenclatureItem = type === "nomenclature" || type === "part"
     ? (directoryState?.nomenclature || []).find((entry) => entry.id === String(item?.nomenclatureId || item?.itemId || ""))
     : null;
-  const executionType = nomenclatureItem?.sourceBomResultId
-    ? "make"
-    : ["make", "buy"].includes(rawExecutionType)
-    ? rawExecutionType
-    : type === "nomenclature" || type === "part"
-      ? getDefaultNomenclatureExecutionType(nomenclatureItem)
-      : "make";
-  const linkedOperation = executionType === "buy" ? null : getOperationMapItem(item?.operationId);
-  const operationName = executionType === "buy"
+  const defaultFulfillmentMode = nomenclatureItem?.sourceBomResultId
+    ? "produce"
+    : getDefaultStructureFulfillmentMode(type, nomenclatureItem, rawExecutionType);
+  const fulfillmentMode = normalizeStructureFulfillmentMode(item?.fulfillmentMode || item?.supplyMode || item?.sourceMode || rawExecutionType, defaultFulfillmentMode);
+  const executionType = getExecutionTypeForFulfillmentMode(fulfillmentMode);
+  const linkedOperation = !isSchedulableFulfillmentMode(fulfillmentMode) ? null : getOperationMapItem(item?.operationId);
+  const operationName = !isSchedulableFulfillmentMode(fulfillmentMode)
     ? ""
     : String(linkedOperation?.name || item?.operationName || item?.operation || item?.routeOperation || "");
   const operationDepartment = linkedOperation ? getWorkCenter(linkedOperation.workCenterId)?.name || "" : "";
@@ -5249,15 +10526,16 @@ function normalizeSpecificationStructureItem(item, index = 0) {
     parentId: String(item?.parentId || "root"),
     type,
     executionType,
-    operationId: executionType === "buy" ? "" : linkedOperation?.id || String(item?.operationId || ""),
+    fulfillmentMode,
+    operationId: !isSchedulableFulfillmentMode(fulfillmentMode) ? "" : linkedOperation?.id || String(item?.operationId || ""),
     operationName,
-    departmentName: executionType === "buy" ? "" : String(operationDepartment || item?.departmentName || item?.department || ""),
+    departmentName: !isSchedulableFulfillmentMode(fulfillmentMode) ? "" : String(operationDepartment || item?.departmentName || item?.department || ""),
     bomListId,
     specificationId: type === "specification" ? String(item?.specificationId || item?.linkedSpecificationId || "") : "",
     nomenclatureId: type === "nomenclature" ? String(item?.nomenclatureId || item?.itemId || "") : "",
     name: String(item?.name || ""),
     quantity,
-    unit: String(item?.unit || (type === "assembly" ? "узел" : type === "bom" ? "плата" : type === "specification" ? "спец." : "шт.")),
+    unit: String(item?.unit || (type === "assembly" ? "узел" : type === "bom" ? "плата" : type === "specification" ? "состав" : "шт.")),
     boardsPerPanel: type === "bom" ? normalizeBoardsPerPanel(item?.boardsPerPanel ?? item?.boardsInPanel ?? item?.panelSize ?? 1, 1) : 1,
     resultItem: String(item?.resultItem || ""),
     note: String(item?.note || ""),
@@ -5279,6 +10557,7 @@ function buildDefaultSpecificationStructureItems(specification) {
       bomListId: resultNomenclature ? "" : bom.id,
       nomenclatureId: resultNomenclature?.id || "",
       executionType: "make",
+      fulfillmentMode: "produce",
       operationId: "",
       operationName: "",
       departmentName: "",
@@ -5287,7 +10566,7 @@ function buildDefaultSpecificationStructureItems(specification) {
       unit: resultNomenclature?.unit || "шт.",
       boardsPerPanel: 1,
       resultItem: resultNomenclature?.name || bom.resultItem || bom.boardCode || "",
-      note: resultNomenclature ? `Результат спецификации ${slot}` : `Спецификация ${slot}`,
+      note: resultNomenclature ? `Результат платы ${slot}` : `Плата ${slot}`,
       position: rows.length + 1,
     }, rows.length));
   };
@@ -5304,6 +10583,7 @@ function buildDefaultSpecificationStructureItems(specification) {
         id: `${specification.id || "spec"}-part-${rows.length + 1}`,
         type: "nomenclature",
         parentId: "root",
+        fulfillmentMode: "purchase",
         name,
         quantity: 1,
         unit: "шт.",
@@ -5365,11 +10645,11 @@ function getSpekiOperationOptions() {
   return [
     { value: "", label: "Операция не требуется", meta: "для покупных изделий" },
     ...getOperationMapRows({ includeInactive: false }).map((operation) => {
-      const center = getWorkCenter(operation.workCenterId);
+      const center = getWorkCenter(getOperationRouteWorkCenterId(operation));
       return {
         value: operation.id,
         label: operation.name || "Операция без названия",
-        meta: center?.name || "подразделение не выбрано",
+        meta: center?.name || "отдел не выбран",
       };
     }),
   ];
@@ -5377,8 +10657,8 @@ function getSpekiOperationOptions() {
 
 function getSpekiDepartmentOptions() {
   return [
-    { value: "", label: "Подразделение не выбрано", meta: "назначьте для операции" },
-    ...getEmployeeDepartmentNames().map((name) => ({ value: name, label: name, meta: "справочник подразделений" })),
+    { value: "", label: "Отдел не выбран", meta: "назначьте для операции" },
+    ...getEmployeeDepartmentNames().map((name) => ({ value: name, label: name, meta: "справочник отделов" })),
   ];
 }
 
@@ -5393,7 +10673,7 @@ function getDefaultSpekiDepartmentName(operationName) {
     { tokens: ["отмыв"], preferred: ["Отмывка"] },
     { tokens: ["ручн", "tht"], preferred: ["Ручной монтаж", "THT отдел"] },
     { tokens: ["лакир"], preferred: ["Лакировка", "Отдел селективной лакировки", "Отдел ручной лакировки"] },
-    { tokens: ["слесар", "механ"], preferred: ["Слесарное подразделение", "Слесарный отдел"] },
+    { tokens: ["слесар", "механ"], preferred: ["Слесарное отдел", "Слесарный отдел"] },
     { tokens: ["сбор"], preferred: ["Сборка", "Сборочный отдел", "Слесарный отдел"] },
     { tokens: ["программ", "прошив"], preferred: ["Отдел программной подготовки изделий"] },
     { tokens: ["комплект"], preferred: ["Склад", "Склад компонентов"] },
@@ -5419,6 +10699,7 @@ function getSpecificationStructureRows(specification) {
     source: "Состав изделия",
     quantity: 1,
     unit: "изд.",
+    fulfillment: "Итоговый выпуск",
     result: specification.outputItem || specification.name || "",
     note: "Состав изделия",
   }];
@@ -5436,9 +10717,9 @@ function getSpecificationStructureRows(specification) {
     return {
       level,
       position: String(index + 1).padStart(2, "0"),
-      type: item.type === "bom" ? "Спецификация платы" : item.type === "specification" ? PRODUCT_COMPOSITION_TERM : item.type === "assembly" ? "Узел" : "Номенклатура",
+      type: item.type === "bom" ? BOARD_SPEC_TERM : item.type === "specification" ? PRODUCT_COMPOSITION_TERM : item.type === "assembly" ? "Узел" : "Номенклатура",
       name: item.type === "bom"
-        ? bom?.name || item.name || "Спецификация не выбрана"
+        ? bom?.name || item.name || "Плата не выбрана"
         : item.type === "specification"
           ? linkedSpecification?.name || item.name || "Состав изделия не выбран"
           : item.type === "nomenclature"
@@ -5448,6 +10729,7 @@ function getSpecificationStructureRows(specification) {
       quantity: item.quantity,
       unit: item.unit,
       boardsPerPanel: getSpecificationItemBoardsPerPanel(item),
+      fulfillment: getFulfillmentLabel(getSpecificationItemFulfillmentMode(item)),
       result: item.type === "bom"
         ? bom?.resultItem || item.resultItem || bom?.name || ""
         : item.type === "specification"
@@ -5573,17 +10855,17 @@ function buildSpecificationSummary(specification) {
     .map((entry) => `${entry.quantity}x ${entry.bom.resultItem || entry.bom.name}`)
     .join(" + ");
   const extras = specification.extraItems ? ` + ${specification.extraItems}` : "";
-  return `${bomText || "спецификация не выбрана"}${extras}`;
+  return `${bomText || "плата не выбрана"}${extras}`;
 }
 
 function buildNoSpecificationSummary(calc) {
-  if (!calc.specification) return "Выберите состав изделия, затем спецификацию печатной платы.";
-  if (!calc.bomList) return "Для состава изделия без спецификации платы можно использовать маршрут ручных работ.";
+  if (!calc.specification) return "Выберите изделие, затем плату.";
+  if (!calc.bomList) return "Для изделия без платы можно использовать маршрут ручных работ.";
   return `${calc.specification.name}: результат SMT считается как ${calc.bomList.resultItem || calc.bomList.name}.`;
 }
 
 function getBomList(bomId) {
-  return (directoryState.bomLists || []).find((bom) => bom.id === bomId) || null;
+  return getDirectoryRows("bomLists").find((bom) => bom.id === bomId) || null;
 }
 
 function getBomResultNomenclatureItem(bomId) {
@@ -5643,6 +10925,179 @@ function getBomComponentFieldCounts(componentCounts = {}) {
   ]));
 }
 
+function getBomComponentTypeForRow(row, componentTypes = getComponentTypes()) {
+  const fieldKey = classifyBomPackage(row);
+  const field = BOM_COMPONENT_FIELDS.find((item) => item.key === fieldKey) || BOM_COMPONENT_FIELDS[BOM_COMPONENT_FIELDS.length - 1];
+  return componentTypes.find((type) => type.id === field.componentId)
+    || DEFAULT_COMPONENT_TYPES.find((type) => type.id === field.componentId)
+    || {
+      id: field.componentId,
+      name: field.label,
+      package: row?.package || field.label,
+      family: "",
+      coefficient: 1,
+      placementsPerHour: DEFAULT_RESOURCE_CPH,
+    };
+}
+
+function normalizeSmtComponentKeyPart(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 96);
+}
+
+function makeSmtBomComponentRowId(bom, row, rowIndex, designator = "", index = 0) {
+  const parts = [
+    bom?.id || "bom",
+    rowIndex + 1,
+    normalizeSmtComponentKeyPart(row?.sequence),
+    normalizeSmtComponentKeyPart(designator || row?.designator || row?.manufacturerPart || row?.description || row?.package),
+    index + 1,
+  ].filter((part) => part !== "");
+  return `bom-component::${parts.join("::")}`;
+}
+
+function getBomImportRowNomenclatureItem(row, bom = null) {
+  const directId = String(row?.nomenclatureId || "").trim();
+  const items = directoryState?.nomenclature || [];
+  if (directId) {
+    const direct = items.find((item) => String(item.id || "") === directId);
+    if (direct) return direct;
+  }
+
+  const payload = makeBomImportNomenclaturePayload(row, bom, new Date().toISOString());
+  if (!payload) return null;
+  const index = findImportedNomenclatureIndex(items, payload);
+  return index >= 0 ? items[index] : null;
+}
+
+function getSmtBomNomenclatureGroupKey(bom, row, rowIndex, nomenclatureItem = null, type = null) {
+  if (nomenclatureItem?.id) return `bom-nomenclature::${bom?.id || "bom"}::${nomenclatureItem.id}`;
+  const identityParts = [
+    normalizeSmtComponentKeyPart(row?.manufacturerPart),
+    normalizeSmtComponentKeyPart(row?.description),
+    normalizeSmtComponentKeyPart(row?.manufacturer),
+    normalizeSmtComponentKeyPart(row?.package),
+  ].filter(Boolean);
+  return identityParts.length
+    ? `bom-nomenclature::${[bom?.id || "bom", ...identityParts, type?.id || ""].filter(Boolean).join("::")}`
+    : makeSmtBomComponentRowId(bom, row, rowIndex);
+}
+
+function formatSmtDesignatorSummary(designators = []) {
+  const unique = [...new Set(designators.map((item) => String(item || "").trim()).filter(Boolean))];
+  if (!unique.length) return "";
+  if (unique.length <= 6) return unique.join(", ");
+  return `${unique.slice(0, 6).join(", ")} и еще ${unique.length - 6}`;
+}
+
+function expandBomDesignatorToken(token) {
+  const clean = String(token || "").trim();
+  if (!clean) return [];
+  const rangeMatch = clean.match(/^([A-Za-zА-Яа-я]+)(\d+)\s*[-–—]\s*([A-Za-zА-Яа-я]+)?(\d+)$/);
+  if (rangeMatch) {
+    const leftPrefix = rangeMatch[1];
+    const rightPrefix = rangeMatch[3] || leftPrefix;
+    const start = Number(rangeMatch[2]);
+    const end = Number(rangeMatch[4]);
+    if (leftPrefix === rightPrefix && Number.isInteger(start) && Number.isInteger(end) && end >= start && end - start <= 100) {
+      return Array.from({ length: end - start + 1 }, (_, index) => `${leftPrefix}${start + index}`);
+    }
+  }
+  return /[A-Za-zА-Яа-я]+\d+/u.test(clean) ? [clean] : [];
+}
+
+function splitBomDesignators(value, quantity = 0) {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+  const tokens = raw
+    .replace(/[()]/g, " ")
+    .split(/[,;\n]+|\s+(?=[A-Za-zА-Яа-я]+\d)/u)
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const designators = tokens.flatMap(expandBomDesignatorToken);
+  const expectedQuantity = Math.max(0, Math.round(Number(quantity || 0)));
+  return expectedQuantity > 0 && designators.length === expectedQuantity ? designators : [];
+}
+
+function getSmtBomPlacementRows(bom, componentTypes = getComponentTypes(), counts = null) {
+  const importRows = getBomImportRows(bom).filter((row) => Number(row.quantity || 0) > 0);
+  if (importRows.length) {
+    const groups = new Map();
+    importRows.forEach((row, rowIndex) => {
+      const nomenclatureItem = getBomImportRowNomenclatureItem(row, bom);
+      const type = getBomComponentTypeForRow({
+        ...row,
+        package: nomenclatureItem?.package || row.package,
+        description: nomenclatureItem?.name || row.description,
+        manufacturerPart: nomenclatureItem?.article || row.manufacturerPart,
+        manufacturer: nomenclatureItem?.manufacturer || row.manufacturer,
+      }, componentTypes);
+      const key = getSmtBomNomenclatureGroupKey(bom, row, rowIndex, nomenclatureItem, type);
+      const designators = splitBomDesignators(row.designator, row.quantity);
+      const group = groups.get(key) || {
+        id: key,
+        source: "nomenclature",
+        type,
+        count: 0,
+        name: nomenclatureItem?.name || row.description || row.manufacturerPart || `Номенклатура ${row.sequence || rowIndex + 1}`,
+        nomenclatureId: nomenclatureItem?.id || row.nomenclatureId || "",
+        designators: [],
+        articles: new Set(),
+        manufacturers: new Set(),
+        packages: new Set(),
+        rowCount: 0,
+        recommendedSecondary: isDefaultSecondarySmtComponent(type),
+      };
+      group.count += Math.max(0, Math.round(Number(row.quantity || 0)));
+      group.rowCount += 1;
+      group.designators.push(...(designators.length ? designators : [row.designator].filter(Boolean)));
+      [nomenclatureItem?.article, row.manufacturerPart].filter(Boolean).forEach((item) => group.articles.add(item));
+      [nomenclatureItem?.manufacturer, row.manufacturer].filter(Boolean).forEach((item) => group.manufacturers.add(item));
+      [nomenclatureItem?.package, row.package, type.package].filter(Boolean).forEach((item) => group.packages.add(item));
+      groups.set(key, group);
+    });
+
+    return [...groups.values()].map((group) => {
+      const designatorSummary = formatSmtDesignatorSummary(group.designators);
+      const articleSummary = [...group.articles].filter(Boolean).slice(0, 2).join(", ");
+      const manufacturerSummary = [...group.manufacturers].filter(Boolean).slice(0, 2).join(", ");
+      const packageSummary = [...group.packages].filter(Boolean)[0] || group.type.package || "";
+      return {
+        id: group.id,
+        source: group.source,
+        type: group.type,
+        count: group.count,
+        name: group.name,
+        caption: [
+          articleSummary ? `PN: ${articleSummary}` : "",
+          designatorSummary ? `Поз.: ${designatorSummary}` : "",
+          group.rowCount > 1 ? `${group.rowCount} строк BOM` : "",
+          manufacturerSummary,
+        ].filter(Boolean).join(" · "),
+        designator: designatorSummary,
+        nomenclatureId: group.nomenclatureId,
+        package: packageSummary,
+        recommendedSecondary: group.recommendedSecondary,
+      };
+    });
+  }
+
+  const componentCounts = counts || getBomComponentCounts(bom);
+  return componentTypes.map((type) => ({
+    id: `component-type::${type.id}`,
+    source: "component-type",
+    type,
+    count: Math.max(0, Math.round(Number(componentCounts[type.id] || 0))),
+    name: type.name,
+    caption: type.family || "",
+    designator: "",
+    package: type.package || "",
+    recommendedSecondary: isDefaultSecondarySmtComponent(type),
+  }));
+}
+
 function normalizeBomImportRow(row) {
   const source = Array.isArray(row?.values) ? row.values : Array.isArray(row) ? row : [];
   const values = Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, index) => source[index] ?? row?.[index] ?? "");
@@ -5670,11 +11125,18 @@ function getBomImportRows(bom) {
   return Array.isArray(bom?.importRows) ? bom.importRows.map((row) => normalizeBomImportRow(row)) : [];
 }
 
+function normalizeBomImportHeaderLabel(value, fallback) {
+  const label = String(value || fallback || "").trim();
+  const normalized = label.toLowerCase().replace(/\s+/g, " ");
+  if (normalized === "аритикул производителя") return "Артикул производителя";
+  return label;
+}
+
 function getBomImportHeaders(bom) {
   const headers = Array.isArray(bom?.importHeaders) ? bom.importHeaders : [];
   return Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, index) => {
     const value = String(headers[index] || "").trim();
-    return value || BOM_IMPORT_FALLBACK_HEADERS[index] || `Поле ${index + 1}`;
+    return normalizeBomImportHeaderLabel(value, BOM_IMPORT_FALLBACK_HEADERS[index] || `Поле ${index + 1}`);
   });
 }
 
@@ -5691,11 +11153,13 @@ function classifyBomPackage(row) {
   if (packageText === "0402") return "c0402";
   if (packageText === "0603") return "c0603";
   if (packageText === "0805") return "c0805";
+  if (packageText === "2012") return "c0805";
   if (combined.includes("0402")) return "c0402";
   if (combined.includes("0603")) return "c0603";
   if (combined.includes("0805")) return "c0805";
-  if (combined.includes("sot23") || combined.includes("sot-23") || combined.includes("sod")) return "csot23";
-  if (combined.includes("soic") || combined.includes("tssop") || combined.includes("ssop")) return "csoic";
+  if (combined.includes("2012")) return "c0805";
+  if (combined.includes("sot23") || combined.includes("sot-23") || combined.includes("sot223") || combined.includes("sot-223") || combined.includes("sod")) return "csot23";
+  if (combined.includes("soic") || combined.includes("tssop") || combined.includes("ssop") || combined.includes("so16") || combined.includes("hsop")) return "csoic";
   if (combined.includes("qfn") || combined.includes("dfn") || combined.includes("lga")) return "cqfn";
   if (combined.includes("bga")) return "cbga";
   if (combined.includes("connector") || combined.includes("разъем") || combined.includes("разъём") || combined.includes("terminal")) return "cconnector";
@@ -5759,7 +11223,7 @@ function makeBomImportNomenclaturePayload(row, bom, stamp) {
   const descriptionParts = [
     normalizedRow.designator ? `Обозначение: ${normalizedRow.designator}` : "",
     normalizedRow.note ? `Примечание: ${normalizedRow.note}` : "",
-    bom?.name ? `Источник спецификации: ${bom.name}` : "",
+    bom?.name ? `Источник BOM: ${bom.name}` : "",
   ].filter(Boolean);
 
   return normalizeDirectoryRow("nomenclature", {
@@ -5783,8 +11247,8 @@ function makeBomResultNomenclaturePayload(bom, stamp = new Date().toISOString())
   if (!name) return null;
 
   const descriptionParts = [
-    bom?.name ? `Результат спецификации: ${bom.name}` : "",
-    bom?.boardCode ? `Код платы: ${bom.boardCode}` : "",
+    bom?.name ? `Результат платы: ${bom.name}` : "",
+    bom?.boardCode ? `Децимальный номер: ${bom.boardCode}` : "",
     "Тип позиции: печатная плата",
   ].filter(Boolean);
 
@@ -6040,7 +11504,7 @@ function updateBomImportRows(bomId, rows, options = {}) {
   persistDirectoryState();
   persistUiState();
   if (options.notify !== false) {
-    notifySaveSuccess(options.message || "Таблица спецификации сохранена");
+    notifySaveSuccess(options.message || "Таблица BOM сохранена");
   }
   return nextBom;
 }
@@ -6076,7 +11540,7 @@ function addNomenclatureToBom(bomId, nomenclatureId) {
   const nomenclatureItem = (directoryState.nomenclature || []).find((item) => item.id === nomenclatureId);
   if (!bom || !nomenclatureItem) return;
   if (!isReaNomenclatureItem(nomenclatureItem)) {
-    alert("В спецификацию можно добавить только номенклатуру из раздела «РЭА компоненты».");
+    alert("В BOM можно добавить только номенклатуру из раздела «РЭА компоненты».");
     return;
   }
 
@@ -6164,7 +11628,7 @@ function migrateSpecificationBomRowsToNomenclature() {
         unit: resultNomenclature.unit || "шт.",
         boardsPerPanel: 1,
         resultItem: resultNomenclature.name || bom.resultItem || item.resultItem || "",
-        note: item.note && !/^bom\b/i.test(item.note) ? item.note : "Результат спецификации",
+        note: item.note && !/^bom\b/i.test(item.note) ? item.note : "Результат платы",
       });
     });
 
@@ -6312,7 +11776,7 @@ async function importBomFromXlsxFile(file, projectId = "") {
   ui.activeProjectId = projectId || "";
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess("Спецификация импортирована");
+  notifySaveSuccess("BOM импортирован");
 }
 
 async function parseXlsxBomFile(file) {
@@ -6339,7 +11803,7 @@ async function parseXlsxBomFile(file) {
     rows.push(Array.from({ length: BOM_IMPORT_COLUMN_COUNT }, (_, columnIndex) => source[columnIndex] ?? ""));
   }
 
-  if (!rows.length) throw new Error("Спецификация не содержит строк: первая пустая ячейка A найдена сразу после заголовка.");
+  if (!rows.length) throw new Error("BOM не содержит строк: первая пустая ячейка A найдена сразу после заголовка.");
   return { sheetName, headers, rows };
 }
 
@@ -6481,7 +11945,7 @@ function getDefaultSmtLineConfigurations() {
       type: "aggregate",
       workCenterId: "D3_L1",
       workCenter: "Участок поверхностного монтажа 1",
-      capacity: "Принтер -> Hanwha S2 -> Hanwha L2 -> Печь",
+      capacity: "Принтер -> DECAN S2 -> DECAN L2 -> Печь",
       baseCph: 32000,
       efficiency: 88,
       changeoverMin: 18,
@@ -6493,7 +11957,7 @@ function getDefaultSmtLineConfigurations() {
       type: "aggregate",
       workCenterId: "D3_L2",
       workCenter: "Участок поверхностного монтажа 2",
-      capacity: "Принтер -> Hanwha S2 -> Печь",
+      capacity: "Принтер -> DECAN S2 -> Печь",
       baseCph: 28000,
       efficiency: 82,
       changeoverMin: 24,
@@ -6567,7 +12031,7 @@ function getSmtGanttLineCenters() {
     return {
       ...smtCenter,
       id: getSmtLineWorkCenterId(line.id),
-      name: line.name || `SMT линия ${lineNumber}`,
+      name: line.name || `SMT участок ${lineNumber}`,
       code: `SMT-${lineNumber}`,
       description: line.capacity || smtCenter.description || "Производственная линия SMT",
       parentWorkCenterId: "smt",
@@ -6582,11 +12046,19 @@ function getSmtGanttLineCenters() {
 }
 
 function getSlotAssignedSmtLineId(slot) {
-  if (slot?.workCenterId !== "smt") return "";
+  const slotWorkCenterId = mapLegacyWorkCenterId(slot?.workCenterId || "");
+  if (MES_SMT_WORK_CENTER_IDS.includes(slotWorkCenterId)) return slotWorkCenterId;
+  if (slotWorkCenterId !== "smt" && slotWorkCenterId !== "D3") return "";
+
   const lines = getSmtLineConfigurations();
   if (!lines.length) return "";
 
   const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
+  const selectedWorkCenterId = step ? getRouteStepSelectedPlanningWorkCenterId(step, planningState) : "";
+  if (selectedWorkCenterId && lines.some((line) => line.id === selectedWorkCenterId || line.workCenterId === selectedWorkCenterId)) {
+    return selectedWorkCenterId;
+  }
+
   const explicitResourceId = slot.resourceId || step?.resourceId || "";
   if (explicitResourceId && lines.some((line) => line.id === explicitResourceId)) return explicitResourceId;
 
@@ -6601,27 +12073,41 @@ function getSlotAssignedSmtLineId(slot) {
 }
 
 function getSlotGanttWorkCenterId(slot) {
-  if (slot?.workCenterId !== "smt") return slot?.workCenterId || "";
   const lineId = getSlotAssignedSmtLineId(slot);
-  return lineId ? getSmtLineWorkCenterId(lineId) : "smt";
+  if (lineId) return lineId;
+  return slot?.workCenterId || "";
 }
 
 function getSlotGanttResourceId(slot) {
   if (!slot) return "";
+  const ganttWorkCenterId = mapLegacyWorkCenterId(getSlotGanttWorkCenterId(slot) || slot.workCenterId || "");
+  if (MES_SMT_WORK_CENTER_IDS.includes(ganttWorkCenterId) && getProductionResource(ganttWorkCenterId)) {
+    return ganttWorkCenterId;
+  }
+
   const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
   const explicitResourceId = slot.resourceId || step?.resourceId || "";
   const explicitResource = explicitResourceId ? getProductionResource(explicitResourceId) : null;
-  if (explicitResource && getProductionResourceWorkCenterId(explicitResource) === slot.workCenterId) {
+  if (explicitResource && getProductionResourceWorkCenterId(explicitResource) === ganttWorkCenterId) {
     return explicitResource.id;
   }
 
-  if (slot.workCenterId === "smt") {
+  if (ganttWorkCenterId === "smt" || ganttWorkCenterId === "D3") {
     const lineId = getSlotAssignedSmtLineId(slot);
     if (lineId) return lineId;
   }
 
-  const fallback = getResourcesForWorkCenter(slot.workCenterId)[0] || makeFallbackProductionResource(slot.workCenterId);
+  const fallback = getResourcesForWorkCenter(ganttWorkCenterId || slot.workCenterId)[0] || makeFallbackProductionResource(ganttWorkCenterId || slot.workCenterId);
   return fallback.id;
+}
+
+function getGanttResourceForSlot(slot, resourceId = "") {
+  if (!slot) return null;
+  const resolvedResourceId = resourceId || getSlotGanttResourceId(slot);
+  const ganttWorkCenterId = getSlotGanttWorkCenterId(slot) || slot.workCenterId;
+  return getProductionResource(resolvedResourceId)
+    || getResourcesForWorkCenter(ganttWorkCenterId).find((resource) => resource.id === resolvedResourceId)
+    || makeFallbackProductionResource(ganttWorkCenterId);
 }
 
 function getResourceRowId(routeId, workCenterId, resourceId) {
@@ -6650,16 +12136,28 @@ function applyGanttRowToSlot(slot, row) {
   if (row.type === "operation") {
     const step = row.routeStep || planningState.routeSteps.find((item) => item.id === row.routeStepId);
     if (!step) return;
+    const assignment = getRouteStepPlanningAssignmentForSlot(step, slot, {
+      state: planningState,
+      quantity: slot.quantity || 1,
+      readyAt: slot.plannedStart || null,
+      ignoreSlotId: slot.id || null,
+    });
+    const planningWorkCenterId = assignment?.workCenterId || slot.workCenterId || step.workCenterId;
+    const resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(step, planningWorkCenterId, step.resourceId || slot.resourceId || "");
+    const route = getRouteForStep(step);
+    const operationContext = getRouteStepEffectiveOperationContext(route, step, planningWorkCenterId, resourceId);
     slot.routeStepId = step.id;
-    slot.workCenterId = step.workCenterId;
+    slot.routeWorkCenterId = step.workCenterId;
+    slot.workCenterId = planningWorkCenterId;
+    slot.operationId = step.operationId || "";
     slot.operationName = step.operationName || getOperationMapItem(step.operationId)?.name || slot.operationName || "Операция";
     slot.unitsPerHour = Number(step.unitsPerHour || slot.unitsPerHour || 0) || undefined;
-    slot.boardsPerPanel = getRouteStepBoardsPerPanel(step);
-    slot.resourceId = step.resourceId || "";
-    slot.calculationType = step.calculationType || slot.calculationType || "";
+    slot.boardsPerPanel = operationContext.boardsPerPanel;
+    slot.resourceId = resourceId;
+    slot.calculationType = step.calculationType || getDefaultOperationCalculationType(planningWorkCenterId, operationContext) || slot.calculationType || "";
     slot.secondsPerPanel = Number(step.secondsPerPanel || slot.secondsPerPanel || 0);
     slot.setupMin = Number(step.setupMin || slot.setupMin || 0);
-    slot.bomListId = step.bomListId || slot.bomListId || "";
+    slot.bomListId = operationContext.bomListId || slot.bomListId || "";
     return;
   }
 
@@ -6701,10 +12199,32 @@ function formatCalculatorNumber(value, digits = 1) {
   return rounded.toLocaleString("ru-RU", { maximumFractionDigits: digits });
 }
 
+function formatInputNumber(value, digits = 3) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return "";
+  return String(Math.round(number * 10 ** digits) / 10 ** digits);
+}
+
+function formatCoefficientInputNumber(value) {
+  const coefficient = normalizeSmtPackageCoefficientValue(value);
+  return coefficient === null ? "" : coefficient.toFixed(2);
+}
+
 function formatSecondsDuration(seconds) {
-  const ms = Math.max(0, Number(seconds || 0) * 1000);
-  if (ms < 60 * 1000) return `${formatCalculatorNumber(ms / 1000, 1)} сек`;
-  return formatDuration(ms);
+  return `${formatCalculatorNumber(Math.max(0, Number(seconds || 0)), 1)} сек`;
+}
+
+function formatSmtBalancerTime(seconds) {
+  const formatted = formatSecondsDuration(seconds);
+  return formatted === "0 сек" ? "-" : formatted;
+}
+
+function getSmtBalancerPositionLabel(row = {}) {
+  const directDesignator = String(row.designator || "").trim();
+  if (directDesignator) return directDesignator;
+  const caption = String(row.caption || "").trim();
+  const positionMatch = caption.match(/Поз\.:\s*([^·]+)/i);
+  return positionMatch?.[1]?.trim() || "";
 }
 
 function getActiveProjectForModule() {
@@ -6755,35 +12275,20 @@ function getSpecificationProductionCustomer(specification) {
   return specification?.customer || project?.customer || "";
 }
 
-function ensureSpecificationPlanningUnit(specification, options = {}) {
-  const includeRoute = options.includeRoute !== false;
+function ensureSpecificationPlanningUnit(specification) {
   const stamp = new Date().toISOString();
   const quantity = normalizeOptionalPositiveInteger(specification.productionQuantity) || 1;
-  const dueDate = specification.dueDate || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000));
   const status = PROJECT_STATUSES.includes(specification.productionStatus) ? specification.productionStatus : "planned";
   const name = getSpecificationProductionName(specification);
   const specificationId = specification.id || makeId("spec");
   const existingRoute = (planningState.routes || []).find((route) => route.specificationId === specificationId || route.projectId === specificationId);
-  const bundle = createProductionBundle({
-    specificationId,
-    name,
-    orderNumber: specification.orderNumber || "",
-    customer: specification.customer || "",
-    totalQuantity: quantity,
-    dueDate,
-    status,
-  });
 
-  if (!includeRoute && !existingRoute) {
-    planningState.projects = [];
-    planningState = normalizePlanningState(planningState);
-    persistState();
-    return specificationId;
-  }
+  if (!existingRoute) return specificationId;
 
-  planningState.batches = (planningState.batches || []).some((batch) => batch.routeId === (existingRoute?.id || bundle.route.id))
-    ? planningState.batches.map((batch) => batch.routeId === (existingRoute?.id || bundle.route.id) ? {
+  planningState.batches = (planningState.batches || []).some((batch) => batch.routeId === existingRoute.id)
+    ? planningState.batches.map((batch) => batch.routeId === existingRoute.id ? {
         ...batch,
+        routeId: existingRoute.id,
         specificationId,
         projectId: specificationId,
         quantity,
@@ -6791,22 +12296,24 @@ function ensureSpecificationPlanningUnit(specification, options = {}) {
         updatedAt: stamp,
       } : batch)
     : [...planningState.batches, {
-        ...bundle.batch,
-        routeId: existingRoute?.id || bundle.route.id,
+        id: `b-${existingRoute.id}-1`,
+        routeId: existingRoute.id,
+        specificationId,
+        projectId: specificationId,
+        batchNumber: "1",
+        quantity,
+        status,
+        createdAt: stamp,
+        updatedAt: stamp,
       }];
 
-  if (includeRoute && !existingRoute) {
-    planningState.routes = [...planningState.routes, bundle.route];
-    planningState.routeSteps = [...planningState.routeSteps, ...bundle.routeSteps];
-  } else if (existingRoute) {
-    planningState.routes = planningState.routes.map((route) => route.id === existingRoute.id ? {
-      ...route,
-      specificationId,
-      specificationName: specification.name || name,
-      projectId: specificationId,
-      updatedAt: stamp,
-    } : route);
-  }
+  planningState.routes = planningState.routes.map((route) => route.id === existingRoute.id ? {
+    ...route,
+    specificationId,
+    specificationName: specification.name || name,
+    projectId: specificationId,
+    updatedAt: stamp,
+  } : route);
   planningState.projects = [];
   planningState = normalizePlanningState(planningState);
   persistState();
@@ -6918,7 +12425,7 @@ function renderShopFloorMapPage() {
   const locatedResources = resources.filter((resource) => getProductionResourceWorkCenterId(resource));
   const sideLayers = [
     { title: "SVG-план", note: `${SHOP_FLOOR_PLAN_META.source} · ${SHOP_FLOOR_PLAN_META.viewBox}`, count: "1" },
-    { title: "Подразделения", note: "виджеты из текущего справочника", count: widgets.length },
+    { title: "Отделы", note: "виджеты из текущего справочника", count: widgets.length },
     { title: "Ресурсы", note: "линии, станки, посты и оборудование", count: resources.length },
     { title: "Операции", note: "только счетчики по справочнику операций", count: operations.length },
   ];
@@ -6952,7 +12459,7 @@ function renderShopFloorMapPage() {
         <header class="directory-header">
           <div>
             <span class="eyebrow">SVG-подложка и координаты виджетов</span>
-            <h2>Расстановка подразделений и производственных ресурсов</h2>
+            <h2>Расстановка отделов и производственных ресурсов</h2>
             <p>В режиме редактирования виджеты можно двигать по SVG. Новые координаты попадут в систему только после сохранения.</p>
           </div>
           <div class="shop-map-readonly-badge">
@@ -6980,7 +12487,7 @@ function renderShopFloorMapPage() {
             <div class="shop-map-canvas-frame">
               <div class="shop-map-canvas-inner" data-shop-map-canvas>
                 <img class="shop-map-svg" src="${SHOP_FLOOR_PLAN_ASSET}" alt="SVG-план производственной зоны" />
-                <div class="shop-map-overlay" aria-label="Виджеты подразделений">
+                <div class="shop-map-overlay" aria-label="Виджеты отделов">
                   ${widgets.map((widget) => `
                     <button
                       type="button"
@@ -6989,7 +12496,7 @@ function renderShopFloorMapPage() {
                       data-shop-map-x="${Number(widget.layout.x)}"
                       data-shop-map-y="${Number(widget.layout.y)}"
                       data-shop-map-draggable="${isEditing ? "true" : "false"}"
-                      aria-label="${isEditing ? "Переместить виджет подразделения" : "Открыть карточку подразделения"} ${escapeAttribute(widget.center.name)}"
+                      aria-label="${isEditing ? "Переместить виджет отдела" : "Открыть карточку отдела"} ${escapeAttribute(widget.center.name)}"
                       title="${escapeAttribute(widget.center.name)}"
                       style="--shop-map-x: ${Number(widget.layout.x)}%; --shop-map-y: ${Number(widget.layout.y)}%;"
                     >
@@ -7015,7 +12522,7 @@ function renderShopFloorMapPage() {
                   <thead>
                     <tr>
                       <th>Ресурс</th>
-                      <th>Подразделение</th>
+                      <th>Отдел</th>
                       <th>Тип</th>
                       <th>План</th>
                       <th>Расчет</th>
@@ -7050,7 +12557,7 @@ function renderShopFloorMapPage() {
 
           <section class="module-panel shop-map-overview-panel">
             <article>
-              <span>Подразделения</span>
+              <span>Отделы</span>
               <strong>${widgets.length.toLocaleString("ru-RU")}</strong>
               <small>выведены на карту</small>
             </article>
@@ -7067,7 +12574,7 @@ function renderShopFloorMapPage() {
             <article>
               <span>Привязка</span>
               <strong>${locatedResources.length.toLocaleString("ru-RU")}</strong>
-              <small>ресурсов с подразделением</small>
+              <small>ресурсов с отделом</small>
             </article>
           </section>
 
@@ -7079,7 +12586,7 @@ function renderShopFloorMapPage() {
             <div class="shop-map-next-grid">
               <article><b>Координаты SVG</b><span>позиции хранятся в процентах от области плана и не съезжают при масштабировании.</span></article>
               <article><b>Только после сохранения</b><span>перетаскивание меняет черновик, а не сохраненный слой.</span></article>
-              <article><b>Без новых связей</b><span>виджет остается визуальным отображением подразделения из справочника.</span></article>
+              <article><b>Без новых связей</b><span>виджет остается визуальным отображением отдела из справочника.</span></article>
             </div>
           </section>
         </div>
@@ -7092,16 +12599,16 @@ function renderShopMapWidgetModal() {
   if (!ui.activeShopMapWidgetId) return "";
   const widget = getShopFloorWidgets().find((item) => item.center.id === ui.activeShopMapWidgetId);
   if (!widget) return "";
-  const typeLabel = UNIT_TYPE_LABELS[widget.center.unitType] || widget.center.unitType || "Подразделение";
+  const typeLabel = UNIT_TYPE_LABELS[widget.center.unitType] || widget.center.unitType || "Отдел";
   const resources = widget.resources || [];
   const operations = widget.operations || [];
   const activeResources = resources.filter((resource) => !["Отключен", "inactive"].includes(resource.status));
   return `
     <div class="modal-backdrop shop-map-widget-backdrop" data-shop-map-widget-backdrop>
-      <section class="modal large-modal form-modal shop-map-widget-modal" role="dialog" aria-modal="true" aria-label="Карточка подразделения ${escapeAttribute(widget.center.name)}">
+      <section class="modal large-modal form-modal shop-map-widget-modal" role="dialog" aria-modal="true" aria-label="Карточка отдела ${escapeAttribute(widget.center.name)}">
         <div class="modal-header">
           <div>
-            <span class="eyebrow">Карта цеха · Виджет подразделения</span>
+            <span class="eyebrow">Карта цеха · Виджет отдела</span>
             <h2>${escapeHtml(widget.center.name)}</h2>
           </div>
           <button class="icon-button" data-shop-map-widget-close type="button" title="Закрыть">${icon("close")}</button>
@@ -7129,7 +12636,7 @@ function renderShopMapWidgetModal() {
           <section class="shop-map-modal-section">
             <div class="report-card-head">
               <strong>Производственные ресурсы</strong>
-              <span>линии, посты и оборудование, привязанные к подразделению</span>
+              <span>линии, посты и оборудование, привязанные к отделу</span>
             </div>
             ${resources.length ? `
               <div class="shop-map-modal-list">
@@ -7154,7 +12661,7 @@ function renderShopMapWidgetModal() {
 
           <section class="shop-map-modal-section">
             <div class="report-card-head">
-              <strong>Операции подразделения</strong>
+              <strong>Операции отдела</strong>
               <span>операции из справочника операций</span>
             </div>
             ${operations.length ? `
@@ -7173,7 +12680,7 @@ function renderShopMapWidgetModal() {
               <div class="module-preview-empty shop-map-modal-empty">
                 ${icon("route")}
                 <strong>Операции не заданы</strong>
-                <span>Заполните справочник операций с привязкой к этому подразделению.</span>
+                <span>Заполните справочник операций с привязкой к этому отделу.</span>
               </div>
             `}
           </section>
@@ -7188,11 +12695,10 @@ function renderShopMapWidgetModal() {
 
 function getRkdSteps() {
   return [
-    { id: "kit", title: "Комплект РКД", note: "документы и карточка" },
-    { id: "composition", title: PRODUCT_COMPOSITION_TERM, note: "структура изделия" },
-    { id: "boardSpecs", title: BOARD_SPEC_LIST_TERM, note: "печатные платы" },
-    { id: "readiness", title: "Проверка комплектности", note: "что готово к технологии" },
-    { id: "handoff", title: "Передача в технологию", note: "переход к маршрутам" },
+    { id: "kit", title: "Карточка", note: "общие данные" },
+    { id: "boards", title: "Платы", note: "состав и BOM" },
+    { id: "files", title: "Файлы", note: "документы РКД" },
+    { id: "readiness", title: "Комплектность", note: "проверка без автосоздания" },
   ];
 }
 
@@ -7201,45 +12707,298 @@ function normalizeRkdStepId(value) {
   return getRkdSteps().some((step) => step.id === stepId) ? stepId : "kit";
 }
 
-function getRkdContext() {
-  const documentItems = [
-    { group: "Электроника", name: "Схема электрическая принципиальная", source: "ECAD / PDF", required: "Да" },
-    { group: "Плата", name: "Файлы печатной платы и сборочные данные", source: "Gerber / ODB++ / Pick&Place", required: "Да" },
-    { group: "Сборка", name: "Чертеж или инструкция сборки", source: "PDF / DOCX", required: "Да" },
-    { group: "Компоненты", name: "Спецификация как источник компонентного состава", source: "XLSX", required: "Да" },
-    { group: "ПО", name: "Файлы прошивки или программа подготовки", source: "HEX / BIN / архив", required: "По изделию" },
-    { group: "Контроль", name: "Методика контроля и испытаний", source: "PDF / инструкция", required: "Да" },
-    { group: "Механика", name: "Механические чертежи, корпус, кабели", source: "STEP / PDF / DWG", required: "По изделию" },
-    { group: "Выпуск", name: "Маркировка, этикетка, упаковка", source: "PDF / шаблон", required: "По изделию" },
-  ];
-  const readinessItems = [
-    { title: "Комплектность", text: "все обязательные документы приложены или явно отмечены как не требуются" },
-    { title: "Привязка", text: `понятно, к какой номенклатуре или ${PRODUCT_COMPOSITION_TERM_LOWER} относится комплект` },
-    { title: "Актуальность", text: `файлы не устарели относительно ${BOARD_SPEC_TERM_LOWER} и состава изделия` },
-    { title: "Технологичность", text: "у технолога достаточно данных для маршрутной карты и нормирования" },
-  ];
-  const contractRows = [
-    { field: "Название комплекта", owner: "Пользователь", rule: "обязательное поле" },
-    { field: "Связанный объект", owner: "Пользователь", rule: "только после согласования модели связи" },
-    { field: "Документы РКД", owner: "Пользователь", rule: "таблица файлов или ссылок" },
-    { field: "Примечание", owner: "Пользователь", rule: "не влияет на расчеты" },
-  ];
-  const validationQuestions = [
-    `РКД связываем с номенклатурой, ${PRODUCT_COMPOSITION_TERM_LOWER} или обоими объектами?`,
-    "Какие документы обязательны для запуска в производство?",
-    "Нужно ли хранить сами файлы в системе или только ссылки на хранилище?",
-    "Нужен ли отдельный признак полноты комплекта перед созданием маршрутной карты?",
-    "Кто подтверждает готовность РКД: технолог, конструктор, ОТК или директор производства?",
-  ];
+function getRkdKits() {
+  return (directoryState.rkdKits || [])
+    .map((row, index) => normalizeDirectoryRow("rkdKits", { ...row, sortOrder: row.sortOrder || index + 1 }))
+    .sort((left, right) => String(left.number || left.name || "").localeCompare(String(right.number || right.name || ""), "ru", { numeric: true }));
+}
 
-  return { documentItems, readinessItems, contractRows, validationQuestions };
+function getRkdKitById(rkdId) {
+  return getRkdKits().find((rkd) => rkd.id === rkdId) || null;
+}
+
+function getActiveRkdKit() {
+  if (ui.activeRkdId === "__new__") return null;
+  return getRkdKitById(ui.activeRkdId) || getRkdKits()[0] || null;
+}
+
+function getRkdBoardLink(rkdId, boardLinkId) {
+  const rkd = getRkdKitById(rkdId);
+  return rkd?.boardLinks.find((board) => board.id === boardLinkId) || null;
+}
+
+function getRkdPcbNomenclatureItems() {
+  return (directoryState.nomenclature || [])
+    .filter((item) => normalizeNomenclatureType(item.type) === "Печатные платы" || item.sourceBomResultId)
+    .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru"));
+}
+
+function getRkdNomenclatureLabel(itemId, fallback = "Не выбрано") {
+  const item = getNomenclatureItem(itemId);
+  return item?.name || fallback;
+}
+
+function getRkdBoardLabel(board) {
+  return getRkdNomenclatureLabel(board?.boardNomenclatureItemId, board?.designation || "Плата не выбрана");
+}
+
+function getRkdRoute(routeId) {
+  if (!routeId) return null;
+  return (planningState.routes || []).find((route) => route.id === routeId) || null;
+}
+
+function getRkdBoardFiles(rkd, boardLinkId) {
+  return (rkd?.fileLinks || []).filter((file) => String(file.boardLinkId || "") === String(boardLinkId || ""));
+}
+
+function getRouteRkdContext(route = null) {
+  if (!RKD_SERVICE_ENABLED) return null;
+  const rkdId = route?.rkdId || "";
+  const boardLinkId = route?.rkdBoardLinkId || "";
+  if (!rkdId || !boardLinkId) return null;
+  const rkd = getRkdKitById(rkdId);
+  const board = rkd?.boardLinks.find((item) => item.id === boardLinkId) || null;
+  if (!rkd || !board) return null;
+  return { rkd, board };
+}
+
+function getRkdBoardCalculationSummary(board) {
+  const route = getRkdRoute(board?.routeMapId);
+  if (!route) {
+    return { state: "missing", label: "Расчет не выполнен", details: "Маршрут не создан" };
+  }
+  const steps = getRouteStepsForModule(route.id);
+  const calculatedSteps = steps.filter((step) => (
+    Number(step.unitsPerHour || 0) > 0
+    || Number(step.secondsPerPanel || 0) > 0
+    || step.machineCoefficients
+    || step.machineSplit
+  ));
+  if (!calculatedSteps.length) {
+    return { state: "missing", label: "Расчет не выполнен", details: "В маршруте нет расчетных операций" };
+  }
+  const rates = calculatedSteps.map((step) => Number(step.unitsPerHour || 0)).filter((value) => value > 0);
+  const slowestRate = rates.length ? Math.min(...rates) : 0;
+  const date = calculatedSteps
+    .map((step) => step.updatedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1) || "";
+  return {
+    state: "ready",
+    label: slowestRate ? `${formatCalculatorNumber(slowestRate, 1)} изд./ч` : "Расчет сохранен",
+    details: date ? `обновлен ${formatDate(date)}` : `${calculatedSteps.length} расчетных операций`,
+  };
+}
+
+function getRkdReadiness(rkd) {
+  const issues = [];
+  const warnings = [];
+  if (!rkd) {
+    return { issues: ["РКД не выбрано."], warnings: [], state: "blocked" };
+  }
+  if (!rkd.nomenclatureItemId || !getNomenclatureItem(rkd.nomenclatureItemId)) issues.push("Изделие не выбрано.");
+  if (!rkd.boardLinks.length) issues.push("Платы не добавлены.");
+  if (!rkd.fileLinks.length) warnings.push("Файлы РКД не загружены.");
+
+  rkd.boardLinks.forEach((board, index) => {
+    const label = getRkdBoardLabel(board) || `Строка ${index + 1}`;
+    if (!board.boardNomenclatureItemId || !getNomenclatureItem(board.boardNomenclatureItemId)) issues.push(`Для строки ${index + 1} плата не выбрана.`);
+    if (!board.bomListId || !getBomList(board.bomListId)) issues.push(`Для платы ${label} BOM не привязан.`);
+    if (!board.routeMapId || !getRkdRoute(board.routeMapId)) issues.push(`Для платы ${label} маршрут не создан.`);
+    if (!board.mountingSide) warnings.push(`Для платы ${label} сторона монтажа не указана.`);
+    if (!board.mountingType) warnings.push(`Для платы ${label} тип монтажа не указан.`);
+    if (!getRkdBoardFiles(rkd, board.id).length) warnings.push(`Для платы ${label} файлы не привязаны.`);
+    const route = getRkdRoute(board.routeMapId);
+    if (route && !getRkdBoardCalculationSummary(board).state.includes("ready")) warnings.push(`Для платы ${label} расчет производительности не выполнен.`);
+    if (route && !(route.specificationId || route.projectId || board.productionSpecificationId || rkd.productSpecificationId)) {
+      warnings.push(`Для платы ${label} не выбран состав изделия для планирования.`);
+    }
+  });
+
+  return {
+    issues,
+    warnings,
+    state: issues.length ? "blocked" : warnings.length ? "warning" : "ready",
+  };
+}
+
+function getRkdCompletenessLabel(rkd) {
+  const readiness = getRkdReadiness(rkd);
+  if (readiness.state === "ready") return { label: "Комплектно", tone: "ok" };
+  if (readiness.state === "warning") return { label: "Есть замечания", tone: "warning" };
+  return { label: "Не комплектно", tone: "critical" };
+}
+
+function renderRkdStatusPill(text, tone = "neutral") {
+  return `<span class="rkd-status-pill is-${escapeAttribute(tone)}">${escapeHtml(text || "Не указано")}</span>`;
+}
+
+function renderRkdRouteLabel(route) {
+  if (!route) return "Маршрут не создан";
+  return route.name || route.specificationName || "Маршрутная карта";
+}
+
+function renderRkdUxOnlyStepContent(stepId) {
+  switch (normalizeRkdStepId(stepId)) {
+    case "boards":
+      return `
+        <section class="module-panel">
+          <div class="report-card-head">
+            <strong>Состав РКД</strong>
+            <span>UX-макет состава плат, BOM и маршрутов</span>
+          </div>
+          <div class="rkd-summary-grid">
+            <article class="is-warning"><span>Платы</span><strong>0</strong><small>Платы не добавлены</small></article>
+            <article class="is-warning"><span>BOM</span><strong>0</strong><small>BOM не привязан</small></article>
+            <article class="is-warning"><span>Маршруты</span><strong>0</strong><small>Маршрут не создан</small></article>
+          </div>
+          ${renderRkdEmptyPanel("Состав не используется", "РКД отключено от рабочего процесса. Добавляйте BOM в модуле «Платы» и связывайте его с маршрутной картой напрямую.")}
+        </section>
+      `;
+    case "files":
+      return `
+        <section class="module-panel">
+          <div class="report-card-head">
+            <strong>Файлы РКД</strong>
+            <span>UX-макет комплекта документации</span>
+          </div>
+          ${renderRkdEmptyPanel("Файлы не загружены", "Хранение и привязка файлов РКД отключены. Это только экранный макет будущего интерфейса.")}
+        </section>
+      `;
+    case "readiness":
+      return `
+        <section class="rkd-summary-grid">
+          <article class="is-warning"><span>Изделие</span><strong>не выбрано</strong><small>UX-макет</small></article>
+          <article class="is-warning"><span>Платы</span><strong>0</strong><small>Платы не добавлены</small></article>
+          <article class="is-warning"><span>BOM</span><strong>0</strong><small>BOM не привязан</small></article>
+          <article class="is-warning"><span>Маршруты</span><strong>0</strong><small>Маршрут не создан</small></article>
+        </section>
+        <section class="module-panel">
+          <div class="report-card-head">
+            <strong>Проверка комплектности</strong>
+            <span>read-only UX без влияния на планирование</span>
+          </div>
+          <div class="rkd-readiness-lists">
+            <article class="is-warning">
+              ${icon("info")}
+              <strong>РКД отключено</strong>
+              <span>Рабочий маршрут сервиса сейчас идет через номенклатуру, BOM, маршрутную карту, планирование и Гант.</span>
+            </article>
+          </div>
+        </section>
+      `;
+    case "kit":
+    default:
+      return `
+        <section class="module-panel">
+          <div class="report-card-head">
+            <strong>Карточка РКД</strong>
+            <span>отключенный UX-макет без сохранения данных</span>
+          </div>
+          <div class="module-form rkd-form">
+            <label class="form-field"><span>Номер РКД</span><input value="" placeholder="Не указано" disabled /></label>
+            <label class="form-field"><span>Наименование</span><input value="" placeholder="Наименование РКД" disabled /></label>
+            <label class="form-field"><span>Изделие из номенклатуры</span><input value="Изделие не выбрано" disabled /></label>
+            <label class="form-field"><span>Состав изделия для планирования</span><input value="Не выбран" disabled /></label>
+            <label class="form-field"><span>Тип РКД</span><input value="" placeholder="Не указано" disabled /></label>
+            <label class="form-field"><span>Ревизия</span><input value="" placeholder="Не указано" disabled /></label>
+            <label class="form-field"><span>Статус</span><input value="UX-макет отключен" disabled /></label>
+            <label class="form-field"><span>Ответственный</span><input value="" placeholder="Не указан" disabled /></label>
+            <label class="form-field full"><span>Технические требования</span><textarea rows="4" placeholder="Не указано" disabled></textarea></label>
+            <label class="form-field full"><span>Комментарий</span><textarea rows="3" placeholder="Комментарий" disabled></textarea></label>
+            <div class="module-form-actions full">
+              <button class="primary-button" type="button" disabled>${icon("save")}<span>Сохранение отключено</span></button>
+              <button class="secondary-button" type="button" disabled>${icon("plus")}<span>Создание отключено</span></button>
+            </div>
+          </div>
+        </section>
+        <section class="rkd-summary-grid">
+          <article class="is-warning"><span>Изделие</span><strong>не выбрано</strong><small>UX-макет</small></article>
+          <article class="is-warning"><span>Платы</span><strong>0</strong><small>Платы не добавлены</small></article>
+          <article class="is-warning"><span>Проблемы</span><strong>-</strong><small>Сервис РКД отключен</small></article>
+        </section>
+      `;
+  }
+}
+
+function renderRkdUxOnlyPage() {
+  const rkdSteps = getRkdSteps();
+  const activeStepId = normalizeRkdStepId(ui.activeRkdStep);
+
+  return `
+    <section class="rkd-page module-data-page is-ux-only" data-layout="main-content" aria-label="РКД">
+      <aside class="directory-sidebar module-data-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">UX-макет</span>
+          <h1>РКД</h1>
+          <p>Модуль отключен от рабочего процесса и оставлен только как отрисованный интерфейс.</p>
+        </div>
+        <div class="module-sidebar-actions">
+          <button class="primary-button" type="button" disabled>${icon("plus")}<span>Новая РКД</span></button>
+        </div>
+        <div class="module-entity-list">
+          <div class="module-list-label">Реестр РКД</div>
+          <div class="module-preview-empty compact">
+            ${icon("document")}
+            <strong>РКД отключено</strong>
+            <span>Рабочие данные здесь не создаются и не используются.</span>
+          </div>
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
+        <header class="directory-header">
+          <div>
+            <span class="eyebrow">Рабочая конструкторская документация</span>
+            <h2>РКД · UX-макет</h2>
+            <p>Экран оставлен для визуальной проработки. Производственный поток идет без РКД.</p>
+          </div>
+          <div class="directory-actions">
+            ${renderRkdStatusPill("UX-only", "warning")}
+          </div>
+        </header>
+
+        <div class="module-data-content rkd-module-content">
+          <nav class="rkd-tab-list" aria-label="Разделы РКД">
+            ${rkdSteps.map((section, index) => `
+              <button class="rkd-tab ${section.id === activeStepId ? "is-active" : ""}" data-rkd-step="${escapeAttribute(section.id)}" type="button">
+                <em>${String(index + 1).padStart(2, "0")}</em>
+                <span><strong>${escapeHtml(section.title)}</strong><small>${escapeHtml(section.note)}</small></span>
+              </button>
+            `).join("")}
+          </nav>
+          ${renderRkdUxOnlyStepContent(activeStepId)}
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 function renderRkdPage() {
+  if (!RKD_SERVICE_ENABLED) return renderRkdUxOnlyPage();
   const rkdSteps = getRkdSteps();
   const activeStepId = normalizeRkdStepId(ui.activeRkdStep);
   const activeStep = rkdSteps.find((step) => step.id === activeStepId) || rkdSteps[0];
-  const rkdContext = getRkdContext();
+  const rkdKits = getRkdKits();
+  const isNewRkd = ui.activeRkdId === "__new__";
+  const activeRkd = isNewRkd ? null : getActiveRkdKit();
+  const previewRkd = activeRkd || (isNewRkd ? {
+    id: "",
+    number: "",
+    name: "",
+    type: "",
+    revision: "",
+    status: "Черновик",
+    nomenclatureItemId: "",
+    productSpecificationId: "",
+    responsibleUserId: "",
+    technicalRequirements: "",
+    comment: "",
+    boardLinks: [],
+    fileLinks: [],
+  } : null);
+  const completeness = previewRkd ? getRkdCompletenessLabel(previewRkd) : { label: "РКД не выбрано", tone: "neutral" };
 
   return `
     <section class="rkd-page module-data-page" data-layout="main-content" aria-label="РКД">
@@ -7248,17 +13007,29 @@ function renderRkdPage() {
           <span class="eyebrow">Технологии</span>
           <h1>РКД</h1>
         </div>
+        <div class="module-sidebar-actions">
+          <button class="primary-button" data-rkd-create type="button">${icon("plus")}<span>Новая РКД</span></button>
+        </div>
         <div class="module-entity-list">
-          <div class="module-list-label">Линейный процесс</div>
-          ${rkdSteps.map((section, index) => `
-            <button class="module-entity-item rkd-step-item ${section.id === activeStepId ? "is-active" : ""}" data-rkd-step="${escapeAttribute(section.id)}" type="button">
-              <em>${String(index + 1).padStart(2, "0")}</em>
+          <div class="module-list-label">Реестр РКД</div>
+          ${isNewRkd ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая РКД</strong><small>карточка еще не сохранена</small></span><em>new</em></button>` : ""}
+          ${rkdKits.length ? rkdKits.map((rkd) => {
+            const state = getRkdCompletenessLabel(rkd);
+            return `
+            <button class="module-entity-item ${rkd.id === activeRkd?.id ? "is-active" : ""}" data-rkd-open="${escapeAttribute(rkd.id)}" type="button">
               <span>
-                <strong>${escapeHtml(section.title)}</strong>
-                <small>${escapeHtml(section.note)}</small>
+                <strong>${escapeHtml(rkd.number || rkd.name || "РКД без номера")}</strong>
+                <small>${escapeHtml(rkd.name || "Наименование не указано")} · ${escapeHtml(state.label)}</small>
               </span>
+              <em>${rkd.boardLinks.length}</em>
             </button>
-          `).join("")}
+          `; }).join("") : `
+            <div class="module-preview-empty compact">
+              ${icon("document")}
+              <strong>РКД пока нет</strong>
+              <span>Создайте карточку РКД. Система не добавляет тестовые комплекты автоматически.</span>
+            </div>
+          `}
         </div>
       </aside>
 
@@ -7266,257 +13037,314 @@ function renderRkdPage() {
         <header class="directory-header">
           <div>
             <span class="eyebrow">Рабочая конструкторская документация</span>
-            <h2>${escapeHtml(activeStep.title)}</h2>
-            <p>РКД ведет пользователя линейно: сначала комплект документов, затем состав изделия, спецификации плат, проверка полноты и только после этого переход к маршрутной карте.</p>
+            <h2>${escapeHtml(isNewRkd ? "Новая РКД" : previewRkd?.name || previewRkd?.number || "РКД не выбрано")}</h2>
+            <p>${escapeHtml(previewRkd ? `${previewRkd.number || "Номер не указан"} · ${previewRkd.status || "Черновик"} · ${completeness.label}` : "Выберите РКД в реестре или создайте новую карточку.")}</p>
+          </div>
+          <div class="directory-actions">
+            ${renderRkdStatusPill(completeness.label, completeness.tone)}
           </div>
         </header>
 
         <div class="module-data-content rkd-module-content">
-          ${renderRkdStepContent(activeStepId, rkdContext)}
+          ${previewRkd ? `
+            <nav class="rkd-tab-list" aria-label="Разделы РКД">
+              ${rkdSteps.map((section, index) => `
+                <button class="rkd-tab ${section.id === activeStepId ? "is-active" : ""}" data-rkd-step="${escapeAttribute(section.id)}" type="button">
+                  <em>${String(index + 1).padStart(2, "0")}</em>
+                  <span><strong>${escapeHtml(section.title)}</strong><small>${escapeHtml(section.note)}</small></span>
+                </button>
+              `).join("")}
+            </nav>
+            ${renderRkdStepContent(activeStepId, previewRkd, { isNewRkd })}
+          ` : renderRkdEmptyPanel("РКД не выбрано", "Создайте карточку или выберите существующую РКД в реестре.")}
         </div>
       </div>
     </section>
   `;
 }
 
-function renderRkdStepContent(stepId, context) {
+function renderRkdStepContent(stepId, rkd, options = {}) {
   switch (normalizeRkdStepId(stepId)) {
-    case "composition":
-      return renderRkdCompositionStep();
-    case "boardSpecs":
-      return renderRkdBoardSpecsStep();
+    case "boards":
+      return renderRkdBoardsStep(rkd, options);
+    case "files":
+      return renderRkdFilesStep(rkd, options);
     case "readiness":
-      return renderRkdReadinessStep(context.readinessItems, context.validationQuestions);
-    case "handoff":
-      return renderRkdHandoffStep();
+      return renderRkdReadinessStep(rkd, options);
     case "kit":
     default:
-      return renderRkdKitStep(context.documentItems, context.contractRows);
+      return renderRkdKitStep(rkd, options);
   }
 }
 
-function renderRkdKitStep(documentItems = [], contractRows = []) {
+function renderRkdEmptyPanel(title, text) {
   return `
-    <section class="module-panel rkd-workspace-panel">
+    <section class="module-panel rkd-empty-panel">
+      ${icon("info")}
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(text)}</span>
+    </section>
+  `;
+}
+
+function renderRkdKitStep(rkd, options = {}) {
+  const productOptions = directoryState.nomenclature || [];
+  const specificationOptions = directoryState.specifications || [];
+  const product = getNomenclatureItem(rkd.nomenclatureItemId);
+  const readiness = getRkdReadiness(rkd);
+  return `
+    <section class="module-panel">
       <div class="report-card-head">
-        <strong>Карточка комплекта РКД</strong>
-        <span>пока без отдельной сущности и скрытых автосвязей</span>
+        <strong>Карточка РКД</strong>
+        <span>сохраняются только поля РКД и ссылки на существующие сущности</span>
       </div>
-      <div class="rkd-workspace-brief">
-        <article>
-          ${icon("document")}
-          <div>
-            <strong>РКД фиксирует комплект документации</strong>
-            <span>Этот шаг собирает документы и инструкции до технологической подготовки. Он не создает операции, маршруты и задания Ганта.</span>
-          </div>
+      <form id="rkdForm" class="module-form rkd-form">
+        <input type="hidden" name="isNew" value="${options.isNewRkd ? "yes" : "no"}" />
+        <input type="hidden" name="rkdId" value="${escapeAttribute(rkd.id || "")}" />
+        <label class="form-field"><span>Номер РКД</span><input name="number" value="${escapeAttribute(rkd.number)}" placeholder="Не указано" /></label>
+        <label class="form-field"><span>Наименование</span><input name="name" value="${escapeAttribute(rkd.name)}" placeholder="Наименование РКД" /></label>
+        <label class="form-field">
+          <span>Изделие из номенклатуры</span>
+          <select name="nomenclatureItemId">
+            <option value="" ${selected(rkd.nomenclatureItemId, "")}>Изделие не выбрано</option>
+            ${productOptions.map((item) => `<option value="${escapeAttribute(item.id)}" ${selected(rkd.nomenclatureItemId, item.id)}>${escapeHtml(item.name || "Позиция без названия")} · ${escapeHtml(normalizeNomenclatureType(item.type))}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field">
+          <span>Состав изделия для планирования</span>
+          <select name="productSpecificationId">
+            <option value="" ${selected(rkd.productSpecificationId, "")}>Не выбран</option>
+            ${specificationOptions.map((item) => `<option value="${escapeAttribute(item.id)}" ${selected(rkd.productSpecificationId, item.id)}>${escapeHtml(item.name || "Состав изделия без названия")}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field"><span>Тип РКД</span><input name="type" value="${escapeAttribute(rkd.type)}" placeholder="Не указано" /></label>
+        <label class="form-field"><span>Ревизия</span><input name="revision" value="${escapeAttribute(rkd.revision)}" placeholder="Не указано" /></label>
+        <label class="form-field">
+          <span>Статус</span>
+          <select name="status">
+            ${RKD_STATUSES.map((status) => `<option value="${escapeAttribute(status)}" ${selected(rkd.status, status)}>${escapeHtml(status)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field"><span>Ответственный</span><input name="responsibleUserId" value="${escapeAttribute(rkd.responsibleUserId)}" placeholder="Не указан" /></label>
+        <label class="form-field full"><span>Технические требования</span><textarea name="technicalRequirements" rows="4" placeholder="Не указано">${escapeHtml(rkd.technicalRequirements)}</textarea></label>
+        <label class="form-field full"><span>Комментарий</span><textarea name="comment" rows="3" placeholder="Комментарий">${escapeHtml(rkd.comment)}</textarea></label>
+        <div class="module-form-actions full">
+          <button class="primary-button" type="submit">${icon("save")}<span>${options.isNewRkd ? "Создать РКД" : "Сохранить РКД"}</span></button>
+          ${options.isNewRkd ? "" : `<button class="secondary-button danger" data-rkd-delete="${escapeAttribute(rkd.id)}" type="button">${icon("trash")}<span>Удалить РКД</span></button>`}
+          <button class="secondary-button" data-rkd-open-nomenclature-create type="button">${icon("plus")}<span>Создать в номенклатуре</span></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="rkd-summary-grid">
+      <article class="${product ? "is-ok" : "is-warning"}"><span>Изделие</span><strong>${escapeHtml(product?.name || "Не выбрано")}</strong><small>${escapeHtml(product?.article || product?.type || "Выберите из номенклатуры")}</small></article>
+      <article class="${rkd.boardLinks.length ? "is-ok" : "is-warning"}"><span>Платы</span><strong>${rkd.boardLinks.length}</strong><small>${rkd.boardLinks.length ? "добавлены в состав РКД" : "Платы не добавлены"}</small></article>
+      <article class="${readiness.issues.length ? "is-warning" : "is-ok"}"><span>Проблемы</span><strong>${readiness.issues.length}</strong><small>${readiness.issues[0] || "Критичных проблем нет"}</small></article>
+      <article class="${readiness.warnings.length ? "is-warning" : "is-ok"}"><span>Замечания</span><strong>${readiness.warnings.length}</strong><small>${readiness.warnings[0] || "Замечаний нет"}</small></article>
+    </section>
+  `;
+}
+
+function renderRkdBoardsStep(rkd, options = {}) {
+  if (options.isNewRkd || !rkd.id) {
+    return renderRkdEmptyPanel("Сначала сохраните карточку РКД", "Платы можно добавлять только к существующей РКД. Черновая строка не сохраняется как объект.");
+  }
+  const boardOptions = getRkdPcbNomenclatureItems();
+  const bomOptions = directoryState.bomLists || [];
+  const specificationOptions = directoryState.specifications || [];
+  const routeOptions = planningState.routes || [];
+  return `
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Добавить плату</strong>
+        <span>выберите существующую плату из номенклатуры; если ее нет, создайте ее явным действием</span>
+      </div>
+      <form id="rkdAddBoardForm" class="module-form rkd-add-board-form">
+        <input type="hidden" name="rkdId" value="${escapeAttribute(rkd.id)}" />
+        <label class="form-field full">
+          <span>Плата из номенклатуры</span>
+          <select name="boardNomenclatureItemId">
+            <option value="">Плата не выбрана</option>
+            ${boardOptions.map((item) => `<option value="${escapeAttribute(item.id)}">${escapeHtml(item.name || "Плата без названия")} · ${escapeHtml(item.article || "артикул не указан")}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field"><span>Обозначение</span><input name="designation" placeholder="Не указано" /></label>
+        <label class="form-field"><span>Количество в изделии</span><input name="quantityInProduct" type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
+        <div class="module-form-actions full">
+          <button class="primary-button" type="submit" ${boardOptions.length ? "" : "disabled"}>${icon("plus")}<span>Добавить плату</span></button>
+          <button class="secondary-button" data-rkd-open-nomenclature-create type="button">${icon("plus")}<span>Создать плату в номенклатуре</span></button>
+          <button class="secondary-button" data-rkd-create-all-routes="${escapeAttribute(rkd.id)}" type="button" ${rkd.boardLinks.length ? "" : "disabled"}>${icon("route")}<span>Создать маршруты для всех плат</span></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Состав РКД</strong>
+        <span>каждая плата имеет отдельные связи с BOM, маршрутом и расчетом</span>
+      </div>
+      <div class="rkd-board-card-list">
+        ${rkd.boardLinks.length ? rkd.boardLinks.map((board, index) => {
+          const boardItem = getNomenclatureItem(board.boardNomenclatureItemId);
+          const bom = getBomList(board.bomListId);
+          const route = getRkdRoute(board.routeMapId);
+          const calc = getRkdBoardCalculationSummary(board);
+          const boardFiles = getRkdBoardFiles(rkd, board.id);
+          return `
+            <article class="rkd-board-card">
+              <form class="rkd-board-form" data-rkd-board-form>
+                <input type="hidden" name="rkdId" value="${escapeAttribute(rkd.id)}" />
+                <input type="hidden" name="boardLinkId" value="${escapeAttribute(board.id)}" />
+                <header>
+                  <div>
+                    <span>Плата ${index + 1}</span>
+                    <strong>${escapeHtml(boardItem?.name || board.designation || "Плата не выбрана")}</strong>
+                    <small>${escapeHtml([board.designation, boardItem?.article].filter(Boolean).join(" · ") || "Обозначение не указано")}</small>
+                  </div>
+                  <div class="rkd-card-badges">
+                    ${renderRkdStatusPill(bom ? "BOM привязан" : "BOM не привязан", bom ? "ok" : "warning")}
+                    ${renderRkdStatusPill(route ? "Маршрут создан" : "Маршрут не создан", route ? "ok" : "critical")}
+                  </div>
+                </header>
+                <div class="rkd-board-form-grid">
+                  <label class="form-field">
+                    <span>Плата</span>
+                    <select name="boardNomenclatureItemId">
+                      <option value="" ${selected(board.boardNomenclatureItemId, "")}>Плата не выбрана</option>
+                      ${boardOptions.map((item) => `<option value="${escapeAttribute(item.id)}" ${selected(board.boardNomenclatureItemId, item.id)}>${escapeHtml(item.name || "Плата без названия")}</option>`).join("")}
+                    </select>
+                  </label>
+                  <label class="form-field"><span>Обозначение</span><input name="designation" value="${escapeAttribute(board.designation)}" placeholder="Не указано" /></label>
+                  <label class="form-field"><span>Кол-во</span><input name="quantityInProduct" type="number" inputmode="numeric" min="1" step="1" value="${Number(board.quantityInProduct || 1)}" /></label>
+                  <label class="form-field">
+                    <span>BOM</span>
+                    <select name="bomListId">
+                      <option value="" ${selected(board.bomListId, "")}>BOM не привязан</option>
+                      ${bomOptions.map((item) => `<option value="${escapeAttribute(item.id)}" ${selected(board.bomListId, item.id)}>${escapeHtml(item.name || "Плата без названия")}</option>`).join("")}
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>Состав изделия</span>
+                    <select name="productionSpecificationId">
+                      <option value="" ${selected(board.productionSpecificationId, "")}>Наследовать из РКД / не выбран</option>
+                      ${specificationOptions.map((item) => `<option value="${escapeAttribute(item.id)}" ${selected(board.productionSpecificationId, item.id)}>${escapeHtml(item.name || "Состав изделия без названия")}</option>`).join("")}
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>Маршрут</span>
+                    <select name="routeMapId">
+                      <option value="" ${selected(board.routeMapId, "")}>Маршрут не создан</option>
+                      ${routeOptions.map((item) => `<option value="${escapeAttribute(item.id)}" ${selected(board.routeMapId, item.id)}>${escapeHtml(item.name || "Маршрутная карта")}</option>`).join("")}
+                    </select>
+                  </label>
+                  <label class="form-field"><span>Сторона монтажа</span><input name="mountingSide" value="${escapeAttribute(board.mountingSide)}" placeholder="Не указано" /></label>
+                  <label class="form-field"><span>Тип монтажа</span><input name="mountingType" value="${escapeAttribute(board.mountingType)}" placeholder="Не указано" /></label>
+                  <label class="form-field full"><span>Комментарий</span><input name="comment" value="${escapeAttribute(board.comment)}" placeholder="Комментарий" /></label>
+                </div>
+                <div class="rkd-board-facts">
+                  <span><b>BOM</b>${escapeHtml(bom?.name || "BOM не привязан")}</span>
+                  <span><b>Позиции</b>${bom ? getBomImportRows(bom).length.toLocaleString("ru-RU") : "-"}</span>
+                  <span><b>Файлы</b>${boardFiles.length || "не загружены"}</span>
+                  <span><b>Расчет</b>${escapeHtml(calc.label)}</span>
+                </div>
+                <div class="module-form-actions">
+                  <button class="primary-button" type="submit">${icon("save")}<span>Сохранить плату</span></button>
+                  <button class="secondary-button" data-rkd-create-board-route="${escapeAttribute(rkd.id)}:${escapeAttribute(board.id)}" type="button" ${board.boardNomenclatureItemId ? "" : "disabled"}>${icon("route")}<span>Создать маршрут</span></button>
+                  ${route ? `<button class="secondary-button" data-rkd-open-route="${escapeAttribute(route.id)}" type="button">${icon("route")}<span>Открыть маршрут</span></button>` : ""}
+                  ${bom ? `<button class="secondary-button" data-rkd-open-bom="${escapeAttribute(bom.id)}" type="button">${icon("book")}<span>Открыть BOM</span></button>` : ""}
+                  <button class="secondary-button danger" data-rkd-delete-board="${escapeAttribute(rkd.id)}:${escapeAttribute(board.id)}" type="button">${icon("trash")}<span>Удалить</span></button>
+                </div>
+              </form>
+            </article>
+          `;
+        }).join("") : renderRkdEmptyPanel("Платы не добавлены", "Добавьте существующую плату из номенклатуры. Пустая плата не создается автоматически.")}
+      </div>
+    </section>
+  `;
+}
+
+function renderRkdFilesStep(rkd, options = {}) {
+  if (options.isNewRkd || !rkd.id) {
+    return renderRkdEmptyPanel("Сначала сохраните карточку РКД", "Файлы и ссылки можно привязывать только к существующей РКД.");
+  }
+  const boardOptions = rkd.boardLinks.map((board) => ({ id: board.id, label: getRkdBoardLabel(board) }));
+  return `
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Привязать файл или ссылку</strong>
+        <span>если файлового хранилища нет, сохраняется только явно введенная пользователем ссылка/имя</span>
+      </div>
+      <form id="rkdAddFileForm" class="module-form rkd-file-form">
+        <input type="hidden" name="rkdId" value="${escapeAttribute(rkd.id)}" />
+        <label class="form-field">
+          <span>Привязка</span>
+          <select name="boardLinkId">
+            <option value="">Ко всей РКД</option>
+            ${boardOptions.map((item) => `<option value="${escapeAttribute(item.id)}">${escapeHtml(item.label)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-field"><span>Тип файла</span><input name="fileType" placeholder="Не определено" /></label>
+        <label class="form-field"><span>Имя файла</span><input name="fileName" placeholder="Файл не загружен" /></label>
+        <label class="form-field"><span>Ссылка / ID файла</span><input name="externalRef" placeholder="Не указано" /></label>
+        <label class="form-field full"><span>Комментарий</span><input name="comment" placeholder="Комментарий" /></label>
+        <div class="module-form-actions full">
+          <button class="primary-button" type="submit">${icon("plus")}<span>Привязать файл</span></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Комплект файлов</strong>
+        <span>отсутствующие файлы отображаются как пустое состояние, а не как fake file record</span>
+      </div>
+      <div class="rkd-file-list">
+        ${rkd.fileLinks.length ? rkd.fileLinks.map((file) => {
+          const board = file.boardLinkId ? rkd.boardLinks.find((item) => item.id === file.boardLinkId) : null;
+          return `
+            <article class="rkd-file-row">
+              ${icon("document")}
+              <div>
+                <strong>${escapeHtml(file.fileName || "Файл не загружен")}</strong>
+                <span>${escapeHtml(file.fileType || "Тип не определен")} · ${escapeHtml(board ? getRkdBoardLabel(board) : "Ко всей РКД")}</span>
+                ${file.externalRef ? `<small>${escapeHtml(file.externalRef)}</small>` : ""}
+              </div>
+              <button class="icon-button danger-soft" data-rkd-delete-file="${escapeAttribute(rkd.id)}:${escapeAttribute(file.id)}" type="button" title="Удалить связь">${icon("trash")}</button>
+            </article>
+          `;
+        }).join("") : renderRkdEmptyPanel("Файлы не загружены", "Привяжите файл или ссылку явным действием пользователя. Система не создает пустые файлы.")}
+      </div>
+    </section>
+  `;
+}
+
+function renderRkdReadinessStep(rkd) {
+  const readiness = getRkdReadiness(rkd);
+  const routeCount = rkd.boardLinks.filter((board) => getRkdRoute(board.routeMapId)).length;
+  const bomCount = rkd.boardLinks.filter((board) => getBomList(board.bomListId)).length;
+  const hasProduct = Boolean(getNomenclatureItem(rkd.nomenclatureItemId));
+  return `
+    <section class="rkd-summary-grid">
+      <article class="${hasProduct ? "is-ok" : "is-warning"}"><span>Изделие</span><strong>${hasProduct ? "выбрано" : "не выбрано"}</strong><small>${escapeHtml(getRkdNomenclatureLabel(rkd.nomenclatureItemId, "Изделие не выбрано"))}</small></article>
+      <article class="${rkd.boardLinks.length ? "is-ok" : "is-warning"}"><span>Платы</span><strong>${rkd.boardLinks.length}</strong><small>${rkd.boardLinks.length ? "есть производственные единицы" : "Платы не добавлены"}</small></article>
+      <article class="${bomCount === rkd.boardLinks.length && rkd.boardLinks.length ? "is-ok" : "is-warning"}"><span>BOM</span><strong>${bomCount}</strong><small>${rkd.boardLinks.length ? `из ${rkd.boardLinks.length} плат` : "BOM не привязан"}</small></article>
+      <article class="${routeCount === rkd.boardLinks.length && rkd.boardLinks.length ? "is-ok" : "is-warning"}"><span>Маршруты</span><strong>${routeCount}</strong><small>${rkd.boardLinks.length ? `из ${rkd.boardLinks.length} плат` : "Маршрут не создан"}</small></article>
+    </section>
+
+    <section class="module-panel">
+      <div class="report-card-head">
+        <strong>Проверка комплектности</strong>
+        <span>read-only анализ текущих связей без создания недостающих объектов</span>
+      </div>
+      <div class="rkd-readiness-lists">
+        <article class="is-critical">
+          <strong>Проблемы</strong>
+          ${readiness.issues.length ? readiness.issues.map((issue) => `<span>${icon("alert")}${escapeHtml(issue)}</span>`).join("") : `<span>${icon("check")}Критичных проблем нет</span>`}
         </article>
-        <div class="rkd-status-list">
-          <span><b>Файлы</b> документы изделия</span>
-          <span><b>Карточка</b> минимальные поля</span>
-          <span><b>Решение</b> готово / не готово</span>
-        </div>
-      </div>
-      <div class="rkd-rule-list">
-        <article><b>Хранит</b><span>документы, файлы, инструкции, контрольные методики.</span></article>
-        <article><b>Не делает</b><span>не меняет состав изделия, спецификации плат, маршруты и план.</span></article>
-        <article><b>Открывает</b><span>следующий шаг: построение состава изделия по данным РКД.</span></article>
-      </div>
-    </section>
-
-    <section class="module-panel">
-      <div class="report-card-head">
-        <strong>Минимальная карточка</strong>
-        <span>поля, которые стоит реализовать после согласования</span>
-      </div>
-      <div class="rkd-contract-table" role="table" aria-label="Минимальный контракт РКД">
-        <div class="rkd-contract-row is-head" role="row">
-          <span>Поле</span>
-          <span>Кто заполняет</span>
-          <span>Правило</span>
-        </div>
-        ${contractRows.map((row) => `
-          <div class="rkd-contract-row" role="row">
-            <strong>${escapeHtml(row.field)}</strong>
-            <span>${escapeHtml(row.owner)}</span>
-            <span>${escapeHtml(row.rule)}</span>
-          </div>
-        `).join("")}
-      </div>
-    </section>
-
-    <section class="module-panel">
-      <div class="report-card-head">
-        <strong>Документы комплекта</strong>
-        <span>что может входить в РКД</span>
-      </div>
-      <div class="rkd-document-matrix" role="table" aria-label="Матрица документов РКД">
-        <div class="rkd-document-row is-head" role="row">
-          <span>Раздел</span>
-          <span>Документ</span>
-          <span>Источник</span>
-          <span>Обяз.</span>
-        </div>
-        ${documentItems.map((item) => `
-          <div class="rkd-document-row" role="row">
-            <span>${escapeHtml(item.group)}</span>
-            <strong>${escapeHtml(item.name)}</strong>
-            <span>${escapeHtml(item.source)}</span>
-            <em>${escapeHtml(item.required)}</em>
-          </div>
-        `).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderRkdCompositionStep() {
-  return renderRkdSpecificationsPanel();
-}
-
-function renderRkdBoardSpecsStep() {
-  const bomLists = directoryState.bomLists || [];
-  return `
-    <section class="module-panel">
-      <div class="report-card-head">
-        <strong>${BOARD_SPEC_LIST_TERM}</strong>
-        <span>компонентный состав печатных плат, используемый в составе изделия</span>
-      </div>
-      <div class="rkd-board-spec-summary">
-        <article><span>Всего</span><strong>${bomLists.length}</strong><small>спецификаций</small></article>
-        <article><span>С импортом</span><strong>${bomLists.filter((bom) => getBomImportRows(bom).length).length}</strong><small>есть строки Excel</small></article>
-        <article><span>Черновики</span><strong>${bomLists.filter((bom) => !getBomImportRows(bom).length).length}</strong><small>таблица пустая</small></article>
-      </div>
-      <div class="rkd-board-spec-list" role="table" aria-label="${BOARD_SPEC_LIST_TERM}">
-        <div class="rkd-board-spec-row is-head" role="row">
-          <span>Название</span>
-          <span>Код платы</span>
-          <span>Результат</span>
-          <span>Строк</span>
-        </div>
-        ${bomLists.length ? bomLists.map((bom) => `
-          <div class="rkd-board-spec-row" role="row">
-            <strong>${escapeHtml(bom.name || "Спецификация без названия")}</strong>
-            <span>${escapeHtml(bom.boardCode || "не задан")}</span>
-            <span>${escapeHtml(bom.resultItem || "печатная плата")}</span>
-            <em>${getBomImportRows(bom).length}</em>
-          </div>
-        `).join("") : `
-          <div class="rkd-board-spec-row is-empty" role="row">
-            <strong>${BOARD_SPEC_LIST_TERM} не созданы</strong>
-            <span>Создайте спецификацию платы в отдельном модуле.</span>
-            <span></span>
-            <em>0</em>
-          </div>
-        `}
-      </div>
-      <div class="module-form-actions rkd-step-actions">
-        <button class="secondary-button" data-rkd-open-module="bomLists" type="button">${icon("book")}<span>Открыть спецификации</span></button>
-      </div>
-    </section>
-  `;
-}
-
-function renderRkdReadinessStep(readinessItems = [], validationQuestions = []) {
-  const activeSpecification = getActiveSpecificationForModule();
-  const rows = activeSpecification ? getSpekiStructureTableRows(activeSpecification) : [];
-  const staleIds = new Set(ui.spekiStaleItemIds || []);
-  const issueCount = activeSpecification
-    ? rows.filter(({ item }) => getSpekiTreeItemIssues(item, activeSpecification.id, staleIds).length).length
-    : 0;
-  const bomCount = rows.filter(({ item }) => Boolean(getSpecificationItemBomId(item))).length;
-  const readyState = activeSpecification && rows.length && !issueCount ? "Готово к технологической подготовке" : "Нужна проверка";
-
-  return `
-    <section class="module-panel">
-      <div class="report-card-head">
-        <strong>Итоговая проверка РКД</strong>
-        <span>контроль перед работой технолога</span>
-      </div>
-      <div class="rkd-readiness-dashboard">
-        <article class="${activeSpecification ? "is-ok" : "is-warning"}"><span>${PRODUCT_COMPOSITION_TERM}</span><strong>${activeSpecification ? "выбран" : "не выбран"}</strong><small>${escapeHtml(activeSpecification?.name || "откройте шаг состава изделия")}</small></article>
-        <article class="${rows.length ? "is-ok" : "is-warning"}"><span>Строк состава</span><strong>${rows.length}</strong><small>${rows.length ? "есть структура" : "структура пустая"}</small></article>
-        <article class="${bomCount ? "is-ok" : "is-warning"}"><span>${BOARD_SPEC_LIST_TERM}</span><strong>${bomCount}</strong><small>${bomCount ? "используются в составе" : "не добавлены"}</small></article>
-        <article class="${issueCount ? "is-warning" : "is-ok"}"><span>Замечания</span><strong>${issueCount}</strong><small>${readyState}</small></article>
-      </div>
-      <div class="rkd-readiness-grid">
-        ${readinessItems.map((item) => `
-          <article>
-            ${icon("check")}
-            <div>
-              <strong>${escapeHtml(item.title)}</strong>
-              <span>${escapeHtml(item.text)}</span>
-            </div>
-          </article>
-        `).join("")}
-      </div>
-    </section>
-
-    <section class="module-panel">
-      <div class="report-card-head">
-        <strong>Вопросы перед автоматизацией</strong>
-        <span>не превращаем в скрытые связи без подтверждения</span>
-      </div>
-      <div class="rkd-question-list">
-        ${validationQuestions.map((question) => `<article>${icon("info")}<span>${escapeHtml(question)}</span></article>`).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderRkdHandoffStep() {
-  const activeSpecification = getActiveSpecificationForModule();
-  const existingRoute = activeSpecification
-    ? (planningState.routes || []).find((route) => route.specificationId === activeSpecification.id || route.projectId === activeSpecification.id)
-    : null;
-  return `
-    <section class="module-panel">
-      <div class="report-card-head">
-        <strong>Передача в технологическую подготовку</strong>
-        <span>РКД не строит маршрут автоматически, а переводит пользователя к следующему рабочему модулю</span>
-      </div>
-      <div class="rkd-handoff-flow">
-        <article><strong>РКД</strong><span>комплект документов и состав изделия</span></article>
-        <i></i>
-        <article><strong>Маршрутная карта</strong><span>подразделения, операции и последовательность работ</span></article>
-        <i></i>
-        <article><strong>Планирование</strong><span>партии, количество и передача в Гант</span></article>
-      </div>
-      <div class="rkd-handoff-status">
-        <article class="${activeSpecification ? "is-ok" : "is-warning"}">
-          ${icon(activeSpecification ? "check" : "info")}
-          <div>
-            <strong>${activeSpecification ? escapeHtml(activeSpecification.name || PRODUCT_COMPOSITION_TERM) : `${PRODUCT_COMPOSITION_TERM} не выбран`}</strong>
-            <span>${activeSpecification ? "Можно открыть маршрутную карту и продолжить работу." : "Сначала выберите состав изделия на предыдущем шаге."}</span>
-          </div>
+        <article class="is-warning">
+          <strong>Замечания</strong>
+          ${readiness.warnings.length ? readiness.warnings.map((warning) => `<span>${icon("info")}${escapeHtml(warning)}</span>`).join("") : `<span>${icon("check")}Замечаний нет</span>`}
         </article>
-        <article class="${existingRoute ? "is-ok" : "is-warning"}">
-          ${icon(existingRoute ? "route" : "info")}
-          <div>
-            <strong>${existingRoute ? escapeHtml(existingRoute.name || "Маршрутная карта") : "Маршрут еще не найден"}</strong>
-            <span>${existingRoute ? "Для состава изделия уже есть маршрут." : "Маршрут будет создан или выбран в модуле маршрутной карты."}</span>
-          </div>
-        </article>
-      </div>
-      <div class="module-form-actions rkd-step-actions">
-        <button class="primary-button" data-rkd-open-module="routes" type="button">${icon("route")}<span>Открыть маршрутную карту</span></button>
-      </div>
-    </section>
-  `;
-}
-
-function renderRkdSpecificationsPanel() {
-  return `
-    <section class="module-panel rkd-specifications-panel">
-      <div class="report-card-head">
-        <strong>${PRODUCT_COMPOSITION_TERM}</strong>
-        <span>рабочий конструктор состава изделия внутри модуля РКД</span>
-      </div>
-      <div class="rkd-specifications-embedded speki-page" aria-label="${PRODUCT_COMPOSITION_TERM}">
-        ${renderSpekiWorkspace({
-          sidebarEyebrow: "Состав изделия",
-          sidebarTitle: PRODUCT_COMPOSITION_TERM,
-          listLabel: PRODUCT_COMPOSITION_LIST_TERM,
-        })}
       </div>
     </section>
   `;
@@ -7582,7 +13410,7 @@ function renderSpecificationsPage() {
           </div>
           <div class="directory-actions">
             <button class="secondary-button" data-open-spec-boms type="button">${icon("book")}<span>${BOARD_SPEC_LIST_TERM}</span></button>
-            <button class="secondary-button" data-specification-to-calculator type="button" ${activeSpecification ? "" : "disabled"}>${icon("calculator")}<span>В калькулятор</span></button>
+            <button class="secondary-button" data-specification-to-planning type="button" ${activeSpecification ? "" : "disabled"}>${icon("calendar")}<span>В планирование</span></button>
             <button class="secondary-button danger" data-specification-delete="${escapeAttribute(specification.id)}" type="button" ${activeSpecification ? "" : "disabled"}>${icon("trash")}<span>Удалить</span></button>
           </div>
         </header>
@@ -7603,9 +13431,9 @@ function renderSpecificationsPage() {
               <label class="form-field"><span>Срок выпуска</span><input name="dueDate" type="date" value="${escapeAttribute(dueDate)}" /></label>
               <label class="form-field"><span>Заказ / партия</span><input name="orderNumber" value="${escapeAttribute(getSpecificationProductionOrder(specification))}" placeholder="№ / партия" /></label>
               <label class="form-field"><span>Заказчик</span><input name="customer" value="${escapeAttribute(getSpecificationProductionCustomer(specification))}" placeholder="Компания / внутренний заказ" /></label>
-              <label class="form-field"><span>Спецификация A</span><select name="bomListA"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Плата A</span><select name="bomListA"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во A</span><input name="bomQtyA" type="number" min="0" step="1" value="${Number(specification.bomQtyA || 0)}" /></label>
-              <label class="form-field"><span>Спецификация B</span><select name="bomListB"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+              <label class="form-field"><span>Плата B</span><select name="bomListB"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во B</span><input name="bomQtyB" type="number" min="0" step="1" value="${Number(specification.bomQtyB || 0)}" /></label>
               <label class="form-field full"><span>Дополнительный состав</span><input name="extraItems" value="${escapeAttribute(specification.extraItems)}" placeholder="Корпус; кабель; крепеж; маркировка" /></label>
               <label class="form-field"><span>Статус</span><input name="status" value="${escapeAttribute(specification.status)}" /></label>
@@ -7627,7 +13455,7 @@ function renderSpecificationsPage() {
           <section class="module-panel spec-structure-panel">
             <div class="report-card-head">
               <strong>Конструктор состава изделия</strong>
-              <span>узел изделия, спецификации плат и дополнительные позиции</span>
+              <span>узел изделия, платы и дополнительные позиции</span>
             </div>
             ${renderSpecificationConstructor(specification, structureItems, structureBomOptions, isNewSpecification)}
           </section>
@@ -7644,6 +13472,19 @@ function renderSpecificationsPage() {
       </div>
     </section>
   `;
+}
+
+function renderProductsPage() {
+  return renderSpekiPage({
+    ariaLabel: PRODUCT_COMPOSITION_LIST_TERM,
+    sidebarEyebrow: "Состав",
+    sidebarTitle: PRODUCT_COMPOSITION_LIST_TERM,
+    listLabel: "Реестр изделий",
+  });
+}
+
+function bindProductsEvents() {
+  bindSpekiEvents();
 }
 
 function renderSpekiPage(options = {}) {
@@ -7671,20 +13512,21 @@ function renderSpekiWorkspace(options = {}) {
         <h1>${escapeHtml(sidebarTitle)}</h1>
       </div>
       <div class="module-sidebar-actions">
-        <button class="primary-button" data-speki-create-specification type="button">${icon("plus")}<span>Новый состав</span></button>
+        <button class="primary-button" data-speki-create-specification type="button">${icon("plus")}<span>Новое изделие</span></button>
       </div>
       <div class="module-entity-list speki-spec-list">
         <div class="module-list-label">${escapeHtml(listLabel)}</div>
         ${specifications.length ? specifications.map((specification) => `
             <button class="module-entity-item ${specification.id === activeSpecification?.id ? "is-active" : ""}" data-speki-spec-open="${escapeAttribute(specification.id)}" type="button">
               <span>
-                  <strong>${escapeHtml(specification.name || "Состав изделия без названия")}</strong>
+                  <strong>${escapeHtml(specification.name || "Изделие без названия")}</strong>
+                  <small>${escapeHtml(specification.outputItem || PRODUCT_STRUCTURE_TERM)} · ${getSpecificationStructureItems(specification).length} строк</small>
               </span>
             </button>
           `).join("") : `
           <article class="module-empty-note">
-            <strong>Состав изделия пока не создан</strong>
-            <span>Когда в системе появится состав изделия, он будет отображаться в этом перечне.</span>
+            <strong>Изделия пока не созданы</strong>
+            <span>Создайте изделие и соберите его из плат, узлов и номенклатуры.</span>
           </article>
         `}
       </div>
@@ -7695,12 +13537,20 @@ function renderSpekiWorkspace(options = {}) {
         ${activeSpecification ? `
         <section class="module-panel speki-spec-table-panel">
           <div class="report-card-head">
-            <strong>Таблица состава изделия</strong>
-            <span>${escapeHtml(activeSpecification.name || "выбранный состав изделия")}</span>
+            <strong>${PRODUCT_STRUCTURE_TERM}</strong>
+            <span>${escapeHtml(activeSpecification.name || "выбранное изделие")}</span>
           </div>
           ${renderSpekiStructureTable(activeSpecification, isEditing)}
         </section>
-        ` : ""}
+        ` : `
+        <section class="module-panel speki-spec-table-panel">
+          <div class="bom-import-empty">
+            ${icon("tree")}
+            <strong>Изделие не выбрано</strong>
+            <span>Выберите изделие слева или создайте новое, чтобы объединить платы и номенклатуру в производственную структуру.</span>
+          </div>
+        </section>
+        `}
       </div>
     </div>
   `;
@@ -7718,13 +13568,21 @@ function renderSpekiStructureTable(specification, isEditing = false) {
   }
 
   const rows = getSpekiStructureTableRows(specification);
+  const bomOptions = [
+    { value: "", label: "Выберите плату", meta: "BOM / компонентный состав" },
+    ...(directoryState.bomLists || []).map((item) => ({
+      value: item.id,
+      label: item.name || "Плата без названия",
+      meta: item.resultItem || item.boardCode || `${getBomImportRows(item).length} строк`,
+    })),
+  ];
   const specificationOptions = [
-    { value: "", label: "Выберите состав изделия", meta: "вложенный состав" },
+    { value: "", label: "Выберите изделие", meta: "вложенное изделие" },
     ...(directoryState.specifications || [])
       .filter((item) => item.id !== specification.id)
       .map((item) => ({
         value: item.id,
-        label: item.name || "Состав изделия без названия",
+        label: item.name || "Изделие без названия",
         meta: `${getSpecificationStructureItems(item).length} строк состава`,
       })),
   ];
@@ -7737,10 +13595,17 @@ function renderSpekiStructureTable(specification, isEditing = false) {
     })),
   ];
   const typeOptions = [
-    { value: "assembly", label: "Узел", meta: "группа строк состава" },
-    { value: "specification", label: "Состав изделия", meta: "вложенный состав" },
-    { value: "nomenclature", label: "Номенклатура", meta: "материал, плата или изделие" },
+    { value: "assembly", label: "Узел", meta: "группа строк состава", summaryMeta: "" },
+    { value: "bom", label: BOARD_SPEC_TERM, meta: "BOM / компонентный состав", summaryMeta: "" },
+    { value: "specification", label: PRODUCT_COMPOSITION_TERM, summaryLabel: "Изделие", meta: "вложенное изделие", summaryMeta: "" },
+    { value: "nomenclature", label: "Номенклатура", summaryLabel: "Позиция", meta: "материал, плата или изделие", summaryMeta: "" },
   ];
+  const fulfillmentOptions = STRUCTURE_FULFILLMENT_MODES.map((mode) => ({
+    value: mode,
+    label: STRUCTURE_FULFILLMENT_LABELS[mode],
+    summaryMeta: "",
+    meta: STRUCTURE_FULFILLMENT_META[mode],
+  }));
   const compositionSummary = getSpekiCompositionSummary(specification, rows);
 
   const miniCardMarkup = `
@@ -7752,8 +13617,8 @@ function renderSpekiStructureTable(specification, isEditing = false) {
       <div class="speki-composition-strip" aria-label="Сводка состава изделия">
         <article><span>Строк</span><strong>${compositionSummary.totalRows}</strong></article>
         <article><span>Узлов</span><strong>${compositionSummary.nodeCount}</strong></article>
-        <article><span>Номенклатура</span><strong>${compositionSummary.nomenclatureCount}</strong></article>
-        <article><span>Вложенный состав</span><strong>${compositionSummary.nestedSpecificationCount}</strong></article>
+        <article><span>Позиций</span><strong>${compositionSummary.nomenclatureCount}</strong></article>
+        <article><span>Вложений</span><strong>${compositionSummary.nestedSpecificationCount}</strong></article>
       </div>
       <div class="speki-spec-card-actions">
         ${isEditing
@@ -7775,6 +13640,7 @@ function renderSpekiStructureTable(specification, isEditing = false) {
             <th>Наименование</th>
             <th>Кол-во</th>
             <th>Ед.</th>
+            <th>Обеспечение</th>
             <th></th>
           </tr>
         </thead>
@@ -7783,25 +13649,32 @@ function renderSpekiStructureTable(specification, isEditing = false) {
             const linkedSpecification = item.type === "specification"
               ? (directoryState.specifications || []).find((entry) => entry.id === item.specificationId)
               : null;
+            const bom = item.type === "bom" ? getBomList(getSpecificationItemBomId(item)) : null;
             const bomResultItem = item.type === "bom" ? getBomResultNomenclatureItem(getSpecificationItemBomId(item)) : null;
             const nomenclatureItem = item.type === "nomenclature" || item.type === "part" || item.type === "bom"
               ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId) || bomResultItem
               : null;
-            const rowType = item.type === "assembly" || item.type === "specification" ? item.type : "nomenclature";
+            const rowType = item.type === "assembly" || item.type === "specification" || item.type === "bom" ? item.type : "nomenclature";
             const objectSelect = rowType === "specification"
               ? renderDenseInlineSelect("specificationId", item.specificationId, specificationOptions, { type: "spekiStructureSpecification", itemId: item.id })
               : rowType === "assembly"
                 ? `<input class="speki-node-name-input" data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="name" value="${escapeAttribute(item.name || "Новый узел")}" placeholder="Название узла" ${isEditing ? "" : "disabled"} />`
-                : renderDenseInlineSelect("nomenclatureId", item.nomenclatureId || nomenclatureItem?.id || "", nomenclatureOptions, { type: "spekiStructureNomenclature", itemId: item.id });
+                : rowType === "bom"
+                  ? renderDenseInlineSelect("bomListId", item.bomListId, bomOptions, { type: "spekiStructureBom", itemId: item.id })
+                  : renderDenseInlineSelect("nomenclatureId", item.nomenclatureId || nomenclatureItem?.id || "", nomenclatureOptions, { type: "spekiStructureNomenclature", itemId: item.id });
             const objectLabel = rowType === "specification"
-              ? linkedSpecification?.name || item.name || "Состав изделия не выбран"
+              ? linkedSpecification?.name || item.name || "Изделие не выбрано"
               : rowType === "assembly"
                 ? item.name || "Новый узел"
+                : rowType === "bom"
+                  ? bom?.name || item.name || "Плата не выбрана"
                 : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
             const typeLabel = rowType === "assembly"
               ? "Узел"
               : rowType === "specification"
-                ? "Состав изделия"
+                ? PRODUCT_COMPOSITION_TERM
+                : rowType === "bom"
+                  ? BOARD_SPEC_TERM
                 : "Номенклатура";
             const nextSibling = rows.slice(index + 1)
               .find((row) => row.level === level && (row.item.parentId || "root") === (item.parentId || "root"));
@@ -7810,11 +13683,18 @@ function renderSpekiStructureTable(specification, isEditing = false) {
               ? !linkedSpecification
               : rowType === "assembly"
                 ? !String(item.name || "").trim()
+                : rowType === "bom"
+                  ? !bom
                 : !nomenclatureItem;
             const quantityMissing = Number(item.quantity || 0) <= 0;
             const unitMissing = !String(item.unit || "").trim();
+            const fulfillmentMode = getSpecificationItemFulfillmentMode(item);
+            const fulfillmentMissing = fulfillmentMode === "not_selected";
             const objectContent = isEditing ? objectSelect : `<span class="speki-static-cell">${escapeHtml(objectLabel)}</span>`;
             const rowNumberContent = `<span class="speki-row-number">${escapeHtml(number)}</span>`;
+            const fulfillmentContent = isEditing
+              ? renderDenseInlineSelect("fulfillmentMode", fulfillmentMode, fulfillmentOptions, { type: "spekiStructureFulfillment", itemId: item.id })
+              : `<span class="speki-static-cell speki-fulfillment-cell is-${escapeAttribute(getFulfillmentTone(fulfillmentMode))}">${escapeHtml(getFulfillmentLabel(fulfillmentMode))}</span>`;
 
             return `
               <tr class="${rowType === "assembly" ? "is-speki-node" : ""}" data-speki-structure-row="${escapeAttribute(item.id)}" style="--speki-level: ${level};">
@@ -7823,6 +13703,7 @@ function renderSpekiStructureTable(specification, isEditing = false) {
                 <td class="${objectMissing ? "is-speki-field-missing" : ""}"><div class="speki-object-cell">${objectContent}</div></td>
                 <td class="${quantityMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="quantity" type="number" inputmode="numeric" min="0" step="1" value="${Math.round(Number(item.quantity || 0))}" />` : `<span class="speki-static-cell">${escapeHtml(formatReportNumber(item.quantity || 0))}</span>`}</td>
                 <td class="${unitMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="unit" value="${escapeAttribute(item.unit)}" />` : `<span class="speki-static-cell">${escapeHtml(item.unit || "шт.")}</span>`}</td>
+                <td class="${fulfillmentMissing ? "is-speki-field-missing" : ""}">${fulfillmentContent}</td>
                 <td>
                   <div class="speki-table-row-actions">
                     <button class="speki-node-button" data-speki-create-node-from-row="${escapeAttribute(item.id)}" type="button" title="Объединить эту и следующую строку в узел" ${canCreateNode ? "" : "disabled"}>${icon("split")}<span>Узел</span></button>
@@ -7837,7 +13718,7 @@ function renderSpekiStructureTable(specification, isEditing = false) {
             `;
           }).join("") : `
             <tr>
-              <td colspan="6" class="primary-cell">
+              <td colspan="7" class="primary-cell">
                 <span class="component-name">Структура пока пустая</span>
                 <small>Добавьте строку под таблицей и выберите тип: узел, состав изделия или номенклатура.</small>
               </td>
@@ -7846,11 +13727,12 @@ function renderSpekiStructureTable(specification, isEditing = false) {
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="6">
-              <div class="speki-table-add-row">
-                <button class="secondary-button" data-speki-add-row="assembly" type="button" ${isEditing ? "" : "disabled"}>${icon("split")}<span>Добавить узел</span></button>
-                <button class="secondary-button" data-speki-add-row="nomenclature" type="button" ${isEditing ? "" : "disabled"}>${icon("plus")}<span>Добавить строку</span></button>
-              </div>
+            <td colspan="7">
+	              <div class="speki-table-add-row">
+	                <button class="secondary-button" data-speki-add-row="assembly" type="button" ${isEditing ? "" : "disabled"}>${icon("split")}<span>Добавить узел</span></button>
+	                <button class="secondary-button" data-speki-add-row="bom" type="button" ${isEditing ? "" : "disabled"}>${icon("bom")}<span>Добавить плату</span></button>
+	                <button class="secondary-button" data-speki-add-row="nomenclature" type="button" ${isEditing ? "" : "disabled"}>${icon("plus")}<span>Добавить строку</span></button>
+	              </div>
             </td>
           </tr>
         </tfoot>
@@ -7875,110 +13757,12 @@ function getSpekiCompositionSummary(specification, rows = getSpekiStructureTable
     nodeCount: items.filter((item) => item.type === "assembly").length,
     nestedSpecificationCount: items.filter((item) => item.type === "specification").length,
     nomenclatureCount: directNomenclatureItems.length,
-    makeCount: 0,
-    buyCount: 0,
-    issueCount: 0,
+    makeCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "produce").length,
+    stockCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "from_stock").length,
+    buyCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "purchase").length,
+    issueCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "not_selected").length,
     byNomenclatureType,
   };
-}
-
-function renderSpekiSourcePalette(specification, compositionSummary = getSpekiCompositionSummary(specification)) {
-  const bomCards = (directoryState.bomLists || []).map((bom) => {
-    const rowsCount = getBomImportRows(bom).length;
-    const componentTotal = Object.values(getBomComponentCounts(bom)).reduce((sum, count) => sum + Number(count || 0), 0);
-    const resultNomenclature = getBomResultNomenclatureItem(bom.id);
-    const resultName = resultNomenclature?.name || bom.resultItem || bom.boardCode || bom.name || "Печатная плата";
-    return `
-      <article class="speki-source-row">
-        <div>
-          <strong>${escapeHtml(resultName)}</strong>
-          <span>${escapeHtml(bom.name || "Спецификация без названия")} · ${rowsCount || componentTotal} поз.</span>
-        </div>
-        <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
-        <button class="secondary-button" data-speki-quick-add="bomResult" data-speki-source-id="${escapeAttribute(bom.id)}" type="button">${icon("plus")}<span>Добавить</span></button>
-      </article>
-    `;
-  }).join("");
-
-  const nestedSpecificationCards = (directoryState.specifications || [])
-    .filter((item) => item.id !== specification.id)
-    .map((item) => `
-      <article class="speki-source-row">
-        <div>
-          <strong>${escapeHtml(item.name || "Состав изделия без названия")}</strong>
-          <span>${getSpecificationStructureItems(item).length} строк состава</span>
-        </div>
-        <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
-        <button class="secondary-button" data-speki-quick-add="specification" data-speki-source-id="${escapeAttribute(item.id)}" type="button">${icon("plus")}<span>Добавить</span></button>
-      </article>
-    `).join("");
-
-  const typeCounts = getNomenclatureTypeCounts(directoryState.nomenclature || []);
-  const nomenclatureGroups = getNomenclatureTypeOptions(directoryState.nomenclature || [])
-    .map((type) => ({
-      type,
-      items: (directoryState.nomenclature || [])
-        .filter((item) => normalizeNomenclatureType(item.type) === type.value)
-        .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru")),
-    }))
-    .filter((group) => group.items.length);
-
-  return `
-    <section class="speki-source-palette" aria-label="Источники состава изделия">
-      <div class="report-card-head">
-        <strong>Добавить в состав изделия</strong>
-        <span>выберите готовый источник состава: результат спецификации, номенклатуру или вложенный состав изделия</span>
-      </div>
-      <div class="speki-source-summary">
-        ${Object.entries(compositionSummary.byNomenclatureType).length
-          ? Object.entries(compositionSummary.byNomenclatureType).map(([type, count]) => `<span>${escapeHtml(type)} · ${count}</span>`).join("")
-          : `<span>Номенклатура еще не добавлена</span>`}
-      </div>
-      <div class="speki-source-grid">
-        <details class="speki-source-group" open>
-          <summary><strong>Печатные платы из спецификаций</strong><span>${(directoryState.bomLists || []).length}</span></summary>
-          <div class="speki-source-list">
-            ${bomCards || `<article class="module-empty-note"><strong>Спецификаций пока нет</strong><span>Импортируйте спецификацию в отдельном модуле, чтобы ее результат появился как печатная плата.</span></article>`}
-          </div>
-        </details>
-        <details class="speki-source-group">
-          <summary><strong>Вложенный состав изделия</strong><span>${(directoryState.specifications || []).filter((item) => item.id !== specification.id).length}</span></summary>
-          <div class="speki-source-list">
-            ${nestedSpecificationCards || `<article class="module-empty-note"><strong>Другого состава изделия нет</strong><span>Этот источник станет доступен после создания второго состава изделия.</span></article>`}
-          </div>
-        </details>
-        <details class="speki-source-group" open>
-          <summary><strong>Номенклатура по разделам</strong><span>${(directoryState.nomenclature || []).length}</span></summary>
-          <div class="speki-source-nomenclature-groups">
-            ${nomenclatureGroups.length ? nomenclatureGroups.map(({ type, items }) => `
-              <details class="speki-source-subgroup" ${type.value !== NOMENCLATURE_REA_COMPONENT_TYPE ? "open" : ""}>
-                <summary><strong>${escapeHtml(type.label)}</strong><span>${typeCounts[type.value] || items.length}</span></summary>
-                <div class="speki-source-list">
-                  ${items.map((item) => `
-                    <article class="speki-source-row">
-                      <div>
-                        <strong>${escapeHtml(item.name || "Позиция без названия")}</strong>
-                        <span>${escapeHtml([item.article, item.package, item.manufacturer].filter(Boolean).join(" · ") || type.meta || "номенклатура")}</span>
-                      </div>
-                      <label><span>Кол-во</span><input data-speki-quick-qty type="number" inputmode="numeric" min="1" step="1" value="1" /></label>
-                      <button class="secondary-button" data-speki-quick-add="nomenclature" data-speki-source-id="${escapeAttribute(item.id)}" type="button">${icon("plus")}<span>Добавить</span></button>
-                    </article>
-                  `).join("")}
-                </div>
-              </details>
-            `).join("") : `<article class="module-empty-note"><strong>Номенклатуры нет</strong><span>Добавьте позиции вручную или импортируйте спецификацию, чтобы РЭА компоненты появились автоматически.</span></article>`}
-          </div>
-        </details>
-        <article class="speki-source-group speki-source-node-card">
-          <div>
-            <strong>Узел состава изделия</strong>
-            <span>объединяет несколько строк состава под общей операцией</span>
-          </div>
-          <button class="secondary-button" data-speki-quick-add="assembly" type="button">${icon("split")}<span>Добавить узел</span></button>
-        </article>
-      </div>
-    </section>
-  `;
 }
 
 function getSpekiStructureTableRows(specification) {
@@ -8013,165 +13797,6 @@ function getSpekiStructureTableRows(specification) {
   });
 
   return rows;
-}
-
-function renderSpekiSpecificationTree(specification, rows = getSpekiStructureTableRows(specification), staleItemIds = new Set(), duplicateBomItemIds = new Set()) {
-  const items = getSpecificationStructureItems(specification);
-  const bomCount = items.filter((item) => Boolean(getSpecificationItemBomId(item))).length;
-  const nodeCount = items.filter((item) => item.type === "assembly").length;
-  const buyCount = items.filter((item) => item.executionType === "buy").length;
-  const issueCount = rows.filter(({ item }) => getSpekiTreeItemIssues(item, specification.id, staleItemIds, duplicateBomItemIds).length).length;
-
-  return `
-    <div class="speki-tree-view">
-      <div class="speki-tree-summary">
-        <article><span>Строк состава</span><strong>${rows.length}</strong><small>${nodeCount} узлов</small></article>
-        <article><span>Печатных плат</span><strong>${bomCount}</strong><small>из спецификаций</small></article>
-        <article><span>Покупных</span><strong>${buyCount}</strong><small>без операции</small></article>
-        <article class="${issueCount ? "is-warning" : "is-ok"}"><span>Проверка</span><strong>${issueCount}</strong><small>${issueCount ? "требует внимания" : "замечаний нет"}</small></article>
-      </div>
-      <div class="speki-tree-view-wrap object-tree-wrap">
-        <div class="object-tree-root">
-          ${renderSpekiSpecificationTreeNode(specification, rows, staleItemIds, duplicateBomItemIds, new Set(), true)}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderSpekiSpecificationTreeNode(specification, rows = getSpekiStructureTableRows(specification), staleItemIds = new Set(), duplicateBomItemIds = new Set(), visitedSpecificationIds = new Set(), open = false) {
-  if (!specification) return renderObjectTreeLeaf("Состав изделия не найден", "Связанный объект был удален или еще не создан.", "warning");
-  if (visitedSpecificationIds.has(specification.id)) {
-    return renderObjectTreeLeaf(specification.name || "Повторный состав изделия", "Повторная ссылка уже показана выше, ветка остановлена.", "warning");
-  }
-
-  const nextVisitedSpecificationIds = new Set(visitedSpecificationIds);
-  nextVisitedSpecificationIds.add(specification.id);
-  const items = getSpecificationStructureItems(specification)
-    .filter((item) => item.type === "assembly" || item.type === "bom" || item.type === "specification" || item.type === "nomenclature" || item.type === "part");
-  const rowMetaById = new Map((rows.length ? rows : getSpekiStructureTableRows(specification))
-    .map((row) => [row.item.id, { number: row.number, level: row.level }]));
-  const children = renderSpekiTreeChildren(items, "root", rowMetaById, staleItemIds, duplicateBomItemIds, nextVisitedSpecificationIds, specification.id);
-
-  return renderObjectTreeNode({
-    title: specification.name || "Состав изделия без названия",
-    meta: `${specification.outputItem || "выход не задан"} · ${items.length} позиций состава`,
-    badge: "состав",
-    tone: "specification",
-    open,
-    children: [children || renderObjectTreeLeaf("Структура пока пустая", "Нажмите «Редактировать» и добавьте строки состава.", "empty")],
-  });
-}
-
-function renderSpekiTreeChildren(items, parentId, rowMetaById, staleItemIds, duplicateBomItemIds, visitedSpecificationIds, currentSpecificationId = "", visitedItemIds = new Set()) {
-  const visibleIds = new Set(items.map((item) => item.id));
-  const children = items.filter((item) => {
-    const itemParentId = item.parentId && visibleIds.has(item.parentId) ? item.parentId : "root";
-    return itemParentId === parentId;
-  });
-
-  return children.map((item) => {
-    if (visitedItemIds.has(item.id)) return "";
-    const nextVisitedItemIds = new Set(visitedItemIds);
-    nextVisitedItemIds.add(item.id);
-    const nestedChildren = renderSpekiTreeChildren(items, item.id, rowMetaById, staleItemIds, duplicateBomItemIds, visitedSpecificationIds, currentSpecificationId, nextVisitedItemIds);
-    return renderSpekiTreeItemNode(item, rowMetaById.get(item.id), staleItemIds, duplicateBomItemIds, visitedSpecificationIds, nestedChildren, currentSpecificationId);
-  }).join("");
-}
-
-function renderSpekiTreeItemNode(item, rowMeta = {}, staleItemIds = new Set(), duplicateBomItemIds = new Set(), visitedSpecificationIds = new Set(), nestedChildren = "", currentSpecificationId = "") {
-  const bom = item.type === "bom" ? getBomList(item.bomListId) : null;
-  const linkedSpecification = item.type === "specification"
-    ? (directoryState.specifications || []).find((entry) => entry.id === item.specificationId)
-    : null;
-  const nomenclatureItem = item.type === "nomenclature" || item.type === "part"
-    ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
-    : null;
-  const title = item.type === "bom"
-    ? bom?.name || item.name || "Спецификация не выбрана"
-    : item.type === "specification"
-      ? linkedSpecification?.name || item.name || "Состав изделия не выбран"
-      : item.type === "assembly"
-        ? item.name || "Узел без названия"
-        : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
-  const executionValue = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
-  const executionLabel = executionValue === "buy" ? "покупное" : "к обеспечению";
-  const operation = getOperationMapItem(item.operationId);
-  const operationLabel = executionValue === "buy" ? "операция не требуется" : operation?.name || item.operationName || "операция не задана";
-  const departmentLabel = executionValue === "buy" ? "" : item.departmentName || "подразделение не выбрано";
-  const quantityLabel = `${Number(item.quantity || 0).toLocaleString("ru-RU")} ${item.unit || "шт."}`;
-  const issues = getSpekiTreeItemIssues(item, currentSpecificationId, staleItemIds, duplicateBomItemIds);
-  const meta = [
-    getSpecificationTreeItemTypeLabel(item.type),
-    quantityLabel,
-    executionLabel,
-    operationLabel,
-    departmentLabel,
-  ].filter(Boolean).join(" · ");
-  const linkedSpecificationTree = linkedSpecification
-    ? renderSpekiSpecificationTreeNode(linkedSpecification, getSpekiStructureTableRows(linkedSpecification), new Set(), new Set(), visitedSpecificationIds)
-    : "";
-  const bomPreview = getSpecificationItemBom(item) ? renderSpekiBomTreePreview(getSpecificationItemBom(item)) : "";
-
-  return renderObjectTreeNode({
-    title,
-    meta,
-    badge: rowMeta.number || getSpecificationTreeItemTypeLabel(item.type),
-    tone: issues.length ? "warning" : item.type || "default",
-    children: [
-      issues.length ? renderObjectTreeLeaf("Требует внимания", issues.join("; "), "warning") : "",
-      bomPreview,
-      linkedSpecificationTree,
-      nestedChildren,
-      !issues.length && !bomPreview && !linkedSpecificationTree && !nestedChildren
-        ? renderObjectTreeLeaf("Конечная позиция", item.resultItem || item.note || "Дочерних объектов нет.", "empty")
-        : "",
-    ],
-  });
-}
-
-function getSpekiTreeItemIssues(item, specificationId = "", staleItemIds = new Set(), duplicateBomItemIds = new Set()) {
-  const issues = [];
-  const executionValue = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
-  if (item.type === "bom" && !getBomList(item.bomListId)) issues.push("спецификация не выбрана или удалена");
-  if (item.type === "nomenclature" && getNomenclatureSourceBomId(item.nomenclatureId) && !getSpecificationItemBom(item)) issues.push("исходная спецификация для печатной платы удалена");
-  if (item.type === "specification" && !(directoryState.specifications || []).some((entry) => entry.id === item.specificationId && entry.id !== specificationId)) issues.push("вложенный состав изделия не выбран или удален");
-  if ((item.type === "nomenclature" || item.type === "part") && !(directoryState.nomenclature || []).some((entry) => entry.id === item.nomenclatureId)) issues.push("номенклатура не выбрана или удалена");
-  if (item.type === "assembly" && !String(item.name || "").trim()) issues.push("название узла не заполнено");
-  if (Number(item.quantity || 0) <= 0) issues.push("количество не заполнено");
-  if (!String(item.unit || "").trim()) issues.push("единица измерения не заполнена");
-  const nomenclatureItem = item.type === "nomenclature" || item.type === "part"
-    ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId)
-    : null;
-  if (executionValue === "make" && !getOperationMapItem(item.operationId)) issues.push("операция не выбрана из справочника");
-  if (executionValue === "make" && !String(item.departmentName || "").trim()) issues.push("подразделение не выбрано");
-  if (staleItemIds.has(item.id)) issues.push("ссылка на объект удалена");
-  if (duplicateBomItemIds.has(item.id)) issues.push("спецификация уже выбрана выше");
-  return issues;
-}
-
-function renderSpekiBomTreePreview(bom) {
-  const rows = getBomImportRows(bom);
-  const componentTotal = Object.values(getBomComponentCounts(bom)).reduce((sum, count) => sum + Number(count || 0), 0);
-  const previewRows = rows.slice(0, 8).map((row) => renderObjectTreeLeaf(
-    row.description || row.manufacturerPart || row.designator || `Строка ${row.sequence || ""}`.trim(),
-    `${row.designator || "позиция не задана"} · ${row.package || "типоразмер не задан"} · ${Number(row.quantity || 0).toLocaleString("ru-RU")} шт.`,
-    "component",
-  )).join("");
-  const hiddenCount = Math.max(0, rows.length - 8);
-
-  return renderObjectTreeNode({
-    title: "Состав спецификации",
-    meta: rows.length ? `${rows.length} строк · ${componentTotal.toLocaleString("ru-RU")} компонентов` : `${componentTotal.toLocaleString("ru-RU")} компонентов по категориям`,
-    badge: rows.length || componentTotal,
-    tone: "bom",
-    children: [
-      rows.length
-        ? previewRows
-        : renderObjectTreeLeaf("Импортированных строк нет", "Спецификация заполнена вручную или пока пустая.", "warning"),
-      hiddenCount ? renderObjectTreeLeaf(`Еще ${hiddenCount.toLocaleString("ru-RU")} строк`, "скрыто в компактном просмотре", "empty") : "",
-    ],
-  });
 }
 
 function isSpekiStructureItemReferenceStale(item, specificationId = "") {
@@ -8238,21 +13863,21 @@ function renderSpekiBomNomenclatureRows(item, bom, number, level, isCollapsed = 
     return `
       <tr class="is-speki-bom-item is-empty" data-speki-bom-child="${escapeAttribute(item.id)}" style="--speki-level: ${childLevel};">
         <td><span class="speki-row-number">${escapeHtml(`${number}.0`)}</span></td>
-        <td><span class="speki-static-cell">Номенклатура спецификации</span></td>
-        <td><span class="speki-static-cell">Спецификация импортирована без табличной номенклатуры</span></td>
+        <td><span class="speki-static-cell">Номенклатура BOM</span></td>
+        <td><span class="speki-static-cell">BOM импортирован без табличной номенклатуры</span></td>
         <td><span class="speki-static-cell">Покупное изделие</span></td>
         <td><span class="speki-static-cell">Операция не требуется</span></td>
         <td><span class="speki-static-cell">-</span></td>
         <td><span class="speki-static-cell">-</span></td>
         <td><span class="speki-static-cell">шт.</span></td>
-        <td><span class="speki-bom-source-note">из спецификации</span></td>
+        <td><span class="speki-bom-source-note">из BOM</span></td>
       </tr>
     `;
   }
 
   return bomRows.map((row, index) => {
     const quantity = Math.max(0, Number(row.quantity || 0)) * bomQuantity;
-    const description = row.description || row.manufacturerPart || row.designator || "Позиция спецификации";
+    const description = row.description || row.manufacturerPart || row.designator || "Позиция BOM";
     const details = [
       row.designator ? `Поз.: ${row.designator}` : "",
       row.manufacturerPart ? `PN: ${row.manufacturerPart}` : "",
@@ -8263,7 +13888,7 @@ function renderSpekiBomNomenclatureRows(item, bom, number, level, isCollapsed = 
     return `
       <tr class="is-speki-bom-item" data-speki-bom-child="${escapeAttribute(item.id)}" style="--speki-level: ${childLevel};">
         <td><span class="speki-row-number">${escapeHtml(`${number}.${index + 1}`)}</span></td>
-        <td><span class="speki-static-cell">Номенклатура спецификации</span></td>
+        <td><span class="speki-static-cell">Номенклатура BOM</span></td>
         <td>
           <span class="speki-static-cell speki-bom-item-name" title="${escapeAttribute(details || description)}">${escapeHtml(description)}</span>
           ${details ? `<small class="speki-bom-item-meta">${escapeHtml(details)}</small>` : ""}
@@ -8273,120 +13898,10 @@ function renderSpekiBomNomenclatureRows(item, bom, number, level, isCollapsed = 
         <td><span class="speki-static-cell">-</span></td>
         <td><span class="speki-static-cell">${Number.isFinite(quantity) && quantity > 0 ? escapeHtml(formatReportNumber(quantity)) : "-"}</span></td>
         <td><span class="speki-static-cell">шт.</span></td>
-        <td><span class="speki-bom-source-note">из спецификации</span></td>
+        <td><span class="speki-bom-source-note">из BOM</span></td>
       </tr>
     `;
   }).join("");
-}
-
-function renderSpekiWorkBreakdownTable(specification) {
-  const rows = getSpekiWorkBreakdownRows(specification);
-  return `
-    <section class="speki-work-breakdown">
-      <div class="report-card-head">
-        <strong>Разбивка по работам</strong>
-        <span>${rows.length ? `${rows.length} работ для маршрутной карты` : "работы появятся после выбора операций"}</span>
-      </div>
-      ${rows.length ? `
-        <div class="speki-work-table-wrap" data-layout="table">
-          <table class="directory-table speki-work-table">
-            <thead>
-              <tr>
-                <th>№</th>
-                <th>Работа</th>
-                <th>Подразделение</th>
-                <th>Позиции спеки</th>
-                <th>Входы</th>
-                <th>Кол-во</th>
-                <th>Статус</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map((row, index) => `
-                <tr>
-                  <td><span class="speki-row-number">${String(index + 1).padStart(2, "0")}</span></td>
-                  <td class="primary-cell">${escapeHtml(row.operationName)}</td>
-                  <td>${escapeHtml(row.departmentName)}</td>
-                  <td>
-                    <span class="speki-static-cell" title="${escapeAttribute(row.items.join("; "))}">${escapeHtml(row.itemsPreview)}</span>
-                  </td>
-                  <td>${escapeHtml(row.inputsLabel)}</td>
-                  <td>${escapeHtml(row.quantityLabel)}</td>
-                  <td><span class="speki-work-status ${row.isReady ? "is-ready" : "is-warning"}">${escapeHtml(row.status)}</span></td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      ` : `
-        <div class="bom-import-empty compact">
-          ${icon("info")}
-          <strong>Работы пока не заданы</strong>
-          <span>Назначьте операции и подразделения строкам со статусом «К обеспечению», чтобы увидеть будущую маршрутную карту.</span>
-        </div>
-      `}
-    </section>
-  `;
-}
-
-function getSpekiWorkBreakdownRows(specification) {
-  if (!specification) return [];
-  const rows = getSpekiStructureTableRows(specification);
-  const groups = new Map();
-
-  rows.forEach(({ item, number }) => {
-    const executionType = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
-    if (executionType !== "make") return;
-
-    const operation = getOperationMapItem(item.operationId);
-    const operationName = operation?.name || item.operationName || "";
-    if (!operationName) return;
-
-    const departmentName = operation ? getWorkCenter(operation.workCenterId)?.name || item.departmentName || "Подразделение не выбрано" : item.departmentName || "Подразделение не выбрано";
-    const key = `${operationName}::${departmentName}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        firstNumber: number,
-        operationName,
-        departmentName,
-        items: [],
-        quantities: [],
-        bomInputCount: 0,
-        directInputCount: 0,
-      });
-    }
-
-    const group = groups.get(key);
-    group.items.push(`${number} ${getSpekiStructureItemLabel(item)}`);
-    group.quantities.push(`${formatReportNumber(item.quantity || 0)} ${item.unit || "шт."}`);
-
-    const bom = getSpecificationItemBom(item);
-    if (bom) group.bomInputCount += getBomImportRows(bom).length;
-
-    group.directInputCount += rows.filter(({ item: candidate }) => (
-      candidate.parentId === item.id
-      && (candidate.executionType || (candidate.type === "nomenclature" || candidate.type === "part" ? "buy" : "make")) === "buy"
-    )).length;
-  });
-
-  return [...groups.values()].map((group) => {
-    const inputCount = group.bomInputCount + group.directInputCount;
-    const itemsPreview = group.items.length > 2
-      ? `${group.items.slice(0, 2).join("; ")} +${group.items.length - 2}`
-      : group.items.join("; ");
-    const quantityLabel = group.quantities.length > 2
-      ? `${group.quantities.slice(0, 2).join("; ")} +${group.quantities.length - 2}`
-      : group.quantities.join("; ");
-    const isReady = group.departmentName !== "Подразделение не выбрано";
-    return {
-      ...group,
-      itemsPreview,
-      quantityLabel,
-      inputsLabel: inputCount ? `${inputCount} покупн.` : "-",
-      isReady,
-      status: isReady ? "готово" : "нужно подразделение",
-    };
-  }).sort((left, right) => compareStructureNumbers(left.firstNumber, right.firstNumber));
 }
 
 function compareStructureNumbers(left, right) {
@@ -8402,7 +13917,7 @@ function compareStructureNumbers(left, right) {
 
 function getSpekiStructureItemLabel(item) {
   if (!item) return "Позиция";
-  if (item.type === "bom") return getBomList(item.bomListId)?.name || item.name || "Спецификация не выбрана";
+  if (item.type === "bom") return getBomList(item.bomListId)?.name || item.name || "Плата не выбрана";
   if (item.type === "specification") {
     return (directoryState.specifications || []).find((entry) => entry.id === item.specificationId)?.name
       || item.name
@@ -8423,7 +13938,7 @@ function createSpekiSpecification() {
   const id = makeId("spec");
   const row = normalizeDirectoryRow("specifications", {
     id,
-    name: `Новый состав изделия ${String(index).padStart(2, "0")}`,
+    name: `Новое изделие ${String(index).padStart(2, "0")}`,
     projectId: "",
     outputItem: `Изделие ${String(index).padStart(2, "0")}`,
     productionQuantity: 1,
@@ -8451,7 +13966,7 @@ function createSpekiSpecification() {
   ui.spekiStaleItemIds = [];
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess("Состав изделия создан");
+  notifySaveSuccess("Изделие создано");
   render();
 }
 
@@ -8544,7 +14059,7 @@ function renderNomenclaturePage() {
           <div>
             <span class="eyebrow">Список компонентов</span>
             <h2>${escapeHtml(hasPreviewObject ? (isNewItem ? "Новая позиция номенклатуры" : item.name || "Позиция без названия") : "Объект не выбран")}</h2>
-            <p>${hasPreviewObject ? "Номенклатура разделяется по типам: РЭА для спецификаций, платы, механика, кабели, расходники и другие производственные позиции." : "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактирования."}</p>
+            <p>${hasPreviewObject ? "Номенклатура разделяется по типам: РЭА для BOM, платы, механика, кабели, расходники и другие производственные позиции." : "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактирования."}</p>
           </div>
         </header>
 
@@ -8655,18 +14170,18 @@ function renderBomListsPage() {
   const importHeaders = hasPreviewBom ? getBomImportHeaders(bom) : [];
 
   return `
-    <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="Спецификации печатных плат">
+    <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="${BOARD_SPEC_LIST_TERM}">
       <aside class="directory-sidebar module-data-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Печатные платы</span>
           <h1>${BOARD_SPEC_LIST_TERM}</h1>
         </div>
         <div class="module-sidebar-actions">
-          <button class="primary-button" data-bom-create type="button">${icon("plus")}<span>Новая спецификация</span></button>
+          <button class="primary-button" data-bom-create type="button">${icon("plus")}<span>Новая плата</span></button>
         </div>
         <div class="module-entity-list">
           <div class="module-list-label">${BOARD_SPEC_LIST_TERM}</div>
-          ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая спецификация</strong><small>компонентный состав платы</small></span><em>new</em></button>` : ""}
+          ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая плата</strong><small>компонентный состав / BOM</small></span><em>new</em></button>` : ""}
           ${(directoryState.bomLists || []).map((item) => {
             const hasImportRows = getBomImportRows(item).length > 0;
             const total = hasImportRows ? Object.values(getBomComponentCounts(item)).reduce((sum, count) => sum + Number(count || 0), 0) : 0;
@@ -8674,7 +14189,7 @@ function renderBomListsPage() {
               <button class="module-entity-item ${item.id === activeBom?.id ? "is-active" : ""}" data-bom-open="${item.id}" type="button">
                 <span>
                   <strong class="module-entity-title"><span>${escapeHtml(item.name)}</span>${hasImportRows ? "" : ` <b class="module-status-chip">Черновик</b>`}</strong>
-                  <small>${escapeHtml(item.boardCode || "код платы не задан")} · ${escapeHtml(item.resultItem || "результат спецификации не задан")}</small>
+                  <small>${escapeHtml(item.boardCode || "децимальный номер не задан")} · ${escapeHtml(item.resultItem || "результат платы не задан")}</small>
                 </span>
                 <em>${total}</em>
               </button>
@@ -8686,9 +14201,9 @@ function renderBomListsPage() {
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
-            <span class="eyebrow">Спецификация платы</span>
-            <h2>${escapeHtml(hasPreviewBom ? (isNewBom ? "Новая спецификация" : bom.name || "Спецификация без названия") : "Спецификация не выбрана")}</h2>
-            <p>${hasPreviewBom ? "Спецификация описывает компонентный состав печатной платы и создается без привязки к составу изделия." : "Выберите спецификацию в левом перечне или создайте новую, чтобы открыть карточку и таблицу компонентов."}</p>
+            <span class="eyebrow">${BOARD_BOM_TERM}</span>
+            <h2>${escapeHtml(hasPreviewBom ? (isNewBom ? "Новая плата" : bom.name || "Плата без названия") : "Плата не выбрана")}</h2>
+            <p>${hasPreviewBom ? "Плата хранит код, результат производства и BOM с компонентным составом. В изделии и маршруте она используется как существующий объект." : "Выберите плату в левом перечне или создайте новую, чтобы открыть карточку и таблицу компонентов."}</p>
           </div>
         </header>
 
@@ -8696,27 +14211,31 @@ function renderBomListsPage() {
           ${hasPreviewBom ? `
           <section class="module-panel bom-editor-panel bom-combined-panel">
             <div class="report-card-head">
-              <strong>Спецификация и компоненты</strong>
+              <strong>Плата и BOM</strong>
               <span>${isNewBom ? "создание компонентного состава" : `${importRows.length ? `${importRows.length} строк` : "таблица пока пустая"} · покомпонентный расчет платы`}</span>
             </div>
-            <form id="bomModuleForm" class="module-form">
-              <input type="hidden" name="bomId" value="${escapeAttribute(bom.id)}" />
-              <input type="hidden" name="isNew" value="${isNewBom ? "yes" : "no"}" />
-              <label class="form-field"><span>Название спецификации</span><input name="name" value="${escapeAttribute(bom.name)}" placeholder="Спецификация PCB" /></label>
-              <label class="form-field"><span>Код платы</span><input name="boardCode" value="${escapeAttribute(bom.boardCode)}" placeholder="PCB-..." /></label>
-              <label class="form-field full"><span>Результат спецификации</span><input name="resultItem" value="${escapeAttribute(bom.resultItem)}" placeholder="Печатная плата" /></label>
-              <div class="module-form-actions full">
-                <button class="primary-button" type="submit">${icon("save")}<span>${isNewBom ? "Создать спецификацию" : "Сохранить спецификацию"}</span></button>
-                ${renderBomImportButton()}
-                ${isNewBom ? "" : `<button class="secondary-button danger" data-bom-delete="${escapeAttribute(bom.id)}" type="button">${icon("trash")}<span>Удалить спецификацию</span></button>`}
-              </div>
-            </form>
+            <div class="bom-board-card-layout">
+              <form id="bomModuleForm" class="module-form bom-board-form">
+                <input type="hidden" name="bomId" value="${escapeAttribute(bom.id)}" />
+                <input type="hidden" name="isNew" value="${isNewBom ? "yes" : "no"}" />
+                <label class="form-field"><span>Название платы</span><input name="name" value="${escapeAttribute(bom.name)}" placeholder="Плата PCB" /></label>
+                <label class="form-field"><span>Децимальный номер</span><input name="boardCode" value="${escapeAttribute(bom.boardCode)}" placeholder="Например АБВГ.123456.001" /></label>
+                <label class="form-field"><span>Результат производства</span><input name="resultItem" value="${escapeAttribute(bom.resultItem)}" placeholder="Смонтированная печатная плата" /></label>
+                <div class="module-form-actions full">
+                  <button class="primary-button" type="submit">${icon("save")}<span>${isNewBom ? "Создать плату" : "Сохранить плату"}</span></button>
+                  ${isNewBom ? "" : `<button class="secondary-button danger" data-bom-delete="${escapeAttribute(bom.id)}" type="button">${icon("trash")}<span>Удалить плату</span></button>`}
+                </div>
+              </form>
+            </div>
             <div class="bom-combined-table-block">
               <div class="bom-combined-table-head">
-                <strong>Таблица импортированной спецификации</strong>
+                <strong>Таблица BOM</strong>
                 <span>${importRows.length ? `${escapeHtml(bom.sourceFileName || bom.name)} · ${importRows.length} строк` : "стандартные поля Excel A:I"}</span>
               </div>
               ${renderBomImportTable(bom, importHeaders, importRows, componentCounts, componentTotal, isNewBom)}
+              <div class="bom-combined-table-actions">
+                ${renderBomImportButton()}
+              </div>
             </div>
             ${importRows.length ? `
               <div class="bom-card-component-summary">
@@ -8737,7 +14256,7 @@ function renderBomImportButton() {
   return `
     <label class="primary-button bom-file-import-button">
       ${icon("upload")}
-      <span>Импортировать Excel</span>
+      <span>Импортировать *.xlsx</span>
       <input data-bom-import-file type="file" accept=".xlsx,.xls" />
     </label>
   `;
@@ -8776,7 +14295,7 @@ function renderBomNomenclatureAddControl(bom, isNewBom = false) {
     return `
       <div class="bom-nomenclature-add is-disabled">
         ${icon("package")}
-        <span>Сначала сохраните карточку спецификации, затем можно будет добавлять РЭА-компоненты из номенклатуры.</span>
+        <span>Сначала сохраните карточку платы, затем можно будет добавлять РЭА-компоненты из номенклатуры.</span>
       </div>
     `;
   }
@@ -8785,7 +14304,7 @@ function renderBomNomenclatureAddControl(bom, isNewBom = false) {
     return `
       <div class="bom-nomenclature-add is-disabled">
         ${icon("package")}
-        <span>В номенклатуре пока нет позиций типа «${NOMENCLATURE_REA_COMPONENT_TYPE}». Импортируйте спецификацию или создайте компонент в модуле «Номенклатура».</span>
+        <span>В номенклатуре пока нет позиций типа «${NOMENCLATURE_REA_COMPONENT_TYPE}». Импортируйте BOM или создайте компонент в модуле «Номенклатура».</span>
       </div>
     `;
   }
@@ -8820,7 +14339,7 @@ function renderBomImportCellInput(bomId, rowIndex, columnIndex, value) {
       data-bom-column-index="${columnIndex}"
       ${isQuantity ? `type="number" min="0" step="1"` : `type="text"`}
       value="${escapeAttribute(value)}"
-      aria-label="Поле спецификации ${rowIndex + 1}.${columnIndex + 1}"
+      aria-label="Поле BOM ${rowIndex + 1}.${columnIndex + 1}"
     />
   `;
 }
@@ -8828,6 +14347,13 @@ function renderBomImportCellInput(bomId, rowIndex, columnIndex, value) {
 function renderBomImportPreviewTable() {
   return `
     <div class="bom-import-table-wrap bom-import-preview-wrap" data-layout="table">
+      <div class="bom-import-preview-note" role="note">
+        ${icon("info")}
+        <div>
+          <strong>Предпросмотр шаблона BOM</strong>
+          <span>Данных пока нет. После импорта Excel здесь появятся реальные строки компонентного состава платы.</span>
+        </div>
+      </div>
       <table class="directory-table bom-import-table bom-import-preview-table">
         <thead>
           <tr>
@@ -8836,7 +14362,10 @@ function renderBomImportPreviewTable() {
         </thead>
         <tbody>
           <tr class="is-preview-row">
-            ${BOM_IMPORT_FALLBACK_HEADERS.map(() => "<td>&nbsp;</td>").join("")}
+            <td class="bom-import-preview-empty-cell" colspan="${BOM_IMPORT_FALLBACK_HEADERS.length}">
+              <span>Пока нет импортированных строк</span>
+              <small>Это только структура колонок, а не сохраненные данные BOM.</small>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -8867,7 +14396,7 @@ function renderBomImportTable(bom, headers, rows, componentCounts, componentTota
                 </td>
               `).join("")}
               <td class="actions-cell bom-row-action-cell">
-                <button class="table-icon-button danger-soft" data-bom-import-delete="${escapeAttribute(bom.id)}" data-bom-row-index="${rowIndex}" type="button" title="Удалить строку спецификации">${icon("trash")}</button>
+                <button class="table-icon-button danger-soft" data-bom-import-delete="${escapeAttribute(bom.id)}" data-bom-row-index="${rowIndex}" type="button" title="Удалить строку BOM">${icon("trash")}</button>
               </td>
             </tr>
           `).join("")}
@@ -8912,7 +14441,7 @@ function renderSpecificationConstructor(specification, structureItems, bomOption
       </article>
       <div class="spec-constructor-actions">
         <button class="secondary-button" data-spec-add-item="assembly" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить узел</span></button>
-        <button class="secondary-button" data-spec-add-item="bom" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить спецификацию платы</span></button>
+        <button class="secondary-button" data-spec-add-item="bom" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить плату</span></button>
         <button class="secondary-button" data-spec-add-item="part" type="button" ${isNewSpecification ? "disabled" : ""}>${icon("plus")}<span>Добавить позицию</span></button>
       </div>
       <div class="spec-constructor-list">
@@ -8920,13 +14449,13 @@ function renderSpecificationConstructor(specification, structureItems, bomOption
           <div class="bom-import-empty compact">
             ${icon("info")}
             <strong>Сначала сохраните состав изделия</strong>
-            <span>После создания карточки здесь можно будет собирать структуру изделия из узлов, спецификаций плат и дополнительных позиций.</span>
+            <span>После создания карточки здесь можно будет собирать структуру изделия из узлов, плат и дополнительных позиций.</span>
           </div>
         ` : structureItems.length ? structureItems.map((item, index) => renderSpecificationConstructorItem(item, index, structureItems.length, bomOptions, parentOptions)).join("") : `
           <div class="bom-import-empty compact">
             ${icon("plus")}
             <strong>Структура пока пустая</strong>
-            <span>Добавьте узел изделия, одну или несколько спецификаций плат и дополнительные материалы.</span>
+            <span>Добавьте узел изделия, одну или несколько плат и дополнительные материалы.</span>
           </div>
         `}
       </div>
@@ -8938,7 +14467,7 @@ function renderSpecificationConstructorItem(item, index, total, bomOptions, pare
   const bom = item.type === "bom" ? getBomList(item.bomListId) : null;
   const typeLabels = {
     assembly: "Узел",
-    bom: "Спецификация платы",
+    bom: BOARD_SPEC_TERM,
     part: "Позиция",
   };
   const typeOptions = [
@@ -8948,7 +14477,7 @@ function renderSpecificationConstructorItem(item, index, total, bomOptions, pare
   ];
   const safeParentOptions = parentOptions.filter((option) => option.value !== item.id);
   const bomSelectOptions = [
-    { value: "", label: "Выберите спецификацию", meta: "результат SMT-операции" },
+    { value: "", label: "Выберите плату", meta: "BOM для SMT-операции" },
     ...bomOptions.map((option) => ({
       value: option.id,
       label: option.name,
@@ -9023,6 +14552,7 @@ function renderSpecificationStructureTable(rows) {
             <th>Источник</th>
             <th>Кол-во</th>
             <th>Ед.</th>
+            <th>Обеспечение</th>
             <th>Результат</th>
             <th>Примечание</th>
           </tr>
@@ -9037,6 +14567,7 @@ function renderSpecificationStructureTable(rows) {
               <td>${escapeHtml(row.source)}</td>
               <td>${Number(row.quantity || 0).toLocaleString("ru-RU")}</td>
               <td>${escapeHtml(row.unit)}</td>
+              <td>${escapeHtml(row.fulfillment || "-")}</td>
               <td>${escapeHtml(row.result || "-")}</td>
               <td>${escapeHtml(row.note || "-")}</td>
             </tr>
@@ -9047,8 +14578,12 @@ function renderSpecificationStructureTable(rows) {
   `;
 }
 
+function getDirectoryRows(sectionId) {
+  return Array.isArray(directoryState?.[sectionId]) ? directoryState[sectionId] : [];
+}
+
 function getSpecificationById(specificationId) {
-  return (directoryState.specifications || [])
+  return getDirectoryRows("specifications")
     .find((specification) => specification.id === specificationId) || null;
 }
 
@@ -9058,9 +14593,79 @@ function getRouteSpecification(route) {
     || null;
 }
 
+function getRouteBomList(route) {
+  return getBomList(route?.bomListId || "");
+}
+
+function getRouteBindingContext(value = "") {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return { kind: "", id: "", value: "", specification: null, bom: null };
+
+  const [rawKind, ...rest] = rawValue.split(":");
+  const hasKindPrefix = ["spec", "bom"].includes(rawKind);
+  const kind = hasKindPrefix ? rawKind : "";
+  const id = hasKindPrefix ? rest.join(":") : rawValue;
+  const specification = kind !== "bom" ? getSpecificationById(id) || getSpecificationByProjectId(id) : null;
+  if (specification) {
+    return {
+      kind: "spec",
+      id: specification.id,
+      value: `spec:${specification.id}`,
+      specification,
+      bom: null,
+    };
+  }
+
+  const bom = kind !== "spec" ? getBomList(id) : null;
+  if (bom) {
+    return {
+      kind: "bom",
+      id: bom.id,
+      value: `bom:${bom.id}`,
+      specification: null,
+      bom,
+    };
+  }
+
+  return { kind, id, value: rawValue, specification: null, bom: null };
+}
+
+function normalizeRouteBindingValue(value = "") {
+  return getRouteBindingContext(value).value || "";
+}
+
+function normalizeRouteBindingMode(value = "") {
+  return value === "bom" ? "bom" : "product";
+}
+
+function getRouteBindingModeForSelection(value = "", route = null) {
+  const binding = getRouteBindingContext(value);
+  if (binding.kind === "bom" || binding.bom || route?.bomListId) return "bom";
+  return "product";
+}
+
+function getRouteBindingOptions(mode = "") {
+  const normalizedMode = normalizeRouteBindingMode(mode);
+  const productOptions = (directoryState.specifications || []).map((item) => ({
+    value: `spec:${item.id}`,
+    label: item.name || "Изделие без названия",
+    meta: `${PRODUCT_COMPOSITION_TERM} · ${getSpecificationProductionOrder(item) || "заказ не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(item)] || "статус"}`,
+  }));
+  const bomOptions = (directoryState.bomLists || []).map((item) => ({
+    value: `bom:${item.id}`,
+    label: item.name || "Плата без названия",
+    meta: `${BOARD_BOM_TERM} · ${getBomImportRows(item).length || Object.values(getBomComponentCounts(item)).reduce((sum, count) => sum + Number(count || 0), 0)} поз.`,
+  }));
+
+  return [
+    { value: "", label: "Связь не выбрана", meta: "не создавать автоматически" },
+    ...(normalizedMode === "bom" ? bomOptions : productOptions),
+  ];
+}
+
 function ensureRouteModuleProjectForSpecification(specification) {
   if (!specification) return "";
-  const specificationId = ensureSpecificationPlanningUnit(specification, { includeRoute: false });
+  const specificationId = ensureSpecificationPlanningUnit(specification);
   if (!specificationId) return "";
   if (!specification.projectId) return specificationId;
 
@@ -9076,10 +14681,12 @@ function ensureRouteModuleProjectForSpecification(specification) {
 }
 
 function resolveRouteModuleProjectId(selectionValue, options = {}) {
-  const value = String(selectionValue || "");
+  const binding = getRouteBindingContext(selectionValue);
+  if (binding.bom) return "";
+  const value = binding.specification?.id || String(selectionValue || "");
   if (!value) return "";
 
-  const specification = getSpecificationById(value) || getSpecificationByProjectId(value);
+  const specification = binding.specification || getSpecificationById(value) || getSpecificationByProjectId(value);
   if (specification) {
     if (getProject(specification.id)) return specification.id;
     return options.createPlanningUnit === false
@@ -9091,24 +14698,31 @@ function resolveRouteModuleProjectId(selectionValue, options = {}) {
 }
 
 function getRouteModuleSelectionValue(route, fallbackSpecification = null) {
+  const routeBom = getRouteBomList(route);
+  if (routeBom) return `bom:${routeBom.id}`;
+  if (route?.bomListId) return `bom:${route.bomListId}`;
   const routeSpecification = getRouteSpecification(route);
-  if (routeSpecification) return routeSpecification.id;
-  if (route?.specificationId) return route.specificationId;
-  if (route?.projectId) return route.projectId;
-  if (fallbackSpecification) return fallbackSpecification.id;
+  if (routeSpecification) return `spec:${routeSpecification.id}`;
+  if (route?.specificationId) return normalizeRouteBindingValue(route.specificationId) || `spec:${route.specificationId}`;
+  if (route?.projectId) return normalizeRouteBindingValue(route.projectId) || `spec:${route.projectId}`;
+  if (fallbackSpecification) return `spec:${fallbackSpecification.id}`;
   return "";
 }
 
 function getRouteModuleSelectionName(route, fallbackSpecification = null) {
+  const bom = getRouteBomList(route);
+  if (bom) return bom.name || "Плата без названия";
   const specification = getRouteSpecification(route) || fallbackSpecification;
   if (specification) return specification.name || "Состав изделия без названия";
-  return getProjectDisplayName(getProject(route?.projectId)) || "";
+  const rkdContext = getRouteRkdContext(route);
+  if (rkdContext) return `${rkdContext.rkd.number || rkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(rkdContext.board)}`;
+  return getProjectDisplayName(getRouteProductionContext(route)) || "";
 }
 
 function getRoutesForModule() {
   return [...(planningState.routes || [])].sort((left, right) => {
-    const leftProject = getProjectDisplayName(getProject(left.specificationId || left.projectId)) || "";
-    const rightProject = getProjectDisplayName(getProject(right.specificationId || right.projectId)) || "";
+    const leftProject = getProjectDisplayName(getRouteProductionContext(left)) || getRouteModuleSelectionName(left) || "";
+    const rightProject = getProjectDisplayName(getRouteProductionContext(right)) || getRouteModuleSelectionName(right) || "";
     return leftProject.localeCompare(rightProject, "ru") || String(left.name || "").localeCompare(String(right.name || ""), "ru");
   });
 }
@@ -9132,6 +14746,333 @@ function getRouteStepsForTask(steps, taskId) {
     .sort((left, right) => Number(left.stepOrder || 0) - Number(right.stepOrder || 0));
 }
 
+function getRouteProductionId(route = null) {
+  return route?.specificationId || route?.projectId || "";
+}
+
+function getRouteProductionContext(route = null) {
+  const productionId = getRouteProductionId(route);
+  return productionId ? getProject(productionId) : null;
+}
+
+function getRoutePlanningContext(route = null) {
+  const production = getRouteProductionContext(route);
+  if (production) return production;
+
+  const bom = getRouteBomList(route);
+  if (!bom) return null;
+  const title = bom.resultItem || bom.boardCode || bom.name || "Печатная плата";
+  return {
+    id: `bom:${bom.id}`,
+    name: title,
+    productName: title,
+    orderNumber: route?.name || bom.name || title,
+    customer: "",
+    totalQuantity: normalizeOptionalPositiveInteger(route?.planningQuantity) || 1,
+    status: route?.planningStatus || "planned",
+    dueDate: toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000)),
+    bomListId: bom.id,
+    sourceType: "bom",
+  };
+}
+
+function getRouteConcreteTasksForPlanning(route) {
+  return getRouteTasksForModule(route)
+    .filter((task) => !task.isMain && !task.isOrphan);
+}
+
+function shouldUseMainRouteStepsForSingleTask(route, task, steps = null) {
+  if (!route?.id || !task || task.isMain || task.isOrphan) return false;
+  const routeSteps = steps || getRouteStepsForModule(route.id);
+  const concreteTasks = getRouteConcreteTasksForPlanning(route);
+  if (concreteTasks.length !== 1 || concreteTasks[0].id !== task.id) return false;
+  const mainSteps = routeSteps.filter((step) => getRouteStepTaskId(step) === MAIN_ROUTE_TASK_ID);
+  const taskBoundSteps = routeSteps.filter((step) => getRouteStepTaskId(step) !== MAIN_ROUTE_TASK_ID);
+  return mainSteps.length > 0 && taskBoundSteps.length === 0;
+}
+
+function getPlanningTasksForRoute(route, steps = null) {
+  const tasks = getRouteTasksForModule(route);
+  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
+  const concreteTasks = tasks.filter((task) => !task.isMain && !task.isOrphan);
+  const hasOnlyMainSteps = routeSteps.some((step) => getRouteStepTaskId(step) === MAIN_ROUTE_TASK_ID)
+    && !routeSteps.some((step) => getRouteStepTaskId(step) !== MAIN_ROUTE_TASK_ID);
+  return concreteTasks.length === 1 && hasOnlyMainSteps
+    ? tasks.filter((task) => !task.isMain)
+    : tasks;
+}
+
+function getRouteStepsForPlanningTask(route, task, steps = null) {
+  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
+  const directSteps = getRouteStepsForTask(routeSteps, task?.id || "");
+  if (directSteps.length) return directSteps;
+  if (shouldUseMainRouteStepsForSingleTask(route, task, routeSteps)) {
+    return getRouteStepsForTask(routeSteps, MAIN_ROUTE_TASK_ID);
+  }
+  return directSteps;
+}
+
+function getRouteForStep(step = {}) {
+  return (planningState.routes || []).find((route) => route.id === step?.routeId) || null;
+}
+
+function getRouteStepPlanningTask(route, step, steps = null) {
+  if (!route?.id || !step?.id) return null;
+  const taskId = getRouteStepTaskId(step);
+  const tasks = getRouteTasksForModule(route);
+  if (taskId !== MAIN_ROUTE_TASK_ID) {
+    return tasks.find((task) => task.id === taskId) || null;
+  }
+  const concreteTasks = tasks.filter((task) => !task.isMain && !task.isOrphan);
+  const routeSteps = steps || getRouteStepsForModule(route.id);
+  const hasOnlyMainSteps = routeSteps.some((item) => getRouteStepTaskId(item) === MAIN_ROUTE_TASK_ID)
+    && !routeSteps.some((item) => getRouteStepTaskId(item) !== MAIN_ROUTE_TASK_ID);
+  return concreteTasks.length === 1 && hasOnlyMainSteps ? concreteTasks[0] : null;
+}
+
+function getRouteStepEffectiveQuantityMultiplier(step = {}, route = null) {
+  const explicitMultiplier = Math.max(1, Number(step.quantityMultiplier || step.specTaskQuantity || 1));
+  const resolvedRoute = route || getRouteForStep(step);
+  const task = getRouteStepPlanningTask(resolvedRoute, step);
+  return Math.max(1, Number(task?.quantity || explicitMultiplier));
+}
+
+function getRouteStepEffectiveBoardsPerPanel(route, step = {}) {
+  const task = getRouteStepPlanningTask(route, step);
+  const sourceId = task?.sourceItemId || task?.id || step.specTaskSourceItemId || step.bomListId || "";
+  const fallback = task?.boardsPerPanel || step.boardsPerPanel || 1;
+  return sourceId && route
+    ? getPlanningBoardsPerPanel(route, sourceId, fallback)
+    : normalizeBoardsPerPanel(fallback, 1);
+}
+
+function getRouteStepEffectiveBomListId(route, step = {}) {
+  return step.bomListId || getRouteStepPlanningTask(route, step)?.bomListId || "";
+}
+
+function getRouteStepEffectiveOperationContext(route, step = {}, planningWorkCenterId = "", resourceId = "") {
+  const task = getRouteStepPlanningTask(route, step);
+  return {
+    ...step,
+    specTaskId: step.specTaskId || task?.id || "",
+    specTaskSourceItemId: step.specTaskSourceItemId || task?.sourceItemId || "",
+    specTaskName: step.specTaskName || task?.title || "",
+    specTaskQuantity: Math.max(1, Number(step.specTaskQuantity || task?.quantity || 1)),
+    fulfillmentMode: task?.fulfillmentMode || step.fulfillmentMode || "produce",
+    quantityMultiplier: getRouteStepEffectiveQuantityMultiplier(step, route),
+    bomListId: getRouteStepEffectiveBomListId(route, step),
+    boardsPerPanel: getRouteStepEffectiveBoardsPerPanel(route, step),
+    routeWorkCenterId: step.workCenterId,
+    workCenterId: planningWorkCenterId || step.workCenterId || "",
+    resourceId: resourceId || step.resourceId || "",
+  };
+}
+
+function normalizeRouteStepFlowItems(items, kind = "input") {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item, index) => {
+      const label = String(item?.label || item?.name || item?.title || "").trim();
+      if (!label) return null;
+      return {
+        id: String(item.id || `${kind}-${index + 1}`),
+        kind,
+        sourceType: String(item.sourceType || item.type || "manual"),
+        sourceId: String(item.sourceId || ""),
+        label,
+        quantity: Number.isFinite(Number(item.quantity)) && Number(item.quantity) > 0 ? Number(item.quantity) : null,
+        unit: String(item.unit || "").trim(),
+      };
+    })
+    .filter(Boolean);
+}
+
+function makeManualRouteStepFlowItems(kind, rawValue) {
+  const label = String(rawValue || "").trim();
+  return label ? [{
+    id: `${kind}-manual`,
+    kind,
+    sourceType: "manual",
+    sourceId: "",
+    label,
+    quantity: null,
+    unit: "",
+  }] : [];
+}
+
+function getRouteStepManualFlowLabel(step = {}, kind = "input") {
+  const field = kind === "output" ? "operationOutputs" : "operationInputs";
+  const items = normalizeRouteStepFlowItems(step[field], kind);
+  return items.length === 1 && items[0].sourceType === "manual" ? items[0].label : "";
+}
+
+function makeRouteStepFlowItem(kind, label, sourceType = "derived", sourceId = "", extra = {}) {
+  const cleanLabel = String(label || "").trim();
+  if (!cleanLabel) return null;
+  return {
+    id: `${kind}-${sourceType}-${sourceId || cleanLabel}`.slice(0, 96),
+    kind,
+    sourceType,
+    sourceId: String(sourceId || ""),
+    label: cleanLabel,
+    quantity: extra.quantity ?? null,
+    unit: extra.unit || "",
+  };
+}
+
+function joinRouteStepFlowLabels(labels, fallback) {
+  const clean = labels.map((label) => String(label || "").trim()).filter(Boolean);
+  if (!clean.length) return fallback;
+  if (clean.length <= 2) return clean.join(" + ");
+  return `${clean.slice(0, 2).join(" + ")} + еще ${clean.length - 2}`;
+}
+
+function getRouteStepFlowTarget(route = null, step = {}) {
+  const task = getRouteStepPlanningTask(route, step);
+  const bomEntry = route ? getRouteSmtStepBomEntry(route, step) : null;
+  const bom = bomEntry?.bom || getBomList(getRouteStepEffectiveBomListId(route, step) || route?.bomListId || "");
+  const production = getRoutePlanningContext(route);
+  return {
+    task,
+    bom,
+    production,
+    targetLabel: task?.title
+      || bom?.resultItem
+      || bom?.name
+      || step.specTaskName
+      || production?.name
+      || "объект маршрута",
+    outputLabel: bom?.resultItem
+      || task?.title
+      || production?.name
+      || step.specTaskName
+      || "результат операции",
+  };
+}
+
+function deriveRouteStepFlowItems(route = null, step = {}, kind = "input") {
+  const { task, bom, production, targetLabel, outputLabel } = getRouteStepFlowTarget(route, step);
+  const operation = getOperationMapItem(step.operationId);
+  const taskId = getRouteStepTaskId(step);
+  const isMainTask = taskId === MAIN_ROUTE_TASK_ID || task?.isMain;
+  const isSmtStep = isSmtOperationWorkCenter(step.workCenterId, step, planningState) || routeStepRequiresManualPlanningLine(step, planningState);
+  const isWarehouseOutput = isManufacturingOutputReceiptRouteStep(step);
+  const isWarehouseIssue = isWarehouseIssueRouteStep(step) || task?.fulfillmentMode === "from_stock";
+
+  if (kind === "input") {
+    if (isWarehouseOutput) {
+      return [makeRouteStepFlowItem("input", `Готовый выпуск: ${targetLabel}`, "operation-result", step.id)].filter(Boolean);
+    }
+    if (isWarehouseIssue) {
+      return [makeRouteStepFlowItem("input", `Остаток склада: ${targetLabel}`, "warehouse-stock", task?.sourceItemId || step.id)].filter(Boolean);
+    }
+    if (isSmtStep && bom) {
+      const boardLabel = bom.boardCode || bom.resultItem || bom.name || targetLabel;
+      return [makeRouteStepFlowItem("input", `${boardLabel} + компоненты BOM`, "bom", bom.id)].filter(Boolean);
+    }
+    if (isMainTask) {
+      const childLabels = getRouteConcreteTasksForPlanning(route)
+        .filter((item) => normalizeStructureFulfillmentMode(item.fulfillmentMode || "", "produce") === "produce")
+        .map((item) => item.title);
+      return [makeRouteStepFlowItem("input", joinRouteStepFlowLabels(childLabels, "Полуфабрикаты и материалы состава изделия"), "composition", route?.id || "")].filter(Boolean);
+    }
+    return [makeRouteStepFlowItem("input", `Полуфабрикат/материал: ${targetLabel}`, "route-task", task?.sourceItemId || step.id)].filter(Boolean);
+  }
+
+  if (isWarehouseOutput) {
+    return [makeRouteStepFlowItem("output", `Складской остаток: ${targetLabel}`, "warehouse-receipt", task?.sourceItemId || step.id)].filter(Boolean);
+  }
+  if (isWarehouseIssue) {
+    return [makeRouteStepFlowItem("output", `Выдано в производство: ${targetLabel}`, "warehouse-issue", task?.sourceItemId || step.id)].filter(Boolean);
+  }
+  if (isSmtStep && bom) {
+    return [makeRouteStepFlowItem("output", bom.resultItem || `Смонтированная плата: ${targetLabel}`, "bom-result", bom.id)].filter(Boolean);
+  }
+  if (isMainTask) {
+    const finalOutput = getProjectDisplayOutput(production) || production?.name || outputLabel;
+    return [makeRouteStepFlowItem("output", finalOutput || "Готовое изделие", "production-output", production?.id || route?.id || "")].filter(Boolean);
+  }
+  return [makeRouteStepFlowItem("output", operation?.businessOutput || `Результат операции: ${outputLabel}`, "operation-output", operation?.id || step.id)].filter(Boolean);
+}
+
+function getRouteStepFlowModel(route = null, step = {}) {
+  const storedInputs = normalizeRouteStepFlowItems(step.operationInputs, "input");
+  const storedOutputs = normalizeRouteStepFlowItems(step.operationOutputs, "output");
+  const autoInputs = deriveRouteStepFlowItems(route, step, "input");
+  const autoOutputs = deriveRouteStepFlowItems(route, step, "output");
+  const inputs = storedInputs.length ? storedInputs : autoInputs;
+  const outputs = storedOutputs.length ? storedOutputs : autoOutputs;
+  return {
+    inputs,
+    outputs,
+    autoInputs,
+    autoOutputs,
+    inputLabel: joinRouteStepFlowLabels(inputs.map((item) => item.label), "Вход не определен"),
+    outputLabel: joinRouteStepFlowLabels(outputs.map((item) => item.label), "Выход не определен"),
+    autoInputLabel: joinRouteStepFlowLabels(autoInputs.map((item) => item.label), "Вход будет определен после выбора объекта"),
+    autoOutputLabel: joinRouteStepFlowLabels(autoOutputs.map((item) => item.label), "Выход будет определен после выбора операции"),
+    inputMode: storedInputs.length ? "manual" : "auto",
+    outputMode: storedOutputs.length ? "manual" : "auto",
+  };
+}
+
+function getSlotOperationFlow(slot = {}, route = null, step = null) {
+  const slotInputs = normalizeRouteStepFlowItems(slot.operationInputs, "input");
+  const slotOutputs = normalizeRouteStepFlowItems(slot.operationOutputs, "output");
+  if (slotInputs.length || slotOutputs.length) {
+    return {
+      inputs: slotInputs,
+      outputs: slotOutputs,
+      inputLabel: slot.operationInputLabel || joinRouteStepFlowLabels(slotInputs.map((item) => item.label), "Вход не определен"),
+      outputLabel: slot.operationOutputLabel || joinRouteStepFlowLabels(slotOutputs.map((item) => item.label), "Выход не определен"),
+      inputMode: "snapshot",
+      outputMode: "snapshot",
+    };
+  }
+  return getRouteStepFlowModel(route, step || {});
+}
+
+function renderOperationFlowMap(flow, options = {}) {
+  const className = ["operation-flow-map", options.compact ? "is-compact" : "", options.editable ? "is-editable" : ""].filter(Boolean).join(" ");
+  return `
+    <div class="${className}" aria-label="Входы и выходы операции">
+      <span class="operation-flow-point">
+        <b>Вход</b>
+        <strong>${escapeHtml(flow.inputLabel)}</strong>
+      </span>
+      <i aria-hidden="true">&rarr;</i>
+      <span class="operation-flow-point">
+        <b>Выход</b>
+        <strong>${escapeHtml(flow.outputLabel)}</strong>
+      </span>
+    </div>
+  `;
+}
+
+function renderRouteStepFlowEditor(route, step) {
+  const flow = getRouteStepFlowModel(route, step);
+  const inputValue = getRouteStepManualFlowLabel(step, "input");
+  const outputValue = getRouteStepManualFlowLabel(step, "output");
+  return `
+    <div class="route-step-flow-editor">
+      ${renderOperationFlowMap(flow, { editable: true })}
+      <details class="route-step-flow-override">
+        <summary>Уточнить вход/выход</summary>
+        <div>
+          <label class="form-field">
+            <span>Вход</span>
+            <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="operationInputs" value="${escapeAttribute(inputValue)}" placeholder="${escapeAttribute(flow.autoInputLabel)}" />
+          </label>
+          <label class="form-field">
+            <span>Выход</span>
+            <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="operationOutputs" value="${escapeAttribute(outputValue)}" placeholder="${escapeAttribute(flow.autoOutputLabel)}" />
+          </label>
+        </div>
+      </details>
+    </div>
+  `;
+}
+
 function getWorkCenterIdForRouteTask(task) {
   const targetUnit = (planningState.workCenters || []).find((center) => (
     isPlanningWorkCenter(center)
@@ -9140,7 +15081,7 @@ function getWorkCenterIdForRouteTask(task) {
   if (targetUnit) return targetUnit.id;
 
   const text = `${task?.operationName || ""} ${task?.departmentName || ""} ${task?.title || ""}`.toLowerCase();
-  if (text.includes("smt") || text.includes("smd") || text.includes("паяль") || text.includes("оплав")) return "D3_L1";
+  if (text.includes("smt") || text.includes("smd") || text.includes("паяль") || text.includes("оплав")) return "D3";
   if (text.includes("aoi") || text.includes("аои") || text.includes("инспек")) return "D3_AOI";
   if (text.includes("отмыв")) return "D3_UW";
   if (text.includes("tht") || text.includes("ручн") || text.includes("выводн")) return "D5";
@@ -9161,8 +15102,8 @@ function getSpecificationRouteTasks(specification, context = {}) {
 
   const tasks = [];
   getSpekiStructureTableRows(specification).forEach(({ item, number, level }) => {
-    const executionType = item.executionType || (item.type === "nomenclature" || item.type === "part" ? "buy" : "make");
-    if (executionType !== "make") return;
+    const fulfillmentMode = getSpecificationItemFulfillmentMode(item);
+    if (!isSchedulableFulfillmentMode(fulfillmentMode)) return;
 
     if (item.type === "specification" && item.specificationId) {
       const linkedSpecification = getSpecificationById(item.specificationId);
@@ -9182,10 +15123,10 @@ function getSpecificationRouteTasks(specification, context = {}) {
     const bomId = getSpecificationItemBomId(item);
     const taskType = bomId ? "bom" : item.type;
     const operation = getOperationMapItem(item.operationId);
-    const operationName = operation?.name || item.operationName || "";
+    const operationName = operation?.name || item.operationName || (fulfillmentMode === "from_stock" ? "Выдача со склада" : "");
     const departmentName = operation
-      ? getWorkCenter(operation.workCenterId)?.name || item.departmentName || ""
-      : item.departmentName || "";
+      ? getWorkCenter(getOperationRouteWorkCenterId(operation))?.name || item.departmentName || ""
+      : item.departmentName || (fulfillmentMode === "from_stock" ? "Склад" : "");
     const task = {
       id: context.numberPrefix ? `spec-item:${specification.id}:${item.id}` : `spec-item:${item.id}`,
       sourceItemId: item.id,
@@ -9194,10 +15135,11 @@ function getSpecificationRouteTasks(specification, context = {}) {
       number: context.numberPrefix ? `${context.numberPrefix}.${number}` : number,
       level: Number(context.levelOffset || 0) + level,
       type: taskType,
+      fulfillmentMode,
       title,
       operationId: operation?.id || item.operationId || "",
       operationName,
-      departmentName: departmentName || "Подразделение не выбрано",
+      departmentName: departmentName || "Отдел не выбран",
       quantity: Math.max(1, Number(item.quantity || 1)),
       unit: item.unit || "шт.",
       bomListId: bomId,
@@ -9205,11 +15147,39 @@ function getSpecificationRouteTasks(specification, context = {}) {
     };
     tasks.push({
       ...task,
-      workCenterId: operation?.workCenterId || getWorkCenterIdForRouteTask(task),
+      workCenterId: fulfillmentMode === "from_stock" && !operation ? "D1" : operation ? getOperationRouteWorkCenterId(operation) : getWorkCenterIdForRouteTask(task),
     });
   });
 
   return tasks;
+}
+
+function getRouteBomTasks(route) {
+  const bom = getRouteBomList(route);
+  if (!bom) return [];
+  const resultNomenclature = getBomResultNomenclatureItem(bom.id);
+  const title = resultNomenclature?.name || bom.resultItem || bom.boardCode || bom.name || "Печатная плата";
+  const task = {
+    id: `bom:${bom.id}`,
+    sourceItemId: bom.id,
+    sourceSpecificationId: "",
+    parentTitle: "",
+    number: "01",
+    level: 0,
+    type: "bom",
+    title,
+    operationId: "",
+    operationName: "Операции маршрутной карты",
+    departmentName: "Маршрутная карта",
+    quantity: 1,
+    unit: "шт.",
+    bomListId: bom.id,
+    boardsPerPanel: normalizeBoardsPerPanel(route?.boardsPerPanel, 1),
+  };
+  return [{
+    ...task,
+    workCenterId: getWorkCenterIdForRouteTask(task),
+  }];
 }
 
 function getRouteMainTask(route = null) {
@@ -9232,7 +15202,7 @@ function getRouteMainTask(route = null) {
 
 function getRouteTasksForModule(route) {
   const specification = getRouteSpecification(route);
-  const specTasks = getSpecificationRouteTasks(specification);
+  const specTasks = specification ? getSpecificationRouteTasks(specification) : getRouteBomTasks(route);
   const steps = route ? getRouteStepsForModule(route.id) : [];
   const taskIds = new Set(specTasks.map((task) => task.id));
   const hasMainSteps = steps.some((step) => getRouteStepTaskId(step) === MAIN_ROUTE_TASK_ID);
@@ -9267,12 +15237,17 @@ function getSchedulableRouteSteps(routeId) {
   const steps = getRouteStepsForModule(routeId)
     .filter((step) => step.isRequired)
     .filter((step) => Boolean(getOperationMapItem(step.operationId)));
-  const taskSteps = steps.filter((step) => getRouteStepTaskId(step) !== MAIN_ROUTE_TASK_ID);
-  return (taskSteps.length ? taskSteps : steps)
-    .sort((left, right) => (
-      getRouteStepTaskId(left).localeCompare(getRouteStepTaskId(right), "ru")
-      || Number(left.stepOrder || 0) - Number(right.stepOrder || 0)
-    ));
+  return steps.sort(compareRouteStepsForScheduling);
+}
+
+function compareRouteStepsForScheduling(left, right) {
+  const leftTaskId = getRouteStepTaskId(left);
+  const rightTaskId = getRouteStepTaskId(right);
+  const leftIsMain = leftTaskId === MAIN_ROUTE_TASK_ID;
+  const rightIsMain = rightTaskId === MAIN_ROUTE_TASK_ID;
+  if (leftIsMain !== rightIsMain) return leftIsMain ? 1 : -1;
+  return leftTaskId.localeCompare(rightTaskId, "ru")
+    || Number(left.stepOrder || 0) - Number(right.stepOrder || 0);
 }
 
 function getInvalidRouteOperationSteps(routeId) {
@@ -9310,6 +15285,7 @@ function ensureRouteTaskSeedSteps(routeId, specification) {
 	      specTaskSourceItemId: task.sourceItemId || step.specTaskSourceItemId || "",
 	      specTaskName: task.title || step.specTaskName || "",
 	      specTaskQuantity: nextQuantity,
+	      fulfillmentMode: task.fulfillmentMode || step.fulfillmentMode || "produce",
 	      quantityMultiplier: nextQuantity,
 	      bomListId: task.bomListId || step.bomListId || "",
 	      boardsPerPanel,
@@ -9341,9 +15317,9 @@ function getSpecificationRouteForModule(specificationId) {
 
 function getActiveRouteForModule() {
   if (ui.activeRouteId === "__new__") return null;
-  if (!ui.activeRouteId) return null;
   const routes = getRoutesForModule();
   return routes.find((route) => route.id === ui.activeRouteId)
+    || routes[0]
     || null;
 }
 
@@ -9354,7 +15330,8 @@ function getRouteModuleStats(route) {
   const steps = getRouteStepsForModule(route.id);
   const stepIds = new Set(steps.map((step) => step.id));
   const slots = planningState.slots.filter((slot) => stepIds.has(slot.routeStepId));
-  const warnings = getSlotWarnings(planningState).warnings.filter((warning) => warning.projectId === route.projectId);
+  const productionId = getRouteProductionId(route);
+  const warnings = getSlotWarnings(planningState).warnings.filter((warning) => warning.projectId === productionId);
   const hours = Math.round(slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0) * 10) / 10;
   return {
     steps,
@@ -9399,6 +15376,15 @@ function deleteRouteMapConfirmed(routeId) {
   planningState.slots = (planningState.slots || []).filter((slot) => (
     !usage.stepIds.has(slot.routeStepId) && !usage.batchIds.has(slot.batchId)
   ));
+  if (RKD_SERVICE_ENABLED) {
+    directoryState.rkdKits = (directoryState.rkdKits || []).map((rkd) => normalizeDirectoryRow("rkdKits", {
+      ...rkd,
+      boardLinks: (rkd.boardLinks || []).map((board) => (
+        board.routeMapId === routeId ? { ...board, routeMapId: "" } : board
+      )),
+      updatedAt: (rkd.boardLinks || []).some((board) => board.routeMapId === routeId) ? new Date().toISOString() : rkd.updatedAt,
+    }));
+  }
 
   if (wasDefault && routeTargetIds.size) {
     const sameTargetRoutes = planningState.routes.filter((item) => (
@@ -9417,6 +15403,7 @@ function deleteRouteMapConfirmed(routeId) {
   ui.activeRouteId = remainingRoutes[0]?.id || "";
   if (planningState.slots.every((slot) => slot.id !== ui.selectedSlotId)) ui.selectedSlotId = null;
   withPlanningEntityRemovalAllowed(() => persistState());
+  persistDirectoryState();
   persistUiState();
   render();
 }
@@ -9442,7 +15429,7 @@ function ensureProjectBatches(project) {
 
 function ensureRouteBatches(route, production = null) {
   if (!route) return [];
-  const context = production || getProject(route.specificationId || route.projectId);
+  const context = production || getRoutePlanningContext(route);
   if (!context) return [];
   const existing = getRoutePlanningBatches(route, context);
   if (existing.length) return existing;
@@ -9472,9 +15459,9 @@ function comparePlanningBatches(left, right) {
 
 function getRoutePlanningBatches(route, production = null) {
   if (!route) return [];
-  const context = production || getProject(route.specificationId || route.projectId);
+  const context = production || getRoutePlanningContext(route);
   const routeId = route.id;
-  const productionId = context?.id || route.specificationId || route.projectId || "";
+  const productionId = context?.id || getRouteProductionId(route);
   return (planningState.batches || [])
     .filter((batch) => (
       batch.routeId === routeId
@@ -9519,6 +15506,43 @@ function getPlanningRouteOrderState(route, summary = null) {
   return { id: "queued", label: "В очереди", tone: "neutral" };
 }
 
+function renderPlanningRequiredSettings(route, transferSummary) {
+  return `
+    <section class="module-panel planning-required-panel is-workflow">
+      <div class="report-card-head planning-section-head">
+        <div>
+          <div>
+            <strong>Обязательные настройки</strong>
+            <span>что планируем и как считать мультипликации</span>
+          </div>
+        </div>
+        <em class="planning-section-tag is-required">заполняется</em>
+      </div>
+
+      ${renderPlanningOrderQuantityBlock(route, transferSummary)}
+    </section>
+  `;
+}
+
+function renderPlanningRouteDetails(steps, route) {
+  return `
+    <details class="module-panel planning-detail-disclosure planning-route-steps">
+      <summary>
+        <div>
+          <div>
+            <strong>Последовательность операций</strong>
+            <span>${steps.length ? "технологический маршрут заказ-наряда, не обязателен для ежедневного ввода" : "операции еще не заданы"}</span>
+          </div>
+        </div>
+        <em>${steps.length} операций</em>
+      </summary>
+      <div class="planning-detail-body">
+        ${renderRouteModuleSequence(steps, route)}
+      </div>
+    </details>
+  `;
+}
+
 function getPlanningBatchQuantityTotal(batches) {
   return (batches || []).reduce((sum, batch) => sum + normalizeQuantity(batch.quantity || 0), 0);
 }
@@ -9532,7 +15556,7 @@ function getNextPlanningBatchNumber(batches) {
 
 function getPlanningRouteQuantity(route) {
   if (!route) return 1;
-  const project = getProject(route.specificationId || route.projectId);
+  const project = getRoutePlanningContext(route);
   const specification = getRouteSpecification(route);
   const batches = getRoutePlanningBatches(route, project);
   const firstBatch = batches[0];
@@ -9546,7 +15570,7 @@ function getPlanningRouteQuantity(route) {
 function syncPlanningRouteQuantity(routeId, value, options = {}) {
   const quantity = normalizeOptionalPositiveInteger(value);
   const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const production = getProject(route?.specificationId || route?.projectId);
+  const production = getRoutePlanningContext(route);
   if (!route || !production || !quantity) return false;
 
   const stamp = new Date().toISOString();
@@ -9623,7 +15647,7 @@ function syncPlanningRouteQuantity(routeId, value, options = {}) {
 
 function createPlanningBatch(routeId) {
   const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const production = getProject(route?.specificationId || route?.projectId);
+  const production = getRoutePlanningContext(route);
   if (!route || !production) return;
 
   const stamp = new Date().toISOString();
@@ -9676,7 +15700,7 @@ function updatePlanningBatchField(batchId, field, value) {
   if (!batch || !["batchNumber", "quantity"].includes(field)) return;
   const route = (planningState.routes || []).find((item) => item.id === batch.routeId)
     || (planningState.routes || []).find((item) => item.specificationId === batch.specificationId || item.projectId === batch.projectId);
-  const production = getProject(route?.specificationId || route?.projectId || batch.specificationId || batch.projectId);
+  const production = getRoutePlanningContext(route) || getProject(batch.specificationId || batch.projectId);
   const stamp = new Date().toISOString();
   let nextValue = value;
 
@@ -9710,7 +15734,7 @@ function updatePlanningBatchField(batchId, field, value) {
 
 function distributePlanningBatchesEvenly(routeId) {
   const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const production = getProject(route?.specificationId || route?.projectId);
+  const production = getRoutePlanningContext(route);
   if (!route || !production) return;
 
   let batches = getRoutePlanningBatches(route, production);
@@ -9743,7 +15767,7 @@ function distributePlanningBatchesEvenly(routeId) {
 
 function acceptPlanningBatchTotal(routeId) {
   const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const production = getProject(route?.specificationId || route?.projectId);
+  const production = getRoutePlanningContext(route);
   if (!route || !production) return;
   const batches = getRoutePlanningBatches(route, production);
   const total = getPlanningBatchQuantityTotal(batches);
@@ -9814,11 +15838,16 @@ function syncPlanningBoardsPerPanel(routeId, sourceId, value, options = {}) {
   planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
     if (step.routeId !== route.id) return step;
     const taskId = getRouteStepTaskId(step);
+    const effectiveTask = getRouteStepPlanningTask(route, step);
     const compositeKey = `${taskId}:${step.bomListId || ""}`;
     const matchesSource = (
       step.specTaskSourceItemId === sourceKey
+      || step.bomListId === sourceKey
       || taskId === sourceKey
       || compositeKey === sourceKey
+      || effectiveTask?.sourceItemId === sourceKey
+      || effectiveTask?.id === sourceKey
+      || effectiveTask?.bomListId === sourceKey
     );
     if (!matchesSource) return step;
     affectedStepIds.add(step.id);
@@ -9848,8 +15877,85 @@ function syncPlanningBoardsPerPanel(routeId, sourceId, value, options = {}) {
   return true;
 }
 
+function updatePlanningSupplyFulfillment(routeId, structureItemId, mode) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  const specification = getRouteSpecification(route);
+  const nextMode = normalizeStructureFulfillmentMode(mode, "not_selected");
+  if (!route || !specification || !structureItemId) return false;
+
+  const stamp = new Date().toISOString();
+  let changed = false;
+  directoryState.specifications = (directoryState.specifications || []).map((item) => {
+    if (item.id !== specification.id) return item;
+    const structureItems = getSpecificationStructureItems(item).map((structureItem) => {
+      if (structureItem.id !== structureItemId) return structureItem;
+      changed = true;
+      return normalizeSpecificationStructureItem({
+        ...structureItem,
+        fulfillmentMode: nextMode,
+        executionType: getExecutionTypeForFulfillmentMode(nextMode),
+        operationId: isSchedulableFulfillmentMode(nextMode) ? structureItem.operationId || "" : "",
+        operationName: nextMode === "from_stock"
+          ? structureItem.operationName || "Выдача со склада"
+          : isSchedulableFulfillmentMode(nextMode) ? structureItem.operationName || "" : "",
+        departmentName: nextMode === "from_stock"
+          ? structureItem.departmentName || "Склад"
+          : isSchedulableFulfillmentMode(nextMode) ? structureItem.departmentName || "" : "",
+      });
+    });
+    return changed
+      ? syncSpecificationDerivedFields({
+          ...item,
+          structureManaged: true,
+          structureItems,
+          updatedAt: stamp,
+        })
+      : item;
+  });
+
+  if (!changed) return false;
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  ensureRouteTaskSeedSteps(route.id, getRouteSpecification(route) || specification);
+  persistDirectoryState();
+  persistState();
+  notifySaveSuccess("Способ обеспечения сохранен");
+  render();
+  return true;
+}
+
+function updatePlanningFlowRule(routeId, patch = {}) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId);
+  if (!route) return false;
+
+  const nextMode = patch.mode !== undefined
+    ? normalizeRouteFlowLaunchMode(patch.mode, route)
+    : normalizeRouteFlowLaunchMode(route.flowLaunchMode, route);
+  const nextTransferBatchQuantity = patch.transferBatchQuantity !== undefined
+    ? normalizeOptionalPositiveInteger(patch.transferBatchQuantity)
+    : normalizeOptionalPositiveInteger(route.transferBatchQuantity);
+  const stamp = new Date().toISOString();
+
+  planningState.routes = (planningState.routes || []).map((item) => {
+    if (item.id !== route.id) return item;
+    return {
+      ...item,
+      flowLaunchMode: nextMode,
+      transferBatchQuantity: nextTransferBatchQuantity || getPlanningTransferBatchQuantity(item),
+      updatedAt: stamp,
+    };
+  });
+
+  const alignedIds = alignRouteMainSlotsAfterBranches(route.id);
+  planningState = normalizePlanningState(planningState);
+  persistState();
+  notifySaveSuccess(alignedIds.length ? "Правило запуска сборки сохранено, Гант обновлен" : "Правило запуска сборки сохранено");
+  render();
+  return true;
+}
+
 function getRouteStepQuantityForBatch(routeStep, batch) {
-  const multiplier = Math.max(1, Number(routeStep?.quantityMultiplier || routeStep?.specTaskQuantity || 1));
+  const route = getRouteForStep(routeStep);
+  const multiplier = getRouteStepEffectiveQuantityMultiplier(routeStep, route);
   return Math.max(1, Math.round(normalizeQuantity(batch?.quantity) * multiplier));
 }
 
@@ -9899,7 +16005,7 @@ function getPlanningMultiplicationRows(route, steps = null, planningQuantity = n
 
 function getPlanningRouteTransferSummary(route) {
   if (!route) return { batches: [], steps: [], expected: 0, planned: 0, missing: 0, firstStart: null, multiplicationRows: [], totalPanels: 0, batchQuantityTotal: 0, quantityDelta: 0 };
-  const project = getProject(route.specificationId || route.projectId);
+  const project = getRoutePlanningContext(route);
   const planningQuantity = getPlanningRouteQuantity(route);
   const existingBatches = project ? getRoutePlanningBatches(route, project) : [];
   const batches = existingBatches.length ? existingBatches : project ? [{
@@ -9947,27 +16053,40 @@ function getPlanningScheduleAnchorStart() {
   return now > windowStart ? now : windowStart;
 }
 
-function createSlotFromRouteStep(project, batch, routeStep, window, quantity, stamp) {
+function createSlotFromRouteStep(project, batch, routeStep, window, quantity, stamp, assignment = null) {
   const route = (planningState.routes || []).find((item) => item.id === routeStep.routeId);
   const specificationId = route?.specificationId || project.specificationId || project.id;
+  const planningWorkCenterId = assignment?.workCenterId || getRouteStepSelectedPlanningWorkCenterId(routeStep, planningState) || routeStep.workCenterId;
+  const resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(routeStep, planningWorkCenterId, routeStep.resourceId || "");
+  const operationContext = getRouteStepEffectiveOperationContext(route, routeStep, planningWorkCenterId, resourceId);
+  const flow = getRouteStepFlowModel(route, routeStep);
   return {
     id: makeId("s"),
     routeId: route?.id || routeStep.routeId || "",
     specificationId,
     projectId: specificationId,
     batchId: batch.id,
-    workCenterId: routeStep.workCenterId,
+    routeWorkCenterId: routeStep.workCenterId,
+    workCenterId: planningWorkCenterId,
     routeStepId: routeStep.id,
+    operationId: routeStep.operationId || "",
     operationName: routeStep.operationName || getWorkCenter(routeStep.workCenterId)?.name || "Операция",
     quantity,
-	    unitsPerHour: Number(routeStep.unitsPerHour || 0) || undefined,
-	    boardsPerPanel: getRouteStepBoardsPerPanel(routeStep),
-	    resourceId: routeStep.resourceId || "",
-	    calculationType: routeStep.calculationType || getDefaultOperationCalculationType(routeStep.workCenterId, routeStep),
-	    secondsPerPanel: Number(routeStep.secondsPerPanel || 0),
-	    setupMin: Number(routeStep.setupMin || 0),
-	    bomListId: routeStep.bomListId || "",
-	    plannedStart: toSlotDateTime(window.start),
+    unitsPerHour: Number(routeStep.unitsPerHour || 0) || undefined,
+    boardsPerPanel: operationContext.boardsPerPanel,
+    resourceId,
+    calculationType: routeStep.calculationType || getDefaultOperationCalculationType(planningWorkCenterId, operationContext),
+    fulfillmentMode: operationContext.fulfillmentMode || routeStep.fulfillmentMode || "produce",
+    secondsPerPanel: Number(routeStep.secondsPerPanel || 0),
+    setupMin: Number(routeStep.setupMin || 0),
+    bomListId: operationContext.bomListId || "",
+    machineSplit: operationContext.machineSplit || null,
+    machineCoefficients: operationContext.machineCoefficients || null,
+    operationInputs: flow.inputs,
+    operationOutputs: flow.outputs,
+    operationInputLabel: flow.inputLabel,
+    operationOutputLabel: flow.outputLabel,
+    plannedStart: toSlotDateTime(window.start),
     plannedEnd: toSlotDateTime(window.end),
     actualStart: "",
     actualEnd: "",
@@ -10013,15 +16132,24 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
   let guard = 0;
   while (groups.some((group) => group.queue.length) && guard < 500) {
     guard += 1;
+    const taskGroups = groups.filter((group) => group.taskId !== MAIN_ROUTE_TASK_ID);
     const candidates = groups
       .filter((group) => group.queue.length)
       .map((group) => {
+        if (group.taskId === MAIN_ROUTE_TASK_ID && taskGroups.some((taskGroup) => taskGroup.queue.length)) return null;
+        const readyAt = group.taskId === MAIN_ROUTE_TASK_ID
+          ? getMainRouteDependencyReadyAt(routeSteps[0]?.routeId || "", project.id, batch.id)
+            || taskGroups.reduce((latest, taskGroup) => (
+              new Date(Math.max(toDate(latest).getTime(), toDate(taskGroup.readyAt).getTime()))
+            ), group.readyAt)
+          : group.readyAt;
         const step = group.queue[0];
         const quantity = getRouteStepQuantityForBatch(step, batch);
-        const durationMs = calculateRequiredDurationMs(step.workCenterId, quantity, planningState, step.unitsPerHour || null, step.boardsPerPanel || null, step);
-        const window = findFreeWindow(step.workCenterId, durationMs, group.readyAt, null, step.resourceId || "");
-        return { group, step, quantity, window };
+        const assignment = getManualPlanningAssignmentForRouteStep(step, quantity, readyAt, { state: planningState });
+        if (!assignment) return null;
+        return { group, step, quantity, window: assignment.window, assignment };
       })
+      .filter(Boolean)
       .sort((left, right) => (
         toDate(left.window.start) - toDate(right.window.start)
         || toDate(left.window.end) - toDate(right.window.end)
@@ -10029,7 +16157,7 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
     const selected = candidates[0];
     if (!selected) break;
 
-    const slot = createSlotFromRouteStep(project, batch, selected.step, selected.window, selected.quantity, stamp);
+    const slot = createSlotFromRouteStep(project, batch, selected.step, selected.window, selected.quantity, stamp, selected.assignment);
     planningState.slots = [...planningState.slots, slot];
     createdIds.push(slot.id);
     selected.group.queue.shift();
@@ -10039,11 +16167,19 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
   return createdIds;
 }
 
+function getRouteStepsMissingPlanningLine(routeSteps = [], state = null) {
+  const sourceState = state || getRuntimePlanningState();
+  return routeSteps.filter((step) => (
+    routeStepRequiresManualPlanningLine(step, sourceState)
+    && !getRouteStepSelectedPlanningWorkCenterId(step, sourceState)
+  ));
+}
+
 function schedulePlanningRouteToGantt(routeId) {
   const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const project = getProject(route?.specificationId || route?.projectId);
+  const project = getRoutePlanningContext(route);
   if (!route || !project) {
-    alert("Не удалось передать маршрут в Гант: маршрутная карта не связана с составом изделия в производстве.");
+    alert("Не удалось передать заказ-наряд в Гант: он не связан с изделием, платой или BOM.");
     return;
   }
 
@@ -10053,19 +16189,45 @@ function schedulePlanningRouteToGantt(routeId) {
   syncPlanningRouteQuantity(route.id, planningQuantity, { updateSlots: true, persist: false, render: false, notify: false });
   const invalidSteps = getInvalidRouteOperationSteps(route.id);
   if (invalidSteps.length) {
-    alert(`Не удалось передать маршрут в Гант: ${invalidSteps.length} операций не выбраны из справочника операций.`);
+    alert(`Не удалось передать заказ-наряд в Гант: ${invalidSteps.length} операций не выбраны из справочника операций.`);
     return;
   }
   const routeSteps = getSchedulableRouteSteps(route.id);
+  const supplyIssues = getPlanningSupplyBlockingIssues(route, getPlanningRouteTransferSummary(route), routeSteps);
+  if (supplyIssues.length) {
+    alert(`Не удалось передать заказ-наряд в Гант: проверьте обеспечение состава.\n${supplyIssues.slice(0, 6).join("\n")}`);
+    ui.activeModule = "planning";
+    ui.activeRouteId = route.id;
+    ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || ui.activeProjectId || "";
+    ui.planningWorkItem = "supply";
+    persistUiState();
+    render();
+    return;
+  }
   const batches = ensureRouteBatches(route, project);
   if (!routeSteps.length || !batches.length) {
-    alert("Не удалось передать маршрут в Гант: нет операций или партий для размещения.");
+    alert("Не удалось передать заказ-наряд в Гант: нет операций или партий для размещения.");
+    return;
+  }
+  const missingPlanningLines = getRouteStepsMissingPlanningLine(routeSteps, planningState);
+  if (missingPlanningLines.length) {
+    const names = missingPlanningLines
+      .slice(0, 4)
+      .map((step) => `${Number(step.stepOrder || 0)}. ${step.operationName || "SMT-операция"}`)
+      .join("\n");
+	    alert(`Не удалось передать заказ-наряд в Гант: выберите линию планирования для SMT-операций.\n${names}`);
+	    if (ui.activeModule !== "planning") ui.activeModule = "routes";
+	    ui.activeRouteId = route.id;
+	    ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || ui.activeProjectId || "";
+    persistUiState();
+    render();
     return;
   }
 
   const stamp = new Date().toISOString();
   const anchorStart = getPlanningScheduleAnchorStart();
   const createdIds = batches.flatMap((batch) => scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, stamp));
+  const alignedIds = alignRouteMainSlotsAfterBranches(route.id);
   planningState.routes = (planningState.routes || []).map((item) => (
     item.id === route.id
       ? { ...item, planningStatus: "scheduled", canceledAt: "", updatedAt: stamp }
@@ -10083,12 +16245,17 @@ function schedulePlanningRouteToGantt(routeId) {
   ui.activeRouteId = route.id;
   ui.expandedProjects.add(route.id);
   if (createdIds.length) ui.selectedSlotId = createdIds[0];
+  else if (alignedIds.length) ui.selectedSlotId = alignedIds[0];
   persistState();
   persistUiState();
-  notifySaveSuccess(createdIds.length ? "Маршрут передан в Гант" : "Маршрут уже был в Ганте");
+  notifySaveSuccess(createdIds.length
+    ? "Заказ-наряд передан в Гант"
+    : alignedIds.length
+      ? "Зависимости заказ-наряда обновлены"
+      : "Заказ-наряд уже был в Ганте");
   focusRoute(route.id);
-  if (!createdIds.length) {
-    alert("Все операции этой маршрутной карты уже находятся в Ганте.");
+  if (!createdIds.length && !alignedIds.length) {
+    alert("Все операции этого заказ-наряда уже находятся в Ганте.");
   }
 }
 
@@ -10116,9 +16283,9 @@ function cancelPlanningRoute(routeId) {
   ));
 
   if (slotIds.has(ui.selectedSlotId)) ui.selectedSlotId = null;
-  ui.activeModule = "planning";
-  ui.activeRouteId = route.id;
-  ui.activeProjectId = route.specificationId || route.projectId || ui.activeProjectId || "";
+	  ui.activeModule = "planning";
+	  ui.activeRouteId = route.id;
+	  ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || ui.activeProjectId || "";
   planningState = normalizePlanningState(planningState);
   withPlanningEntityRemovalAllowed(() => persistState());
   persistUiState();
@@ -10143,10 +16310,10 @@ function openPlanningForRoute(routeId = "") {
   if (!route) {
     openPlanningForProject(ui.activeProjectId || "");
     return;
-  }
-  ui.activeModule = "planning";
-  ui.activeProjectId = route.specificationId || route.projectId || ui.activeProjectId || "";
-  ui.activeRouteId = route.id;
+	  }
+	  ui.activeModule = "planning";
+	  ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || ui.activeProjectId || "";
+	  ui.activeRouteId = route.id;
   ui.selectedSlotId = null;
   ui.editor = null;
   persistUiState();
@@ -10157,33 +16324,39 @@ function renderRoutesPage() {
   const activeRoute = getActiveRouteForModule();
   const isNewRoute = ui.activeRouteId === "__new__";
   const hasPreviewRoute = isNewRoute || Boolean(activeRoute);
-  const activeSpecification = getActiveSpecificationForModule();
+  const routeDraftBindingId = isNewRoute ? normalizeRouteBindingValue(ui.routeDraftBindingId || "") : "";
+  const draftBinding = getRouteBindingContext(routeDraftBindingId);
+  const draftSpecification = draftBinding.specification;
+  const draftBom = draftBinding.bom;
+  const activeSpecification = draftSpecification || getActiveSpecificationForModule();
   const defaultProjectId = activeRoute?.specificationId || activeRoute?.projectId || activeSpecification?.id || ui.activeProjectId || "";
   const route = activeRoute || {
     id: "",
-    specificationId: defaultProjectId,
-    projectId: defaultProjectId,
+    specificationId: draftBom ? "" : defaultProjectId,
+    projectId: draftBom ? "" : defaultProjectId,
+    bomListId: draftBom?.id || "",
     name: "Новая маршрутная карта",
     isDefault: Boolean(activeRoute?.isDefault),
   };
-  const routeSelectionValue = hasPreviewRoute && isNewRoute && activeSpecification
-    ? activeSpecification.id
-    : hasPreviewRoute
-      ? getRouteModuleSelectionValue(route, activeSpecification)
-      : "";
-  const routeSpecification = hasPreviewRoute ? getSpecificationById(routeSelectionValue) || getRouteSpecification(route) : null;
-  const project = hasPreviewRoute ? getProject(routeSelectionValue || route.specificationId || route.projectId) : null;
+  const routeSelectionRawValue = hasPreviewRoute
+    ? getRouteModuleSelectionValue(route) || (isNewRoute ? routeDraftBindingId || activeSpecification?.id || "" : "")
+    : "";
+  const routeSelectionValue = normalizeRouteBindingValue(routeSelectionRawValue);
+  const inferredRouteBindingMode = getRouteBindingModeForSelection(routeSelectionValue, route);
+  const routeBindingMode = routeSelectionValue ? inferredRouteBindingMode : normalizeRouteBindingMode(ui.routeBindingMode || inferredRouteBindingMode);
+  ui.routeBindingMode = routeBindingMode;
+  const routeBinding = getRouteBindingContext(routeSelectionValue);
+  const routeSpecification = hasPreviewRoute ? routeBinding.specification || getRouteSpecification(route) : null;
+  const routeBom = hasPreviewRoute ? routeBinding.bom || getRouteBomList(route) : null;
+  const project = hasPreviewRoute ? getProject(routeSelectionValue || getRouteProductionId(route)) : null;
+  const rkdContext = hasPreviewRoute ? getRouteRkdContext(route) : null;
   const routeTargetName = hasPreviewRoute
-    ? routeSpecification?.name || getProjectDisplayName(project) || "выберите состав изделия"
+    ? routeBom?.name || routeSpecification?.name || getProjectDisplayName(project) || (rkdContext ? `${rkdContext.rkd.number || rkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(rkdContext.board)}` : "") || "выберите связь"
     : "выберите карту слева";
-  const canOpenRouteTarget = Boolean(hasPreviewRoute);
+  const canOpenRouteTarget = Boolean(hasPreviewRoute && (routeBom || routeSpecification || project));
   const stats = getRouteModuleStats(activeRoute);
-  const specificationOptions = (directoryState.specifications || [])
-    .map((item) => ({
-      value: item.id,
-      label: item.name || "Состав изделия без названия",
-      meta: `${getSpecificationProductionOrder(item) || "заказ не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(item)] || "статус"}`,
-    }));
+  const routeBindingOptions = getRouteBindingOptions(routeBindingMode);
+  const hasRouteBindingOptions = routeBindingOptions.length > 1;
 
   return `
     <section class="routes-page module-data-page" data-layout="main-content" aria-label="Маршрутные карты">
@@ -10195,18 +16368,20 @@ function renderRoutesPage() {
         <div class="module-sidebar-actions">
           <button class="primary-button" data-route-create type="button">${icon("plus")}<span>Новая карта</span></button>
         </div>
-        <div class="module-entity-list">
-          <div class="module-list-label">Маршрутные карты состава изделия</div>
+          <div class="module-entity-list">
+          <div class="module-list-label">Маршрутные карты</div>
           ${isNewRoute ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая маршрутная карта</strong><small>${escapeHtml(routeTargetName)}</small></span><em>new</em></button>` : ""}
           ${getRoutesForModule().map((item) => {
-            const routeProject = getProject(item.projectId);
+            const routeProject = getRouteProductionContext(item);
             const itemSpecification = getRouteSpecification(item);
+            const itemBom = getRouteBomList(item);
+            const itemRkdContext = getRouteRkdContext(item);
             const steps = getRouteStepsForModule(item.id);
             return `
               <button class="module-entity-item ${item.id === activeRoute?.id ? "is-active" : ""}" data-route-open="${item.id}" type="button">
                 <span>
                   <strong>${escapeHtml(item.name || "Маршрутная карта")}</strong>
-                  <small>${escapeHtml(itemSpecification?.name || getProjectDisplayName(routeProject) || "состав изделия не найден")} · ${steps.length} шагов</small>
+                  <small>${escapeHtml(itemBom?.name || itemSpecification?.name || getProjectDisplayName(routeProject) || (itemRkdContext ? `${itemRkdContext.rkd.number || itemRkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(itemRkdContext.board)}` : "связь не выбрана"))} · ${steps.length} шагов</small>
                 </span>
                 <em>${steps.length}</em>
               </button>
@@ -10220,10 +16395,10 @@ function renderRoutesPage() {
           <div>
             <span class="eyebrow">Маршрутная карта</span>
             <h2>${escapeHtml(hasPreviewRoute ? (isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта") : "Карта не выбрана")}</h2>
-            <p>${escapeHtml(hasPreviewRoute ? (routeSpecification || project ? `${routeTargetName}: последовательность подразделений и нормативов для передачи в Гант.` : "Выберите состав изделия и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
+            <p>${escapeHtml(hasPreviewRoute ? (routeBom ? `${routeTargetName}: маршрут для одной платы.` : routeSpecification || project ? `${routeTargetName}: маршрут по изделию с настройкой операций для составных частей.` : rkdContext ? `${routeTargetName}: маршрут создан из РКД. Для планирования выберите изделие.` : "Выберите изделие или плату и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
           </div>
           <div class="directory-actions">
-            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>В Планирование</span></button>
+            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>Создать заказ-наряд</span></button>
           </div>
         </header>
 
@@ -10234,15 +16409,31 @@ function renderRoutesPage() {
               <strong>Карточка маршрута</strong>
               <span>${isNewRoute ? "создание технологической карты" : "состав изделия, статус и применение в плане"}</span>
             </div>
-            <form id="routeModuleForm" class="module-form route-module-form">
-              <input type="hidden" name="routeId" value="${escapeAttribute(route.id)}" />
-              <input type="hidden" name="isNew" value="${isNewRoute ? "yes" : "no"}" />
-              <input type="hidden" name="routeBindingId" value="${escapeAttribute(routeSelectionValue)}" />
-              <label class="form-field full"><span>Название маршрутной карты</span><input name="name" value="${escapeAttribute(route.name || "")}" placeholder="Основной маршрут" /></label>
-              <label class="form-field full">
-                <span>Состав изделия</span>
-                ${renderDenseInlineSelect("routeBindingId", routeSelectionValue, specificationOptions, { type: "routeModule" })}
-              </label>
+		            <form id="routeModuleForm" class="module-form route-module-form">
+		              <input type="hidden" name="routeId" value="${escapeAttribute(route.id)}" />
+		              <input type="hidden" name="isNew" value="${isNewRoute ? "yes" : "no"}" />
+		              <label class="form-field full"><span>Название маршрутной карты</span><input name="name" value="${escapeAttribute(route.name || "")}" placeholder="Основной маршрут" /></label>
+		              <div class="route-binding-mode full" role="group" aria-label="Тип входа маршрутной карты">
+		                <button class="${routeBindingMode === "product" ? "is-active" : ""}" data-route-binding-mode="product" type="button">
+		                  ${icon("tree")}
+		                  <span><strong>Изделие</strong><small>операции по составным частям</small></span>
+		                </button>
+		                <button class="${routeBindingMode === "bom" ? "is-active" : ""}" data-route-binding-mode="bom" type="button">
+		                  ${icon("bom")}
+		                  <span><strong>${BOARD_SPEC_TERM}</strong><small>одна плата / BOM</small></span>
+		                </button>
+		              </div>
+		              <label class="form-field command-field full">
+		                <span>${routeBindingMode === "bom" ? "Плата для маршрута" : "Изделие для маршрута"}</span>
+		                <select name="routeBindingId" data-route-binding-select ${hasRouteBindingOptions ? "" : "disabled"}>
+		                  ${routeBindingOptions.map((item) => `
+		                    <option value="${escapeAttribute(item.value)}" ${selected(routeSelectionValue, item.value)}>
+		                      ${escapeHtml(item.label)}${item.meta ? ` · ${escapeHtml(item.meta)}` : ""}
+		                    </option>
+		                  `).join("")}
+		                </select>
+		                <small class="form-field-note">${hasRouteBindingOptions ? (routeBindingMode === "bom" ? "Выберите существующую плату. Новая плата здесь не создается." : "Выберите существующее изделие. Его состав станет списком объектов для операций маршрута.") : (routeBindingMode === "bom" ? "Сохраненных плат нет. Карту можно создать без связи и привязать ее позже." : "Сохраненных изделий нет. Карту можно создать без связи и привязать ее позже.")}</small>
+		              </label>
               <div class="module-form-actions full">
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewRoute ? "Создать карту" : "Сохранить карту"}</span></button>
                 ${isNewRoute ? "" : `<button class="secondary-button danger" data-route-delete="${escapeAttribute(route.id)}" type="button">${icon("trash")}<span>Удалить карту</span></button>`}
@@ -10255,8 +16446,8 @@ function renderRoutesPage() {
 	              <strong>Операции маршрута</strong>
 	              <div class="route-steps-head-actions">
 	                <span>Операции выбираются только из справочника операций.</span>
-	                <button class="secondary-button" data-route-add-step="operation" type="button" ${getDefaultOperationMapItemForRouteKind("operation") ? "" : "disabled"}>${icon("plus")}<span>Добавить операцию</span></button>
-	                <button class="secondary-button" data-route-add-step="warehouse" type="button" ${getDefaultOperationMapItemForRouteKind("warehouse") ? "" : "disabled"}>${icon("package")}<span>Добавить склад</span></button>
+	                <button class="secondary-button" data-route-add-step="operation" type="button" ${getRouteInstructionWorkCenters({ includeWarehouse: false }).length ? "" : "disabled"}>${icon("plus")}<span>Добавить операцию</span></button>
+	                <button class="secondary-button" data-route-add-step="warehouse" type="button" ${getDefaultOperationMapItemForRouteKind("warehouse") ? "" : "disabled"}>${icon("package")}<span>Добавить приемку</span></button>
 	              </div>
 	            </div>
             ${renderRouteStepsEditor(activeRoute, stats.steps)}
@@ -10274,7 +16465,7 @@ function renderRouteModuleSequence(steps, route = null) {
       <div class="route-module-empty">
         ${icon("split")}
         <strong>Маршрут пока пустой</strong>
-        <span>Добавьте операции в нужной последовательности. Конечный складской шаг можно оставить последним.</span>
+        <span>Добавьте операции в нужной последовательности. Приемку результата можно оставить последней.</span>
       </div>
     `;
   }
@@ -10296,7 +16487,7 @@ function renderRouteModuleSequence(steps, route = null) {
                 <div class="route-task-sequence-steps">
                   ${taskSteps.map((step) => {
                     const center = getWorkCenter(step.workCenterId);
-                    return `<span class="${isWarehouseWorkCenterId(step.workCenterId) ? "is-warehouse" : ""}"><b>${Number(step.stepOrder || 0)}</b>${escapeHtml(step.operationName || "Операция")}<small>${escapeHtml(center?.name || step.workCenterId || "подразделение")}</small></span>`;
+                    return `<span class="${isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : ""}"><b>${Number(step.stepOrder || 0)}</b>${escapeHtml(step.operationName || "Операция")}<small>${escapeHtml(center?.name || step.workCenterId || "отдел")}</small></span>`;
                   }).join("")}
                 </div>
               ` : `<div class="route-task-sequence-empty">Операции еще не заданы</div>`}
@@ -10312,9 +16503,9 @@ function renderRouteModuleSequence(steps, route = null) {
       ${steps.map((step) => {
         const center = getWorkCenter(step.workCenterId);
         return `
-          <article class="${isWarehouseWorkCenterId(step.workCenterId) ? "is-warehouse" : ""}">
+          <article class="${isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : ""}">
             <b>${Number(step.stepOrder || 0)}</b>
-            <span><strong>${escapeHtml(step.operationName || "Операция")}</strong><small>${escapeHtml(center?.name || step.workCenterId || "подразделение")}</small></span>
+            <span><strong>${escapeHtml(step.operationName || "Операция")}</strong><small>${escapeHtml(center?.name || step.workCenterId || "отдел")}</small></span>
           </article>
         `;
       }).join("")}
@@ -10325,11 +16516,70 @@ function renderRouteModuleSequence(steps, route = null) {
 function getRouteTaskTypeLabel(task) {
   if (task?.isMain) return "общий";
   if (task?.isOrphan) return "проверить";
+  if (task?.fulfillmentMode === "from_stock") return "склад";
   if (task?.type === "bom") return "плата";
   if (task?.type === "specification") return "состав изделия";
   if (task?.type === "assembly") return "узел";
   if (task?.type === "nomenclature" || task?.type === "part") return "позиция";
   return "задача";
+}
+
+function getRouteStepTaskOptions(route = null) {
+  if (!route?.id) return [];
+  const tasks = getRouteTasksForModule(route)
+    .filter((task) => !task.isOrphan);
+  const concreteTasks = tasks.filter((task) => !task.isMain);
+  const options = [];
+
+  if (concreteTasks.length > 1) {
+    options.push({
+      value: MAIN_ROUTE_TASK_ID,
+      label: "Общий маршрут изделия",
+      meta: "финальная сборка или общая операция",
+    });
+  }
+
+  concreteTasks.forEach((task) => {
+    options.push({
+      value: task.id,
+      label: task.title || "Объект маршрута",
+      meta: `${getRouteTaskTypeLabel(task)} · ${getFulfillmentLabel(task.fulfillmentMode || "produce")} · ${task.quantity || 1} ${task.unit || "шт."}`,
+    });
+  });
+
+  return options;
+}
+
+function getRouteStepTaskSelectValue(step = {}, route = null, options = getRouteStepTaskOptions(route)) {
+  const currentTaskId = getRouteStepTaskId(step);
+  if (options.some((item) => item.value === currentTaskId)) return currentTaskId;
+  return options[0]?.value || MAIN_ROUTE_TASK_ID;
+}
+
+function getRouteTaskById(route = null, taskId = "") {
+  return getRouteTasksForModule(route)
+    .find((task) => task.id === taskId)
+    || null;
+}
+
+function applyRouteTaskToStep(step = {}, route = null, taskId = "") {
+  const task = getRouteTaskById(route, taskId);
+  const isMainTask = !task || task.id === MAIN_ROUTE_TASK_ID || task.isMain;
+  const nextTaskId = isMainTask ? MAIN_ROUTE_TASK_ID : task.id;
+  const quantity = Math.max(1, Number(task?.quantity || 1));
+  return normalizeRouteStepCalculationFields({
+    ...step,
+    specTaskId: nextTaskId,
+    specTaskSourceItemId: isMainTask ? "" : task.sourceItemId || "",
+    specTaskName: isMainTask ? "" : task.title || "",
+    specTaskQuantity: quantity,
+    fulfillmentMode: isMainTask ? "produce" : task.fulfillmentMode || "produce",
+    quantityMultiplier: quantity,
+    bomListId: isMainTask ? "" : task.bomListId || "",
+    boardsPerPanel: !isMainTask && task.type === "bom"
+      ? getPlanningBoardsPerPanel(route, task.sourceItemId || task.id, task.boardsPerPanel || step.boardsPerPanel || 1)
+      : 1,
+  }, planningState);
 }
 
 function renderRouteStepsEditor(route, steps) {
@@ -10362,28 +16612,42 @@ function renderRouteStepRows(steps) {
   return `
     <div class="route-step-editor-list">
       ${steps.map((step, index) => {
+        const route = getRouteForStep(step);
+        const taskOptions = getRouteStepTaskOptions(route);
+        const showTaskSelect = taskOptions.length > 1;
+        const taskValue = getRouteStepTaskSelectValue(step, route, taskOptions);
+        const workCenterOptions = getRouteStepWorkCenterOptions(step);
+        const workCenterValue = getRouteStepWorkCenterSelectValue(step, workCenterOptions);
         const operationOptions = getRouteStepOperationOptions(step);
         const operationValue = getRouteStepOperationSelectValue(step, operationOptions);
         const operation = getOperationMapItem(step.operationId);
-        const center = getWorkCenter(operation?.workCenterId || step.workCenterId);
+        const hasWorkCenter = Boolean(getWorkCenter(workCenterValue));
+        const hasValidOperation = Boolean(operation && getOperationRouteWorkCenterId(operation) === workCenterValue);
         return `
-          <article class="route-step-editor-row ${isWarehouseWorkCenterId(step.workCenterId) ? "is-warehouse" : ""}" data-route-step-row="${step.id}">
+          <article class="route-step-editor-row ${showTaskSelect ? "has-task-target" : ""} ${isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : ""} ${hasWorkCenter && hasValidOperation ? "" : "is-incomplete"}" data-route-step-row="${step.id}">
             <div class="route-step-index">
               <button class="icon-button" data-route-step-up="${step.id}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
               <span class="route-step-order-badge" title="Позиция в общем списке операций" aria-label="Позиция в общем списке операций">${index + 1}</span>
               <button class="icon-button" data-route-step-down="${step.id}" type="button" title="Опустить" ${index === steps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
             </div>
-            <label class="form-field route-step-center readonly">
-              <span>Подразделение</span>
-              <input value="${escapeAttribute(center?.name || "подразделение не выбрано")}" readonly />
+            ${showTaskSelect ? `
+            <label class="form-field route-step-task">
+              <span>Объект</span>
+              ${renderDenseInlineSelect("specTaskId", taskValue, taskOptions, { type: "routeStep", stepId: step.id })}
             </label>
-            <label class="form-field route-step-name">
-              <span>Операция</span>
-              ${renderDenseInlineSelect("operationId", operationValue, operationOptions, { type: "routeStep", stepId: step.id })}
+            ` : ""}
+            <label class="form-field route-step-center">
+              <span>Отдел</span>
+              ${renderDenseInlineSelect("workCenterId", workCenterValue, workCenterOptions, { type: "routeStep", stepId: step.id })}
             </label>
-            <button class="icon-button danger-soft" data-route-step-delete="${step.id}" type="button" title="Удалить операцию">${icon("trash")}</button>
-          </article>
-        `;
+	            <label class="form-field route-step-name">
+	              <span>Операция</span>
+	              ${renderDenseInlineSelect("operationId", operationValue, operationOptions, { type: "routeStep", stepId: step.id, disabled: !hasWorkCenter })}
+	            </label>
+	            <button class="icon-button danger-soft" data-route-step-delete="${step.id}" type="button" title="Удалить операцию">${icon("trash")}</button>
+	            ${renderRouteStepFlowEditor(route, step)}
+	          </article>
+	        `;
       }).join("")}
     </div>
   `;
@@ -10394,30 +16658,591 @@ function getRouteStepOperationSelectValue(step, options = getRouteStepOperationO
   return "";
 }
 
+function getRouteStepWorkCenterOptions(step = {}) {
+  const options = [
+    { value: "", label: "Отдел не выбран", meta: "сначала выберите отдел" },
+    ...getRouteInstructionWorkCenters().map((center) => ({
+      value: center.id,
+      label: center.name || "Отдел без названия",
+      meta: center.code || "отдел",
+    })),
+  ];
+  const hasCurrent = !step.workCenterId || options.some((item) => item.value === step.workCenterId);
+  if (!hasCurrent) {
+    options.push({
+      value: step.workCenterId,
+      label: getWorkCenter(step.workCenterId)?.name || "Отдел не найден",
+      meta: "проверьте справочник отделов",
+    });
+  }
+  return options;
+}
+
+function getRouteStepWorkCenterSelectValue(step, options = getRouteStepWorkCenterOptions(step)) {
+  if (step.workCenterId && options.some((item) => item.value === step.workCenterId)) return step.workCenterId;
+  return "";
+}
+
 function getRouteStepOperationOptions(step = {}) {
-  const operations = getOperationMapRows().map((operation) => {
-    const center = getWorkCenter(operation.workCenterId);
+  const workCenterId = getRouteStepWorkCenterSelectValue(step);
+  if (!workCenterId) {
+    return [{
+      value: "",
+      label: "Сначала выберите отдел",
+      meta: "после этого откроется список операций",
+      disabled: true,
+    }];
+  }
+
+  const matchingOperations = getOperationMapRows({ includeInactive: false })
+    .filter((operation) => !operation.legacyAliasOf)
+    .filter((operation) => operation.coverage !== "blocked")
+    .filter((operation) => getOperationRouteWorkCenterId(operation) === workCenterId)
+    .map((operation) => {
+    const center = getWorkCenter(getOperationRouteWorkCenterId(operation));
     return {
       value: operation.id,
       label: operation.name || "Операция без названия",
-      meta: center?.name || "подразделение не выбрано",
+      meta: center?.name || "отдел не выбран",
     };
   });
+
+  if (!matchingOperations.length) {
+    return [{
+      value: "",
+      label: "Операция не выбрана",
+      meta: "в выбранном отделе нет операций",
+      disabled: true,
+    }];
+  }
+
+  const operations = [...matchingOperations];
   if (!step.operationId || !operations.some((item) => item.value === step.operationId)) {
     operations.unshift({
       value: "",
       label: "Операция не выбрана",
-      meta: "выберите из справочника операций",
-    });
-  }
-  if (!operations.length) {
-    operations.push({
-      value: "",
-      label: "Операция не выбрана",
-      meta: "создайте операцию в справочнике операций",
+      meta: "выберите операцию отдела",
+      disabled: true,
     });
   }
   return operations;
+}
+
+function getRouteStepPlanningLineOptions(step = {}) {
+  const candidates = getRouteStepPlanningCandidateWorkCenterIds(step, planningState);
+  const options = [
+    { value: "", label: "SMT-участок не выбран", meta: candidates.length > 1 ? "выберите перед передачей в Гант" : "нет кандидатов" },
+  ];
+  candidates.forEach((workCenterId) => {
+    const center = getWorkCenter(workCenterId);
+    const line = getSmtLineConfigurationForPlanningWorkCenter(workCenterId);
+    const rate = Number(getResourceBaseCph(line) || getWorkCenterUnitsPerHour(workCenterId, planningState) || 0);
+    options.push({
+      value: workCenterId,
+      label: center?.name || line?.name || workCenterId,
+      meta: rate ? `${rate.toLocaleString("ru-RU")} комп./ч` : center?.code || "линия",
+    });
+  });
+  return options;
+}
+
+function getSmtLineConfigurationForPlanningWorkCenter(workCenterId = "") {
+  const normalizedId = mapLegacyWorkCenterId(workCenterId);
+  if (!normalizedId) return null;
+  return getSmtLineConfigurations().find((line) => (
+    line.id === normalizedId
+    || line.workCenterId === normalizedId
+    || getProductionResourceWorkCenterId(line) === normalizedId
+  )) || null;
+}
+
+function getRouteSmtSteps(route) {
+  if (!route?.id) return [];
+  return getRouteStepsForModule(route.id)
+    .filter((step) => getOperationMapItem(step.operationId))
+    .filter((step) => isSmtOperationWorkCenter(step.workCenterId, step, planningState) || routeStepRequiresManualPlanningLine(step, planningState));
+}
+
+function getRouteSmtStepBomEntry(route, step) {
+  const explicitBom = getBomList(step?.bomListId || "");
+  if (explicitBom) {
+    return {
+      bom: explicitBom,
+      quantity: Number(step.quantityMultiplier || 1),
+      boardsPerPanel: getRouteStepBoardsPerPanel(step),
+      slot: step.bomSlot || "",
+    };
+  }
+  const effectiveBom = getBomList(getRouteStepEffectiveBomListId(route, step) || route?.bomListId || "");
+  if (effectiveBom) {
+    return {
+      bom: effectiveBom,
+      quantity: getRouteStepEffectiveQuantityMultiplier(step, route),
+      boardsPerPanel: getRouteStepEffectiveBoardsPerPanel(route, step),
+      slot: step?.bomSlot || "",
+    };
+  }
+  const specification = getRouteSpecification(route);
+  const entries = specification ? getSpecificationBomEntries(specification.id) : [];
+  if (!entries.length) return null;
+  if (entries.length === 1) return entries[0];
+  const taskId = getRouteStepTaskId(step);
+  const task = getRouteTasksForModule(route).find((item) => item.id === taskId);
+  return entries.find((entry) => entry.structureItemId === task?.sourceItemId)
+    || entries.find((entry) => String(entry.slot || "") === String(step?.bomSlot || ""))
+    || entries[0];
+}
+
+function getRouteSmtStepBoardsPerPanelSourceId(route, step, bomEntry = null) {
+  const taskId = getRouteStepTaskId(step);
+  const task = getRouteTasksForModule(route).find((item) => item.id === taskId);
+  if (bomEntry?.structureItemId) return bomEntry.structureItemId;
+  if (step?.specTaskSourceItemId) return step.specTaskSourceItemId;
+  if (task?.sourceItemId) return task.sourceItemId;
+  if (taskId && taskId !== MAIN_ROUTE_TASK_ID && step?.bomListId) return `${taskId}:${step.bomListId}`;
+  if (taskId && taskId !== MAIN_ROUTE_TASK_ID) return taskId;
+  if (step?.bomListId) return `${taskId || MAIN_ROUTE_TASK_ID}:${step.bomListId}`;
+  return bomEntry?.bom?.id || "";
+}
+
+function getRouteSmtStepCalculation(route, step) {
+  const bomEntry = getRouteSmtStepBomEntry(route, step);
+  const boardsPerPanelSourceId = getRouteSmtStepBoardsPerPanelSourceId(route, step, bomEntry);
+  const planningLineId = getRouteStepSelectedPlanningWorkCenterId(step, planningState);
+  const smtLine = getSmtLineConfigurationForPlanningWorkCenter(planningLineId);
+  const boardQuantity = normalizeQuantity(
+    getPlanningRouteQuantity(route) * Math.max(1, Number(bomEntry?.quantity || step?.quantityMultiplier || 1)),
+    getPlanningRouteQuantity(route) || 1,
+  );
+  const boardsPerPanel = getPlanningBoardsPerPanel(route, boardsPerPanelSourceId, step?.boardsPerPanel || bomEntry?.boardsPerPanel || 1);
+  const panelCount = Math.max(1, Math.ceil(boardQuantity / boardsPerPanel));
+  const efficiency = Math.round(Number(step?.efficiency || smtLine?.efficiency || defaultCalculatorState.efficiency || 100));
+  const splitKey = bomEntry?.bom && smtLine ? getSmtMachineSplitKey(bomEntry.bom, smtLine) : "";
+  const machineSplitByBom = step?.machineSplit && splitKey ? { [splitKey]: step.machineSplit } : {};
+  const result = bomEntry?.bom && smtLine
+    ? calculateSmtBomOperation(bomEntry.bom, smtLine, {
+      boardQuantity,
+      boardsPerPanel,
+      panelCount,
+      setupMs: Math.max(0, Number(step?.setupMin ?? smtLine?.changeoverMin ?? 0) * 60 * 1000),
+      efficiency,
+      machineSplitByBom,
+      smtPackageCoefficientsByMachine: step?.machineCoefficients || {},
+    })
+    : null;
+  const rows = result?.componentRows || [];
+  return {
+    bomEntry,
+    bomList: bomEntry?.bom || null,
+    planningLineId,
+    smtLine,
+    boardQuantity,
+    boardsPerPanel,
+    boardsPerPanelSourceId,
+    panelCount,
+    efficiency,
+    result: result ? { ...result, rows } : null,
+    rows,
+    complete: Boolean(bomEntry?.bom && smtLine && boardQuantity > 0 && boardsPerPanel > 0),
+  };
+}
+
+function renderRouteSmtCalculatorPanel(route, options = {}) {
+  if (!route?.id) return "";
+  const smtSteps = getRouteSmtSteps(route);
+  if (!smtSteps.length) return "";
+  const isPlanningContext = options.context === "planning";
+  return `
+    <section class="module-panel route-smt-calculator-panel ${isPlanningContext ? "planning-smt-calculator-panel" : ""}">
+      ${isPlanningContext ? `
+        <div class="report-card-head planning-section-head">
+          <div>
+            <div>
+              <strong>SMT-расчет</strong>
+              <span>выбор линии, время операции и данные для Ганта</span>
+            </div>
+          </div>
+          <em class="planning-section-tag is-calculated">расчет</em>
+        </div>
+      ` : `
+        <div class="report-card-head">
+          <strong>Расчет SMT</strong>
+          <span>Линия выбирается вручную и используется при передаче маршрута в Гант.</span>
+        </div>
+      `}
+      <div class="route-smt-step-list">
+        ${smtSteps.map((step) => renderRouteSmtStepCalculator(route, step, { context: options.context })).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderRouteSmtStepCalculator(route, step, options = {}) {
+  const calc = getRouteSmtStepCalculation(route, step);
+  const isPlanningContext = options.context === "planning";
+  const isOperationVariant = options.variant === "operation";
+  const lineOptions = getRouteStepPlanningLineOptions(step);
+  const lineSelectValue = getRouteStepSelectedPlanningWorkCenterId(step, planningState);
+  const activeRows = calc.rows.filter((row) => Number(row.count || 0) > 0);
+  const componentTotal = activeRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const totalPlacements = activeRows.reduce((sum, row) => sum + Number(row.totalPlacements || 0), 0);
+  const machineSplit = calc.result?.machineSplit?.enabled ? calc.result.machineSplit : null;
+  const primaryName = getSmtMachineDisplayName(machineSplit?.primaryMachine, "Станок 1");
+  const secondaryName = getSmtMachineDisplayName(machineSplit?.secondaryMachine, "Станок 2");
+  const primaryPanelOutput = Number(machineSplit?.primaryPanelsPerHour || 0) > 0
+    ? `${formatCalculatorNumber(machineSplit.primaryPanelsPerHour)} мульт./ч`
+    : "нет установок";
+  const secondaryPanelOutput = Number(machineSplit?.secondaryPanelsPerHour || 0) > 0
+    ? `${formatCalculatorNumber(machineSplit.secondaryPanelsPerHour)} мульт./ч`
+    : "нет установок";
+  const balanceCaption = machineSplit
+    ? `${primaryName} и ${secondaryName} · баланс ${Math.round(Number(machineSplit.balanceRatio || 0) * 100)}% · разница ${formatSecondsDuration(machineSplit.imbalanceSeconds)}`
+    : calc.complete
+      ? "для выбранной линии найден один установщик компонентов"
+      : "появится после выбора BOM и SMT-участка";
+
+  return `
+    <article class="route-smt-step-card ${isPlanningContext ? "planning-smt-step-card" : ""} ${isOperationVariant ? "is-operation-embedded" : ""}" data-route-smt-step="${escapeAttribute(step.id)}">
+      <header class="route-smt-step-head">
+        <div>
+          <span>${isOperationVariant ? "Инструмент планирования" : `Операция ${Number(step.stepOrder || 0)}`}</span>
+          <strong>${escapeHtml(isOperationVariant ? "SMT-калькулятор" : step.operationName || "SMT-операция")}</strong>
+        </div>
+        <em>${escapeHtml(calc.complete ? "расчет готов" : "нужны BOM и линия")}</em>
+      </header>
+
+      <div class="route-smt-grid ${isPlanningContext ? "planning-smt-work-grid" : ""}">
+        <section class="calculator-panel calculator-input-panel route-smt-input-block ${isPlanningContext ? "planning-editable-panel" : ""}">
+          <div class="report-card-head ${isPlanningContext ? "planning-panel-head" : ""}">
+            <div>
+              <strong>Входные данные</strong>
+              <span>${calc.complete ? "настройки планирования" : "выберите линию и проверьте BOM"}</span>
+            </div>
+            ${isPlanningContext ? `<em class="planning-section-tag is-required">заполняется</em>` : ""}
+          </div>
+          <div class="calculator-form-grid calculator-input-grid">
+            <label class="field readonly">
+              <span>Плата / BOM</span>
+              <input readonly value="${escapeAttribute(calc.bomList?.name || "BOM не привязан")}" />
+            </label>
+            <div class="field">
+              <span>SMT-участок</span>
+              ${renderDenseInlineSelect("planningWorkCenterId", lineSelectValue, lineOptions, { type: "routeStep", stepId: step.id })}
+            </div>
+            <label class="field readonly">
+              <span>Плат в заказе</span>
+              <input readonly value="${calc.boardQuantity.toLocaleString("ru-RU")} шт." />
+            </label>
+            <label class="field">
+              <span>Плат в мультипликации</span>
+              <input
+                data-planning-boards-per-panel="${escapeAttribute(calc.boardsPerPanelSourceId || "")}"
+                data-planning-bpp-route="${escapeAttribute(route?.id || "")}"
+                type="number"
+                inputmode="numeric"
+                min="1"
+                step="1"
+                value="${escapeAttribute(calc.boardsPerPanel)}"
+                ${calc.boardsPerPanelSourceId ? "" : "disabled"}
+              />
+            </label>
+            <label class="field readonly">
+              <span>Мультипликаций</span>
+              <input readonly value="${calc.panelCount.toLocaleString("ru-RU")} шт." />
+            </label>
+            <label class="field">
+              <span>Эффективность линии, %</span>
+              <input data-route-smt-number="${escapeAttribute(step.id)}" data-route-smt-field="efficiency" type="number" min="10" max="150" step="1" value="${calc.efficiency}" />
+            </label>
+          </div>
+        </section>
+
+        <section class="calculator-panel calculator-result-panel route-smt-result-block ${isPlanningContext ? "planning-result-panel" : ""}">
+          <div class="report-card-head ${isPlanningContext ? "planning-panel-head" : ""}">
+            <div>
+              <strong>Результат расчета SMT</strong>
+              <span>${calc.complete ? escapeHtml(calc.smtLine?.name || "линия") : "расчет появится после выбора линии"}</span>
+            </div>
+            ${isPlanningContext ? `<em class="planning-section-tag is-calculated">расчет</em>` : ""}
+          </div>
+          <div class="calculator-kpis smt-result-kpi-row">
+            <article><span>Компонентов / плата</span><strong>${componentTotal.toLocaleString("ru-RU")}</strong><small>${activeRows.length} номенклатурных позиций</small></article>
+            <article><span>Установок на заказ</span><strong>${totalPlacements.toLocaleString("ru-RU")}</strong><small>${calc.boardQuantity.toLocaleString("ru-RU")} плат</small></article>
+            <article><span>На плату</span><strong>${formatSecondsDuration(calc.result?.perBoardSeconds || 0)}</strong><small>${formatCalculatorNumber(calc.result?.flowBoardsPerHour || 0)} плат/ч</small></article>
+            <article class="smt-panel-kpi"><span>На мультипликацию</span><strong>${formatSecondsDuration(calc.result?.perPanelSeconds || 0)}</strong><small>${calc.boardsPerPanel.toLocaleString("ru-RU")} плат</small></article>
+            ${machineSplit ? `
+              <article><span>Цикл ${escapeHtml(primaryName)}</span><strong>${formatSecondsDuration(machineSplit.primaryPerBoardSeconds)}</strong><small>на 1 плату по назначенным компонентам</small></article>
+              <article><span>Цикл ${escapeHtml(secondaryName)}</span><strong>${formatSecondsDuration(machineSplit.secondaryPerBoardSeconds)}</strong><small>на 1 плату по назначенным компонентам</small></article>
+              <article class="smt-machine-kpi"><span>Мульт. ${escapeHtml(primaryName)}</span><strong>${formatSecondsDuration(machineSplit.primaryPerPanelSeconds)}</strong><small>${escapeHtml(primaryPanelOutput)}</small></article>
+              <article class="smt-machine-kpi"><span>Мульт. ${escapeHtml(secondaryName)}</span><strong>${formatSecondsDuration(machineSplit.secondaryPerPanelSeconds)}</strong><small>${escapeHtml(secondaryPanelOutput)}</small></article>
+            ` : ""}
+            <article><span>Переналадка</span><strong>${formatDuration(calc.result?.setupMs || 0)}</strong><small>${escapeHtml(calc.smtLine?.name || "линия не выбрана")}</small></article>
+            <article><span>На заказ</span><strong>${formatDuration(calc.result?.totalMs || 0)}</strong><small>${calc.panelCount.toLocaleString("ru-RU")} мультипликаций</small></article>
+          </div>
+        </section>
+      </div>
+
+      ${isPlanningContext ? `
+        <details class="planning-detail-disclosure route-smt-balance-disclosure">
+          <summary>
+            <div>
+              <div>
+                <strong>Балансировка установщиков</strong>
+                <span>${escapeHtml(balanceCaption)}</span>
+              </div>
+            </div>
+            <em>детали</em>
+          </summary>
+          <div class="planning-detail-body">
+            ${renderRouteSmtMachineSplitBlock(route, step, calc)}
+          </div>
+        </details>
+      ` : renderRouteSmtMachineSplitBlock(route, step, calc)}
+
+      <div class="route-smt-popup-actions">
+        <button class="secondary-button" data-route-smt-popup="coefficients" data-route-smt-step-id="${escapeAttribute(step.id)}" type="button" ${calc.complete ? "" : "disabled"}>${icon("settings")}<span>Коэффициенты типоразмеров</span></button>
+        <button class="secondary-button" data-route-smt-popup="components" data-route-smt-step-id="${escapeAttribute(step.id)}" type="button" ${calc.complete ? "" : "disabled"}>${icon("chart")}<span>Расчет по компонентам</span></button>
+      </div>
+    </article>
+  `;
+}
+
+function renderRouteSmtMachineSplitBlock(route, step, calc) {
+  const machineSplit = calc.result?.machineSplit?.enabled ? calc.result.machineSplit : null;
+  if (!calc.complete) {
+    return `
+      <section class="calculator-panel smt-machine-split-panel route-smt-balance-block">
+        <div class="directory-table-toolbar">
+          <strong>Балансировка установщиков</strong>
+          <span>появится после выбора BOM и SMT-участка</span>
+        </div>
+      </section>
+    `;
+  }
+  if (!machineSplit) {
+    return `
+      <section class="calculator-panel smt-machine-split-panel route-smt-balance-block">
+        <div class="directory-table-toolbar">
+          <strong>Балансировка установщиков</strong>
+          <span>для выбранной линии найден один установщик компонентов</span>
+        </div>
+      </section>
+    `;
+  }
+  const primaryName = getSmtMachineDisplayName(machineSplit.primaryMachine, "Станок 1");
+  const secondaryName = getSmtMachineDisplayName(machineSplit.secondaryMachine, "Станок 2");
+  const balancePercent = Math.round(Number(machineSplit.balanceRatio || 0) * 100);
+  const rows = (calc.rows || []).filter((row) => Number(row.count || 0) > 0);
+  return `
+    <section class="calculator-panel smt-machine-split-panel route-smt-balance-block">
+      <div class="directory-table-toolbar">
+        <strong>Балансировка установщиков</strong>
+        <span>${escapeHtml(primaryName)} и ${escapeHtml(secondaryName)} · баланс ${balancePercent}% · разница ${formatSecondsDuration(machineSplit.imbalanceSeconds)}</span>
+      </div>
+      <div class="smt-machine-balance-summary">
+        <article><span>${escapeHtml(primaryName)}</span><strong>${formatSecondsDuration(machineSplit.primaryPerBoardSeconds)}</strong><small>${formatSecondsDuration(machineSplit.primaryPerPanelSeconds)} на мультипликацию</small></article>
+        <article><span>${escapeHtml(secondaryName)}</span><strong>${formatSecondsDuration(machineSplit.secondaryPerBoardSeconds)}</strong><small>${formatSecondsDuration(machineSplit.secondaryPerPanelSeconds)} на мультипликацию</small></article>
+        <article><span>Ограничение линии</span><strong>${formatSecondsDuration(calc.result?.perBoardSeconds || 0)}</strong><small>${formatCalculatorNumber(calc.result?.flowBoardsPerHour || 0)} плат/ч</small></article>
+      </div>
+      <div class="smt-machine-actions">
+        <button class="secondary-button" data-route-smt-split-default="${escapeAttribute(step.id)}" type="button">${icon("reset")}<span>Базовая разбивка</span></button>
+        <button class="primary-button" data-route-smt-split-auto="${escapeAttribute(step.id)}" type="button">${icon("refresh")}<span>Автобаланс</span></button>
+      </div>
+      <div class="directory-table-wrap route-smt-balance-table-wrap" data-layout="table">
+	        <table class="directory-table calculator-table smt-machine-split-table">
+	          <thead>
+	            <tr>
+	              <th>Номенклатура</th>
+	              <th>Поз.</th>
+	              <th>Типоразмер</th>
+	              <th>Всего / плата</th>
+	              <th>Станок для установки</th>
+	              <th>Время ${escapeHtml(primaryName)}</th>
+	              <th>Время ${escapeHtml(secondaryName)}</th>
+	            </tr>
+	          </thead>
+	          <tbody>
+	            ${rows.length ? rows.map((row) => {
+	              const secondaryCount = Number(row.secondaryCount || 0);
+	              const primaryCount = Number(row.primaryCount || 0);
+	              const isSecondaryAssigned = secondaryCount > 0;
+	              const positionLabel = getSmtBalancerPositionLabel(row);
+	              return `
+	                <tr>
+	                  <td class="primary-cell smt-machine-name-cell">
+	                    <span class="component-name">${escapeHtml(row.name || row.type.name)}</span>
+	                  </td>
+	                  <td class="smt-machine-position-cell"><span class="readonly-token">${positionLabel ? escapeHtml(positionLabel) : "-"}</span></td>
+	                  <td><span class="readonly-token">${escapeHtml(row.package || row.type.package || "-")}</span></td>
+	                  <td><span class="readonly-token">${Number(row.count || 0).toLocaleString("ru-RU")} шт.</span></td>
+	                  <td>
+	                    <div class="smt-machine-choice" role="radiogroup" aria-label="Станок для ${escapeAttribute(row.name || row.type.name)}">
+                      <label class="${isSecondaryAssigned ? "" : "is-selected"}">
+                        <input data-route-smt-split-component="${escapeAttribute(row.id)}" data-route-smt-split-step="${escapeAttribute(step.id)}" data-route-smt-split-machine="primary" name="route-smt-split-${escapeAttribute(step.id)}-${escapeAttribute(row.id)}" type="radio" ${isSecondaryAssigned ? "" : "checked"} />
+                        <span>${escapeHtml(primaryName)}</span>
+                        <small>${primaryCount.toLocaleString("ru-RU")} шт.</small>
+                      </label>
+                      <label class="${isSecondaryAssigned ? "is-selected" : ""}">
+                        <input data-route-smt-split-component="${escapeAttribute(row.id)}" data-route-smt-split-step="${escapeAttribute(step.id)}" data-route-smt-split-machine="secondary" name="route-smt-split-${escapeAttribute(step.id)}-${escapeAttribute(row.id)}" type="radio" ${isSecondaryAssigned ? "checked" : ""} />
+                        <span>${escapeHtml(secondaryName)}</span>
+                        <small>${secondaryCount.toLocaleString("ru-RU")} шт.</small>
+                      </label>
+                    </div>
+                  </td>
+                  <td>${formatSmtBalancerTime(row.primarySecondsPerBoard)}</td>
+                  <td>${formatSmtBalancerTime(row.secondarySecondsPerBoard)}</td>
+                </tr>
+              `;
+            }).join("") : `
+	              <tr><td class="primary-cell" colspan="7"><span class="component-name">Нет компонентов для распределения</span><small>Проверьте импорт BOM и типы компонентов.</small></td></tr>
+	            `}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderRouteSmtModal() {
+  if (!ui.routeSmtPopup?.stepId || !ui.routeSmtPopup?.type) return "";
+  const step = (planningState.routeSteps || []).find((item) => item.id === ui.routeSmtPopup.stepId) || null;
+  const route = step
+    ? (planningState.routes || []).find((item) => item.id === step.routeId) || null
+    : getActiveRouteForModule();
+  if (!route || !step) return "";
+  const calc = getRouteSmtStepCalculation(route, step);
+  const title = ui.routeSmtPopup.type === "coefficients" ? "Коэффициенты типоразмеров" : "Расчет по компонентам BOM";
+  const contextLabel = ui.activeModule === "planning" ? "Планирование · SMT" : "SMT расчет";
+  return `
+    <div class="modal-backdrop" data-modal-backdrop>
+      <section class="modal large-modal form-modal route-smt-modal" role="dialog" aria-modal="true" aria-label="${escapeAttribute(title)}">
+        <div class="modal-header">
+          <div>
+            <span class="eyebrow">${escapeHtml(contextLabel)}</span>
+            <h2>${escapeHtml(title)}</h2>
+          </div>
+          <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
+        </div>
+        <div class="route-smt-modal-body">
+          ${ui.routeSmtPopup.type === "coefficients" ? renderRouteSmtCoefficientsPopup(step, calc) : renderRouteSmtComponentsPopup(step, calc)}
+        </div>
+        <div class="modal-footer">
+          <button class="primary-button" data-close-modal type="button">${icon("check")}<span>Готово</span></button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderRouteSmtCoefficientsPopup(step, calc) {
+  const machineSplit = calc.result?.machineSplit?.enabled ? calc.result.machineSplit : null;
+  const machines = machineSplit
+    ? [machineSplit.primaryMachine, machineSplit.secondaryMachine].filter(Boolean)
+    : calc.smtLine ? getSmtPlacementMachinesForLine(calc.smtLine).slice(0, 2) : [];
+  const rows = getSmtCoefficientPackageRows(calc.rows || []);
+  const efficiencyPercent = calc.efficiency;
+  const coefficientStore = step.machineCoefficients || {};
+  return `
+    <div class="smt-coefficients-basis">
+      ${machines.map((machine) => {
+        const machineBaseCph = getSmtMachineBaseCph(machine, calc.smtLine);
+        const effectiveBaseCph = machineBaseCph * Math.max(0.1, efficiencyPercent / 100);
+        return `
+          <article>
+            <span>${escapeHtml(getSmtMachineDisplayName(machine, "Оборудование"))}</span>
+            <strong>${formatCalculatorNumber(machineBaseCph, 0)} комп./ч</strong>
+            <small>база для коэффициента · ${efficiencyPercent}% = ${formatCalculatorNumber(effectiveBaseCph, 0)} комп./ч до поправки корпуса</small>
+          </article>
+        `;
+      }).join("")}
+    </div>
+    <div class="directory-table-wrap" data-layout="table">
+      <table class="directory-table calculator-table smt-coefficients-table">
+        <thead>
+          <tr>
+            <th>Типоразмер</th>
+            <th>Компонентов / плата</th>
+            <th>Базовый коэф.</th>
+            ${machines.map((machine) => `<th>${escapeHtml(getSmtMachineDisplayName(machine, "Оборудование"))}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.length ? rows.map((row) => `
+            <tr>
+              <td class="primary-cell"><span class="component-name">${escapeHtml(row.label)}</span><small>${escapeHtml(row.caption || "типоразмер из BOM")}</small></td>
+              <td><span class="readonly-token">${row.count.toLocaleString("ru-RU")} шт.</span></td>
+              <td>${formatCalculatorNumber(row.baseCoefficient, 2)}</td>
+              ${machines.map((machine) => {
+                const machineBaseCph = getSmtMachineBaseCph(machine, calc.smtLine);
+                const timing = getSmtComponentPlacementTiming(row.referenceRow, machine, calc.smtLine, efficiencyPercent, coefficientStore);
+                const coefficientBaseCph = machineBaseCph * Math.max(SMT_MIN_PACKAGE_COEFFICIENT, Number(timing.coefficient || 1));
+                return `
+                  <td>
+                    <label class="smt-coefficient-field">
+                      <input data-route-smt-coefficient-step="${escapeAttribute(step.id)}" data-route-smt-coefficient-machine="${escapeAttribute(getSmtMachineCoefficientId(machine))}" data-route-smt-coefficient-package="${escapeAttribute(row.key)}" type="number" min="0.01" step="0.01" value="${formatCoefficientInputNumber(timing.coefficient)}" />
+                      <small>база ${formatCalculatorNumber(machineBaseCph, 0)} x коэф. = ${formatCalculatorNumber(coefficientBaseCph, 0)}</small>
+                      <small>итог ${formatCalculatorNumber(timing.effectiveCph, 0)} комп./ч с ${efficiencyPercent}%</small>
+                    </label>
+                  </td>
+                `;
+              }).join("")}
+            </tr>
+          `).join("") : `
+            <tr><td class="primary-cell" colspan="${3 + Math.max(1, machines.length)}"><span class="component-name">Типоразмеры не найдены</span><small>Проверьте BOM и импортированные корпуса компонентов.</small></td></tr>
+          `}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderRouteSmtComponentsPopup(step, calc) {
+  const machineSplit = calc.result?.machineSplit?.enabled ? calc.result.machineSplit : null;
+  const primaryName = getSmtMachineDisplayName(machineSplit?.primaryMachine, "Станок 1");
+  const secondaryName = getSmtMachineDisplayName(machineSplit?.secondaryMachine, "Станок 2");
+  const rows = (calc.rows || []).filter((row) => Number(row.count || 0) > 0);
+  return `
+    <div class="directory-table-wrap" data-layout="table">
+      <table class="directory-table calculator-table bom-table ${machineSplit ? "is-machine-split" : "is-single-machine"}">
+        <thead>
+          <tr>
+            <th>Номенклатура</th>
+            <th>Типоразмер</th>
+            <th>Плата / BOM</th>
+            ${machineSplit ? `<th>${escapeHtml(primaryName)}</th><th>${escapeHtml(secondaryName)}</th>` : ""}
+            <th>Коэф.</th>
+            <th>Эфф. скорость</th>
+            <th>1 плата</th>
+            <th>1 мультипл.</th>
+            <th>Заказ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.length ? rows.map((row) => `
+            <tr>
+              <td class="primary-cell" title="${escapeAttribute([row.name || row.type.name, row.caption || row.type.name || row.type.family || ""].filter(Boolean).join(" · "))}">
+                <span class="component-name">${escapeHtml(row.name || row.type.name)}</span>
+                <small>${escapeHtml(row.caption || row.type.name || row.type.family || "")}</small>
+              </td>
+              <td><span class="readonly-token">${escapeHtml(row.package || row.type.package || "-")}</span></td>
+              <td><span class="readonly-token">${row.count.toLocaleString("ru-RU")} шт.</span></td>
+              ${machineSplit ? `
+                <td><span class="readonly-token">${Number(row.primaryCount || 0).toLocaleString("ru-RU")} шт.</span><small>${formatSecondsDuration(row.primarySecondsPerBoard)}</small></td>
+                <td><span class="readonly-token">${Number(row.secondaryCount || 0).toLocaleString("ru-RU")} шт.</span><small>${formatSecondsDuration(row.secondarySecondsPerBoard)}</small></td>
+              ` : ""}
+              <td>${machineSplit ? `<span class="readonly-token">${formatCalculatorNumber(row.primaryCoefficient, 2)} / ${formatCalculatorNumber(row.secondaryCoefficient, 2)}</span><small>${escapeHtml(primaryName)} / ${escapeHtml(secondaryName)}</small>` : formatCalculatorNumber(row.coefficient, 2)}</td>
+              <td>${formatCalculatorNumber(row.effectiveCph)} комп./ч</td>
+              <td>${formatSecondsDuration(row.secondsPerBoard)}</td>
+              <td>${formatSecondsDuration(row.secondsPerPanel)}</td>
+              <td>${row.totalPlacements.toLocaleString("ru-RU")}</td>
+            </tr>
+          `).join("") : `
+            <tr><td class="primary-cell" colspan="${machineSplit ? "10" : "8"}"><span class="component-name">Компоненты не найдены</span><small>В выбранной плате нет номенклатурных позиций с количеством больше нуля.</small></td></tr>
+          `}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderDirectoryPage() {
@@ -10585,15 +17410,16 @@ function renderConfirmModal() {
 function getConfirmDialogConfig(dialog) {
   const payload = dialog?.payload || {};
 
-  if (dialog?.action === "resetDemo") {
+  if (dialog?.action === "restoreWorkflowPreset") {
+    const preset = getWorkflowPreset();
     return {
-      title: "Сбросить прототип?",
-      body: "Все демо-данные планирования будут пересозданы. Текущие изменения в плане, слотах и статусах будут потеряны.",
-      meta: "Действие влияет на модуль планирования и связанные отчеты.",
-      confirmLabel: "Сбросить",
-      confirmIcon: "reset",
+      title: "Восстановить рабочий пресет?",
+      body: "Текущие объекты планирования, справочников, изделий, плат, маршрутов, слотов и калькулятора будут заменены сохраненным пресетом.",
+      meta: preset ? formatWorkflowPresetCounts(preset.counts || {}) : "Пресет не найден",
+      confirmLabel: "Восстановить",
+      confirmIcon: "download",
       icon: "alert",
-      tone: "danger",
+      tone: "warning",
     };
   }
 
@@ -10616,7 +17442,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить партию?",
       body: `Партия ${batch?.batchNumber || ""} будет удалена из планирования${slotsCount ? ` вместе с ${slotsCount} слотами Ганта` : ""}.`,
-      meta: "Это изменит партийность маршрутной карты и может убрать операции из Ганта.",
+      meta: "Это изменит партийность заказ-наряда и может убрать операции из Ганта.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -10628,11 +17454,39 @@ function getConfirmDialogConfig(dialog) {
     const route = (planningState.routes || []).find((item) => item.id === payload.routeId);
     const slotsCount = getPlanningRouteSlots(route).length;
     return {
-      title: "Отменить заказ на производство?",
-      body: `Заказ "${route?.name || "маршрутная карта"}" будет отменен, а ${slotsCount} операций будут сняты из Ганта.`,
-      meta: "Маршрутная карта и партийность останутся в планировании, чтобы их можно было скорректировать и передать в Гант заново.",
-      confirmLabel: "Отменить заказ",
+      title: "Отменить заказ-наряд?",
+      body: `Заказ-наряд "${route?.name || "без названия"}" будет отменен, а ${slotsCount} операций будут сняты из Ганта.`,
+      meta: "Заказ-наряд и партийность останутся в планировании, чтобы их можно было скорректировать и передать в Гант заново.",
+      confirmLabel: "Отменить заказ-наряд",
       confirmIcon: "close",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
+  if (dialog?.action === "warehouseDeleteMovement") {
+    const movement = (planningState.warehouseMovements || []).find((item) => item.id === payload.movementId);
+    const item = getNomenclatureItem(movement?.nomenclatureItemId);
+    return {
+      title: "Удалить складское движение?",
+      body: `Движение по позиции "${item?.name || "номенклатура не выбрана"}" будет удалено из журнала склада.`,
+      meta: "Остаток пересчитается только из оставшихся явных движений и резервов.",
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
+      icon: "alert",
+      tone: "danger",
+    };
+  }
+
+  if (dialog?.action === "warehouseDeleteReservation") {
+    const reservation = (planningState.warehouseReservations || []).find((item) => item.id === payload.reservationId);
+    const item = getNomenclatureItem(reservation?.nomenclatureItemId);
+    return {
+      title: "Удалить резерв склада?",
+      body: `Резерв по позиции "${item?.name || "номенклатура не выбрана"}" будет снят.`,
+      meta: "Фактические складские движения не изменятся.",
+      confirmLabel: "Удалить",
+      confirmIcon: "trash",
       icon: "alert",
       tone: "danger",
     };
@@ -10657,10 +17511,10 @@ function getConfirmDialogConfig(dialog) {
     const linkedSpecifications = getBomLinkedSpecifications(payload.bomId);
     const rowsCount = getBomImportRows(bom).length;
     return {
-      title: "Удалить спецификацию?",
-      body: `Спецификация "${bom?.name || "без названия"}" будет удалена вместе с импортированной таблицей${rowsCount ? ` на ${rowsCount} строк` : ""}.`,
+      title: "Удалить плату?",
+      body: `Плата "${bom?.name || "без названия"}" будет удалена вместе с импортированным BOM${rowsCount ? ` на ${rowsCount} строк` : ""}.`,
       meta: linkedSpecifications.length
-        ? `Спецификация используется в ${linkedSpecifications.length} составах изделия. Ссылки на нее будут очищены.`
+        ? `Плата используется в ${linkedSpecifications.length} составах изделия. Ссылки на нее будут очищены.`
         : "Связанных составов изделия не найдено.",
       confirmLabel: "Удалить",
       confirmIcon: "trash",
@@ -10689,7 +17543,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить позицию номенклатуры?",
       body: `Позиция "${item?.name || "без названия"}" будет удалена из номенклатуры.`,
-      meta: `Ссылки будут очищены: ${usage.specificationsCount} составов изделия, ${usage.bomRowsCount} строк спецификаций.`,
+      meta: `Ссылки будут очищены: ${usage.specificationsCount} составов изделия, ${usage.bomRowsCount} строк BOM.`,
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -10729,7 +17583,7 @@ function getConfirmDialogConfig(dialog) {
     const critical = warnings.filter((warning) => warning.severity === "critical").length;
     return {
       title: "Исправить конфликты плана?",
-      body: `Система попробует автоматически исправить ${warnings.length} предупреждений, включая ${critical} критичных: сдвиги, пересечения, подразделения и количество.`,
+      body: `Система попробует автоматически исправить ${warnings.length} предупреждений, включая ${critical} критичных: сдвиги, пересечения, перегрузку отделов и количество.`,
       meta: "Зафиксированные и завершенные операции не будут изменены.",
       confirmLabel: "Исправить",
       confirmIcon: "refresh",
@@ -10741,7 +17595,7 @@ function getConfirmDialogConfig(dialog) {
   if (dialog?.action === "calculatorResetRoute") {
     return {
       title: "Сбросить маршрут?",
-      body: "Маршрутная карта калькулятора будет возвращена к шаблону состава изделия. Выбранный состав изделия и спецификация платы останутся.",
+      body: "Маршрутная карта калькулятора будет возвращена к шаблону состава изделия. Выбранное изделие и плата останутся.",
       meta: "Используй это, если нужно заново собрать последовательность операций.",
       confirmLabel: "Сбросить",
       confirmIcon: "reset",
@@ -10823,7 +17677,7 @@ function buildWorkloadRows() {
       count: slots.length,
       hours: Math.round(slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0) * 10) / 10,
       quantity: slots.reduce((sum, slot) => sum + Number(slot.quantity || 0), 0),
-      color: center.id === "warehouse" ? "#16a34a" : chartColors[index % chartColors.length],
+      color: chartColors[index % chartColors.length],
     };
   }).filter((row) => row.count || row.label === "Склад")
     .sort((left, right) => right.hours - left.hours);
@@ -10900,22 +17754,6 @@ function buildWarningProjectItems(warnings) {
   return counts.map((item) => ({ ...item, percent: Math.round(item.rawValue / maxValue * 100) }));
 }
 
-function buildWarehouseProjectItems(warehouseSlots) {
-  const rows = getProductionContexts().map((project, index) => {
-    const quantity = warehouseSlots
-      .filter((slot) => slot.projectId === project.id)
-      .reduce((sum, slot) => sum + Number(slot.quantity || 0), 0);
-    return {
-      label: getProjectDisplayName(project) || project.name,
-      rawValue: quantity,
-      value: `${quantity} шт.`,
-      color: index === 0 ? "#16a34a" : chartColors[index % chartColors.length],
-    };
-  }).filter((row) => row.rawValue > 0);
-  const maxValue = Math.max(1, ...rows.map((row) => row.rawValue));
-  return rows.map((row) => ({ ...row, percent: Math.round(row.rawValue / maxValue * 100) }));
-}
-
 function buildWarningRows(warnings) {
   return warnings.slice(0, 10).map((warning) => [
     warning.type,
@@ -10928,9 +17766,9 @@ function buildWarningRows(warnings) {
 function buildWorkloadInsights(workload, warnings) {
   const top = workload[0];
   return [
-    { icon: "info", text: top ? `Самое загруженное подразделение: ${top.label}, ${top.hours} ч.` : "Нет операций для анализа загрузки." },
-    { icon: warnings.some((warning) => warning.type === "capacity") ? "alert" : "check", tone: warnings.some((warning) => warning.type === "capacity") ? "warning" : "ok", text: warnings.some((warning) => warning.type === "capacity") ? "Есть пересечения операций по емкости подразделений." : "Пересечений по емкости не найдено." },
-    { icon: "check", tone: "ok", text: "Склад учитывается как отдельное конечное подразделение." },
+    { icon: "info", text: top ? `Самый загруженный отдел: ${top.label}, ${top.hours} ч.` : "Нет операций для анализа загрузки." },
+    { icon: warnings.some((warning) => warning.type === "capacity") ? "alert" : "check", tone: warnings.some((warning) => warning.type === "capacity") ? "warning" : "ok", text: warnings.some((warning) => warning.type === "capacity") ? "Есть пересечения операций по емкости отделов." : "Пересечений по емкости не найдено." },
+    { icon: "check", tone: "ok", text: "Приемка результата производства контролируется отдельно от прочих складских операций." },
   ];
 }
 
@@ -10961,7 +17799,17 @@ function buildDonutGradient(items) {
 }
 
 function getSlotDurationHours(slot) {
-  return Math.max(0, (toDate(slot.plannedEnd) - toDate(slot.plannedStart)) / (60 * 60 * 1000));
+  return Math.max(0, getWorkingDurationBetween(slot.workCenterId, slot.plannedStart, slot.plannedEnd, planningState) / (60 * 60 * 1000));
+}
+
+function getSlotWorkingDurationMs(slot) {
+  if (!slot) return 0;
+  return Math.max(0, getWorkingDurationBetween(slot.workCenterId, slot.plannedStart, slot.plannedEnd, planningState));
+}
+
+function getSlotCalendarDurationMs(slot) {
+  if (!slot) return 0;
+  return Math.max(0, toDate(slot.plannedEnd) - toDate(slot.plannedStart));
 }
 
 function formatReportNumber(value) {
@@ -11035,8 +17883,8 @@ function renderDirectoryDetail(activeSection, directoryData) {
 function getDirectoryData(sectionId) {
   if (sectionId === "workCenters") {
     return makeDirectoryData(sectionId, {
-      caption: "Подразделения объединяют организационную ответственность и производственные мощности. Только производственные подразделения участвуют в Ганте.",
-      columns: ["Подразделение", "Код", "Тип", "В плане", "Изд./час", "Емкость", "График", "Режим работы", "Ответственный", "Описание", "Активность"],
+      caption: "Отделы объединяют организационную ответственность и производственные мощности. Только производственные отделы участвуют в Ганте.",
+      columns: ["Отдел", "Код", "Тип", "В плане", "Изд./час", "Емкость", "График", "Режим работы", "Ответственный", "Описание", "Активность"],
       keys: ["name", "code", "unitType", "planningStatus", "unitsPerHour", "capacity", "workSchedule", "workMode", "owner", "description", "status"],
       rows: planningState.workCenters.map((center) => ({
         id: center.id,
@@ -11066,8 +17914,8 @@ function getDirectoryData(sectionId) {
 
   if (sectionId === "operations") {
     return makeDirectoryData(sectionId, {
-      caption: "Операции используются в маршрутных картах и привязаны к подразделениям.",
-      columns: ["Операция", "Подразделение", "Статус"],
+      caption: "Операции используются в маршрутных картах и привязаны к отделам.",
+      columns: ["Операция", "Отдел", "Статус"],
       keys: ["name", "workCenterId", "status"],
       rows: getOperationMapRows(),
     });
@@ -11075,8 +17923,8 @@ function getDirectoryData(sectionId) {
 
   const configs = {
     productionResources: {
-      caption: "Производственные ресурсы объединяют линии, станки, посты и оборудование. В Ганте операции привязываются к ресурсам внутри подразделений.",
-      columns: ["Ресурс", "Тип", "Подразделение", "Родитель", "В Ганте", "В расчете", "Мощность", "База комп./ч", "Эфф., %", "Setup, мин", "Инв. номер", "ТО", "Статус"],
+      caption: "Производственные ресурсы объединяют линии, станки, посты и оборудование. В Ганте операции привязываются к ресурсам внутри отделов.",
+      columns: ["Ресурс", "Тип", "Отдел", "Родитель", "В Ганте", "В расчете", "Мощность", "База комп./ч", "Эфф., %", "Setup, мин", "Инв. номер", "ТО", "Статус"],
       keys: ["name", "type", "workCenterId", "parentResourceId", "participatesInPlanning", "participatesInCalculation", "capacity", "baseCph", "efficiency", "changeoverMin", "inventory", "maintenance", "status"],
       rows: getProductionResources({ includeInactive: true }),
     },
@@ -11109,6 +17957,7 @@ function makeDirectoryData(sectionId, config) {
     fields: config.keys.map((key, index) => ({
       key,
       label: config.columns[index],
+      sectionId,
       type: getDirectoryFieldType(sectionId, key),
       readonly: isDirectoryFieldReadonly(sectionId, key),
     })),
@@ -11177,7 +18026,10 @@ function formatDirectoryCell(sectionId, key, value) {
   if (sectionId === "productionResources" && key === "baseCph") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} комп./ч` : "-";
   if (sectionId === "productionResources" && key === "efficiency") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} %` : "-";
   if (sectionId === "productionResources" && key === "changeoverMin") return Number(value || 0) ? `${Number(value || 0).toLocaleString("ru-RU")} мин` : "-";
-  if (sectionId === "operations" && key === "workCenterId") return getWorkCenter(value)?.name || value || "-";
+  if (sectionId === "operations" && key === "workCenterId") {
+    const routeWorkCenterId = getRouteInstructionWorkCenterId(value);
+    return getWorkCenter(routeWorkCenterId)?.name || routeWorkCenterId || value || "-";
+  }
   if (sectionId === "componentTypes" && key === "coefficient") return formatCalculatorNumber(value, 2);
   if (sectionId === "componentTypes" && key === "placementsPerHour") return `${Number(value || 0).toLocaleString("ru-RU")} комп./ч`;
   if (sectionId === "componentTypes" && key === "setupSeconds") return `${Number(value || 0).toLocaleString("ru-RU")} сек`;
@@ -11289,11 +18141,15 @@ function renderDirectoryField(field, value) {
   }
 
   if (field.type === "work-center-link") {
+    const centers = field.sectionId === "operations"
+      ? getRouteInstructionWorkCenters()
+      : getPlanningWorkCenters();
+    const selectedValue = field.sectionId === "operations" ? getRouteInstructionWorkCenterId(value) : value;
     return `
       <label class="form-field command-field">
         <span>${escapeHtml(field.label)}</span>
         <select name="${field.key}" ${field.readonly ? "disabled" : ""}>
-          ${getPlanningWorkCenters().map((center) => `<option value="${escapeAttribute(center.id)}" ${selected(value, center.id)}>${escapeHtml(center.name)} · ${escapeHtml(center.code || "")}</option>`).join("")}
+          ${centers.map((center) => `<option value="${escapeAttribute(center.id)}" ${selected(selectedValue, center.id)}>${escapeHtml(center.name)} · ${escapeHtml(center.code || "")}</option>`).join("")}
         </select>
       </label>
     `;
@@ -11377,7 +18233,7 @@ function createEmptyDirectoryRow(directoryData) {
     if (directoryData.sectionId === "productionResources" && key === "workCenterId") row[key] = getPlanningWorkCenters()[0]?.id || "D5";
     if (directoryData.sectionId === "productionResources" && key === "participatesInPlanning") row[key] = "yes";
     if (directoryData.sectionId === "productionResources" && key === "participatesInCalculation") row[key] = "yes";
-    if (directoryData.sectionId === "operations" && key === "workCenterId") row[key] = getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || getPlanningWorkCenters()[0]?.id || "D3_L1";
+    if (directoryData.sectionId === "operations" && key === "workCenterId") row[key] = getRouteInstructionWorkCenters({ includeWarehouse: false })[0]?.id || getRouteInstructionWorkCenters()[0]?.id || "D3";
     if (key === "totalQuantity" || key === "steps") row[key] = 0;
     if (key === "unitsPerHour") row[key] = 40;
     if (key === "capacity") row[key] = directoryData.sectionId === "workCenters" ? 1 : "1 партия / смена";
@@ -11413,6 +18269,30 @@ function getDirectoryHealth(sectionId) {
 
 function bindGlobalNavigation() {}
 
+function switchInterfaceRole(roleId) {
+  const nextRoleId = normalizeInterfaceRoleId(roleId);
+  const nextRole = INTERFACE_ROLES.find((role) => role.id === nextRoleId) || INTERFACE_ROLES[0];
+  if (ui.activeRole === nextRole.id) return;
+
+  ui.activeRole = nextRole.id;
+  ui.selectedSlotId = null;
+  ui.editor = null;
+  ui.splitSlotId = null;
+  ui.confirmDialog = null;
+  ui.routeSmtPopup = null;
+
+  const availableModules = getAvailableModules();
+  if (!availableModules.some((moduleItem) => moduleItem.id === ui.activeModule)) {
+    ui.activeModule = nextRole.defaultModule && availableModules.some((moduleItem) => moduleItem.id === nextRole.defaultModule)
+      ? nextRole.defaultModule
+      : availableModules[0]?.id || "gantt";
+  }
+
+  persistUiState();
+  notifySaveSuccess(`Роль интерфейса: ${nextRole.label}`);
+  render();
+}
+
 function navigateToModule(moduleId) {
   if (!getAvailableModules().some((moduleItem) => moduleItem.id === moduleId)) return;
   const previousModule = ui.activeModule;
@@ -11420,7 +18300,6 @@ function navigateToModule(moduleId) {
   ui.selectedSlotId = null;
   ui.editor = null;
   ui.splitSlotId = null;
-  ui.projectModal = false;
   ui.confirmDialog = null;
   ui.activeShopMapWidgetId = "";
   if (moduleId === "nomenclature" && previousModule !== "nomenclature") {
@@ -11471,8 +18350,8 @@ function performConfirmedAction(dialog) {
   if (!dialog) return;
   const payload = dialog.payload || {};
 
-  if (dialog.action === "resetDemo") {
-    resetDemoState();
+  if (dialog.action === "restoreWorkflowPreset") {
+    restoreWorkflowPreset();
     return;
   }
 
@@ -11488,6 +18367,16 @@ function performConfirmedAction(dialog) {
 
   if (dialog.action === "planningCancelRoute") {
     cancelPlanningRoute(payload.routeId);
+    return;
+  }
+
+  if (dialog.action === "warehouseDeleteMovement") {
+    deleteWarehouseMovementConfirmed(payload.movementId);
+    return;
+  }
+
+  if (dialog.action === "warehouseDeleteReservation") {
+    deleteWarehouseReservationConfirmed(payload.reservationId);
     return;
   }
 
@@ -11822,7 +18711,147 @@ function bindDirectoryEvents() {
   bindDirectoryForm();
 }
 
+function bindRouteStepDenseSelectEvents() {
+  app.querySelectorAll("[data-dense-route-step-field] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (button.disabled) return;
+      const root = button.closest("[data-dense-route-step-field]");
+      if (!root) return;
+      updateRouteStepField(root.dataset.routeStepId, root.dataset.denseRouteStepField, button.dataset.denseValue || "");
+    });
+  });
+}
+
+function bindRouteSmtCalculatorEvents() {
+  app.querySelectorAll("[data-route-smt-number]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateRouteStepField(field.dataset.routeSmtNumber || "", field.dataset.routeSmtField || "", field.value);
+    });
+  });
+
+  app.querySelectorAll("[data-route-smt-popup]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.routeSmtPopup = {
+        stepId: button.dataset.routeSmtStepId || "",
+        type: button.dataset.routeSmtPopup || "",
+      };
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-route-smt-split-component]").forEach((field) => {
+    field.addEventListener("change", () => {
+      if (!field.checked) return;
+      const stepId = field.dataset.routeSmtSplitStep || "";
+      const context = getRouteSmtStepContext(stepId);
+      if (!context) return;
+      const componentId = field.dataset.routeSmtSplitComponent || "";
+      const selectedMachine = field.dataset.routeSmtSplitMachine || "primary";
+      const current = context.step.machineSplit && hasConcreteSmtSplitCounts(context.rows, context.step.machineSplit) && !hasPartialSmtSplitCounts(context.rows, context.step.machineSplit)
+        ? context.step.machineSplit
+        : context.calc.result?.machineSplit?.splitCounts || {};
+      const componentRow = context.rows.find((row) => String(row.id) === String(componentId));
+      const componentCount = Math.max(0, Math.round(Number(componentRow?.count || 0)));
+      setRouteStepSmtMachineSplitCounts(stepId, {
+        ...current,
+        [componentId]: selectedMachine === "secondary" ? componentCount : 0,
+      });
+    });
+  });
+
+  app.querySelectorAll("[data-route-smt-split-auto]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const context = getRouteSmtStepContext(button.dataset.routeSmtSplitAuto || "");
+      if (!context) return;
+      setRouteStepSmtMachineSplitCounts(context.step.id, buildDefaultSmtSplitCounts(
+        context.rows,
+        true,
+        context.primaryMachine,
+        context.secondaryMachine,
+        context.calc.smtLine,
+        context.calc.efficiency,
+        context.step.machineCoefficients || {},
+      ));
+    });
+  });
+
+  app.querySelectorAll("[data-route-smt-split-default]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const context = getRouteSmtStepContext(button.dataset.routeSmtSplitDefault || "");
+      if (!context) return;
+      setRouteStepSmtMachineSplitCounts(context.step.id, buildDefaultSmtSplitCounts(context.rows, false));
+    });
+  });
+
+  app.querySelectorAll("[data-route-smt-coefficient-machine]").forEach((field) => {
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      commitRouteSmtCoefficientField(field);
+      const nextField = getNextRouteSmtCoefficientField(field);
+      if (nextField) {
+        nextField.focus({ preventScroll: true });
+        nextField.select?.();
+      } else {
+        render();
+      }
+    });
+    field.addEventListener("change", () => {
+      commitRouteSmtCoefficientField(field);
+      render();
+    });
+  });
+}
+
+function bindGenericModalCloseEvents() {
+  app.querySelectorAll("[data-close-modal], [data-modal-backdrop]").forEach((element) => {
+    element.addEventListener("click", (event) => {
+      if (event.target !== element && !element.matches("[data-close-modal]")) return;
+      closeModals();
+    });
+  });
+}
+
 function bindPlanningEvents() {
+  bindRouteStepDenseSelectEvents();
+  bindRouteSmtCalculatorEvents();
+  bindGenericModalCloseEvents();
+
+  app.querySelectorAll("[data-planning-work-item]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      ui.planningWorkItem = button.dataset.planningWorkItem || "";
+      persistUiState();
+      render();
+      window.requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
+    });
+  });
+
+  app.querySelectorAll("[data-planning-flow-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      updatePlanningFlowRule(button.dataset.planningFlowRoute || "", {
+        mode: button.dataset.planningFlowMode || "complete",
+      });
+    });
+  });
+
+  app.querySelectorAll("[data-planning-transfer-batch]").forEach((input) => {
+    const commit = () => updatePlanningFlowRule(input.dataset.planningTransferBatch || "", {
+      transferBatchQuantity: input.value,
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      input.blur();
+      commit();
+    });
+    input.addEventListener("change", commit);
+  });
+
   app.querySelectorAll("[data-planning-quantity]").forEach((input) => {
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
@@ -11876,6 +18905,22 @@ function bindPlanningEvents() {
     button.addEventListener("click", () => createPlanningBatch(button.dataset.planningBatchAdd || ""));
   });
 
+  app.querySelectorAll("[data-planning-route-step-line]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateRouteStepField(field.dataset.planningRouteStepLine || "", "planningWorkCenterId", field.value);
+    });
+  });
+
+  app.querySelectorAll("[data-planning-supply-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      updatePlanningSupplyFulfillment(
+        button.dataset.planningSupplyRoute || "",
+        button.dataset.planningSupplyItem || "",
+        button.dataset.planningSupplyMode || "not_selected",
+      );
+    });
+  });
+
   app.querySelectorAll("[data-planning-batches-distribute]").forEach((button) => {
     button.addEventListener("click", () => distributePlanningBatchesEvenly(button.dataset.planningBatchesDistribute || ""));
   });
@@ -11904,20 +18949,122 @@ function bindPlanningEvents() {
       const route = planningState.routes.find((item) => item.id === button.dataset.planningRouteOpen);
       if (!route) return;
       ui.activeRouteId = route.id;
-      ui.activeProjectId = route.projectId;
-      ensureRouteTaskSeedSteps(route.id, getRouteSpecification(route));
+      ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || "";
+      ui.planningWorkItem = "";
       persistUiState();
-      persistState();
       render();
     });
   });
+}
+
+function bindWarehouseEvents() {
+  app.querySelector("#warehouseMovementForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    createWarehouseMovementFromForm(event.currentTarget);
+  });
+
+  app.querySelector("#warehouseReservationForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    createWarehouseReservationFromForm(event.currentTarget);
+  });
+
+  app.querySelectorAll("[data-warehouse-delete-movement]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openConfirmDialog("warehouseDeleteMovement", { movementId: button.dataset.warehouseDeleteMovement || "" });
+    });
+  });
+
+  app.querySelectorAll("[data-warehouse-delete-reservation]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openConfirmDialog("warehouseDeleteReservation", { reservationId: button.dataset.warehouseDeleteReservation || "" });
+    });
+  });
+}
+
+function createWarehouseMovementFromForm(form) {
+  const formData = new FormData(form);
+  const nomenclatureItemId = String(formData.get("nomenclatureItemId") || "").trim();
+  const item = getNomenclatureItem(nomenclatureItemId);
+  if (!item) {
+    notifySaveSuccess("Выберите существующую позицию номенклатуры");
+    return;
+  }
+
+  const quantity = normalizeWarehouseQuantity(formData.get("quantity"));
+  if (quantity <= 0) {
+    notifySaveSuccess("Укажите количество больше нуля");
+    return;
+  }
+
+  const movement = normalizeWarehouseMovement({
+    id: makeId("wm"),
+    movementType: String(formData.get("movementType") || "receipt"),
+    nomenclatureItemId,
+    quantity,
+    routeId: String(formData.get("routeId") || ""),
+    warehouseName: String(formData.get("warehouseName") || "").trim(),
+    locationName: String(formData.get("locationName") || "").trim(),
+    comment: String(formData.get("comment") || "").trim(),
+    createdAt: new Date().toISOString(),
+  });
+  if (!movement) return;
+
+  planningState.warehouseMovements = [movement, ...(planningState.warehouseMovements || [])];
+  persistState();
+  notifySaveSuccess("Складское движение добавлено");
+  render();
+}
+
+function createWarehouseReservationFromForm(form) {
+  const formData = new FormData(form);
+  const nomenclatureItemId = String(formData.get("nomenclatureItemId") || "").trim();
+  const item = getNomenclatureItem(nomenclatureItemId);
+  if (!item) {
+    notifySaveSuccess("Выберите существующую позицию номенклатуры");
+    return;
+  }
+
+  const quantity = normalizeWarehouseQuantity(formData.get("quantity"));
+  if (quantity <= 0) {
+    notifySaveSuccess("Укажите количество резерва больше нуля");
+    return;
+  }
+
+  const reservation = normalizeWarehouseReservation({
+    id: makeId("wr"),
+    nomenclatureItemId,
+    quantity,
+    routeId: String(formData.get("routeId") || ""),
+    comment: String(formData.get("comment") || "").trim(),
+    createdAt: new Date().toISOString(),
+  });
+  if (!reservation) return;
+
+  planningState.warehouseReservations = [reservation, ...(planningState.warehouseReservations || [])];
+  persistState();
+  notifySaveSuccess("Резерв склада добавлен");
+  render();
+}
+
+function deleteWarehouseMovementConfirmed(movementId) {
+  planningState.warehouseMovements = (planningState.warehouseMovements || []).filter((movement) => movement.id !== movementId);
+  persistState();
+  notifySaveSuccess("Складское движение удалено");
+  render();
+}
+
+function deleteWarehouseReservationConfirmed(reservationId) {
+  planningState.warehouseReservations = (planningState.warehouseReservations || []).filter((reservation) => reservation.id !== reservationId);
+  persistState();
+  notifySaveSuccess("Резерв склада удален");
+  render();
 }
 
 function applyOperationMapChangesToRoutes(operation) {
   if (!operation?.id) return;
   planningState.routeSteps = (planningState.routeSteps || []).map((step) => {
     if (step.operationId !== operation.id) return step;
-    const nextWorkCenterId = step.workCenterOverride ? step.workCenterId : operation.workCenterId;
+    const nextWorkCenterId = step.workCenterOverride ? step.workCenterId : getOperationRouteWorkCenterId(operation);
     return {
       ...step,
 	      operationName: operation.name || step.operationName,
@@ -11936,16 +19083,30 @@ function applyOperationMapChangesToRoutes(operation) {
   planningState.slots = (planningState.slots || []).map((slot) => {
     const step = linkedStepById.get(slot.routeStepId);
     if (!step || slot.locked || slot.status === "completed") return slot;
+    const keepSlotWorkCenter = isPlanningWorkCenterCompatibleWithRouteStep(step, slot.workCenterId, planningState);
+    const assignment = keepSlotWorkCenter ? null : getManualPlanningAssignmentForRouteStep(step, slot.quantity || 1, slot.plannedStart || fromDateInput(ui.windowStart), {
+      state: planningState,
+      ignoreSlotId: slot.id,
+      currentWorkCenterId: slot.workCenterId,
+    });
+    const planningWorkCenterId = keepSlotWorkCenter
+      ? slot.workCenterId
+      : assignment?.workCenterId || slot.workCenterId;
+    const resourceId = getPlanningResourceForRouteStep(step, planningWorkCenterId, slot.resourceId || step.resourceId || "");
     return recalculateSlotEndByQuantity({
       ...slot,
+      operationId: step.operationId || slot.operationId || "",
       operationName: step.operationName || slot.operationName,
-	      workCenterId: step.workCenterId || slot.workCenterId,
+	      routeWorkCenterId: step.workCenterId || slot.routeWorkCenterId || "",
+	      workCenterId: planningWorkCenterId || slot.workCenterId,
 	      unitsPerHour: step.unitsPerHour || slot.unitsPerHour,
-	      resourceId: step.resourceId || slot.resourceId || "",
+	      resourceId,
 	      calculationType: step.calculationType || slot.calculationType || "",
 	      secondsPerPanel: step.secondsPerPanel || slot.secondsPerPanel || 0,
 	      setupMin: step.setupMin || slot.setupMin || 0,
 	      bomListId: step.bomListId || slot.bomListId || "",
+	      machineSplit: step.machineSplit || slot.machineSplit || null,
+	      machineCoefficients: step.machineCoefficients || slot.machineCoefficients || null,
 	      updatedAt: new Date().toISOString(),
 	    }, planningState);
 	  });
@@ -11965,7 +19126,7 @@ function deleteOperationMapItem(operationId) {
   ));
   planningState.slots = (planningState.slots || []).map((slot) => (
     affectedStepIds.has(slot.routeStepId)
-      ? { ...slot, operationName: "", updatedAt: new Date().toISOString() }
+      ? { ...slot, operationId: "", operationName: "", updatedAt: new Date().toISOString() }
       : slot
   ));
   directoryState.specifications = (directoryState.specifications || []).map((specification) => {
@@ -11991,7 +19152,12 @@ function deleteOperationMapItem(operationId) {
 function bindRoutesEvents() {
   app.querySelector("[data-route-create]")?.addEventListener("click", () => {
     ui.activeRouteId = "__new__";
-    ui.activeProjectId = ui.activeProjectId || ui.activeSpecificationId || (directoryState.specifications || [])[0]?.id || "";
+    const defaultProductId = ui.activeSpecificationId || ui.activeProjectId || (directoryState.specifications || [])[0]?.id || "";
+    const defaultBomId = ui.activeBomId || (directoryState.bomLists || [])[0]?.id || "";
+    ui.routeBindingMode = normalizeRouteBindingMode(ui.routeBindingMode || (defaultProductId ? "product" : "bom"));
+    ui.routeDraftBindingId = normalizeRouteBindingValue(ui.routeBindingMode === "bom" ? (defaultBomId ? `bom:${defaultBomId}` : "") : (defaultProductId ? `spec:${defaultProductId}` : ""));
+    const binding = getRouteBindingContext(ui.routeDraftBindingId);
+    ui.activeProjectId = binding.specification?.id || "";
     persistUiState();
     render();
   });
@@ -12001,10 +19167,10 @@ function bindRoutesEvents() {
       const route = planningState.routes.find((item) => item.id === button.dataset.routeOpen);
       if (!route) return;
       ui.activeRouteId = route.id;
-      ui.activeProjectId = route.projectId;
-      ensureRouteTaskSeedSteps(route.id, getRouteSpecification(route));
+      ui.routeDraftBindingId = "";
+      ui.routeBindingMode = getRouteBindingModeForSelection(getRouteModuleSelectionValue(route), route);
+      ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || "";
       persistUiState();
-      persistState();
       render();
     });
   });
@@ -12012,6 +19178,50 @@ function bindRoutesEvents() {
   app.querySelector("#routeModuleForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     saveRouteModuleForm(event.currentTarget);
+  });
+
+  app.querySelector("[data-route-binding-select]")?.addEventListener("change", (event) => {
+    const selectionValue = String(event.target.value || "");
+    const binding = getRouteBindingContext(selectionValue);
+    const selectedSpecification = binding.specification;
+    ui.routeBindingMode = binding.bom ? "bom" : "product";
+    if (selectedSpecification) ui.activeSpecificationId = selectedSpecification.id;
+    if (ui.activeRouteId === "__new__") {
+      ui.routeDraftBindingId = binding.value || selectionValue || "";
+      ui.activeProjectId = selectedSpecification?.id || "";
+      persistUiState();
+      return;
+    }
+    updateRouteProject(selectionValue);
+  });
+
+  app.querySelectorAll("[data-route-binding-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextMode = normalizeRouteBindingMode(button.dataset.routeBindingMode || "");
+      const activeRoute = getActiveRouteForModule();
+      const currentMode = activeRoute ? getRouteBindingModeForSelection(getRouteModuleSelectionValue(activeRoute), activeRoute) : normalizeRouteBindingMode(ui.routeBindingMode);
+      ui.routeBindingMode = nextMode;
+      ui.routeDraftBindingId = "";
+      if (activeRoute && ui.activeRouteId !== "__new__" && currentMode !== nextMode) {
+        planningState.routes = (planningState.routes || []).map((route) => route.id === activeRoute.id
+          ? {
+              ...route,
+              specificationId: "",
+              specificationName: "",
+              projectId: "",
+              bomListId: "",
+              updatedAt: new Date().toISOString(),
+            }
+          : route);
+        planningState.routeSteps = (planningState.routeSteps || []).map((step) => step.routeId === activeRoute.id
+          ? applyRouteTaskToStep(step, null, MAIN_ROUTE_TASK_ID)
+          : step);
+        ui.activeProjectId = "";
+        persistState();
+      }
+      persistUiState();
+      render();
+    });
   });
 
   app.querySelector("[data-route-delete]")?.addEventListener("click", (event) => {
@@ -12030,14 +19240,7 @@ function bindRoutesEvents() {
     });
   });
 
-  app.querySelectorAll("[data-dense-route-step-field] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-route-step-field]");
-      if (!root) return;
-      updateRouteStepField(root.dataset.routeStepId, root.dataset.denseRouteStepField, button.dataset.denseValue || "");
-    });
-  });
+  bindRouteStepDenseSelectEvents();
 
   app.querySelectorAll("[data-route-step-input]").forEach((field) => {
     field.addEventListener("change", () => {
@@ -12045,6 +19248,7 @@ function bindRoutesEvents() {
     });
   });
 
+  bindRouteSmtCalculatorEvents();
   app.querySelectorAll("[data-route-add-step]").forEach((button) => {
     button.addEventListener("click", () => {
       addRouteModuleStep(button.dataset.routeAddStep || "operation");
@@ -12068,36 +19272,42 @@ function bindRoutesEvents() {
   app.querySelector("[data-route-to-planning]")?.addEventListener("click", () => {
     const route = getActiveRouteForModule();
     if (!route) {
-      alert("Сначала сохраните маршрутную карту, затем передайте ее в планирование.");
+      alert("Сначала сохраните маршрутную карту, затем создайте заказ-наряд.");
       return;
-    }
-    const specification = getRouteSpecification(route);
-    const production = getProject(route.specificationId || route.projectId);
-    if (!specification && !production) {
-      alert("Чтобы передать маршрутную карту в планирование, выберите состав изделия в карточке маршрута и сохраните карту.");
+	    }
+	    const specification = getRouteSpecification(route);
+	    const bom = getRouteBomList(route);
+	    const production = getRouteProductionContext(route);
+    if (!bom && !specification && !production) {
+      alert("Чтобы создать заказ-наряд, выберите BOM или состав изделия в карточке маршрута и сохраните карту.");
       return;
     }
     if (specification && !production) {
       ensureRouteModuleProjectForSpecification(specification);
-    }
-    ui.activeModule = "planning";
-    ui.activeRouteId = route.id;
-    ui.activeProjectId = specification?.id || route.specificationId || route.projectId;
+	    }
+	    ui.activeModule = "planning";
+	    ui.activeRouteId = route.id;
+	    ui.activeProjectId = specification?.id || getRouteProductionId(route) || getRoutePlanningContext(route)?.id || "";
     persistUiState();
     render();
   });
+
+  bindGenericModalCloseEvents();
 }
 
 function saveRouteModuleForm(form) {
   const data = new FormData(form);
   const isNew = data.get("isNew") === "yes";
   const existingRoute = getActiveRouteForModule();
-  const routeBindingId = String(data.get("routeBindingId") || data.get("projectId") || ui.activeSpecificationId || existingRoute?.specificationId || existingRoute?.projectId || ui.activeProjectId || "");
-  const projectId = resolveRouteModuleProjectId(routeBindingId, { createPlanningUnit: true });
-  const selectedSpecification = getSpecificationById(routeBindingId) || getSpecificationByProjectId(projectId);
+  const routeBindingId = String(data.get("routeBindingId") || data.get("projectId") || "");
+  const binding = getRouteBindingContext(routeBindingId);
+  const selectedSpecification = binding.specification;
+  const selectedBom = binding.bom;
+  ui.routeBindingMode = selectedBom ? "bom" : "product";
+  const projectId = selectedSpecification ? resolveRouteModuleProjectId(selectedSpecification.id, { createPlanningUnit: true }) : "";
   const name = String(data.get("name") || "").trim();
-  if (!name || !projectId) {
-    alert("Заполните название маршрутной карты и состав изделия.");
+  if (!name) {
+    alert("Заполните название маршрутной карты.");
     return;
   }
 
@@ -12106,9 +19316,10 @@ function saveRouteModuleForm(form) {
   const nextRoute = {
     ...(existingRoute || {}),
     id: routeId,
-    specificationId: selectedSpecification?.id || projectId,
-    specificationName: selectedSpecification?.name || "",
-    projectId,
+    specificationId: selectedSpecification ? selectedSpecification.id || projectId : "",
+    specificationName: selectedSpecification ? selectedSpecification.name || "" : "",
+    projectId: selectedSpecification ? projectId || selectedSpecification.id : "",
+    bomListId: selectedBom ? selectedBom.id : "",
     name,
     isDefault: Boolean(existingRoute?.isDefault),
     updatedAt: stamp,
@@ -12120,9 +19331,10 @@ function saveRouteModuleForm(form) {
     nextRoute,
   ];
   planningState = normalizePlanningState(planningState);
-  ensureRouteTaskSeedSteps(routeId, selectedSpecification);
+  if (selectedSpecification) ensureRouteTaskSeedSteps(routeId, selectedSpecification);
   ui.activeRouteId = routeId;
-  ui.activeProjectId = projectId;
+  ui.routeDraftBindingId = "";
+  ui.activeProjectId = selectedSpecification ? projectId || selectedSpecification.id : existingRoute?.projectId || "";
   if (selectedSpecification) ui.activeSpecificationId = selectedSpecification.id;
   persistState();
   persistUiState();
@@ -12131,28 +19343,37 @@ function saveRouteModuleForm(form) {
 }
 
 function updateRouteProject(selectionValue) {
-  if (!selectionValue) return;
   const activeRoute = getActiveRouteForModule();
-  const selectedSpecification = getSpecificationById(selectionValue) || getSpecificationByProjectId(selectionValue);
-  const projectId = resolveRouteModuleProjectId(selectionValue, {
+  const binding = getRouteBindingContext(selectionValue);
+  const selectedSpecification = binding.specification;
+  const selectedBom = binding.bom;
+  ui.routeBindingMode = selectedBom ? "bom" : "product";
+  const projectId = selectedSpecification ? resolveRouteModuleProjectId(selectedSpecification.id, {
     createPlanningUnit: Boolean(activeRoute && ui.activeRouteId !== "__new__"),
-  });
+  }) : "";
   if (selectedSpecification) ui.activeSpecificationId = selectedSpecification.id;
   if (!activeRoute || ui.activeRouteId === "__new__") {
+    ui.routeDraftBindingId = binding.value || selectionValue || "";
     ui.activeProjectId = projectId || selectedSpecification?.id || "";
     persistUiState();
     render();
     return;
   }
 
-  if (!projectId) return;
   planningState.routes = planningState.routes.map((route) => (
     route.id === activeRoute.id
-      ? { ...route, specificationId: selectedSpecification?.id || projectId, specificationName: selectedSpecification?.name || "", projectId, updatedAt: new Date().toISOString() }
+      ? {
+          ...route,
+          specificationId: selectedSpecification ? selectedSpecification.id || projectId : "",
+          specificationName: selectedSpecification ? selectedSpecification.name || "" : "",
+          projectId: selectedSpecification ? projectId || selectedSpecification.id : "",
+          bomListId: selectedBom ? selectedBom.id : selectedSpecification ? "" : route.bomListId || "",
+          updatedAt: new Date().toISOString(),
+        }
       : route
   ));
   if (selectedSpecification) ensureRouteTaskSeedSteps(activeRoute.id, selectedSpecification);
-  ui.activeProjectId = projectId;
+  ui.activeProjectId = selectedSpecification ? projectId || selectedSpecification.id : "";
   persistState();
   persistUiState();
   notifySaveSuccess("Маршрутная карта сохранена");
@@ -12164,20 +19385,68 @@ function updateRouteStepField(stepId, field, rawValue) {
   if (!step || !field) return;
   const oldCenter = getWorkCenter(step.workCenterId);
   let value = rawValue;
+  if (field === "operationId" && !step.workCenterId) {
+    alert("Сначала выберите отдел.");
+    return;
+  }
   if (field === "operationId" && !getOperationMapItem(value)) {
     alert("Выберите операцию из справочника операций.");
     return;
   }
+  if (field === "operationId") {
+    const operation = getOperationMapItem(value);
+    if (operation && getOperationRouteWorkCenterId(operation) !== step.workCenterId) {
+      alert("Выберите операцию из выбранного отдела.");
+      return;
+    }
+  }
+  if (field === "workCenterId" && value && !getWorkCenter(value)) {
+    alert("Выберите отдел из справочника отделов.");
+    return;
+  }
+  if (field === "planningWorkCenterId") {
+    const normalizedValue = mapLegacyWorkCenterId(value);
+    const candidates = getRouteStepPlanningCandidateWorkCenterIds(step, planningState);
+    if (normalizedValue && !candidates.includes(normalizedValue)) {
+      alert("Выберите линию из доступных кандидатов для этой операции.");
+      return;
+    }
+    value = normalizedValue;
+  }
+  if (field === "specTaskId") {
+    const route = getRouteForStep(step);
+    const taskOptions = getRouteStepTaskOptions(route);
+    if (value && !taskOptions.some((item) => item.value === value)) {
+      alert("Выберите объект маршрута из состава изделия.");
+      return;
+    }
+    value = value || MAIN_ROUTE_TASK_ID;
+  }
   if (["stepOrder", "setupMin", "secondsPerPanel"].includes(field)) {
     value = Math.max(field === "stepOrder" ? 1 : 0, Math.round(Number(rawValue || 0)));
   }
-  if (field === "unitsPerHour") {
-    value = Math.max(0, Math.round(Number(rawValue || 0) * 10) / 10);
+  if (field === "boardsPerPanel") {
+    value = normalizeBoardsPerPanel(rawValue, 1);
   }
+  if (field === "efficiency") {
+    value = Math.min(150, Math.max(10, Math.round(Number(rawValue || 0) || defaultCalculatorState.efficiency || 100)));
+  }
+	  if (field === "unitsPerHour") {
+	    value = Math.max(0, Math.round(Number(rawValue || 0) * 10) / 10);
+	  }
+	  if (field === "operationInputs") {
+	    value = makeManualRouteStepFlowItems("input", rawValue);
+	  }
+	  if (field === "operationOutputs") {
+	    value = makeManualRouteStepFlowItems("output", rawValue);
+	  }
 
   planningState.routeSteps = planningState.routeSteps.map((item) => {
     if (item.id !== stepId) return item;
     const next = { ...item, [field]: value, updatedAt: new Date().toISOString() };
+    if (field === "specTaskId") {
+      return applyRouteTaskToStep(next, getRouteForStep(item), value);
+    }
     if (field === "operationId") {
       const operation = getOperationMapItem(value);
       if (operation) {
@@ -12186,48 +19455,180 @@ function updateRouteStepField(stepId, field, rawValue) {
     }
 	    if (field === "workCenterId") {
 	      const center = getWorkCenter(value);
-	      const resources = getResourcesForWorkCenter(value);
-	      const resource = resources.find((item) => item.id === next.resourceId) || resources[0] || null;
+        const currentOperation = item.operationId ? getOperationMapItem(item.operationId) : null;
+	      const planningCandidates = value ? getPlanningCandidateWorkCenterIdsForRouteWorkCenter(value, currentOperation, planningState) : [];
+	      const singlePlanningWorkCenterId = planningCandidates.length === 1 ? planningCandidates[0] : "";
+        const explicitPlanningWorkCenterId = mapLegacyWorkCenterId(item.planningWorkCenterId || "");
+        const selectedPlanningWorkCenterId = explicitPlanningWorkCenterId && planningCandidates.includes(explicitPlanningWorkCenterId)
+          ? explicitPlanningWorkCenterId
+          : singlePlanningWorkCenterId;
+	      const resourceId = selectedPlanningWorkCenterId
+	        ? getPlanningResourceForRouteStep(next, selectedPlanningWorkCenterId, next.resourceId)
+	        : "";
+	      const resource = resourceId ? getProductionResource(resourceId) : null;
 	      const shouldRename = !item.operationName || item.operationName === oldCenter?.name || item.operationName === oldCenter?.code;
-	      next.operationName = shouldRename ? center?.name || "Операция" : item.operationName;
-	      if (item.operationId) {
-	        const operation = getOperationMapItem(item.operationId);
-	        next.workCenterOverride = Boolean(operation && operation.workCenterId !== value);
-	      }
-	      if (!Number(next.unitsPerHour || 0)) next.unitsPerHour = getWorkCenterUnitsPerHour(value);
-	      next.resourceId = resource?.id || "";
-	      next.calculationType = getDefaultOperationCalculationType(value, next);
+        const shouldClearOperation = !value || !currentOperation || getOperationRouteWorkCenterId(currentOperation) !== value;
+        if (shouldClearOperation) {
+          next.operationId = "";
+          next.operationName = "";
+          next.workCenterOverride = false;
+          next.requiresBatch = value ? !isWarehouseWorkCenterId(value) : true;
+          next.isWarehouseOperation = false;
+        } else {
+          next.operationName = shouldRename ? currentOperation.name || center?.name || "" : item.operationName;
+          next.workCenterOverride = false;
+          next.requiresBatch = currentOperation.requiresBatch;
+          next.isWarehouseOperation = currentOperation.isWarehouse;
+        }
+	      if (!Number(next.unitsPerHour || 0) || shouldClearOperation) next.unitsPerHour = value ? getWorkCenterUnitsPerHour(value) : 0;
+        next.planningWorkCenterId = selectedPlanningWorkCenterId && planningCandidates.length > 1 ? selectedPlanningWorkCenterId : "";
+	      next.resourceId = resourceId;
+	      next.calculationType = value ? getDefaultOperationCalculationType(value, next) : "manual";
 	      next.secondsPerPanel = next.calculationType === "manual" || next.calculationType === "normative"
-	        ? getDefaultSecondsPerPanel(value, next.boardsPerPanel || 1)
+	        ? (value ? getDefaultSecondsPerPanel(value, next.boardsPerPanel || 1) : 0)
 	        : 0;
 	      next.setupMin = Number(resource?.changeoverMin || 0);
 	    }
+      if (field === "planningWorkCenterId") {
+        next.resourceId = value ? getPlanningResourceForRouteStep(next, value, next.resourceId) : "";
+        const resource = next.resourceId ? getProductionResource(next.resourceId) : null;
+        if (resource) next.setupMin = Number(resource.changeoverMin || next.setupMin || 0);
+      }
 	    return next;
 	  });
 
   if (field === "stepOrder") normalizeRouteStepOrders(step.routeId, getRouteStepTaskId(step));
-	  if (["operationId", "workCenterId", "unitsPerHour", "secondsPerPanel", "setupMin", "calculationType", "resourceId", "bomListId", "boardsPerPanel"].includes(field)) {
-	    const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
-	    planningState.slots = planningState.slots.map((slot) => {
+  if (field === "specTaskId") normalizeRouteStepOrders(step.routeId);
+		  if (["operationId", "workCenterId", "planningWorkCenterId", "unitsPerHour", "secondsPerPanel", "setupMin", "calculationType", "resourceId", "bomListId", "boardsPerPanel", "machineSplit", "machineCoefficients", "efficiency", "specTaskId", "operationInputs", "operationOutputs"].includes(field)) {
+		    const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
+		    planningState.slots = planningState.slots.map((slot) => {
 	      if (slot.routeStepId !== stepId || slot.locked || slot.status === "completed" || !updatedStep) return slot;
-	      return recalculateSlotEndByQuantity({
+        const selectedPlanningWorkCenterId = getRouteStepSelectedPlanningWorkCenterId(updatedStep, planningState);
+        const shouldForceSelectedLine = field === "planningWorkCenterId" && selectedPlanningWorkCenterId;
+        const keepSlotWorkCenter = !shouldForceSelectedLine && isPlanningWorkCenterCompatibleWithRouteStep(updatedStep, slot.workCenterId, planningState);
+        const assignment = keepSlotWorkCenter ? null : getManualPlanningAssignmentForRouteStep(updatedStep, slot.quantity || 1, slot.plannedStart || fromDateInput(ui.windowStart), {
+          state: planningState,
+          ignoreSlotId: slot.id,
+          currentWorkCenterId: slot.workCenterId,
+        });
+	        const planningWorkCenterId = shouldForceSelectedLine
+	          ? selectedPlanningWorkCenterId
+	          : keepSlotWorkCenter
+	          ? slot.workCenterId
+	          : assignment?.workCenterId || slot.workCenterId;
+	        const resourceId = getPlanningResourceForRouteStep(updatedStep, planningWorkCenterId, slot.resourceId || updatedStep.resourceId || "");
+	        const flow = getRouteStepFlowModel(getRouteForStep(updatedStep), updatedStep);
+		      return recalculateSlotEndByQuantity({
 	        ...slot,
-	        workCenterId: updatedStep.workCenterId,
-	        operationName: updatedStep.operationName || slot.operationName,
+	        routeWorkCenterId: updatedStep.workCenterId,
+	        workCenterId: planningWorkCenterId,
+	        operationId: updatedStep.operationId || slot.operationId || "",
+	        operationName: updatedStep.operationName || "Операция не выбрана",
 	        unitsPerHour: updatedStep.unitsPerHour || slot.unitsPerHour,
 	        boardsPerPanel: updatedStep.boardsPerPanel || slot.boardsPerPanel || 1,
-	        resourceId: updatedStep.resourceId || slot.resourceId || "",
+	        resourceId,
 	        calculationType: updatedStep.calculationType || slot.calculationType || "",
 	        secondsPerPanel: updatedStep.secondsPerPanel || slot.secondsPerPanel || 0,
 	        setupMin: updatedStep.setupMin || slot.setupMin || 0,
-	        bomListId: updatedStep.bomListId || slot.bomListId || "",
-	        updatedAt: new Date().toISOString(),
-	      }, planningState);
+		        bomListId: updatedStep.bomListId || slot.bomListId || "",
+		        machineSplit: updatedStep.machineSplit || slot.machineSplit || null,
+		        machineCoefficients: updatedStep.machineCoefficients || slot.machineCoefficients || null,
+		        operationInputs: flow.inputs,
+		        operationOutputs: flow.outputs,
+		        operationInputLabel: flow.inputLabel,
+		        operationOutputLabel: flow.outputLabel,
+		        updatedAt: new Date().toISOString(),
+		      }, planningState);
 	    });
 	  }
   persistState();
   notifySaveSuccess("Операция маршрута сохранена");
   render();
+}
+
+function getRouteSmtStepContext(stepId = "") {
+  const step = planningState.routeSteps.find((item) => item.id === stepId);
+  const route = step ? planningState.routes.find((item) => item.id === step.routeId) || getActiveRouteForModule() : null;
+  if (!route || !step) return null;
+  const calc = getRouteSmtStepCalculation(route, step);
+  if (!calc.complete || !calc.result?.machineSplit) return null;
+  return {
+    route,
+    step,
+    calc,
+    rows: calc.rows || [],
+    primaryMachine: calc.result.machineSplit.primaryMachine,
+    secondaryMachine: calc.result.machineSplit.secondaryMachine,
+  };
+}
+
+function setRouteStepSmtMachineSplitCounts(stepId = "", splitCounts = {}) {
+  const context = getRouteSmtStepContext(stepId);
+  if (!context) return;
+  const normalizedSplit = normalizeSmtSplitCounts(context.rows, splitCounts);
+  updateRouteStepField(stepId, "machineSplit", normalizedSplit);
+}
+
+function setRouteStepSmtPackageCoefficient(stepId = "", machineId = "", packageKey = "", value = "", options = {}) {
+  const normalizedMachineId = String(machineId || "").trim();
+  const normalizedPackageKey = normalizeSmtPackageCoefficientKey(packageKey);
+  if (!stepId || !normalizedMachineId || !normalizedPackageKey) return;
+  const step = planningState.routeSteps.find((item) => item.id === stepId);
+  if (!step) return;
+  const currentMachineValues = {
+    ...(step.machineCoefficients?.[normalizedMachineId] || {}),
+  };
+  const normalizedCoefficient = normalizeSmtPackageCoefficientValue(value);
+  if (normalizedCoefficient !== null) {
+    currentMachineValues[normalizedPackageKey] = normalizedCoefficient;
+  } else {
+    delete currentMachineValues[normalizedPackageKey];
+  }
+  const machineCoefficients = normalizeSmtPackageCoefficientStore({
+    ...(step.machineCoefficients || {}),
+    [normalizedMachineId]: currentMachineValues,
+  });
+  planningState.routeSteps = planningState.routeSteps.map((item) => (
+    item.id === stepId ? { ...item, machineCoefficients, updatedAt: new Date().toISOString() } : item
+  ));
+  const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
+  planningState.slots = planningState.slots.map((slot) => {
+    if (slot.routeStepId !== stepId || slot.locked || slot.status === "completed" || !updatedStep) return slot;
+    return recalculateSlotEndByQuantity({
+      ...slot,
+      machineCoefficients,
+      updatedAt: new Date().toISOString(),
+    }, planningState);
+  });
+  persistState();
+  if (options.render === false) return;
+  render();
+}
+
+function commitRouteSmtCoefficientField(field) {
+  if (!field) return;
+  setRouteStepSmtPackageCoefficient(
+    field.dataset.routeSmtCoefficientStep || "",
+    field.dataset.routeSmtCoefficientMachine || "",
+    field.dataset.routeSmtCoefficientPackage || "",
+    field.value,
+    { render: false },
+  );
+  const normalizedValue = formatCoefficientInputNumber(field.value);
+  if (normalizedValue) field.value = normalizedValue;
+}
+
+function getNextRouteSmtCoefficientField(field) {
+  if (!field) return null;
+  const stepId = field.dataset.routeSmtCoefficientStep || "";
+  const machineId = field.dataset.routeSmtCoefficientMachine || "";
+  const fields = [...app.querySelectorAll("[data-route-smt-coefficient-machine]")]
+    .filter((item) => (
+      item.dataset.routeSmtCoefficientStep === stepId
+      && item.dataset.routeSmtCoefficientMachine === machineId
+    ));
+  const currentIndex = fields.indexOf(field);
+  return currentIndex >= 0 ? fields[currentIndex + 1] || null : null;
 }
 
 function appendRouteTaskTemplateSteps(route, task) {
@@ -12262,19 +19663,24 @@ function seedAllRouteTaskTemplates() {
 }
 
 function getDefaultOperationMapItemForRouteKind(operationKind = "operation") {
-  const operations = getOperationMapRows();
+  const operations = getOperationMapRows({ includeInactive: false })
+    .filter((operation) => !operation.legacyAliasOf && operation.coverage !== "blocked");
   if (operationKind === "warehouse") {
-    return operations.find((operation) => operation.isWarehouse || isWarehouseWorkCenterId(operation.workCenterId)) || null;
+    return operations.find((operation) => isManufacturingOutputReceiptOperation(operation)) || null;
   }
-  return operations.find((operation) => !operation.isWarehouse && !isWarehouseWorkCenterId(operation.workCenterId) && operation.coverage !== "blocked")
+  return operations.find((operation) => !operation.isWarehouse && !isWarehouseWorkCenterId(getOperationRouteWorkCenterId(operation)) && operation.coverage !== "blocked")
     || operations.find((operation) => !operation.isWarehouse)
     || null;
 }
 
 function createRouteStepFromOperationMapItem(route, operation, insertOrder, stamp = new Date().toISOString()) {
-  const workCenterId = operation.workCenterId;
-  const resources = getResourcesForWorkCenter(workCenterId);
-  const resource = resources[0] || null;
+  const workCenterId = getOperationRouteWorkCenterId(operation) || operation.workCenterId;
+  const planningCandidates = getPlanningCandidateWorkCenterIdsForRouteWorkCenter(workCenterId, operation, planningState);
+  const singlePlanningWorkCenterId = planningCandidates.length === 1 ? planningCandidates[0] : "";
+  const resourceId = singlePlanningWorkCenterId
+    ? getPlanningResourceForRouteStep({ workCenterId }, singlePlanningWorkCenterId, "")
+    : "";
+  const resource = resourceId ? getProductionResource(resourceId) : null;
   const calculationType = getDefaultOperationCalculationType(workCenterId, operation);
   return normalizeRouteStepCalculationFields({
     id: makeId("rs"),
@@ -12293,7 +19699,7 @@ function createRouteStepFromOperationMapItem(route, operation, insertOrder, stam
     isRequired: true,
     quantityMultiplier: 1,
     unitsPerHour: operation.unitsPerHour || getWorkCenterUnitsPerHour(workCenterId),
-    resourceId: resource?.id || "",
+    resourceId,
     calculationType,
     secondsPerPanel: calculationType === "manual" || calculationType === "normative"
       ? getDefaultSecondsPerPanel(workCenterId, 1)
@@ -12305,22 +19711,50 @@ function createRouteStepFromOperationMapItem(route, operation, insertOrder, stam
   }, planningState);
 }
 
+function createEmptyRouteModuleStep(route, insertOrder, stamp = new Date().toISOString()) {
+  return normalizeRouteStepCalculationFields({
+    id: makeId("rs"),
+    routeId: route.id,
+    specTaskId: "",
+    specTaskSourceItemId: "",
+    specTaskName: "",
+    specTaskQuantity: 1,
+    bomListId: "",
+    boardsPerPanel: 1,
+    operationId: "",
+    workCenterId: "",
+    workCenterOverride: false,
+    operationName: "",
+    stepOrder: insertOrder,
+    isRequired: true,
+    quantityMultiplier: 1,
+    unitsPerHour: 0,
+    resourceId: "",
+    calculationType: "manual",
+    secondsPerPanel: 0,
+    requiresBatch: true,
+    isWarehouseOperation: false,
+    setupMin: 0,
+    updatedAt: stamp,
+  }, planningState);
+}
+
 function addRouteModuleStep(operationKind = "operation") {
   const route = getActiveRouteForModule();
   if (!route) return;
   const steps = getRouteStepsForModule(route.id);
-  const warehouseStep = steps.find((step) => isWarehouseWorkCenterId(step.workCenterId));
+  const outputReceiptStep = steps.find((step) => isManufacturingOutputReceiptRouteStep(step));
   const isWarehouse = operationKind === "warehouse";
-  const operation = getDefaultOperationMapItemForRouteKind(operationKind);
-  if (!operation) {
+  const operation = isWarehouse ? getDefaultOperationMapItemForRouteKind(operationKind) : null;
+  if (isWarehouse && !operation) {
     alert(isWarehouse
-      ? "Создайте складскую операцию в справочнике операций, затем добавьте ее в маршрут."
+      ? "Создайте операцию приемки результата в справочнике операций, затем добавьте ее в маршрут."
       : "Создайте операцию в справочнике операций, затем добавьте ее в маршрут.");
     return;
   }
   const insertOrder = isWarehouse
     ? Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1
-    : warehouseStep?.stepOrder || Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
+    : outputReceiptStep?.stepOrder || Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
   const stamp = new Date().toISOString();
 
   planningState.routeSteps = [
@@ -12329,11 +19763,13 @@ function addRouteModuleStep(operationKind = "operation") {
         ? { ...step, stepOrder: Number(step.stepOrder || 0) + 1 }
         : step
     )),
-    createRouteStepFromOperationMapItem(route, operation, insertOrder, stamp),
+    isWarehouse
+      ? createRouteStepFromOperationMapItem(route, operation, insertOrder, stamp)
+      : createEmptyRouteModuleStep(route, insertOrder, stamp),
   ];
   normalizeRouteStepOrders(route.id);
   persistState();
-  notifySaveSuccess(isWarehouse ? "Операция склада добавлена" : "Операция добавлена");
+  notifySaveSuccess(isWarehouse ? "Приемка результата добавлена" : "Строка операции добавлена");
   render();
 }
 
@@ -12371,8 +19807,8 @@ function normalizeRouteStepOrders(routeId, taskId = null) {
 function deleteRouteStepConfirmed(stepId) {
   const step = planningState.routeSteps.find((item) => item.id === stepId);
   if (!step) return;
-  if (isWarehouseWorkCenterId(step.workCenterId)) {
-    alert("Склад должен оставаться конечным этапом маршрута.");
+  if (isManufacturingOutputReceiptRouteStep(step)) {
+    alert("Приемка результата должна оставаться конечным этапом маршрута.");
     return;
   }
   const routeId = step.routeId;
@@ -12383,7 +19819,311 @@ function deleteRouteStepConfirmed(stepId) {
   render();
 }
 
+function upsertRkdKit(nextRkd) {
+  const normalized = normalizeDirectoryRow("rkdKits", nextRkd);
+  const exists = (directoryState.rkdKits || []).some((rkd) => rkd.id === normalized.id);
+  directoryState.rkdKits = exists
+    ? (directoryState.rkdKits || []).map((rkd) => rkd.id === normalized.id ? normalized : rkd)
+    : [...(directoryState.rkdKits || []), normalized];
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  return normalized;
+}
+
+function saveRkdForm(form) {
+  const data = new FormData(form);
+  const isNew = data.get("isNew") === "yes";
+  const previous = isNew ? null : getRkdKitById(String(data.get("rkdId") || ""));
+  const number = String(data.get("number") || "").trim();
+  const name = String(data.get("name") || "").trim();
+  if (!number && !name) {
+    alert("Заполните номер или наименование РКД.");
+    return;
+  }
+  const stamp = new Date().toISOString();
+  const rkd = upsertRkdKit({
+    ...(previous || {}),
+    id: previous?.id || makeId("rkd"),
+    number,
+    name,
+    type: String(data.get("type") || "").trim(),
+    revision: String(data.get("revision") || "").trim(),
+    status: RKD_STATUSES.includes(data.get("status")) ? String(data.get("status")) : "Черновик",
+    nomenclatureItemId: getNomenclatureItem(String(data.get("nomenclatureItemId") || ""))?.id || "",
+    productSpecificationId: getSpecificationById(String(data.get("productSpecificationId") || ""))?.id || "",
+    responsibleUserId: String(data.get("responsibleUserId") || "").trim(),
+    technicalRequirements: String(data.get("technicalRequirements") || "").trim(),
+    comment: String(data.get("comment") || "").trim(),
+    boardLinks: previous?.boardLinks || [],
+    fileLinks: previous?.fileLinks || [],
+    createdAt: previous?.createdAt || stamp,
+    updatedAt: stamp,
+  });
+  ui.activeRkdId = rkd.id;
+  ui.activeRkdStep = "kit";
+  persistDirectoryState();
+  persistUiState();
+  notifySaveSuccess(isNew ? "РКД создано" : "РКД сохранено");
+  render();
+}
+
+function deleteRkdKit(rkdId) {
+  const rkd = getRkdKitById(rkdId);
+  if (!rkd) return;
+  if (!window.confirm("Удалить связь РКД? Связанные номенклатура, BOM, маршруты и файлы не будут удалены.")) return;
+  directoryState.rkdKits = (directoryState.rkdKits || []).filter((item) => item.id !== rkd.id);
+  directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  ui.activeRkdId = getRkdKits()[0]?.id || "";
+  withDirectoryEntityRemovalAllowed(() => persistDirectoryState());
+  persistUiState();
+  notifySaveSuccess("РКД удалено");
+  render();
+}
+
+function addRkdBoard(form) {
+  const data = new FormData(form);
+  const rkd = getRkdKitById(String(data.get("rkdId") || ""));
+  const board = getNomenclatureItem(String(data.get("boardNomenclatureItemId") || ""));
+  if (!rkd) return;
+  if (!board) {
+    alert("Выберите существующую плату из номенклатуры.");
+    return;
+  }
+  const stamp = new Date().toISOString();
+  const nextBoard = normalizeRkdBoardLink({
+    id: makeId("rkd-board"),
+    boardNomenclatureItemId: board.id,
+    designation: String(data.get("designation") || "").trim(),
+    quantityInProduct: normalizeOptionalPositiveInteger(data.get("quantityInProduct")) || 1,
+    sortOrder: rkd.boardLinks.length + 1,
+  }, rkd.boardLinks.length);
+  upsertRkdKit({
+    ...rkd,
+    boardLinks: [...rkd.boardLinks, nextBoard],
+    updatedAt: stamp,
+  });
+  ui.activeRkdStep = "boards";
+  persistDirectoryState();
+  persistUiState();
+  notifySaveSuccess("Плата добавлена в РКД");
+  render();
+}
+
+function saveRkdBoardForm(form) {
+  const data = new FormData(form);
+  const rkd = getRkdKitById(String(data.get("rkdId") || ""));
+  const boardLinkId = String(data.get("boardLinkId") || "");
+  if (!rkd || !boardLinkId) return;
+  const previousBoard = rkd.boardLinks.find((board) => board.id === boardLinkId) || {};
+  const nextBoard = normalizeRkdBoardLink({
+    ...previousBoard,
+    id: boardLinkId,
+    boardNomenclatureItemId: getNomenclatureItem(String(data.get("boardNomenclatureItemId") || ""))?.id || "",
+    designation: String(data.get("designation") || "").trim(),
+    quantityInProduct: normalizeOptionalPositiveInteger(data.get("quantityInProduct")) || 1,
+    bomListId: getBomList(String(data.get("bomListId") || ""))?.id || "",
+    productionSpecificationId: getSpecificationById(String(data.get("productionSpecificationId") || ""))?.id || "",
+    routeMapId: getRkdRoute(String(data.get("routeMapId") || ""))?.id || "",
+    mountingSide: String(data.get("mountingSide") || "").trim(),
+    mountingType: String(data.get("mountingType") || "").trim(),
+    comment: String(data.get("comment") || "").trim(),
+  });
+  upsertRkdKit({
+    ...rkd,
+    boardLinks: rkd.boardLinks.map((board) => board.id === boardLinkId ? nextBoard : board),
+    updatedAt: new Date().toISOString(),
+  });
+  const productionSpecificationId = nextBoard.productionSpecificationId || rkd.productSpecificationId || "";
+  const productionSpecification = getSpecificationById(productionSpecificationId);
+  let routeLinkChanged = false;
+  if (previousBoard.routeMapId && previousBoard.routeMapId !== nextBoard.routeMapId) {
+    routeLinkChanged = true;
+    planningState.routes = (planningState.routes || []).map((route) => route.id === previousBoard.routeMapId ? {
+      ...route,
+      rkdId: "",
+      rkdBoardLinkId: "",
+      updatedAt: new Date().toISOString(),
+    } : route);
+  }
+  if (nextBoard.routeMapId) {
+    routeLinkChanged = true;
+    planningState.routes = (planningState.routes || []).map((route) => route.id === nextBoard.routeMapId ? {
+      ...route,
+      rkdId: rkd.id,
+      rkdBoardLinkId: nextBoard.id,
+      bomListId: nextBoard.bomListId || route.bomListId || "",
+      specificationId: route.specificationId || productionSpecification?.id || "",
+      specificationName: route.specificationName || productionSpecification?.name || "",
+      projectId: route.projectId || productionSpecification?.id || "",
+      updatedAt: new Date().toISOString(),
+    } : route);
+  }
+  if (routeLinkChanged) {
+    persistState();
+  }
+  persistDirectoryState();
+  notifySaveSuccess("Строка платы сохранена");
+  render();
+}
+
+function deleteRkdBoardLink(token) {
+  const [rkdId, boardLinkId] = String(token || "").split(":");
+  const rkd = getRkdKitById(rkdId);
+  if (!rkd || !boardLinkId) return;
+  if (!window.confirm("Удалить плату из состава РКД? Номенклатура, BOM и маршрут не будут удалены.")) return;
+  const removedBoard = rkd.boardLinks.find((board) => board.id === boardLinkId);
+  upsertRkdKit({
+    ...rkd,
+    boardLinks: rkd.boardLinks.filter((board) => board.id !== boardLinkId),
+    fileLinks: rkd.fileLinks.filter((file) => file.boardLinkId !== boardLinkId),
+    updatedAt: new Date().toISOString(),
+  });
+  if (removedBoard?.routeMapId) {
+    planningState.routes = (planningState.routes || []).map((route) => route.id === removedBoard.routeMapId ? {
+      ...route,
+      rkdId: "",
+      rkdBoardLinkId: "",
+      updatedAt: new Date().toISOString(),
+    } : route);
+    persistState();
+  }
+  persistDirectoryState();
+  notifySaveSuccess("Плата удалена из РКД");
+  render();
+}
+
+function addRkdFile(form) {
+  const data = new FormData(form);
+  const rkd = getRkdKitById(String(data.get("rkdId") || ""));
+  if (!rkd) return;
+  const fileName = String(data.get("fileName") || "").trim();
+  const externalRef = String(data.get("externalRef") || "").trim();
+  if (!fileName && !externalRef) {
+    alert("Укажите имя файла или ссылку/ID файла.");
+    return;
+  }
+  const boardLinkId = rkd.boardLinks.some((board) => board.id === data.get("boardLinkId"))
+    ? String(data.get("boardLinkId") || "")
+    : "";
+  const nextFile = normalizeRkdFileLink({
+    id: makeId("rkd-file"),
+    boardLinkId,
+    fileName,
+    fileType: String(data.get("fileType") || "").trim(),
+    externalRef,
+    comment: String(data.get("comment") || "").trim(),
+    sortOrder: rkd.fileLinks.length + 1,
+  }, rkd.fileLinks.length);
+  upsertRkdKit({
+    ...rkd,
+    fileLinks: [...rkd.fileLinks, nextFile],
+    updatedAt: new Date().toISOString(),
+  });
+  persistDirectoryState();
+  notifySaveSuccess("Файл привязан к РКД");
+  render();
+}
+
+function deleteRkdFileLink(token) {
+  const [rkdId, fileLinkId] = String(token || "").split(":");
+  const rkd = getRkdKitById(rkdId);
+  if (!rkd || !fileLinkId) return;
+  upsertRkdKit({
+    ...rkd,
+    fileLinks: rkd.fileLinks.filter((file) => file.id !== fileLinkId),
+    updatedAt: new Date().toISOString(),
+  });
+  persistDirectoryState();
+  notifySaveSuccess("Связь с файлом удалена");
+  render();
+}
+
+function createRkdBoardRoute(token, options = {}) {
+  const [rkdId, boardLinkId] = String(token || "").split(":");
+  const rkd = getRkdKitById(rkdId);
+  const board = rkd?.boardLinks.find((item) => item.id === boardLinkId);
+  if (!rkd || !board) return null;
+  const boardItem = getNomenclatureItem(board.boardNomenclatureItemId);
+  if (!boardItem) {
+    if (options.notify !== false) alert("Сначала выберите существующую плату из номенклатуры.");
+    return null;
+  }
+  const existingRoute = getRkdRoute(board.routeMapId);
+  if (existingRoute) return existingRoute;
+
+  const productionSpecificationId = board.productionSpecificationId || rkd.productSpecificationId || "";
+  const productionSpecification = getSpecificationById(productionSpecificationId);
+  const stamp = new Date().toISOString();
+  const route = {
+    id: makeId("r"),
+    specificationId: productionSpecification?.id || "",
+    specificationName: productionSpecification?.name || "",
+    projectId: productionSpecification?.id || "",
+    rkdId: rkd.id,
+    rkdBoardLinkId: board.id,
+    bomListId: board.bomListId || "",
+    name: `Маршрут ${boardItem.name || board.designation || "платы"}`,
+    isDefault: false,
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  planningState.routes = [...(planningState.routes || []), route];
+  upsertRkdKit({
+    ...rkd,
+    boardLinks: rkd.boardLinks.map((item) => item.id === board.id ? { ...item, routeMapId: route.id } : item),
+    updatedAt: stamp,
+  });
+  planningState = normalizePlanningState(planningState);
+  persistState();
+  persistDirectoryState();
+  if (options.notify !== false) notifySaveSuccess("Маршрут для платы создан");
+  if (options.render !== false) render();
+  return route;
+}
+
+function createAllRkdBoardRoutes(rkdId) {
+  const rkd = getRkdKitById(rkdId);
+  if (!rkd) return;
+  let created = 0;
+  rkd.boardLinks.forEach((board) => {
+    if (getRkdRoute(board.routeMapId)) return;
+    const route = createRkdBoardRoute(`${rkd.id}:${board.id}`, { notify: false, render: false });
+    if (route) created += 1;
+  });
+  persistState();
+  persistDirectoryState();
+  notifySaveSuccess(created ? `Создано маршрутов: ${created}` : "Новых маршрутов не создано");
+  render();
+}
+
+function bindRkdUxEvents() {
+  app.querySelectorAll("[data-rkd-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.activeRkdStep = normalizeRkdStepId(button.dataset.rkdStep);
+      persistUiState();
+      render();
+    });
+  });
+}
+
 function bindSpekiEvents() {
+  app.querySelector("[data-rkd-create]")?.addEventListener("click", () => {
+    ui.activeRkdId = "__new__";
+    ui.activeRkdStep = "kit";
+    persistUiState();
+    render();
+  });
+
+  app.querySelectorAll("[data-rkd-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const rkd = getRkdKitById(button.dataset.rkdOpen || "");
+      if (!rkd) return;
+      ui.activeRkdId = rkd.id;
+      ui.activeRkdStep = normalizeRkdStepId(ui.activeRkdStep);
+      persistUiState();
+      render();
+    });
+  });
+
   app.querySelectorAll("[data-rkd-step]").forEach((button) => {
     button.addEventListener("click", () => {
       ui.activeRkdStep = normalizeRkdStepId(button.dataset.rkdStep);
@@ -12395,6 +20135,88 @@ function bindSpekiEvents() {
   app.querySelectorAll("[data-rkd-open-module]").forEach((button) => {
     button.addEventListener("click", () => {
       navigateToModule(button.dataset.rkdOpenModule || "");
+    });
+  });
+
+  app.querySelector("#rkdForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveRkdForm(event.currentTarget);
+  });
+
+  app.querySelector("[data-rkd-delete]")?.addEventListener("click", (event) => {
+    deleteRkdKit(event.currentTarget.dataset.rkdDelete || "");
+  });
+
+  app.querySelectorAll("[data-rkd-open-nomenclature-create]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.activeModule = "nomenclature";
+      ui.activeNomenclatureId = "__new__";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelector("#rkdAddBoardForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    addRkdBoard(event.currentTarget);
+  });
+
+  app.querySelectorAll("[data-rkd-board-form]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      saveRkdBoardForm(event.currentTarget);
+    });
+  });
+
+  app.querySelectorAll("[data-rkd-delete-board]").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteRkdBoardLink(button.dataset.rkdDeleteBoard || "");
+    });
+  });
+
+  app.querySelectorAll("[data-rkd-create-board-route]").forEach((button) => {
+    button.addEventListener("click", () => {
+      createRkdBoardRoute(button.dataset.rkdCreateBoardRoute || "");
+    });
+  });
+
+  app.querySelectorAll("[data-rkd-create-all-routes]").forEach((button) => {
+    button.addEventListener("click", () => {
+      createAllRkdBoardRoutes(button.dataset.rkdCreateAllRoutes || "");
+    });
+  });
+
+  app.querySelectorAll("[data-rkd-open-route]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const route = getRkdRoute(button.dataset.rkdOpenRoute || "");
+	      if (!route) return;
+	      ui.activeModule = "routes";
+	      ui.activeRouteId = route.id;
+	      ui.activeProjectId = getRouteProductionId(route);
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-rkd-open-bom]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const bom = getBomList(button.dataset.rkdOpenBom || "");
+      if (!bom) return;
+      ui.activeModule = "bomLists";
+      ui.activeBomId = bom.id;
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelector("#rkdAddFileForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    addRkdFile(event.currentTarget);
+  });
+
+  app.querySelectorAll("[data-rkd-delete-file]").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteRkdFileLink(button.dataset.rkdDeleteFile || "");
     });
   });
 
@@ -12446,6 +20268,18 @@ function bindSpekiEvents() {
     });
   });
 
+  app.querySelectorAll("[data-speki-check-structure]").forEach((button) => {
+    button.addEventListener("click", () => {
+      checkSpekiStructureReferences(button.dataset.spekiCheckStructure || "");
+    });
+  });
+
+  app.querySelectorAll("[data-speki-bom-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      toggleSpekiBomCollapse(button.dataset.spekiBomToggle || "");
+    });
+  });
+
   app.querySelectorAll("[data-speki-structure-input]").forEach((field) => {
     const commit = () => {
       updateSpecificationStructureItem(
@@ -12481,12 +20315,30 @@ function bindSpekiEvents() {
     });
   });
 
+  app.querySelectorAll("[data-dense-speki-structure-bom] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-speki-structure-bom]");
+      if (!root) return;
+      updateSpecificationStructureItem(root.dataset.denseSpekiStructureBom || "", "bomListId", button.dataset.denseValue || "");
+    });
+  });
+
   app.querySelectorAll("[data-dense-speki-structure-nomenclature] [data-dense-value]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       const root = button.closest("[data-dense-speki-structure-nomenclature]");
       if (!root) return;
       updateSpecificationStructureItem(root.dataset.denseSpekiStructureNomenclature || "", "nomenclatureId", button.dataset.denseValue || "");
+    });
+  });
+
+  app.querySelectorAll("[data-dense-speki-structure-fulfillment] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-speki-structure-fulfillment]");
+      if (!root) return;
+      updateSpecificationStructureItem(root.dataset.denseSpekiStructureFulfillment || "", "fulfillmentMode", button.dataset.denseValue || "not_selected");
     });
   });
 
@@ -12550,10 +20402,10 @@ function bindSpecificationsEvents() {
     });
   });
 
-  app.querySelector("[data-specification-to-calculator]")?.addEventListener("click", () => {
+  app.querySelector("[data-specification-to-planning]")?.addEventListener("click", () => {
     const specification = getActiveSpecificationForModule();
     if (!specification) return;
-    openProjectInCalculator(specification.projectId, specification.id);
+    openProjectInPlanning(specification.projectId, specification.id);
   });
 
   app.querySelector("[data-specification-delete]")?.addEventListener("click", (event) => {
@@ -12654,38 +20506,46 @@ function addSpecificationStructureItem(type) {
     return;
   }
 
-  const allowedTypes = new Set(["assembly", "specification", "part", "nomenclature"]);
+  const allowedTypes = new Set(["assembly", "bom", "specification", "part", "nomenclature"]);
   const nextType = allowedTypes.has(type) ? type : "nomenclature";
   const currentItems = getSpecificationStructureItems(activeSpecification);
   const linkedSpecification = (directoryState.specifications || []).find((specification) => specification.id !== activeSpecification.id) || null;
+  const defaultBom = pickDefaultBomForSpecificationItem(activeSpecification, currentItems);
   const nomenclatureItem = (directoryState.nomenclature || [])[0] || null;
   const executionType = nextType === "nomenclature" || nextType === "part" ? getDefaultNomenclatureExecutionType(nomenclatureItem) : "make";
+  const fulfillmentMode = executionType === "make" ? "produce" : "purchase";
   updateSpecificationStructure((items) => [
     ...items,
     normalizeSpecificationStructureItem({
       id: makeId("spi"),
       parentId: "root",
-      type: nextType,
-      specificationId: nextType === "specification" ? linkedSpecification?.id || "" : "",
-      nomenclatureId: nextType === "nomenclature" ? nomenclatureItem?.id || "" : "",
-      executionType,
+	      type: nextType,
+	      bomListId: nextType === "bom" ? defaultBom?.id || "" : "",
+	      specificationId: nextType === "specification" ? linkedSpecification?.id || "" : "",
+	      nomenclatureId: nextType === "nomenclature" ? nomenclatureItem?.id || "" : "",
+	      executionType,
+      fulfillmentMode,
       operationId: "",
       operationName: "",
       departmentName: "",
-      name: nextType === "specification"
-          ? linkedSpecification?.name || "Вложенный состав изделия"
-          : nextType === "assembly"
-            ? "Новый узел"
-            : nomenclatureItem?.name || "Номенклатура не выбрана",
-      quantity: 1,
-      unit: nextType === "assembly" ? "узел" : nextType === "specification" ? "спец." : nomenclatureItem?.unit || "шт.",
-      boardsPerPanel: 1,
-      resultItem: nextType === "specification"
-          ? linkedSpecification?.outputItem || ""
-          : nextType === "assembly"
-            ? "Новый узел"
-            : nomenclatureItem?.name || "",
-      note: nextType === "assembly" ? "Узел" : nextType === "specification" ? "Состав изделия" : nextType === "nomenclature" ? "Номенклатура" : "",
+	      name: nextType === "specification"
+	          ? linkedSpecification?.name || "Вложенный состав изделия"
+	          : nextType === "bom"
+	            ? defaultBom?.name || "Плата не выбрана"
+	          : nextType === "assembly"
+	            ? "Новый узел"
+	            : nomenclatureItem?.name || "Номенклатура не выбрана",
+	      quantity: 1,
+	      unit: nextType === "assembly" ? "узел" : nextType === "bom" ? "плата" : nextType === "specification" ? "изд." : nomenclatureItem?.unit || "шт.",
+	      boardsPerPanel: 1,
+	      resultItem: nextType === "specification"
+	          ? linkedSpecification?.outputItem || ""
+	          : nextType === "bom"
+	            ? defaultBom?.resultItem || defaultBom?.boardCode || ""
+	          : nextType === "assembly"
+	            ? "Новый узел"
+	            : nomenclatureItem?.name || "",
+	      note: nextType === "assembly" ? "Узел" : nextType === "bom" ? BOARD_SPEC_TERM : nextType === "specification" ? PRODUCT_COMPOSITION_TERM : nextType === "nomenclature" ? "Номенклатура" : "",
       position: items.length + 1,
     }, items.length),
   ]);
@@ -12699,96 +20559,6 @@ function getDefaultNomenclatureExecutionType(item) {
 
 function getDefaultSpekiOperationForNomenclature(item, executionType) {
   return "";
-}
-
-function addSpecificationStructureItemFromSource(sourceType, sourceId = "", options = {}) {
-  const activeSpecification = getActiveSpecificationForModule();
-  if (!activeSpecification) {
-    alert("Сначала создайте состав изделия.");
-    return;
-  }
-
-  const quantity = normalizeOptionalPositiveInteger(options.quantity) || 1;
-  const stampIndex = getSpecificationStructureItems(activeSpecification).length;
-
-  if (sourceType === "assembly") {
-    addSpecificationStructureItem("assembly");
-    return;
-  }
-
-  let nextItem = null;
-  if (sourceType === "bom" || sourceType === "bomResult") {
-    const bom = getBomList(sourceId);
-    if (!bom) return;
-    const stamp = new Date().toISOString();
-    const nomenclatureItem = getBomResultNomenclatureItem(bom.id) || upsertBomResultToNomenclature(bom, stamp);
-    if (!nomenclatureItem) return;
-    const executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
-    nextItem = normalizeSpecificationStructureItem({
-      id: makeId("spi"),
-      parentId: "root",
-      type: "nomenclature",
-      nomenclatureId: nomenclatureItem.id,
-      executionType,
-      operationId: "",
-      operationName: "",
-      departmentName: "",
-      name: nomenclatureItem.name || bom.resultItem || bom.name || "",
-      quantity,
-      unit: nomenclatureItem.unit || "шт.",
-      boardsPerPanel: 1,
-      resultItem: nomenclatureItem.name || bom.resultItem || bom.boardCode || "",
-      note: "Результат спецификации",
-      position: stampIndex + 1,
-    }, stampIndex);
-  }
-
-  if (sourceType === "specification") {
-    const linkedSpecification = (directoryState.specifications || [])
-      .find((specification) => specification.id === sourceId && specification.id !== activeSpecification.id);
-    if (!linkedSpecification) return;
-    nextItem = normalizeSpecificationStructureItem({
-      id: makeId("spi"),
-      parentId: "root",
-      type: "specification",
-      specificationId: linkedSpecification.id,
-      executionType: "make",
-      operationId: "",
-      operationName: "",
-      departmentName: "",
-      name: linkedSpecification.name || "",
-      quantity,
-      unit: "спец.",
-      resultItem: linkedSpecification.outputItem || "",
-      note: "Состав изделия",
-      position: stampIndex + 1,
-    }, stampIndex);
-  }
-
-  if (sourceType === "nomenclature") {
-    const nomenclatureItem = (directoryState.nomenclature || []).find((item) => item.id === sourceId);
-    if (!nomenclatureItem) return;
-    const executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
-    nextItem = normalizeSpecificationStructureItem({
-      id: makeId("spi"),
-      parentId: "root",
-      type: "nomenclature",
-      nomenclatureId: nomenclatureItem.id,
-      executionType,
-      operationId: "",
-      operationName: "",
-      departmentName: "",
-      name: nomenclatureItem.name || "",
-      quantity,
-      unit: nomenclatureItem.unit || "шт.",
-      resultItem: nomenclatureItem.name || "",
-      note: normalizeNomenclatureType(nomenclatureItem.type),
-      position: stampIndex + 1,
-    }, stampIndex);
-  }
-
-  if (!nextItem) return;
-  updateSpecificationStructure((items) => [...items, nextItem]);
 }
 
 function updateSpecificationStructureItem(itemId, field, value) {
@@ -12806,7 +20576,8 @@ function updateSpecificationStructureItem(itemId, field, value) {
         const selectedNomenclature = nextItem.type === "nomenclature"
           ? (directoryState.nomenclature || []).find((entry) => entry.id === nextItem.nomenclatureId) || (directoryState.nomenclature || [])[0]
           : null;
-        nextItem.executionType = nextItem.type === "nomenclature" || nextItem.type === "part" ? getDefaultNomenclatureExecutionType(selectedNomenclature) : "make";
+        nextItem.fulfillmentMode = getDefaultStructureFulfillmentMode(nextItem.type, selectedNomenclature, "");
+        nextItem.executionType = getExecutionTypeForFulfillmentMode(nextItem.fulfillmentMode);
         nextItem.operationId = "";
         nextItem.operationName = "";
         nextItem.departmentName = "";
@@ -12848,7 +20619,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
             : nextItem.type === "nomenclature"
               ? nomenclatureItem?.name || nextItem.name || "Номенклатура не выбрана"
               : nextItem.name || (nextItem.type === "assembly" ? "Новый узел" : "Новая позиция");
-        nextItem.unit = nextItem.type === "assembly" ? "узел" : nextItem.type === "bom" ? "плата" : nextItem.type === "specification" ? "спец." : nextItem.type === "nomenclature" ? nomenclatureItem?.unit || nextItem.unit || "шт." : nextItem.unit || "шт.";
+        nextItem.unit = nextItem.type === "assembly" ? "узел" : nextItem.type === "bom" ? "плата" : nextItem.type === "specification" ? "состав" : nextItem.type === "nomenclature" ? nomenclatureItem?.unit || nextItem.unit || "шт." : nextItem.unit || "шт.";
         nextItem.resultItem = nextItem.type === "bom"
           ? bom?.resultItem || bom?.boardCode || ""
           : nextItem.type === "specification"
@@ -12888,7 +20659,8 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.name = nomenclatureItem?.name || "";
         nextItem.resultItem = nomenclatureItem?.name || "";
         nextItem.unit = nomenclatureItem?.unit || nextItem.unit || "шт.";
-        nextItem.executionType = getDefaultNomenclatureExecutionType(nomenclatureItem);
+        nextItem.fulfillmentMode = getDefaultStructureFulfillmentMode(nextItem.type, nomenclatureItem, "");
+        nextItem.executionType = getExecutionTypeForFulfillmentMode(nextItem.fulfillmentMode);
         nextItem.operationId = "";
         nextItem.operationName = "";
         nextItem.departmentName = "";
@@ -12904,6 +20676,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
 
       if (field === "executionType") {
         nextItem.executionType = value === "buy" ? "buy" : "make";
+        nextItem.fulfillmentMode = nextItem.executionType === "make" ? "produce" : "purchase";
         if (nextItem.executionType === "buy") {
           nextItem.operationId = "";
           nextItem.operationName = "";
@@ -12912,11 +20685,26 @@ function updateSpecificationStructureItem(itemId, field, value) {
         return nextItem;
       }
 
+      if (field === "fulfillmentMode") {
+        nextItem.fulfillmentMode = normalizeStructureFulfillmentMode(value, getSpecificationItemFulfillmentMode(nextItem));
+        nextItem.executionType = getExecutionTypeForFulfillmentMode(nextItem.fulfillmentMode);
+        if (!isSchedulableFulfillmentMode(nextItem.fulfillmentMode)) {
+          nextItem.operationId = "";
+          nextItem.operationName = "";
+          nextItem.departmentName = "";
+        }
+        if (nextItem.fulfillmentMode === "from_stock") {
+          nextItem.operationName = nextItem.operationName || "Выдача со склада";
+          nextItem.departmentName = nextItem.departmentName || "Склад";
+        }
+        return nextItem;
+      }
+
       if (field === "operationId") {
         const operation = getOperationMapItem(value);
         nextItem.operationId = operation?.id || "";
         nextItem.operationName = operation?.name || "";
-        nextItem.departmentName = operation ? getWorkCenter(operation.workCenterId)?.name || "" : "";
+        nextItem.departmentName = operation ? getWorkCenter(getOperationRouteWorkCenterId(operation))?.name || "" : "";
         return nextItem;
       }
 
@@ -12924,7 +20712,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
         const operation = getOperationMapItem(value) || findOperationMapItemByNameAndWorkCenter(value, resolveWorkCenterIdFromName(nextItem.departmentName));
         nextItem.operationId = operation?.id || "";
         nextItem.operationName = operation?.name || "";
-        nextItem.departmentName = operation ? getWorkCenter(operation.workCenterId)?.name || "" : "";
+        nextItem.departmentName = operation ? getWorkCenter(getOperationRouteWorkCenterId(operation))?.name || "" : "";
         return nextItem;
       }
 
@@ -13054,7 +20842,7 @@ function createSpekiNodeFromRow(itemId) {
 
 function saveSpekiSpecification(specificationId, value) {
   if (!specificationId) return;
-  const name = String(value || "").trim() || "Состав изделия без названия";
+  const name = String(value || "").trim() || "Изделие без названия";
   directoryState.specifications = (directoryState.specifications || []).map((specification) => (
     specification.id === specificationId
       ? { ...specification, name, updatedAt: new Date().toISOString() }
@@ -13065,7 +20853,7 @@ function saveSpekiSpecification(specificationId, value) {
   ui.spekiEditingId = "";
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess("Состав изделия сохранен");
+  notifySaveSuccess("Изделие сохранено");
   render();
 }
 
@@ -13323,7 +21111,7 @@ function bindBomListsEvents() {
       await importBomFromXlsxFile(file);
       render();
     } catch (error) {
-      alert(error?.message || "Не удалось импортировать спецификацию из Excel.");
+      alert(error?.message || "Не удалось импортировать BOM из Excel.");
     } finally {
       event.target.value = "";
     }
@@ -13393,7 +21181,6 @@ function saveSpecificationModuleForm(form) {
     structureItems: previousSpecification?.structureManaged ? getSpecificationStructureItems(previousSpecification) : [],
     updatedAt: new Date().toISOString(),
   };
-  ensureSpecificationPlanningUnit(row);
   if (!row.structureManaged) {
     row.structureItems = buildDefaultSpecificationStructureItems(row);
   }
@@ -13421,7 +21208,7 @@ function saveBomModuleForm(form) {
   const boardCode = String(data.get("boardCode") || "").trim();
   const resultItem = String(data.get("resultItem") || "").trim() || `Печатная плата ${boardCode || name}`;
   if (!name) {
-    alert("Заполните название спецификации.");
+    alert("Заполните название платы.");
     return;
   }
 
@@ -13455,7 +21242,7 @@ function saveBomModuleForm(form) {
   ui.activeProjectId = "";
   persistDirectoryState();
   persistUiState();
-  notifySaveSuccess(isNew ? "Спецификация создана" : "Спецификация сохранена");
+  notifySaveSuccess(isNew ? "Плата создана" : "Плата сохранена");
   render();
 }
 
@@ -13482,34 +21269,27 @@ function deleteBomList(bomId) {
   render();
 }
 
-function openProjectInCalculator(projectId, specificationId = "") {
-  const project = getProject(projectId || specificationId);
-  if (!project) return;
+function openProjectInPlanning(projectId, specificationId = "") {
   const specification = specificationId
-    ? (directoryState.specifications || []).find((item) => item.id === specificationId)
-    : getProjectSpecification(project.id);
-  const bom = specification
-    ? getSpecificationBomEntries(specification.id)[0]?.bom
-    : (directoryState.bomLists || []).find((item) => item.projectId === project.id);
-  calculatorState = normalizeCalculatorState({
-    ...calculatorState,
-    projectId: project.id,
-    specificationId: specification?.id || "",
-    noSpecification: !specification,
-    bomListId: bom?.id || "",
-    boardQuantity: normalizeOptionalPositiveInteger(project.totalQuantity),
-    routeOperations: [],
-    selectedOperationId: "",
-    componentCounts: bom ? getBomComponentCounts(bom) : {},
-    componentCountsByOperation: {},
-    inputsSavedAt: "",
-    lastSavedAt: "",
-  });
-  ui.activeModule = "calculator";
-  ui.calculatorStep = "inputs";
-  persistCalculatorState();
+    ? getSpecificationById(specificationId)
+    : getSpecificationByProjectId(projectId);
+  const route = getSpecificationRouteForModule(specification?.id || "")
+    || getProjectRouteForModule(specification?.id || projectId)
+    || getProjectRouteForModule(projectId);
+  if (!route) {
+    alert("Для планирования нужен существующий маршрут. Создайте маршрутную карту явным действием в модуле «Маршрутная карта».");
+    return;
+	  }
+	  ui.activeModule = "planning";
+	  ui.activeRouteId = route.id;
+  ui.activeProjectId = getRouteProductionId(route) || specification?.id || projectId || "";
+  if (specification?.id) ui.activeSpecificationId = specification.id;
   persistUiState();
   render();
+}
+
+function openProjectInCalculator(projectId, specificationId = "") {
+  openProjectInPlanning(projectId, specificationId);
 }
 
 function bindCalculatorEvents() {
@@ -13578,7 +21358,8 @@ function bindCalculatorEvents() {
       const root = button.closest("[data-dense-calc-select]");
       if (!root) return;
       if (button.dataset.denseAction === "createProject") {
-        ui.projectModal = true;
+        ui.activeModule = "bomLists";
+        ui.activeSpecificationId = "__new__";
         persistUiState();
         render();
         return;
@@ -13705,6 +21486,62 @@ function bindCalculatorEvents() {
     });
   });
 
+  app.querySelectorAll("[data-smt-split-machine-component]").forEach((field) => {
+    field.addEventListener("change", () => {
+      if (!field.checked) return;
+      const context = getCurrentSmtMachineSplitContext();
+      if (!context) return;
+      const componentId = field.dataset.smtSplitMachineComponent || "";
+      const selectedMachine = field.dataset.smtSplitMachine || "primary";
+      const storedSplit = calculatorState.machineSplitByBom?.[context.key] || null;
+      const current = storedSplit && hasConcreteSmtSplitCounts(context.componentRows, storedSplit) && !hasPartialSmtSplitCounts(context.componentRows, storedSplit)
+        ? storedSplit
+        : context.calc.machineSplit?.splitCounts || {};
+      const componentRow = context.componentRows.find((row) => String(row.id) === String(componentId));
+      const componentCount = Math.max(0, Math.round(Number(componentRow?.count || 0)));
+      setCurrentSmtMachineSplitCounts({
+        ...current,
+        [componentId]: selectedMachine === "secondary" ? componentCount : 0,
+      });
+    });
+  });
+
+  app.querySelector("[data-smt-split-auto]")?.addEventListener("click", () => {
+    const context = getCurrentSmtMachineSplitContext();
+    if (!context) return;
+    setCurrentSmtMachineSplitCounts(buildDefaultSmtSplitCounts(
+      context.componentRows,
+      true,
+      context.primaryMachine,
+      context.secondaryMachine,
+      context.calc.smtLine,
+      calculatorState.efficiency || context.calc.smtLine?.efficiency,
+    ));
+  });
+
+  app.querySelector("[data-smt-split-default]")?.addEventListener("click", () => {
+    const context = getCurrentSmtMachineSplitContext();
+    if (!context) return;
+    setCurrentSmtMachineSplitCounts(buildDefaultSmtSplitCounts(context.componentRows, false));
+  });
+
+  app.querySelectorAll("[data-smt-coefficient-machine]").forEach((field) => {
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      commitSmtCoefficientField(field);
+      const nextField = getNextSmtCoefficientField(field);
+      if (nextField) {
+        focusSmtCoefficientField(nextField);
+      }
+      scheduleCalculatorRenderPreservingScroll(nextField ? 700 : 0);
+    });
+    field.addEventListener("change", () => {
+      commitSmtCoefficientField(field);
+      scheduleCalculatorRenderPreservingScroll();
+    });
+  });
+
   app.querySelector("[data-calculator-reset]")?.addEventListener("click", () => {
     openConfirmDialog("calculatorResetRoute");
   });
@@ -13740,13 +21577,11 @@ function bindCalculatorEvents() {
   app.querySelectorAll("[data-close-modal], [data-modal-backdrop]").forEach((element) => {
     element.addEventListener("click", (event) => {
       if (event.target !== element && !element.matches("[data-close-modal]")) return;
-      ui.projectModal = false;
       render();
     });
   });
 
   refreshCalculatorActionStates();
-  bindProjectForm();
 }
 
 function applySpecificationBomsToComponentOperations() {
@@ -13829,7 +21664,7 @@ function saveCalculatorInputs() {
   const calc = calculateComplexityResult();
   const inputStatus = getCalculatorInputStatus(calc);
   if (!inputStatus.complete) {
-    alert("Выберите спецификацию, SMT-линию, количество плат и плат в мультипликации.");
+    alert("Выберите плату, SMT-участок, количество плат и плат в мультипликации.");
     return;
   }
 
@@ -13851,7 +21686,7 @@ function getNextCalculatorStep() {
 
 function buildCalculatorRouteFromTemplate() {
   if (!isCalculatorInputsComplete()) {
-    alert("Заполните состав изделия, спецификацию при наличии печатных плат, количество плат и плат в мультипликации перед формированием маршрута.");
+    alert("Заполните изделие, плату при наличии печатных плат, количество плат и плат в мультипликации перед формированием маршрута.");
     return;
   }
   calculatorState.routeOperations = createDefaultRouteOperations(calculatorState.projectId, calculatorState.boardsPerPanel);
@@ -13957,24 +21792,23 @@ function addRouteOperation() {
   const operations = getRouteOperations();
   const last = operations[operations.length - 1];
   const directoryOperation = getOperationMapRows({ includeInactive: false })
-    .find((operation) => !operation.isWarehouse && operation.workCenterId !== "warehouse")
+    .find((operation) => !operation.isWarehouse && !operation.legacyAliasOf && operation.coverage !== "blocked")
     || null;
   if (!directoryOperation) {
     alert("Создайте операцию в справочнике операций, затем добавьте ее в маршрут калькулятора.");
     return;
   }
-  const workCenterId = directoryOperation.workCenterId;
-  const resource = getResourcesForWorkCenter(workCenterId)[0];
+  const workCenterId = getOperationRouteWorkCenterId(directoryOperation);
   const operation = normalizeRouteOperation({
     id: makeId("op"),
     operationId: directoryOperation.id,
     stepOrder: Number(last?.stepOrder || operations.length) + 1,
     operationName: directoryOperation.name,
     workCenterId,
-    resourceId: resource?.id || "",
+    resourceId: "",
     calculationType: getDefaultOperationCalculationType(workCenterId, directoryOperation),
     secondsPerPanel: getDefaultSecondsPerPanel(workCenterId, calculatorState.boardsPerPanel),
-    setupMin: Number(resource?.changeoverMin || 0),
+    setupMin: 0,
     comment: "",
   }, operations.length + 1, calculatorState.boardsPerPanel);
   calculatorState.routeOperations = [...operations, operation];
@@ -14069,6 +21903,8 @@ function saveCalculatorRouteToProject() {
   const usedStepIds = new Set();
   const nextSteps = calc.operationResults.map((operation, index) => {
     const directoryOperation = getOperationMapItem(operation.operationId);
+    const routeWorkCenterId = getOperationRouteWorkCenterId(directoryOperation);
+    const planningCandidates = getPlanningCandidateWorkCenterIdsForRouteWorkCenter(routeWorkCenterId, directoryOperation, planningState);
     const sameOperation = existingSteps.find((step) => (
       !usedStepIds.has(step.id)
       && step.operationId === directoryOperation.id
@@ -14076,39 +21912,43 @@ function saveCalculatorRouteToProject() {
     ));
     const sameOrder = existingSteps.find((step) => (
       !usedStepIds.has(step.id)
-      && step.workCenterId === directoryOperation.workCenterId
+      && step.workCenterId === routeWorkCenterId
       && Number(step.stepOrder) === index + 1
     ));
     const existing = sameOperation || sameOrder;
     if (existing?.id) usedStepIds.add(existing.id);
+    const existingPlanningWorkCenterId = getRouteStepExplicitPlanningWorkCenterId(existing || {});
+    const operationPlanningWorkCenterId = getRouteStepExplicitPlanningWorkCenterId(operation || {});
+    const planningWorkCenterId = existingPlanningWorkCenterId && planningCandidates.includes(existingPlanningWorkCenterId)
+      ? existingPlanningWorkCenterId
+      : operationPlanningWorkCenterId && planningCandidates.includes(operationPlanningWorkCenterId)
+        ? operationPlanningWorkCenterId
+        : "";
     return {
       id: existing?.id || makeId("rs"),
       routeId: route.id,
       operationId: directoryOperation.id,
-      workCenterId: directoryOperation.workCenterId,
+      workCenterId: routeWorkCenterId,
+      planningWorkCenterId,
       operationName: directoryOperation.name,
       stepOrder: index + 1,
       isRequired: true,
       secondsPerPanel: Math.round(operation.perPanelSeconds),
       setupMin: Math.round(operation.setupMs / 60000),
       calculationType: operation.calculationType,
-      resourceId: operation.resource?.id || operation.resourceId || "",
+      resourceId: planningCandidates.length === 1
+        ? (operation.resource?.id || operation.resourceId || "")
+        : planningWorkCenterId ? getPlanningResourceForRouteStep({ ...operation, workCenterId: routeWorkCenterId }, planningWorkCenterId, existing?.resourceId || operation.resourceId || "") : "",
       bomListId: operation.bomListId || "",
       bomSlot: operation.bomSlot || "",
       quantityMultiplier: operation.quantityMultiplier || 1,
       boardsPerPanel: normalizeBoardsPerPanel(operation.boardsPerPanel, calc.boardsPerPanel || 1),
       unitsPerHour: Math.max(1, Math.round(Number(operation.flowBoardsPerHour || 0) * 10) / 10),
+      machineSplit: operation.machineSplit?.splitCounts ? { ...operation.machineSplit.splitCounts } : null,
+      machineCoefficients: operation.machineSplit?.machineCoefficients || null,
       updatedAt: stamp,
     };
   });
-  const routeStepIdsByWorkCenter = new Map();
-  for (const step of nextSteps) {
-    if (!routeStepIdsByWorkCenter.has(step.workCenterId)) {
-      routeStepIdsByWorkCenter.set(step.workCenterId, step.id);
-    }
-  }
-  const nextStepIds = new Set(nextSteps.map((step) => step.id));
-
   planningState.routeSteps = [
     ...planningState.routeSteps.filter((step) => step.routeId !== route.id),
     ...nextSteps,
@@ -14116,11 +21956,46 @@ function saveCalculatorRouteToProject() {
   planningState.routes = planningState.routes.map((item) => item.id === route.id
     ? { ...item, specificationId: calc.project.id, specificationName: calc.specification?.name || item.specificationName || "", projectId: calc.project.id, name: "Маршрутная карта", isDefault: true, updatedAt: stamp }
     : item);
-  planningState.slots = planningState.slots.map((slot) => (
-    (slot.specificationId === calc.project.id || slot.projectId === calc.project.id) && !nextStepIds.has(slot.routeStepId) && routeStepIdsByWorkCenter.has(slot.workCenterId)
-      ? { ...slot, routeStepId: routeStepIdsByWorkCenter.get(slot.workCenterId) }
-      : slot
-  ));
+  const nextStepById = new Map(nextSteps.map((step) => [step.id, step]));
+  const findNextStepForSlot = (slot) => {
+    const currentStep = nextStepById.get(slot.routeStepId);
+    if (currentStep) return currentStep;
+    return nextSteps.find((step) => (
+      isPlanningWorkCenterCompatibleWithRouteStep(step, slot.workCenterId, planningState)
+      || getRouteInstructionWorkCenterId(slot.routeWorkCenterId || slot.workCenterId) === step.workCenterId
+    )) || null;
+  };
+  planningState.slots = planningState.slots.map((slot) => {
+    if (
+      !(slot.specificationId === calc.project.id || slot.projectId === calc.project.id)
+    ) return slot;
+    const nextStep = findNextStepForSlot(slot);
+    if (!nextStep) return slot;
+    const assignment = getRouteStepPlanningAssignmentForSlot(nextStep, slot, {
+      state: planningState,
+      quantity: slot.quantity || 1,
+      readyAt: slot.plannedStart || null,
+      ignoreSlotId: slot.id || null,
+    });
+    const planningWorkCenterId = assignment?.workCenterId || slot.workCenterId || nextStep.workCenterId;
+    const resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(nextStep, planningWorkCenterId, slot.resourceId || nextStep.resourceId || "");
+    const slotContext = {
+      ...slot,
+      routeWorkCenterId: nextStep.workCenterId,
+      workCenterId: planningWorkCenterId,
+      resourceId,
+    };
+    return {
+      ...slot,
+      routeStepId: nextStep.id,
+      routeWorkCenterId: nextStep.workCenterId,
+      workCenterId: planningWorkCenterId,
+      operationId: nextStep.operationId || slot.operationId || "",
+      operationName: nextStep.operationName || slot.operationName || "",
+      resourceId,
+      calculationType: nextStep.calculationType || getDefaultOperationCalculationType(planningWorkCenterId, slotContext) || slot.calculationType || "",
+    };
+  });
   calculatorState.lastSavedAt = stamp;
   calculatorState.routeSavedSignature = getCalculatorRouteSignature();
   ui.calculatorStep = "save";
@@ -14135,7 +22010,7 @@ function applyCalculatorRateToWorkCenter() {
   const calc = calculateComplexityResult();
   const unitsPerHour = Math.max(1, Math.round(calc.flowBoardsPerHour));
   if (!calc.workCenter || !unitsPerHour) {
-    alert("Не удалось рассчитать скорость подразделения: проверьте состав платы и ресурс.");
+    alert("Не удалось рассчитать скорость отдела: проверьте состав платы и ресурс.");
     return;
   }
 
@@ -14146,14 +22021,14 @@ function applyCalculatorRateToWorkCenter() {
     ? recalculateSlotEndByQuantity(slot, planningState)
     : slot);
   persistState();
-  notifySaveSuccess(`Норматив подразделения обновлен: ${unitsPerHour.toLocaleString("ru-RU")} плат/час`);
+  notifySaveSuccess(`Норматив отдела обновлен: ${unitsPerHour.toLocaleString("ru-RU")} плат/час`);
   render();
 }
 
 function applyCalculatorToProjectSlots() {
   const calc = calculateComplexityResult();
   if (!calc.project || !calc.workCenter || calc.perBoardSeconds <= 0) {
-    alert("Не удалось применить расчет: выберите спецификацию платы, подразделение и заполните состав платы.");
+    alert("Не удалось применить расчет: выберите плату, отдел и заполните BOM.");
     return;
   }
 
@@ -14165,7 +22040,7 @@ function applyCalculatorToProjectSlots() {
   ));
 
   if (!targetSlots.length) {
-    alert(`В составе изделия "${calc.specification?.name || getProjectDisplayName(calc.project)}" нет доступных операций подразделения "${calc.workCenter.name}".`);
+    alert(`В составе изделия "${calc.specification?.name || getProjectDisplayName(calc.project)}" нет доступных операций отдела "${calc.workCenter.name}".`);
     return;
   }
 
@@ -14347,6 +22222,15 @@ function deleteDirectoryStateRow(sectionId, row) {
     calculatorState.routeOperations = (calculatorState.routeOperations || []).map((operation) => (
       operation.bomListId === rowId ? { ...operation, bomListId: "", calculationType: "manual" } : operation
     ));
+    if (RKD_SERVICE_ENABLED) {
+      directoryState.rkdKits = (directoryState.rkdKits || []).map((rkd) => normalizeDirectoryRow("rkdKits", {
+        ...rkd,
+        boardLinks: (rkd.boardLinks || []).map((board) => (
+          board.bomListId === rowId ? { ...board, bomListId: "" } : board
+        )),
+        updatedAt: (rkd.boardLinks || []).some((board) => board.bomListId === rowId) ? new Date().toISOString() : rkd.updatedAt,
+      }));
+    }
     directoryState.specifications = (directoryState.specifications || []).map((specification) => syncSpecificationDerivedFields({
       ...specification,
       bomListA: specification.bomListA === rowId ? "" : specification.bomListA,
@@ -14445,7 +22329,7 @@ function saveWorkCenterDirectoryRow(rowIndex, row) {
   const workMode = isPlanningUnit ? normalizeWorkMode(row.workMode || row.shift, getDefaultWorkMode(workSchedule, isWarehouse)) : "";
   const normalizedCenter = normalizeWorkCenterUnit({
     id: row.id || makeId("wc"),
-    name: row.name || "Новое подразделение",
+    name: row.name || "Новый отдел",
     code: row.code || "NEW",
     unitType,
     isPlanningUnit,
@@ -14500,6 +22384,79 @@ function restoreScroll() {
   updateDependencyClip(shell);
 }
 
+function getCalculatorScrollSnapshot() {
+  const selectors = [
+    ".calculator-page",
+    ".calculator-simple-grid",
+    ".calculator-workspace",
+    ".calculator-app-shell",
+    "[data-layout='app-shell']",
+  ];
+  const seen = new Set();
+  const elements = selectors
+    .map((selector) => {
+      const element = document.querySelector(selector);
+      if (!element || seen.has(element)) return null;
+      seen.add(element);
+      return {
+        selector,
+        scrollLeft: element.scrollLeft,
+        scrollTop: element.scrollTop,
+      };
+    })
+    .filter(Boolean);
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  return {
+    windowX: window.scrollX || 0,
+    windowY: window.scrollY || 0,
+    documentLeft: scrollingElement?.scrollLeft || 0,
+    documentTop: scrollingElement?.scrollTop || 0,
+    elements,
+  };
+}
+
+function restoreCalculatorScrollSnapshot(snapshot) {
+  if (!snapshot) return;
+  const apply = () => {
+    const scrollingElement = document.scrollingElement || document.documentElement;
+    if (scrollingElement) {
+      scrollingElement.scrollLeft = snapshot.documentLeft || 0;
+      scrollingElement.scrollTop = snapshot.documentTop || 0;
+    }
+    snapshot.elements.forEach((item) => {
+      const element = document.querySelector(item.selector);
+      if (!element) return;
+      element.scrollLeft = item.scrollLeft || 0;
+      element.scrollTop = item.scrollTop || 0;
+    });
+    window.scrollTo(snapshot.windowX || 0, snapshot.windowY || 0);
+  };
+  window.requestAnimationFrame(apply);
+  window.setTimeout(apply, 0);
+  window.setTimeout(apply, 80);
+}
+
+function renderCalculatorPreservingScroll() {
+  const snapshot = getCalculatorScrollSnapshot();
+  const focusSnapshot = getActiveSmtCoefficientFocusSnapshot();
+  render();
+  restoreCalculatorScrollSnapshot(snapshot);
+  window.requestAnimationFrame(() => restoreSmtCoefficientFocusSnapshot(focusSnapshot));
+}
+
+function scheduleCalculatorRenderPreservingScroll(delay = 400) {
+  window.clearTimeout(calculatorDeferredRenderTimer);
+  calculatorDeferredRenderTimer = window.setTimeout(() => {
+    calculatorDeferredRenderTimer = null;
+    renderCalculatorPreservingScroll();
+  }, delay);
+}
+
+function cancelDeferredCalculatorRender() {
+  window.clearTimeout(calculatorDeferredRenderTimer);
+  calculatorDeferredRenderTimer = null;
+}
+
 function updateDependencyClip(shell) {
   if (!shell) return;
   app.querySelectorAll(".dependencies-layer, .gantt-snap-overlay").forEach((layer) => {
@@ -14512,22 +22469,8 @@ function updateClockOnly() {
   if (clock) clock.textContent = formatDateTime(ui.now);
 }
 
-function getGanttWorkCenterFilterOptions() {
-  const options = [{ value: "all", label: "Все подразделения", meta: "маршрут целиком" }];
-  for (const center of getPlanningWorkCenters()) {
-    options.push({ value: center.id, label: center.name, meta: center.code || "подразделение" });
-  }
-  return options;
-}
-
 function renderToolbar(scaleInfo, stats) {
   const allRoutesExpanded = areAllVisibleProjectsExpanded();
-  const statusOptions = [
-    { value: "all", label: "Все статусы", meta: "портфель" },
-    ...PROJECT_STATUSES.map((status) => ({ value: status, label: PROJECT_STATUS_LABELS[status], meta: "статус спецификации" })),
-  ];
-
-  const workCenterOptions = getGanttWorkCenterFilterOptions();
 
   return `
     <header class="topbar">
@@ -14554,35 +22497,9 @@ function renderToolbar(scaleInfo, stats) {
           <button class="icon-button" data-gantt-zoom="in" type="button" title="Увеличить масштаб Ганта">${icon("plus")}</button>
         </div>
 
-        <div class="segmented slot-content-mode" role="group" aria-label="Содержимое колбаски">
-          ${GANTT_SLOT_CONTENT_MODES.map((mode) => `
-            <button class="segment ${ui.ganttSlotContent === mode.id ? "is-active" : ""}" data-slot-content-mode="${mode.id}" type="button" title="${escapeAttribute(mode.label)}">${escapeHtml(mode.shortLabel)}</button>
-          `).join("")}
-        </div>
-
         <label class="field search-field">
           ${icon("search")}
           <input id="searchInput" type="search" placeholder="Маршрутная карта, состав изделия, заказ" value="${escapeAttribute(ui.search)}" />
-        </label>
-
-        <label class="field">
-          <span>Статус</span>
-          ${renderDenseInlineSelect("statusFilter", ui.statusFilter, statusOptions, { type: "toolbar" })}
-        </label>
-
-        <label class="field">
-          <span>Подразделение</span>
-          ${renderDenseInlineSelect("workCenterFilter", ui.workCenterFilter, workCenterOptions, { type: "toolbar" })}
-        </label>
-
-        <div class="segmented row-mode" role="group" aria-label="Режим строк">
-          <button class="segment ${ui.rowMode === "route" ? "is-active" : ""}" data-row-mode="route" type="button">Маршрут</button>
-          <button class="segment ${ui.rowMode === "all" ? "is-active" : ""}" data-row-mode="all" type="button">Все подразделения</button>
-        </div>
-
-        <label class="gantt-checkbox-control" title="Не показывать вертикальный серый фон, если все видимые подразделения одновременно не работают">
-          <input id="hideSharedNonWorkingZones" type="checkbox" ${ui.hideSharedNonWorkingZones ? "checked" : ""} />
-          <span>Скрыть общие нерабочие зоны</span>
         </label>
       </div>
 
@@ -14591,10 +22508,15 @@ function renderToolbar(scaleInfo, stats) {
           <span class="toggle-switch-knob"></span>
           <span>${allRoutesExpanded ? "Свернуть" : "Развернуть"}</span>
         </button>
-        <button class="icon-button" id="todayButton" type="button" title="Перейти к сегодняшнему дню">${icon("calendar")}</button>
+        <button class="icon-button" id="todayButton" type="button" title="Перейти к сегодняшнему дню">${icon("today")}</button>
+        <button
+          class="icon-button gantt-dependency-edit-button ${ui.ganttDependencyEditMode ? "is-active" : ""}"
+          id="dependencyEditButton"
+          type="button"
+          aria-pressed="${ui.ganttDependencyEditMode ? "true" : "false"}"
+          title="${ui.ganttDependencyEditMode ? "Сохранить маршруты стрелок" : "Редактировать маршруты стрелок"}"
+        >${icon(ui.ganttDependencyEditMode ? "save" : "routeEdit")}</button>
         <button class="icon-button" id="refreshButton" type="button" title="Перестроить план">${icon("refresh")}</button>
-        <button class="icon-button danger-soft" id="resetButton" type="button" title="Сбросить демо-данные">${icon("reset")}</button>
-        <button class="primary-button" id="addProjectButton" type="button">${icon("plus")}<span>Новое задание</span></button>
       </div>
 
       <div class="status-strip">
@@ -14625,8 +22547,8 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
       || right.warnings - left.warnings
       || right.backlog - left.backlog
     ));
-  const warehouseSlots = planningState.slots.filter((slot) => isWarehouseWorkCenterId(slot.workCenterId));
-  const completedWarehouse = warehouseSlots.filter((slot) => slot.status === "completed").length;
+  const outputReceiptSlots = planningState.slots.filter((slot) => isManufacturingOutputReceiptSlot(slot));
+  const completedOutputReceipt = outputReceiptSlots.filter((slot) => slot.status === "completed").length;
   const activeSlots = planningState.slots.filter((slot) => ["in_progress", "problem", "overdue"].includes(slot.status)).length;
   const plannedHours = planningState.slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
   const flowSteps = [
@@ -14657,10 +22579,10 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
     {
       id: "warehouse",
       index: "04",
-      title: "Склад и выпуск",
-      value: `${completedWarehouse}/${warehouseSlots.length || 0}`,
-      caption: "финальные складские операции",
-      tone: warehouseSlots.length && completedWarehouse === warehouseSlots.length ? "ok" : "active",
+      title: "Приемка выпуска",
+      value: `${completedOutputReceipt}/${outputReceiptSlots.length || 0}`,
+      caption: "готовые изделия и полуфабрикаты",
+      tone: outputReceiptSlots.length && completedOutputReceipt === outputReceiptSlots.length ? "ok" : "active",
     },
   ];
 
@@ -14682,7 +22604,7 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
         ${flowSteps.map((step) => renderDirectorFlowStep(step)).join("")}
       </div>
 
-      <div class="director-project-strip" aria-label="Приоритетные спецификации">
+      <div class="director-project-strip" aria-label="Приоритетные заказ-наряды">
         ${riskyProjects.slice(0, 5).map((item) => `
           <button class="director-project-chip ${item.dueState.tone}" data-focus-project="${item.project.id}" type="button">
             <strong>${escapeHtml(getProjectDisplayName(item.project))}</strong>
@@ -14726,6 +22648,35 @@ function renderTimeline(scaleInfo) {
   `;
 }
 
+function getGanttWeekBoundaries(scaleInfo) {
+  const boundaries = [];
+  let cursor = startOfWeek(scaleInfo.start);
+  if (cursor <= scaleInfo.start) cursor = addMs(cursor, 7 * DAY_MS);
+
+  while (cursor < scaleInfo.end) {
+    const left = dateToX(cursor, scaleInfo);
+    if (left > 0 && left < scaleInfo.width) {
+      boundaries.push({ date: cursor, left });
+    }
+    cursor = addMs(cursor, 7 * DAY_MS);
+  }
+
+  return boundaries;
+}
+
+function renderGanttWeekBoundaryLayer(scaleInfo) {
+  const boundaries = getGanttWeekBoundaries(scaleInfo);
+  if (!boundaries.length) return "";
+
+  return `
+    <div class="gantt-week-boundary-layer" aria-hidden="true">
+      ${boundaries.map((boundary) => `
+        <span class="gantt-week-boundary" style="left:${round(boundary.left)}px;" title="Начало недели ${escapeAttribute(formatDate(boundary.date))}"></span>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap, sharedNonWorkingIntervals = []) {
   const layout = rowLayout.map[row.id];
   const height = layout.height;
@@ -14745,6 +22696,7 @@ function renderRow(row, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap, 
     <div class="gantt-row ${row.type}-row ${isDropTarget ? "is-drop-target" : ""}" data-row-id="${row.id}" style="height:${height}px; top:${layout.top}px;">
       ${renderRowLabel(row, slotWarningMap)}
       <div class="lane ${laneClass}" data-lane-row-id="${row.id}" style="left:${LEFT_WIDTH}px; width:${scaleInfo.width}px; height:${height}px; --cell-width:${scaleInfo.cellWidth}px;">
+        ${renderGanttWeekBoundaryLayer(scaleInfo)}
         ${renderNonWorkingLayer(row, scaleInfo, height, sharedNonWorkingIntervals)}
         ${renderTodayMarker(scaleInfo, height)}
         ${rowSlots.map((slot) => renderSlot(slot, row, scaleInfo, slotWarningMap, rowPlacements[slot.id])).join("")}
@@ -14800,18 +22752,15 @@ function getWorkCenterCalendar(workCenter) {
 function isScheduleWorkDay(calendar, dayStart) {
   if (!calendar) return true;
   if (calendar.isAlwaysOn) return true;
-  const normalizedDayStart = startOfDay(dayStart);
 
   // Гант не имеет отдельного глобального календаря выходных.
-  // Рабочий/нерабочий день определяется только графиком конкретного подразделения.
+  // 2/2 в производственном планировании означает ротацию бригад,
+  // а не простой линии: пока одна бригада отдыхает, работает другая.
   if (calendar.scheduleType === "2/2") {
-    const anchor = startOfDay(fromDateInput(SHIFT_CYCLE_ANCHOR_DATE));
-    const dayIndex = Math.floor((normalizedDayStart.getTime() - anchor.getTime()) / DAY_MS);
-    const cycleIndex = ((dayIndex % 4) + 4) % 4;
-    return cycleIndex < 2;
+    return true;
   }
 
-  return calendar.workDays.has(normalizedDayStart.getDay());
+  return calendar.workDays.has(startOfDay(dayStart).getDay());
 }
 
 function getCalendarWorkCenterId(workCenterId) {
@@ -14828,7 +22777,7 @@ function getCalendarWorkCenter(workCenterId, state = null) {
     || getRuntimePlanningState()?.workCenters?.find((center) => center.id === calendarWorkCenterId)
     || {
       id: calendarWorkCenterId || requestedId,
-      name: calendarWorkCenterId || requestedId || "Подразделение",
+      name: calendarWorkCenterId || requestedId || "Отдел",
       workSchedule: MES_SMT_WORK_CENTER_IDS.includes(calendarWorkCenterId) ? "2/2" : "24/7",
       workMode: MES_SMT_WORK_CENTER_IDS.includes(calendarWorkCenterId) ? "08:00-20:00" : "00:00-24:00",
       shift: MES_SMT_WORK_CENTER_IDS.includes(calendarWorkCenterId) ? "2/2 08:00-20:00" : "24/7 00:00-24:00",
@@ -14839,28 +22788,28 @@ function getCalendarWorkCenter(workCenterId, state = null) {
 function getGanttRowCalendar(row) {
   if (!["operation", "workCenter", "resource"].includes(row?.type)) return null;
   const calendarWorkCenterId = row.workCenter?.calendarWorkCenterId
-    || row.workCenter?.parentWorkCenterId
-    || getCalendarWorkCenterId(row.workCenterId);
+    || getCalendarWorkCenterId(row.workCenterId || row.workCenter?.id)
+    || row.workCenter?.parentWorkCenterId;
   return getWorkCenterCalendar(getCalendarWorkCenter(calendarWorkCenterId, planningState));
 }
 
 function getGanttRowCalendarWorkCenterId(row) {
   if (!["operation", "workCenter", "resource"].includes(row?.type)) return "";
   return row.workCenter?.calendarWorkCenterId
-    || row.workCenter?.parentWorkCenterId
-    || getCalendarWorkCenterId(row.workCenterId);
+    || getCalendarWorkCenterId(row.workCenterId || row.workCenter?.id)
+    || row.workCenter?.parentWorkCenterId;
 }
 
 function getWorkingIntervalsForCalendar(calendar, value) {
   const dayStart = startOfDay(value);
-  const nextDay = addMs(dayStart, DAY_MS);
+  const nextDay = addCalendarDays(dayStart, 1);
 
   if (!calendar) return [{ start: dayStart, end: nextDay }];
   if (calendar.isAlwaysOn) return [{ start: dayStart, end: nextDay }];
   if (calendar.start === calendar.end) return [];
 
   const intervals = [];
-  const previousDayStart = addMs(dayStart, -DAY_MS);
+  const previousDayStart = addCalendarDays(dayStart, -1);
 
   if (calendar.start < calendar.end) {
     if (isScheduleWorkDay(calendar, dayStart)) {
@@ -14911,7 +22860,7 @@ function getWorkingIntervalsBetween(workCenterId, start, end, state = null) {
       const clippedEnd = new Date(Math.min(interval.end.getTime(), rangeEnd.getTime()));
       if (clippedEnd > clippedStart) intervals.push({ start: clippedStart, end: clippedEnd });
     });
-    cursor = addMs(cursor, 24 * 60 * 60 * 1000);
+    cursor = addCalendarDays(cursor, 1);
   }
 
   return intervals;
@@ -14927,7 +22876,7 @@ function snapToWorkingTime(workCenterId, value, state = null) {
       if (probe <= interval.start) return interval.start;
       if (probe >= interval.start && probe < interval.end) return probe;
     }
-    dayCursor = addMs(dayCursor, 24 * 60 * 60 * 1000);
+    dayCursor = addCalendarDays(dayCursor, 1);
     probe = dayCursor;
   }
 
@@ -14955,7 +22904,7 @@ function addWorkingDuration(workCenterId, start, durationMs, state = null) {
       advanced = true;
     }
 
-    const nextDay = addMs(startOfDay(cursor), 24 * 60 * 60 * 1000);
+    const nextDay = addCalendarDays(cursor, 1);
     cursor = snapToWorkingTime(workCenterId, advanced && nextDay <= cursor ? addMs(cursor, 1) : nextDay, state);
   }
 
@@ -14969,6 +22918,12 @@ function getWorkingDurationBetween(workCenterId, start, end, state = null) {
 
 function minuteToDate(dayStart, minute) {
   return addMs(dayStart, minute * 60 * 1000);
+}
+
+function addCalendarDays(value, days = 1) {
+  const date = startOfDay(value);
+  date.setDate(date.getDate() + days);
+  return date;
 }
 
 function addNonWorkingSegment(segments, start, end, type, scaleInfo) {
@@ -15008,7 +22963,7 @@ function buildVisibleSharedNonWorkingIntervals(rows, scaleInfo) {
 
   while (cursor < scaleInfo.end) {
     const dayStart = cursor;
-    const dayEnd = addMs(dayStart, DAY_MS);
+    const dayEnd = addCalendarDays(dayStart, 1);
     const rangeStart = new Date(Math.max(dayStart.getTime(), scaleInfo.start.getTime()));
     const rangeEnd = new Date(Math.min(dayEnd.getTime(), scaleInfo.end.getTime()));
 
@@ -15078,7 +23033,7 @@ function buildNonWorkingSegments(row, scaleInfo, sharedNonWorkingIntervals = [])
 
   let cursor = startOfDay(scaleInfo.start);
   while (cursor < scaleInfo.end) {
-    const nextDay = addMs(cursor, DAY_MS);
+    const nextDay = addCalendarDays(cursor, 1);
 
     if (!row.workCenter?.id || calendar.start === calendar.end) {
       addNonWorkingSegment(segments, cursor, nextDay, "day-off", scaleInfo);
@@ -15122,7 +23077,7 @@ function renderNonWorkingLayer(row, scaleInfo, height, sharedNonWorkingIntervals
   const segments = buildNonWorkingSegments(row, scaleInfo, sharedNonWorkingIntervals);
   if (!segments.length) return "";
 
-  const label = `Нерабочее время по графику подразделения: ${getWorkCalendarLabel(row.workCenter)}`;
+  const label = `Нерабочее время по графику отдела: ${getWorkCalendarLabel(row.workCenter)}`;
 
   return `
     <div class="non-working-layer" style="height:${height}px;" aria-hidden="true">
@@ -15136,8 +23091,9 @@ function renderNonWorkingLayer(row, scaleInfo, height, sharedNonWorkingIntervals
 function renderRowLabel(row, slotWarningMap = {}) {
   if (row.type === "route") {
     const route = row.route;
-    const project = row.project || getProject(route?.projectId);
+    const project = row.project || getRoutePlanningContext(route);
     const specification = getRouteSpecification(route);
+    const bom = getRouteBomList(route);
     const progress = project ? calculateProjectProgress(project, planningState) : 0;
     const isExpanded = isGanttRouteExpanded(route);
     const routeSlots = getRouteSlots(route?.id || "");
@@ -15156,11 +23112,11 @@ function renderRowLabel(row, slotWarningMap = {}) {
           <div class="project-name-line">
             <strong>${escapeHtml(route.name || "Маршрутная карта")}</strong>
             ${issueCount ? `<span class="mini-alert" title="Есть предупреждения">${issueCount}</span>` : ""}
-            <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
           </div>
-          <div class="project-meta">${escapeHtml(specification?.name || getProjectDisplayName(project) || "состав изделия не выбран")} · ${Number(getPlanningRouteQuantity(route) || project?.totalQuantity || 0).toLocaleString("ru-RU")} шт.</div>
+          <div class="project-meta">${escapeHtml(bom?.name || specification?.name || getProjectDisplayName(project) || "BOM или состав изделия не выбран")} · ${Number(getPlanningRouteQuantity(route) || project?.totalQuantity || 0).toLocaleString("ru-RU")} шт.</div>
         </div>
         <div class="project-side">
+          <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
           <span class="project-status status-${project?.status || "planned"}">${PROJECT_STATUS_LABELS[project?.status] || "В плане"}</span>
           <strong class="project-progress-value">${progress}%</strong>
           <div class="progress" title="Прогресс маршрутной карты"><span style="width:${progress}%"></span></div>
@@ -15186,15 +23142,15 @@ function renderRowLabel(row, slotWarningMap = {}) {
           <div class="project-name-line">
             <strong>${escapeHtml(getProjectDisplayName(project))}</strong>
             ${issueCount ? `<span class="mini-alert" title="Есть предупреждения">${issueCount}</span>` : ""}
-            <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
           </div>
           <div class="project-meta">${escapeHtml(specification?.outputItem || project.orderNumber || "изделие не задано")} · ${project.totalQuantity} шт. · срок ${formatDate(project.dueDate)}</div>
           ${renderProjectRouteMini(project, slotWarningMap)}
         </div>
         <div class="project-side">
+          <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
           <span class="project-status status-${project.status}">${PROJECT_STATUS_LABELS[project.status]}</span>
           <strong class="project-progress-value">${progress}%</strong>
-          <div class="progress" title="Прогресс спецификации"><span style="width:${progress}%"></span></div>
+          <div class="progress" title="Прогресс заказ-наряда"><span style="width:${progress}%"></span></div>
         </div>
       </div>
     `;
@@ -15218,7 +23174,7 @@ function renderRowLabel(row, slotWarningMap = {}) {
         <span class="workcenter-code">${escapeHtml(orderLabel)}</span>
         <span class="workcenter-name">
           <strong>${escapeHtml(operationName)}</strong>
-          <small>${escapeHtml([workCenter.name || "подразделение не выбрано", taskName].filter(Boolean).join(" · "))}</small>
+          <small>${escapeHtml([workCenter.name || "отдел не выбран", taskName].filter(Boolean).join(" · "))}</small>
         </span>
         ${issueCount ? `<span class="mini-alert" title="Есть предупреждения">${issueCount}</span>` : ""}
       </div>
@@ -15227,12 +23183,31 @@ function renderRowLabel(row, slotWarningMap = {}) {
 
   if (row.type === "resource") {
     const resource = row.resource || {};
+    const rowSlots = row.slots?.length ? row.slots : getRowSlots(row);
+    const rowSlotIds = new Set(rowSlots.map((slot) => slot.id));
+    const issueCount = getSlotWarnings(planningState).warnings.filter((warning) => (
+      (warning.slotIds || []).some((slotId) => rowSlotIds.has(slotId))
+    )).length;
+    const workCenter = row.workCenter || getWorkCenter(row.workCenterId) || null;
     const parent = resource.parentResourceId ? getProductionResource(resource.parentResourceId) : null;
+    const operationNames = [...new Set(rowSlots
+      .map((slot) => slot.operationName || planningState.routeSteps.find((step) => step.id === slot.routeStepId)?.operationName || "")
+      .map((name) => String(name || "").trim())
+      .filter(Boolean))];
+    const hiddenOperationCount = Math.max(0, operationNames.length - 2);
+    const operationCaption = operationNames.length
+      ? `${operationNames.slice(0, 2).join(", ")}${hiddenOperationCount ? ` и еще ${hiddenOperationCount}` : ""}`
+      : "операции не размещены";
+    const meta = [workCenter?.name || "", operationCaption, `${rowSlots.length} сл.`].filter(Boolean).join(" · ");
     const passiveClass = resourceParticipatesInPlanning(resource) || resourceParticipatesInCalculation(resource) ? "" : "is-passive-resource";
     return `
       <div class="row-label workcenter-label resource-label ${passiveClass}">
         <span class="workcenter-code">${escapeHtml(parent ? "Доч." : PRODUCTION_RESOURCE_TYPE_CODES[resource.type] || "Рес")}</span>
-        <span class="workcenter-name">${escapeHtml(resource.name || "Производственный ресурс")}</span>
+        <span class="workcenter-name">
+          <strong>${escapeHtml(resource.name || "Производственный ресурс")}</strong>
+          <small>${escapeHtml(meta)}</small>
+        </span>
+        ${issueCount ? `<span class="mini-alert" title="Есть предупреждения">${issueCount}</span>` : ""}
       </div>
     `;
   }
@@ -15264,7 +23239,7 @@ function renderRouteTaskMini(route, slotWarningMap = {}) {
           isActive ? "is-active" : "",
           isPlanned ? "is-planned" : "is-empty",
           hasIssue ? "is-warning" : "",
-          step.workCenterId === "warehouse" ? "is-warehouse" : "",
+          isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : "",
         ].filter(Boolean).join(" ");
         const workCenter = getWorkCenter(step.workCenterId);
         return `<span class="${className}" title="${escapeAttribute(`${step.stepOrder}. ${step.operationName} · ${workCenter?.name || ""}`)}">${step.stepOrder}</span>`;
@@ -15279,7 +23254,7 @@ function renderProjectRouteMini(project, slotWarningMap = {}) {
   if (!steps.length) return "";
 
   return `
-    <div class="project-route-mini" aria-label="Маршрут спецификации">
+    <div class="project-route-mini" aria-label="Маршрут изделия">
       ${steps.map((step) => {
         const stepSlots = slots.filter((slot) => slot.routeStepId === step.id);
         const hasIssue = stepSlots.some((slot) => (slotWarningMap[slot.id] || []).length);
@@ -15291,7 +23266,7 @@ function renderProjectRouteMini(project, slotWarningMap = {}) {
           isActive ? "is-active" : "",
           isPlanned ? "is-planned" : "is-empty",
           hasIssue ? "is-warning" : "",
-          step.workCenterId === "warehouse" ? "is-warehouse" : "",
+          isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : "",
         ].filter(Boolean).join(" ");
         const workCenter = getWorkCenter(step.workCenterId);
         return `<span class="${className}" title="${escapeAttribute(`${step.stepOrder}. ${step.operationName} · ${workCenter?.name || ""}`)}">${step.stepOrder}</span>`;
@@ -15306,6 +23281,72 @@ function renderTodayMarker(scaleInfo, height) {
   return `<div class="today-marker" style="left:${x}px; height:${height}px;" title="Текущее время"></div>`;
 }
 
+function getSlotTransferBatchVisual(slot = null) {
+  if (!slot?.id || !slot.batchId) return null;
+  const route = getSlotRoute(slot);
+  if (!route?.id) return null;
+  const production = getRoutePlanningContext(route);
+  const projectId = slot.projectId || slot.specificationId || production?.id || "";
+  const batch = getBatch(slot.batchId);
+  const settings = getRouteFlowLaunchSettings(route, batch);
+  if (settings.mode !== "transfer_batch") return null;
+
+  const readiness = getMainRouteDependencyReadiness(route.id, projectId, slot.batchId);
+  const branchDetails = readiness?.branchDetails?.length
+    ? readiness.branchDetails
+    : getRouteBatchWipBranchDetails(route.id, projectId, slot.batchId, ui.now);
+  const branch = branchDetails.find((item) => item.id === slot.id || item.slot?.id === slot.id);
+  if (!branch) return null;
+
+  const totalQuantity = normalizeQuantity(slot.quantity);
+  const transferQuantity = Math.min(totalQuantity, normalizeQuantity(branch.requiredQuantity || settings.transferBatchQuantity));
+  if (!totalQuantity || transferQuantity <= 0 || transferQuantity >= totalQuantity) return null;
+
+  const ratio = Math.max(0.01, Math.min(1, transferQuantity / totalQuantity));
+  const percent = Math.max(1, Math.min(100, ratio * 100));
+  const available = Math.max(0, Number(branch.availableQuantity || 0));
+  return {
+    available,
+    percent,
+    title: `Передача на следующий участок: ${transferQuantity.toLocaleString("ru-RU")} из ${totalQuantity.toLocaleString("ru-RU")} шт. (${Math.round(percent)}%). Доступно сейчас: ${available.toLocaleString("ru-RU")} шт.`,
+    transferQuantity,
+    totalQuantity,
+  };
+}
+
+function renderSlotTransferBatchVisual(slot, options = {}) {
+  if (options.isAggregate || options.isWeekSlot) return "";
+  const visual = getSlotTransferBatchVisual(slot);
+  if (!visual) return "";
+
+  return `
+    <span
+      class="slot-transfer-batch-indicator"
+      data-transfer-batch-visual="true"
+      style="--transfer-width:${round(visual.percent)}%;"
+      title="${escapeAttribute(visual.title)}"
+      aria-hidden="true"
+    ></span>
+  `;
+}
+
+function getGanttSlotGeometryRadius(height = STANDARD_SLOT_HEIGHT) {
+  const slotHeight = Math.max(1, Number(height || STANDARD_SLOT_HEIGHT));
+  return Math.max(4, Math.min(10, Math.round(slotHeight * 0.28)));
+}
+
+function getSlotSegmentEdgeClass(segment = {}, slotStart, slotEnd) {
+  const startTime = toDate(segment.start).getTime();
+  const endTime = toDate(segment.end).getTime();
+  const slotStartTime = toDate(slotStart).getTime();
+  const slotEndTime = toDate(slotEnd).getTime();
+  const toleranceMs = 1000;
+  return [
+    Math.abs(startTime - slotStartTime) <= toleranceMs ? "is-slot-start" : "is-continuation-start",
+    Math.abs(endTime - slotEndTime) <= toleranceMs ? "is-slot-end" : "is-continuation-end",
+  ].join(" ");
+}
+
 function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const batch = getBatch(slot.batchId);
   const project = getProject(slot.projectId);
@@ -15314,23 +23355,30 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const hasCritical = warningList.some((warning) => warning.severity === "critical");
   const isAggregate = row.type === "project" || row.type === "route";
   const isWeekSlot = ui.scale === "weeks";
-  const visualRect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isAggregate);
+  let visualRect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isAggregate);
   const top = placement?.top ?? getSlotTop(isAggregate);
   const height = placement?.height ?? getSlotHeight(isAggregate);
   const selectedClass = ui.selectedSlotId === slot.id ? "is-selected" : "";
   const warningClass = warningList.length ? `has-warning ${hasCritical ? "critical" : "warning"}` : "";
   const dragClass = ui.drag?.slotId === slot.id ? "is-dragging" : "";
-  const warehouseClass = slot.workCenterId === "warehouse" ? "warehouse-slot" : "";
+  const warehouseClass = isManufacturingOutputReceiptSlot(slot) ? "warehouse-slot" : "";
   const lockedClass = slot.locked ? "is-locked" : "";
   const quantity = normalizeQuantity(slot.quantity);
-  const compactClass = visualRect.width < (isWeekSlot ? 58 : 136) ? "is-compact" : "";
-  const tinyClass = visualRect.width < (isWeekSlot ? 36 : 58) ? "is-tiny" : "";
   const routeMeta = getSlotRouteMeta(slot);
   const durationMs = Math.max(0, toDate(slot.plannedEnd) - toDate(slot.plannedStart));
+  const workingDurationMs = getSlotWorkingDurationMs(slot);
+  const calendarDurationMs = getSlotCalendarDurationMs(slot);
+  const durationTitle = calendarDurationMs > workingDurationMs + 60 * 1000
+    ? `рабочее время ${formatDuration(workingDurationMs)} · календарное окно ${formatDuration(calendarDurationMs)}`
+    : formatDuration(workingDurationMs || durationMs);
   const operationLabel = String(slot.operationName || workCenter?.name || "Операция").trim();
-  const workingSegments = getSlotWorkingVisualSegments(slot, scaleInfo, visualRect);
+  let workingSegments = getSlotWorkingVisualSegments(slot, scaleInfo, visualRect);
   const nonWorkingSegments = getSlotNonWorkingVisualSegments(slot, scaleInfo, visualRect, workingSegments);
+  const segmentQuantities = distributeQuantityAcrossWorkingSegments(quantity, workingSegments);
+  const compactClass = visualRect.width < (isWeekSlot ? 58 : 136) ? "is-compact" : "";
+  const tinyClass = visualRect.width < (isWeekSlot ? 36 : 58) ? "is-tiny" : "";
   const segmentedClass = workingSegments.length > 1 || nonWorkingSegments.length ? "is-segmented" : "";
+  const slotRadius = getGanttSlotGeometryRadius(height);
 
   if (workingSegments.length > 1 || nonWorkingSegments.length) {
     const contentSegments = workingSegments.length ? workingSegments : nonWorkingSegments;
@@ -15338,53 +23386,39 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
       segment.width > segments[bestIndex].width ? index : bestIndex
     ), 0);
     const renderWorkingSegment = (segment, index) => `
-      <div class="slot-working-segment ${index === primaryIndex ? "is-primary" : ""}" style="left:${segment.offset}px; width:${segment.width}px;">
+      <div class="slot-working-segment ${index === primaryIndex ? "is-primary" : ""} ${getSlotSegmentEdgeClass(segment, slot.plannedStart, slot.plannedEnd)}" style="left:${segment.offset}px; width:${segment.width}px;">
         <div class="slot-accent"></div>
-        ${index === primaryIndex ? `
-          <div class="slot-content">
-            ${renderGanttSlotLine({
-              slot,
-              batch,
-              routeMeta,
-              operationLabel,
-              quantity,
-              isWeekSlot,
-              isAggregate,
-              warningList,
-            })}
-            ${!isAggregate && !isWeekSlot ? `
-              <div class="slot-footer">
-                <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
-                <span>${formatTime(segment.start)}-${formatTime(segment.end)}</span>
-              </div>
-            ` : ""}
-          </div>
-        ` : `<span class="slot-continuation-mark" title="${escapeAttribute(`${formatTime(segment.start)}-${formatTime(segment.end)}`)}"></span>`}
+        ${renderGanttSlotLine({
+          slot,
+          batch,
+          routeMeta,
+          operationLabel,
+          quantity: segmentQuantities[index] ?? quantity,
+          isWeekSlot,
+          isAggregate,
+          warningList,
+          visualWidth: segment.width,
+        })}
+        ${index === primaryIndex ? `<div class="slot-content"></div>` : ""}
         ${index === workingSegments.length - 1 && !isAggregate && !isWeekSlot ? `<button class="resize-handle" data-resize-slot="${slot.id}" type="button" title="Изменить длительность"></button>` : ""}
       </div>
     `;
     const renderNonWorkingSlotSegment = (segment, index, includeContent = false) => `
-      <div class="slot-non-working-segment ${includeContent && index === primaryIndex ? "is-primary" : ""}" style="left:${segment.offset}px; width:${segment.width}px;" title="${escapeAttribute(`Нерабочее время ${formatTime(segment.start)}-${formatTime(segment.end)}`)}">
+      <div class="slot-non-working-segment ${includeContent && index === primaryIndex ? "is-primary" : ""} ${getSlotSegmentEdgeClass(segment, slot.plannedStart, slot.plannedEnd)}" style="left:${segment.offset}px; width:${segment.width}px;" title="${escapeAttribute(`Нерабочее время ${formatTime(segment.start)}-${formatTime(segment.end)}`)}">
+        ${includeContent ? renderGanttSlotLine({
+          slot,
+          batch,
+          routeMeta,
+          operationLabel,
+          quantity,
+          isWeekSlot,
+          isAggregate,
+          warningList,
+          visualWidth: segment.width,
+        }) : ""}
         ${includeContent && index === primaryIndex ? `
           <div class="slot-accent"></div>
-          <div class="slot-content">
-            ${renderGanttSlotLine({
-              slot,
-              batch,
-              routeMeta,
-              operationLabel,
-              quantity,
-              isWeekSlot,
-              isAggregate,
-              warningList,
-            })}
-            ${!isAggregate && !isWeekSlot ? `
-              <div class="slot-footer">
-                <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
-                <span>${formatTime(segment.start)}-${formatTime(segment.end)}</span>
-              </div>
-            ` : ""}
-          </div>
+          <div class="slot-content"></div>
           ${!isAggregate && !isWeekSlot ? `<button class="resize-handle" data-resize-slot="${slot.id}" type="button" title="Изменить длительность"></button>` : ""}
         ` : ""}
       </div>
@@ -15394,12 +23428,13 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
       <article
         class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass} ${segmentedClass}"
         data-slot-id="${slot.id}"
-        style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px;"
-        title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · рабочее время ${formatDuration(getWorkingDurationBetween(slot.workCenterId, slot.plannedStart, slot.plannedEnd, planningState))}`)}"
+        style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;"
+        title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
         tabindex="0"
       >
         ${nonWorkingSegments.map((segment, index) => renderNonWorkingSlotSegment(segment, index, !workingSegments.length)).join("")}
         ${workingSegments.map((segment, index) => renderWorkingSegment(segment, index)).join("")}
+        ${renderSlotTransferBatchVisual(slot, { isAggregate, isWeekSlot })}
       </article>
     `;
   }
@@ -15408,8 +23443,8 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
     <article
       class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass}"
       data-slot-id="${slot.id}"
-      style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px;"
-      title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · ${formatDuration(durationMs)}`)}"
+      style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;"
+      title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
       tabindex="0"
     >
       <div class="slot-accent"></div>
@@ -15423,41 +23458,35 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
           isWeekSlot,
           isAggregate,
           warningList,
+          visualWidth: visualRect.width,
         })}
-        ${!isAggregate && !isWeekSlot ? `
-          <div class="slot-footer">
-            <span>${escapeHtml(routeMeta.centerCode)} · ${STATUS_LABELS[slot.status]}</span>
-            <span>${formatTime(slot.plannedStart)}-${formatTime(slot.plannedEnd)}</span>
-          </div>
-        ` : ""}
       </div>
       ${!isAggregate && !isWeekSlot ? `<button class="resize-handle" data-resize-slot="${slot.id}" type="button" title="Изменить длительность"></button>` : ""}
+      ${renderSlotTransferBatchVisual(slot, { isAggregate, isWeekSlot })}
     </article>
   `;
 }
 
-function renderGanttSlotLine({ slot, batch, routeMeta, operationLabel, quantity, isWeekSlot, isAggregate, warningList }) {
-  const mode = getGanttSlotContentMode().id;
+function renderGanttSlotLine({ slot, quantity, isWeekSlot, visualWidth = 0 }) {
   const lineClass = isWeekSlot ? "week-slot-line" : "slot-line";
-  const quantityInput = isWeekSlot
-    ? `<input class="slot-quantity-input compact" data-slot-quantity="${slot.id}" type="number" min="1" step="1" value="${quantity}" title="Количество изделий" ${isAggregate || slot.locked ? "disabled" : ""} />`
-    : `<label class="slot-quantity-control" title="Количество изделий в операции">
-        <input data-slot-quantity="${slot.id}" type="number" min="1" step="1" value="${quantity}" ${isAggregate || slot.locked ? "disabled" : ""} />
-        <span>шт.</span>
-      </label>`;
-  const warningDot = warningList.length ? `<span class="slot-warning-dot">${icon("alert")}</span>` : "";
-  const operationName = `<strong class="slot-operation-name">${escapeHtml(operationLabel)}</strong>`;
-  const batchLabel = `<strong class="slot-operation-name">Партия ${escapeHtml(batch?.batchNumber || "-")}</strong>`;
-  const quantityLabel = `<strong class="slot-operation-name slot-quantity-label">${Number(quantity || 0).toLocaleString("ru-RU")} шт.</strong>`;
+  const quantityValue = Number(quantity || 0).toLocaleString("ru-RU", { useGrouping: false });
+  const quantityText = `${quantityValue} шт.`;
+  const labelMode = getGanttQuantityLabelMode(visualWidth, isWeekSlot);
+  const labelText = labelMode === "full" ? quantityText : quantityValue;
 
-  const contentByMode = {
-    operationQuantity: `${operationName}${quantityInput}${warningDot}`,
-    operation: `${operationName}${warningDot}`,
-    quantity: `${quantityInput}${warningDot}`,
-    batchStep: `${batchLabel}${warningDot}`,
-  };
+  return `
+    <div class="${lineClass} slot-content-quantity-only is-${labelMode}" title="${escapeAttribute(quantityText)}">
+      <span class="slot-quantity-badge is-${labelMode}">${escapeHtml(labelText)}</span>
+    </div>
+  `;
+}
 
-  return `<div class="${lineClass} slot-content-${escapeAttribute(mode)}">${contentByMode[mode] || contentByMode.operationQuantity}</div>`;
+function getGanttQuantityLabelMode(visualWidth, isWeekSlot = false) {
+  const width = Number(visualWidth || 0);
+  if (!width) return "full";
+  if (width < (isWeekSlot ? 44 : 48)) return "tiny";
+  if (width < (isWeekSlot ? 74 : 92)) return "compact";
+  return "full";
 }
 
 function getSlotRouteMeta(slot) {
@@ -15480,18 +23509,51 @@ function getSlotVisualRect(slot, scaleInfo, isAggregate = false) {
   const timeWidth = dateToX(slot.plannedEnd, scaleInfo) - x;
   const zoom = Number(scaleInfo.zoom || 1);
   if (ui.scale === "weeks") {
-    const width = Math.max(1, timeWidth);
+    const width = Math.max(isAggregate ? 14 : 1, timeWidth);
     return { x, width, right: x + width };
   }
 
-  const minWidthByScale = { hours: 30, days: 28, weeks: 24 };
-  const width = Math.max((isAggregate ? 18 : minWidthByScale[ui.scale]) * zoom, timeWidth);
+  const width = Math.max(isAggregate ? 18 * zoom : 1, timeWidth);
 
   return {
     x,
     width,
     right: x + width,
   };
+}
+
+function distributeQuantityAcrossWorkingSegments(quantity, segments = []) {
+  const totalQuantity = normalizeQuantity(quantity);
+  if (!segments.length) return [];
+  if (segments.length === 1) return [totalQuantity];
+
+  const durations = segments.map((segment) => Math.max(0, toDate(segment.end) - toDate(segment.start)));
+  const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+  const weights = totalDuration > 0
+    ? durations.map((duration) => duration / totalDuration)
+    : segments.map(() => 1 / segments.length);
+  const rawQuantities = weights.map((weight) => totalQuantity * weight);
+  const allocations = rawQuantities.map((value) => Math.floor(value));
+  let remainder = totalQuantity - allocations.reduce((sum, value) => sum + value, 0);
+
+  rawQuantities
+    .map((value, index) => ({
+      index,
+      fraction: value - Math.floor(value),
+      duration: durations[index] || 0,
+    }))
+    .sort((left, right) => (
+      right.fraction - left.fraction
+      || right.duration - left.duration
+      || left.index - right.index
+    ))
+    .forEach(({ index }) => {
+      if (remainder <= 0) return;
+      allocations[index] += 1;
+      remainder -= 1;
+    });
+
+  return allocations;
 }
 
 function getSlotWorkingVisualSegments(slot, scaleInfo, visualRect) {
@@ -15545,13 +23607,43 @@ function getSlotNonWorkingVisualSegments(slot, scaleInfo, visualRect, workingSeg
   }).filter((segment) => segment.right > segment.x);
 }
 
+function isTransferBatchDependencyPair(fromSlot = null, toSlot = null) {
+  if (!fromSlot || !toSlot) return false;
+  if (getSlotRouteTaskId(fromSlot) === MAIN_ROUTE_TASK_ID || getSlotRouteTaskId(toSlot) !== MAIN_ROUTE_TASK_ID) return false;
+  const route = getSlotRoute(toSlot) || getSlotRoute(fromSlot);
+  if (!route?.id) return false;
+  const readiness = getMainRouteDependencyReadiness(route.id, toSlot.projectId || toSlot.specificationId, toSlot.batchId);
+  return Boolean(readiness?.mode === "transfer_batch" && readiness.sourceSlotIds?.has(fromSlot.id));
+}
+
+function renderTransferGateMarkers(markers = []) {
+  if (!markers.length) return "";
+  return markers.map((marker) => {
+    const label = `${Number(marker.quantity || 0).toLocaleString("ru-RU", { useGrouping: false })} компл.`;
+    const wipLabel = Number(marker.availableKitsNow || 0) > 0
+      ? `WIP ${Number(marker.availableKitsNow || 0).toLocaleString("ru-RU", { useGrouping: false })}`
+      : "WIP 0";
+    return `
+      <g class="transfer-gate-marker" transform="translate(${round(marker.x)} ${round(marker.y)})">
+        <title>${escapeHtml(marker.title)}</title>
+        <line x1="0" y1="-4" x2="0" y2="10"></line>
+        <rect x="-34" y="-28" width="68" height="23"></rect>
+        <text x="0" y="-18" text-anchor="middle">${escapeHtml(label)}</text>
+        <text x="0" y="-9" text-anchor="middle" class="is-wip">${escapeHtml(wipLabel)}</text>
+      </g>
+    `;
+  }).join("");
+}
+
 function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) {
   const visibleRowIds = new Set(rows.map((row) => row.id));
   const slotById = byId(planningState.slots);
   const slotMaskRects = buildDependencySlotMaskRects(rows, rowLayout, scaleInfo, slotPlacementMap);
   const maskId = "dependencySlotReadabilityMask";
   const maskAttribute = slotMaskRects.length ? ` mask="url(#${maskId})"` : "";
-  const paths = [];
+  const dependencyPathItems = [];
+  const dependencyRoutes = [];
+  const transferGateBySlotId = new Map();
 
   for (const pair of getDependencyPairs(planningState)) {
     const from = slotById[pair.fromSlotId];
@@ -15571,24 +23663,110 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     const toPlacement = slotPlacementMap[toRowId]?.[to.id];
     const fromRect = fromPlacement?.rect || getSlotVisualRect(from, scaleInfo);
     const toRect = toPlacement?.rect || getSlotVisualRect(to, scaleInfo);
-    const x1 = fromRect.right;
-    const y1 = getSlotConnectionY(fromLayout, fromPlacement, false);
-    const x2 = toRect.x;
-    const y2 = getSlotConnectionY(toLayout, toPlacement, false);
-    const hasIssue = (slotWarningMap[from.id] || []).length || (slotWarningMap[to.id] || []).length;
-    const className = hasIssue ? "dependency-path has-issue" : "dependency-path";
-    const underlayClassName = hasIssue ? "dependency-path-underlay has-issue" : "dependency-path-underlay";
-    const markerId = hasIssue ? "dependencyArrowIssue" : "dependencyArrow";
-    const mutedMarkerId = hasIssue ? "dependencyArrowIssueMuted" : "dependencyArrowMuted";
-    const d = buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect);
+    const fromConnectionRect = getDependencyConnectionRect(fromLayout, fromPlacement, fromRect, false);
+    const toConnectionRect = getDependencyConnectionRect(toLayout, toPlacement, toRect, false);
+    let x1 = fromConnectionRect.right;
+    let y1 = fromConnectionRect.centerY;
+    const x2 = toConnectionRect.x;
+    const y2 = toConnectionRect.centerY;
+    const dependencyArrowLength = Math.max(1, getGanttDependencyArrowLength(scaleInfo));
+    const dependencyEntryWidth = Math.max(1, getGanttDependencyEntryWidth(scaleInfo));
+    let startStubPoint = { x: x1 + dependencyArrowLength, y: y1 };
+    const startObstacleRects = getDependencyObstacleRects(slotMaskRects, from.id, to.id);
 
-    paths.push(`
-      <path class="${underlayClassName} dependency-path-muted" d="${d}" />
-      <path class="${className} dependency-path-muted" d="${d}" marker-end="url(#${mutedMarkerId})" />
-      <path class="${underlayClassName}" d="${d}"${maskAttribute} />
-      <path class="${className}" d="${d}" marker-end="url(#${markerId})"${maskAttribute} />
-    `);
+    if (findDependencySegmentObstacle({ x: x1, y: y1 }, startStubPoint, startObstacleRects)) {
+      x1 = fromConnectionRect.centerX;
+      y1 = fromConnectionRect.bottom;
+      startStubPoint = { x: x1, y: y1 + dependencyArrowLength };
+    }
+
+    const hasIssue = (slotWarningMap[from.id] || []).length || (slotWarningMap[to.id] || []).length;
+    const isTransfer = isTransferBatchDependencyPair(from, to);
+    const transferClass = isTransfer ? " is-transfer" : "";
+    const className = `${hasIssue ? "dependency-path has-issue" : "dependency-path"}${transferClass}`;
+    const underlayClassName = `${hasIssue ? "dependency-path-underlay has-issue" : "dependency-path-underlay"}${transferClass}`;
+    const markerId = hasIssue ? "dependencyArrowIssue" : isTransfer ? "dependencyArrowTransfer" : "dependencyArrow";
+    const mutedMarkerId = hasIssue ? "dependencyArrowIssueMuted" : isTransfer ? "dependencyArrowTransferMuted" : "dependencyArrowMuted";
+    if (isTransfer && !transferGateBySlotId.has(to.id)) {
+      const route = getSlotRoute(to) || getSlotRoute(from);
+      const readiness = route ? getMainRouteDependencyReadiness(route.id, to.projectId || to.specificationId, to.batchId) : null;
+      if (readiness?.readyAt) {
+        const gateX = Math.max(24, Math.min(scaleInfo.width - 24, dateToX(readiness.readyAt, scaleInfo)));
+        const gateY = Math.max(32, Math.min(rowLayout.totalHeight - 12, toConnectionRect.y - 1));
+        transferGateBySlotId.set(to.id, {
+          x: gateX,
+          y: gateY,
+          availableKitsNow: readiness.availableKitsNow || 0,
+          quantity: readiness.transferBatchQuantity,
+          title: `Передаточная партия: старт сборки после накопления ${readiness.transferBatchQuantity} комплектов. Сейчас доступно ${readiness.availableKitsNow || 0} компл. Ближайший старт: ${formatDateTimeShort(readiness.readyAt)}.`,
+        });
+      }
+    }
+    const pathData = buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect, {
+      dependencyArrowLength,
+      dependencyEntryWidth,
+      fromSlotId: from.id,
+      slotMaskRects,
+      startStubPoint,
+      toSlotId: to.id,
+    });
+    const routeKey = getGanttDependencyRouteKey(from.id, to.id);
+    pathData.basePoints = pathData.points;
+    pathData.points = applyGanttDependencyRouteOffsets(pathData.points, routeKey);
+    dependencyRoutes.push({
+      fromSlotId: from.id,
+      isTransfer,
+      points: pathData.points,
+      sourceY: pathData.points[0]?.[1] ?? y1,
+      toSlotId: to.id,
+    });
+    dependencyPathItems.push({
+      className,
+      markerId,
+      mutedMarkerId,
+      pathData,
+      routeKey,
+      underlayClassName,
+    });
   }
+
+  const dependencyCrossings = getDependencyRouteCrossings(dependencyRoutes);
+  const crossingJumpsByRoute = getDependencyCrossingJumpsByRoute(dependencyCrossings);
+  const renderedPathItems = dependencyPathItems.map((item, routeIndex) => {
+    const crossingJumps = crossingJumpsByRoute.get(routeIndex) || [];
+    const d = buildDependencyPathWithLineJumps(
+      item.pathData.points,
+      crossingJumps,
+      item.pathData.cornerRadius,
+      item.pathData.pathOptions,
+    );
+    const hasCrossingJumps = crossingJumps.length > 0;
+
+    if (hasCrossingJumps) {
+      return {
+        hasCrossingJumps,
+        markup: `
+        <path class="${item.className}" d="${d}" marker-end="url(#${item.markerId})"${maskAttribute} />
+      `,
+      };
+    }
+
+    return {
+      hasCrossingJumps,
+      markup: `
+      <path class="${item.underlayClassName} dependency-path-muted" d="${d}" />
+      <path class="${item.className} dependency-path-muted" d="${d}" marker-end="url(#${item.mutedMarkerId})" />
+      <path class="${item.underlayClassName}" d="${d}"${maskAttribute} />
+      <path class="${item.className}" d="${d}" marker-end="url(#${item.markerId})"${maskAttribute} />
+    `,
+    };
+  });
+  const paths = [
+    ...renderedPathItems.filter((item) => !item.hasCrossingJumps),
+    ...renderedPathItems.filter((item) => item.hasCrossingJumps),
+  ].map((item) => item.markup);
+  const dependencyEditControls = renderGanttDependencyEditControls(dependencyPathItems);
+  const transferGateMarkers = renderTransferGateMarkers([...transferGateBySlotId.values()]);
 
   return `
     <svg class="dependencies-layer ${ui.scale === "weeks" ? "week-dependencies" : ""}" style="left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --dependency-clip-left:${ui.scrollLeft}px;" aria-hidden="true">
@@ -15605,6 +23783,12 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
         <marker id="dependencyArrowIssueMuted" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow has-issue is-muted" />
         </marker>
+        <marker id="dependencyArrowTransfer" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow is-transfer" />
+        </marker>
+        <marker id="dependencyArrowTransferMuted" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow is-transfer is-muted" />
+        </marker>
         ${slotMaskRects.length ? `
           <mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${round(scaleInfo.width)}" height="${round(rowLayout.totalHeight)}">
             <rect x="0" y="0" width="${round(scaleInfo.width)}" height="${round(rowLayout.totalHeight)}" fill="white" />
@@ -15615,8 +23799,86 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
         ` : ""}
       </defs>
       ${paths.join("")}
+      ${dependencyEditControls}
+      ${transferGateMarkers}
     </svg>
   `;
+}
+
+function getGanttDependencyRouteKey(fromSlotId, toSlotId) {
+  return `${fromSlotId}__${toSlotId}`;
+}
+
+function getActiveGanttDependencyRouteStore() {
+  return ui.ganttDependencyEditMode
+    ? normalizeGanttDependencyRouteStore(ui.ganttDependencyRouteDrafts || ui.ganttDependencyRoutes)
+    : normalizeGanttDependencyRouteStore(ui.ganttDependencyRoutes);
+}
+
+function applyGanttDependencyRouteOffsets(points, routeKey) {
+  const route = getActiveGanttDependencyRouteStore()[routeKey];
+  if (!route?.offsets) return points;
+
+  return points.map((point, index) => {
+    const offset = route.offsets[String(index)];
+    if (!offset) return point;
+    return [
+      round(point[0] + offset.x),
+      round(point[1] + offset.y),
+    ];
+  });
+}
+
+function renderGanttDependencyEditControls(dependencyPathItems) {
+  if (!ui.ganttDependencyEditMode) return "";
+
+  return dependencyPathItems.map((item) => {
+    const points = item.pathData.points || [];
+    const basePoints = item.pathData.basePoints || points;
+    const segments = getDependencyRouteSegments(points)
+      .filter((segment) => {
+        const length = segment.horizontal
+          ? Math.abs(segment.end.x - segment.start.x)
+          : Math.abs(segment.end.y - segment.start.y);
+        return segment.segmentIndex > 0
+          && segment.segmentIndex < points.length - 2
+          && length >= 14;
+      });
+
+    return segments.map((segment) => {
+      const startIndex = segment.segmentIndex;
+      const endIndex = segment.segmentIndex + 1;
+      const startBase = basePoints[startIndex] || points[startIndex];
+      const endBase = basePoints[endIndex] || points[endIndex];
+      const startPoint = points[startIndex];
+      const endPoint = points[endIndex];
+      const centerX = (segment.start.x + segment.end.x) / 2;
+      const centerY = (segment.start.y + segment.end.y) / 2;
+      const orientation = segment.horizontal ? "horizontal" : "vertical";
+
+      return `
+        <g
+          class="dependency-edit-segment ${orientation}"
+          data-dependency-edit-route="${escapeAttribute(item.routeKey)}"
+          data-dependency-segment-index="${segment.segmentIndex}"
+          data-dependency-orientation="${orientation}"
+          data-dependency-start-index="${startIndex}"
+          data-dependency-end-index="${endIndex}"
+          data-dependency-start-base-x="${round(startBase[0])}"
+          data-dependency-start-base-y="${round(startBase[1])}"
+          data-dependency-end-base-x="${round(endBase[0])}"
+          data-dependency-end-base-y="${round(endBase[1])}"
+          data-dependency-start-current-x="${round(startPoint[0])}"
+          data-dependency-start-current-y="${round(startPoint[1])}"
+          data-dependency-end-current-x="${round(endPoint[0])}"
+          data-dependency-end-current-y="${round(endPoint[1])}"
+        >
+          <path class="dependency-edit-hit" d="M ${round(segment.start.x)} ${round(segment.start.y)} L ${round(segment.end.x)} ${round(segment.end.y)}" />
+          <circle class="dependency-edit-handle" cx="${round(centerX)}" cy="${round(centerY)}" r="5" />
+        </g>
+      `;
+    }).join("");
+  }).join("");
 }
 
 function buildDependencySlotMaskRects(rows, rowLayout, scaleInfo, slotPlacementMap) {
@@ -15631,11 +23893,17 @@ function buildDependencySlotMaskRects(rows, rowLayout, scaleInfo, slotPlacementM
       const top = placement?.top ?? getSlotTop(isAggregate);
       const height = placement?.height ?? getSlotHeight(isAggregate);
       return {
+        slotId: slot.id,
+        rowId: row.id,
+        rawX: rect.x,
+        rawY: layout.top + top,
+        rawWidth: rect.width,
+        rawHeight: height,
         x: Math.max(0, rect.x - padding),
         y: Math.max(0, layout.top + top - padding),
         width: rect.width + padding * 2,
         height: height + padding * 2,
-        radius: isAggregate || ui.scale === "weeks" ? height / 2 : 8,
+        radius: getGanttSlotGeometryRadius(height),
       };
     });
   });
@@ -15676,41 +23944,691 @@ function renderGanttSnapOverlay(rowLayout, scaleInfo, slotPlacementMap) {
   `;
 }
 
-function buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect) {
+function getDependencyConnectionRect(rowLayout, placement, rect, isAggregate = false) {
+  const top = placement?.top ?? getSlotTop(isAggregate);
+  const height = placement?.height ?? getSlotHeight(isAggregate);
+  const y = rowLayout.top + top;
+  const width = rect.width ?? Math.max(0, rect.right - rect.x);
+  const right = rect.right ?? rect.x + width;
+
+  return {
+    x: rect.x,
+    y,
+    width,
+    height,
+    right,
+    bottom: y + height,
+    centerX: rect.x + width / 2,
+    centerY: y + height / 2,
+  };
+}
+
+function buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect, options = {}) {
   const cornerRadius = ui.scale === "weeks" ? 5 : 8;
   const targetLeft = toRect.x;
-  const targetApproachX = targetLeft - (ui.scale === "weeks" ? 10 : 18);
-  const startStubX = fromRect.right + (ui.scale === "weeks" ? 8 : 16);
-
-  if (Math.abs(y1 - y2) < 1) {
-    return roundedOrthogonalPath([
-      [x1, y1],
-      [targetApproachX, y1],
-      [x2, y2],
-    ], cornerRadius);
-  }
-
-  if (targetApproachX > x1 + 18) {
-    return roundedOrthogonalPath([
-      [x1, y1],
-      [targetApproachX, y1],
-      [targetApproachX, y2],
-      [x2, y2],
-    ], cornerRadius);
-  }
-
-  const outerX = Math.max(startStubX, x1 + (ui.scale === "weeks" ? 18 : 30));
-  const leftBypassX = Math.min(targetApproachX, x2 - (ui.scale === "weeks" ? 10 : 18));
-  const midY = y1 + (y2 - y1) / 2;
-
-  return roundedOrthogonalPath([
+  const dependencyEntryWidth = Number.isFinite(options.dependencyEntryWidth)
+    ? options.dependencyEntryWidth
+    : (ui.scale === "weeks" ? 10 : 18);
+  const dependencyArrowLength = Number.isFinite(options.dependencyArrowLength)
+    ? options.dependencyArrowLength
+    : dependencyEntryWidth;
+  const targetApproachX = targetLeft - dependencyEntryWidth;
+  const targetEntryLeadX = targetApproachX - dependencyEntryWidth;
+  const fallbackStubX = (fromRect.right ?? x1) + (ui.scale === "weeks" ? 8 : 16);
+  const startStubPoint = options.startStubPoint || { x: fallbackStubX, y: y1 };
+  const startPoints = [
     [x1, y1],
-    [outerX, y1],
-    [outerX, midY],
-    [leftBypassX, midY],
-    [leftBypassX, y2],
+    [startStubPoint.x, startStubPoint.y],
+  ];
+  const exitsFromBottom = Math.abs(startStubPoint.x - x1) < 0.1 && startStubPoint.y > y1;
+  const canDropDirectlyToTargetLevel = exitsFromBottom && y2 >= startStubPoint.y;
+  const outgoingConstantLength = Math.max(1, Math.hypot(startStubPoint.x - x1, startStubPoint.y - y1));
+  const routePoints = [...startPoints];
+
+  if (canDropDirectlyToTargetLevel) {
+    routePoints[1] = [x1, y2];
+  } else {
+    const targetEntryLeadPoint = { x: targetEntryLeadX, y: startStubPoint.y };
+
+    if (dependencyRouteBacktracksOverStart({ x: x1, y: y1 }, startStubPoint, targetEntryLeadPoint, y2)) {
+      const detourPoint = getDependencyStartDetourPoint(
+        { x: x1, y: y1 },
+        startStubPoint,
+        targetEntryLeadX,
+        y2,
+        outgoingConstantLength,
+      );
+      routePoints.push([detourPoint.x, detourPoint.y], [targetEntryLeadX, detourPoint.y]);
+    } else {
+      routePoints.push([targetEntryLeadX, startStubPoint.y]);
+    }
+  }
+
+  const basePoints = [
+    ...routePoints,
+    [targetEntryLeadX, y2],
+    [targetApproachX, y2],
     [x2, y2],
-  ], cornerRadius);
+  ];
+  const obstacleRects = getDependencyObstacleRects(
+    options.slotMaskRects || [],
+  );
+  const routedPoints = routeDependencyPointsAroundSlots(basePoints, obstacleRects, dependencyArrowLength);
+  const pathOptions = {};
+
+  return {
+    cornerRadius,
+    d: buildDependencyOrthogonalPath(routedPoints, cornerRadius, pathOptions),
+    pathOptions,
+    points: routedPoints,
+  };
+}
+
+function dependencyRouteBacktracksOverStart(startPoint, startStubPoint, nextPoint, targetY) {
+  const dx = startStubPoint.x - startPoint.x;
+  const dy = startStubPoint.y - startPoint.y;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return Math.abs(nextPoint.y - startStubPoint.y) < 0.1
+      && (nextPoint.x - startStubPoint.x) * dx < -0.1;
+  }
+
+  return Math.abs(nextPoint.x - startStubPoint.x) < 0.1
+    && (targetY - startStubPoint.y) * dy < -0.1;
+}
+
+function getDependencyStartDetourPoint(startPoint, startStubPoint, targetEntryLeadX, targetY, detourLength) {
+  const dx = startStubPoint.x - startPoint.x;
+  const dy = startStubPoint.y - startPoint.y;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    const directionY = targetY >= startStubPoint.y ? 1 : -1;
+    return {
+      x: startStubPoint.x,
+      y: startStubPoint.y + directionY * detourLength,
+    };
+  }
+
+  const directionX = targetEntryLeadX >= startStubPoint.x ? 1 : -1;
+  return {
+    x: startStubPoint.x + directionX * detourLength,
+    y: startStubPoint.y,
+  };
+}
+
+function getDependencyObstacleRects(slotMaskRects, fromSlotId, toSlotId) {
+  return slotMaskRects
+    .filter((rect) => rect.slotId !== fromSlotId && rect.slotId !== toSlotId)
+    .map((rect) => ({
+      ...rect,
+      x: Number.isFinite(rect.rawX) ? rect.rawX : rect.x,
+      y: Number.isFinite(rect.rawY) ? rect.rawY : rect.y,
+      width: Number.isFinite(rect.rawWidth) ? rect.rawWidth : rect.width,
+      height: Number.isFinite(rect.rawHeight) ? rect.rawHeight : rect.height,
+      right: (Number.isFinite(rect.rawX) ? rect.rawX : rect.x) + (Number.isFinite(rect.rawWidth) ? rect.rawWidth : rect.width),
+      bottom: (Number.isFinite(rect.rawY) ? rect.rawY : rect.y) + (Number.isFinite(rect.rawHeight) ? rect.rawHeight : rect.height),
+    }));
+}
+
+function routeDependencyPointsAroundSlots(points, obstacleRects, clearance) {
+  if (!obstacleRects.length || points.length < 2) return points;
+
+  const basePoints = compactDependencyPoints(points.map(([x, y]) => ({ x, y })));
+  if (!dependencyPathIntersectsObstacles(basePoints, obstacleRects)) {
+    return basePoints.map((point) => [point.x, point.y]);
+  }
+
+  const blockingRects = getDependencyPathObstacleRects(basePoints, obstacleRects);
+  const candidatePaths = [
+    ...buildDependencyOuterCorridorCandidates(basePoints, blockingRects, clearance),
+    ...buildDependencyOuterCorridorCandidates(basePoints, obstacleRects, clearance),
+  ];
+  const cleanCandidates = candidatePaths.filter((candidate) => (
+    !dependencyPathBacktracksOverStart(candidate)
+    && !dependencyPathIntersectsObstacles(candidate, obstacleRects)
+  ));
+  const selectedPath = getShortestDependencyPath(cleanCandidates)
+    || getBestConstrainedDependencyPath(candidatePaths, obstacleRects)
+    || basePoints;
+
+  return compactDependencyPoints(selectedPath).map((point) => [point.x, point.y]);
+}
+
+function buildDependencyOuterCorridorCandidates(points, obstacleRects, clearance) {
+  if (!obstacleRects.length || points.length < 4) return [];
+
+  const start = points[0];
+  const startStub = points[1];
+  const entryLead = points[points.length - 3];
+  const entryStart = points[points.length - 2];
+  const end = points[points.length - 1];
+  const extents = getDependencyObstacleExtents(obstacleRects);
+  const rightCorridorX = extents.right + clearance;
+  const leftCorridorX = extents.x - clearance;
+  const bottomCorridorY = extents.bottom + clearance;
+  const topCorridorY = extents.y - clearance;
+  const firstDx = startStub.x - start.x;
+  const firstDy = startStub.y - start.y;
+  const preferRight = Math.abs(firstDx) >= Math.abs(firstDy)
+    ? firstDx >= 0
+    : entryLead.x >= startStub.x;
+  const preferBottom = end.y >= startStub.y;
+  const xCorridors = preferRight ? [rightCorridorX, leftCorridorX] : [leftCorridorX, rightCorridorX];
+  const yCorridors = preferBottom ? [bottomCorridorY, topCorridorY] : [topCorridorY, bottomCorridorY];
+  const candidates = [];
+
+  xCorridors.forEach((corridorX) => {
+    yCorridors.forEach((corridorY) => {
+      candidates.push(compactDependencyPoints([
+        start,
+        startStub,
+        { x: corridorX, y: startStub.y },
+        { x: corridorX, y: corridorY },
+        { x: entryLead.x, y: corridorY },
+        entryLead,
+        entryStart,
+        end,
+      ]));
+      candidates.push(compactDependencyPoints([
+        start,
+        startStub,
+        { x: startStub.x, y: corridorY },
+        { x: entryLead.x, y: corridorY },
+        entryLead,
+        entryStart,
+        end,
+      ]));
+    });
+  });
+
+  return candidates;
+}
+
+function getDependencyObstacleExtents(obstacleRects) {
+  return obstacleRects.reduce((extents, rect) => ({
+    x: Math.min(extents.x, rect.x),
+    y: Math.min(extents.y, rect.y),
+    right: Math.max(extents.right, rect.right),
+    bottom: Math.max(extents.bottom, rect.bottom),
+  }), {
+    x: Infinity,
+    y: Infinity,
+    right: -Infinity,
+    bottom: -Infinity,
+  });
+}
+
+function getDependencyPathObstacleRects(points, obstacleRects) {
+  const rects = [];
+  const seen = new Set();
+
+  for (let segmentIndex = 0; segmentIndex < points.length - 1; segmentIndex += 1) {
+    const start = points[segmentIndex];
+    const end = points[segmentIndex + 1];
+    obstacleRects.forEach((rect) => {
+      if (seen.has(rect.slotId)) return;
+      if (!dependencySegmentIntersectsRect(start, end, rect)) return;
+      seen.add(rect.slotId);
+      rects.push(rect);
+    });
+  }
+
+  return rects;
+}
+
+function getShortestDependencyPath(paths) {
+  if (!paths.length) return null;
+  return paths.reduce((best, candidate) => (
+    compareDependencyPathLength(candidate, best) < 0 ? candidate : best
+  ), paths[0]);
+}
+
+function getBestConstrainedDependencyPath(paths, obstacleRects) {
+  if (!paths.length) return null;
+  return paths.reduce((best, candidate) => (
+    compareDependencyPathScore(candidate, best, obstacleRects) < 0 ? candidate : best
+  ), paths[0]);
+}
+
+function compareDependencyPathScore(left, right, obstacleRects) {
+  const leftBacktracking = dependencyPathBacktracksOverStart(left) ? 1 : 0;
+  const rightBacktracking = dependencyPathBacktracksOverStart(right) ? 1 : 0;
+  if (leftBacktracking !== rightBacktracking) return leftBacktracking - rightBacktracking;
+
+  const leftHits = countDependencyPathObstacleHits(left, obstacleRects);
+  const rightHits = countDependencyPathObstacleHits(right, obstacleRects);
+  if (leftHits !== rightHits) return leftHits - rightHits;
+
+  return compareDependencyPathLength(left, right);
+}
+
+function compareDependencyPathLength(left, right) {
+  const leftLength = getDependencyPathLength(left);
+  const rightLength = getDependencyPathLength(right);
+  if (Math.abs(leftLength - rightLength) > 0.1) return leftLength - rightLength;
+  return getDependencyPathBendCount(left) - getDependencyPathBendCount(right);
+}
+
+function getDependencyPathLength(points) {
+  let length = 0;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    length += Math.hypot(points[index + 1].x - points[index].x, points[index + 1].y - points[index].y);
+  }
+  return length;
+}
+
+function getDependencyPathBendCount(points) {
+  let bends = 0;
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    const next = points[index + 1];
+    const previousHorizontal = Math.abs(current.y - previous.y) < 0.1;
+    const nextHorizontal = Math.abs(next.y - current.y) < 0.1;
+    if (previousHorizontal !== nextHorizontal) bends += 1;
+  }
+  return bends;
+}
+
+function dependencyPathBacktracksOverStart(points) {
+  if (points.length < 3) return false;
+
+  const start = points[0];
+  const startStub = points[1];
+  const nextPoint = points[2];
+  const dx = startStub.x - start.x;
+  const dy = startStub.y - start.y;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return Math.abs(nextPoint.y - startStub.y) < 0.1
+      && (nextPoint.x - startStub.x) * dx < -0.1;
+  }
+
+  return Math.abs(nextPoint.x - startStub.x) < 0.1
+    && (nextPoint.y - startStub.y) * dy < -0.1;
+}
+
+function findDependencyPathObstacle(points, obstacleRects) {
+  for (let segmentIndex = 0; segmentIndex < points.length - 1; segmentIndex += 1) {
+    const start = points[segmentIndex];
+    const end = points[segmentIndex + 1];
+    const rect = findDependencySegmentObstacle(start, end, obstacleRects);
+    if (rect) return { rect, segmentIndex };
+  }
+
+  return null;
+}
+
+function dependencyPathIntersectsObstacles(points, obstacleRects) {
+  return Boolean(findDependencyPathObstacle(points, obstacleRects));
+}
+
+function countDependencyPathObstacleHits(points, obstacleRects) {
+  let hits = 0;
+  for (let segmentIndex = 0; segmentIndex < points.length - 1; segmentIndex += 1) {
+    const start = points[segmentIndex];
+    const end = points[segmentIndex + 1];
+    hits += obstacleRects.filter((rect) => dependencySegmentIntersectsRect(start, end, rect)).length;
+  }
+  return hits;
+}
+
+function findDependencySegmentObstacle(start, end, obstacleRects) {
+  const horizontal = Math.abs(start.y - end.y) < 0.1;
+  const vertical = Math.abs(start.x - end.x) < 0.1;
+  if (!horizontal && !vertical) return null;
+
+  return obstacleRects.find((rect) => dependencySegmentIntersectsRect(start, end, rect)) || null;
+}
+
+function dependencySegmentIntersectsRect(start, end, rect) {
+  const horizontal = Math.abs(start.y - end.y) < 0.1;
+  if (horizontal) {
+    const minX = Math.min(start.x, end.x);
+    const maxX = Math.max(start.x, end.x);
+    return start.y > rect.y
+      && start.y < rect.bottom
+      && maxX > rect.x
+      && minX < rect.right;
+  }
+
+  const vertical = Math.abs(start.x - end.x) < 0.1;
+  if (vertical) {
+    const minY = Math.min(start.y, end.y);
+    const maxY = Math.max(start.y, end.y);
+    return start.x > rect.x
+      && start.x < rect.right
+      && maxY > rect.y
+      && minY < rect.bottom;
+  }
+
+  return false;
+}
+
+function compactDependencyPoints(points) {
+  return points.filter((point, index) => (
+    index === 0
+    || Math.abs(point.x - points[index - 1].x) > 0.1
+    || Math.abs(point.y - points[index - 1].y) > 0.1
+  ));
+}
+
+function buildDependencyOrthogonalPath(points, cornerRadius, options = {}) {
+  const sharpCornerIndexes = options.sharpCornerIndexes || [];
+  return roundedOrthogonalPath(points, cornerRadius, { sharpCornerIndexes });
+}
+
+function buildDependencyPathWithLineJumps(points, jumps, radius, options = {}) {
+  const compactPoints = points.filter((point, index) => (
+    index === 0
+    || point[0] !== points[index - 1][0]
+    || point[1] !== points[index - 1][1]
+  ));
+
+  if (!jumps.length || compactPoints.length < 2) {
+    return buildDependencyOrthogonalPath(compactPoints, radius, options);
+  }
+
+  const sharpCornerIndexes = options.sharpCornerIndexes || [];
+
+  const cornerData = getDependencyRoundedCornerData(compactPoints, radius, sharpCornerIndexes);
+  const jumpsBySegment = groupDependencyJumpsBySegment(jumps);
+  const commands = [`M ${round(compactPoints[0][0])} ${round(compactPoints[0][1])}`];
+  let cursor = toDependencyPoint(compactPoints[0]);
+
+  for (let segmentIndex = 0; segmentIndex < compactPoints.length - 1; segmentIndex += 1) {
+    const segmentStart = segmentIndex === 0
+      ? toDependencyPoint(compactPoints[segmentIndex])
+      : cornerData[segmentIndex]?.after || toDependencyPoint(compactPoints[segmentIndex]);
+    const segmentEnd = segmentIndex === compactPoints.length - 2
+      ? toDependencyPoint(compactPoints[segmentIndex + 1])
+      : cornerData[segmentIndex + 1]?.before || toDependencyPoint(compactPoints[segmentIndex + 1]);
+
+    if (getDependencyPointDistance(cursor, segmentStart) > 0.1) {
+      commands.push(`L ${round(segmentStart.x)} ${round(segmentStart.y)}`);
+      cursor = segmentStart;
+    }
+
+    cursor = appendDependencySegmentWithLineJumps(
+      commands,
+      cursor,
+      segmentEnd,
+      jumpsBySegment.get(segmentIndex) || [],
+    );
+
+    const nextCorner = cornerData[segmentIndex + 1];
+    if (!nextCorner) continue;
+
+    if (nextCorner.hasCurve) {
+      commands.push(`Q ${round(nextCorner.point.x)} ${round(nextCorner.point.y)} ${round(nextCorner.after.x)} ${round(nextCorner.after.y)}`);
+      cursor = nextCorner.after;
+    } else if (getDependencyPointDistance(cursor, nextCorner.after) > 0.1) {
+      commands.push(`L ${round(nextCorner.after.x)} ${round(nextCorner.after.y)}`);
+      cursor = nextCorner.after;
+    }
+  }
+
+  return commands.join(" ");
+}
+
+function getDependencyRoundedCornerData(points, radius, sharpCornerIndexes = []) {
+  const cornerData = [];
+
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    const next = points[index + 1];
+    const point = toDependencyPoint(current);
+    const incoming = normalize([current[0] - previous[0], current[1] - previous[1]]);
+    const outgoing = normalize([next[0] - current[0], next[1] - current[1]]);
+    const incomingLength = distance(previous, current);
+    const outgoingLength = distance(current, next);
+    const cornerRadius = Math.min(radius, incomingLength / 2, outgoingLength / 2);
+    const hasCurve = !sharpCornerIndexes.includes(index)
+      && Boolean(cornerRadius)
+      && !isSameDirection(incoming, outgoing);
+
+    if (!hasCurve) {
+      cornerData[index] = {
+        after: point,
+        before: point,
+        hasCurve: false,
+        point,
+      };
+      continue;
+    }
+
+    cornerData[index] = {
+      after: {
+        x: current[0] + outgoing[0] * cornerRadius,
+        y: current[1] + outgoing[1] * cornerRadius,
+      },
+      before: {
+        x: current[0] - incoming[0] * cornerRadius,
+        y: current[1] - incoming[1] * cornerRadius,
+      },
+      hasCurve: true,
+      point,
+    };
+  }
+
+  return cornerData;
+}
+
+function groupDependencyJumpsBySegment(jumps) {
+  return jumps.reduce((groups, jump) => {
+    if (!Number.isFinite(jump.segmentIndex)) return groups;
+    const current = groups.get(jump.segmentIndex) || [];
+    current.push(jump);
+    groups.set(jump.segmentIndex, current);
+    return groups;
+  }, new Map());
+}
+
+function appendDependencySegmentWithLineJumps(commands, start, end, jumps) {
+  const horizontal = Math.abs(start.y - end.y) < 0.1;
+  const vertical = Math.abs(start.x - end.x) < 0.1;
+
+  if ((!horizontal && !vertical) || !jumps.length) {
+    if (getDependencyPointDistance(start, end) > 0.1) {
+      commands.push(`L ${round(end.x)} ${round(end.y)}`);
+    }
+    return end;
+  }
+
+  const direction = horizontal
+    ? Math.sign(end.x - start.x) || 1
+    : Math.sign(end.y - start.y) || 1;
+  const sortedJumps = getRenderableDependencyJumps(start, end, jumps, horizontal, direction);
+  let cursor = start;
+
+  sortedJumps.forEach((jump) => {
+    const before = getDependencyJumpPoint(jump, horizontal, -direction);
+    const after = getDependencyJumpPoint(jump, horizontal, direction);
+
+    if (getDependencyPointDistance(cursor, before) > 0.1) {
+      commands.push(`L ${round(before.x)} ${round(before.y)}`);
+    }
+
+    commands.push(`M ${round(after.x)} ${round(after.y)}`);
+    cursor = after;
+  });
+
+  if (getDependencyPointDistance(cursor, end) > 0.1) {
+    commands.push(`L ${round(end.x)} ${round(end.y)}`);
+  }
+
+  return end;
+}
+
+function getRenderableDependencyJumps(start, end, jumps, horizontal, direction) {
+  const axisStart = horizontal ? start.x : start.y;
+  const axisEnd = horizontal ? end.x : end.y;
+  const minAxis = Math.min(axisStart, axisEnd);
+  const maxAxis = Math.max(axisStart, axisEnd);
+  const radius = DEPENDENCY_CROSSING_GAP_RADIUS;
+
+  return jumps
+    .map((jump) => {
+      const axis = horizontal ? jump.x : jump.y;
+      const availableRadius = Math.min(axis - minAxis, maxAxis - axis) - 0.5;
+      return {
+        ...jump,
+        radius: Math.min(radius, Math.max(0, availableRadius)),
+      };
+    })
+    .filter((jump) => jump.radius >= 2)
+    .sort((left, right) => (
+      ((horizontal ? left.x : left.y) - (horizontal ? right.x : right.y)) * direction
+    ));
+}
+
+function getDependencyJumpPoint(jump, horizontal, direction) {
+  const offset = direction * (jump.radius || DEPENDENCY_CROSSING_GAP_RADIUS);
+  return horizontal
+    ? { x: jump.x + offset, y: jump.y }
+    : { x: jump.x, y: jump.y + offset };
+}
+
+function toDependencyPoint(point) {
+  return { x: point[0], y: point[1] };
+}
+
+function getDependencyPointDistance(left, right) {
+  return Math.hypot(right.x - left.x, right.y - left.y);
+}
+
+function getDependencyCrossingJumpsByRoute(crossings) {
+  return crossings.reduce((groups, crossing) => {
+    const current = groups.get(crossing.routeIndex) || [];
+    current.push(crossing);
+    groups.set(crossing.routeIndex, current);
+    return groups;
+  }, new Map());
+}
+
+function getDependencyRouteCrossings(routes) {
+  const routeSegments = routes.map((route, routeIndex) => ({
+    ...route,
+    routeIndex,
+    segments: getDependencyRouteSegments(route.points),
+  }));
+  const crossings = [];
+  const seen = new Set();
+
+  for (let leftIndex = 0; leftIndex < routeSegments.length - 1; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < routeSegments.length; rightIndex += 1) {
+      const leftRoute = routeSegments[leftIndex];
+      const rightRoute = routeSegments[rightIndex];
+
+      leftRoute.segments.forEach((leftSegment) => {
+        rightRoute.segments.forEach((rightSegment) => {
+          const crossing = getDependencySegmentCrossing(leftSegment, rightSegment);
+          if (!crossing) return;
+
+          const jumpTarget = getDependencyCrossingJumpTarget(leftRoute, leftSegment, rightRoute, rightSegment);
+          if (!jumpTarget) return;
+
+          const key = [
+            jumpTarget.routeIndex,
+            jumpTarget.segmentIndex,
+            Math.round(crossing.x * 10),
+            Math.round(crossing.y * 10),
+          ].join(":");
+          if (seen.has(key)) return;
+          seen.add(key);
+          crossings.push({
+            ...crossing,
+            radius: getDependencyCrossingGapRadius(crossing, jumpTarget.segment),
+            routeIndex: jumpTarget.routeIndex,
+            segmentIndex: jumpTarget.segmentIndex,
+          });
+        });
+      });
+    }
+  }
+
+  return crossings;
+}
+
+function getDependencyCrossingJumpTarget(leftRoute, leftSegment, rightRoute, rightSegment) {
+  const sourceDeltaY = (leftRoute.sourceY ?? 0) - (rightRoute.sourceY ?? 0);
+  if (sourceDeltaY > 0.1) {
+    return {
+      route: leftRoute,
+      routeIndex: leftRoute.routeIndex,
+      segment: leftSegment,
+      segmentIndex: leftSegment.segmentIndex,
+    };
+  }
+
+  if (sourceDeltaY < -0.1) {
+    return {
+      route: rightRoute,
+      routeIndex: rightRoute.routeIndex,
+      segment: rightSegment,
+      segmentIndex: rightSegment.segmentIndex,
+    };
+  }
+
+  return null;
+}
+
+function getDependencyCrossingGapRadius(crossing, segment) {
+  const axis = segment.horizontal ? crossing.x : crossing.y;
+  const minAxis = segment.horizontal ? segment.minX : segment.minY;
+  const maxAxis = segment.horizontal ? segment.maxX : segment.maxY;
+  const availableRadius = Math.min(axis - minAxis, maxAxis - axis) - 0.5;
+  return Math.min(DEPENDENCY_CROSSING_GAP_RADIUS, Math.max(0, availableRadius));
+}
+
+function getDependencyRouteSegments(points) {
+  const normalizedPoints = compactDependencyPoints(points.map(([x, y]) => ({ x, y })));
+  const segments = [];
+
+  for (let index = 0; index < normalizedPoints.length - 1; index += 1) {
+    const start = normalizedPoints[index];
+    const end = normalizedPoints[index + 1];
+    const horizontal = Math.abs(start.y - end.y) < 0.1;
+    const vertical = Math.abs(start.x - end.x) < 0.1;
+    if (!horizontal && !vertical) continue;
+
+    segments.push({
+      end,
+      horizontal,
+      maxX: Math.max(start.x, end.x),
+      maxY: Math.max(start.y, end.y),
+      minX: Math.min(start.x, end.x),
+      minY: Math.min(start.y, end.y),
+      segmentIndex: index,
+      start,
+      vertical,
+    });
+  }
+
+  return segments;
+}
+
+function getDependencySegmentCrossing(left, right) {
+  if (left.horizontal && right.vertical) {
+    return getDependencyOrthogonalSegmentCrossing(left, right);
+  }
+
+  if (left.vertical && right.horizontal) {
+    return getDependencyOrthogonalSegmentCrossing(right, left);
+  }
+
+  return null;
+}
+
+function getDependencyOrthogonalSegmentCrossing(horizontalSegment, verticalSegment) {
+  const epsilon = 0.8;
+  const x = verticalSegment.start.x;
+  const y = horizontalSegment.start.y;
+  const crossesHorizontally = x > horizontalSegment.minX + epsilon && x < horizontalSegment.maxX - epsilon;
+  const crossesVertically = y > verticalSegment.minY + epsilon && y < verticalSegment.maxY - epsilon;
+
+  return crossesHorizontally && crossesVertically ? { x, y } : null;
 }
 
 function buildDependencyPath(x1, y1, x2, y2) {
@@ -15742,7 +24660,7 @@ function buildDependencyPath(x1, y1, x2, y2) {
   ], 8);
 }
 
-function roundedOrthogonalPath(points, radius) {
+function roundedOrthogonalPath(points, radius, options = {}) {
   const compactPoints = points.filter((point, index) => (
     index === 0
     || point[0] !== points[index - 1][0]
@@ -15762,8 +24680,9 @@ function roundedOrthogonalPath(points, radius) {
     const incomingLength = distance(previous, current);
     const outgoingLength = distance(current, next);
     const cornerRadius = Math.min(radius, incomingLength / 2, outgoingLength / 2);
+    const isSharpCorner = options.sharpCornerIndexes?.includes(index);
 
-    if (!cornerRadius || isSameDirection(incoming, outgoing)) {
+    if (isSharpCorner || !cornerRadius || isSameDirection(incoming, outgoing)) {
       commands.push(`L ${round(current[0])} ${round(current[1])}`);
       continue;
     }
@@ -15862,7 +24781,7 @@ function renderPlanningAssistantDock(warnings) {
               </button>
               <div class="assistant-item-meta">
                 <span>${escapeHtml(item.workCenter?.code || "")}</span>
-                <span>${formatDateTime(item.plannedStart)}</span>
+                <span>${item.requiresPlanningLine ? "выберите линию" : formatDateTime(item.plannedStart)}</span>
                 <button class="mini-action" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">Открыть Планирование</button>
               </div>
             </article>
@@ -15879,7 +24798,7 @@ function renderPlanningAssistantDock(warnings) {
         <div class="assistant-panel-head">
           <div>
             <strong>Исправления</strong>
-            <span>маршрут, перегрузка подразделения, количество</span>
+            <span>маршрут, перегрузка отдела, количество</span>
           </div>
           <em class="${critical.length ? "critical" : warnings.length ? "warning" : "ok"}">${warnings.length}</em>
         </div>
@@ -15920,8 +24839,8 @@ function renderPlanningAssistantDock(warnings) {
           <button class="assistant-command" data-save-plan-snapshot type="button">${icon("save")}<span>Снимок плана</span></button>
         </div>
         <div class="assistant-metrics">
-          <div><strong>${topWorkload?.label || "-"}</strong><span>самое загруженное подразделение</span></div>
-          <div><strong>${riskyProjects.length}</strong><span>спецификаций у срока</span></div>
+          <div><strong>${topWorkload?.label || "-"}</strong><span>самый загруженный отдел</span></div>
+          <div><strong>${riskyProjects.length}</strong><span>заказ-нарядов у срока</span></div>
           <div><strong>${formatDuration(getRouteBufferMs())}</strong><span>буфер маршрута</span></div>
         </div>
       </section>
@@ -15964,10 +24883,16 @@ function renderSlotDrawer(slotWarningMap) {
   const currentIndex = orderedSlots.findIndex((item) => item.id === slot.id);
   const previous = orderedSlots[currentIndex - 1];
   const next = orderedSlots[currentIndex + 1];
-  const planMs = toDate(slot.plannedEnd) - toDate(slot.plannedStart);
-  const factMs = slot.actualStart && slot.actualEnd ? toDate(slot.actualEnd) - toDate(slot.actualStart) : null;
+  const planMs = getSlotWorkingDurationMs(slot);
+  const calendarMs = getSlotCalendarDurationMs(slot);
+  const calendarLabel = getWorkCalendarLabel(getCalendarWorkCenter(slot.workCenterId, planningState));
+  const factMs = slot.actualStart && slot.actualEnd
+    ? getWorkingDurationBetween(slot.workCenterId, slot.actualStart, slot.actualEnd, planningState)
+    : null;
   const deviation = factMs === null ? "нет факта" : formatDuration(factMs - planMs);
-  const warnings = slotWarningMap[slot.id] || [];
+	  const warnings = slotWarningMap[slot.id] || [];
+	  const slotRoute = getSlotRoute(slot);
+	  const operationFlow = getSlotOperationFlow(slot, slotRoute, currentStep);
 
   return `
     <aside class="slot-drawer detail-drawer" aria-label="Карточка операции">
@@ -15989,16 +24914,16 @@ function renderSlotDrawer(slotWarningMap) {
 
       <div class="drawer-signal-grid">
         <article>
-          <span>Плановая длительность</span>
+          <span>Рабочая длительность</span>
           <strong>${formatDuration(planMs)}</strong>
         </article>
         <article>
-          <span>Подразделение</span>
-          <strong>${escapeHtml(workCenter?.code || "-")}</strong>
+          <span>Календарное окно</span>
+          <strong>${formatDuration(calendarMs)}</strong>
         </article>
         <article>
-          <span>Шаг маршрута</span>
-          <strong>${currentStep?.stepOrder || "-"}/${routeSteps.length || "-"}</strong>
+          <span>Ресурс</span>
+          <strong>${escapeHtml(workCenter?.code || "-")}</strong>
         </article>
         <article class="${warnings.length ? "warning" : "ok"}">
           <span>Сигналы</span>
@@ -16006,19 +24931,22 @@ function renderSlotDrawer(slotWarningMap) {
         </article>
       </div>
 
-      <dl class="detail-grid">
+	      <dl class="detail-grid">
         <div><dt>Состав изделия</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
         <div><dt>Заказ</dt><dd>${escapeHtml(project?.orderNumber || "")}</dd></div>
-        <div><dt>Подразделение</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
+        <div><dt>Отдел</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
         <div><dt>Шаг маршрута</dt><dd>${currentStep?.stepOrder || "-"} · ${escapeHtml(currentStep?.operationName || "")}</dd></div>
-        <div><dt>План</dt><dd>${formatDateTime(slot.plannedStart)} - ${formatDateTime(slot.plannedEnd)}</dd></div>
+        <div><dt>Календарное окно</dt><dd>${formatDateTime(slot.plannedStart)} - ${formatDateTime(slot.plannedEnd)}</dd></div>
+        <div><dt>График ресурса</dt><dd>${escapeHtml(calendarLabel)}</dd></div>
         <div><dt>Факт</dt><dd>${slot.actualStart ? formatDateTime(slot.actualStart) : "-"} - ${slot.actualEnd ? formatDateTime(slot.actualEnd) : "-"}</dd></div>
         <div><dt>Отклонение</dt><dd>${escapeHtml(deviation)}</dd></div>
         <div><dt>Фиксация</dt><dd>${slot.locked ? "Зафиксировано" : "Можно двигать"}</dd></div>
         <div><dt>Комментарий</dt><dd>${escapeHtml(slot.comment || "Без комментария")}</dd></div>
-      </dl>
+	      </dl>
 
-      ${renderDrawerRouteSequence(routeSteps, orderedSlots, slot)}
+	      ${renderOperationFlowMap(operationFlow, { compact: true })}
+
+	      ${renderDrawerRouteSequence(routeSteps, orderedSlots, slot)}
 
       <div class="route-neighbors">
         <button class="ghost-button" data-focus-slot="${previous?.id || ""}" type="button" ${previous ? "" : "disabled"}>${icon("arrowLeft")}<span>${previous ? previous.operationName : "Предыдущей нет"}</span></button>
@@ -16057,7 +24985,7 @@ function renderDrawerRouteSequence(routeSteps, orderedSlots, currentSlot) {
             stepSlot?.id === currentSlot.id ? "is-current" : "",
             stepSlot?.status === "completed" ? "is-done" : "",
             stepSlot?.status === "in_progress" ? "is-active" : "",
-            step.workCenterId === "warehouse" ? "is-warehouse" : "",
+            isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : "",
           ].filter(Boolean).join(" ");
           return `
             <button class="${className}" data-focus-slot="${stepSlot?.id || ""}" type="button" ${stepSlot ? "" : "disabled"} title="${escapeAttribute(step.operationName)}">
@@ -16078,13 +25006,30 @@ function renderEditorModal() {
   const slot = isEdit ? planningState.slots.find((item) => item.id === ui.editor.slotId) : ui.editor.defaults;
   if (!slot) return "";
 
-  const project = getProject(slot.projectId);
-  const projectBatches = planningState.batches.filter((batch) => batch.projectId === slot.projectId);
-  const routeSteps = getProjectRouteSteps(slot.projectId, planningState)
+  const slotRoute = getSlotRoute(slot);
+  const project = getRoutePlanningContext(slotRoute) || getProject(slot.specificationId || slot.projectId);
+  const projectBatches = slotRoute
+    ? getRoutePlanningBatches(slotRoute, project)
+    : planningState.batches.filter((batch) => batch.projectId === slot.projectId || batch.specificationId === slot.specificationId);
+  const routeSteps = (slotRoute ? getRouteStepsForModule(slotRoute.id) : getProjectRouteSteps(project?.id || slot.projectId, planningState))
     .filter((step) => getOperationMapItem(step.operationId));
   const routeStep = routeSteps.find((step) => step.id === slot.routeStepId) || routeSteps.find((step) => step.workCenterId === slot.workCenterId) || routeSteps[0];
   const batch = getBatch(slot.batchId) || projectBatches[0];
   const routeStepWorkCenter = getWorkCenter(routeStep?.workCenterId || slot.workCenterId);
+  const slotQuantity = Number(slot.quantity || batch?.quantity || 1);
+  const initialAssignment = routeStep
+    ? getRouteStepPlanningAssignmentForSlot(routeStep, slot, {
+      state: planningState,
+      quantity: slotQuantity,
+      readyAt: slot.plannedStart || null,
+      ignoreSlotId: isEdit ? slot.id : null,
+    })
+    : null;
+  const planningLineOptions = routeStep ? getRouteStepPlanningLineOptions(routeStep) : [];
+  const planningLineValue = initialAssignment?.workCenterId
+    || getRouteStepSelectedPlanningWorkCenterId(routeStep, planningState, { currentWorkCenterId: slot.workCenterId })
+    || "";
+  const planningLineRequired = routeStep ? routeStepRequiresManualPlanningLine(routeStep, planningState) : false;
 
   return `
     <div class="modal-backdrop" data-modal-backdrop>
@@ -16099,7 +25044,7 @@ function renderEditorModal() {
           </div>
 
           <input type="hidden" name="slotId" value="${isEdit ? slot.id : ""}" />
-          <input type="hidden" name="projectId" value="${slot.projectId}" />
+          <input type="hidden" name="projectId" value="${escapeAttribute(project?.id || slot.specificationId || slot.projectId || "")}" />
 
           <div class="form-grid">
             <label class="form-field readonly">
@@ -16122,9 +25067,16 @@ function renderEditorModal() {
             </label>
 
             <label class="form-field readonly">
-              <span>Подразделение</span>
+              <span>Отдел</span>
               <input id="workCenterField" name="workCenterId" type="hidden" value="${escapeAttribute(routeStep?.workCenterId || slot.workCenterId || "")}" />
-              <input type="text" value="${escapeAttribute(routeStepWorkCenter?.name || "подразделение не выбрано")}" readonly />
+              <input type="text" value="${escapeAttribute(routeStepWorkCenter?.name || "отдел не выбран")}" readonly />
+            </label>
+
+            <label class="form-field command-field">
+              <span>Линия в плане</span>
+              <select id="planningLineField" name="planningWorkCenterId" ${planningLineRequired ? "required" : ""} ${planningLineOptions.length > 1 ? "" : "disabled"}>
+                ${planningLineOptions.map((option) => `<option value="${escapeAttribute(option.value)}" ${selected(planningLineValue, option.value)} ${option.disabled ? "disabled" : ""}>${escapeHtml(option.label)}${option.meta ? ` · ${escapeHtml(option.meta)}` : ""}</option>`).join("")}
+              </select>
             </label>
 
             <label class="form-field readonly">
@@ -16134,7 +25086,7 @@ function renderEditorModal() {
 
             <label class="form-field readonly">
               <span>Количество, шт.</span>
-              <input type="text" value="${Number(slot.quantity || batch?.quantity || 1).toLocaleString("ru-RU")} шт. · редактируется прямо в колбаске" readonly />
+              <input type="text" value="${slotQuantity.toLocaleString("ru-RU")} шт. · редактируется прямо в колбаске" readonly />
             </label>
 
             <label class="form-field">
@@ -16202,7 +25154,7 @@ function renderSplitModal() {
           <div class="confirm-body warning">
             <div class="confirm-icon">${icon("split")}</div>
             <div>
-              <p>Новый слот сохранит состав изделия, маршрутный шаг и подразделение. Исходный слот будет уменьшен на указанное количество.</p>
+              <p>Новый слот сохранит состав изделия, маршрутный шаг и отдел. Исходный слот будет уменьшен на указанное количество.</p>
               <span>Действие влияет на план партии и последующую цепочку операций.</span>
             </div>
           </div>
@@ -16224,80 +25176,29 @@ function renderSplitModal() {
   `;
 }
 
-function renderProjectModal() {
-  if (!ui.projectModal) return "";
-  const date = toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000));
-
-  return `
-    <div class="modal-backdrop" data-modal-backdrop>
-      <section class="modal large-modal wizard-modal" role="dialog" aria-modal="true" aria-label="Добавление состава изделия">
-        <form id="projectForm">
-          <div class="modal-header">
-            <div>
-              <span class="eyebrow">MOD · Wizard Modal</span>
-              <h2>Производственный заказ</h2>
-            </div>
-            <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
-          </div>
-
-          <div class="debug-steps modal-steps">
-            <span class="is-active">1 Состав изделия</span>
-            <span class="is-active">2 Заказ</span>
-            <span>3 Маршрут</span>
-            <span>4 План</span>
-          </div>
-
-          <div class="form-grid">
-            <label class="form-field">
-              <span>Название состава изделия</span>
-              <input name="name" type="text" value="Новый контроллер" required />
-            </label>
-            <label class="form-field">
-              <span>Номер заказа</span>
-              <input name="orderNumber" type="text" value="№${Math.floor(1600 + Math.random() * 200)}" required />
-            </label>
-            <label class="form-field">
-              <span>Заказчик</span>
-              <input name="customer" type="text" value="Новый заказчик" />
-            </label>
-            <label class="form-field">
-              <span>Количество</span>
-              <input name="totalQuantity" type="number" min="1" value="500" required />
-            </label>
-            <label class="form-field">
-              <span>Срок сдачи</span>
-              <input name="dueDate" type="date" value="${date}" required />
-            </label>
-            <label class="form-field command-field">
-              <span>Статус</span>
-              <select name="status">
-                ${PROJECT_STATUSES.map((status) => `<option value="${status}" ${selected(status, "planned")}>${PROJECT_STATUS_LABELS[status]}</option>`).join("")}
-              </select>
-            </label>
-          </div>
-
-          <div class="modal-footer">
-            <button class="secondary-button" data-close-modal type="button">Отмена</button>
-            <button class="primary-button" type="submit">${icon("plus")}<span>Добавить состав</span></button>
-          </div>
-        </form>
-      </section>
-    </div>
-  `;
-}
-
 function bindEvents(scaleInfo, rows, rowLayout) {
   const shell = app.querySelector("[data-gantt-shell]");
   shell?.addEventListener("scroll", () => {
     ui.scrollLeft = shell.scrollLeft;
     ui.scrollTop = shell.scrollTop;
     updateDependencyClip(shell);
+    if (prependTimelineIfNeeded(shell, scaleInfo)) return;
     extendTimelineIfNeeded(shell, scaleInfo);
   }, { passive: true });
+  shell?.addEventListener("wheel", (event) => {
+    const horizontalBack = event.deltaX < -1;
+    const shiftedVerticalBack = event.shiftKey && event.deltaY < -1;
+    if (!horizontalBack && !shiftedVerticalBack) return;
+    if (shell.scrollLeft > Math.max(4, scaleInfo.cellWidth * 0.2)) return;
+    if (!prependTimelineIfNeeded(shell, scaleInfo, { force: true })) return;
+    event.preventDefault();
+  }, { passive: false });
 
   app.querySelector("#periodStart")?.addEventListener("change", (event) => {
     ui.windowStart = event.target.value;
-    render();
+    ui.scrollLeft = 0;
+    ui.scrollTop = 0;
+    render({ skipRememberScroll: true });
   });
 
   app.querySelectorAll("[data-scale]").forEach((button) => {
@@ -16322,68 +25223,28 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     });
   });
 
-  app.querySelector("#hideSharedNonWorkingZones")?.addEventListener("change", (event) => {
-    ui.hideSharedNonWorkingZones = event.target.checked;
-    persistUiState();
-    render();
-  });
-
   app.querySelector("#searchInput")?.addEventListener("input", (event) => {
     ui.search = event.target.value;
     render();
   });
 
-  app.querySelector("#statusFilter")?.addEventListener("change", (event) => {
-    ui.statusFilter = event.target.value;
-    render();
-  });
-
-  app.querySelector("#workCenterFilter")?.addEventListener("change", (event) => {
-    ui.workCenterFilter = event.target.value;
-    render();
-  });
-
-  app.querySelectorAll("[data-dense-toolbar-select] [data-dense-value]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      const root = button.closest("[data-dense-toolbar-select]");
-      if (!root) return;
-      const key = root.dataset.denseToolbarSelect;
-      if (key === "statusFilter") ui.statusFilter = button.dataset.denseValue || "all";
-      if (key === "workCenterFilter") ui.workCenterFilter = button.dataset.denseValue || "all";
-      persistUiState();
-      render();
-    });
-  });
-
-  app.querySelectorAll("[data-row-mode]").forEach((button) => {
-    button.addEventListener("click", () => {
-      ui.rowMode = button.dataset.rowMode;
-      render();
-    });
-  });
-
   app.querySelector("#todayButton")?.addEventListener("click", () => {
     ui.windowStart = toDateInput(startOfDay(ui.now));
-    render();
+    ui.scrollLeft = 0;
+    ui.scrollTop = 0;
+    render({ skipRememberScroll: true });
+  });
+
+  app.querySelector("#dependencyEditButton")?.addEventListener("click", () => {
+    toggleGanttDependencyEditMode();
   });
 
   app.querySelector("#refreshButton")?.addEventListener("click", () => {
     const rescheduledCount = rescheduleAllGanttSlotsByCurrentCalendars();
     if (rescheduledCount) {
       persistState();
-      notifySaveSuccess(`Гант перестроен по графикам подразделений: ${rescheduledCount}`);
+      notifySaveSuccess(`Гант перестроен по графикам отделов: ${rescheduledCount}`);
     }
-    render();
-  });
-
-  app.querySelector("#resetButton")?.addEventListener("click", () => {
-    openConfirmDialog("resetDemo");
-  });
-
-  app.querySelector("#addProjectButton")?.addEventListener("click", () => {
-    ui.activeModule = "planning";
-    persistUiState();
     render();
   });
 
@@ -16391,11 +25252,12 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     const routes = getVisibleGanttRoutes();
     const shouldExpand = !areAllVisibleProjectsExpanded();
     routes.forEach((route) => {
+      const productionId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || "";
       if (shouldExpand) {
         ui.expandedProjects.add(route.id);
       } else {
         ui.expandedProjects.delete(route.id);
-        ui.expandedProjects.delete(route.projectId);
+        ui.expandedProjects.delete(productionId);
       }
     });
     persistUiState();
@@ -16407,9 +25269,10 @@ function bindEvents(scaleInfo, rows, rowLayout) {
       const id = button.dataset.toggleProject;
       const route = (planningState.routes || []).find((item) => item.id === id);
       if (route) {
+        const productionId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || "";
         if (isGanttRouteExpanded(route)) {
           ui.expandedProjects.delete(route.id);
-          ui.expandedProjects.delete(route.projectId);
+          ui.expandedProjects.delete(productionId);
         } else {
           ui.expandedProjects.add(route.id);
         }
@@ -16425,9 +25288,7 @@ function bindEvents(scaleInfo, rows, rowLayout) {
   app.querySelectorAll("[data-lane-row-id]").forEach((lane) => {
     lane.addEventListener("click", (event) => {
       if (event.target.closest(".operation-slot")) return;
-      const row = rows.find((item) => item.id === lane.dataset.laneRowId);
-      if (!row || !["operation", "workCenter"].includes(row.type)) return;
-      openPlanningForRoute(row.routeId);
+      event.stopPropagation();
     });
   });
 
@@ -16454,12 +25315,12 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     slotElement.addEventListener("click", (event) => {
       event.stopPropagation();
       if (ui.drag?.moved) return;
-      ui.selectedSlotId = slotId;
-      render();
+      if (shouldSuppressGanttSlotClick(slotId)) return;
     });
 
     slotElement.addEventListener("dblclick", (event) => {
       event.stopPropagation();
+      if (shouldSuppressGanttSlotClick(slotId)) return;
       ui.selectedSlotId = slotId;
       ui.editor = { mode: "edit", slotId };
       render();
@@ -16476,6 +25337,12 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     handle.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       beginDrag(event, handle.dataset.resizeSlot, "resize", rows, rowLayout, scaleInfo);
+    });
+  });
+
+  app.querySelectorAll("[data-dependency-edit-route]").forEach((handle) => {
+    handle.addEventListener("pointerdown", (event) => {
+      beginGanttDependencyRouteDrag(event, handle);
     });
   });
 
@@ -16575,7 +25442,6 @@ function bindEvents(scaleInfo, rows, rowLayout) {
 
   bindSlotForm();
   bindSplitForm();
-  bindProjectForm();
 }
 
 function bindSlotForm() {
@@ -16584,6 +25450,7 @@ function bindSlotForm() {
 
   const routeStepField = form.querySelector("#routeStepField");
   const workCenterField = form.querySelector("#workCenterField");
+  const planningLineField = form.querySelector("#planningLineField");
   const operationField = form.querySelector("#operationField");
   const quantityField = form.querySelector("[name='quantity']");
   const batchField = form.querySelector("[name='batchId']");
@@ -16593,38 +25460,87 @@ function bindSlotForm() {
     ? planningState.slots.find((slot) => slot.id === ui.editor.slotId)
     : null;
 
-  const syncPlannedEndField = () => {
-    if (!plannedStartField?.value || !plannedEndField || !workCenterField?.value) return;
+  const getSelectedRouteStep = () => planningState.routeSteps.find((step) => step.id === routeStepField?.value) || null;
+  const getSelectedQuantity = () => {
     const batch = getBatch(batchField?.value);
-    const quantity = normalizeQuantity(quantityField?.value, editedSlot?.quantity || batch?.quantity || 1);
-    const selectedStep = planningState.routeSteps.find((step) => step.id === routeStepField?.value);
+    return normalizeQuantity(quantityField?.value, editedSlot?.quantity || batch?.quantity || 1);
+  };
+
+  const getSelectedPlanningAssignment = (selectedStep, quantity, readyAt) => {
+    if (!selectedStep) return null;
+    const selectedPlanningWorkCenterId = planningLineField?.value || "";
+    return getRouteStepPlanningAssignmentForSlot(selectedStep, editedSlot || {}, {
+      state: planningState,
+      quantity,
+      readyAt,
+      ignoreSlotId: editedSlot?.id || null,
+      workCenterId: selectedPlanningWorkCenterId || editedSlot?.workCenterId || "",
+    });
+  };
+
+  const syncPlanningLineOptions = (selectedStep) => {
+    if (!planningLineField || !selectedStep) return;
+    const currentValue = planningLineField.value || "";
+    const options = getRouteStepPlanningLineOptions(selectedStep);
+    const fallbackValue = getRouteStepSelectedPlanningWorkCenterId(selectedStep, planningState, {
+      currentWorkCenterId: editedSlot?.workCenterId || "",
+    });
+    planningLineField.innerHTML = options.map((option) => (
+      `<option value="${escapeAttribute(option.value)}" ${option.disabled ? "disabled" : ""}>${escapeHtml(option.label)}${option.meta ? ` · ${escapeHtml(option.meta)}` : ""}</option>`
+    )).join("");
+    planningLineField.disabled = options.length <= 1;
+    planningLineField.required = routeStepRequiresManualPlanningLine(selectedStep, planningState);
+    planningLineField.value = options.some((option) => option.value === currentValue)
+      ? currentValue
+      : fallbackValue;
+  };
+
+  const syncPlannedEndField = () => {
+    if (!plannedStartField?.value || !plannedEndField) return;
+    const selectedStep = getSelectedRouteStep();
+    if (!selectedStep) return;
+    const quantity = getSelectedQuantity();
+    const assignment = getSelectedPlanningAssignment(selectedStep, quantity, cleanDateTime(plannedStartField.value));
+    const planningWorkCenterId = assignment?.workCenterId || planningLineField?.value || selectedStep.workCenterId || workCenterField?.value || "";
+    const resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(selectedStep, planningWorkCenterId, selectedStep.resourceId || editedSlot?.resourceId || "");
+	    if (routeStepRequiresManualPlanningLine(selectedStep, planningState) && !planningLineField?.value) return;
+	    const plannedStart = assignment?.window?.start || snapToWorkingTime(planningWorkCenterId, cleanDateTime(plannedStartField.value), planningState);
+	    const slotContext = getSlotEffectiveOperationContext({
+	      ...(editedSlot || {}),
+	      routeStepId: selectedStep.id,
+	      routeWorkCenterId: selectedStep.workCenterId,
+	      workCenterId: planningWorkCenterId,
+	      resourceId,
+	    }, planningState);
 	    const plannedEnd = calculatePlannedEndByQuantity(
-	      cleanDateTime(plannedStartField.value),
-	      workCenterField.value,
+	      plannedStart,
+	      planningWorkCenterId,
 	      quantity,
 	      planningState,
-	      selectedStep?.unitsPerHour || editedSlot?.unitsPerHour || null,
-	      selectedStep?.boardsPerPanel || editedSlot?.boardsPerPanel || null,
-	      selectedStep || editedSlot,
+	      selectedStep.unitsPerHour || editedSlot?.unitsPerHour || null,
+	      slotContext.boardsPerPanel || null,
+	      slotContext,
 	    );
     plannedEndField.value = isoLocal(plannedEnd);
   };
 
-	  routeStepField?.addEventListener("change", () => {
-	    const option = routeStepField.selectedOptions[0];
-	    if (option?.dataset.workCenter && workCenterField) {
-	      workCenterField.value = option.dataset.workCenter;
-	      const display = workCenterField.parentElement?.querySelector("input[type='text']");
-	      if (display) display.value = getWorkCenter(option.dataset.workCenter)?.name || "подразделение не выбрано";
-	    }
-	    if (option?.dataset.operation && operationField) operationField.value = option.dataset.operation;
-	    syncPlannedEndField();
-	  });
+  routeStepField?.addEventListener("change", () => {
+    const option = routeStepField.selectedOptions[0];
+    if (option?.dataset.workCenter && workCenterField) {
+      workCenterField.value = option.dataset.workCenter;
+      const display = workCenterField.parentElement?.querySelector("input[type='text']");
+      if (display) display.value = getWorkCenter(option.dataset.workCenter)?.name || "отдел не выбран";
+    }
+    if (option?.dataset.operation && operationField) operationField.value = option.dataset.operation;
+    syncPlanningLineOptions(getSelectedRouteStep());
+    syncPlannedEndField();
+  });
 
-  [workCenterField, quantityField, batchField, plannedStartField].forEach((field) => {
+  [workCenterField, planningLineField, quantityField, batchField, plannedStartField].forEach((field) => {
     field?.addEventListener("change", syncPlannedEndField);
     field?.addEventListener("input", syncPlannedEndField);
   });
+  syncPlanningLineOptions(getSelectedRouteStep());
   syncPlannedEndField();
 
   form.addEventListener("submit", (event) => {
@@ -16638,32 +25554,70 @@ function bindSlotForm() {
       data.has("quantity") ? data.get("quantity") : currentSlot?.quantity,
       currentSlot?.quantity || selectedBatch?.quantity || 1,
     );
-	    const plannedStart = toSlotDateTime(snapToWorkingTime(data.get("workCenterId"), cleanDateTime(data.get("plannedStart")), planningState));
     const selectedRouteStep = planningState.routeSteps.find((step) => step.id === data.get("routeStepId"));
-    const unitsPerHour = Number(selectedRouteStep?.unitsPerHour || currentSlot?.unitsPerHour || 0);
-    const boardsPerPanel = normalizeBoardsPerPanel(selectedRouteStep?.boardsPerPanel || currentSlot?.boardsPerPanel, 1);
-	    const slotContext = selectedRouteStep || currentSlot;
-	    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, data.get("workCenterId"), quantity, planningState, unitsPerHour || null, boardsPerPanel, slotContext));
-	    if (!selectedRouteStep || !getOperationMapItem(selectedRouteStep.operationId)) {
-	      alert("Выберите операцию маршрута из справочника операций.");
+    if (!selectedRouteStep || !getOperationMapItem(selectedRouteStep.operationId)) {
+      alert("Выберите операцию маршрута из справочника операций.");
+      return;
+    }
+    const selectedPlanningWorkCenterId = String(data.get("planningWorkCenterId") || planningLineField?.value || "").trim();
+	    if (routeStepRequiresManualPlanningLine(selectedRouteStep, planningState) && !selectedPlanningWorkCenterId) {
+	      alert("Выберите линию планирования для SMT-операции.");
 	      return;
 	    }
+	    const selectedRoute = getRouteForStep(selectedRouteStep);
+	    const productionId = getRouteProductionId(selectedRoute) || getRoutePlanningContext(selectedRoute)?.id || String(data.get("projectId") || currentSlot?.specificationId || currentSlot?.projectId || "");
+	    const assignment = getRouteStepPlanningAssignmentForSlot(selectedRouteStep, currentSlot || {}, {
+	      state: planningState,
+      quantity,
+      readyAt: cleanDateTime(data.get("plannedStart")),
+      ignoreSlotId: slotId || null,
+      workCenterId: selectedPlanningWorkCenterId || currentSlot?.workCenterId || "",
+    });
+    const planningWorkCenterId = assignment?.workCenterId || selectedPlanningWorkCenterId || currentSlot?.workCenterId || selectedRouteStep.workCenterId;
+    const resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(
+      selectedRouteStep,
+      planningWorkCenterId,
+      currentSlot?.resourceId || selectedRouteStep.resourceId || "",
+	    );
+	    const plannedStart = toSlotDateTime(assignment?.window?.start || snapToWorkingTime(planningWorkCenterId, cleanDateTime(data.get("plannedStart")), planningState));
+	    const unitsPerHour = Number(selectedRouteStep?.unitsPerHour || currentSlot?.unitsPerHour || 0);
+		    const slotContext = getSlotEffectiveOperationContext({
+		      ...(currentSlot || {}),
+		      routeStepId: selectedRouteStep.id,
+	      routeWorkCenterId: selectedRouteStep.workCenterId,
+	      workCenterId: planningWorkCenterId,
+	      resourceId,
+	    }, planningState);
+		    const boardsPerPanel = normalizeBoardsPerPanel(slotContext.boardsPerPanel, 1);
+		    const plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(plannedStart, planningWorkCenterId, quantity, planningState, unitsPerHour || null, boardsPerPanel, slotContext));
+		    const operationFlow = getRouteStepFlowModel(selectedRoute, selectedRouteStep);
 
-	    const slotData = {
-	      projectId: data.get("projectId"),
+		    const slotData = {
+	      routeId: selectedRoute?.id || currentSlot?.routeId || selectedRouteStep.routeId || "",
+	      specificationId: productionId,
+	      projectId: productionId,
 	      batchId: data.get("batchId"),
-	      workCenterId: selectedRouteStep.workCenterId,
-	      routeStepId: data.get("routeStepId"),
-	      operationName: selectedRouteStep.operationName || "",
-	      quantity,
-	      unitsPerHour: unitsPerHour || undefined,
-	      boardsPerPanel,
-	      resourceId: selectedRouteStep?.resourceId || currentSlot?.resourceId || "",
-	      calculationType: selectedRouteStep?.calculationType || currentSlot?.calculationType || "",
+      routeWorkCenterId: selectedRouteStep.workCenterId,
+      workCenterId: planningWorkCenterId,
+      routeStepId: data.get("routeStepId"),
+      operationId: selectedRouteStep.operationId || "",
+      operationName: selectedRouteStep.operationName || "",
+      quantity,
+      unitsPerHour: unitsPerHour || undefined,
+      boardsPerPanel,
+	      resourceId,
+	      calculationType: selectedRouteStep?.calculationType || getDefaultOperationCalculationType(planningWorkCenterId, slotContext) || currentSlot?.calculationType || "",
+	      fulfillmentMode: slotContext.fulfillmentMode || selectedRouteStep.fulfillmentMode || currentSlot?.fulfillmentMode || "produce",
 	      secondsPerPanel: selectedRouteStep?.secondsPerPanel || currentSlot?.secondsPerPanel || 0,
 	      setupMin: selectedRouteStep?.setupMin || currentSlot?.setupMin || 0,
-	      bomListId: selectedRouteStep?.bomListId || currentSlot?.bomListId || "",
-      plannedStart,
+	      bomListId: slotContext.bomListId || currentSlot?.bomListId || "",
+	      machineSplit: selectedRouteStep?.machineSplit || currentSlot?.machineSplit || null,
+	      machineCoefficients: selectedRouteStep?.machineCoefficients || currentSlot?.machineCoefficients || null,
+	      operationInputs: operationFlow.inputs,
+	      operationOutputs: operationFlow.outputs,
+	      operationInputLabel: operationFlow.inputLabel,
+	      operationOutputLabel: operationFlow.outputLabel,
+	      plannedStart,
       plannedEnd,
       actualStart: cleanOptionalDateTime(data.get("actualStart")),
       actualEnd: cleanOptionalDateTime(data.get("actualEnd")),
@@ -16717,12 +25671,19 @@ function bindSplitForm() {
       return;
     }
 
-    const sourceBatch = getBatch(sourceSlot.batchId);
-    const stamp = new Date().toISOString();
-    const childIndex = planningState.batches.filter((batch) => batch.parentBatchId === (sourceBatch.parentBatchId || sourceBatch.id)).length + 1;
-    const sourceQuantity = normalizeQuantity(sourceSlot.quantity - quantity);
-	    const sourcePlannedEnd = calculatePlannedEndByQuantity(sourceSlot.plannedStart, sourceSlot.workCenterId, sourceQuantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null, sourceSlot);
-	    const childPlannedEnd = calculatePlannedEndByQuantity(sourcePlannedEnd, sourceSlot.workCenterId, quantity, planningState, sourceSlot.unitsPerHour || null, sourceSlot.boardsPerPanel || null, sourceSlot);
+	    const sourceBatch = getBatch(sourceSlot.batchId);
+	    const stamp = new Date().toISOString();
+	    const childIndex = planningState.batches.filter((batch) => batch.parentBatchId === (sourceBatch.parentBatchId || sourceBatch.id)).length + 1;
+	    const sourceQuantity = normalizeQuantity(sourceSlot.quantity - quantity);
+	    const sourcePatch = recalculateSlotEndByQuantity({
+	      ...sourceSlot,
+	      quantity: sourceQuantity,
+	    }, planningState);
+	    const childPatch = recalculateSlotEndByQuantity({
+	      ...sourceSlot,
+	      quantity,
+	      plannedStart: sourcePatch.plannedEnd,
+	    }, planningState);
     const childBatch = {
       id: makeId("b"),
       routeId: sourceSlot.routeId || sourceBatch?.routeId || "",
@@ -16735,15 +25696,17 @@ function bindSplitForm() {
       createdAt: stamp,
       updatedAt: stamp,
     };
-    const childSlot = {
-      ...sourceSlot,
-      id: makeId("s"),
-      batchId: childBatch.id,
-      quantity,
-      plannedStart: toSlotDateTime(sourcePlannedEnd),
-      plannedEnd: toSlotDateTime(childPlannedEnd),
-      actualStart: "",
-      actualEnd: "",
+	    const childSlot = {
+	      ...sourceSlot,
+	      id: makeId("s"),
+	      batchId: childBatch.id,
+	      quantity,
+	      bomListId: childPatch.bomListId || sourceSlot.bomListId || "",
+	      boardsPerPanel: childPatch.boardsPerPanel,
+	      plannedStart: childPatch.plannedStart,
+	      plannedEnd: childPatch.plannedEnd,
+	      actualStart: "",
+	      actualEnd: "",
       status: "planned",
       comment: `Выделено из партии ${sourceBatch.batchNumber}.`,
       createdAt: stamp,
@@ -16751,13 +25714,15 @@ function bindSplitForm() {
     };
 
     planningState.batches = [...planningState.batches, childBatch];
-    planningState.slots = planningState.slots
-      .map((slot) => slot.id === sourceSlot.id ? {
-        ...slot,
-        quantity: sourceQuantity,
-        plannedEnd: toSlotDateTime(sourcePlannedEnd),
-        updatedAt: stamp,
-      } : slot)
+	    planningState.slots = planningState.slots
+	      .map((slot) => slot.id === sourceSlot.id ? {
+	        ...slot,
+	        bomListId: sourcePatch.bomListId || slot.bomListId || "",
+	        boardsPerPanel: sourcePatch.boardsPerPanel,
+	        quantity: sourceQuantity,
+	        plannedEnd: sourcePatch.plannedEnd,
+	        updatedAt: stamp,
+	      } : slot)
       .concat(childSlot);
 
     cascadeIfEnabled(sourceSlot.id);
@@ -16770,77 +25735,132 @@ function bindSplitForm() {
   });
 }
 
-function bindProjectForm() {
-  const form = app.querySelector("#projectForm");
-  if (!form) return;
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const data = new FormData(form);
-    const stamp = new Date().toISOString();
-    const specification = syncSpecificationDerivedFields({
-      id: makeId("spec"),
-      name: String(data.get("name") || "").trim() || "Новая спецификация",
-      outputItem: String(data.get("name") || "").trim() || "Новая спецификация",
-      orderNumber: String(data.get("orderNumber") || "").trim(),
-      customer: String(data.get("customer") || "").trim(),
-      productionQuantity: normalizeOptionalPositiveInteger(data.get("totalQuantity")) || 1,
-      dueDate: data.get("dueDate"),
-      productionStatus: PROJECT_STATUSES.includes(data.get("status")) ? String(data.get("status")) : "planned",
-      status: "Активен",
-      structureManaged: true,
-      structureItems: [],
-      createdAt: stamp,
-      updatedAt: stamp,
-    });
-    const bundle = createProductionBundle({
-      specificationId: specification.id,
-      name: specification.name,
-      orderNumber: specification.orderNumber,
-      customer: specification.customer,
-      totalQuantity: specification.productionQuantity,
-      dueDate: specification.dueDate,
-      status: specification.productionStatus,
-    });
-
-    directoryState.specifications = [...(directoryState.specifications || []), specification];
-    planningState.batches = [...planningState.batches, bundle.batch];
-    planningState.routes = [...planningState.routes, bundle.route];
-    planningState.routeSteps = [...planningState.routeSteps, ...bundle.routeSteps];
-    planningState.projects = [];
-    ui.expandedProjects.add(bundle.route.id);
-    ui.projectModal = false;
-    if (ui.activeModule === "calculator") {
-      calculatorState = normalizeCalculatorState({
-        ...calculatorState,
-        projectId: specification.id,
-        specificationId: specification.id,
-        bomListId: "",
-        boardQuantity: normalizeOptionalPositiveInteger(specification.productionQuantity),
-        routeOperations: [],
-        selectedOperationId: "",
-        componentCounts: {},
-        componentCountsByOperation: {},
-        inputsSavedAt: "",
-        lastSavedAt: "",
-      });
-      ui.calculatorStep = "inputs";
-      persistCalculatorState();
-    }
-    persistDirectoryState();
-    persistState();
+function toggleGanttDependencyEditMode() {
+  if (ui.ganttDependencyEditMode) {
+    ui.ganttDependencyRoutes = normalizeGanttDependencyRouteStore(ui.ganttDependencyRouteDrafts || ui.ganttDependencyRoutes);
+    ui.ganttDependencyRouteDrafts = null;
+    ui.ganttDependencyEditMode = false;
+    ui.ganttDependencyDrag = null;
     persistUiState();
-    notifySaveSuccess("Спецификация добавлена");
+    notifySaveSuccess("Маршруты стрелок сохранены");
     render();
+    return;
+  }
+
+  ui.ganttDependencyRouteDrafts = cloneGanttDependencyRouteStore(ui.ganttDependencyRoutes);
+  ui.ganttDependencyEditMode = true;
+  ui.ganttDependencyDrag = null;
+  render();
+}
+
+function beginGanttDependencyRouteDrag(event, element) {
+  if (!ui.ganttDependencyEditMode || event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  const routeKey = element.dataset.dependencyEditRoute || "";
+  const orientation = element.dataset.dependencyOrientation || "";
+  const startIndex = Number(element.dataset.dependencyStartIndex);
+  const endIndex = Number(element.dataset.dependencyEndIndex);
+  if (!routeKey || !Number.isInteger(startIndex) || !Number.isInteger(endIndex)) return;
+
+  ui.ganttDependencyRouteDrafts = cloneGanttDependencyRouteStore(ui.ganttDependencyRouteDrafts || ui.ganttDependencyRoutes);
+  ui.ganttDependencyDrag = {
+    endBaseX: Number(element.dataset.dependencyEndBaseX),
+    endBaseY: Number(element.dataset.dependencyEndBaseY),
+    endCurrentX: Number(element.dataset.dependencyEndCurrentX),
+    endCurrentY: Number(element.dataset.dependencyEndCurrentY),
+    endIndex,
+    orientation,
+    routeKey,
+    startBaseX: Number(element.dataset.dependencyStartBaseX),
+    startBaseY: Number(element.dataset.dependencyStartBaseY),
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    startCurrentX: Number(element.dataset.dependencyStartCurrentX),
+    startCurrentY: Number(element.dataset.dependencyStartCurrentY),
+    startIndex,
+  };
+
+  document.body.classList.add("is-manipulating");
+
+  const onMove = (moveEvent) => {
+    if (!ui.ganttDependencyDrag) return;
+    moveEvent.preventDefault();
+    updateGanttDependencyRouteDraft(moveEvent);
+    render();
+  };
+
+  const onUp = () => {
+    document.body.classList.remove("is-manipulating");
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    ui.ganttDependencyDrag = null;
+    render();
+  };
+
+  document.addEventListener("pointermove", onMove, { passive: false });
+  document.addEventListener("pointerup", onUp);
+}
+
+function updateGanttDependencyRouteDraft(event) {
+  const drag = ui.ganttDependencyDrag;
+  if (!drag) return;
+
+  const dx = event.clientX - drag.startClientX;
+  const dy = event.clientY - drag.startClientY;
+  const nextStart = {
+    x: drag.startCurrentX,
+    y: drag.startCurrentY,
+  };
+  const nextEnd = {
+    x: drag.endCurrentX,
+    y: drag.endCurrentY,
+  };
+
+  if (drag.orientation === "horizontal") {
+    nextStart.y += dy;
+    nextEnd.y += dy;
+  } else {
+    nextStart.x += dx;
+    nextEnd.x += dx;
+  }
+
+  setGanttDependencyDraftOffset(drag.routeKey, drag.startIndex, {
+    x: nextStart.x - drag.startBaseX,
+    y: nextStart.y - drag.startBaseY,
   });
+  setGanttDependencyDraftOffset(drag.routeKey, drag.endIndex, {
+    x: nextEnd.x - drag.endBaseX,
+    y: nextEnd.y - drag.endBaseY,
+  });
+}
+
+function setGanttDependencyDraftOffset(routeKey, pointIndex, offset) {
+  if (!ui.ganttDependencyRouteDrafts) ui.ganttDependencyRouteDrafts = {};
+  const route = ui.ganttDependencyRouteDrafts[routeKey] || { offsets: {} };
+  const normalizedOffset = {
+    x: round(offset.x),
+    y: round(offset.y),
+  };
+
+  if (Math.abs(normalizedOffset.x) < 0.1 && Math.abs(normalizedOffset.y) < 0.1) {
+    delete route.offsets[String(pointIndex)];
+  } else {
+    route.offsets[String(pointIndex)] = normalizedOffset;
+  }
+
+  if (Object.keys(route.offsets).length) {
+    ui.ganttDependencyRouteDrafts[routeKey] = route;
+  } else {
+    delete ui.ganttDependencyRouteDrafts[routeKey];
+  }
 }
 
 function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!slot) return;
   if (slot.locked || slot.status === "completed") {
-    ui.selectedSlotId = slotId;
-    render();
     return;
   }
 
@@ -16865,7 +25885,6 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     scrollTop: shell.scrollTop,
   };
 
-  ui.selectedSlotId = slotId;
   document.body.classList.add("is-manipulating");
 
   const onMove = (moveEvent) => {
@@ -16882,25 +25901,25 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     if (mode === "resize") {
       const minEnd = addMs(ui.drag.originalStart, snapMs);
       const rawEnd = new Date(ui.drag.originalEnd.getTime() + msDelta);
-	      const newEnd = new Date(Math.max(minEnd.getTime(), snapDate(rawEnd, snapMs).getTime()));
-	      const nextQuantity = calculateQuantityByDuration(targetSlot.workCenterId, targetSlot.plannedStart, newEnd, targetSlot);
-	      targetSlot.quantity = nextQuantity;
-	      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(targetSlot.plannedStart, targetSlot.workCenterId, nextQuantity, planningState, targetSlot.unitsPerHour || null, targetSlot.boardsPerPanel || null, targetSlot));
-	      targetSlot.updatedAt = new Date().toISOString();
-	    } else {
-	      const rawStart = snapDate(addMs(ui.drag.originalStart, msDelta), snapMs);
+      const newEnd = new Date(Math.max(minEnd.getTime(), snapDate(rawEnd, snapMs).getTime()));
+      const nextQuantity = calculateQuantityByDuration(targetSlot.workCenterId, targetSlot.plannedStart, newEnd, targetSlot);
+      targetSlot.quantity = nextQuantity;
+      applyRecalculatedSlotTiming(targetSlot, planningState);
+      targetSlot.updatedAt = new Date().toISOString();
+    } else {
+      const rawStart = snapDate(addMs(ui.drag.originalStart, msDelta), snapMs);
 
-	      const targetRow = rowFromPointer(moveEvent, rows, rowLayout);
-	      if (["operation", "workCenter", "resource"].includes(targetRow?.type) && targetRow.routeId === ui.drag.routeId) {
-	        applyGanttRowToSlot(targetSlot, targetRow);
-	        ui.drag.targetRowId = targetRow.id;
-	      }
+      const targetRow = rowFromPointer(moveEvent, rows, rowLayout);
+      if (["operation", "workCenter", "resource"].includes(targetRow?.type) && targetRow.routeId === ui.drag.routeId) {
+        applyGanttRowToSlot(targetSlot, targetRow);
+        ui.drag.targetRowId = targetRow.id;
+      }
 
-	      const newStart = snapToWorkingTime(targetSlot.workCenterId, rawStart, planningState);
-	      targetSlot.plannedStart = toSlotDateTime(newStart);
-	      targetSlot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(newStart, targetSlot.workCenterId, targetSlot.quantity, planningState, targetSlot.unitsPerHour || null, targetSlot.boardsPerPanel || null, targetSlot));
-	      targetSlot.updatedAt = new Date().toISOString();
-	    }
+      const newStart = snapToWorkingTime(targetSlot.workCenterId, rawStart, planningState);
+      targetSlot.plannedStart = toSlotDateTime(newStart);
+      applyRecalculatedSlotTiming(targetSlot, planningState);
+      targetSlot.updatedAt = new Date().toISOString();
+    }
 
     render();
   };
@@ -16910,11 +25929,14 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onUp);
     const moved = ui.drag?.moved;
-    if (moved) cascadeIfEnabled(slotId);
-    persistState();
     ui.drag = null;
-    if (moved) notifySaveSuccess("Операция Ганта сохранена");
-    render();
+    if (moved) {
+      suppressNextGanttSlotClick(slotId);
+      cascadeIfEnabled(slotId);
+      persistState();
+      notifySaveSuccess("Операция Ганта сохранена");
+      render();
+    }
     setTimeout(() => {
       if (moved) ui.drag = null;
     }, 0);
@@ -16922,6 +25944,24 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
 
   document.addEventListener("pointermove", onMove, { passive: false });
   document.addEventListener("pointerup", onUp);
+}
+
+function suppressNextGanttSlotClick(slotId) {
+  suppressedGanttSlotClick = {
+    slotId,
+    expiresAt: Date.now() + 500,
+  };
+}
+
+function shouldSuppressGanttSlotClick(slotId) {
+  if (!suppressedGanttSlotClick) return false;
+  if (Date.now() > suppressedGanttSlotClick.expiresAt) {
+    suppressedGanttSlotClick = null;
+    return false;
+  }
+  if (suppressedGanttSlotClick.slotId !== slotId) return false;
+  suppressedGanttSlotClick = null;
+  return true;
 }
 
 function rowFromPointer(event, rows, rowLayout) {
@@ -16941,15 +25981,20 @@ function placeSlotInNearestWindow(slot, earliestOverride = null) {
 
   const previous = getRouteNeighbor(slot, -1);
   const routeEarliest = previous ? addMs(previous.plannedEnd, getRouteBufferMs()) : toDate(slot.plannedStart);
+  const dependencyEarliest = getEarliestRouteStart(slot.projectId, slot.batchId, slot.routeStepId);
   const earliestStart = new Date(Math.max(
     toDate(earliestOverride || slot.plannedStart).getTime(),
     toDate(routeEarliest).getTime(),
+    toDate(dependencyEarliest).getTime(),
   ));
-	  const durationMs = calculateRequiredDurationMs(slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour, slot.boardsPerPanel || null, slot);
+  const durationMs = getSlotRequiredDurationMs(slot, planningState);
   const window = findFreeWindow(slot.workCenterId, durationMs, earliestStart, slot.id, slot.resourceId || "");
 
-	  slot.plannedStart = toSlotDateTime(window.start);
+  slot.plannedStart = toSlotDateTime(window.start);
   slot.plannedEnd = toSlotDateTime(window.end);
+  const effectiveContext = getSlotEffectiveOperationContext(slot, planningState);
+  slot.bomListId = effectiveContext.bomListId || slot.bomListId || "";
+  slot.boardsPerPanel = effectiveContext.boardsPerPanel;
   slot.updatedAt = new Date().toISOString();
   cascadeIfEnabled(slot.id);
   return true;
@@ -17023,30 +26068,39 @@ function applyWarningFixInPlace(warning) {
     if (slot.locked || slot.status === "completed") return false;
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return false;
-    slot.workCenterId = step.workCenterId;
-	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
-    slot.updatedAt = stamp;
-    return Boolean(placeSlotInNearestWindow(slot, slot.plannedStart));
+    const assignment = getRouteStepPlanningAssignmentForSlot(step, slot, {
+      state: planningState,
+      quantity: slot.quantity || 1,
+      readyAt: slot.plannedStart || null,
+      ignoreSlotId: slot.id || null,
+    });
+	    slot.routeWorkCenterId = step.workCenterId;
+	    if (!assignment && routeStepRequiresManualPlanningLine(step, planningState)) return false;
+	    slot.workCenterId = assignment?.workCenterId || slot.workCenterId || step.workCenterId;
+	    slot.resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(step, slot.workCenterId, slot.resourceId || step.resourceId || "");
+	    applyRecalculatedSlotTiming(slot, planningState);
+	    slot.updatedAt = stamp;
+	    return Boolean(placeSlotInNearestWindow(slot, slot.plannedStart));
   }
 
   if (warning.type === "quantity" && slots[0]) {
     const slot = slots[0];
     if (slot.locked || slot.status === "completed") return false;
-    const previous = getRouteNeighbor(slot, -1);
-    if (!previous) return false;
-    slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
-	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
-    slot.updatedAt = stamp;
-    cascadeIfEnabled(slot.id);
+	    const previous = getRouteNeighbor(slot, -1);
+	    if (!previous) return false;
+	    slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
+		    applyRecalculatedSlotTiming(slot, planningState);
+	    slot.updatedAt = stamp;
+	    cascadeIfEnabled(slot.id);
     return true;
   }
 
-  if (warning.type === "duration" && slots[0]) {
-    const slot = slots[0];
-    if (slot.locked || slot.status === "completed") return false;
-	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
-    slot.updatedAt = stamp;
-    cascadeIfEnabled(slot.id);
+	  if (warning.type === "duration" && slots[0]) {
+	    const slot = slots[0];
+	    if (slot.locked || slot.status === "completed") return false;
+		    applyRecalculatedSlotTiming(slot, planningState);
+	    slot.updatedAt = stamp;
+	    cascadeIfEnabled(slot.id);
     return true;
   }
 
@@ -17086,33 +26140,45 @@ function autoFixWarning(warningId) {
     if (slot.locked) return;
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return;
-    slot.workCenterId = step.workCenterId;
-	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
-    slot.updatedAt = stamp;
-    moveSlotToNearestWindow(slot.id, slot.plannedStart);
+    const assignment = getRouteStepPlanningAssignmentForSlot(step, slot, {
+      state: planningState,
+      quantity: slot.quantity || 1,
+      readyAt: slot.plannedStart || null,
+      ignoreSlotId: slot.id || null,
+    });
+	    slot.routeWorkCenterId = step.workCenterId;
+	    if (!assignment && routeStepRequiresManualPlanningLine(step, planningState)) {
+	      openPlanningForProject(slot.projectId);
+	      return;
+	    }
+	    slot.workCenterId = assignment?.workCenterId || slot.workCenterId || step.workCenterId;
+	    slot.resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(step, slot.workCenterId, slot.resourceId || step.resourceId || "");
+	    applyRecalculatedSlotTiming(slot, planningState);
+	    slot.updatedAt = stamp;
+	    moveSlotToNearestWindow(slot.id, slot.plannedStart);
     return;
   }
 
   if (warning.type === "quantity" && slots[0]) {
     const slot = slots[0];
     if (slot.locked) return;
-    const previous = getRouteNeighbor(slot, -1);
-    if (!previous) return;
-    slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
-	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
-    slot.updatedAt = stamp;
-    cascadeIfEnabled(slot.id);
+	    const previous = getRouteNeighbor(slot, -1);
+	    if (!previous) return;
+	    slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
+		    applyRecalculatedSlotTiming(slot, planningState);
+	    slot.updatedAt = stamp;
+	    cascadeIfEnabled(slot.id);
     persistState();
     render();
     return;
   }
 
-  if (warning.type === "duration" && slots[0]) {
-    const slot = slots[0];
-    if (slot.locked) return;
-	    slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, slot.quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
-    slot.updatedAt = stamp;
-    cascadeIfEnabled(slot.id);
+	  if (warning.type === "duration" && slots[0]) {
+	    const slot = slots[0];
+	    if (slot.locked) return;
+		    applyRecalculatedSlotTiming(slot, planningState);
+	    slot.updatedAt = stamp;
+	    cascadeIfEnabled(slot.id);
     persistState();
     render();
     return;
@@ -17146,10 +26212,10 @@ function updateSlotQuantity(slotId, value) {
   if (!slot) return;
   if (slot.locked) return;
 
-  const quantity = normalizeQuantity(value, slot.quantity);
-  slot.quantity = quantity;
-	  slot.plannedEnd = toSlotDateTime(calculatePlannedEndByQuantity(slot.plannedStart, slot.workCenterId, quantity, planningState, slot.unitsPerHour || null, slot.boardsPerPanel || null, slot));
-  slot.updatedAt = new Date().toISOString();
+	  const quantity = normalizeQuantity(value, slot.quantity);
+	  slot.quantity = quantity;
+		  applyRecalculatedSlotTiming(slot, planningState);
+	  slot.updatedAt = new Date().toISOString();
   cascadeIfEnabled(slotId);
   persistState();
   notifySaveSuccess("Количество операции сохранено");
@@ -17164,14 +26230,6 @@ function cycleSlotStatus(slotId) {
   slot.updatedAt = new Date().toISOString();
   persistState();
   notifySaveSuccess("Статус операции сохранен");
-  render();
-}
-
-function resetDemoState() {
-  planningState = createDefaultPlanningState();
-  ui.expandedProjects = new Set();
-  ui.selectedSlotId = null;
-  withPlanningEntityRemovalAllowed(() => persistState());
   render();
 }
 
@@ -17208,7 +26266,7 @@ function focusRoute(routeId) {
   if (!route) return;
   ui.expandedProjects.add(route.id);
   ui.activeRouteId = route.id;
-  ui.activeProjectId = route.projectId || ui.activeProjectId || "";
+  ui.activeProjectId = getRouteProductionId(route) || getRoutePlanningContext(route)?.id || ui.activeProjectId || "";
   ui.search = "";
   const firstSlot = getRouteSlots(route.id)
     .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))[0];
@@ -17254,7 +26312,7 @@ function closeModals() {
   ui.selectedSlotId = null;
   ui.editor = null;
   ui.splitSlotId = null;
-  ui.projectModal = false;
+  ui.routeSmtPopup = null;
   ui.directoryEditor = null;
   ui.confirmDialog = null;
   ui.activeShopMapWidgetId = "";
@@ -17266,7 +26324,8 @@ function buildRows(scaleInfo) {
   const rows = [];
 
   for (const route of filteredRoutes) {
-    const project = getProject(route.projectId);
+    const project = getRoutePlanningContext(route);
+    const productionId = project?.id || getRouteProductionId(route);
     const routeExpanded = isGanttRouteExpanded(route);
     const routeSlots = getRouteSummarySlots(route.id);
     rows.push({
@@ -17275,37 +26334,70 @@ function buildRows(scaleInfo) {
       route,
       project,
       routeId: route.id,
-      projectId: route.projectId,
+      projectId: productionId,
       height: getScaledRowHeight(PROJECT_ROW_HEIGHT, routeSlots, scaleInfo, true),
     });
 
     if (!routeExpanded) continue;
 
-    const routeSteps = getRouteStepsForModule(route.id);
-    for (const step of routeSteps) {
-      if (!ganttRouteStepMatchesFilter(step)) continue;
-      const center = getWorkCenter(step.workCenterId) || {
-        id: step.workCenterId || "unknown",
-        name: "Подразделение не выбрано",
-        code: "—",
-        isActive: true,
-      };
-      const stepSlots = getSlotsForRouteStep(route.id, step.id);
-      rows.push({
-        id: `operation:${route.id}:${step.id}`,
-        type: "operation",
-        routeId: route.id,
-        projectId: route.projectId,
-        routeStepId: step.id,
-        routeStep: step,
-        workCenterId: step.workCenterId,
-        workCenter: center,
-        height: getScaledRowHeight(WORK_ROW_HEIGHT, stepSlots, scaleInfo, false),
-      });
-    }
+    rows.push(...getRouteGanttResourceRows(route, productionId, scaleInfo));
   }
 
   return rows;
+}
+
+function getRouteGanttResourceRows(route, productionId, scaleInfo) {
+  const routeStepsById = new Map(getRouteStepsForModule(route.id).map((step) => [step.id, step]));
+  const groupedRows = new Map();
+
+  getRouteSlots(route.id)
+    .filter((slot) => ganttSlotMatchesFilter(slot))
+    .forEach((slot) => {
+      const workCenterId = mapLegacyWorkCenterId(getSlotGanttWorkCenterId(slot) || slot.workCenterId || "") || "unknown";
+      const resourceId = getSlotGanttResourceId(slot);
+      const rowId = getResourceRowId(route.id, workCenterId, resourceId);
+      const resource = getGanttResourceForSlot(slot, resourceId);
+      const workCenter = getWorkCenter(workCenterId) || {
+        id: workCenterId,
+        name: "Отдел не выбран",
+        code: "—",
+        isActive: true,
+      };
+
+      if (!groupedRows.has(rowId)) {
+        groupedRows.set(rowId, {
+          id: rowId,
+          type: "resource",
+          routeId: route.id,
+          projectId: productionId,
+          workCenterId,
+          workCenter,
+          resourceId,
+          resource,
+          slots: [],
+          routeStepIds: new Set(),
+        });
+      }
+
+      const row = groupedRows.get(rowId);
+      row.slots.push(slot);
+      if (slot.routeStepId) row.routeStepIds.add(slot.routeStepId);
+    });
+
+  return [...groupedRows.values()]
+    .map((row) => ({
+      ...row,
+      routeSteps: [...row.routeStepIds]
+        .map((stepId) => routeStepsById.get(stepId))
+        .filter(Boolean),
+      height: getScaledRowHeight(WORK_ROW_HEIGHT, row.slots, scaleInfo, false),
+    }))
+    .sort((left, right) => (
+      Math.min(...left.slots.map((slot) => toDate(slot.plannedStart).getTime()))
+        - Math.min(...right.slots.map((slot) => toDate(slot.plannedStart).getTime()))
+      || String(left.workCenter?.name || "").localeCompare(String(right.workCenter?.name || ""), "ru")
+      || String(left.resource?.name || "").localeCompare(String(right.resource?.name || ""), "ru")
+    ));
 }
 
 function buildRowLayout(rows) {
@@ -17379,13 +26471,6 @@ function getSlotHeight(isAggregate = false) {
   return isAggregate ? AGGREGATE_SLOT_HEIGHT : STANDARD_SLOT_HEIGHT;
 }
 
-function getSlotConnectionY(rowLayout, placement, isAggregate = false) {
-  if (!rowLayout) return 0;
-  const top = placement?.top ?? getSlotTop(isAggregate);
-  const height = placement?.height ?? getSlotHeight(isAggregate);
-  return rowLayout.top + top + height / 2;
-}
-
 function getProjectCenters(projectId) {
   const routeCenters = getProjectRouteSteps(projectId, planningState)
     .map((step) => getWorkCenter(step.workCenterId))
@@ -17438,8 +26523,8 @@ function getRouteStepIds(routeId) {
 function getSlotRoute(slot) {
   const step = (planningState.routeSteps || []).find((item) => item.id === slot?.routeStepId);
   if (step?.routeId) return (planningState.routes || []).find((route) => route.id === step.routeId) || null;
-  return (planningState.routes || []).find((route) => route.projectId === slot?.projectId && route.isDefault)
-    || (planningState.routes || []).find((route) => route.projectId === slot?.projectId)
+  return (planningState.routes || []).find((route) => (route.specificationId === slot?.specificationId || route.specificationId === slot?.projectId || route.projectId === slot?.projectId) && route.isDefault)
+    || (planningState.routes || []).find((route) => route.specificationId === slot?.specificationId || route.specificationId === slot?.projectId || route.projectId === slot?.projectId)
     || null;
 }
 
@@ -17451,9 +26536,25 @@ function getRouteSlots(routeId) {
   ));
 }
 
+function slotMatchesRouteWorkCenterId(slot = {}, routeWorkCenterId = "") {
+  const normalizedRouteWorkCenterId = getRouteInstructionWorkCenterId(routeWorkCenterId);
+  const slotWorkCenterId = mapLegacyWorkCenterId(slot.workCenterId || "");
+  if (!normalizedRouteWorkCenterId || !slotWorkCenterId) return false;
+  if (slot.routeWorkCenterId === normalizedRouteWorkCenterId) return true;
+  if (slotWorkCenterId === normalizedRouteWorkCenterId) return true;
+  const slotWorkCenter = getWorkCenter(slotWorkCenterId);
+  return slotWorkCenter?.parentWorkCenterId === normalizedRouteWorkCenterId;
+}
+
 function getSlotsForRouteCenter(routeId, workCenterId) {
+  const normalizedWorkCenterId = mapLegacyWorkCenterId(workCenterId);
+  const requestedCenter = getWorkCenter(normalizedWorkCenterId);
+  const shouldIncludeRouteChildren = !requestedCenter || !isPlanningWorkCenter(requestedCenter);
   const routeSlots = getRouteSlots(routeId);
-  return routeSlots.filter((slot) => slot.workCenterId === workCenterId);
+  return routeSlots.filter((slot) => (
+    slot.workCenterId === normalizedWorkCenterId
+    || (shouldIncludeRouteChildren && slotMatchesRouteWorkCenterId(slot, normalizedWorkCenterId))
+  ));
 }
 
 function getSlotsForRouteStep(routeId, routeStepId) {
@@ -17462,8 +26563,11 @@ function getSlotsForRouteStep(routeId, routeStepId) {
 }
 
 function getSlotsForRouteResource(routeId, workCenterId, resourceId) {
-  return getSlotsForRouteCenter(routeId, workCenterId)
-    .filter((slot) => getSlotGanttResourceId(slot) === resourceId);
+  const normalizedWorkCenterId = mapLegacyWorkCenterId(workCenterId);
+  return getRouteSlots(routeId).filter((slot) => (
+    mapLegacyWorkCenterId(getSlotGanttWorkCenterId(slot) || slot.workCenterId || "") === normalizedWorkCenterId
+    && getSlotGanttResourceId(slot) === resourceId
+  ));
 }
 
 function getGanttCenterRouteWorkCenterId(center) {
@@ -17480,29 +26584,38 @@ function ganttRouteStepMatchesFilter(step) {
   if (ui.workCenterFilter === "all") return true;
   const workCenterId = mapLegacyWorkCenterId(step?.workCenterId || "");
   if (workCenterId === ui.workCenterFilter) return true;
+  const filteredCenter = getWorkCenter(ui.workCenterFilter);
+  if (filteredCenter && isPlanningWorkCenter(filteredCenter)) {
+    return getSlotsForRouteStep(step.routeId, step.id).some((slot) => (
+      slot.workCenterId === ui.workCenterFilter
+      || getSlotGanttWorkCenterId(slot) === ui.workCenterFilter
+    ));
+  }
   const center = getWorkCenter(workCenterId);
   if (center?.parentWorkCenterId === ui.workCenterFilter) return true;
+  if (filteredCenter?.parentWorkCenterId === workCenterId) return true;
   return false;
 }
 
-function isFinishedGoodsSlot(slot) {
-  const operationName = String(slot.operationName || "").toLowerCase();
-  const outputName = String(slot.output || "").toLowerCase();
-  return isWarehouseWorkCenterId(slot.workCenterId)
-    || operationName.includes("склад")
-    || operationName.includes("готов")
-    || outputName.includes("готов");
+function ganttSlotMatchesFilter(slot) {
+  if (ui.workCenterFilter === "all") return true;
+  const filteredCenter = getWorkCenter(ui.workCenterFilter);
+  if (filteredCenter && isPlanningWorkCenter(filteredCenter)) {
+    return slot.workCenterId === ui.workCenterFilter
+      || getSlotGanttWorkCenterId(slot) === ui.workCenterFilter;
+  }
+  return slotMatchesRouteWorkCenterId(slot, ui.workCenterFilter);
 }
 
 function getProjectSummarySlots(projectId) {
   return planningState.slots.filter((slot) => (
     slot.projectId === projectId
-    && isFinishedGoodsSlot(slot)
+    && isManufacturingOutputReceiptSlot(slot)
   ));
 }
 
 function getRouteSummarySlots(routeId) {
-  return getRouteSlots(routeId).filter((slot) => isFinishedGoodsSlot(slot));
+  return getRouteSlots(routeId).filter((slot) => isManufacturingOutputReceiptSlot(slot));
 }
 
 function projectMatchesFilters(project) {
@@ -17515,13 +26628,16 @@ function projectMatchesFilters(project) {
   }
 
   if (ui.workCenterFilter !== "all") {
+    const filteredCenter = getWorkCenter(ui.workCenterFilter);
+    const filterIsPlanningCenter = Boolean(filteredCenter && isPlanningWorkCenter(filteredCenter));
     const hasRouteCenter = getProjectRouteSteps(project.id, planningState).some((step) => (
       mapLegacyWorkCenterId(step.workCenterId) === ui.workCenterFilter
-      || getWorkCenter(mapLegacyWorkCenterId(step.workCenterId))?.parentWorkCenterId === ui.workCenterFilter
+      || (!filterIsPlanningCenter && getWorkCenter(mapLegacyWorkCenterId(step.workCenterId))?.parentWorkCenterId === ui.workCenterFilter)
     ));
-    const hasSlotCenter = isSmtLineWorkCenterId(ui.workCenterFilter)
-      ? getSlotsForProjectCenter(project.id, ui.workCenterFilter).length > 0
-      : planningState.slots.some((slot) => project.id === slot.projectId && slot.workCenterId === ui.workCenterFilter);
+    const hasSlotCenter = planningState.slots.some((slot) => (
+      project.id === slot.projectId
+      && (slot.workCenterId === ui.workCenterFilter || getSlotGanttWorkCenterId(slot) === ui.workCenterFilter)
+    ));
     if (!hasRouteCenter && !hasSlotCenter) return false;
   }
 
@@ -17529,22 +26645,25 @@ function projectMatchesFilters(project) {
 }
 
 function routeMatchesGanttFilters(route) {
-  const project = getProject(route?.projectId);
+  const project = getRoutePlanningContext(route);
   if (!route || !project) return false;
   if (route.planningStatus === "canceled") return false;
   if (!getRouteSlots(route.id).length) return false;
   if (ui.statusFilter !== "all" && project.status !== ui.statusFilter) return false;
 
   const specification = getRouteSpecification(route);
+  const bom = getRouteBomList(route);
   if (ui.search.trim()) {
-    const haystack = `${route.name || ""} ${specification?.name || ""} ${specification?.outputItem || ""} ${getProjectDisplayName(project)} ${getProjectDisplayOutput(project)} ${project.orderNumber || ""} ${project.customer || ""}`.toLowerCase();
+    const haystack = `${route.name || ""} ${bom?.name || ""} ${bom?.resultItem || ""} ${bom?.boardCode || ""} ${specification?.name || ""} ${specification?.outputItem || ""} ${getProjectDisplayName(project)} ${getProjectDisplayOutput(project)} ${project.orderNumber || ""} ${project.customer || ""}`.toLowerCase();
     if (!haystack.includes(ui.search.trim().toLowerCase())) return false;
   }
 
   if (ui.workCenterFilter !== "all") {
+    const filteredCenter = getWorkCenter(ui.workCenterFilter);
+    const filterIsPlanningCenter = Boolean(filteredCenter && isPlanningWorkCenter(filteredCenter));
     const hasRouteCenter = getRouteStepsForModule(route.id).some((step) => (
       mapLegacyWorkCenterId(step.workCenterId) === ui.workCenterFilter
-      || getWorkCenter(mapLegacyWorkCenterId(step.workCenterId))?.parentWorkCenterId === ui.workCenterFilter
+      || (!filterIsPlanningCenter && getWorkCenter(mapLegacyWorkCenterId(step.workCenterId))?.parentWorkCenterId === ui.workCenterFilter)
     ));
     const hasSlotCenter = getSlotsForRouteCenter(route.id, ui.workCenterFilter).length > 0;
     if (!hasRouteCenter && !hasSlotCenter) return false;
@@ -17563,7 +26682,16 @@ function getRowSlots(row) {
   }
 
   if (row.type === "operation") {
-    return getSlotsForRouteStep(row.routeId, row.routeStepId);
+    const slots = getSlotsForRouteStep(row.routeId, row.routeStepId);
+    if (ui.workCenterFilter === "all") return slots;
+    const filteredCenter = getWorkCenter(ui.workCenterFilter);
+    if (filteredCenter && isPlanningWorkCenter(filteredCenter)) {
+      return slots.filter((slot) => (
+        slot.workCenterId === ui.workCenterFilter
+        || getSlotGanttWorkCenterId(slot) === ui.workCenterFilter
+      ));
+    }
+    return slots.filter((slot) => slotMatchesRouteWorkCenterId(slot, ui.workCenterFilter));
   }
 
   if (row.type === "workCenter") {
@@ -17589,10 +26717,10 @@ function getVisibleSlotRowId(slot) {
   const route = getSlotRoute(slot);
   if (!route) return null;
   if (!isGanttRouteExpanded(route)) {
-    return isFinishedGoodsSlot(slot) ? `route:${route.id}` : null;
+    return isManufacturingOutputReceiptSlot(slot) ? `route:${route.id}` : null;
   }
-  if (slot.routeStepId) return `operation:${route.id}:${slot.routeStepId}`;
-  return null;
+  const workCenterId = mapLegacyWorkCenterId(getSlotGanttWorkCenterId(slot) || slot.workCenterId || "") || "unknown";
+  return getResourceRowId(route.id, workCenterId, getSlotGanttResourceId(slot));
 }
 
 function buildStats(warnings) {
@@ -17615,14 +26743,14 @@ function getProject(id) {
 }
 
 function getProductionContexts() {
-  return (directoryState.specifications || [])
+  return getDirectoryRows("specifications")
     .map((specification) => getProductionContextForSpecification(specification))
     .filter(Boolean);
 }
 
 function getSpecificationByProjectId(projectId) {
   if (!projectId) return null;
-  return (directoryState.specifications || []).find((specification) => (
+  return getDirectoryRows("specifications").find((specification) => (
     specification.id === projectId
     || specification.projectId === projectId
   )) || null;
@@ -17632,7 +26760,7 @@ function getProductionContextForSpecification(specification) {
   if (!specification) return null;
   return {
     id: specification.id,
-    name: specification.outputItem || specification.name || "Спецификация",
+    name: specification.outputItem || specification.name || PRODUCT_COMPOSITION_TERM,
     orderNumber: specification.orderNumber || "",
     customer: specification.customer || "",
     totalQuantity: normalizeOptionalPositiveInteger(specification.productionQuantity) || 1,
@@ -17706,10 +26834,14 @@ function icon(name) {
     document: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M14 3v6h6M8 13h8M8 17h6"></path></svg>`,
     bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z"></path><path d="M2 8h2M2 12h2M2 16h2M20 8h2M20 12h2M20 16h2M8 2v2M12 2v2M16 2v2M8 20v2M12 20v2M16 20v2"></path></svg>`,
     package: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"></path><path d="M4 7.5 12 12l8-4.5M12 12v9"></path><path d="m8 5.2 8 4.5"></path></svg>`,
+    warehouse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"></path><path d="M7 21V11h10v10"></path><path d="M7 15h10M7 18h10M12 11v10"></path><path d="M3 8h18"></path></svg>`,
+    directory: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M7 12h10M7 16h7"></path></svg>`,
     settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,
     calculator: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M8 6h8M8 10h2M12 10h2M16 10h.01M8 14h2M12 14h2M16 14h.01M8 18h2M12 18h4"></path></svg>`,
     calendar: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path></svg>`,
+    today: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path><circle cx="12" cy="15" r="2.3"></circle></svg>`,
     gantt: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v14M4 19h16"></path><path d="M8 7h9M8 12h5M12 17h8"></path><path d="M7 7h1M7 12h1M11 17h1"></path></svg>`,
+    routeEdit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5a3 3 0 0 1 3 3v4a3 3 0 0 0 3 3h5"></path><circle cx="4" cy="7" r="1.7"></circle><circle cx="20" cy="17" r="1.7"></circle><path d="M15.5 5.5a1.8 1.8 0 0 1 2.5 2.5l-6.7 6.7-3.1.8.8-3.1Z"></path></svg>`,
     tree: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="7" height="5" rx="1.5"></rect><rect x="13" y="10" width="7" height="5" rx="1.5"></rect><rect x="13" y="17" width="7" height="4" rx="1.5"></rect><path d="M7.5 8v7a2 2 0 0 0 2 2H13M11 12h2M7.5 12H13"></path></svg>`,
     refresh: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14-5l-2 2"></path><path d="M4 4v4h4"></path><path d="M4 13a8 8 0 0 0 14 5l2-2"></path><path d="M20 20v-4h-4"></path></svg>`,
     reset: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 3v6h6"></path></svg>`,
@@ -17755,6 +26887,31 @@ window.addEventListener("click", (event) => {
   const updateDismissButton = event.target.closest?.("[data-update-dismiss]");
   if (updateDismissButton) {
     hideUpdateReadyNotice(updateDismissButton.dataset.updateDismiss || "");
+    return;
+  }
+
+  const savePresetButton = event.target.closest?.("[data-save-workflow-preset]");
+  if (savePresetButton && app.contains(savePresetButton)) {
+    event.preventDefault();
+    saveWorkflowPresetSnapshot({ source: "sidebar-button", persistToFile: true });
+    return;
+  }
+
+  const restorePresetButton = event.target.closest?.("[data-restore-workflow-preset]");
+  if (restorePresetButton && app.contains(restorePresetButton)) {
+    event.preventDefault();
+    if (restorePresetButton.disabled) {
+      notifySaveSuccess("Пресет еще не сохранен");
+      return;
+    }
+    openConfirmDialog("restoreWorkflowPreset");
+    return;
+  }
+
+  const roleButton = event.target.closest?.("[data-role-switch]");
+  if (roleButton && app.contains(roleButton)) {
+    event.preventDefault();
+    switchInterfaceRole(roleButton.dataset.roleSwitch || "");
     return;
   }
 

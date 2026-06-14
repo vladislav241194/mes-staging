@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { saveWorkflowPreset } from "./workflow-preset-endpoint.mjs";
 
 const projectRoot = join(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = join(projectRoot, "dist");
@@ -34,6 +35,12 @@ function getSafePath(requestUrl) {
   return fullPath.startsWith(distDir) ? fullPath : join(distDir, "index.html");
 }
 
+function shouldFallbackToIndex(requestUrl) {
+  const url = new URL(requestUrl || "/", `http://localhost:${port}`);
+  const extension = extname(url.pathname);
+  return url.pathname === "/" || extension === "" || extension === ".html";
+}
+
 async function ensureDistExists() {
   try {
     const stats = await stat(join(distDir, "index.html"));
@@ -49,6 +56,18 @@ if (!(await ensureDistExists())) {
 }
 
 createServer(async (req, res) => {
+  const url = new URL(req.url || "/", `http://localhost:${port}`);
+  if (req.method === "POST" && url.pathname === "/api/workflow-preset") {
+    await saveWorkflowPreset(req, res, {
+      targetPaths: [
+        join(projectRoot, "workflow-preset.json"),
+        join(distDir, "workflow-preset.json"),
+      ],
+      headers: responseHeaders,
+    });
+    return;
+  }
+
   const filePath = getSafePath(req.url);
   const contentType = mimeTypes[extname(filePath)] || "application/octet-stream";
 
@@ -57,6 +76,11 @@ createServer(async (req, res) => {
     res.writeHead(200, responseHeaders(contentType));
     res.end(body);
   } catch {
+    if (!shouldFallbackToIndex(req.url)) {
+      res.writeHead(404, responseHeaders(contentType));
+      res.end("");
+      return;
+    }
     const body = await readFile(join(distDir, "index.html"));
     res.writeHead(200, responseHeaders(mimeTypes[".html"]));
     res.end(body);

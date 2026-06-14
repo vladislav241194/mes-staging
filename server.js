@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import { saveWorkflowPreset } from "./scripts/workflow-preset-endpoint.mjs";
 
 const root = new URL(".", import.meta.url).pathname;
 const port = Number(process.env.PORT || 4173);
@@ -18,6 +19,12 @@ function safePath(urlPath) {
   const requested = decoded === "/" ? "/index.html" : decoded;
   const fullPath = normalize(join(root, requested));
   return fullPath.startsWith(root) ? fullPath : join(root, "index.html");
+}
+
+function shouldFallbackToIndex(requestUrl) {
+  const url = new URL(requestUrl || "/", `http://localhost:${port}`);
+  const extension = extname(url.pathname);
+  return url.pathname === "/" || extension === "" || extension === ".html";
 }
 
 function noCacheHeaders(contentType, clearCache = false) {
@@ -53,6 +60,15 @@ async function renderIndexHtml() {
 }
 
 createServer(async (req, res) => {
+  const url = new URL(req.url || "/", `http://localhost:${port}`);
+  if (req.method === "POST" && url.pathname === "/api/workflow-preset") {
+    await saveWorkflowPreset(req, res, {
+      targetPaths: [join(root, "workflow-preset.json")],
+      headers: noCacheHeaders,
+    });
+    return;
+  }
+
   const filePath = safePath(req.url || "/");
   const contentType = mimeTypes[extname(filePath)] || "application/octet-stream";
 
@@ -62,6 +78,11 @@ createServer(async (req, res) => {
     res.writeHead(200, noCacheHeaders(contentType, isIndex));
     res.end(body);
   } catch {
+    if (!shouldFallbackToIndex(req.url)) {
+      res.writeHead(404, noCacheHeaders(contentType));
+      res.end("");
+      return;
+    }
     const body = await renderIndexHtml();
     res.writeHead(200, noCacheHeaders(mimeTypes[".html"], true));
     res.end(body);
