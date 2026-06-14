@@ -46,8 +46,10 @@ const WORKFLOW_PRESET_FILE_URL = "./workflow-preset.json";
 const WORKFLOW_PRESET_API_URL = "./api/workflow-preset";
 const SHARED_STATE_API_URL = "./api/shared-state";
 const SHARED_STATE_CLIENT_ID_KEY = "mes-planning-prototype-shared-client-id-v1";
+const SHARED_STATE_DISABLED_UNTIL_KEY = "mes-planning-prototype-shared-disabled-until-v1";
 const SHARED_STATE_POLL_INTERVAL_MS = 4000;
 const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
+const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
 const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
 const APP_VERSION = "v.1.210";
 const UPDATE_CHECK_INTERVAL_MS = 10000;
@@ -672,6 +674,22 @@ function rememberSharedUiSignature() {
   sharedStateStatus.lastSharedUiSignature = getSharedUiSignature();
 }
 
+function isSharedStateTemporarilyDisabled() {
+  const disabledUntil = Number(window.sessionStorage?.getItem(SHARED_STATE_DISABLED_UNTIL_KEY) || 0);
+  return Number.isFinite(disabledUntil) && disabledUntil > Date.now();
+}
+
+function rememberSharedStateDisabled() {
+  window.sessionStorage?.setItem(
+    SHARED_STATE_DISABLED_UNTIL_KEY,
+    String(Date.now() + SHARED_STATE_DISABLED_RECHECK_MS),
+  );
+}
+
+function forgetSharedStateDisabled() {
+  window.sessionStorage?.removeItem(SHARED_STATE_DISABLED_UNTIL_KEY);
+}
+
 function getSharedStateValues() {
   const values = Object.fromEntries(SHARED_STATE_VALUE_KEYS.map((key) => [key, localStorage.getItem(key)]));
   values[STORAGE_KEY] = JSON.stringify(planningState);
@@ -722,18 +740,26 @@ function applySharedStateSnapshot(snapshot, options = {}) {
 }
 
 async function requestSharedState(method = "GET", payload = null) {
+  const controller = new AbortController();
+  const timeoutMs = method === "GET" ? 2500 : 8000;
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
   const request = {
     method,
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
+    signal: controller.signal,
   };
   if (payload) request.body = JSON.stringify(payload);
-  const response = await fetch(SHARED_STATE_API_URL, request);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok && response.status !== 409) {
-    throw new Error(data?.error || `Shared state request failed with status ${response.status}`);
+  try {
+    const response = await fetch(SHARED_STATE_API_URL, request);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok && response.status !== 409) {
+      throw new Error(data?.error || `Shared state request failed with status ${response.status}`);
+    }
+    return data;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-  return data;
 }
 
 function scheduleSharedStatePush(reason = "snapshot") {
@@ -803,6 +829,7 @@ async function pollSharedState() {
     if (snapshot.configured === false) {
       sharedStateStatus.enabled = false;
       sharedStateStatus.configured = false;
+      rememberSharedStateDisabled();
       window.clearInterval(sharedStateStatus.pollTimer);
       return;
     }
@@ -818,14 +845,16 @@ async function pollSharedState() {
 }
 
 async function startSharedStateSync() {
-  if (!window.fetch) return;
+  if (!window.fetch || isSharedStateTemporarilyDisabled()) return;
   try {
     const snapshot = await requestSharedState("GET");
     if (snapshot.configured === false) {
+      rememberSharedStateDisabled();
       console.info("[MES] Shared staging state is disabled: storage is not configured.");
       return;
     }
 
+    forgetSharedStateDisabled();
     sharedStateStatus.configured = true;
     sharedStateStatus.enabled = true;
     sharedStateStatus.version = Number(snapshot.version || 0);
@@ -834,7 +863,10 @@ async function startSharedStateSync() {
       applySharedStateSnapshot(snapshot, { silent: true });
     } else {
       rememberSharedUiSignature();
-      await pushSharedState("initial-state", { silent: true });
+      const counts = getWorkflowPresetCountsFromState();
+      if (isMeaningfulWorkflowPresetCounts(counts)) {
+        await pushSharedState("initial-state", { silent: true });
+      }
     }
 
     window.clearInterval(sharedStateStatus.pollTimer);
@@ -842,6 +874,15 @@ async function startSharedStateSync() {
   } catch (error) {
     console.warn("[MES] Shared state sync is not available", error);
   }
+}
+
+function scheduleSharedStateSyncBootstrap() {
+  const start = () => startSharedStateSync();
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(start, { timeout: 2500 });
+    return;
+  }
+  window.setTimeout(start, 1200);
 }
 
 function getWorkflowPresetCountsFromState(sourcePlanning = planningState, sourceDirectory = directoryState) {
@@ -1058,7 +1099,7 @@ function createDefaultDirectoryState() {
 render();
 appBootstrapped = true;
 startUpdateNotifier();
-startSharedStateSync();
+scheduleSharedStateSyncBootstrap();
 setInterval(() => {
   ui.now = new Date();
   updateClockOnly();
