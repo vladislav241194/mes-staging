@@ -38,8 +38,38 @@ Open:
 http://localhost:4174
 ```
 
+## Shared Staging State
+
+The staging build can share production planning data between testers through
+`/api/shared-state`. The client keeps personal UI state in the browser, but
+publishes planning data, directories, and shared visual settings to the common
+snapshot.
+
+For Vercel staging, configure one of these KV/Redis env pairs:
+
+```text
+KV_REST_API_URL
+KV_REST_API_TOKEN
+```
+
+or:
+
+```text
+UPSTASH_REDIS_REST_URL
+UPSTASH_REDIS_REST_TOKEN
+```
+
+Optional:
+
+```text
+MES_SHARED_STATE_KEY
+```
+
+Local development and `npm run preview` use `.mes-shared-state.json`, which is
+ignored by git.
+
 ## Notes
 
 - Do not commit `dist/` to git.
-- Staging is static for now and uses browser `localStorage`.
+- Without KV/Redis env vars, staging keeps using browser `localStorage`.
 - `server.js` is only for local development and is not used by Vercel static deploy.

@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { handleSharedStateRequest } from "./shared-state-endpoint.mjs";
 import { saveWorkflowPreset } from "./workflow-preset-endpoint.mjs";
 
 const projectRoot = join(fileURLToPath(new URL("..", import.meta.url)));
@@ -63,6 +64,14 @@ createServer(async (req, res) => {
         join(projectRoot, "workflow-preset.json"),
         join(distDir, "workflow-preset.json"),
       ],
+      headers: responseHeaders,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/shared-state") {
+    await handleSharedStateRequest(req, res, {
+      filePath: join(projectRoot, ".mes-shared-state.json"),
       headers: responseHeaders,
     });
     return;

@@ -44,6 +44,10 @@ const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5"
 const WORKFLOW_PRESET_STORAGE_KEY = "mes-planning-prototype-workflow-preset-v1";
 const WORKFLOW_PRESET_FILE_URL = "./workflow-preset.json";
 const WORKFLOW_PRESET_API_URL = "./api/workflow-preset";
+const SHARED_STATE_API_URL = "./api/shared-state";
+const SHARED_STATE_CLIENT_ID_KEY = "mes-planning-prototype-shared-client-id-v1";
+const SHARED_STATE_POLL_INTERVAL_MS = 4000;
+const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
 const UPDATE_DISMISSED_STORAGE_KEY = "mes-planning-prototype-update-dismissed-v1";
 const APP_VERSION = "v.1.210";
 const UPDATE_CHECK_INTERVAL_MS = 10000;
@@ -68,6 +72,13 @@ const WORKFLOW_PRESET_VALUE_KEYS = [
   DIRECTORY_STORAGE_KEY,
   DIRECTORY_DEFAULTS_STORAGE_KEY,
   CALCULATOR_STORAGE_KEY,
+  DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
+  WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
+];
+const SHARED_STATE_VALUE_KEYS = [
+  STORAGE_KEY,
+  DIRECTORY_STORAGE_KEY,
+  DIRECTORY_DEFAULTS_STORAGE_KEY,
   DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
   WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
 ];
@@ -204,6 +215,18 @@ const DEFAULT_DEPARTMENTS = [];
 const app = document.querySelector("#app");
 let appBootstrapped = false;
 let suppressedGanttSlotClick = null;
+let sharedStateApplyingRemote = false;
+const sharedStateStatus = {
+  configured: false,
+  enabled: false,
+  version: 0,
+  saveTimer: null,
+  pollTimer: null,
+  saveInFlight: false,
+  pollInFlight: false,
+  pendingReason: "",
+  lastSharedUiSignature: "",
+};
 
 function renderFatalStartupError(error) {
   if (!app) return;
@@ -618,6 +641,209 @@ function parseJsonObject(value) {
   }
 }
 
+function getSharedStateClientId() {
+  const existing = localStorage.getItem(SHARED_STATE_CLIENT_ID_KEY);
+  if (existing) return existing;
+  const id = window.crypto?.randomUUID
+    ? window.crypto.randomUUID()
+    : `tester-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  localStorage.setItem(SHARED_STATE_CLIENT_ID_KEY, id);
+  return id;
+}
+
+function getSharedStateActorLabel() {
+  const role = getActiveInterfaceRole();
+  return role?.label || "Тестировщик";
+}
+
+function getSharedUiSnapshot() {
+  if (!ui) return {};
+  return {
+    shopMapWidgetLayouts: normalizeShopMapLayoutStore(ui.shopMapWidgetLayouts),
+    ganttDependencyRoutes: normalizeGanttDependencyRouteStore(ui.ganttDependencyRoutes),
+  };
+}
+
+function getSharedUiSignature() {
+  return JSON.stringify(getSharedUiSnapshot());
+}
+
+function rememberSharedUiSignature() {
+  sharedStateStatus.lastSharedUiSignature = getSharedUiSignature();
+}
+
+function getSharedStateValues() {
+  const values = Object.fromEntries(SHARED_STATE_VALUE_KEYS.map((key) => [key, localStorage.getItem(key)]));
+  values[STORAGE_KEY] = JSON.stringify(planningState);
+  values[DIRECTORY_STORAGE_KEY] = JSON.stringify(directoryState);
+  if (!values[DIRECTORY_DEFAULTS_STORAGE_KEY]) values[DIRECTORY_DEFAULTS_STORAGE_KEY] = "1";
+  return values;
+}
+
+function writeSharedStateValues(values = {}) {
+  SHARED_STATE_VALUE_KEYS.forEach((key) => {
+    const value = values[key];
+    if (value === null || typeof value === "undefined") {
+      localStorage.removeItem(key);
+    } else if (typeof value === "string") {
+      localStorage.setItem(key, value);
+    }
+  });
+}
+
+function applySharedStateSnapshot(snapshot, options = {}) {
+  if (!snapshot?.values?.[STORAGE_KEY] || !snapshot?.values?.[DIRECTORY_STORAGE_KEY]) return false;
+  sharedStateApplyingRemote = true;
+  try {
+    writeSharedStateValues(snapshot.values);
+    directoryState = loadDirectoryState();
+    planningState = loadState();
+    alignGanttWindowToPlan({ onlyWhenFar: true });
+
+    const sharedUi = snapshot.sharedUi || {};
+    ui.shopMapWidgetLayouts = normalizeShopMapLayoutStore(sharedUi.shopMapWidgetLayouts);
+    ui.ganttDependencyRoutes = normalizeGanttDependencyRouteStore(sharedUi.ganttDependencyRoutes);
+    ui.ganttDependencyRouteDrafts = null;
+    ui.ganttDependencyDrag = null;
+    shopMapLayoutDraft = null;
+
+    sharedStateStatus.version = Number(snapshot.version || 0);
+    rememberSharedUiSignature();
+    persistUiState({ skipRememberScroll: true });
+
+    if (appBootstrapped) {
+      render({ skipRememberScroll: true });
+      if (!options.silent) notifySaveSuccess("Общее состояние стейджа обновлено");
+    }
+    return true;
+  } finally {
+    sharedStateApplyingRemote = false;
+  }
+}
+
+async function requestSharedState(method = "GET", payload = null) {
+  const request = {
+    method,
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  };
+  if (payload) request.body = JSON.stringify(payload);
+  const response = await fetch(SHARED_STATE_API_URL, request);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 409) {
+    throw new Error(data?.error || `Shared state request failed with status ${response.status}`);
+  }
+  return data;
+}
+
+function scheduleSharedStatePush(reason = "snapshot") {
+  if (!sharedStateStatus.enabled || sharedStateApplyingRemote) return;
+  sharedStateStatus.pendingReason = reason || sharedStateStatus.pendingReason || "snapshot";
+  window.clearTimeout(sharedStateStatus.saveTimer);
+  sharedStateStatus.saveTimer = window.setTimeout(() => {
+    pushSharedState(sharedStateStatus.pendingReason || "snapshot");
+  }, SHARED_STATE_SAVE_DEBOUNCE_MS);
+}
+
+async function pushSharedState(reason = "snapshot", options = {}) {
+  if (!sharedStateStatus.enabled || sharedStateApplyingRemote) return false;
+  if (sharedStateStatus.saveInFlight) {
+    sharedStateStatus.pendingReason = reason;
+    return false;
+  }
+
+  window.clearTimeout(sharedStateStatus.saveTimer);
+  sharedStateStatus.pendingReason = "";
+  sharedStateStatus.saveInFlight = true;
+
+  try {
+    const response = await requestSharedState("POST", {
+      baseVersion: sharedStateStatus.version,
+      clientId: getSharedStateClientId(),
+      actor: getSharedStateActorLabel(),
+      action: reason,
+      values: getSharedStateValues(),
+      sharedUi: getSharedUiSnapshot(),
+    });
+
+    if (response.conflict && response.current) {
+      applySharedStateSnapshot(response.current, { silent: true });
+      if (!options.silent) {
+        notifySaveSuccess("Стейдж уже обновлен другим тестировщиком");
+      }
+      return false;
+    }
+
+    if (response.configured === false) {
+      sharedStateStatus.enabled = false;
+      sharedStateStatus.configured = false;
+      return false;
+    }
+
+    if (response.ok) {
+      sharedStateStatus.configured = true;
+      sharedStateStatus.version = Number(response.version || sharedStateStatus.version);
+      rememberSharedUiSignature();
+      return true;
+    }
+  } catch (error) {
+    console.warn("[MES] Shared state push failed", error);
+  } finally {
+    sharedStateStatus.saveInFlight = false;
+    if (sharedStateStatus.pendingReason) scheduleSharedStatePush(sharedStateStatus.pendingReason);
+  }
+  return false;
+}
+
+async function pollSharedState() {
+  if (!sharedStateStatus.enabled || sharedStateStatus.pollInFlight || sharedStateStatus.saveInFlight) return;
+  sharedStateStatus.pollInFlight = true;
+  try {
+    const snapshot = await requestSharedState("GET");
+    if (snapshot.configured === false) {
+      sharedStateStatus.enabled = false;
+      sharedStateStatus.configured = false;
+      window.clearInterval(sharedStateStatus.pollTimer);
+      return;
+    }
+    const version = Number(snapshot.version || 0);
+    if (version > sharedStateStatus.version) {
+      applySharedStateSnapshot(snapshot);
+    }
+  } catch (error) {
+    console.warn("[MES] Shared state poll failed", error);
+  } finally {
+    sharedStateStatus.pollInFlight = false;
+  }
+}
+
+async function startSharedStateSync() {
+  if (!window.fetch) return;
+  try {
+    const snapshot = await requestSharedState("GET");
+    if (snapshot.configured === false) {
+      console.info("[MES] Shared staging state is disabled: storage is not configured.");
+      return;
+    }
+
+    sharedStateStatus.configured = true;
+    sharedStateStatus.enabled = true;
+    sharedStateStatus.version = Number(snapshot.version || 0);
+
+    if (snapshot.version > 0 && snapshot.values) {
+      applySharedStateSnapshot(snapshot, { silent: true });
+    } else {
+      rememberSharedUiSignature();
+      await pushSharedState("initial-state", { silent: true });
+    }
+
+    window.clearInterval(sharedStateStatus.pollTimer);
+    sharedStateStatus.pollTimer = window.setInterval(pollSharedState, SHARED_STATE_POLL_INTERVAL_MS);
+  } catch (error) {
+    console.warn("[MES] Shared state sync is not available", error);
+  }
+}
+
 function getWorkflowPresetCountsFromState(sourcePlanning = planningState, sourceDirectory = directoryState) {
   return {
     specifications: Array.isArray(sourceDirectory?.specifications) ? sourceDirectory.specifications.length : 0,
@@ -832,6 +1058,7 @@ function createDefaultDirectoryState() {
 render();
 appBootstrapped = true;
 startUpdateNotifier();
+startSharedStateSync();
 setInterval(() => {
   ui.now = new Date();
   updateClockOnly();
@@ -867,6 +1094,7 @@ function persistState() {
     planningState = preserveCriticalPlanningEntities(previousState, planningState);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(planningState));
+  scheduleSharedStatePush("planning-state");
 }
 
 function parsePlanningStateSnapshot(raw) {
@@ -1333,6 +1561,7 @@ function persistDirectoryState() {
   }
   directoryState = omitDeletedCriticalDirectoryEntities(directoryState);
   localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directoryState));
+  scheduleSharedStatePush("directory-state");
 }
 
 function resolveProductionResourceType(value = "") {
@@ -2754,6 +2983,14 @@ function persistUiState(options = {}) {
     scrollLeft: ui.scrollLeft,
     scrollTop: ui.scrollTop,
   }));
+
+  if (!sharedStateApplyingRemote && sharedStateStatus.enabled) {
+    const signature = getSharedUiSignature();
+    if (signature !== sharedStateStatus.lastSharedUiSignature) {
+      sharedStateStatus.lastSharedUiSignature = signature;
+      scheduleSharedStatePush("shared-ui");
+    }
+  }
 }
 
 function persistAuthState() {
@@ -8410,7 +8647,7 @@ function getModuleDefinitions() {
     { id: "planning", label: "Планирование", icon: "calendar" },
     { id: "dispatch", label: "Диспетчерская", icon: "monitor" },
     { id: "warehouse", label: "Склад", icon: "warehouse" },
-    { id: "shopMap", label: "Карта цеха", icon: "map" },
+    { id: "shopMap", label: "Цех производства", icon: "map" },
     { id: "products", label: PRODUCT_COMPOSITION_LIST_TERM, icon: "tree" },
     { id: "routes", label: "Маршрутная карта", icon: "split" },
     { id: "bomLists", label: BOARD_SPEC_LIST_TERM, icon: "bom" },
@@ -8425,7 +8662,7 @@ function getModuleGroups(modules) {
     { label: "Производство", ids: ["gantt", "planning", "dispatch", "warehouse"] },
     { label: "Технологии", ids: ["products", "routes", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
-    { label: "UX-макеты", ids: ["rkd"], tone: "test" },
+    { label: "UX-макеты", ids: ["shopMap", "rkd"], tone: "test" },
   ];
 
   return groupMap

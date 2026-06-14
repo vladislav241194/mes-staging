@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import { handleSharedStateRequest } from "./scripts/shared-state-endpoint.mjs";
 import { saveWorkflowPreset } from "./scripts/workflow-preset-endpoint.mjs";
 
 const root = new URL(".", import.meta.url).pathname;
@@ -64,6 +65,14 @@ createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/api/workflow-preset") {
     await saveWorkflowPreset(req, res, {
       targetPaths: [join(root, "workflow-preset.json")],
+      headers: noCacheHeaders,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/shared-state") {
+    await handleSharedStateRequest(req, res, {
+      filePath: join(root, ".mes-shared-state.json"),
       headers: noCacheHeaders,
     });
     return;
