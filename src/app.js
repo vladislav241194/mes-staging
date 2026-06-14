@@ -850,6 +850,7 @@ async function startSharedStateSync() {
     const snapshot = await requestSharedState("GET");
     if (snapshot.configured === false) {
       rememberSharedStateDisabled();
+      restoreWorkflowPresetIfCurrentPlanningEmpty(getWorkflowPreset());
       console.info("[MES] Shared staging state is disabled: storage is not configured.");
       return;
     }
@@ -897,6 +898,17 @@ function getWorkflowPresetCountsFromState(sourcePlanning = planningState, source
     warehouseMovements: Array.isArray(sourcePlanning?.warehouseMovements) ? sourcePlanning.warehouseMovements.length : 0,
     warehouseReservations: Array.isArray(sourcePlanning?.warehouseReservations) ? sourcePlanning.warehouseReservations.length : 0,
   };
+}
+
+function hasMeaningfulPlanningState(sourcePlanning = planningState) {
+  return Boolean(
+    sourcePlanning?.routes?.length
+    || sourcePlanning?.routeSteps?.length
+    || sourcePlanning?.batches?.length
+    || sourcePlanning?.slots?.length
+    || sourcePlanning?.warehouseMovements?.length
+    || sourcePlanning?.warehouseReservations?.length
+  );
 }
 
 function getWorkflowPresetCountsFromValues(values = {}) {
@@ -1014,8 +1026,14 @@ async function startWorkflowPresetBootstrap() {
     const preset = await response.json();
     if (!isUsableWorkflowPreset(preset)) return;
     bundledWorkflowPreset = preset;
-    if (!localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY)) {
+    const hadSavedPreset = Boolean(localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY));
+    if (!hadSavedPreset) {
       localStorage.setItem(WORKFLOW_PRESET_STORAGE_KEY, JSON.stringify(preset));
+    }
+    const restored = isSharedStateTemporarilyDisabled()
+      ? restoreWorkflowPresetIfCurrentPlanningEmpty(preset)
+      : false;
+    if (!hadSavedPreset && !restored) {
       render();
     }
   } catch {
@@ -1041,14 +1059,10 @@ async function persistWorkflowPresetToServer(preset, options = {}) {
   }
 }
 
-function restoreWorkflowPreset() {
-  const preset = getWorkflowPreset();
-  if (!preset) {
-    notifySaveSuccess("Пресет еще не сохранен");
-    return;
-  }
+function applyWorkflowPresetValues(preset, options = {}) {
+  if (!isUsableWorkflowPreset(preset)) return false;
+  if (options.backup !== false) backupLocalStateBeforeReset();
 
-  backupLocalStateBeforeReset();
   WORKFLOW_PRESET_VALUE_KEYS.forEach((key) => {
     const value = preset.values[key];
     if (value === null || typeof value === "undefined") {
@@ -1071,8 +1085,27 @@ function restoreWorkflowPreset() {
   ]);
   alignGanttWindowToPlan({ force: true });
   persistUiState();
-  notifySaveSuccess(`Пресет восстановлен: ${formatWorkflowPresetCounts(preset.counts || {})}`);
-  render();
+
+  if (!options.silent) {
+    notifySaveSuccess(`Пресет восстановлен: ${formatWorkflowPresetCounts(preset.counts || {})}`);
+  }
+  if (appBootstrapped) render({ skipRememberScroll: true });
+  return true;
+}
+
+function restoreWorkflowPresetIfCurrentPlanningEmpty(preset) {
+  if (!preset || localStorage.getItem(STORAGE_KEY) || hasMeaningfulPlanningState()) return false;
+  return applyWorkflowPresetValues(preset, { backup: false, silent: true });
+}
+
+function restoreWorkflowPreset() {
+  const preset = getWorkflowPreset();
+  if (!preset) {
+    notifySaveSuccess("Пресет еще не сохранен");
+    return;
+  }
+
+  applyWorkflowPresetValues(preset);
 }
 
 function createDefaultDirectoryState() {
