@@ -1289,6 +1289,53 @@ svg {
   height: 100%;
 }
 
+.timeline-cells.is-grouped-by-week {
+  display: grid;
+  grid-template-rows: 18px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.timeline-week-group-row,
+.timeline-day-cell-row {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
+.timeline-week-group {
+  position: absolute;
+  inset-block: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #eef4ff;
+  padding: 0 8px;
+}
+
+.timeline-week-group strong,
+.timeline-week-group small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-week-group strong {
+  color: #243143;
+  font-size: 10px;
+  font-weight: 820;
+  line-height: 1;
+}
+
+.timeline-week-group small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1;
+}
+
 .timeline-cell {
   position: absolute;
   top: 0;
@@ -1298,6 +1345,26 @@ svg {
   padding: 0 10px;
   border-right: 1px solid var(--line);
   background: #f8fafc;
+}
+
+.timeline-cells.is-grouped-by-week .timeline-cell {
+  padding: 0 6px;
+}
+
+.timeline-cells.is-grouped-by-week .timeline-cell.is-week-start {
+  box-shadow: inset 1px 0 0 rgba(37, 99, 235, 0.24);
+}
+
+.timeline-cells.is-grouped-by-week .timeline-cell.is-weekend {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(100, 116, 139, 0.05) 0,
+      rgba(100, 116, 139, 0.05) 6px,
+      rgba(100, 116, 139, 0.12) 6px,
+      rgba(100, 116, 139, 0.12) 7px
+    ),
+    #f1f5f9;
 }
 
 .timeline-cell strong {
@@ -17231,7 +17298,7 @@ main.planning-app-shell > .planner-workspace {
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: max-content;
   align-items: start;
-  overflow: auto;
+  overflow: visible;
 }
 
 .route-steps-panel {
@@ -17572,10 +17639,11 @@ main.planning-app-shell > .planner-workspace {
 .route-object-table-wrap {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: visible;
 }
 
 .route-object-table {
-  min-width: 1000px;
+  min-width: 860px;
 }
 
 .route-object-table th:nth-child(1),
@@ -17600,11 +17668,6 @@ main.planning-app-shell > .planner-workspace {
 
 .route-object-table th:nth-child(5),
 .route-object-table td:nth-child(5) {
-  width: 132px;
-}
-
-.route-object-table th:nth-child(6),
-.route-object-table td:nth-child(6) {
   width: 172px;
 }
 
@@ -17721,9 +17784,8 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .route-step-compact-order {
-  display: grid;
-  grid-template-columns: 22px minmax(24px, 1fr) 22px;
-  gap: 3px;
+  display: flex;
+  justify-content: center;
   align-items: center;
   min-width: 0;
 }
@@ -17738,18 +17800,24 @@ main.planning-app-shell > .planner-workspace {
 
 .route-step-compact-fields {
   display: grid;
-  grid-template-columns: minmax(112px, 0.72fr) minmax(164px, 1.28fr);
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
   gap: 6px;
-  align-items: end;
+  align-items: center;
+  width: min(100%, 392px);
   min-width: 0;
+  max-width: 392px;
 }
 
 .route-step-compact-fields .form-field {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 5px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 4px;
   align-items: center;
   min-width: 0;
+}
+
+.route-step-compact-fields .route-step-name {
+  grid-template-columns: 52px minmax(0, 1fr);
 }
 
 .route-step-compact-fields .form-field > span {
@@ -17773,15 +17841,16 @@ main.planning-app-shell > .planner-workspace {
 
 .route-step-flow-summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 12px auto minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: repeat(2, minmax(0, auto));
   gap: 4px;
   align-items: center;
   min-width: 0;
-  min-height: 28px;
+  min-height: 38px;
   border: 1px solid #e2e8f0;
   border-radius: 7px;
   background: #f8fafc;
-  padding: 0 6px;
+  padding: 4px 6px;
 }
 
 .route-step-flow-summary b,
@@ -17807,6 +17876,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .route-step-flow-summary i {
+  display: none;
   color: #64748b;
   font-size: 11px;
   font-style: normal;
@@ -17827,6 +17897,406 @@ main.planning-app-shell > .planner-workspace {
   height: 24px !important;
   min-height: 24px !important;
   border-radius: 7px !important;
+}
+
+.route-step-flow-toggle.is-active {
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+.route-step-labor-toggle {
+  border-color: rgba(245, 158, 11, 0.32) !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+  color: #b45309 !important;
+}
+
+.route-step-labor-toggle.is-active {
+  border-color: rgba(245, 158, 11, 0.54) !important;
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.13) !important;
+}
+
+.route-step-labor-panel-row > td {
+  padding: 0 8px 8px calc(8px + (var(--speki-level) * 10px));
+  background: #ffffff;
+}
+
+.route-step-labor-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px dashed rgba(245, 158, 11, 0.42);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  padding: 8px;
+}
+
+.route-step-labor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.route-step-labor-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.route-step-labor-head strong {
+  color: #78350f;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.route-step-labor-head span {
+  color: #92400e;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.route-step-labor-head em {
+  flex: 0 0 auto;
+  border: 1px solid rgba(245, 158, 11, 0.36);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #92400e;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 14px;
+}
+
+.route-step-labor-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1.2fr) repeat(3, minmax(104px, 0.8fr));
+  gap: 7px;
+  align-items: end;
+  min-width: 0;
+}
+
+.route-step-labor-field {
+  min-width: 0;
+}
+
+.route-step-labor-field > span {
+  color: #92400e;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.route-step-labor-field input {
+  height: 30px;
+  border-color: rgba(245, 158, 11, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 251, 235, 0.86);
+  color: #78350f;
+  font-size: 11px;
+}
+
+.route-step-labor-field .dense-inline-select > summary {
+  min-height: 30px;
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(255, 251, 235, 0.88);
+  color: #78350f;
+}
+
+.route-step-labor-field .dense-inline-select > summary strong {
+  color: #78350f;
+  font-weight: 650;
+}
+
+.route-step-labor-field .dense-inline-select > summary small {
+  color: #92400e;
+}
+
+.route-step-labor-readout {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(96px, 1fr));
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(245, 158, 11, 0.26);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 6px;
+}
+
+.route-step-resource-factors,
+.production-resource-factor-panel {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(96px, 1fr));
+  gap: 6px;
+  min-width: 0;
+  border: 1px dashed rgba(245, 158, 11, 0.34);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.085);
+  padding: 6px;
+}
+
+.route-step-resource-factors {
+  margin-top: 6px;
+}
+
+.production-resource-factor-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 8px 0;
+}
+
+.route-step-labor-readout article,
+.route-step-resource-factors article,
+.production-resource-factor-panel article {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 251, 235, 0.72);
+  padding: 6px;
+}
+
+.route-step-labor-readout span,
+.route-step-labor-readout small,
+.route-step-resource-factors span,
+.route-step-resource-factors small,
+.production-resource-factor-panel span,
+.production-resource-factor-panel small {
+  overflow: hidden;
+  color: #92400e;
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-step-labor-readout strong,
+.route-step-resource-factors strong,
+.production-resource-factor-panel strong {
+  overflow: hidden;
+  color: #78350f;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-table th.is-resource-calculation-factor,
+.directory-table td.is-resource-calculation-factor {
+  border-color: rgba(245, 158, 11, 0.22) !important;
+  background: rgba(245, 158, 11, 0.075) !important;
+  color: #92400e !important;
+}
+
+.directory-table th.is-resource-calculation-factor {
+  color: #78350f !important;
+  font-weight: 760 !important;
+}
+
+.directory-resource-table-wrap {
+  overflow: auto;
+}
+
+.directory-resource-table .directory-resource-group-row td {
+  border-top: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24) !important;
+  background: #f8fafc !important;
+  padding: 6px 8px !important;
+}
+
+.directory-resource-table tr.directory-resource-group-row:hover td {
+  background: #f8fafc !important;
+}
+
+.directory-resource-group {
+  display: grid;
+  grid-template-columns: minmax(180px, max-content) minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.directory-resource-group strong {
+  overflow: hidden;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-resource-group span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 560;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-resource-group em {
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #2563eb;
+  padding: 2px 7px;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 720;
+  line-height: 11px;
+  white-space: nowrap;
+}
+
+.directory-resource-name-cell {
+  min-width: 220px;
+  padding-left: calc(7px + (var(--resource-level, 0) * 18px)) !important;
+}
+
+.directory-resource-name-cell,
+.directory-resource-name-stack {
+  min-width: 0;
+}
+
+.directory-resource-name-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.directory-resource-tree-mark {
+  position: relative;
+  flex: 0 0 12px;
+  width: 12px;
+  height: 20px;
+}
+
+.directory-resource-name-cell:not(.is-level-0) .directory-resource-tree-mark::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  bottom: 9px;
+  left: 5px;
+  border-left: 1px solid #94a3b8;
+}
+
+.directory-resource-name-cell:not(.is-level-0) .directory-resource-tree-mark::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 5px;
+  width: 8px;
+  border-top: 1px solid #94a3b8;
+}
+
+.directory-resource-tree-mark.has-children::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 3px;
+  width: 7px;
+  border-top: 2px solid #64748b;
+}
+
+.directory-resource-name-stack {
+  display: grid;
+  gap: 1px;
+}
+
+.directory-resource-name-stack strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 660;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-resource-name-stack small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 8.5px;
+  font-weight: 520;
+  line-height: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planning-v2-record-section.is-labor-test {
+  border: 1px dashed rgba(245, 158, 11, 0.42) !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+}
+
+.planning-v2-record-section.is-labor-test > header strong {
+  color: #78350f !important;
+}
+
+.planning-v2-record-section.is-labor-test > header span,
+.planning-v2-record-section.is-labor-test > header em {
+  color: #92400e !important;
+}
+
+.app-shell[data-layout-page="planning"] .planning-v2-detail .route-step-labor-readout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.app-shell[data-layout-page="planning"] .planning-v2-detail .route-step-resource-factors {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.route-step-flow-panel-row > td {
+  padding: 0 8px 8px calc(8px + (var(--speki-level) * 10px));
+  background: #ffffff;
+}
+
+.route-step-flow-panel {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr);
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+  border: 1px solid #dbe3ec;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 8px;
+}
+
+.route-step-flow-panel .operation-flow-map {
+  min-width: 0;
+  align-self: stretch;
+}
+
+.route-step-flow-panel .form-field {
+  min-width: 0;
+}
+
+.route-step-flow-panel .form-field input {
+  height: 30px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+@media (max-width: 980px) {
+  .route-step-flow-panel,
+  .route-step-labor-panel,
+  .route-step-labor-controls,
+  .route-step-labor-readout,
+  .route-step-resource-factors,
+  .production-resource-factor-panel,
+  main.app-shell[data-layout-page="routes"] .route-step-flow-panel,
+  main.app-shell[data-layout-page="routes"] .route-step-labor-panel,
+  main.app-shell[data-layout-page="routes"] .route-step-labor-controls,
+  main.app-shell[data-layout-page="routes"] .route-step-labor-readout,
+  main.app-shell[data-layout-page="routes"] .route-step-resource-factors {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 .route-step-flow-override-compact {
@@ -18163,7 +18633,52 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .route-smt-balance-table-wrap {
-  overflow: visible !important;
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.route-smt-balance-table-wrap .smt-machine-split-table,
+.route-smt-calculator-panel .route-smt-balance-table-wrap .smt-machine-split-table {
+  width: max(100%, 1220px) !important;
+  min-width: 1220px !important;
+  max-width: none !important;
+  table-layout: fixed;
+}
+
+.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(1),
+.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(1) {
+  width: 260px;
+}
+
+.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(2),
+.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(2) {
+  width: 180px;
+}
+
+.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(3),
+.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3) {
+  width: 130px;
+}
+
+.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(4),
+.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(4) {
+  width: 112px;
+}
+
+.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(5),
+.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(5) {
+  width: 286px;
+}
+
+.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(6),
+.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(6),
+.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(7),
+.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(7) {
+  width: 126px;
 }
 
 .route-smt-popup-actions {
@@ -18194,6 +18709,11 @@ main.planning-app-shell > .planner-workspace {
   overflow: visible !important;
 }
 
+.route-smt-calculator-panel .route-smt-balance-table-wrap {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
 .route-smt-calculator-panel .calculator-table {
   width: 100% !important;
   min-width: 0 !important;
@@ -18203,6 +18723,13 @@ main.planning-app-shell > .planner-workspace {
 
 .route-smt-calculator-panel .calculator-table th,
 .route-smt-calculator-panel .calculator-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.route-smt-balance-table-wrap .smt-machine-position-cell .readonly-token {
+  display: inline-flex;
+  max-width: 100%;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -19538,6 +20065,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-assembly,
+.speki-section-icon-badge.is-assembly,
 .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary {
   border-color: #cbd5e1;
   background: #f8fafc;
@@ -19727,15 +20255,69 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-structure-table td:nth-child(2) .dense-inline-select {
-  width: calc(100% - (var(--speki-level) * 10px));
-  margin-left: calc(var(--speki-level) * 10px);
+  width: 100%;
+  margin-left: 0;
 }
 
 .speki-structure-table td:nth-child(2) .speki-static-cell,
 .speki-structure-table td:nth-child(2) .speki-section-chip,
-.speki-structure-table td:nth-child(2) .speki-node-section-cell {
-  width: calc(100% - (var(--speki-level) * 10px));
-  margin-left: calc(var(--speki-level) * 10px);
+.speki-structure-table td:nth-child(2) .speki-node-section-cell,
+.speki-structure-table td:nth-child(2) .speki-section-icon-badge {
+  width: 100%;
+  margin-left: 0;
+}
+
+.speki-section-icon-badge {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border: 1px solid #dbe3ec;
+  border-radius: var(--mes-ui-radius-xs, 7px);
+  background: #f8fafc;
+  color: #475569;
+  vertical-align: middle;
+}
+
+.speki-section-icon-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.speki-section-icon-badge::after {
+  position: absolute;
+  z-index: 120;
+  top: 50%;
+  left: calc(100% + 8px);
+  max-width: 260px;
+  width: max-content;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 7px;
+  background: #0f172a;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.2);
+  color: #ffffff;
+  content: attr(data-tooltip);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  opacity: 0;
+  padding: 6px 8px;
+  pointer-events: none;
+  text-align: left;
+  transform: translateY(-50%) translateX(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  white-space: normal;
+}
+
+.speki-section-icon-badge:hover::after,
+.speki-section-icon-badge:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
 }
 
 .speki-structure-table .dense-inline-select > summary {
@@ -19754,8 +20336,8 @@ main.planning-app-shell > .planner-workspace {
 .speki-structure-table .dense-select-spekiStructureNomenclatureType > summary {
   grid-template-columns: minmax(0, 1fr) auto;
   min-height: 26px;
-  border-radius: 999px;
-  padding: 2px 6px 2px 8px;
+  border-radius: 8px;
+  padding: 2px 6px;
 }
 
 .speki-structure-table .dense-select-spekiStructureType > summary span {
@@ -19763,7 +20345,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-structure-table .dense-select-spekiStructureNomenclatureType > summary span {
-  min-width: 0;
+  display: none;
 }
 
 .speki-structure-table .dense-select-spekiStructureType > summary strong {
@@ -19806,7 +20388,36 @@ main.planning-app-shell > .planner-workspace {
   opacity: 0.72;
 }
 
+.dense-inline-summary-icon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  color: currentColor;
+}
+
+.dense-inline-summary-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.speki-structure-table .dense-select-spekiStructureNomenclatureType > summary > .dense-inline-summary-icon {
+  justify-self: center;
+}
+
+.speki-structure-table .dense-select-spekiStructureNomenclatureType > summary > .dense-inline-summary-icon svg {
+  width: 14px;
+  height: 14px;
+  opacity: 1;
+}
+
+.speki-structure-table .dense-select-spekiStructureNomenclatureType > summary > svg {
+  justify-self: end;
+}
+
 .speki-section-chip.is-section-blue,
+.speki-section-icon-badge.is-section-blue,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-blue > summary {
   border-color: #bfdbfe;
   background: #eff6ff;
@@ -19814,6 +20425,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-violet,
+.speki-section-icon-badge.is-section-violet,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-violet > summary {
   border-color: #ddd6fe;
   background: #f5f3ff;
@@ -19821,6 +20433,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-slate,
+.speki-section-icon-badge.is-section-slate,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-slate > summary {
   border-color: #cbd5e1;
   background: #f8fafc;
@@ -19828,6 +20441,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-amber,
+.speki-section-icon-badge.is-section-amber,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-amber > summary {
   border-color: #fde68a;
   background: #fffbeb;
@@ -19835,6 +20449,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-cyan,
+.speki-section-icon-badge.is-section-cyan,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-cyan > summary {
   border-color: #a5f3fc;
   background: #ecfeff;
@@ -19842,6 +20457,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-rose,
+.speki-section-icon-badge.is-section-rose,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-rose > summary {
   border-color: #fecdd3;
   background: #fff1f2;
@@ -19849,6 +20465,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-indigo,
+.speki-section-icon-badge.is-section-indigo,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-indigo > summary {
   border-color: #c7d2fe;
   background: #eef2ff;
@@ -19856,6 +20473,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-stone,
+.speki-section-icon-badge.is-section-stone,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-stone > summary {
   border-color: #d6d3d1;
   background: #fafaf9;
@@ -19863,6 +20481,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-emerald,
+.speki-section-icon-badge.is-section-emerald,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-emerald > summary {
   border-color: #bbf7d0;
   background: #f0fdf4;
@@ -19870,6 +20489,7 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .speki-section-chip.is-section-neutral,
+.speki-section-icon-badge.is-section-neutral,
 .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-neutral > summary {
   border-color: #e2e8f0;
   background: #f8fafc;
@@ -19929,6 +20549,183 @@ main.planning-app-shell > .planner-workspace {
   display: grid;
   gap: 3px;
   min-width: 0;
+}
+
+.speki-tree-cell {
+  --speki-tree-step: 18px;
+  --speki-tree-line-color: #dbe3ec;
+  --speki-tree-line-bleed: 6px;
+  --speki-tree-line-bleed-top: 5px;
+  --speki-tree-line-bleed-bottom: var(--speki-tree-line-bleed);
+  position: relative;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding-left: calc(var(--speki-level) * var(--speki-tree-step));
+}
+
+.speki-tree-cell.is-level-0 {
+  grid-template-columns: minmax(0, 1fr);
+  padding-left: 0;
+}
+
+.speki-tree-cell.is-level-0 .speki-tree-branch {
+  display: none;
+}
+
+.speki-tree-branch {
+  position: relative;
+  align-self: stretch;
+  width: 14px;
+  min-width: 14px;
+  min-height: 28px;
+}
+
+.speki-tree-guide {
+  position: absolute;
+  top: calc(-1 * var(--speki-tree-line-bleed-top));
+  bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
+  left: calc(var(--speki-guide-level) * var(--speki-tree-step) + 7px);
+  z-index: 0;
+  width: 1px;
+  border-left: 1px solid var(--speki-tree-line-color);
+  pointer-events: none;
+}
+
+.speki-tree-branch::before,
+.speki-tree-branch::after {
+  position: absolute;
+  border-color: var(--speki-tree-line-color);
+  content: "";
+}
+
+.speki-tree-branch::before {
+  top: calc(-1 * var(--speki-tree-line-bleed-top));
+  bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
+  left: 7px;
+  border-left: 1px solid var(--speki-tree-line-color);
+}
+
+.speki-tree-cell.is-last .speki-tree-branch::before {
+  bottom: 50%;
+}
+
+.speki-tree-branch::after {
+  top: 50%;
+  left: 7px;
+  width: 10px;
+  border-top: 1px solid var(--speki-tree-line-color);
+}
+
+.speki-tree-node-icon {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #dbe3ec;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #64748b;
+}
+
+.speki-tree-node-icon svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.speki-tree-node-icon.is-assembly {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.speki-tree-node-icon.is-bom,
+.speki-tree-node-icon.is-section-blue {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.speki-tree-node-icon.is-specification {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.speki-tree-node-icon.is-section-violet {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.speki-tree-node-icon.is-section-slate {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.speki-tree-node-icon.is-section-amber {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.speki-tree-node-icon.is-section-cyan {
+  border-color: #a5f3fc;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.speki-tree-node-icon.is-section-rose {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.speki-tree-node-icon.is-section-indigo {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.speki-tree-node-icon.is-section-stone {
+  border-color: #d6d3d1;
+  background: #fafaf9;
+  color: #57534e;
+}
+
+.speki-tree-node-icon.is-section-emerald {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.speki-tree-node-icon.is-section-neutral,
+.speki-tree-node-icon.is-nomenclature {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.speki-tree-object {
+  min-width: 0;
+}
+
+.speki-tree-object .speki-static-cell {
+  min-height: 24px;
+  font-weight: 680;
+}
+
+.speki-structure-table tr.is-speki-tree-parent .speki-tree-object .speki-static-cell,
+.speki-structure-table tr.is-speki-node .speki-tree-object .speki-static-cell {
+  color: #0f172a;
+  font-weight: 760;
 }
 
 .speki-bom-collapse-note {
@@ -23327,7 +24124,7 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
 }
 
 .shop-map-canvas-panel {
-  order: 1;
+  order: 2;
   display: grid;
   gap: 10px;
   overflow: hidden !important;
@@ -23570,11 +24367,455 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
 }
 
 .shop-map-resources-panel {
-  order: 2;
+  order: 3;
 }
 
 .shop-map-next-panel {
-  order: 4;
+  order: 5;
+}
+
+.shop-map-flow-panel {
+  order: 1;
+  display: grid;
+  gap: 10px;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.production-flow-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.production-flow-head > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.production-flow-summary {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.production-flow-summary span {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 13px;
+  white-space: nowrap;
+}
+
+.production-flow-summary span.is-critical {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.production-flow-summary b {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.production-flow-lane {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(168px, 1fr);
+  gap: 10px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 8px;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+}
+
+.production-flow-node {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 9px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.production-flow-node:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 34px;
+  right: -10px;
+  z-index: 1;
+  width: 10px;
+  border-top: 2px solid rgba(148, 163, 184, 0.38);
+}
+
+.production-flow-node-head {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+}
+
+.production-flow-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.production-flow-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.production-flow-node-head strong,
+.production-flow-node-head small {
+  overflow: hidden;
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-flow-node-head strong {
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 14px;
+}
+
+.production-flow-node-head small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 620;
+  line-height: 12px;
+}
+
+.production-flow-load {
+  overflow: hidden;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.production-flow-load span {
+  display: block;
+  width: var(--flow-load, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+}
+
+.production-flow-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.production-flow-metrics span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 5px;
+}
+
+.production-flow-metrics b {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 14px;
+}
+
+.production-flow-metrics small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 8.5px;
+  font-weight: 620;
+  line-height: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-flow-node-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.production-flow-node-foot em {
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 6px;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 720;
+  line-height: 11px;
+  white-space: nowrap;
+}
+
+.production-flow-mini-list {
+  display: grid;
+  gap: 4px;
+}
+
+.production-flow-mini-list span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.84);
+  padding-top: 4px;
+}
+
+.production-flow-mini-list b,
+.production-flow-mini-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-flow-mini-list b {
+  color: #334155;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 12px;
+}
+
+.production-flow-mini-list small {
+  color: #64748b;
+  font-size: 8.5px;
+  font-weight: 620;
+  line-height: 11px;
+}
+
+.production-flow-empty {
+  border-top: 1px solid rgba(226, 232, 240, 0.84);
+  color: #94a3b8;
+  padding-top: 6px;
+  font-size: 9px;
+  font-weight: 660;
+  line-height: 12px;
+}
+
+.production-flow-node.is-active {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: #f8fbff;
+}
+
+.production-flow-node.is-active .production-flow-load span {
+  background: #2563eb;
+}
+
+.production-flow-node.is-warning {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: #fffdf5;
+}
+
+.production-flow-node.is-warning .production-flow-load span {
+  background: #d97706;
+}
+
+.production-flow-node.is-critical {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: #fff8f8;
+}
+
+.production-flow-node.is-critical .production-flow-load span {
+  background: #dc2626;
+}
+
+.production-flow-node.is-ok .production-flow-load span {
+  background: #16a34a;
+}
+
+.production-flow-node.is-tone-cyan .production-flow-icon {
+  border-color: rgba(14, 165, 233, 0.22);
+  background: #ecfeff;
+  color: #0369a1;
+}
+
+.production-flow-node.is-tone-green .production-flow-icon {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.production-flow-node.is-tone-amber .production-flow-icon {
+  border-color: rgba(217, 119, 6, 0.22);
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.production-flow-node.is-tone-violet .production-flow-icon {
+  border-color: rgba(124, 58, 237, 0.22);
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.production-flow-node.is-tone-slate .production-flow-icon {
+  border-color: rgba(100, 116, 139, 0.24);
+  background: #f8fafc;
+  color: #475569;
+}
+
+.production-flow-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(220px, 0.75fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.production-flow-next,
+.production-flow-legend {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.production-flow-next {
+  display: grid;
+  gap: 8px;
+}
+
+.production-flow-next-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.production-flow-next-list article {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 7px 8px;
+}
+
+.production-flow-next-list article.is-active {
+  border-left-color: #2563eb;
+}
+
+.production-flow-next-list article.is-warning {
+  border-left-color: #d97706;
+}
+
+.production-flow-next-list article.is-critical {
+  border-left-color: #dc2626;
+}
+
+.production-flow-next-list article.is-ok {
+  border-left-color: #16a34a;
+}
+
+.production-flow-next-list span,
+.production-flow-next-list strong,
+.production-flow-next-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-flow-next-list span {
+  color: #64748b;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 11px;
+}
+
+.production-flow-next-list strong {
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 740;
+  line-height: 13px;
+}
+
+.production-flow-next-list small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 12px;
+}
+
+.production-flow-legend {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.production-flow-legend strong {
+  color: #0f172a;
+  font-size: 10.5px;
+  font-weight: 760;
+  line-height: 13px;
+}
+
+.production-flow-legend span {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  color: #475569;
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 12px;
+}
+
+.production-flow-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.production-flow-legend i.is-active {
+  background: #2563eb;
+}
+
+.production-flow-legend i.is-warning {
+  background: #d97706;
+}
+
+.production-flow-legend i.is-critical {
+  background: #dc2626;
+}
+
+.production-flow-legend small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .shop-map-resource-table {
@@ -23729,6 +24970,23 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
 }
 
 @media (max-width: 1024px) {
+  .production-flow-head,
+  .production-flow-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .production-flow-head {
+    display: grid;
+  }
+
+  .production-flow-summary {
+    justify-content: flex-start;
+  }
+
+  .production-flow-next-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .shop-map-overview-panel,
   .shop-map-next-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -23761,6 +25019,19 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
 @media (max-width: 760px) {
   .shop-map-page.module-data-page {
     padding: 6px;
+  }
+
+  .production-flow-lane {
+    grid-auto-columns: minmax(156px, 78vw);
+  }
+
+  .production-flow-next-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .production-flow-summary span {
+    min-height: 22px;
+    font-size: 9.5px;
   }
 
   .shop-map-page .module-data-workspace {
@@ -24338,8 +25609,12 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
   width: 100% !important;
 }
 
-.shop-map-page .shop-map-canvas-panel {
+.shop-map-page .shop-map-flow-panel {
   order: 1 !important;
+}
+
+.shop-map-page .shop-map-canvas-panel {
+  order: 2 !important;
   overflow: hidden !important;
   padding: 10px !important;
 }
@@ -24350,16 +25625,16 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
 }
 
 .shop-map-page .shop-map-resources-panel {
-  order: 2 !important;
+  order: 3 !important;
 }
 
 .shop-map-page .shop-map-overview-panel {
-  order: 3 !important;
+  order: 4 !important;
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
 .shop-map-page .shop-map-next-panel {
-  order: 4 !important;
+  order: 5 !important;
 }
 
 .shop-map-page .shop-map-next-grid {
@@ -26586,19 +27861,18 @@ main[data-layout="app-shell"],
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap,
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap {
   max-width: 100%;
-  overflow: visible !important;
-  overflow-x: visible !important;
+  overflow-x: auto !important;
   overflow-y: visible !important;
-  overscroll-behavior: auto !important;
+  overscroll-behavior-x: contain !important;
   scrollbar-gutter: auto;
-  -webkit-overflow-scrolling: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table,
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
+  width: max(100%, 1220px) !important;
+  min-width: 1220px !important;
+  max-width: none !important;
   table-layout: fixed;
 }
 
@@ -26613,32 +27887,35 @@ main[data-layout="app-shell"],
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(1),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(1),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(1) {
-  width: 29%;
+  width: 260px;
 }
 
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(2),
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(2),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(2),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(2) {
-  width: 15%;
+  width: 180px;
 }
 
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(3),
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(3),
-.app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3),
+.app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3) {
+  width: 130px;
+}
+
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(4),
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(4),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(4),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(4) {
-  width: 9%;
+  width: 112px;
 }
 
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(5),
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(5),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(5),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(5) {
-  width: 24%;
+  width: 286px;
 }
 
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(6),
@@ -26649,7 +27926,7 @@ main[data-layout="app-shell"],
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(6),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(7),
 .app-shell[data-layout-page="planning"] .route-smt-balance-disclosure .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(7) {
-  width: 7%;
+  width: 126px;
 }
 
 .app-shell[data-layout-page="planning"] .planning-operation-smt-tools .route-smt-balance-table-wrap th,
@@ -29025,8 +30302,9 @@ main[data-layout="app-shell"],
 }
 
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table {
-  width: 100% !important;
-  min-width: 0 !important;
+  width: max(100%, 1220px) !important;
+  min-width: 1220px !important;
+  max-width: none !important;
   table-layout: fixed;
 }
 
@@ -29042,31 +30320,34 @@ main[data-layout="app-shell"],
 
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(1),
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(1) {
-  width: 29% !important;
+  width: 260px !important;
 }
 
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(2),
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(2) {
-  width: 10% !important;
+  width: 180px !important;
 }
 
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(3),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3) {
+  width: 130px !important;
+}
+
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(4),
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(4) {
-  width: 8% !important;
+  width: 112px !important;
 }
 
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(5),
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(5) {
-  width: 24% !important;
+  width: 286px !important;
 }
 
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(6),
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(6),
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(7),
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(7) {
-  width: 10.5% !important;
+  width: 126px !important;
 }
 
 .app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .readonly-token {
@@ -33288,6 +34569,12 @@ main.app-shell[data-layout-page="products"] .speki-structure-table {
   min-width: 760px !important;
 }
 
+main.app-shell[data-layout-page="products"] .speki-structure-table th:nth-child(2),
+main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2) {
+  width: 68px !important;
+  text-align: center !important;
+}
+
 main.app-shell[data-layout-page="products"] .speki-structure-table tr:has(.dense-inline-select[open]) {
   position: relative;
   z-index: 30;
@@ -33297,9 +34584,30 @@ main.app-shell[data-layout-page="products"] .speki-structure-table .dense-inline
   z-index: 40;
 }
 
-main.app-shell[data-layout-page="products"] .speki-structure-table :is(input, .dense-inline-select > summary, .speki-static-cell, .speki-section-chip, .speki-node-section-cell, .speki-fulfillment-cell) {
+main.app-shell[data-layout-page="products"] .speki-structure-table :is(input, .dense-inline-select > summary, .speki-static-cell, .speki-section-chip, .speki-section-icon-badge, .speki-node-section-cell, .speki-fulfillment-cell) {
   min-height: 26px !important;
   font-size: var(--mes-ui-module-font-sm) !important;
+}
+
+main.app-shell[data-layout-page="products"] .speki-structure-table .speki-section-icon-badge {
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}
+
+main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2) .dense-select-spekiStructureNomenclatureType {
+  width: 40px !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}
+
+main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureNomenclatureType > summary {
+  min-width: 40px !important;
+  min-height: 26px !important;
 }
 
 main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary {
@@ -33407,6 +34715,20 @@ main.app-shell[data-layout-page="routes"] .route-steps-panel {
   overflow: visible !important;
 }
 
+main.app-shell[data-layout-page="routes"] .route-module-content,
+main.app-shell[data-layout-page="routes"] .route-steps-panel,
+main.app-shell[data-layout-page="routes"] .route-step-editor-shell,
+main.app-shell[data-layout-page="routes"] .route-object-editor-shell,
+main.app-shell[data-layout-page="routes"] .route-object-table-wrap {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  overscroll-behavior: auto !important;
+  -webkit-overflow-scrolling: auto;
+}
+
 main.app-shell[data-layout-page="routes"] .route-binding-mode {
   gap: 6px !important;
 }
@@ -33431,6 +34753,14 @@ main.app-shell[data-layout-page="routes"] .route-module-form {
   gap: 6px 8px !important;
 }
 
+main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full {
+  display: grid !important;
+  grid-template-rows: 13px 32px !important;
+  align-content: end !important;
+  gap: 4px !important;
+}
+
 main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full {
   grid-column: 1 !important;
 }
@@ -33440,14 +34770,30 @@ main.app-shell[data-layout-page="routes"] .route-module-form > .route-binding-mo
 }
 
 main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full {
-  grid-column: 1 / 3 !important;
+  grid-column: 2 !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full {
   grid-column: 3 !important;
-  grid-row: 1 / span 2 !important;
+  grid-row: 1 !important;
   align-self: end !important;
   justify-content: flex-end !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-module-form .command-field::after {
+  top: auto !important;
+  bottom: 10px !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-module-form :is(input, select) {
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-module-form .command-field select {
+  line-height: 1.2 !important;
+  padding-right: 42px !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full button {
@@ -33504,6 +34850,15 @@ main.app-shell[data-layout-page="routes"] .route-step-editor-row .icon-button.da
   width: 30px !important;
   min-width: 30px !important;
   height: var(--mes-ui-module-control-height) !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-editor-row .icon-button.danger-soft:hover {
+  border-color: rgba(239, 68, 68, 0.22) !important;
+  background: #fff1f2 !important;
+  color: #dc2626 !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-step-flow-editor {
@@ -33535,21 +34890,25 @@ main.app-shell[data-layout-page="routes"] .route-step-flow-override > summary {
 main.app-shell[data-layout-page="routes"] .route-object-table-wrap {
   border-color: rgba(148, 163, 184, 0.24) !important;
   border-radius: var(--mes-ui-radius-md) !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-table {
-  min-width: 1000px !important;
+  width: 100% !important;
+  min-width: 0 !important;
   table-layout: fixed !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(1),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(1) {
-  width: 54px !important;
+  width: 58px !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(2),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(2) {
-  width: 104px !important;
+  width: 48px !important;
+  text-align: center !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(3),
@@ -33559,35 +34918,177 @@ main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(3) {
 
 main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(4),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(4) {
-  width: 88px !important;
+  width: 66px !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(5),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(5) {
-  width: 238px !important;
+  width: 170px !important;
+  padding-right: 14px !important;
 }
 
-main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(6),
-main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(6) {
-  width: 172px !important;
+main.app-shell[data-layout-page="routes"] .route-object-table th,
+main.app-shell[data-layout-page="routes"] .route-object-table td {
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-object-table th {
+  font-weight: 600 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #f8fafc;
+  color: #475569;
+  vertical-align: middle;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-operation {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-warehouse {
+  border-color: rgba(16, 185, 129, 0.24);
+  background: #ecfdf5;
+  color: #059669;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-bom {
+  border-color: rgba(124, 58, 237, 0.2);
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-spec,
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-assembly {
+  border-color: rgba(14, 165, 233, 0.22);
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-part {
+  border-color: rgba(100, 116, 139, 0.22);
+  background: #f8fafc;
+  color: #334155;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: #fffbeb;
+  color: #b45309;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell {
+  min-height: 29px;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell.is-route-step {
+  align-items: center;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-object {
+  display: grid;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-node-icon.is-operation {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-node-icon.is-warehouse {
+  border-color: rgba(16, 185, 129, 0.24);
+  background: #ecfdf5;
+  color: #059669;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-node-icon.is-spec,
+main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-node-icon.is-assembly {
+  border-color: rgba(14, 165, 233, 0.22);
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-node-icon.is-part {
+  border-color: rgba(100, 116, 139, 0.22);
+  background: #f8fafc;
+  color: #334155;
+}
+
+main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-node-icon.is-warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: #fffbeb;
+  color: #b45309;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge::after {
+  position: absolute;
+  z-index: 120;
+  top: 50%;
+  left: calc(100% + 8px);
+  max-width: 260px;
+  width: max-content;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #0f172a;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.2);
+  color: #ffffff;
+  content: attr(data-tooltip);
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+  line-height: 1.25;
+  opacity: 0;
+  padding: 6px 8px;
+  pointer-events: none;
+  text-align: left;
+  transform: translateY(-50%) translateX(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  white-space: normal;
+}
+
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge:hover::after,
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-name-cell strong {
   font-size: var(--mes-ui-module-font-sm) !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-name-cell small {
   font-size: var(--mes-ui-module-font-xs) !important;
-  font-weight: 650 !important;
+  font-weight: 500 !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-add-button {
   min-height: 24px !important;
   border-radius: var(--mes-ui-radius-xs) !important;
   font-size: var(--mes-ui-module-font-xs) !important;
+  font-weight: 400 !important;
   padding-right: 7px !important;
   padding-left: 7px !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-object-add-button span {
+  font-weight: 400 !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-actions {
@@ -33608,15 +35109,36 @@ main.app-shell[data-layout-page="routes"] .route-object-add-button svg {
 
 main.app-shell[data-layout-page="routes"] .route-object-row td,
 main.app-shell[data-layout-page="routes"] .route-step-compact-row td {
-  height: 40px !important;
+  height: auto !important;
   padding-top: 5px !important;
   padding-bottom: 5px !important;
   vertical-align: middle !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-step-compact-fields {
-  grid-template-columns: minmax(112px, 0.72fr) minmax(164px, 1.28fr) !important;
-  gap: 5px !important;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr) !important;
+  gap: 6px !important;
+  align-items: center !important;
+  width: min(100%, 392px) !important;
+  max-width: 392px !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-steps-panel > .report-card-head strong {
+  font-weight: 650 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .form-field,
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary,
+main.app-shell[data-layout-page="routes"] .route-step-compact-actions,
+main.app-shell[data-layout-page="routes"] .route-object-actions {
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-compact-actions {
+  justify-content: flex-start !important;
+  gap: 2px !important;
+  padding-right: 4px !important;
 }
 
 @media (max-width: 1180px) {
@@ -33639,12 +35161,67 @@ main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inli
   border-radius: var(--mes-ui-radius-xs) !important;
 }
 
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .form-field > span,
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary strong,
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary small,
+main.app-shell[data-layout-page="routes"] .route-step-type-chip,
+main.app-shell[data-layout-page="routes"] .route-step-quantity-cell,
+main.app-shell[data-layout-page="routes"] .route-step-order-badge,
+main.app-shell[data-layout-page="routes"] .route-object-table .speki-static-cell,
+main.app-shell[data-layout-page="routes"] .route-object-table .speki-fulfillment-cell {
+  font-weight: 400 !important;
+}
+
 main.app-shell[data-layout-page="routes"] .route-step-compact-order > .icon-button,
 main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button {
   width: 22px !important;
   min-width: 22px !important;
   height: 23px !important;
   min-height: 23px !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button:hover {
+  border-color: rgba(239, 68, 68, 0.22) !important;
+  background: #fff1f2 !important;
+  color: #dc2626 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button svg {
+  width: 13px !important;
+  height: 13px !important;
+  stroke-width: 1.8 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-flow-toggle.is-active {
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-flow-panel-row > td {
+  padding: 0 8px 8px calc(8px + (var(--speki-level, 0) * 10px)) !important;
+  background: #ffffff !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-flow-panel {
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) !important;
+  gap: 7px !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: #f8fafc !important;
+  padding: 7px !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-flow-panel .form-field input {
+  height: 28px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  font-size: var(--mes-ui-module-font-xs) !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-step-compact-order .route-step-order-badge {
@@ -33655,14 +35232,34 @@ main.app-shell[data-layout-page="routes"] .route-step-compact-order .route-step-
 }
 
 main.app-shell[data-layout-page="routes"] .route-step-flow-summary {
-  min-height: 27px !important;
+  min-height: 38px !important;
   border-radius: var(--mes-ui-radius-xs) !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary > * {
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary b,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary strong,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary i {
+  font-weight: 400 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary b,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary strong {
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-step-flow-override-compact > summary {
   min-height: 23px !important;
   height: 23px !important;
   border-radius: var(--mes-ui-radius-xs) !important;
+  font-weight: 400 !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-step-editor-list {
@@ -36727,13 +38324,15 @@ main.app-shell[data-layout-page="supply"] {
 main.app-shell[data-layout-page="supply"] .supply-page {
   display: grid;
   grid-template-columns: var(--supply-sidebar-width) minmax(0, 1fr) !important;
+  grid-auto-rows: max-content;
+  align-items: stretch;
   gap: var(--supply-gap) !important;
   width: 100%;
-  height: 100%;
+  height: auto;
+  min-height: 100%;
   min-width: 0;
-  min-height: 0;
   padding: var(--mes-ui-density-page) !important;
-  overflow: hidden;
+  overflow: auto;
   background:
     var(--mes-ui-bg-gradient),
     var(--mes-ui-bg);
@@ -36749,9 +38348,11 @@ main.app-shell[data-layout-page="supply"] :is(.supply-sidebar, .supply-workspace
 }
 
 main.app-shell[data-layout-page="supply"] .supply-sidebar {
+  align-self: stretch;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 6px;
+  height: 100%;
   padding: 8px;
   overflow: hidden;
 }
@@ -36898,11 +38499,15 @@ main.app-shell[data-layout-page="supply"] .supply-route-card em {
 }
 
 main.app-shell[data-layout-page="supply"] .supply-workspace {
+  position: relative;
+  align-self: stretch;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   gap: var(--supply-gap);
+  height: max-content;
+  min-height: 100%;
   padding: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-header {
@@ -36952,7 +38557,33 @@ main.app-shell[data-layout-page="supply"] .supply-content {
   gap: var(--supply-gap);
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-page {
+  align-items: stretch !important;
+  grid-auto-rows: max-content !important;
+  overflow: auto !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-sidebar {
+  align-self: stretch !important;
+  height: 100% !important;
+  min-height: 100% !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-workspace {
+  height: max-content !important;
+  min-height: 100% !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-content {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-kpi-grid {
@@ -37016,6 +38647,16 @@ main.app-shell[data-layout-page="supply"] .supply-kpi-card.is-warning > span {
   color: var(--mes-ui-warning);
 }
 
+main.app-shell[data-layout-page="supply"] .supply-kpi-card.is-primary > span {
+  background: var(--mes-ui-primary-soft);
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-kpi-card.is-ok > span {
+  background: var(--mes-ui-success-soft);
+  color: var(--mes-ui-success);
+}
+
 main.app-shell[data-layout-page="supply"] .supply-kpi-card.is-pcb > span {
   background: var(--mes-ui-primary-soft);
   color: var(--mes-ui-primary);
@@ -37029,12 +38670,13 @@ main.app-shell[data-layout-page="supply"] .supply-kpi-card.is-rek > span {
 main.app-shell[data-layout-page="supply"] .supply-gantt-panel,
 main.app-shell[data-layout-page="supply"] .supply-table-panel {
   display: grid;
+  flex: 0 0 auto;
   grid-template-rows: auto minmax(0, auto);
   gap: 8px;
   align-self: start;
   border-radius: var(--mes-ui-radius-lg);
   padding: 10px !important;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: var(--mes-ui-shadow-sm);
 }
 
@@ -37070,6 +38712,20 @@ main.app-shell[data-layout-page="supply"] .report-card-head span {
   line-height: var(--mes-ui-line-body);
 }
 
+main.app-shell[data-layout-page="supply"] .supply-clear-button {
+  flex: 0 0 auto;
+  min-height: 28px !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  padding: 0 9px !important;
+  font-size: var(--mes-ui-type-caption) !important;
+  line-height: var(--mes-ui-line-caption) !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-clear-button svg {
+  width: 13px;
+  height: 13px;
+}
+
 main.app-shell[data-layout-page="supply"] .supply-status-pill {
   display: inline-flex;
   align-items: center;
@@ -37093,23 +38749,43 @@ main.app-shell[data-layout-page="supply"] .supply-status-pill.is-warning {
   color: var(--mes-ui-warning);
 }
 
+main.app-shell[data-layout-page="supply"] .supply-status-pill.is-primary {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: var(--mes-ui-primary-soft);
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-status-pill.is-ok {
+  border-color: rgba(16, 185, 129, 0.22);
+  background: var(--mes-ui-success-soft);
+  color: var(--mes-ui-success);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-status-pill.is-danger {
+  border-color: rgba(239, 68, 68, 0.24);
+  background: var(--mes-ui-danger-soft, #fee2e2);
+  color: var(--mes-ui-danger, #dc2626);
+}
+
 main.app-shell[data-layout-page="supply"] .supply-status-pill.is-neutral {
   background: rgba(148, 163, 184, 0.1);
 }
 
 main.app-shell[data-layout-page="supply"] .supply-gantt-shell {
   display: grid;
+  width: 100%;
   min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--mes-ui-radius-sm);
   background: #ffffff;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-timeline-row,
 main.app-shell[data-layout-page="supply"] .supply-gantt-row {
   display: grid;
-  grid-template-columns: var(--supply-left-width) var(--supply-timeline-width);
+  grid-template-columns: minmax(220px, var(--supply-left-width)) var(--supply-timeline-width);
   min-width: calc(var(--supply-left-width) + var(--supply-timeline-width));
 }
 
@@ -37117,16 +38793,20 @@ main.app-shell[data-layout-page="supply"] .supply-timeline-row {
   position: sticky;
   top: 0;
   z-index: 4;
-  min-height: 52px;
+  min-height: 62px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
   background: var(--mes-ui-surface-soft);
 }
 
 main.app-shell[data-layout-page="supply"] .supply-timeline-corner {
+  position: sticky;
+  left: 0;
+  z-index: 7;
   display: grid;
   align-content: center;
   gap: 1px;
   border-right: 1px solid rgba(148, 163, 184, 0.18);
+  background: var(--mes-ui-surface-soft);
   padding: 8px 10px;
 }
 
@@ -37146,52 +38826,214 @@ main.app-shell[data-layout-page="supply"] .supply-timeline-corner span {
 main.app-shell[data-layout-page="supply"] .supply-timeline-cells,
 main.app-shell[data-layout-page="supply"] .supply-lane {
   position: relative;
+  width: var(--supply-timeline-width);
+  min-width: var(--supply-timeline-width);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-timeline-cells {
+  display: grid;
+  grid-template-rows: 24px 38px;
+  overflow: hidden;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-week-group-row,
+main.app-shell[data-layout-page="supply"] .supply-day-row {
+  position: relative;
   min-width: 0;
 }
 
-main.app-shell[data-layout-page="supply"] .supply-week-cell {
+main.app-shell[data-layout-page="supply"] .supply-week-group,
+main.app-shell[data-layout-page="supply"] .supply-day-cell {
   position: absolute;
   inset-block: 0;
-  display: grid;
-  align-content: center;
-  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
   border-right: 1px solid rgba(148, 163, 184, 0.16);
-  padding: 6px 5px;
 }
 
-main.app-shell[data-layout-page="supply"] .supply-week-cell strong {
+main.app-shell[data-layout-page="supply"] .supply-week-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92));
+  padding: 0 6px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-week-group strong,
+main.app-shell[data-layout-page="supply"] .supply-week-group small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-week-group strong {
+  flex: 0 0 auto;
   color: var(--mes-ui-text);
   font-size: var(--mes-ui-type-caption);
   font-weight: var(--mes-ui-weight-semibold);
   line-height: var(--mes-ui-line-caption);
 }
 
-main.app-shell[data-layout-page="supply"] .supply-week-cell small {
+main.app-shell[data-layout-page="supply"] .supply-week-group small {
+  flex: 1 1 auto;
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-micro);
+  line-height: var(--mes-ui-line-micro);
+  text-align: right;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-day-cell {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 4px 2px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-day-cell.is-week-start {
+  box-shadow: inset 1px 0 0 rgba(37, 99, 235, 0.22);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-day-cell.is-weekend {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(100, 116, 139, 0.05) 0,
+      rgba(100, 116, 139, 0.05) 6px,
+      rgba(100, 116, 139, 0.12) 6px,
+      rgba(100, 116, 139, 0.12) 7px
+    ),
+    rgba(148, 163, 184, 0.1);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-day-cell strong,
+main.app-shell[data-layout-page="supply"] .supply-day-cell small {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-day-cell strong {
+  overflow: visible;
+  min-width: 4.6ch;
+  max-width: none;
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-micro);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-micro);
+  text-align: center;
+  text-overflow: clip;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-day-cell small {
   color: var(--mes-ui-muted);
   font-size: var(--mes-ui-type-micro);
   line-height: var(--mes-ui-line-micro);
 }
 
-main.app-shell[data-layout-page="supply"] .supply-week-day-strip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
-  width: 100%;
-  height: 4px;
-}
-
-main.app-shell[data-layout-page="supply"] .supply-week-day-strip i {
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.14);
-}
-
-main.app-shell[data-layout-page="supply"] .supply-week-day-strip i.is-weekend {
-  background: rgba(100, 116, 139, 0.42);
-}
-
 main.app-shell[data-layout-page="supply"] .supply-gantt-body {
   display: grid;
   min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid rgba(37, 99, 235, 0.14);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group:first-child {
+  border-top: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-row {
+  display: grid;
+  grid-template-columns: minmax(220px, var(--supply-left-width)) var(--supply-timeline-width);
+  min-width: calc(var(--supply-left-width) + var(--supply-timeline-width));
+  min-height: 34px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.76));
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-label {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 22px 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92));
+  padding: 6px 8px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-group-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #ffffff;
+  color: var(--mes-ui-muted);
+  padding: 0;
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-group-toggle:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-group-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-label b {
+  justify-self: start;
+  border-radius: var(--mes-ui-pill);
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--mes-ui-primary);
+  padding: 2px 6px;
+  font-size: var(--mes-ui-type-micro);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-micro);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-label strong,
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-label small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-label strong {
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-label small {
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-micro);
+  line-height: var(--mes-ui-line-micro);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-group-lane {
+  position: relative;
+  width: var(--supply-timeline-width);
+  min-width: var(--supply-timeline-width);
+  overflow: hidden;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-gantt-row {
@@ -37204,12 +39046,16 @@ main.app-shell[data-layout-page="supply"] .supply-gantt-row:last-child {
 }
 
 main.app-shell[data-layout-page="supply"] .supply-gantt-label {
+  position: sticky;
+  left: 0;
+  z-index: 3;
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) minmax(54px, auto);
   align-items: center;
   gap: 7px;
   min-width: 0;
   border-right: 1px solid rgba(148, 163, 184, 0.16);
+  background: #ffffff;
   padding: 7px 8px;
 }
 
@@ -37264,19 +39110,17 @@ main.app-shell[data-layout-page="supply"] .supply-lane {
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.78), rgba(255, 255, 255, 0.96));
 }
 
-main.app-shell[data-layout-page="supply"] .supply-lane-week {
+main.app-shell[data-layout-page="supply"] .supply-lane-day {
   position: absolute;
   inset-block: 0;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  border-right: 1px solid rgba(148, 163, 184, 0.11);
+  border-right: 1px solid rgba(148, 163, 184, 0.1);
 }
 
-main.app-shell[data-layout-page="supply"] .supply-lane-week i {
-  min-width: 0;
+main.app-shell[data-layout-page="supply"] .supply-lane-day.is-week-start {
+  box-shadow: inset 1px 0 0 rgba(37, 99, 235, 0.22);
 }
 
-main.app-shell[data-layout-page="supply"] .supply-lane-week i.is-weekend {
+main.app-shell[data-layout-page="supply"] .supply-lane-day.is-weekend {
   background:
     repeating-linear-gradient(
       135deg,
@@ -37293,9 +39137,9 @@ main.app-shell[data-layout-page="supply"] .supply-demand-bar {
   top: 50%;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 4px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 22px;
   transform: translateY(-50%);
   border: 1px solid rgba(37, 99, 235, 0.22);
@@ -37303,7 +39147,52 @@ main.app-shell[data-layout-page="supply"] .supply-demand-bar {
   background: linear-gradient(180deg, rgba(219, 234, 254, 0.94), rgba(191, 219, 254, 0.86));
   color: var(--mes-ui-primary);
   padding: 0 8px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.46);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.46), 0 2px 8px rgba(24, 39, 75, 0.12);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar:hover,
+main.app-shell[data-layout-page="supply"] .supply-demand-bar.is-active {
+  border-color: rgba(37, 99, 235, 0.46);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.58), 0 0 0 2px rgba(37, 99, 235, 0.12), 0 5px 14px rgba(24, 39, 75, 0.14);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.58), 0 0 0 3px rgba(37, 99, 235, 0.2), 0 5px 14px rgba(24, 39, 75, 0.14);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar::before {
+  width: 4px;
+  height: 100%;
+  border-radius: 999px 0 0 999px;
+  background: currentColor;
+  content: "";
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar.is-primary {
+  border-color: rgba(37, 99, 235, 0.26);
+  background: linear-gradient(180deg, rgba(219, 234, 254, 0.96), rgba(191, 219, 254, 0.9));
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar.is-ok {
+  border-color: rgba(16, 185, 129, 0.28);
+  background: linear-gradient(180deg, rgba(209, 250, 229, 0.96), rgba(167, 243, 208, 0.88));
+  color: var(--mes-ui-success);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar.is-danger {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: linear-gradient(180deg, rgba(254, 226, 226, 0.96), rgba(254, 202, 202, 0.88));
+  color: var(--mes-ui-danger, #dc2626);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar.is-neutral {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, rgba(241, 245, 249, 0.96), rgba(226, 232, 240, 0.82));
+  color: var(--mes-ui-muted);
 }
 
 main.app-shell[data-layout-page="supply"] .supply-demand-bar strong {
@@ -37319,6 +39208,40 @@ main.app-shell[data-layout-page="supply"] .supply-demand-bar small {
   font-size: var(--mes-ui-type-micro);
   font-weight: var(--mes-ui-weight-semibold);
   line-height: var(--mes-ui-line-micro);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar:is(.is-ok, .is-danger, .is-neutral) strong,
+main.app-shell[data-layout-page="supply"] .supply-demand-bar:is(.is-ok, .is-danger, .is-neutral) small {
+  color: currentColor;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-delivery-marker {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  z-index: 4;
+  width: 0;
+  border-left: 2px solid rgba(245, 158, 11, 0.76);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-delivery-marker.is-actual {
+  border-left-color: rgba(16, 185, 129, 0.78);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-delivery-marker i {
+  position: absolute;
+  top: -2px;
+  left: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--mes-ui-pill);
+  background: #ffffff;
+  color: var(--mes-ui-text);
+  padding: 0 5px;
+  font-size: var(--mes-ui-type-micro);
+  font-style: normal;
+  line-height: 14px;
+  white-space: nowrap;
+  box-shadow: var(--mes-ui-shadow-sm);
 }
 
 main.app-shell[data-layout-page="supply"] .supply-no-delivery {
@@ -37407,23 +39330,67 @@ main.app-shell[data-layout-page="supply"] .supply-gantt-legend i.is-empty {
 
 main.app-shell[data-layout-page="supply"] .supply-table-wrap {
   min-width: 0;
-  overflow: auto;
+  overflow: visible !important;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-table {
   width: 100%;
-  min-width: 860px;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--mes-ui-type-body);
   line-height: var(--mes-ui-line-body);
 }
 
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(1),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(1) {
+  width: 24%;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(2),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(2) {
+  width: 9%;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(3),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(3) {
+  width: 7%;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(4),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(4) {
+  width: 10%;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(5),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(5) {
+  width: 18%;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(6),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(6) {
+  width: 10%;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(7),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(7) {
+  width: 17%;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table th:nth-child(8),
+main.app-shell[data-layout-page="supply"] .supply-table td:nth-child(8) {
+  width: 5%;
+}
+
 main.app-shell[data-layout-page="supply"] .supply-table th,
 main.app-shell[data-layout-page="supply"] .supply-table td {
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  padding: 7px 8px;
+  padding: 3px 6px;
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-table th {
@@ -37433,30 +39400,328 @@ main.app-shell[data-layout-page="supply"] .supply-table th {
   line-height: var(--mes-ui-line-caption);
 }
 
+main.app-shell[data-layout-page="supply"] .supply-table-group-row th {
+  border-top: 1px solid rgba(37, 99, 235, 0.14);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.72));
+  padding: 5px 7px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table-group-row:first-child th {
+  border-top: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table-group-row span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table-group-row b {
+  flex: 0 0 auto;
+  border-radius: var(--mes-ui-pill);
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--mes-ui-primary);
+  padding: 2px 6px;
+  font-size: var(--mes-ui-type-micro);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-micro);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table-group-row strong,
+main.app-shell[data-layout-page="supply"] .supply-table-group-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table-group-row strong {
+  flex: 0 1 auto;
+  min-width: 80px;
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table-group-row small {
+  flex: 1 1 auto;
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-micro);
+  line-height: var(--mes-ui-line-micro);
+}
+
 main.app-shell[data-layout-page="supply"] .supply-table td {
   color: var(--mes-ui-text);
   font-size: var(--mes-ui-type-body);
   font-weight: var(--mes-ui-weight-regular);
   line-height: var(--mes-ui-line-body);
+  overflow: hidden;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-table .primary-cell {
-  display: grid;
-  gap: 1px;
   min-width: 0;
 }
 
 main.app-shell[data-layout-page="supply"] .supply-table .primary-cell strong {
+  display: block;
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-caption) !important;
+  font-weight: var(--mes-ui-weight-semibold) !important;
+  line-height: var(--mes-ui-line-caption) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table .primary-cell small {
+  display: block;
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-micro) !important;
+  line-height: var(--mes-ui-line-micro) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-field {
+  width: 100%;
+  min-width: 0;
+  height: 24px !important;
+  min-height: 24px !important;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #ffffff;
+  color: var(--mes-ui-text);
+  padding: 2px 6px !important;
+  font: inherit;
+  font-size: var(--mes-ui-type-caption) !important;
+  line-height: 1.15 !important;
+}
+
+main.app-shell[data-layout-page="supply"] select.supply-control-field {
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-field:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-table .supply-control-stack:not(.is-delivery) {
+  grid-template-columns: repeat(2, minmax(84px, 1fr));
+  gap: 4px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack.is-delivery {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 4px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack.is-delivery label:nth-child(3) {
+  grid-column: auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack label,
+main.app-shell[data-layout-page="supply"] .supply-quantity-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack.is-delivery label {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack label span,
+main.app-shell[data-layout-page="supply"] .supply-quantity-field span {
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-micro);
+  line-height: var(--mes-ui-line-micro);
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-quantity-field {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+main.app-shell[data-layout-page="supply"] select.supply-control-field {
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] input[type="date"].supply-control-field {
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-popover-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  align-items: start;
+  min-width: 0;
+  pointer-events: none;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-popover-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.16);
+  cursor: default;
+  pointer-events: auto;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-popover {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  width: calc(100% - 20px);
+  max-width: none;
+  max-height: calc(100% - 20px);
+  margin: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: var(--mes-ui-radius-xl);
+  background: rgba(255, 255, 255, 0.98);
+  padding: 12px;
+  overflow: auto;
+  pointer-events: auto;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-popover-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  padding-bottom: 8px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-popover-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-popover-head .eyebrow,
+main.app-shell[data-layout-page="supply"] .supply-demand-popover-head small {
+  overflow: hidden;
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-caption);
+  line-height: var(--mes-ui-line-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-popover-head strong {
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-card-title);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-card-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-cell {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 78px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.98));
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-cell.is-wide {
+  grid-column: span 2;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-cell.is-comment {
+  grid-column: span 2;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-cell > span,
+main.app-shell[data-layout-page="supply"] .supply-detail-cell > small,
+main.app-shell[data-layout-page="supply"] .supply-detail-quantity small,
+main.app-shell[data-layout-page="supply"] .supply-detail-delivery-fields small {
+  overflow: hidden;
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-caption);
+  line-height: var(--mes-ui-line-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-cell > strong {
+  overflow: hidden;
   color: var(--mes-ui-text);
   font-size: var(--mes-ui-type-body);
   font-weight: var(--mes-ui-weight-semibold);
   line-height: var(--mes-ui-line-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-main.app-shell[data-layout-page="supply"] .supply-table .primary-cell small {
-  color: var(--mes-ui-muted);
-  font-size: var(--mes-ui-type-caption);
-  line-height: var(--mes-ui-line-caption);
+main.app-shell[data-layout-page="supply"] .supply-detail-inline-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-quantity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-delivery-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-delivery-fields label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-detail-cell textarea.supply-control-field {
+  min-height: 62px !important;
+  height: auto !important;
+  resize: vertical;
+  white-space: normal;
 }
 
 @media (max-width: 1180px) {
@@ -37470,6 +39735,10 @@ main.app-shell[data-layout-page="supply"] .supply-table .primary-cell small {
   }
 
   main.app-shell[data-layout-page="supply"] .supply-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main.app-shell[data-layout-page="supply"] .supply-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -38256,7 +40525,7 @@ main.app-shell[data-layout-page="rkd"] [data-layout="main-content"] .rkd-form te
   }
 
   main.app-shell[data-layout-page="supply"] .supply-table {
-    min-width: 760px !important;
+    min-width: 1180px !important;
   }
 
   main.app-shell[data-layout-page="gantt"] {
@@ -38387,6 +40656,21 @@ main.app-shell[data-layout-page="rkd"] [data-layout="main-content"] .rkd-form te
 
   main.app-shell[data-layout-page="supply"] {
     --supply-left-width: 170px;
+  }
+
+  main.app-shell[data-layout-page="supply"] .supply-control-stack.is-delivery {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout-page="supply"] .supply-table .supply-control-stack:not(.is-delivery) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout-page="supply"] .supply-table .supply-control-field {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 10px !important;
+    line-height: 18px !important;
   }
 }
 
@@ -39334,5 +41618,1314 @@ main.app-shell[data-layout-page="rkd"] [data-layout="main-content"] .rkd-form te
     padding-bottom: 5px !important;
     line-height: 13px !important;
     white-space: nowrap !important;
+  }
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="routes"] [data-layout="main-content"] .route-object-table :is(
+  .route-object-add-button,
+  .route-object-add-button span,
+  .route-step-compact-fields .dense-inline-select > summary strong,
+  .route-step-compact-fields .dense-inline-select > summary small,
+  .route-step-flow-summary b,
+  .route-step-flow-summary strong,
+  .route-step-flow-summary i,
+  .route-step-flow-override-compact > summary,
+  .route-step-type-chip,
+  .route-step-quantity-cell,
+  .route-step-order-badge,
+  .speki-static-cell,
+  .speki-fulfillment-cell
+) {
+  font-weight: 400 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="routes"] [data-layout="main-content"] .route-object-table .route-object-name-cell strong {
+  font-weight: 600 !important;
+}
+
+@media (min-width: 769px) {
+  main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) > [data-layout="main-content"] {
+    min-height: 0 !important;
+    overflow: auto !important;
+    overscroll-behavior: contain;
+  }
+}
+
+main.app-shell[data-layout="app-shell"] .dense-inline-options.is-viewport-popover,
+main.app-shell[data-layout="app-shell"] .dense-inline-select[open] .dense-inline-options.is-viewport-popover,
+.dense-inline-options.is-viewport-popover {
+  position: fixed !important;
+  inset: auto !important;
+  top: var(--dense-popover-top, 8px) !important;
+  left: var(--dense-popover-left, 8px) !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 7000 !important;
+  width: var(--dense-popover-width, min(320px, calc(100vw - 16px))) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 16px) !important;
+  max-height: var(--dense-popover-max-height, min(320px, calc(100dvh - 16px))) !important;
+  margin: 0 !important;
+  overflow: auto !important;
+  contain: none !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  [data-layout="table"],
+  .directory-table-wrap,
+  .speki-structure-table-wrap,
+  .route-object-table-wrap
+):has(.dense-inline-select) {
+  contain: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-panel,
+  .directory-table-card,
+  .directory-detail-card,
+  .warehouse-kpi-panel,
+  .warehouse-actions-panel,
+  .warehouse-reserve-panel,
+  .warehouse-table-panel,
+  .warehouse-role-panel,
+  .planning-v2-route-map,
+  .planning-v2-detail,
+  .planning-v2-record,
+  .dispatch-rhythm-panel,
+  .dispatch-shift-panel,
+  .dispatch-signal-panel,
+  .dispatch-route-panel,
+  .supply-gantt-panel,
+  .supply-table-panel,
+  .calculator-panel,
+  .calculator-card,
+  .route-summary-card
+):has(.dense-inline-select[open]) {
+  transform: none !important;
+  contain: none !important;
+}
+
+@media (min-width: 769px) {
+  main.app-shell[data-layout="app-shell"][data-layout-page="routes"] .module-data-workspace {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="routes"] :is(
+    .module-data-content,
+    .route-module-content,
+    .route-steps-panel,
+    .route-step-editor-shell,
+    .route-object-editor-shell
+  ) {
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="routes"] .route-object-table-wrap {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    overscroll-behavior-x: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="routes"] .route-object-table {
+    width: max(100%, 900px) !important;
+    min-width: 900px !important;
+    max-width: none !important;
+    table-layout: fixed !important;
+  }
+}
+
+/* Unified icon color contract.
+   Icons keep their semantic tone across modules; action icons inherit from their control. */
+:root {
+  --mes-icon-neutral: var(--mes-ui-muted, #64748b);
+  --mes-icon-neutral-soft: var(--mes-ui-surface-soft, #f8fafc);
+  --mes-icon-neutral-border: var(--mes-ui-line, #e2e8f0);
+  --mes-icon-primary: var(--mes-ui-primary, #2563eb);
+  --mes-icon-primary-soft: var(--mes-ui-primary-soft, #eff6ff);
+  --mes-icon-primary-border: var(--mes-ui-primary-border, #bfdbfe);
+  --mes-icon-operation: var(--mes-ui-primary, #2563eb);
+  --mes-icon-operation-soft: var(--mes-ui-primary-soft, #eff6ff);
+  --mes-icon-operation-border: var(--mes-ui-primary-border, #bfdbfe);
+  --mes-icon-bom: var(--mes-ui-primary, #2563eb);
+  --mes-icon-bom-soft: var(--mes-ui-primary-soft, #eff6ff);
+  --mes-icon-bom-border: var(--mes-ui-primary-border, #bfdbfe);
+  --mes-icon-assembly: #334155;
+  --mes-icon-assembly-soft: #f8fafc;
+  --mes-icon-assembly-border: #cbd5e1;
+  --mes-icon-spec: #92400e;
+  --mes-icon-spec-soft: #fffbeb;
+  --mes-icon-spec-border: #fde68a;
+  --mes-icon-part: #475569;
+  --mes-icon-part-soft: #f8fafc;
+  --mes-icon-part-border: #e2e8f0;
+  --mes-icon-warehouse: #059669;
+  --mes-icon-warehouse-soft: #ecfdf5;
+  --mes-icon-warehouse-border: #bbf7d0;
+  --mes-icon-success: var(--mes-ui-success, #16a34a);
+  --mes-icon-success-soft: var(--mes-ui-success-soft, #ecfdf3);
+  --mes-icon-success-border: var(--mes-ui-success-border, #bbf7d0);
+  --mes-icon-warning: var(--mes-ui-warning, #d97706);
+  --mes-icon-warning-soft: var(--mes-ui-warning-soft, #fff8e6);
+  --mes-icon-warning-border: var(--mes-ui-warning-border, #fde68a);
+  --mes-icon-danger: var(--mes-ui-danger, #dc2626);
+  --mes-icon-danger-soft: var(--mes-ui-danger-soft, #fff1f2);
+  --mes-icon-danger-border: var(--mes-ui-danger-border, #fecaca);
+  --mes-icon-cable: #6d28d9;
+  --mes-icon-cable-soft: #f5f3ff;
+  --mes-icon-cable-border: #ddd6fe;
+  --mes-icon-mech: #334155;
+  --mes-icon-mech-soft: #f8fafc;
+  --mes-icon-mech-border: #cbd5e1;
+  --mes-icon-pack: #0e7490;
+  --mes-icon-pack-soft: #ecfeff;
+  --mes-icon-pack-border: #a5f3fc;
+  --mes-icon-buy: #be123c;
+  --mes-icon-buy-soft: #fff1f2;
+  --mes-icon-buy-border: #fecdd3;
+  --mes-icon-make: #4338ca;
+  --mes-icon-make-soft: #eef2ff;
+  --mes-icon-make-border: #c7d2fe;
+  --mes-icon-tool: #57534e;
+  --mes-icon-tool-soft: #fafaf9;
+  --mes-icon-tool-border: #d6d3d1;
+  --mes-icon-rea: #15803d;
+  --mes-icon-rea-soft: #f0fdf4;
+  --mes-icon-rea-border: #bbf7d0;
+}
+
+main.app-shell[data-layout="app-shell"] .mes-icon {
+  color: currentColor;
+  stroke: currentColor;
+  fill: none;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .secondary-button,
+  .ghost-button,
+  .icon-button,
+  .table-icon-button,
+  .module-logout-button,
+  .mini-action,
+  .dense-inline-select > summary
+) .mes-icon {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .primary-button,
+  .danger-primary,
+  .module-tab.is-active,
+  .mobile-module-tab.is-active
+) .mes-icon {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .icon-button.danger-soft,
+  .table-icon-button.danger-soft,
+  .secondary-button.danger
+) {
+  color: var(--mes-icon-danger) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge,
+  .speki-section-icon-badge,
+  .speki-tree-node-icon,
+  .supply-kpi-card > span,
+  .dispatch-kpi-card > span,
+  .dispatch-signal-item b,
+  .update-ready-icon
+) {
+  --mes-icon-tone: var(--mes-icon-neutral);
+  --mes-icon-tone-soft: var(--mes-icon-neutral-soft);
+  --mes-icon-tone-border: var(--mes-icon-neutral-border);
+  border-color: var(--mes-icon-tone-border) !important;
+  background: var(--mes-icon-tone-soft) !important;
+  color: var(--mes-icon-tone) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .speki-structure-table .dense-select-spekiStructureType > summary,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType > summary
+) {
+  --mes-icon-tone: var(--mes-icon-neutral);
+  --mes-icon-tone-soft: var(--mes-icon-neutral-soft);
+  --mes-icon-tone-border: var(--mes-icon-neutral-border);
+  border-color: var(--mes-icon-tone-border) !important;
+  background: var(--mes-icon-tone-soft) !important;
+  color: var(--mes-icon-tone) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-operation,
+  .speki-tree-node-icon.is-operation,
+  .speki-section-icon-badge.is-operation,
+  .speki-structure-table .dense-select-spekiStructureType.is-operation > summary,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-operation > summary
+) {
+  --mes-icon-tone: var(--mes-icon-operation);
+  --mes-icon-tone-soft: var(--mes-icon-operation-soft);
+  --mes-icon-tone-border: var(--mes-icon-operation-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-warehouse,
+  .speki-tree-node-icon.is-warehouse,
+  .speki-section-icon-badge.is-warehouse,
+  .speki-structure-table .dense-select-spekiStructureType.is-warehouse > summary,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-warehouse > summary
+) {
+  --mes-icon-tone: var(--mes-icon-warehouse);
+  --mes-icon-tone-soft: var(--mes-icon-warehouse-soft);
+  --mes-icon-tone-border: var(--mes-icon-warehouse-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-bom,
+  .speki-section-icon-badge.is-bom,
+  .speki-tree-node-icon.is-bom,
+  .speki-section-icon-badge.is-section-blue,
+  .speki-tree-node-icon.is-section-blue,
+  .supply-kpi-card.is-pcb > span,
+  .speki-structure-table .dense-select-spekiStructureType.is-bom > summary,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-blue > summary
+) {
+  --mes-icon-tone: var(--mes-icon-bom);
+  --mes-icon-tone-soft: var(--mes-icon-bom-soft);
+  --mes-icon-tone-border: var(--mes-icon-bom-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-assembly,
+  .speki-section-icon-badge.is-assembly,
+  .speki-tree-node-icon.is-assembly,
+  .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary
+) {
+  --mes-icon-tone: var(--mes-icon-assembly);
+  --mes-icon-tone-soft: var(--mes-icon-assembly-soft);
+  --mes-icon-tone-border: var(--mes-icon-assembly-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-spec,
+  .route-type-icon-badge.is-specification,
+  .speki-section-icon-badge.is-spec,
+  .speki-section-icon-badge.is-specification,
+  .speki-tree-node-icon.is-spec,
+  .speki-tree-node-icon.is-specification,
+  .speki-structure-table .dense-select-spekiStructureType.is-specification > summary
+) {
+  --mes-icon-tone: var(--mes-icon-spec);
+  --mes-icon-tone-soft: var(--mes-icon-spec-soft);
+  --mes-icon-tone-border: var(--mes-icon-spec-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-part,
+  .route-type-icon-badge.is-neutral,
+  .speki-section-icon-badge.is-part,
+  .speki-section-icon-badge.is-nomenclature,
+  .speki-section-icon-badge.is-section-neutral,
+  .speki-tree-node-icon.is-part,
+  .speki-tree-node-icon.is-nomenclature,
+  .speki-tree-node-icon.is-section-neutral,
+  .speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-neutral > summary
+) {
+  --mes-icon-tone: var(--mes-icon-part);
+  --mes-icon-tone-soft: var(--mes-icon-part-soft);
+  --mes-icon-tone-border: var(--mes-icon-part-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-warning,
+  .speki-section-icon-badge.is-warning,
+  .speki-tree-node-icon.is-warning,
+  .speki-section-icon-badge.is-section-amber,
+  .speki-tree-node-icon.is-section-amber,
+  .dispatch-kpi-card.is-warning > span,
+  .dispatch-signal-item.is-warning b,
+  .supply-kpi-card.is-warning > span,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-amber > summary
+) {
+  --mes-icon-tone: var(--mes-icon-warning);
+  --mes-icon-tone-soft: var(--mes-icon-warning-soft);
+  --mes-icon-tone-border: var(--mes-icon-warning-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .route-type-icon-badge.is-danger,
+  .route-type-icon-badge.is-critical,
+  .speki-section-icon-badge.is-danger,
+  .speki-section-icon-badge.is-critical,
+  .speki-tree-node-icon.is-danger,
+  .speki-tree-node-icon.is-critical,
+  .dispatch-signal-item.is-critical b,
+  .supply-kpi-card.is-danger > span
+) {
+  --mes-icon-tone: var(--mes-icon-danger);
+  --mes-icon-tone-soft: var(--mes-icon-danger-soft);
+  --mes-icon-tone-border: var(--mes-icon-danger-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .dispatch-kpi-card.is-ok > span,
+  .dispatch-signal-item.is-ok b,
+  .supply-kpi-card.is-ok > span,
+  .speki-section-icon-badge.is-section-emerald,
+  .speki-tree-node-icon.is-section-emerald,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-emerald > summary
+) {
+  --mes-icon-tone: var(--mes-icon-success);
+  --mes-icon-tone-soft: var(--mes-icon-success-soft);
+  --mes-icon-tone-border: var(--mes-icon-success-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .supply-kpi-card.is-primary > span,
+  .supply-kpi-card.is-active > span,
+  .dispatch-kpi-card.is-active > span,
+  .dispatch-signal-item.is-active b,
+  .route-type-icon-badge.is-active,
+  .speki-section-icon-badge.is-active,
+  .speki-tree-node-icon.is-active,
+  .update-ready-icon
+) {
+  --mes-icon-tone: var(--mes-icon-primary);
+  --mes-icon-tone-soft: var(--mes-icon-primary-soft);
+  --mes-icon-tone-border: var(--mes-icon-primary-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .speki-section-icon-badge.is-section-violet,
+  .speki-tree-node-icon.is-section-violet,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-violet > summary
+) {
+  --mes-icon-tone: var(--mes-icon-cable);
+  --mes-icon-tone-soft: var(--mes-icon-cable-soft);
+  --mes-icon-tone-border: var(--mes-icon-cable-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .speki-section-icon-badge.is-section-slate,
+  .speki-tree-node-icon.is-section-slate,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-slate > summary
+) {
+  --mes-icon-tone: var(--mes-icon-mech);
+  --mes-icon-tone-soft: var(--mes-icon-mech-soft);
+  --mes-icon-tone-border: var(--mes-icon-mech-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .speki-section-icon-badge.is-section-cyan,
+  .speki-tree-node-icon.is-section-cyan,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-cyan > summary
+) {
+  --mes-icon-tone: var(--mes-icon-pack);
+  --mes-icon-tone-soft: var(--mes-icon-pack-soft);
+  --mes-icon-tone-border: var(--mes-icon-pack-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .speki-section-icon-badge.is-section-rose,
+  .speki-tree-node-icon.is-section-rose,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-rose > summary
+) {
+  --mes-icon-tone: var(--mes-icon-buy);
+  --mes-icon-tone-soft: var(--mes-icon-buy-soft);
+  --mes-icon-tone-border: var(--mes-icon-buy-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .speki-section-icon-badge.is-section-indigo,
+  .speki-tree-node-icon.is-section-indigo,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-indigo > summary
+) {
+  --mes-icon-tone: var(--mes-icon-make);
+  --mes-icon-tone-soft: var(--mes-icon-make-soft);
+  --mes-icon-tone-border: var(--mes-icon-make-border);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .speki-section-icon-badge.is-section-stone,
+  .speki-tree-node-icon.is-section-stone,
+  .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-stone > summary
+) {
+  --mes-icon-tone: var(--mes-icon-tool);
+  --mes-icon-tone-soft: var(--mes-icon-tool-soft);
+  --mes-icon-tone-border: var(--mes-icon-tool-border);
+}
+
+main.app-shell[data-layout="app-shell"] .supply-kpi-card.is-rek > span {
+  --mes-icon-tone: var(--mes-icon-rea);
+  --mes-icon-tone-soft: var(--mes-icon-rea-soft);
+  --mes-icon-tone-border: var(--mes-icon-rea-border);
+}
+
+/* MES Visual System v1: status language, interaction states, focus mode and visual QA. */
+:root {
+  --mes-motion-instant: 80ms;
+  --mes-motion-fast: 140ms;
+  --mes-motion-normal: 200ms;
+  --mes-motion-slow: 280ms;
+  --mes-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --mes-state-focus: rgba(37, 99, 235, 0.34);
+  --mes-state-hover: rgba(37, 99, 235, 0.08);
+  --mes-state-active: rgba(37, 99, 235, 0.14);
+  --mes-state-selected: #eef6ff;
+  --mes-signal-ready: #16a34a;
+  --mes-signal-ready-soft: #ecfdf3;
+  --mes-signal-ready-border: #bbf7d0;
+  --mes-signal-risk: #d97706;
+  --mes-signal-risk-soft: #fff7ed;
+  --mes-signal-risk-border: #fed7aa;
+  --mes-signal-warning: #ca8a04;
+  --mes-signal-warning-soft: #fefce8;
+  --mes-signal-warning-border: #fde68a;
+  --mes-signal-blocked: #dc2626;
+  --mes-signal-blocked-soft: #fff1f2;
+  --mes-signal-blocked-border: #fecaca;
+  --mes-signal-manual: #7c3aed;
+  --mes-signal-manual-soft: #f5f3ff;
+  --mes-signal-manual-border: #ddd6fe;
+  --mes-signal-test: #b45309;
+  --mes-signal-test-soft: #fffbeb;
+  --mes-signal-test-border: #fcd34d;
+  --mes-signal-calc: #0e7490;
+  --mes-signal-calc-soft: #ecfeff;
+  --mes-signal-calc-border: #a5f3fc;
+  --mes-gantt-plan-fill: #dbeafe;
+  --mes-gantt-plan-border: #93c5fd;
+  --mes-gantt-fact-fill: #dcfce7;
+  --mes-gantt-risk-fill: #fff7ed;
+  --mes-gantt-break-border: rgba(96, 165, 250, 0.58);
+  --mes-gantt-selected-ring: rgba(37, 99, 235, 0.42);
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar {
+  grid-template-columns: minmax(160px, 0.72fr) minmax(240px, 1.28fr) auto !important;
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  min-width: max-content !important;
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 34px;
+  min-height: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.30);
+  border-radius: var(--mes-ui-radius-sm, 10px);
+  background: var(--mes-ui-surface, #fff);
+  color: var(--mes-ui-text-secondary, #475569);
+  box-shadow: var(--mes-ui-shadow-xs, 0 1px 1px rgba(15, 23, 42, 0.04));
+  padding: 0 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    transform var(--mes-motion-fast) var(--mes-motion-ease),
+    border-color var(--mes-motion-fast) var(--mes-motion-ease),
+    background var(--mes-motion-fast) var(--mes-motion-ease),
+    color var(--mes-motion-fast) var(--mes-motion-ease),
+    box-shadow var(--mes-motion-fast) var(--mes-motion-ease);
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar-action:hover {
+  border-color: var(--mes-ui-primary-border, #bfdbfe);
+  background: var(--mes-ui-hover, #f1f6ff);
+  color: var(--mes-ui-primary, #2563eb);
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar-action:active {
+  transform: translateY(1px);
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar-action.is-active {
+  border-color: var(--mes-ui-primary, #2563eb);
+  background: var(--mes-ui-primary, #2563eb);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar-action.is-qa-active {
+  border-color: var(--mes-signal-test-border);
+  background: var(--mes-signal-test-soft);
+  color: var(--mes-signal-test);
+}
+
+main.app-shell[data-layout="app-shell"] .app-topbar-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.mes-visual-mode-tray {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 7600;
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.30);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.mes-visual-mode-tray .app-topbar-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 34px;
+  min-height: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.30);
+  border-radius: var(--mes-ui-radius-sm, 10px);
+  background: var(--mes-ui-surface, #fff);
+  color: var(--mes-ui-text-secondary, #475569);
+  box-shadow: var(--mes-ui-shadow-xs, 0 1px 1px rgba(15, 23, 42, 0.04));
+  padding: 0 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mes-visual-mode-tray .app-topbar-action.is-active {
+  border-color: var(--mes-ui-primary, #2563eb);
+  background: var(--mes-ui-primary, #2563eb);
+  color: #fff;
+}
+
+.mes-visual-mode-tray .app-topbar-action.is-qa-active {
+  border-color: var(--mes-signal-test-border);
+  background: var(--mes-signal-test-soft);
+  color: var(--mes-signal-test);
+}
+
+.mes-visual-mode-tray .app-topbar-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  button,
+  a[href],
+  summary,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  .dense-inline-select > summary,
+  .operation-slot
+):focus-visible {
+  outline: 2px solid var(--mes-state-focus) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(button, .primary-button, .secondary-button, .icon-button, .table-icon-button, .dense-inline-select > summary) {
+  transition:
+    background var(--mes-motion-fast) var(--mes-motion-ease),
+    border-color var(--mes-motion-fast) var(--mes-motion-ease),
+    color var(--mes-motion-fast) var(--mes-motion-ease),
+    box-shadow var(--mes-motion-fast) var(--mes-motion-ease),
+    transform var(--mes-motion-fast) var(--mes-motion-ease);
+}
+
+main.app-shell[data-layout="app-shell"] :is(button, .primary-button, .secondary-button, .icon-button, .table-icon-button):disabled,
+main.app-shell[data-layout="app-shell"] :is(button, .primary-button, .secondary-button, .icon-button, .table-icon-button).is-disabled {
+  cursor: not-allowed !important;
+  opacity: 0.52 !important;
+  transform: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] .is-loading {
+  cursor: progress;
+  position: relative;
+}
+
+main.app-shell[data-layout="app-shell"] .is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.52), transparent);
+  transform: translateX(-100%);
+  animation: mes-loading-sweep 1100ms var(--mes-motion-ease) infinite;
+  pointer-events: none;
+}
+
+.mes-signal,
+main.app-shell[data-layout="app-shell"] :is(.mes-signal, .status-pill, .directory-status-pill, .supply-status-pill) {
+  --mes-signal-color: var(--mes-ui-muted, #64748b);
+  --mes-signal-bg: var(--mes-ui-surface-subtle, #f4f7fb);
+  --mes-signal-border: var(--mes-ui-line, #e2e8f0);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 22px;
+  border: 1px solid var(--mes-signal-border);
+  border-radius: var(--mes-ui-pill, 999px);
+  background: var(--mes-signal-bg);
+  color: var(--mes-signal-color);
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 14px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.mes-signal.is-ready,
+main.app-shell[data-layout="app-shell"] :is(.status-pill.is-ready, .status-pill.is-ok, .supply-status-pill.is-delivered) {
+  --mes-signal-color: var(--mes-signal-ready);
+  --mes-signal-bg: var(--mes-signal-ready-soft);
+  --mes-signal-border: var(--mes-signal-ready-border);
+}
+
+.mes-signal.is-risk,
+.mes-signal.is-warning,
+main.app-shell[data-layout="app-shell"] :is(.status-pill.is-warning, .supply-status-pill.is-partial, .supply-status-pill.is-not_purchased) {
+  --mes-signal-color: var(--mes-signal-warning);
+  --mes-signal-bg: var(--mes-signal-warning-soft);
+  --mes-signal-border: var(--mes-signal-warning-border);
+}
+
+.mes-signal.is-blocked,
+.mes-signal.is-system-error,
+main.app-shell[data-layout="app-shell"] :is(.status-pill.is-danger, .status-pill.is-critical, .supply-status-pill.is-blocked) {
+  --mes-signal-color: var(--mes-signal-blocked);
+  --mes-signal-bg: var(--mes-signal-blocked-soft);
+  --mes-signal-border: var(--mes-signal-blocked-border);
+}
+
+.mes-signal.is-manual {
+  --mes-signal-color: var(--mes-signal-manual);
+  --mes-signal-bg: var(--mes-signal-manual-soft);
+  --mes-signal-border: var(--mes-signal-manual-border);
+}
+
+.mes-signal.is-test,
+main.app-shell[data-layout="app-shell"] :is(.is-test-group, .is-ux-labor-test) {
+  --mes-signal-color: var(--mes-signal-test);
+  --mes-signal-bg: var(--mes-signal-test-soft);
+  --mes-signal-border: var(--mes-signal-test-border);
+}
+
+.mes-signal.is-calc,
+main.app-shell[data-layout="app-shell"] :is(.is-route-labor-factor, .is-resource-calculation-factor) {
+  --mes-signal-color: var(--mes-signal-calc);
+  --mes-signal-bg: var(--mes-signal-calc-soft);
+  --mes-signal-border: var(--mes-signal-calc-border);
+}
+
+main.app-shell.is-focus-mode[data-layout="app-shell"] > .module-menu {
+  display: none !important;
+}
+
+main.app-shell.is-focus-mode[data-layout="app-shell"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+main.app-shell.is-focus-mode[data-layout="app-shell"] > .app-topbar,
+main.app-shell.is-focus-mode[data-layout="app-shell"] > :is([data-layout="main-content"], [data-layout="planning-page"], .planner-workspace-gantt-only) {
+  grid-column: 1 !important;
+}
+
+main.app-shell.is-focus-mode[data-layout="app-shell"] .app-topbar-title p,
+main.app-shell.is-focus-mode[data-layout="app-shell"] .app-global-search {
+  display: none !important;
+}
+
+main.app-shell.is-focus-mode[data-layout="app-shell"] .app-topbar {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  padding-block: 0 !important;
+}
+
+main.app-shell.is-focus-mode[data-layout="app-shell"] :is(
+  .directory-sidebar,
+  .module-data-sidebar,
+  .warehouse-sidebar,
+  .calculator-stepper-rail,
+  .planning-v2-queue,
+  .dispatch-sidebar,
+  .supply-sidebar
+) {
+  display: none !important;
+}
+
+main.app-shell.is-focus-mode[data-layout="app-shell"] :is(
+  .directories-page,
+  .module-data-page,
+  .warehouse-page,
+  .calculator-page,
+  .planning-v2-page,
+  .dispatch-page,
+  .supply-page
+) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-preview-empty,
+  .bom-import-empty,
+  .route-module-empty,
+  .planning-empty-panel,
+  .assistant-empty,
+  .empty-state,
+  .calculator-empty-panel,
+  .directory-empty,
+  .supply-empty-state
+) {
+  display: grid !important;
+  place-items: center !important;
+  gap: 6px !important;
+  min-height: 96px !important;
+  border: 1px dashed rgba(148, 163, 184, 0.42) !important;
+  border-radius: var(--mes-ui-radius-md, 14px) !important;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 0.82)) !important;
+  color: var(--mes-ui-muted, #64748b) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 16px !important;
+  padding: 14px !important;
+  text-align: center !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .directory-table,
+  .warehouse-table,
+  .calculator-table,
+  .dispatch-table,
+  .supply-table,
+  .bom-import-table,
+  .nomenclature-table,
+  .speki-structure-table,
+  .route-object-table
+) {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .directory-table,
+  .warehouse-table,
+  .calculator-table,
+  .dispatch-table,
+  .supply-table,
+  .bom-import-table,
+  .nomenclature-table,
+  .speki-structure-table,
+  .route-object-table
+) :is(th, td) {
+  min-height: var(--mes-ui-table-row-height, 37px);
+  vertical-align: middle !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .directory-table,
+  .warehouse-table,
+  .calculator-table,
+  .dispatch-table,
+  .supply-table,
+  .bom-import-table,
+  .nomenclature-table,
+  .speki-structure-table,
+  .route-object-table
+) tbody tr:hover td {
+  background: var(--mes-state-hover, rgba(37, 99, 235, 0.08)) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .directory-table,
+  .warehouse-table,
+  .speki-structure-table,
+  .route-object-table
+) :is(.actions-cell, .row-actions-cell, td:last-child) {
+  position: sticky;
+  right: 0;
+  z-index: 4;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.72), #fff 12px) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(.row-actions, .table-actions, .speki-row-actions, .route-step-actions, .directory-table-actions) {
+  align-items: center !important;
+  justify-content: flex-end !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot {
+  --slot-bg: var(--mes-gantt-plan-fill);
+  --slot-border: var(--mes-gantt-plan-border);
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.has-warning {
+  --slot-bg: var(--mes-gantt-risk-fill);
+  --slot-border: var(--mes-signal-risk-border);
+  --slot-text: #9a3412;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-selected :is(.slot-working-segment, .slot-non-working-segment),
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visible :is(.slot-working-segment, .slot-non-working-segment) {
+  outline: 2px solid var(--mes-ui-primary, #2563eb) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px var(--mes-gantt-selected-ring) !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-non-working-segment {
+  border-color: var(--mes-gantt-break-border) !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-transfer-batch-indicator {
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.16));
+}
+
+main.app-shell[data-layout="app-shell"] :is(.module-menu-preset-save, .access-role-switcher button) {
+  min-width: 28px !important;
+  min-height: 28px !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control {
+  grid-template-columns: 28px minmax(50px, 1fr) 28px !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  max-height: none !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control :is(.icon-button, .gantt-zoom-value) {
+  width: 100% !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  height: 28px !important;
+  max-height: none !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar :is(#periodStart, input[type="date"]) {
+  min-height: 28px !important;
+  height: 28px !important;
+  max-height: none !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.chevron, .row-toggle, .project-toggle) {
+  min-width: 28px !important;
+  min-height: 28px !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(.speki-structure-table, .route-object-table) :is(.icon-button, .table-icon-button, .route-step-labor-toggle) {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(.speki-structure-table, .route-object-table) .dense-inline-select > summary {
+  min-height: 28px !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-gantt-group-label {
+  grid-template-columns: 28px 42px minmax(0, 1fr) !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-group-toggle {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-demand-bar {
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-field {
+  min-height: 28px !important;
+  height: 28px !important;
+}
+
+main.app-shell[data-layout="app-shell"] .field.search-field svg {
+  grid-column: 1 !important;
+}
+
+main.app-shell[data-layout="app-shell"] .field.search-field input {
+  grid-column: 2 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack.is-delivery label:nth-child(3) {
+  grid-template-columns: minmax(28px, 1fr) !important;
+}
+
+main.app-shell[data-layout-page="supply"] .supply-control-stack.is-delivery label:nth-child(3) span {
+  display: none !important;
+}
+
+.visual-debug-overlay-root {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9000;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  width: min(420px, calc(100vw - 28px));
+  max-height: min(560px, calc(100dvh - 28px));
+  overflow: hidden;
+  border: 1px solid rgba(251, 191, 36, 0.52);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  box-shadow: 0 26px 80px rgba(15, 23, 42, 0.36);
+  backdrop-filter: blur(14px);
+}
+
+.visual-debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 12px;
+}
+
+.visual-debug-header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.visual-debug-header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.visual-debug-actions {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.visual-debug-actions button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  padding: 0;
+}
+
+.visual-debug-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  padding: 8px 12px;
+  color: rgba(226, 232, 240, 0.88);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.visual-debug-summary span {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 8px;
+}
+
+.visual-debug-summary small {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 10px;
+}
+
+.visual-debug-list {
+  display: grid;
+  gap: 6px;
+  overflow: auto;
+  padding: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.visual-debug-issue {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 2px 8px;
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f8fafc;
+  padding: 8px;
+  text-align: left;
+}
+
+.visual-debug-issue.is-critical {
+  border-color: rgba(248, 113, 113, 0.54);
+}
+
+.visual-debug-issue > span {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.20);
+  color: #fde68a;
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.visual-debug-issue.is-critical > span {
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+}
+
+.visual-debug-issue strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visual-debug-issue small {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visual-debug-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 72px;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.visual-debug-marker-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 8990;
+  pointer-events: none;
+}
+
+.visual-debug-marker {
+  position: fixed;
+  border: 2px solid rgba(251, 191, 36, 0.92);
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.08);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 9999px rgba(15, 23, 42, 0.00);
+  pointer-events: none;
+}
+
+.visual-debug-marker.is-critical {
+  border-color: rgba(248, 113, 113, 0.96);
+  background: rgba(248, 113, 113, 0.10);
+}
+
+.visual-debug-marker.is-pulsing {
+  animation: mes-qa-pulse 850ms var(--mes-motion-ease) 2;
+}
+
+@keyframes mes-loading-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes mes-qa-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 0 rgba(251, 191, 36, 0.0); }
+  50% { box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 8px rgba(251, 191, 36, 0.28); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main.app-shell[data-layout="app-shell"] *,
+  .visual-debug-overlay-root *,
+  .visual-debug-marker {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (max-width: 768px) {
+  main.app-shell[data-layout="app-shell"] .app-topbar {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] .app-topbar-actions {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] .app-topbar-action {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] .app-topbar-action span {
+    display: none !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] .app-global-search {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] .access-role-switcher button {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(
+    button,
+    .primary-button,
+    .secondary-button,
+    .icon-button,
+    .table-icon-button,
+    .dense-inline-select > summary
+  ) {
+    min-height: 36px !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(
+    .primary-button,
+    .secondary-button,
+    .route-object-add-button
+  ) {
+    height: auto !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(
+    .icon-button,
+    .table-icon-button,
+    .route-step-labor-toggle,
+    .route-step-flow-toggle,
+    .route-step-delete-button
+  ) {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  main.app-shell[data-layout-page="routes"] .module-form-actions :is(.primary-button, .secondary-button) {
+    min-height: 36px !important;
+    height: 36px !important;
+  }
+
+  main.app-shell[data-layout-page="directories"] .directory-table-wrap .directory-table .table-icon-button {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: none !important;
+  }
+
+  main.app-shell[data-layout-page="gantt"] .gantt-shell .chevron {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar :is(
+    button,
+    input,
+    .segment,
+    .gantt-zoom-value,
+    .gantt-zoom-control .icon-button,
+    .toggle-switch-button
+  ) {
+    min-height: 36px !important;
+    height: 36px !important;
+    max-height: none !important;
+  }
+
+  main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control {
+    grid-template-columns: 36px minmax(64px, 1fr) 36px !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    max-height: none !important;
+  }
+
+  main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control :is(.icon-button, .gantt-zoom-value) {
+    width: 100% !important;
+    min-width: 36px !important;
+  }
+
+  main.app-shell[data-layout-page="supply"] .supply-gantt-group-label {
+    grid-template-columns: 36px 42px minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout-page="supply"] .supply-group-toggle {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  main.app-shell[data-layout-page="supply"] .supply-demand-bar {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .visual-debug-overlay-root {
+    right: 8px;
+    bottom: 8px;
+    width: calc(100vw - 16px);
+    max-height: min(58dvh, 460px);
   }
 }

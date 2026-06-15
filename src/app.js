@@ -7,8 +7,10 @@ import {
   formatDate,
   formatDateTime,
   formatDuration,
+  formatShortDate,
   formatTime,
   fromDateInput,
+  getWeekNumber,
   isoLocal,
   scaleConfig,
   snapDate,
@@ -41,6 +43,7 @@ const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defaults-restored-v1";
 const CALCULATOR_STORAGE_KEY = "mes-planning-prototype-complexity-calculator-v5";
+const SUPPLY_CONTROL_STORAGE_KEY = "mes-planning-prototype-supply-control-v1";
 const WORKFLOW_PRESET_STORAGE_KEY = "mes-planning-prototype-workflow-preset-v1";
 const WORKFLOW_PRESET_FILE_URL = "./workflow-preset.json";
 const WORKFLOW_PRESET_API_URL = "./api/workflow-preset";
@@ -64,6 +67,7 @@ const STORAGE_KEYS = [
   DIRECTORY_STORAGE_KEY,
   DIRECTORY_DEFAULTS_STORAGE_KEY,
   CALCULATOR_STORAGE_KEY,
+  SUPPLY_CONTROL_STORAGE_KEY,
   UPDATE_DISMISSED_STORAGE_KEY,
   DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
   WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
@@ -82,6 +86,7 @@ const SHARED_STATE_VALUE_KEYS = [
   DIRECTORY_STORAGE_KEY,
   DIRECTORY_DEFAULTS_STORAGE_KEY,
   DIRECTORY_DELETED_ENTITIES_STORAGE_KEY,
+  SUPPLY_CONTROL_STORAGE_KEY,
   WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
 ];
 const CRITICAL_DIRECTORY_SECTION_IDS = ["bomLists", "specifications"];
@@ -113,7 +118,66 @@ const GANTT_DEPENDENCY_ENTRY_MS = 90 * 60 * 1000;
 const TIMELINE_LOAD_CHUNK = { hours: 48, days: 30, weeks: 12 };
 const TIMELINE_MAX_COUNT = { hours: 2880, days: 540, weeks: 156 };
 const SUPPLY_WEEK_COUNT = 12;
-const SUPPLY_WEEK_WIDTH = 64;
+const SUPPLY_DAY_COUNT = SUPPLY_WEEK_COUNT * 7;
+const SUPPLY_DAY_WIDTH = 38;
+const SUPPLY_CONTROL_STATUS_OPTIONS = [
+  { id: "not_purchased", label: "Не закуплено", tone: "warning" },
+  { id: "requested", label: "Запрошено", tone: "neutral" },
+  { id: "ordered", label: "Закуплено", tone: "primary" },
+  { id: "partial", label: "Частично пришло", tone: "warning" },
+  { id: "delivered", label: "Поступило", tone: "ok" },
+  { id: "blocked", label: "Проблема", tone: "danger" },
+];
+const ROUTE_STEP_CALCULATION_TYPES = [
+  {
+    value: "components",
+    label: "По компонентам",
+    meta: "BOM, линия и компоненты",
+    summaryLabel: "Компоненты",
+    iconName: "bom",
+  },
+  {
+    value: "manual",
+    label: "Секунд на штуку",
+    meta: "ручная трудоемкость с учетом мощности ресурса",
+    summaryLabel: "Сек/шт",
+    iconName: "clock",
+  },
+  {
+    value: "normative",
+    label: "Секунд на цикл",
+    meta: "норматив на панель или производственный цикл",
+    summaryLabel: "Сек/цикл",
+    iconName: "calculator",
+  },
+  {
+    value: "rate",
+    label: "Штук в час",
+    meta: "расчет от производительности отдела",
+    summaryLabel: "Шт/час",
+    iconName: "gantt",
+  },
+];
+const PRODUCTION_RESOURCE_CALCULATION_KEYS = new Set([
+  "participatesInPlanning",
+  "participatesInCalculation",
+  "capacity",
+  "baseCph",
+  "efficiency",
+  "changeoverMin",
+]);
+const MES_SIGNAL_TYPES = {
+  neutral: { label: "Нейтрально", tone: "neutral" },
+  ready: { label: "Готово", tone: "ready" },
+  risk: { label: "Риск", tone: "risk" },
+  warning: { label: "Ожидание", tone: "warning" },
+  blocked: { label: "Блокировка", tone: "blocked" },
+  manual: { label: "Ручное вмешательство", tone: "manual" },
+  test: { label: "Тестовый функционал", tone: "test" },
+  calc: { label: "Расчетное поле", tone: "calc" },
+  systemError: { label: "Системная ошибка", tone: "system-error" },
+};
+const VISUAL_QA_MAX_ISSUES = 90;
 const PROJECT_ROW_HEIGHT = 88;
 const WORK_ROW_HEIGHT = 68;
 const WEEK_SLOT_HEIGHT = 18;
@@ -271,6 +335,10 @@ window.addEventListener("unhandledrejection", (event) => {
   handleGlobalRuntimeError(event.reason || "Unhandled promise rejection");
 });
 
+var denseInlineViewportListenersBound = false;
+var visualQaRefreshFrame = 0;
+var visualQaLastReport = null;
+
 const defaultUiState = {
   activeRole: DEFAULT_INTERFACE_ROLE_ID,
   activeModule: "gantt",
@@ -288,9 +356,13 @@ const defaultUiState = {
   activeOperationId: "",
   nomenclatureTypeFilter: "all",
   activeRouteId: "",
+  routeFlowStepId: "",
+  routeLaborStepId: "",
   activeSupplyRouteId: "",
+  activeSupplyDemandRowId: "",
   routeDraftBindingId: "",
   routeBindingMode: "product",
+  supplyCollapsedGroups: {},
   planningWorkItem: "",
   activeShopMapWidgetId: "",
   shopMapEditMode: false,
@@ -307,6 +379,8 @@ const defaultUiState = {
   rowMode: "route",
   autoCascade: true,
   hideSharedNonWorkingZones: false,
+  focusMode: false,
+  visualQaEnabled: false,
   ganttZoom: 1,
   ganttSlotContent: "operationQuantity",
   ganttDependencyEditMode: false,
@@ -520,6 +594,18 @@ const SHOP_FLOOR_WIDGET_LAYOUTS = [
   { match: "assembly", x: 52, y: 49, tone: "violet" },
   { match: "warehouse", x: 88, y: 72, tone: "slate" },
 ];
+const PRODUCTION_FLOW_STAGE_DEFINITIONS = [
+  { id: "warehouse", label: "Склад", caption: "выдача и возврат", workCenterIds: ["D1"], iconName: "warehouse", tone: "slate" },
+  { id: "smt", label: "SMT", caption: "поверхностный монтаж", workCenterIds: ["D3", "D3_L1", "D3_L2"], iconName: "bom", tone: "blue" },
+  { id: "aoi", label: "AOI", caption: "оптическая инспекция", workCenterIds: ["D3_AOI"], iconName: "search", tone: "cyan" },
+  { id: "wash", label: "Отмывка", caption: "ультразвук", workCenterIds: ["D3_UW"], iconName: "refresh", tone: "green" },
+  { id: "coating", label: "Влагозащита", caption: "ручная и селективная", workCenterIds: ["D3_MANUAL_CC", "D3_CC"], iconName: "package", tone: "green" },
+  { id: "manual", label: "Ручной монтаж", caption: "THT и пайка", workCenterIds: ["D5"], iconName: "operation", tone: "amber" },
+  { id: "quality", label: "ОТК", caption: "контроль", workCenterIds: ["D4"], iconName: "check", tone: "violet" },
+  { id: "programming", label: "Прошивка", caption: "подготовка изделий", workCenterIds: ["D6"], iconName: "settings", tone: "blue" },
+  { id: "assembly", label: "Сборка", caption: "слесарно-сборочный отдел", workCenterIds: ["D9"], iconName: "tree", tone: "violet" },
+  { id: "packing", label: "Упаковка", caption: "маркировка и упаковка", workCenterIds: ["D11"], iconName: "package", tone: "slate" },
+];
 const SHOP_MAP_COORDINATE_MIN = 2;
 const SHOP_MAP_COORDINATE_MAX = 98;
 
@@ -540,6 +626,7 @@ syncNomenclatureTypesFromItems({ persist: true });
 migrateLegacyOperationsToDirectory();
 ensureWorkCenterOperations();
 calculatorState = loadCalculatorState();
+let supplyControlState = loadSupplyControlState();
 let ui = loadUiState();
 alignGanttWindowToPlan({ onlyWhenFar: true });
 let shopMapLayoutDraft = null;
@@ -720,6 +807,7 @@ function applySharedStateSnapshot(snapshot, options = {}) {
     writeSharedStateValues(snapshot.values);
     directoryState = loadDirectoryState();
     planningState = loadState();
+    supplyControlState = loadSupplyControlState();
     alignGanttWindowToPlan({ onlyWhenFar: true });
 
     const sharedUi = snapshot.sharedUi || {};
@@ -950,9 +1038,21 @@ function isUsableWorkflowPreset(preset) {
   return isMeaningfulWorkflowPresetCounts(counts);
 }
 
+function getWorkflowPresetTimestamp(preset) {
+  const time = Date.parse(preset?.updatedAt || preset?.savedAt || preset?.createdAt || "");
+  return Number.isFinite(time) ? time : 0;
+}
+
+function shouldPreferBundledWorkflowPreset(bundledPreset, savedPreset) {
+  if (!isUsableWorkflowPreset(bundledPreset)) return false;
+  if (!isUsableWorkflowPreset(savedPreset)) return true;
+  return getWorkflowPresetTimestamp(bundledPreset) > getWorkflowPresetTimestamp(savedPreset);
+}
+
 function getWorkflowPreset() {
-  const preset = parseJsonObject(localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY));
-  if (isUsableWorkflowPreset(preset)) return preset;
+  const savedPreset = parseJsonObject(localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY));
+  if (shouldPreferBundledWorkflowPreset(bundledWorkflowPreset, savedPreset)) return bundledWorkflowPreset;
+  if (isUsableWorkflowPreset(savedPreset)) return savedPreset;
   if (isUsableWorkflowPreset(bundledWorkflowPreset)) return bundledWorkflowPreset;
   return null;
 }
@@ -1021,7 +1121,7 @@ async function saveWorkflowPresetSnapshot(options = {}) {
 
 function ensureInitialWorkflowPreset() {
   const preset = getWorkflowPreset();
-  if (preset) return;
+  if (preset && bundledWorkflowPreset) return;
   void startWorkflowPresetBootstrap();
 }
 
@@ -1041,14 +1141,16 @@ async function loadWorkflowPresetBootstrap() {
     const preset = await response.json();
     if (!isUsableWorkflowPreset(preset)) return getWorkflowPreset();
     bundledWorkflowPreset = preset;
-    const hadSavedPreset = Boolean(localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY));
-    if (!hadSavedPreset) {
+    const savedPreset = parseJsonObject(localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY));
+    const hadSavedPreset = isUsableWorkflowPreset(savedPreset);
+    const shouldRefreshSavedPreset = !hadSavedPreset || shouldPreferBundledWorkflowPreset(preset, savedPreset);
+    if (shouldRefreshSavedPreset) {
       localStorage.setItem(WORKFLOW_PRESET_STORAGE_KEY, JSON.stringify(preset));
     }
     const restored = isSharedStateTemporarilyDisabled()
       ? restoreWorkflowPresetIfCurrentPlanningEmpty(preset)
       : false;
-    if (!hadSavedPreset && !restored) {
+    if (shouldRefreshSavedPreset && !restored) {
       render();
     }
     return preset;
@@ -2765,6 +2867,339 @@ function scheduleGlobalSaveUxRefresh() {
   }, 0);
 }
 
+function getMesSignalMeta(signalType = "neutral") {
+  return MES_SIGNAL_TYPES[signalType] || MES_SIGNAL_TYPES.neutral;
+}
+
+function mountGlobalVisualSystem() {
+  const shell = app.querySelector(".app-shell");
+  document.body.classList.toggle("is-mes-focus-mode", Boolean(ui.focusMode));
+  document.body.classList.toggle("is-mes-visual-qa-enabled", Boolean(ui.visualQaEnabled));
+  if (shell) {
+    shell.classList.toggle("is-focus-mode", Boolean(ui.focusMode));
+    shell.classList.toggle("is-visual-qa-enabled", Boolean(ui.visualQaEnabled));
+  }
+  mountVisualModeTray();
+  mountVisualDebugOverlay();
+}
+
+function scheduleVisualQaRefresh() {
+  if (!ui.visualQaEnabled || visualQaRefreshFrame) return;
+  visualQaRefreshFrame = window.requestAnimationFrame(updateVisualDebugOverlay);
+}
+
+function mountVisualModeTray() {
+  document.querySelectorAll(".mes-visual-mode-tray").forEach((element) => element.remove());
+  const topbar = app.querySelector(".app-topbar");
+  const topbarRect = topbar?.getBoundingClientRect();
+  const topbarVisible = topbar
+    && window.getComputedStyle(topbar).display !== "none"
+    && topbarRect?.width > 0
+    && topbarRect?.height > 0;
+  if (ui.activeModule !== "gantt" || topbarVisible) return;
+
+  const tray = document.createElement("div");
+  tray.className = "mes-visual-mode-tray";
+  tray.setAttribute("aria-label", "Режимы интерфейса");
+  tray.innerHTML = `
+    <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса">
+      ${icon("focus")}
+      <span>Фокус</span>
+    </button>
+    <button class="app-topbar-action ${ui.visualQaEnabled ? "is-active is-qa-active" : ""}" data-toggle-visual-qa type="button" aria-pressed="${ui.visualQaEnabled ? "true" : "false"}" title="Visual QA">
+      ${icon("bug")}
+      <span>QA</span>
+    </button>
+  `;
+  document.body.appendChild(tray);
+}
+
+function mountVisualDebugOverlay() {
+  document.querySelectorAll(".visual-debug-overlay-root, .visual-debug-marker-layer").forEach((element) => element.remove());
+  if (!ui.visualQaEnabled) {
+    visualQaLastReport = null;
+    return;
+  }
+
+  const overlay = document.createElement("aside");
+  overlay.className = "visual-debug-overlay-root";
+  overlay.setAttribute("role", "region");
+  overlay.setAttribute("aria-label", "Visual QA overlay");
+  overlay.innerHTML = `
+    <header class="visual-debug-header">
+      <span>${icon("bug")}<strong>Visual QA</strong></span>
+      <div class="visual-debug-actions">
+        <button type="button" data-visual-qa-refresh title="Обновить проверку">${icon("refresh")}</button>
+        <button type="button" data-visual-qa-copy title="Скопировать отчет">${icon("copy")}</button>
+        <button type="button" data-visual-qa-close title="Выключить QA">${icon("close")}</button>
+      </div>
+    </header>
+    <div class="visual-debug-summary" data-visual-qa-summary>Проверяю интерфейс...</div>
+    <div class="visual-debug-list" data-visual-qa-list></div>
+  `;
+
+  const markerLayer = document.createElement("div");
+  markerLayer.className = "visual-debug-marker-layer";
+  markerLayer.setAttribute("aria-hidden", "true");
+  document.body.append(overlay, markerLayer);
+  scheduleVisualQaRefresh();
+}
+
+function isElementVisibleForQa(element) {
+  if (!element || element.closest?.(".visual-debug-overlay-root, .visual-debug-marker-layer")) return false;
+  const rect = element.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) !== 0;
+}
+
+function getVisualQaSelector(element) {
+  if (!element) return "";
+  const id = element.id ? `#${element.id}` : "";
+  if (id) return id;
+  const classes = [...element.classList || []]
+    .filter((className) => !className.startsWith("is-") && !className.startsWith("has-"))
+    .slice(0, 3)
+    .map((className) => `.${className}`)
+    .join("");
+  const dataKey = element.dataset?.layout
+    ? `[data-layout="${element.dataset.layout}"]`
+    : element.dataset?.module
+      ? `[data-module="${element.dataset.module}"]`
+      : "";
+  return `${element.tagName.toLowerCase()}${classes}${dataKey}`;
+}
+
+function getVisualQaElementLabel(element) {
+  const label = element.getAttribute?.("aria-label") || element.getAttribute?.("title") || element.textContent || "";
+  return String(label).replace(/\s+/g, " ").trim().slice(0, 90) || getVisualQaSelector(element);
+}
+
+function isInsideAllowedHorizontalQaScroller(element) {
+  const scrollContainer = element?.closest?.("[data-gantt-shell], .supply-gantt-shell, .supply-table-wrap, [data-layout='table'], .toolbar-actions, .status-strip");
+  if (!scrollContainer) return false;
+  return scrollContainer.scrollWidth > scrollContainer.clientWidth + 2;
+}
+
+function pushVisualQaIssue(issues, element, issue) {
+  if (!element || issues.length >= VISUAL_QA_MAX_ISSUES) return;
+  const rect = element.getBoundingClientRect();
+  issues.push({
+    id: `${issue.type}-${issues.length + 1}`,
+    type: issue.type,
+    severity: issue.severity || "warning",
+    selector: getVisualQaSelector(element),
+    label: getVisualQaElementLabel(element),
+    message: issue.message,
+    rect: {
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      right: Math.round(rect.right),
+      bottom: Math.round(rect.bottom),
+    },
+  });
+}
+
+function collectVisualQaIssues() {
+  const shell = app.querySelector(".app-shell");
+  const issues = [];
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+  if (!shell) {
+    return {
+      generatedAt: new Date().toISOString(),
+      module: ui.activeModule,
+      viewport: { width: viewportWidth, height: viewportHeight },
+      issues,
+    };
+  }
+
+  if (document.documentElement.scrollWidth > viewportWidth + 2) {
+    pushVisualQaIssue(issues, shell, {
+      type: "page-overflow",
+      severity: "critical",
+      message: `Глобальный горизонтальный overflow: ${document.documentElement.scrollWidth}px при viewport ${viewportWidth}px`,
+    });
+  }
+
+  const outsideCandidates = shell.querySelectorAll([
+    "button",
+    "input",
+    "select",
+    "textarea",
+    "summary",
+    "a[href]",
+    "[role='button']",
+    "[data-layout='table']",
+    ".modal",
+    ".slot-drawer",
+    ".dense-inline-options",
+    ".supply-detail-popover",
+    ".operation-slot",
+    ".module-panel",
+    ".directory-table-wrap",
+    ".route-object-table-wrap",
+    ".speki-structure-table-wrap",
+  ].join(","));
+  outsideCandidates.forEach((element) => {
+    if (issues.length >= VISUAL_QA_MAX_ISSUES || !isElementVisibleForQa(element)) return;
+    if (element.matches(".dense-inline-options") && !element.closest(".dense-inline-select[open]")) return;
+    const rect = element.getBoundingClientRect();
+    if ((rect.right > viewportWidth + 1 || rect.left < -1) && !isInsideAllowedHorizontalQaScroller(element)) {
+      pushVisualQaIssue(issues, element, {
+        type: "viewport-x",
+        severity: "critical",
+        message: "Элемент выходит за горизонтальные границы viewport",
+      });
+    }
+    const isFloating = element.matches(".modal, .slot-drawer, .dense-inline-options, .supply-detail-popover, [popover]");
+    if (isFloating && (rect.bottom > viewportHeight + 1 || rect.top < -1)) {
+      pushVisualQaIssue(issues, element, {
+        type: "floating-bounds",
+        severity: "critical",
+        message: "Плавающая панель или dropdown выходит за экран",
+      });
+    }
+  });
+
+  const touchMin = viewportWidth <= 768 ? 36 : 28;
+  shell.querySelectorAll("button, input, select, textarea, summary, a[href], [role='button']").forEach((element) => {
+    if (issues.length >= VISUAL_QA_MAX_ISSUES || !isElementVisibleForQa(element)) return;
+    const rect = element.getBoundingClientRect();
+    const controlType = String(element.type || element.getAttribute("type") || "").toLowerCase();
+    if ((controlType === "checkbox" || controlType === "radio") && rect.width >= 16 && rect.height >= 24) return;
+    const labelParent = element.closest("label");
+    if (labelParent && labelParent !== element) {
+      const parentRect = labelParent.getBoundingClientRect();
+      if (parentRect.width >= touchMin && parentRect.height >= touchMin) return;
+    }
+    if ((rect.width < touchMin || rect.height < touchMin) && !element.disabled) {
+      pushVisualQaIssue(issues, element, {
+        type: "touch-target",
+        severity: rect.height < 24 || rect.width < 24 ? "critical" : "warning",
+        message: `Малая зона нажатия: ${Math.round(rect.width)}x${Math.round(rect.height)}px, целевой минимум ${touchMin}px`,
+      });
+    }
+  });
+
+  const textCandidates = shell.querySelectorAll([
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "p",
+    "small",
+    "strong",
+    "span",
+    "label",
+    "button",
+    ".dense-inline-select > summary",
+    ".module-tab",
+    ".mobile-module-tab",
+    ".status-pill",
+    ".supply-gantt-label",
+    ".slot-line",
+  ].join(","));
+  textCandidates.forEach((element) => {
+    if (issues.length >= VISUAL_QA_MAX_ISSUES || !isElementVisibleForQa(element)) return;
+    const text = String(element.textContent || "").replace(/\s+/g, " ").trim();
+    if (text.length < 2) return;
+    const style = window.getComputedStyle(element);
+    const xOverflow = element.scrollWidth > element.clientWidth + 2;
+    const yOverflow = element.scrollHeight > element.clientHeight + 2;
+    if (style.textOverflow === "ellipsis" && !element.matches("button, summary, th")) return;
+    const clipsText = ["hidden", "clip", "auto", "scroll"].includes(style.overflowX)
+      || ["hidden", "clip", "auto", "scroll"].includes(style.overflowY)
+      || style.whiteSpace === "nowrap";
+    if ((xOverflow || yOverflow) && clipsText) {
+      pushVisualQaIssue(issues, element, {
+        type: "text-overflow",
+        severity: "warning",
+        message: "Текст может быть обрезан или не помещается в контейнер",
+      });
+    }
+  });
+
+  return {
+    generatedAt: new Date().toISOString(),
+    module: ui.activeModule,
+    focusMode: Boolean(ui.focusMode),
+    viewport: { width: viewportWidth, height: viewportHeight },
+    issues,
+  };
+}
+
+function renderVisualQaMarkers(issues = []) {
+  const layer = document.querySelector(".visual-debug-marker-layer");
+  if (!layer) return;
+  layer.innerHTML = issues.slice(0, VISUAL_QA_MAX_ISSUES).map((issue, index) => {
+    const rect = issue.rect || {};
+    const left = Math.max(0, Math.min(rect.x || 0, window.innerWidth - 10));
+    const top = Math.max(0, Math.min(rect.y || 0, window.innerHeight - 10));
+    const width = Math.max(6, Math.min(rect.width || 6, window.innerWidth - left));
+    const height = Math.max(6, Math.min(rect.height || 6, window.innerHeight - top));
+    return `
+      <span
+        class="visual-debug-marker is-${escapeAttribute(issue.severity || "warning")}"
+        style="left:${left}px; top:${top}px; width:${width}px; height:${height}px;"
+        title="${escapeAttribute(`${index + 1}. ${issue.message} · ${issue.label}`)}"
+      ></span>
+    `;
+  }).join("");
+}
+
+function updateVisualDebugOverlay() {
+  visualQaRefreshFrame = 0;
+  const overlay = document.querySelector(".visual-debug-overlay-root");
+  if (!overlay || !ui.visualQaEnabled) return;
+
+  const report = collectVisualQaIssues();
+  visualQaLastReport = report;
+  window.__mesVisualQaReport = report;
+
+  const counts = report.issues.reduce((acc, issue) => {
+    acc[issue.severity] = (acc[issue.severity] || 0) + 1;
+    return acc;
+  }, {});
+  const summary = overlay.querySelector("[data-visual-qa-summary]");
+  const list = overlay.querySelector("[data-visual-qa-list]");
+  if (summary) {
+    summary.innerHTML = `
+      <span><strong>${report.issues.length}</strong> замечаний</span>
+      <span>${counts.critical || 0} крит.</span>
+      <span>${counts.warning || 0} предупр.</span>
+      <small>${escapeHtml(report.module)} · ${report.viewport.width}x${report.viewport.height}</small>
+    `;
+  }
+  if (list) {
+    list.innerHTML = report.issues.length
+      ? report.issues.map((issue, index) => `
+        <button class="visual-debug-issue is-${escapeAttribute(issue.severity)}" type="button" data-visual-qa-focus="${index}">
+          <span>${index + 1}</span>
+          <strong>${escapeHtml(issue.message)}</strong>
+          <small>${escapeHtml(issue.label)} · ${escapeHtml(issue.selector)}</small>
+        </button>
+      `).join("")
+      : `<div class="visual-debug-empty">${icon("check")} Подозрительных визуальных проблем не найдено</div>`;
+  }
+  renderVisualQaMarkers(report.issues);
+}
+
+function copyVisualQaReport() {
+  const report = visualQaLastReport || collectVisualQaIssues();
+  const text = JSON.stringify(report, null, 2);
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => notifySaveSuccess("Visual QA отчет скопирован"))
+      .catch(() => notifySaveSuccess("Visual QA отчет доступен в window.__mesVisualQaReport"));
+    return;
+  }
+  window.__mesVisualQaReport = report;
+  notifySaveSuccess("Visual QA отчет доступен в window.__mesVisualQaReport");
+}
+
 function getFormControlSignatureEntry(control) {
   if (!control?.name || control.disabled) return null;
   const type = String(control.type || "").toLowerCase();
@@ -2971,6 +3406,16 @@ function cloneGanttDependencyRouteStore(value = {}) {
   return normalizeGanttDependencyRouteStore(JSON.parse(JSON.stringify(value || {})));
 }
 
+function normalizeSupplyCollapsedGroups(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).flatMap(([routeId, groupIds]) => {
+    const ids = Array.isArray(groupIds)
+      ? [...new Set(groupIds.map((id) => String(id || "").trim()).filter(Boolean))]
+      : [];
+    return routeId && ids.length ? [[String(routeId), ids]] : [];
+  }));
+}
+
 function loadUiState() {
   try {
     const raw = localStorage.getItem(UI_STORAGE_KEY);
@@ -2980,10 +3425,12 @@ function loadUiState() {
       ...defaultUiState,
       ...parsed,
       activeRole: normalizeInterfaceRoleId(parsed.activeRole),
+      scale: parsed.scale === "weeks" ? "days" : scaleConfig[parsed.scale] ? parsed.scale : defaultUiState.scale,
       expandedProjects: new Set(parsed.expandedProjects || defaultUiState.expandedProjects),
       selectedDirectoryRows: parsed.selectedDirectoryRows || {},
       spekiStaleItemIds: Array.isArray(parsed.spekiStaleItemIds) ? parsed.spekiStaleItemIds : [],
       spekiCollapsedBomIds: Array.isArray(parsed.spekiCollapsedBomIds) ? parsed.spekiCollapsedBomIds : [],
+      supplyCollapsedGroups: normalizeSupplyCollapsedGroups(parsed.supplyCollapsedGroups),
       routeBindingMode: parsed.routeBindingMode === "bom" ? "bom" : "product",
       planningWorkItem: String(parsed.planningWorkItem || ""),
       activeRkdStep: normalizeRkdStepId(parsed.activeRkdStep),
@@ -3008,6 +3455,8 @@ function loadUiState() {
       ganttZoom: normalizeGanttZoom(parsed.ganttZoom),
       ganttSlotContent: normalizeGanttSlotContent(parsed.ganttSlotContent),
       hideSharedNonWorkingZones: Boolean(parsed.hideSharedNonWorkingZones),
+      focusMode: Boolean(parsed.focusMode),
+      visualQaEnabled: Boolean(parsed.visualQaEnabled),
       now: new Date(),
     };
   } catch {
@@ -3038,7 +3487,10 @@ function persistUiState(options = {}) {
       activeNomenclatureId: ui.activeNomenclatureId,
       activeOperationId: ui.activeOperationId,
 	      activeRouteId: ui.activeRouteId,
+	      routeFlowStepId: ui.routeFlowStepId,
+	      routeLaborStepId: ui.routeLaborStepId,
 	      activeSupplyRouteId: ui.activeSupplyRouteId,
+	      supplyCollapsedGroups: normalizeSupplyCollapsedGroups(ui.supplyCollapsedGroups),
 	      routeBindingMode: ui.routeBindingMode,
       planningWorkItem: ui.planningWorkItem,
       activeShopMapWidgetId: ui.activeShopMapWidgetId,
@@ -3054,6 +3506,8 @@ function persistUiState(options = {}) {
     rowMode: ui.rowMode,
     autoCascade: ui.autoCascade,
     hideSharedNonWorkingZones: ui.hideSharedNonWorkingZones,
+    focusMode: Boolean(ui.focusMode),
+    visualQaEnabled: Boolean(ui.visualQaEnabled),
     ganttZoom: ui.ganttZoom,
     ganttSlotContent: ui.ganttSlotContent,
     ganttDependencyRoutes: normalizeGanttDependencyRouteStore(ui.ganttDependencyRoutes),
@@ -3338,6 +3792,55 @@ function normalizeSlotOrderLink(slot = {}, state = {}, legacyBatchRouteIdById = 
   };
 }
 
+function getRouteStepSlotDeduplicationScore(slot = {}) {
+  const statusScore = slot.status === "completed"
+    ? 50
+    : slot.status === "in_progress"
+      ? 40
+      : ["problem", "overdue", "paused"].includes(slot.status)
+        ? 30
+        : 0;
+  const factScore = slot.actualStart || slot.actualEnd ? 20 : 0;
+  const lockScore = slot.locked ? 10 : 0;
+  return statusScore + factScore + lockScore;
+}
+
+function compareRouteStepSlotKeepPriority(left = {}, right = {}) {
+  const scoreDelta = getRouteStepSlotDeduplicationScore(right) - getRouteStepSlotDeduplicationScore(left);
+  if (scoreDelta) return scoreDelta;
+  return toDate(left.createdAt || left.updatedAt || left.plannedStart) - toDate(right.createdAt || right.updatedAt || right.plannedStart)
+    || toDate(left.plannedStart) - toDate(right.plannedStart)
+    || String(left.id || "").localeCompare(String(right.id || ""), "ru");
+}
+
+function dedupeRouteStepSlots(slots = [], state = {}) {
+  const routeByStepId = new Map((state.routeSteps || []).map((step) => [step.id, step.routeId]));
+  const selectedByKey = new Map();
+  const passthrough = [];
+
+  slots.forEach((slot) => {
+    const routeId = slot.routeId || routeByStepId.get(slot.routeStepId) || "";
+    const batchId = slot.batchId || routeId;
+    if (!routeId || !batchId || !slot.routeStepId) {
+      passthrough.push(slot);
+      return;
+    }
+
+    const key = `${routeId}::${batchId}::${slot.routeStepId}`;
+    const current = selectedByKey.get(key);
+    if (!current || compareRouteStepSlotKeepPriority(slot, current) < 0) {
+      selectedByKey.set(key, slot);
+    }
+  });
+
+  return [...passthrough, ...selectedByKey.values()].sort((left, right) => (
+    String(left.routeId || "").localeCompare(String(right.routeId || ""), "ru")
+    || String(left.batchId || "").localeCompare(String(right.batchId || ""), "ru")
+    || toDate(left.plannedStart) - toDate(right.plannedStart)
+    || String(left.id || "").localeCompare(String(right.id || ""), "ru")
+  ));
+}
+
 function normalizePlanningState(state) {
   const previousRuntimeState = planningState;
   const shouldUseStateAsRuntime = !planningState;
@@ -3358,7 +3861,12 @@ function normalizePlanningState(state) {
     state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
     state.workCenters = mergeMesWorkCenters(state.workCenters);
     state.routeSteps = state.routeSteps.map((step) => normalizeRouteStepCalculationFields(step, state));
+    const removedRouteStepIds = pruneRouteStepsOutsideCurrentRouteTasks(state);
+    if (removedRouteStepIds.size) {
+      state.slots = state.slots.filter((slot) => !removedRouteStepIds.has(slot.routeStepId));
+    }
     state.slots = state.slots.map((slot) => normalizeSlotOrderLink(slot, state, legacyBatchRouteIdById));
+    state.slots = dedupeRouteStepSlots(state.slots, state);
     delete state.batches;
 
     removeCanceledRouteGanttSlots(state);
@@ -5561,7 +6069,11 @@ function renderPlanningWorkbenchV2TaskDetail(route, task, transferSummary, route
 function renderPlanningWorkbenchV2StepDetail(route, step, transferSummary, routeSteps) {
   const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
   const tone = getPlanningStepTone(step);
+  const quantity = getRouteStepQuantityForBatch(step, { quantity: transferSummary?.planningQuantity || getPlanningRouteQuantity(route) });
   const body = `
+    ${renderPlanningWorkbenchV2Section("Трудоемкость", "тестовый вывод расчетных полей routeStep", `
+      ${renderRouteStepLaborReadout(route, step, { quantity, className: "is-planning-v2-detail" })}
+    `, { className: "is-labor-test", badge: "Тест" })}
     ${isSmtStep ? renderPlanningWorkbenchV2Section("SMT-калькулятор", "", `
       <div class="planning-v2-tool-panel">
         ${renderRouteSmtStepCalculator(route, step, { context: "planning", variant: "operation" })}
@@ -6463,6 +6975,155 @@ function renderDispatchRouteTableRow(row) {
   `;
 }
 
+function normalizeSupplyControlStatus(value = "") {
+  const normalized = String(value || "").trim();
+  return SUPPLY_CONTROL_STATUS_OPTIONS.some((option) => option.id === normalized)
+    ? normalized
+    : "not_purchased";
+}
+
+function normalizeSupplyControlQuantity(value) {
+  if (value === "" || value === null || typeof value === "undefined") return 0;
+  const normalized = Number(String(value).replace(",", "."));
+  if (!Number.isFinite(normalized) || normalized < 0) return 0;
+  return Math.round(normalized * 1000) / 1000;
+}
+
+function normalizeSupplyControlDate(value = "") {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  const date = normalized.includes("T") ? toDate(normalized) : toDate(fromDateInput(normalized));
+  return Number.isNaN(date.getTime()) ? "" : toDateInput(date);
+}
+
+function normalizeSupplyControlRecord(record = {}) {
+  return {
+    status: normalizeSupplyControlStatus(record.status),
+    erpDoc: String(record.erpDoc || "").trim(),
+    purchasedQuantity: normalizeSupplyControlQuantity(record.purchasedQuantity),
+    deliveredQuantity: normalizeSupplyControlQuantity(record.deliveredQuantity),
+    plannedDate: normalizeSupplyControlDate(record.plannedDate),
+    actualDate: normalizeSupplyControlDate(record.actualDate),
+    supplier: String(record.supplier || "").trim(),
+    comment: String(record.comment || "").trim(),
+  };
+}
+
+function isEmptySupplyControlRecord(record = {}) {
+  const normalized = normalizeSupplyControlRecord(record);
+  return normalized.status === "not_purchased"
+    && !normalized.erpDoc
+    && normalized.purchasedQuantity <= 0
+    && normalized.deliveredQuantity <= 0
+    && !normalized.plannedDate
+    && !normalized.actualDate
+    && !normalized.supplier
+    && !normalized.comment;
+}
+
+function normalizeSupplyControlState(value = {}) {
+  const sourceRows = value && typeof value === "object" && value.rows && typeof value.rows === "object"
+    ? value.rows
+    : {};
+  return {
+    rows: Object.fromEntries(Object.entries(sourceRows)
+      .map(([key, record]) => [String(key), normalizeSupplyControlRecord(record)])
+      .filter(([, record]) => !isEmptySupplyControlRecord(record))),
+  };
+}
+
+function loadSupplyControlState() {
+  try {
+    return normalizeSupplyControlState(JSON.parse(localStorage.getItem(SUPPLY_CONTROL_STORAGE_KEY) || "{}"));
+  } catch {
+    return normalizeSupplyControlState();
+  }
+}
+
+function persistSupplyControlState() {
+  supplyControlState = normalizeSupplyControlState(supplyControlState);
+  localStorage.setItem(SUPPLY_CONTROL_STORAGE_KEY, JSON.stringify(supplyControlState));
+  scheduleSharedStatePush("supply-control");
+}
+
+function getSupplyControlKey(route = {}, row = {}) {
+  return `${route?.id || "route"}::${row?.id || "row"}`;
+}
+
+function getSupplyControlRecord(key = "") {
+  return normalizeSupplyControlRecord(supplyControlState.rows?.[key] || {});
+}
+
+function deriveSupplyControlStatus(record = {}, row = {}) {
+  const normalized = normalizeSupplyControlRecord(record);
+  if (normalized.status === "blocked") return "blocked";
+  const requiredQuantity = Math.max(0, Number(row.requiredQuantity || 0));
+  if (requiredQuantity > 0 && normalized.deliveredQuantity >= requiredQuantity) return "delivered";
+  if (normalized.deliveredQuantity > 0) return "partial";
+  if (normalized.status !== "not_purchased") return normalized.status;
+  if (normalized.purchasedQuantity > 0 || normalized.erpDoc) return "ordered";
+  if (normalized.plannedDate || normalized.supplier) return "requested";
+  return "not_purchased";
+}
+
+function getSupplyControlStatusVisual(status = "not_purchased") {
+  return SUPPLY_CONTROL_STATUS_OPTIONS.find((option) => option.id === status)
+    || SUPPLY_CONTROL_STATUS_OPTIONS[0];
+}
+
+function applySupplyControlRows(route, rows = []) {
+  return rows.map((row) => {
+    const controlKey = getSupplyControlKey(route, row);
+    const control = getSupplyControlRecord(controlKey);
+    const status = deriveSupplyControlStatus(control, row);
+    const visual = getSupplyControlStatusVisual(status);
+    return {
+      ...row,
+      controlKey,
+      control,
+      erpDocs: control.erpDoc ? [control.erpDoc] : [],
+      purchasedQuantity: control.purchasedQuantity,
+      deliveredQuantity: control.deliveredQuantity,
+      controlStatus: status,
+      controlStatusLabel: visual.label,
+      controlTone: visual.tone,
+    };
+  });
+}
+
+function updateSupplyControlField(key = "", field = "", value = "") {
+  if (!key || !field) return;
+  const current = getSupplyControlRecord(key);
+  const next = normalizeSupplyControlRecord({
+    ...current,
+    [field]: value,
+  });
+  if (isEmptySupplyControlRecord(next)) {
+    delete supplyControlState.rows[key];
+  } else {
+    supplyControlState.rows[key] = next;
+  }
+  persistSupplyControlState();
+  render();
+}
+
+function clearSupplyControlForRoute(routeId = "") {
+  if (!routeId) return;
+  const prefix = `${routeId}::`;
+  Object.keys(supplyControlState.rows || {}).forEach((key) => {
+    if (key.startsWith(prefix)) delete supplyControlState.rows[key];
+  });
+  persistSupplyControlState();
+  render();
+}
+
+function getSupplyDateValue(value = "") {
+  const normalized = normalizeSupplyControlDate(value);
+  if (!normalized) return null;
+  const date = toDate(fromDateInput(normalized));
+  return Number.isNaN(date.getTime()) ? null : startOfDay(date);
+}
+
 function getSupplyOrderRoutes() {
   return getRoutesForModule()
     .filter((route) => route?.id)
@@ -6486,15 +7147,15 @@ function getSupplyRouteDueDate(route = null) {
   return Number.isNaN(value.getTime()) ? null : startOfDay(value);
 }
 
-function getSupplyWeekScale(route = null) {
+function getSupplyDayScale(route = null) {
   const dueDate = getSupplyRouteDueDate(route);
   const now = startOfWeek(ui.now || new Date());
   const dueAnchor = dueDate && dueDate < now ? startOfWeek(dueDate) : now;
-  const rawScale = buildTimeScale("weeks", dueAnchor, SUPPLY_WEEK_COUNT);
+  const rawScale = buildTimeScale("days", dueAnchor, SUPPLY_DAY_COUNT);
   return {
     ...rawScale,
-    cellWidth: SUPPLY_WEEK_WIDTH,
-    width: SUPPLY_WEEK_COUNT * SUPPLY_WEEK_WIDTH,
+    cellWidth: SUPPLY_DAY_WIDTH,
+    width: SUPPLY_DAY_COUNT * SUPPLY_DAY_WIDTH,
   };
 }
 
@@ -6538,24 +7199,47 @@ function getSupplyComponentKey(row = {}, nomenclatureItem = null, bom = null, ro
     : `rek:${bom?.id || "bom"}:${rowIndex + 1}`;
 }
 
+function getSupplyBomEntryGroup(entry = {}, index = 0) {
+  const resultItem = getBomResultNomenclatureItem(entry.bom?.id);
+  const sourceLabel = entry.bom?.name || entry.bom?.boardCode || BOARD_SPEC_TERM;
+  const title = resultItem?.name || entry.bom?.resultItem || entry.bom?.boardCode || entry.bom?.name || "Печатная плата";
+  return {
+    id: `board:${entry.sourceId || entry.structureItemId || entry.bom?.id || index + 1}`,
+    title,
+    article: resultItem?.article || entry.bom?.boardCode || "",
+    sourceLabel,
+    quantity: Math.max(0, Number(entry.boardQuantity || 0)),
+    order: index,
+  };
+}
+
 function buildSupplyProcurementRows(route) {
   if (!route) return [];
   const transferSummary = getPlanningRouteTransferSummary(route);
   const bomEntries = getSupplyBomEntries(route, transferSummary);
-  const pcbRows = bomEntries.map((entry) => {
-    const resultItem = getBomResultNomenclatureItem(entry.bom.id);
+  const boardGroups = bomEntries.map((entry, index) => getSupplyBomEntryGroup(entry, index));
+  const pcbRows = bomEntries.map((entry, index) => {
+    const group = boardGroups[index];
     return {
       id: `pcb:${entry.sourceId}`,
+      groupId: group.id,
+      groupTitle: group.title,
+      groupArticle: group.article,
+      groupSourceLabel: group.sourceLabel,
+      groupBoardQuantity: group.quantity,
+      groupOrder: group.order,
       kind: "pcb",
       typeLabel: "Печатная плата",
-      title: resultItem?.name || entry.bom.resultItem || entry.bom.boardCode || entry.bom.name || "Печатная плата",
-      article: resultItem?.article || entry.bom.boardCode || "",
+      title: group.title,
+      article: group.article,
       package: "PCB",
       manufacturer: "",
-      sourceLabel: entry.bom.name || entry.bom.boardCode || BOARD_SPEC_TERM,
-      bomLabels: [entry.bom.name || entry.bom.boardCode || BOARD_SPEC_TERM],
+      sourceLabel: group.sourceLabel,
+      bomLabels: [group.sourceLabel],
       designators: "",
       requiredQuantity: entry.boardQuantity,
+      boardQuantity: entry.boardQuantity,
+      perBoardQuantity: 1,
       unit: "шт.",
       erpDocs: [],
       purchasedQuantity: 0,
@@ -6566,14 +7250,24 @@ function buildSupplyProcurementRows(route) {
   });
 
   const componentMap = new Map();
-  bomEntries.forEach((entry) => {
+  const scopeComponentsByBoard = bomEntries.length > 1;
+  bomEntries.forEach((entry, entryIndex) => {
+    const group = boardGroups[entryIndex];
     getBomImportRows(entry.bom)
       .filter((row) => Number(row.quantity || 0) > 0)
       .forEach((row, rowIndex) => {
         const nomenclatureItem = getBomImportRowNomenclatureItem(row, entry.bom);
-        const key = getSupplyComponentKey(row, nomenclatureItem, entry.bom, rowIndex);
+        const baseKey = getSupplyComponentKey(row, nomenclatureItem, entry.bom, rowIndex);
+        const key = scopeComponentsByBoard ? `${baseKey}::${entry.sourceId || group.id}` : baseKey;
+        const perBoardQuantity = Math.max(0, Number(row.quantity || 0));
         const existing = componentMap.get(key) || {
           id: key,
+          groupId: group.id,
+          groupTitle: group.title,
+          groupArticle: group.article,
+          groupSourceLabel: group.sourceLabel,
+          groupBoardQuantity: group.quantity,
+          groupOrder: group.order,
           kind: "rek",
           typeLabel: "РЭК",
           title: nomenclatureItem?.name || row.description || row.manufacturerPart || `Компонент BOM ${row.sequence || rowIndex + 1}`,
@@ -6590,10 +7284,13 @@ function buildSupplyProcurementRows(route) {
           stockQuantity: 0,
           tone: "warning",
           bomRowCount: 0,
+          boardQuantity: entry.boardQuantity,
+          perBoardQuantity: 0,
         };
-        existing.sourceSet.add(entry.bom.name || entry.bom.boardCode || BOARD_SPEC_TERM);
+        existing.sourceSet.add(group.sourceLabel);
         if (row.designator) existing.designatorSet.add(row.designator);
-        existing.requiredQuantity += Math.max(0, Number(row.quantity || 0)) * entry.boardQuantity;
+        existing.requiredQuantity += perBoardQuantity * entry.boardQuantity;
+        existing.perBoardQuantity += perBoardQuantity;
         existing.bomRowCount += 1;
         componentMap.set(key, existing);
       });
@@ -6608,25 +7305,107 @@ function buildSupplyProcurementRows(route) {
       bomLabels,
       designators: designators.slice(0, 3).join(", ") + (designators.length > 3 ? ` +${designators.length - 3}` : ""),
       requiredQuantity: Math.round(row.requiredQuantity * 1000) / 1000,
+      perBoardQuantity: Math.round(row.perBoardQuantity * 1000) / 1000,
     };
   });
 
   return [...pcbRows, ...componentRows]
     .filter((row) => row.requiredQuantity > 0)
     .sort((left, right) => {
+      if (left.groupOrder !== right.groupOrder) return Number(left.groupOrder || 0) - Number(right.groupOrder || 0);
       if (left.kind !== right.kind) return left.kind === "pcb" ? -1 : 1;
       return String(left.title || "").localeCompare(String(right.title || ""), "ru");
     });
 }
 
+function getSupplyBoardGroups(rows = []) {
+  const groups = [];
+  const groupById = new Map();
+  rows.forEach((row) => {
+    const groupId = row.groupId || row.id || "board";
+    let group = groupById.get(groupId);
+    if (!group) {
+      group = {
+        id: groupId,
+        title: row.groupTitle || row.title || "Печатная плата",
+        article: row.groupArticle || "",
+        sourceLabel: row.groupSourceLabel || row.sourceLabel || BOARD_SPEC_TERM,
+        boardQuantity: Number(row.groupBoardQuantity || 0),
+        order: Number(row.groupOrder || groups.length),
+        rows: [],
+      };
+      groupById.set(groupId, group);
+      groups.push(group);
+    }
+    group.rows.push(row);
+    if (row.kind === "pcb") {
+      group.pcbRow = row;
+      group.boardQuantity = Number(row.requiredQuantity || group.boardQuantity || 0);
+    }
+  });
+
+  return groups.sort((left, right) => left.order - right.order);
+}
+
+function getSupplyBoardGroupMeta(group = {}) {
+  const titleText = String(group.title || "").toLowerCase();
+  const sourceLabel = String(group.sourceLabel || "");
+  const sourceInTitle = sourceLabel && titleText.includes(sourceLabel.toLowerCase());
+  return [
+    sourceInTitle ? "" : sourceLabel,
+    group.article && group.article !== group.sourceLabel ? `PN: ${group.article}` : "",
+    `${formatReportNumber(group.boardQuantity)} плат`,
+    `${group.rows?.filter((row) => row.kind === "rek").length || 0} поз. РЭК`,
+  ].filter(Boolean).join(" · ");
+}
+
+function getSupplyCollapsedGroupSet(route = null) {
+  const routeId = String(route?.id || "");
+  const store = normalizeSupplyCollapsedGroups(ui.supplyCollapsedGroups || {});
+  return new Set(routeId && Array.isArray(store[routeId]) ? store[routeId] : []);
+}
+
+function isSupplyGroupCollapsed(route = null, group = {}) {
+  return getSupplyCollapsedGroupSet(route).has(String(group.id || ""));
+}
+
+function toggleSupplyGroup(routeId = "", groupId = "") {
+  const normalizedRouteId = String(routeId || "").trim();
+  const normalizedGroupId = String(groupId || "").trim();
+  if (!normalizedRouteId || !normalizedGroupId) return;
+
+  const store = normalizeSupplyCollapsedGroups(ui.supplyCollapsedGroups || {});
+  const collapsedIds = new Set(store[normalizedRouteId] || []);
+  if (collapsedIds.has(normalizedGroupId)) {
+    collapsedIds.delete(normalizedGroupId);
+  } else {
+    collapsedIds.add(normalizedGroupId);
+  }
+
+  const nextIds = [...collapsedIds];
+  if (nextIds.length) {
+    store[normalizedRouteId] = nextIds;
+  } else {
+    delete store[normalizedRouteId];
+  }
+  ui.supplyCollapsedGroups = store;
+  persistUiState();
+  render();
+}
+
 function getSupplyRouteStats(route) {
-  const rows = buildSupplyProcurementRows(route);
+  const rows = applySupplyControlRows(route, buildSupplyProcurementRows(route));
   return {
     rows,
     total: rows.length,
     pcb: rows.filter((row) => row.kind === "pcb").length,
     rek: rows.filter((row) => row.kind === "rek").length,
     pending: rows.filter((row) => !row.erpDocs.length).length,
+    controlled: rows.filter((row) => !isEmptySupplyControlRecord(row.control)).length,
+    erpDocs: rows.filter((row) => row.erpDocs.length).length,
+    deliveries: rows.filter((row) => Number(row.deliveredQuantity || 0) > 0 || row.control?.plannedDate || row.control?.actualDate).length,
+    blocked: rows.filter((row) => row.controlStatus === "blocked").length,
+    delivered: rows.filter((row) => row.controlStatus === "delivered").length,
     purchasedQuantity: rows.reduce((sum, row) => sum + Number(row.purchasedQuantity || 0), 0),
     requiredQuantity: rows.reduce((sum, row) => sum + Number(row.requiredQuantity || 0), 0),
   };
@@ -6639,7 +7418,7 @@ function renderSupplyPage() {
   const transferSummary = activeRoute ? getPlanningRouteTransferSummary(activeRoute) : null;
   const routeStats = getSupplyRouteStats(activeRoute);
   const rows = routeStats.rows;
-  const scaleInfo = getSupplyWeekScale(activeRoute);
+  const scaleInfo = getSupplyDayScale(activeRoute);
   const dueDate = getSupplyRouteDueDate(activeRoute);
   const routeTitle = activeRoute
     ? getProjectDisplayName(production) || getRouteModuleSelectionName(activeRoute) || activeRoute.name || "Заказ-наряд"
@@ -6682,30 +7461,23 @@ function renderSupplyPage() {
       <div class="directory-workspace module-data-workspace supply-workspace" data-layout="page-workspace">
         <header class="directory-header supply-header">
           <div>
-            <span class="eyebrow">Read-only дизайн</span>
+            <span class="eyebrow">Синтетический контроль</span>
             <h2>${escapeHtml(routeTitle)}</h2>
             <p>${escapeHtml(routeMeta)}</p>
           </div>
-          <span class="supply-readonly-badge">${icon("lock")}<span>не влияет на систему</span></span>
+          <span class="supply-readonly-badge">${icon("edit")}<span>не влияет на систему</span></span>
         </header>
 
         <div class="module-data-content supply-content">
-          <section class="supply-kpi-grid" aria-label="Показатели снабжения">
-            ${renderSupplyKpi("Печатные платы", routeStats.pcb, "тиражи из BOM", "pcb")}
-            ${renderSupplyKpi("РЭК", routeStats.rek, "компоненты BOM", "rek")}
-            ${renderSupplyKpi("ERP документы", "0", "счета не подключены", "warning")}
-            ${renderSupplyKpi("Поставки", "0", "частичных приходов нет", "neutral")}
-          </section>
-
           <section class="module-panel supply-gantt-panel">
             <div class="report-card-head">
               <div>
                 <strong>Гант снабжения</strong>
-                <span>фиксированный недельный горизонт; строки закупки считаются из BOM заказ-наряда</span>
+                <span>дневной горизонт с группировкой по неделям; строки закупки считаются из BOM заказ-наряда</span>
               </div>
-              <em class="supply-status-pill is-warning">закупки не заведены</em>
+              <em class="supply-status-pill is-${escapeAttribute(routeStats.blocked ? "danger" : routeStats.pending ? "warning" : "ok")}">${routeStats.blocked ? "есть проблемы" : routeStats.pending ? "часть без счета" : "контроль заполнен"}</em>
             </div>
-            ${rows.length ? renderSupplyWeeklyGantt(activeRoute, rows, scaleInfo) : renderModulePreviewEmpty({
+            ${rows.length ? renderSupplyDailyGantt(activeRoute, rows, scaleInfo) : renderModulePreviewEmpty({
               iconName: "bom",
               title: "BOM-потребность не найдена",
               text: "У выбранного заказ-наряда нет плат или строк BOM для закупочного контроля.",
@@ -6718,14 +7490,23 @@ function renderSupplyPage() {
                 <strong>Реестр потребности</strong>
                 <span>${rows.length ? `${rows.length} строк к контролю` : "нет строк"}</span>
               </div>
+              <button class="secondary-button supply-clear-button" data-supply-clear-route="${escapeAttribute(activeRoute?.id || "")}" type="button" ${routeStats.controlled ? "" : "disabled"}>${icon("refresh")}<span>Очистить контроль</span></button>
             </div>
-            ${rows.length ? renderSupplyRegisterTable(rows) : renderModulePreviewEmpty({
+            ${rows.length ? renderSupplyRegisterTable(activeRoute, rows) : renderModulePreviewEmpty({
               iconName: "package",
               title: "Компоненты не рассчитаны",
               text: "После привязки BOM здесь появятся платы и РЭК без создания закупочных записей.",
             })}
           </section>
+
+          <section class="supply-kpi-grid is-bottom" aria-label="Итоги снабжения">
+            ${renderSupplyKpi("Печатные платы", routeStats.pcb, "тиражи из BOM", "pcb")}
+            ${renderSupplyKpi("РЭК", routeStats.rek, "компоненты BOM", "rek")}
+            ${renderSupplyKpi("ERP документы", routeStats.erpDocs, routeStats.erpDocs ? "внесено вручную" : "счета не внесены", routeStats.erpDocs ? "primary" : "warning")}
+            ${renderSupplyKpi("Поставки", routeStats.deliveries, routeStats.delivered ? `${routeStats.delivered} закрыто` : "контроль план/факт", routeStats.deliveries ? "ok" : "neutral")}
+          </section>
         </div>
+        ${renderSupplyDemandPopover(activeRoute, rows)}
       </div>
     </section>
   `;
@@ -6761,20 +7542,26 @@ function renderSupplyKpi(label, value, meta, tone = "neutral") {
   `;
 }
 
-function renderSupplyWeeklyGantt(route, rows, scaleInfo) {
+function renderSupplyDailyGantt(route, rows, scaleInfo) {
+  const groups = getSupplyBoardGroups(rows);
   return `
-    <div class="supply-gantt-shell" style="--supply-left-width: 280px; --supply-timeline-width: ${scaleInfo.width}px;">
+    <div class="supply-gantt-shell" style="--supply-left-width: 260px; --supply-day-count: ${scaleInfo.ticks.length}; --supply-day-width: ${scaleInfo.cellWidth}px; --supply-timeline-width: ${scaleInfo.width}px;">
       <div class="supply-timeline-row">
         <div class="supply-timeline-corner">
           <strong>Компоненты</strong>
-          <span>поставки по неделям</span>
+          <span>дни внутри недель</span>
         </div>
-        <div class="supply-timeline-cells" style="width:${scaleInfo.width}px;">
-          ${scaleInfo.ticks.map((tick, index) => renderSupplyWeekCell(tick, index, scaleInfo.cellWidth)).join("")}
+        <div class="supply-timeline-cells">
+          <div class="supply-week-group-row">
+            ${getTimelineWeekGroups(scaleInfo).map((group) => renderSupplyWeekGroup(group, scaleInfo)).join("")}
+          </div>
+          <div class="supply-day-row">
+            ${scaleInfo.ticks.map((tick, index) => renderSupplyDayCell(tick, index, scaleInfo)).join("")}
+          </div>
         </div>
       </div>
       <div class="supply-gantt-body">
-        ${rows.map((row) => renderSupplyGanttRow(route, row, scaleInfo)).join("")}
+        ${groups.map((group) => renderSupplyGanttGroup(route, group, scaleInfo)).join("")}
       </div>
       <div class="supply-gantt-legend">
         <span><i class="is-demand"></i>потребность BOM</span>
@@ -6785,17 +7572,92 @@ function renderSupplyWeeklyGantt(route, rows, scaleInfo) {
   `;
 }
 
-function renderSupplyWeekCell(tick, index, cellWidth) {
-  const dayStrip = Array.from({ length: 7 }, (_, dayIndex) => {
-    const day = addMs(tick.start, dayIndex * DAY_MS);
-    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-    return `<i class="${isWeekend ? "is-weekend" : ""}" title="${escapeAttribute(formatDate(day))}"></i>`;
-  }).join("");
+function renderSupplyGanttGroup(route, group, scaleInfo) {
+  const meta = getSupplyBoardGroupMeta(group);
+  const collapsed = isSupplyGroupCollapsed(route, group);
+  const routeId = route?.id || "";
   return `
-    <div class="supply-week-cell" style="left:${index * cellWidth}px; width:${cellWidth}px;">
-      <strong>${escapeHtml(tick.label)}</strong>
-      <small>${escapeHtml(tick.sublabel)}</small>
-      <span class="supply-week-day-strip">${dayStrip}</span>
+    <section class="supply-gantt-group ${collapsed ? "is-collapsed" : ""}" aria-label="${escapeAttribute(group.title)}">
+      <div class="supply-gantt-group-row">
+        <div class="supply-gantt-group-label">
+          <button
+            class="supply-group-toggle"
+            data-supply-group-toggle="${escapeAttribute(group.id)}"
+            data-supply-route-id="${escapeAttribute(routeId)}"
+            type="button"
+            aria-expanded="${collapsed ? "false" : "true"}"
+            title="${collapsed ? "Раскрыть группу" : "Свернуть группу"}"
+          >
+            ${icon(collapsed ? "chevronRight" : "chevronDown")}
+          </button>
+          <b>Плата</b>
+          <span>
+            <strong>${escapeHtml(group.title)}</strong>
+            <small>${escapeHtml(meta)}</small>
+          </span>
+        </div>
+        <div class="supply-group-lane">
+          ${renderSupplyLaneGrid(scaleInfo)}
+        </div>
+      </div>
+      ${collapsed ? "" : group.rows.map((row) => renderSupplyGanttRow(route, row, scaleInfo)).join("")}
+    </section>
+  `;
+}
+
+function getSupplyTimelinePercent(value, scaleInfo) {
+  const width = Math.max(1, Number(scaleInfo?.width || 1));
+  return `${round((Math.max(0, Math.min(width, value)) / width) * 100)}%`;
+}
+
+function getSupplyTickPercent(index, scaleInfo) {
+  return `${round((index / Math.max(1, scaleInfo.ticks.length)) * 100)}%`;
+}
+
+function getSupplyTickWidthPercent(scaleInfo) {
+  return `${round(100 / Math.max(1, scaleInfo.ticks.length))}%`;
+}
+
+function getSupplyTickSpanWidthPercent(dayCount, scaleInfo) {
+  return `${round((dayCount / Math.max(1, scaleInfo.ticks.length)) * 100)}%`;
+}
+
+function getTimelineWeekGroups(scaleInfo) {
+  const groups = [];
+  scaleInfo.ticks.forEach((tick, index) => {
+    const weekStart = startOfWeek(tick.start);
+    const key = toDateInput(weekStart);
+    const last = groups[groups.length - 1];
+    if (!last || last.key !== key) {
+      groups.push({
+        key,
+        start: weekStart,
+        startIndex: index,
+        dayCount: 1,
+      });
+    } else {
+      last.dayCount += 1;
+    }
+  });
+  return groups;
+}
+
+function renderSupplyWeekGroup(group, scaleInfo) {
+  const weekEnd = addMs(group.start, (group.dayCount - 1) * DAY_MS);
+  return `
+    <div class="supply-week-group" style="left:${getSupplyTickPercent(group.startIndex, scaleInfo)}; width:${getSupplyTickSpanWidthPercent(group.dayCount, scaleInfo)};">
+      <strong>Н${getWeekNumber(group.start)}</strong>
+      <small>${escapeHtml(formatShortDate(group.start))}-${escapeHtml(formatShortDate(weekEnd))}</small>
+    </div>
+  `;
+}
+
+function renderSupplyDayCell(tick, index, scaleInfo) {
+  const isWeekend = tick.start.getDay() === 0 || tick.start.getDay() === 6;
+  const isWeekStart = tick.start.getDay() === 1 || index === 0;
+  return `
+    <div class="supply-day-cell ${isWeekend ? "is-weekend" : ""} ${isWeekStart ? "is-week-start" : ""}" style="left:${getSupplyTickPercent(index, scaleInfo)}; width:${getSupplyTickWidthPercent(scaleInfo)};" title="${escapeAttribute(formatDate(tick.start))}">
+      <strong>${escapeHtml(formatShortDate(tick.start))}</strong>
     </div>
   `;
 }
@@ -6808,38 +7670,58 @@ function getSupplyDemandBarStyle(route, scaleInfo) {
   const end = new Date(Math.min(defaultEnd.getTime(), Math.max(addMs(barStart, 7 * DAY_MS).getTime(), rawEnd.getTime())));
   const left = 8;
   const width = Math.max(44, Math.min(scaleInfo.width - left - 8, dateToX(end, scaleInfo) - left));
-  return `left:${round(left)}px;width:${round(width)}px;`;
+  return `left:${getSupplyTimelinePercent(left, scaleInfo)};width:${getSupplyTimelinePercent(width, scaleInfo)};`;
 }
 
 function renderSupplyDueMarker(route, scaleInfo) {
   const dueDate = getSupplyRouteDueDate(route);
   if (!dueDate || dueDate < scaleInfo.start || dueDate > scaleInfo.end) return "";
   const left = Math.max(0, Math.min(scaleInfo.width, dateToX(dueDate, scaleInfo)));
-  return `<span class="supply-due-marker" style="left:${round(left)}px;" title="Срок заказ-наряда: ${escapeAttribute(formatDate(dueDate))}"></span>`;
+  return `<span class="supply-due-marker" style="left:${getSupplyTimelinePercent(left, scaleInfo)};" title="Срок заказ-наряда: ${escapeAttribute(formatDate(dueDate))}"></span>`;
 }
 
 function renderSupplyTodayMarker(scaleInfo) {
   const today = startOfDay(ui.now || new Date());
   if (today < scaleInfo.start || today > scaleInfo.end) return "";
   const left = Math.max(0, Math.min(scaleInfo.width, dateToX(today, scaleInfo)));
-  return `<span class="supply-today-marker" style="left:${round(left)}px;" title="Сегодня"></span>`;
+  return `<span class="supply-today-marker" style="left:${getSupplyTimelinePercent(left, scaleInfo)};" title="Сегодня"></span>`;
 }
 
 function renderSupplyLaneGrid(scaleInfo) {
   return scaleInfo.ticks.map((tick, index) => `
-    <span class="supply-lane-week" style="left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;">
-      ${Array.from({ length: 7 }, (_, dayIndex) => {
-        const day = addMs(tick.start, dayIndex * DAY_MS);
-        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-        return `<i class="${isWeekend ? "is-weekend" : ""}"></i>`;
-      }).join("")}
+    <span
+      class="supply-lane-day ${tick.start.getDay() === 0 || tick.start.getDay() === 6 ? "is-weekend" : ""} ${tick.start.getDay() === 1 || index === 0 ? "is-week-start" : ""}"
+      style="left:${getSupplyTickPercent(index, scaleInfo)}; width:${getSupplyTickWidthPercent(scaleInfo)};"
+      title="${escapeAttribute(formatDate(tick.start))}"
+    >
     </span>
   `).join("");
 }
 
+function renderSupplyDeliveryMarker(row, scaleInfo, field, label, className = "") {
+  const date = getSupplyDateValue(row.control?.[field] || "");
+  if (!date || date < scaleInfo.start || date > scaleInfo.end) return "";
+  const left = Math.max(0, Math.min(scaleInfo.width, dateToX(date, scaleInfo)));
+  return `
+    <span
+      class="supply-delivery-marker ${className}"
+      style="left:${getSupplyTimelinePercent(left, scaleInfo)};"
+      title="${escapeAttribute(`${label}: ${formatDate(date)}`)}"
+    >
+      <i>${escapeHtml(label)}</i>
+    </span>
+  `;
+}
+
 function renderSupplyGanttRow(route, row, scaleInfo) {
-  const meta = [row.article ? `PN: ${row.article}` : "", row.package, row.sourceLabel].filter(Boolean).join(" · ") || row.typeLabel;
+  const quantityMeta = row.kind === "rek" && Number(row.perBoardQuantity || 0) > 0
+    ? `на плату ${formatReportNumber(row.perBoardQuantity)}`
+    : "";
+  const meta = [row.article ? `PN: ${row.article}` : "", row.package, quantityMeta, row.sourceLabel].filter(Boolean).join(" · ") || row.typeLabel;
   const tagLabel = row.kind === "pcb" ? "PCB" : "РЭК";
+  const purchasedLabel = Number(row.purchasedQuantity || 0) > 0
+    ? `${formatReportNumber(row.purchasedQuantity)} / ${formatReportNumber(row.requiredQuantity)} ${row.unit || "шт."}`
+    : `${formatReportNumber(row.requiredQuantity)} ${row.unit || "шт."}`;
   return `
     <article class="supply-gantt-row is-${escapeAttribute(row.kind)}">
       <div class="supply-gantt-label">
@@ -6850,21 +7732,30 @@ function renderSupplyGanttRow(route, row, scaleInfo) {
         </span>
         <em>${escapeHtml(formatReportNumber(row.requiredQuantity))} ${escapeHtml(row.unit || "шт.")}</em>
       </div>
-      <div class="supply-lane" style="width:${scaleInfo.width}px;">
+      <div class="supply-lane">
         ${renderSupplyLaneGrid(scaleInfo)}
         ${renderSupplyTodayMarker(scaleInfo)}
         ${renderSupplyDueMarker(route, scaleInfo)}
-        <span class="supply-demand-bar" style="${getSupplyDemandBarStyle(route, scaleInfo)}">
-          <strong>${escapeHtml(formatReportNumber(row.requiredQuantity))} ${escapeHtml(row.unit || "шт.")}</strong>
-          <small>не закуплено</small>
-        </span>
-        <span class="supply-no-delivery">поставок нет</span>
+        ${renderSupplyDeliveryMarker(row, scaleInfo, "plannedDate", "план")}
+        ${renderSupplyDeliveryMarker(row, scaleInfo, "actualDate", "факт", "is-actual")}
+        <button
+          class="supply-demand-bar is-${escapeAttribute(row.controlTone || "warning")} ${ui.activeSupplyDemandRowId === row.id ? "is-active" : ""}"
+          data-supply-demand-open="${escapeAttribute(row.id)}"
+          type="button"
+          style="${getSupplyDemandBarStyle(route, scaleInfo)}"
+          title="${escapeAttribute(`Двойное нажатие: ${row.title}`)}"
+        >
+          <strong>${escapeHtml(purchasedLabel)}</strong>
+          <small>${escapeHtml(row.controlStatusLabel || "Не закуплено")}</small>
+        </button>
+        <span class="supply-no-delivery">${row.deliveredQuantity ? `принято ${escapeHtml(formatReportNumber(row.deliveredQuantity))}` : "поставок нет"}</span>
       </div>
     </article>
   `;
 }
 
-function renderSupplyRegisterTable(rows) {
+function renderSupplyRegisterTable(route, rows) {
+  const groups = getSupplyBoardGroups(rows);
   return `
     <div class="supply-table-wrap" data-layout="table">
       <table class="supply-table">
@@ -6873,27 +7764,188 @@ function renderSupplyRegisterTable(rows) {
             <th>Позиция</th>
             <th>BOM / источник</th>
             <th>Потребность</th>
-            <th>ERP документ</th>
+            <th>Статус</th>
+            <th>ERP / поставщик</th>
             <th>Закуплено</th>
             <th>Поставка</th>
+            <th>Комментарий</th>
           </tr>
         </thead>
         <tbody>
-          ${rows.map((row) => `
+          ${groups.map((group) => `
+            ${renderSupplyRegisterGroupRow(route, group)}
+            ${isSupplyGroupCollapsed(route, group) ? "" : group.rows.map((row) => renderSupplyRegisterRow(row)).join("")}
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSupplyRegisterGroupRow(route, group) {
+  const meta = getSupplyBoardGroupMeta(group);
+  const collapsed = isSupplyGroupCollapsed(route, group);
+  return `
+    <tr class="supply-table-group-row ${collapsed ? "is-collapsed" : ""}">
+      <th colspan="8">
+        <span>
+          <button
+            class="supply-group-toggle"
+            data-supply-group-toggle="${escapeAttribute(group.id)}"
+            data-supply-route-id="${escapeAttribute(route?.id || "")}"
+            type="button"
+            aria-expanded="${collapsed ? "false" : "true"}"
+            title="${collapsed ? "Раскрыть группу" : "Свернуть группу"}"
+          >
+            ${icon(collapsed ? "chevronRight" : "chevronDown")}
+          </button>
+          <b>Плата</b>
+          <strong>${escapeHtml(group.title)}</strong>
+          <small>${escapeHtml(meta)}</small>
+        </span>
+      </th>
+    </tr>
+  `;
+}
+
+function renderSupplyRegisterRow(row) {
+            const control = row.control || normalizeSupplyControlRecord();
+  const sourceLabel = getSupplyRegisterSourceLabel(row);
+            return `
             <tr>
               <td class="primary-cell">
                 <strong>${escapeHtml(row.title)}</strong>
                 <small>${escapeHtml([row.typeLabel, row.article ? `PN: ${row.article}` : "", row.package].filter(Boolean).join(" · "))}</small>
               </td>
-              <td>${escapeHtml(row.sourceLabel || "-")}</td>
+              <td>${escapeHtml(sourceLabel)}</td>
               <td>${escapeHtml(formatReportNumber(row.requiredQuantity))} ${escapeHtml(row.unit || "шт.")}</td>
-              <td><span class="supply-status-pill is-warning">нет счета</span></td>
-              <td>0 / ${escapeHtml(formatReportNumber(row.requiredQuantity))}</td>
-              <td><span class="supply-status-pill is-neutral">не запланирована</span></td>
+              <td>
+                <select class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="status" aria-label="Статус закупки">
+                  ${SUPPLY_CONTROL_STATUS_OPTIONS.map((option) => `
+                    <option value="${escapeAttribute(option.id)}" ${option.id === (row.controlStatus || control.status) ? "selected" : ""}>${escapeHtml(option.label)}</option>
+                  `).join("")}
+                </select>
+              </td>
+              <td>
+                <div class="supply-control-stack">
+                  <input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="erpDoc" value="${escapeAttribute(control.erpDoc)}" placeholder="счет / заказ 1С" aria-label="ERP документ" />
+                  <input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="supplier" value="${escapeAttribute(control.supplier)}" placeholder="поставщик" aria-label="Поставщик" />
+                </div>
+              </td>
+              <td>
+                <label class="supply-quantity-field">
+                  <input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="purchasedQuantity" type="number" min="0" step="1" value="${escapeAttribute(control.purchasedQuantity || "")}" aria-label="Закупленное количество" />
+                  <span>/ ${escapeHtml(formatReportNumber(row.requiredQuantity))}</span>
+                </label>
+              </td>
+              <td>
+                <div class="supply-control-stack is-delivery">
+                  <label><span>план</span><input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="plannedDate" type="date" value="${escapeAttribute(control.plannedDate)}" aria-label="Плановая поставка" /></label>
+                  <label><span>факт</span><input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="actualDate" type="date" value="${escapeAttribute(control.actualDate)}" aria-label="Фактическая поставка" /></label>
+                  <label><span>принято</span><input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="deliveredQuantity" type="number" min="0" step="1" value="${escapeAttribute(control.deliveredQuantity || "")}" aria-label="Принятое количество" /></label>
+                </div>
+              </td>
+              <td>
+                <input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="comment" value="${escapeAttribute(control.comment)}" placeholder="комментарий снабжения" aria-label="Комментарий снабжения" />
+              </td>
             </tr>
-          `).join("")}
-        </tbody>
-      </table>
+          `;
+}
+
+function getSupplyRegisterSourceLabel(row = {}) {
+  return row.kind === "rek" && Number(row.perBoardQuantity || 0) > 0
+    ? `${row.sourceLabel || "-"} · на плату ${formatReportNumber(row.perBoardQuantity)}`
+    : row.sourceLabel || "-";
+}
+
+function renderSupplyDemandPopover(route, rows = []) {
+  if (!ui.activeSupplyDemandRowId) return "";
+  const row = rows.find((item) => item.id === ui.activeSupplyDemandRowId);
+  if (!row) return "";
+
+  const control = row.control || normalizeSupplyControlRecord();
+  const sourceLabel = getSupplyRegisterSourceLabel(row);
+  const positionMeta = [row.typeLabel, row.article ? `PN: ${row.article}` : "", row.package].filter(Boolean).join(" · ");
+  const demandMeta = row.kind === "rek" && Number(row.perBoardQuantity || 0) > 0
+    ? `на плату ${formatReportNumber(row.perBoardQuantity)} ${row.unit || "шт."}`
+    : row.kind === "pcb" ? "тираж платы" : "";
+  const deliveryMeta = row.deliveredQuantity
+    ? `принято ${formatReportNumber(row.deliveredQuantity)} ${row.unit || "шт."}`
+    : "план / факт / принято";
+
+  return `
+    <div class="supply-demand-popover-layer" role="presentation">
+      <button class="supply-demand-popover-backdrop" data-supply-detail-close type="button" aria-label="Закрыть карточку потребности"></button>
+      <section class="supply-demand-popover" role="dialog" aria-modal="true" aria-label="Потребность снабжения">
+        <header class="supply-demand-popover-head">
+          <div>
+            <span class="eyebrow">Потребность компонента</span>
+            <strong>${escapeHtml(row.title)}</strong>
+            <small>${escapeHtml([row.groupTitle, sourceLabel].filter(Boolean).join(" · "))}</small>
+          </div>
+          <button class="icon-button" data-supply-detail-close type="button" title="Закрыть">${icon("close")}</button>
+        </header>
+
+        <div class="supply-detail-grid">
+          <article class="supply-detail-cell is-wide">
+            <span>Позиция</span>
+            <strong>${escapeHtml(row.title)}</strong>
+            <small>${escapeHtml(positionMeta || "позиция BOM")}</small>
+          </article>
+
+          <article class="supply-detail-cell">
+            <span>BOM / источник</span>
+            <strong>${escapeHtml(sourceLabel)}</strong>
+            <small>${escapeHtml(row.designators || row.groupTitle || "")}</small>
+          </article>
+
+          <article class="supply-detail-cell">
+            <span>Потребность</span>
+            <strong>${escapeHtml(formatReportNumber(row.requiredQuantity))} ${escapeHtml(row.unit || "шт.")}</strong>
+            <small>${escapeHtml(demandMeta)}</small>
+          </article>
+
+          <label class="supply-detail-cell is-control">
+            <span>Статус</span>
+            <select class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="status" aria-label="Статус закупки">
+              ${SUPPLY_CONTROL_STATUS_OPTIONS.map((option) => `
+                <option value="${escapeAttribute(option.id)}" ${option.id === (row.controlStatus || control.status) ? "selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+          </label>
+
+          <article class="supply-detail-cell is-wide">
+            <span>ERP / поставщик</span>
+            <div class="supply-detail-inline-fields">
+              <input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="erpDoc" value="${escapeAttribute(control.erpDoc)}" placeholder="счет / заказ 1С" aria-label="ERP документ" />
+              <input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="supplier" value="${escapeAttribute(control.supplier)}" placeholder="поставщик" aria-label="Поставщик" />
+            </div>
+          </article>
+
+          <article class="supply-detail-cell">
+            <span>Закуплено</span>
+            <label class="supply-detail-quantity">
+              <input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="purchasedQuantity" type="number" min="0" step="1" value="${escapeAttribute(control.purchasedQuantity || "")}" aria-label="Закупленное количество" />
+              <small>/ ${escapeHtml(formatReportNumber(row.requiredQuantity))}</small>
+            </label>
+          </article>
+
+          <article class="supply-detail-cell is-wide">
+            <span>Поставка</span>
+            <div class="supply-detail-delivery-fields">
+              <label><small>план</small><input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="plannedDate" type="date" value="${escapeAttribute(control.plannedDate)}" aria-label="Плановая поставка" /></label>
+              <label><small>факт</small><input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="actualDate" type="date" value="${escapeAttribute(control.actualDate)}" aria-label="Фактическая поставка" /></label>
+              <label><small>принято</small><input class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="deliveredQuantity" type="number" min="0" step="1" value="${escapeAttribute(control.deliveredQuantity || "")}" aria-label="Принятое количество" /></label>
+            </div>
+            <small>${escapeHtml(deliveryMeta)}</small>
+          </article>
+
+          <label class="supply-detail-cell is-comment">
+            <span>Комментарий</span>
+            <textarea class="supply-control-field" data-supply-control-key="${escapeAttribute(row.controlKey)}" data-supply-control-field="comment" rows="3" placeholder="комментарий снабжения" aria-label="Комментарий снабжения">${escapeHtml(control.comment)}</textarea>
+          </label>
+        </div>
+      </section>
     </div>
   `;
 }
@@ -6905,9 +7957,58 @@ function bindSupplyEvents() {
       if (!routeId) return;
       ui.activeSupplyRouteId = routeId;
       ui.activeRouteId = routeId;
+      ui.activeSupplyDemandRowId = "";
       persistUiState();
       render();
     });
+  });
+
+  app.querySelectorAll("[data-supply-demand-open]").forEach((button) => {
+    button.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      ui.activeSupplyDemandRowId = button.dataset.supplyDemandOpen || "";
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-supply-detail-close]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      ui.activeSupplyDemandRowId = "";
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-supply-group-toggle]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      toggleSupplyGroup(
+        button.dataset.supplyRouteId || ui.activeSupplyRouteId || "",
+        button.dataset.supplyGroupToggle || "",
+      );
+    });
+  });
+
+  app.querySelectorAll("[data-supply-control-field]").forEach((field) => {
+    const commit = () => {
+      updateSupplyControlField(
+        field.dataset.supplyControlKey || "",
+        field.dataset.supplyControlField || "",
+        field.value,
+      );
+    };
+    field.addEventListener("change", commit);
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      field.blur();
+      commit();
+    });
+  });
+
+  app.querySelector("[data-supply-clear-route]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    clearSupplyControlForRoute(event.currentTarget.dataset.supplyClearRoute || "");
   });
 }
 
@@ -7869,14 +8970,14 @@ function buildPlanningProductionChain(route, transferSummary = null, tasks = nul
     id: "final",
     kind: "final",
     number: "Финиш",
-    title: mainTask?.title || "Общая сборка изделия",
-    typeLabel: "общий маршрут",
+    title: mainTask?.title || "Финальные операции маршрута",
+    typeLabel: "маршрут",
     sourceLabel: getProjectDisplayName(production) || route?.name || "",
     mode: "produce",
     modeLabel: "Произвести",
     quantity: planningQuantity,
     unit: "шт.",
-    status: mainStats.stepsCount ? "общие операции заданы" : "нужна общая операция",
+    status: mainStats.stepsCount ? "операции заданы" : "нужна финальная операция",
     tone: mainStats.stepsCount ? "ok" : "warning",
     inputLabel: getProductionChainStepFlowLabel(route, mainStats.steps || [], "input")
       || joinRouteStepFlowLabels(finalInputNodes.map((node) => node.outputLabel), "Полуфабрикаты состава изделия"),
@@ -7903,7 +9004,7 @@ function buildPlanningProductionChain(route, transferSummary = null, tasks = nul
     .filter((step) => routeStepRequiresManualPlanningLine(step, planningState) && !getRouteStepSelectedPlanningWorkCenterId(step, planningState))
     .map((step) => `${step.operationName || "SMT-операция"}: выберите конкретный SMT-участок.`);
   const finalIssues = sourceNodes.length > 1 && !mainStats.stepsCount
-    ? ["Для нескольких составных частей нужна общая операция сборки или приемки в общем маршруте."]
+    ? ["Для нескольких составных частей нужна финальная операция сборки или приемки в маршрутной карте."]
     : [];
   const issues = [...new Set([...supplyIssues, ...lineIssues, ...finalIssues])];
 
@@ -8296,7 +9397,7 @@ function renderPlanningStepDetail(route, step, transferSummary, routeSteps) {
         <div>
           <div>
             <strong>${escapeHtml(step.operationName || "Операция")}</strong>
-            <span>${task ? `${escapeHtml(task.number)} · ${escapeHtml(task.title || "Составная часть")}` : "общий маршрут"}</span>
+            <span>${task ? `${escapeHtml(task.number)} · ${escapeHtml(task.title || "Составная часть")}` : "корневая операция маршрута"}</span>
           </div>
         </div>
         <em class="planning-section-tag">${isSmtStep ? "SMT" : "операция"}</em>
@@ -8317,9 +9418,11 @@ function renderPlanningStepDetail(route, step, transferSummary, routeSteps) {
         </article>
         <article>
           <span>Тип расчета</span>
-          <strong>${escapeHtml(operationContext.calculationType || (isSmtStep ? "SMT" : "маршрут"))}</strong>
+          <strong>${escapeHtml(getRouteStepCalculationTypeView(operationContext.calculationType || (isSmtStep ? "components" : "manual"))?.label || "Маршрут")}</strong>
         </article>
 	      </div>
+
+	      ${renderRouteStepLaborReadout(route, step, { quantity, className: "is-planning-detail" })}
 
 	      ${renderOperationFlowMap(getRouteStepFlowModel(route, step), { compact: true })}
 
@@ -8383,7 +9486,7 @@ function getPlanningTaskBomLabel(task) {
   const bom = getBomList(task?.bomListId || "");
   if (bom) return bom.resultItem || bom.name || "BOM";
   if (task?.type === "bom") return "BOM не привязан";
-  if (task?.isMain) return "общий маршрут";
+  if (task?.isMain) return "маршрут";
   return "BOM не требуется";
 }
 
@@ -9130,10 +10233,10 @@ function getModuleDefinitions() {
 
 function getModuleGroups(modules) {
   const groupMap = [
-    { label: "Производство", ids: ["gantt", "planning", "supply", "dispatch", "warehouse"] },
+    { label: "Производство", ids: ["gantt", "planning", "dispatch", "warehouse"] },
     { label: "Технологии", ids: ["routes", "products", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
-    { label: "UX-макеты", ids: ["shopMap", "rkd"], tone: "test" },
+    { label: "UX-макеты", ids: ["supply", "shopMap", "rkd"], tone: "test" },
   ];
 
   return groupMap
@@ -9329,6 +10432,16 @@ function renderAppTopbar() {
         ${icon("search")}
         <input type="search" placeholder="${escapeAttribute(searchPlaceholder)}" aria-label="Глобальный поиск" />
       </label>
+      <div class="app-topbar-actions" aria-label="Режимы интерфейса">
+        <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса: скрыть вторичные панели">
+          ${icon("focus")}
+          <span>Фокус</span>
+        </button>
+        <button class="app-topbar-action ${ui.visualQaEnabled ? "is-active is-qa-active" : ""}" data-toggle-visual-qa type="button" aria-pressed="${ui.visualQaEnabled ? "true" : "false"}" title="Visual QA: подсветить визуальные проблемы">
+          ${icon("bug")}
+          <span>QA</span>
+        </button>
+      </div>
     </header>
   `;
 }
@@ -10112,6 +11225,8 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
     || { value: "", label: "Не выбрано", meta: "" };
   const summaryLabel = selectedItem.summaryLabel || selectedItem.label;
   const summaryMeta = Object.prototype.hasOwnProperty.call(selectedItem, "summaryMeta") ? selectedItem.summaryMeta : selectedItem.meta;
+  const summaryIconName = selectedItem.summaryIconName || selectedItem.iconName || options.summaryIconName || "";
+  const summaryTitle = selectedItem.summaryTitle || options.summaryTitle || (summaryIconName ? summaryLabel : "");
   const selectedTone = String(options.tone || selectedItem.tone || "").trim();
   const rootAttribute = options.type === "specStructureBom"
     ? `data-dense-spec-structure-bom="${escapeAttribute(options.itemId || "")}"`
@@ -10154,7 +11269,8 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
 
   return `
     <details class="dense-inline-select${options.type ? ` dense-select-${escapeAttribute(options.type)}` : ""}${toneClass}${actionClass}${disabledClass}" ${rootAttribute} ${options.disabled ? "aria-disabled=\"true\"" : ""}>
-      <summary ${options.disabled ? "tabindex=\"-1\"" : ""}>
+      <summary ${options.disabled ? "tabindex=\"-1\"" : ""}${summaryTitle ? ` title="${escapeAttribute(summaryTitle)}" aria-label="${escapeAttribute(summaryTitle)}"` : ""}>
+        ${summaryIconName ? `<i class="dense-inline-summary-icon" aria-hidden="true">${icon(summaryIconName)}</i>` : ""}
         <span>
           <strong>${escapeHtml(summaryLabel)}</strong>
           ${summaryMeta ? `<small>${escapeHtml(summaryMeta)}</small>` : ""}
@@ -12208,6 +13324,32 @@ function getNomenclatureTypeTone(typeName = "") {
   return "section-neutral";
 }
 
+function getNomenclatureTypeIconName(typeName = "") {
+  const row = getNomenclatureTypeRows({ includeInactive: true })
+    .find((type) => normalizeLookupText(type.name) === normalizeLookupText(typeName));
+  const key = normalizeLookupText([row?.code, row?.name, typeName].filter(Boolean).join(" "));
+  if (key.includes("pcb") || key.includes("печат")) return "bom";
+  if (key.includes("cable") || key.includes("жгут") || key.includes("кабел")) return "split";
+  if (key.includes("mech") || key.includes("механ")) return "settings";
+  if (key.includes("cons") || key.includes("расход")) return "package";
+  if (key.includes("pack") || key.includes("упаков") || key.includes("маркир")) return "package";
+  if (key.includes("buy") || key.includes("покуп")) return "supply";
+  if (key.includes("make") || key.includes("производ")) return "operation";
+  if (key.includes("tool") || key.includes("оснаст")) return "settings";
+  if (key.includes("rea") || key.includes("рэа")) return "directory";
+  return "package";
+}
+
+function getNomenclatureTypeVisual(typeName = "", tone = "") {
+  const label = normalizeNomenclatureType(typeName) || "Раздел не выбран";
+  return {
+    label,
+    tone: tone || getNomenclatureTypeTone(label),
+    iconName: getNomenclatureTypeIconName(label),
+    tooltip: `Раздел: ${label}`,
+  };
+}
+
 function getSpekiStructureSectionOptions() {
   const options = getNomenclatureTypeRows().map((type) => ({
     value: type.name,
@@ -12215,12 +13357,19 @@ function getSpekiStructureSectionOptions() {
     meta: type.description || type.code || "раздел номенклатуры",
     summaryMeta: "",
     tone: getNomenclatureTypeTone(type.name),
+    iconName: getNomenclatureTypeIconName(type.name),
+    summaryTitle: getNomenclatureTypeVisual(type.name).tooltip,
   }));
-  return options.length ? options : NOMENCLATURE_DEFAULT_TYPES.map((type) => ({
-    ...type,
-    summaryMeta: "",
-    tone: getNomenclatureTypeTone(type.value),
-  }));
+  return options.length ? options : NOMENCLATURE_DEFAULT_TYPES.map((type) => {
+    const visual = getNomenclatureTypeVisual(type.value || type.label);
+    return {
+      ...type,
+      summaryMeta: "",
+      tone: visual.tone,
+      iconName: visual.iconName,
+      summaryTitle: visual.tooltip,
+    };
+  });
 }
 
 function getNomenclatureTypeCounts(items = directoryState.nomenclature || []) {
@@ -13196,6 +14345,230 @@ function getShopFloorWidgets() {
   });
 }
 
+function getProductionFlowStageWorkCenterIds(stage = {}) {
+  return new Set((stage.workCenterIds || [])
+    .map((id) => mapLegacyWorkCenterId(id))
+    .filter(Boolean));
+}
+
+function getProductionFlowSlotCandidateIds(slot = {}, step = null) {
+  return [
+    getSlotGanttWorkCenterId(slot),
+    slot.workCenterId,
+    slot.routeWorkCenterId,
+    step?.workCenterId,
+    step ? getRouteStepSelectedPlanningWorkCenterId(step, planningState, { currentWorkCenterId: slot.workCenterId }) : "",
+    step?.planningWorkCenterId,
+    step?.resourceId,
+    slot.resourceId,
+  ]
+    .map((id) => getRouteInstructionWorkCenterId(id) || mapLegacyWorkCenterId(id))
+    .filter(Boolean);
+}
+
+function productionFlowSlotMatchesStage(slot = {}, stageIds = new Set(), step = null) {
+  return getProductionFlowSlotCandidateIds(slot, step).some((id) => stageIds.has(id));
+}
+
+function getProductionFlowSlotRoute(slot = {}, routeById = new Map(), stepById = new Map()) {
+  const step = stepById.get(slot.routeStepId);
+  return routeById.get(slot.routeId)
+    || routeById.get(step?.routeId)
+    || (planningState.routes || []).find((route) => (
+      route.specificationId === slot.specificationId
+      || route.projectId === slot.projectId
+      || route.id === slot.batchId
+    ))
+    || null;
+}
+
+function getProductionFlowSlotLabel(slot = {}, routeById = new Map(), stepById = new Map()) {
+  const route = getProductionFlowSlotRoute(slot, routeById, stepById);
+  const project = route ? getRoutePlanningContext(route) : null;
+  return getProjectDisplayName(project) || route?.name || slot.projectName || "Заказ-наряд";
+}
+
+function getProductionFlowStageTone(stageData = {}) {
+  if (stageData.riskSlots.length) return "critical";
+  if (stageData.activeSlots.length) return "active";
+  if (stageData.queuedSlots.length) return "warning";
+  if (stageData.completedSlots.length && !stageData.openSlots.length) return "ok";
+  return "neutral";
+}
+
+function getProductionFlowStages() {
+  const now = toDate(ui.now || new Date());
+  const routeById = new Map((planningState.routes || []).map((route) => [route.id, route]));
+  const stepById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
+  const resources = getProductionResources({ includeInactive: true });
+  const operations = getOperationMapRows({ includeInactive: true });
+
+  return PRODUCTION_FLOW_STAGE_DEFINITIONS.map((stage) => {
+    const stageIds = getProductionFlowStageWorkCenterIds(stage);
+    const stageSlots = (planningState.slots || [])
+      .filter((slot) => productionFlowSlotMatchesStage(slot, stageIds, stepById.get(slot.routeStepId)))
+      .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart));
+    const riskSlots = stageSlots.filter((slot) => (
+      ["problem", "overdue", "paused"].includes(slot.status)
+      || (slot.status !== "completed" && slot.plannedEnd && toDate(slot.plannedEnd) < now)
+    ));
+    const activeSlots = stageSlots.filter((slot) => (
+      ["in_progress", "problem", "overdue"].includes(slot.status)
+      || (slot.status !== "completed" && toDate(slot.plannedStart) <= now && toDate(slot.plannedEnd) >= now)
+    ));
+    const queuedSlots = stageSlots.filter((slot) => (
+      slot.status !== "completed"
+      && !activeSlots.includes(slot)
+      && !riskSlots.includes(slot)
+    ));
+    const completedSlots = stageSlots.filter((slot) => slot.status === "completed");
+    const openSlots = stageSlots.filter((slot) => slot.status !== "completed");
+    const stageResources = resources.filter((resource) => stageIds.has(getProductionResourceWorkCenterId(resource)));
+    const stageOperations = operations.filter((operation) => stageIds.has(getOperationRouteWorkCenterId(operation) || operation.workCenterId));
+    const stageCenters = [...stageIds].map((id) => getWorkCenter(id)).filter(Boolean);
+    const capacity = Math.max(1, stageCenters.reduce((sum, center) => sum + getWorkCenterCapacity(center.id), 0));
+    const hours = stageSlots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
+    const load = Math.max(0, Math.min(100, Math.round((openSlots.length + activeSlots.length * 1.5) / Math.max(1, capacity * 2) * 100)));
+    const nextSlots = openSlots
+      .filter((slot) => slot.plannedEnd && toDate(slot.plannedEnd) >= addMs(now, -DAY_MS))
+      .sort((left, right) => (
+        Number(riskSlots.includes(right)) - Number(riskSlots.includes(left))
+        || toDate(left.plannedStart) - toDate(right.plannedStart)
+      ))
+      .slice(0, 3);
+    const data = {
+      ...stage,
+      stageIds,
+      centers: stageCenters,
+      resources: stageResources,
+      operations: stageOperations,
+      slots: stageSlots,
+      riskSlots,
+      activeSlots,
+      queuedSlots,
+      completedSlots,
+      openSlots,
+      nextSlots,
+      hours,
+      capacity,
+      load,
+    };
+    return {
+      ...data,
+      flowTone: getProductionFlowStageTone(data),
+    };
+  });
+}
+
+function renderProductionFlowStage(stage, routeById, stepById) {
+  return `
+    <article class="production-flow-node is-${escapeAttribute(stage.flowTone)} is-tone-${escapeAttribute(stage.tone)}">
+      <div class="production-flow-node-head">
+        <span class="production-flow-icon">${icon(stage.iconName)}</span>
+        <span>
+          <strong>${escapeHtml(stage.label)}</strong>
+          <small>${escapeHtml(stage.caption)}</small>
+        </span>
+      </div>
+      <div class="production-flow-load" style="--flow-load:${stage.load}%;">
+        <span></span>
+      </div>
+      <div class="production-flow-metrics">
+        <span><b>${stage.activeSlots.length.toLocaleString("ru-RU")}</b><small>активно</small></span>
+        <span><b>${stage.queuedSlots.length.toLocaleString("ru-RU")}</b><small>очередь</small></span>
+        <span><b>${stage.riskSlots.length.toLocaleString("ru-RU")}</b><small>риск</small></span>
+      </div>
+      <div class="production-flow-node-foot">
+        <em>${stage.resources.length.toLocaleString("ru-RU")} рес.</em>
+        <em>${stage.operations.length.toLocaleString("ru-RU")} оп.</em>
+        <em>${stage.load}%</em>
+      </div>
+      ${stage.nextSlots.length ? `
+        <div class="production-flow-mini-list">
+          ${stage.nextSlots.map((slot) => `
+            <span title="${escapeAttribute(`${getProductionFlowSlotLabel(slot, routeById, stepById)} · ${slot.operationName || "Операция"}`)}">
+              <b>${escapeHtml(slot.operationName || "Операция")}</b>
+              <small>${escapeHtml(formatDateTimeShort(slot.plannedStart))}</small>
+            </span>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="production-flow-empty">нет открытых операций</div>
+      `}
+    </article>
+  `;
+}
+
+function renderProductionFlowMapPanel() {
+  const stages = getProductionFlowStages();
+  const routeById = new Map((planningState.routes || []).map((route) => [route.id, route]));
+  const stepById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
+  const openSlots = stages.flatMap((stage) => stage.openSlots);
+  const activeCount = stages.reduce((sum, stage) => sum + stage.activeSlots.length, 0);
+  const riskCount = stages.reduce((sum, stage) => sum + stage.riskSlots.length, 0);
+  const queueCount = stages.reduce((sum, stage) => sum + stage.queuedSlots.length, 0);
+  const nextMovements = openSlots
+    .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))
+    .slice(0, 6);
+
+  return `
+    <section class="module-panel shop-map-flow-panel">
+      <div class="report-card-head production-flow-head">
+        <div>
+          <strong>Карта производственного потока</strong>
+          <span>демо-слой: движение заказов по участкам на основе текущего Ганта и маршрутных операций</span>
+        </div>
+        <div class="production-flow-summary">
+          <span><b>${activeCount.toLocaleString("ru-RU")}</b> активно</span>
+          <span><b>${queueCount.toLocaleString("ru-RU")}</b> в очереди</span>
+          <span class="${riskCount ? "is-critical" : ""}"><b>${riskCount.toLocaleString("ru-RU")}</b> риск</span>
+        </div>
+      </div>
+
+      <div class="production-flow-lane" aria-label="Карта производственного потока">
+        ${stages.map((stage) => renderProductionFlowStage(stage, routeById, stepById)).join("")}
+      </div>
+
+      <div class="production-flow-bottom">
+        <section class="production-flow-next">
+          <div class="report-card-head">
+            <strong>Ближайшие движения</strong>
+            <span>только существующие слоты Ганта</span>
+          </div>
+          ${nextMovements.length ? `
+            <div class="production-flow-next-list">
+              ${nextMovements.map((slot) => {
+                const step = stepById.get(slot.routeStepId);
+                const stage = stages.find((item) => productionFlowSlotMatchesStage(slot, item.stageIds, step));
+                return `
+                  <article class="is-${escapeAttribute(getDispatchSlotTone(slot))}">
+                    <span>${escapeHtml(stage?.label || getWorkCenter(slot.workCenterId)?.name || "Участок")}</span>
+                    <strong>${escapeHtml(slot.operationName || "Операция")}</strong>
+                    <small>${escapeHtml(getProductionFlowSlotLabel(slot, routeById, stepById))} · ${escapeHtml(formatDateTimeShort(slot.plannedStart))}</small>
+                  </article>
+                `;
+              }).join("")}
+            </div>
+          ` : `
+            <div class="module-preview-empty production-flow-placeholder">
+              ${icon("gantt")}
+              <strong>Открытых слотов пока нет</strong>
+              <span>После передачи заказ-наряда в Гант карта покажет ближайшие движения по потоку.</span>
+            </div>
+          `}
+        </section>
+        <section class="production-flow-legend">
+          <strong>Что показывает прототип</strong>
+          <span><i class="is-active"></i> активные операции и текущие окна</span>
+          <span><i class="is-warning"></i> очередь перед участком</span>
+          <span><i class="is-critical"></i> просрочка, пауза или проблема</span>
+          <small>Карта не меняет план и не создает новые связи. Это обзорный слой для диспетчера.</small>
+        </section>
+      </div>
+    </section>
+  `;
+}
+
 function renderShopFloorMapPage() {
   const widgets = getShopFloorWidgets();
   const isEditing = Boolean(ui.shopMapEditMode);
@@ -13249,6 +14622,8 @@ function renderShopFloorMapPage() {
         </header>
 
         <div class="module-data-content shop-map-content">
+          ${renderProductionFlowMapPanel()}
+
           <section class="module-panel shop-map-canvas-panel">
             <div class="report-card-head shop-map-panel-head">
               <div>
@@ -14367,6 +15742,31 @@ function renderSpekiStructureSectionChip(label, tone) {
   return `<span class="speki-section-chip is-${escapeAttribute(tone || getNomenclatureTypeTone(label))}">${escapeHtml(label || "Раздел не выбран")}</span>`;
 }
 
+function renderSpekiStructureSectionIcon(label, tone, options = {}) {
+  const visual = options.visual || getNomenclatureTypeVisual(label, tone);
+  const tooltip = options.tooltip || visual.tooltip;
+  const iconName = options.iconName || visual.iconName;
+  return `
+    <span
+      class="speki-section-icon-badge is-${escapeAttribute(visual.tone || "section-neutral")}"
+      role="img"
+      aria-label="${escapeAttribute(tooltip)}"
+      title="${escapeAttribute(tooltip)}"
+      data-tooltip="${escapeAttribute(tooltip)}"
+    >
+      ${icon(iconName || "package")}
+    </span>
+  `;
+}
+
+function renderStructureTreeGuides(continuationLevels = []) {
+  return (Array.isArray(continuationLevels) ? continuationLevels : [])
+    .map((hasContinuation, guideLevel) => hasContinuation
+      ? `<span class="speki-tree-guide" style="--speki-guide-level: ${guideLevel};" aria-hidden="true"></span>`
+      : "")
+    .join("");
+}
+
 function getSpekiNomenclatureOptions(sectionName = "", currentId = "") {
   const normalizedSection = normalizeLookupText(sectionName);
   const allItems = directoryState.nomenclature || [];
@@ -14451,7 +15851,7 @@ function renderSpekiStructureTable(specification, isEditing = false) {
           </tr>
         </thead>
         <tbody>
-          ${rows.length ? rows.map(({ item, number, level }, index) => {
+          ${rows.length ? rows.map(({ item, number, level, hasChildren, isLast, continuationLevels = [] }, index) => {
             const linkedSpecification = item.type === "specification"
               ? (directoryState.specifications || []).find((entry) => entry.id === item.specificationId)
               : null;
@@ -14487,18 +15887,25 @@ function renderSpekiStructureTable(specification, isEditing = false) {
             const quantityMissing = Number(item.quantity || 0) <= 0;
             const unitMissing = !String(item.unit || "").trim();
             const objectContent = isEditing ? objectSelect : `<span class="speki-static-cell">${escapeHtml(objectLabel)}</span>`;
+            const treeContent = `
+              <div class="speki-tree-cell is-level-${Math.min(5, Math.max(0, Number(level || 0)))} ${hasChildren ? "has-children" : ""} ${isLast ? "is-last" : ""}">
+                ${renderStructureTreeGuides(continuationLevels)}
+                <span class="speki-tree-branch" aria-hidden="true"></span>
+                <div class="speki-tree-object">${objectContent}</div>
+              </div>
+            `;
             const rowNumberContent = `<span class="speki-row-number">${escapeHtml(number)}</span>`;
             const sectionContent = rowType === "assembly"
-              ? `<span class="speki-node-section-cell">Узел</span>`
+              ? renderSpekiStructureSectionIcon("Узел", "assembly", { iconName: "split", tooltip: "Раздел: узел изделия" })
               : isEditing
                 ? renderDenseInlineSelect("nomenclatureType", sectionValue, sectionOptions, { type: "spekiStructureNomenclatureType", itemId: item.id, tone: sectionTone })
-                : renderSpekiStructureSectionChip(sectionValue, sectionTone);
+                : renderSpekiStructureSectionIcon(sectionValue, sectionTone);
 
             return `
-              <tr class="${rowType === "assembly" ? "is-speki-node" : ""}" data-speki-structure-row="${escapeAttribute(item.id)}" style="--speki-level: ${level};">
+              <tr class="${rowType === "assembly" ? "is-speki-node" : ""} ${hasChildren ? "is-speki-tree-parent" : ""}" data-speki-structure-row="${escapeAttribute(item.id)}" style="--speki-level: ${level};">
                 <td>${rowNumberContent}</td>
                 <td>${sectionContent}</td>
-                <td class="${objectMissing ? "is-speki-field-missing" : ""}"><div class="speki-object-cell">${objectContent}</div></td>
+                <td class="${objectMissing ? "is-speki-field-missing" : ""}"><div class="speki-object-cell">${treeContent}</div></td>
                 <td class="${quantityMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="quantity" type="number" inputmode="numeric" min="0" step="1" value="${Math.round(Number(item.quantity || 0))}" />` : `<span class="speki-static-cell">${escapeHtml(formatReportNumber(item.quantity || 0))}</span>`}</td>
                 <td class="${unitMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="unit" value="${escapeAttribute(item.unit)}" />` : `<span class="speki-static-cell">${escapeHtml(item.unit || "шт.")}</span>`}</td>
                 <td>
@@ -14550,13 +15957,23 @@ function getSpekiStructureTableRows(specification) {
 
   const rows = [];
   const visited = new Set();
-  const appendChildren = (parentId, path, level) => {
-    (byParent.get(parentId) || []).forEach((item, index) => {
+  const appendChildren = (parentId, path, level, continuationLevels = []) => {
+    const siblings = byParent.get(parentId) || [];
+    siblings.forEach((item, index) => {
       if (visited.has(item.id)) return;
       const nextPath = [...path, index + 1];
+      const childItems = byParent.get(item.id) || [];
+      const isLast = index === siblings.length - 1;
       visited.add(item.id);
-      rows.push({ item, number: nextPath.join("."), level });
-      appendChildren(item.id, nextPath, level + 1);
+      rows.push({
+        item,
+        number: nextPath.join("."),
+        level,
+        hasChildren: childItems.length > 0,
+        isLast,
+        continuationLevels,
+      });
+      appendChildren(item.id, nextPath, level + 1, [...continuationLevels, !isLast]);
     });
   };
 
@@ -14564,7 +15981,7 @@ function getSpekiStructureTableRows(specification) {
   items.forEach((item) => {
     if (visited.has(item.id)) return;
     visited.add(item.id);
-    rows.push({ item, number: String(rows.length + 1), level: 0 });
+    rows.push({ item, number: String(rows.length + 1), level: 0, hasChildren: false, isLast: true, continuationLevels: [] });
   });
 
   return rows;
@@ -15415,8 +16832,7 @@ function getRouteBindingModeForSelection(value = "", route = null) {
   return "product";
 }
 
-function getRouteBindingOptions(mode = "") {
-  const normalizedMode = normalizeRouteBindingMode(mode);
+function getRouteBindingOptions() {
   const productOptions = (directoryState.specifications || []).map((item) => ({
     value: `spec:${item.id}`,
     label: item.name || "Изделие без названия",
@@ -15429,8 +16845,9 @@ function getRouteBindingOptions(mode = "") {
   }));
 
   return [
-    { value: "", label: "Связь не выбрана", meta: "не создавать автоматически" },
-    ...(normalizedMode === "bom" ? bomOptions : productOptions),
+    { value: "", label: "Связь не выбрана", meta: "маршрутная карта как самостоятельный документ" },
+    ...productOptions,
+    ...bomOptions,
   ];
 }
 
@@ -15517,6 +16934,45 @@ function getRouteStepsForTask(steps, taskId) {
     .sort((left, right) => Number(left.stepOrder || 0) - Number(right.stepOrder || 0));
 }
 
+function getRouteBaseTasks(route) {
+  const specification = getRouteSpecification(route);
+  return specification ? getSpecificationRouteTasks(specification) : getRouteBomTasks(route);
+}
+
+function getRouteBaseTaskIds(route) {
+  return new Set(getRouteBaseTasks(route).map((task) => task.id));
+}
+
+function isRouteStepLinkedToCurrentRouteTask(route, step) {
+  const taskId = String(step?.specTaskId || "").trim();
+  if (!route?.id || !taskId || taskId === MAIN_ROUTE_TASK_ID) return false;
+  return getRouteBaseTaskIds(route).has(taskId);
+}
+
+function pruneRouteStepsOutsideCurrentRouteTasks(state = planningState) {
+  if (!state || !Array.isArray(state.routeSteps)) return new Set();
+  const routesById = new Map((state.routes || []).map((route) => [route.id, route]));
+  const taskIdsByRouteId = new Map();
+  const removedStepIds = new Set();
+
+  state.routeSteps = state.routeSteps.filter((step) => {
+    const route = routesById.get(step.routeId);
+    const taskId = String(step?.specTaskId || "").trim();
+    if (!route || !taskId || taskId === MAIN_ROUTE_TASK_ID) {
+      removedStepIds.add(step.id);
+      return false;
+    }
+    if (!taskIdsByRouteId.has(route.id)) {
+      taskIdsByRouteId.set(route.id, getRouteBaseTaskIds(route));
+    }
+    if (taskIdsByRouteId.get(route.id).has(taskId)) return true;
+    removedStepIds.add(step.id);
+    return false;
+  });
+
+  return removedStepIds;
+}
+
 function getRouteProductionId(route = null) {
   return route?.specificationId || route?.projectId || "";
 }
@@ -15552,35 +17008,13 @@ function getRouteConcreteTasksForPlanning(route) {
     .filter((task) => !task.isMain && !task.isOrphan);
 }
 
-function shouldUseMainRouteStepsForSingleTask(route, task, steps = null) {
-  if (!route?.id || !task || task.isMain || task.isOrphan) return false;
-  const routeSteps = steps || getRouteStepsForModule(route.id);
-  const concreteTasks = getRouteConcreteTasksForPlanning(route);
-  if (concreteTasks.length !== 1 || concreteTasks[0].id !== task.id) return false;
-  const mainSteps = routeSteps.filter((step) => getRouteStepTaskId(step) === MAIN_ROUTE_TASK_ID);
-  const taskBoundSteps = routeSteps.filter((step) => getRouteStepTaskId(step) !== MAIN_ROUTE_TASK_ID);
-  return mainSteps.length > 0 && taskBoundSteps.length === 0;
-}
-
 function getPlanningTasksForRoute(route, steps = null) {
-  const tasks = getRouteTasksForModule(route);
-  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
-  const concreteTasks = tasks.filter((task) => !task.isMain && !task.isOrphan);
-  const hasOnlyMainSteps = routeSteps.some((step) => getRouteStepTaskId(step) === MAIN_ROUTE_TASK_ID)
-    && !routeSteps.some((step) => getRouteStepTaskId(step) !== MAIN_ROUTE_TASK_ID);
-  return concreteTasks.length === 1 && hasOnlyMainSteps
-    ? tasks.filter((task) => !task.isMain)
-    : tasks;
+  return getRouteTasksForModule(route);
 }
 
 function getRouteStepsForPlanningTask(route, task, steps = null) {
   const routeSteps = steps || getRouteStepsForModule(route?.id || "");
-  const directSteps = getRouteStepsForTask(routeSteps, task?.id || "");
-  if (directSteps.length) return directSteps;
-  if (shouldUseMainRouteStepsForSingleTask(route, task, routeSteps)) {
-    return getRouteStepsForTask(routeSteps, MAIN_ROUTE_TASK_ID);
-  }
-  return directSteps;
+  return getRouteStepsForTask(routeSteps, task?.id || "");
 }
 
 function getRouteForStep(step = {}) {
@@ -15591,14 +17025,7 @@ function getRouteStepPlanningTask(route, step, steps = null) {
   if (!route?.id || !step?.id) return null;
   const taskId = getRouteStepTaskId(step);
   const tasks = getRouteTasksForModule(route);
-  if (taskId !== MAIN_ROUTE_TASK_ID) {
-    return tasks.find((task) => task.id === taskId) || null;
-  }
-  const concreteTasks = tasks.filter((task) => !task.isMain && !task.isOrphan);
-  const routeSteps = steps || getRouteStepsForModule(route.id);
-  const hasOnlyMainSteps = routeSteps.some((item) => getRouteStepTaskId(item) === MAIN_ROUTE_TASK_ID)
-    && !routeSteps.some((item) => getRouteStepTaskId(item) !== MAIN_ROUTE_TASK_ID);
-  return concreteTasks.length === 1 && hasOnlyMainSteps ? concreteTasks[0] : null;
+  return tasks.find((task) => task.id === taskId) || null;
 }
 
 function getRouteStepEffectiveQuantityMultiplier(step = {}, route = null) {
@@ -15880,6 +17307,305 @@ function renderRouteStepFlowOverride(route, step) {
   `;
 }
 
+function renderRouteStepFlowToggle(step) {
+  const isOpen = ui.routeFlowStepId === step.id;
+  return `
+    <button class="icon-button route-step-flow-toggle ${isOpen ? "is-active" : ""}" data-route-step-flow-toggle="${escapeAttribute(step.id)}" type="button" aria-expanded="${isOpen ? "true" : "false"}" title="${isOpen ? "Скрыть вход/выход операции" : "Уточнить вход/выход операции"}">
+      ${icon("info")}
+    </button>
+  `;
+}
+
+function renderRouteStepFlowPanelRow(route, step, level) {
+  if (ui.routeFlowStepId !== step.id) return "";
+  const flow = getRouteStepFlowModel(route, step);
+  const inputValue = getRouteStepManualFlowLabel(step, "input");
+  const outputValue = getRouteStepManualFlowLabel(step, "output");
+  return `
+    <tr class="route-step-flow-panel-row" data-route-step-flow-panel="${escapeAttribute(step.id)}" style="--speki-level: ${level};">
+      <td colspan="5">
+        <div class="route-step-flow-panel">
+          ${renderOperationFlowMap(flow, { compact: true, editable: true })}
+          <label class="form-field">
+            <span>Вход</span>
+            <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="operationInputs" value="${escapeAttribute(inputValue)}" placeholder="${escapeAttribute(flow.autoInputLabel)}" />
+          </label>
+          <label class="form-field">
+            <span>Выход</span>
+            <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="operationOutputs" value="${escapeAttribute(outputValue)}" placeholder="${escapeAttribute(flow.autoOutputLabel)}" />
+          </label>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function getRouteStepCalculationTypeView(value = "") {
+  return ROUTE_STEP_CALCULATION_TYPES.find((item) => item.value === value)
+    || ROUTE_STEP_CALCULATION_TYPES.find((item) => item.value === "manual");
+}
+
+function getRouteStepCalculationTypeOptions() {
+  return ROUTE_STEP_CALCULATION_TYPES.map((item) => ({
+    ...item,
+    summaryMeta: "",
+    tone: "labor-test",
+    summaryTitle: `${item.label}: ${item.meta}`,
+  }));
+}
+
+function getRouteStepLaborPlanningWorkCenterOptions(step = {}) {
+  const candidates = getRouteStepPlanningCandidateWorkCenterIds(step, planningState);
+  const selectedWorkCenterId = getRouteStepSelectedPlanningWorkCenterId(step, planningState);
+  const options = [{
+    value: "",
+    label: candidates.length > 1 ? "Не выбран" : "Авто",
+    meta: candidates.length > 1 ? "выберите ресурс плана" : "по отделу маршрута",
+    summaryMeta: "",
+    iconName: "settings",
+    summaryTitle: "Ресурс планирования операции",
+  }];
+
+  candidates.forEach((workCenterId) => {
+    const center = getWorkCenter(workCenterId);
+    const resourceId = getPlanningResourceForRouteStep(step, workCenterId, step.resourceId || "");
+    const resource = resourceId ? getProductionResource(resourceId) : null;
+    const rate = Number(getResourceBaseCph(resource) || getWorkCenterUnitsPerHour(workCenterId, planningState) || 0);
+    options.push({
+      value: workCenterId,
+      label: center?.name || resource?.name || workCenterId,
+      meta: resource?.name || (rate ? `${formatReportNumber(rate)} ед/ч` : center?.code || "ресурс"),
+      summaryMeta: "",
+      iconName: "settings",
+      summaryTitle: `${center?.name || workCenterId}${resource?.name ? ` · ${resource.name}` : ""}`,
+    });
+  });
+
+  if (selectedWorkCenterId && !options.some((item) => item.value === selectedWorkCenterId)) {
+    const center = getWorkCenter(selectedWorkCenterId);
+    options.push({
+      value: selectedWorkCenterId,
+      label: center?.name || selectedWorkCenterId,
+      meta: center?.code || "текущий ресурс",
+      summaryMeta: "",
+      iconName: "settings",
+      summaryTitle: center?.name || selectedWorkCenterId,
+    });
+  }
+
+  return options;
+}
+
+function getRouteStepLaborSnapshot(route, step = {}, options = {}) {
+  const routeQuantity = normalizeQuantity(options.routeQuantity || getPlanningRouteQuantity(route), 1);
+  const quantity = normalizeQuantity(options.quantity || getRouteStepQuantityForBatch(step, { quantity: routeQuantity }), routeQuantity);
+  const planningWorkCenterId = getRouteStepSelectedPlanningWorkCenterId(step, planningState);
+  const workCenterId = planningWorkCenterId || step.workCenterId || "";
+  const resourceId = getPlanningResourceForRouteStep(step, workCenterId, step.resourceId || "");
+  const operationContext = getRouteStepEffectiveOperationContext(route, step, workCenterId, resourceId);
+  const calculationType = getDefaultOperationCalculationType(workCenterId, operationContext);
+  const durationMs = workCenterId
+    ? calculateRequiredDurationMs(workCenterId, quantity, planningState, operationContext.unitsPerHour, operationContext.boardsPerPanel, operationContext)
+    : 0;
+  const workCenter = getWorkCenter(workCenterId) || getWorkCenter(step.workCenterId);
+  const resource = resourceId
+    ? getProductionResource(resourceId)
+      || getResourcesForWorkCenter(workCenterId).find((item) => item.id === resourceId)
+      || null
+    : null;
+  const bomList = getDurationBomList(operationContext);
+  const calculation = getRouteStepCalculationTypeView(calculationType);
+  const isSmtLike = calculationType === "components" || isSmtOperationWorkCenter(workCenterId, operationContext, planningState);
+  const manualCapacity = getWorkCenterManualCapacity(workCenterId, planningState);
+  const resourceCapacity = parseCapacityCount(resource?.capacity);
+  const resourceBaseCph = isSmtLike || Number(resource?.baseCph || 0) > 0
+    ? getResourceBaseCph(resource)
+    : 0;
+  const resourceEfficiency = Math.max(0, Number(resource?.efficiency || 0));
+  const resourceChangeoverMin = Math.max(0, Number(resource?.changeoverMin || 0));
+
+  return {
+    routeQuantity,
+    quantity,
+    workCenterId,
+    workCenterLabel: workCenter?.name || workCenterId || "отдел не выбран",
+    resourceId,
+    resourceLabel: resource?.name || resource?.code || "авто",
+    resourceTypeLabel: PRODUCTION_RESOURCE_TYPE_LABELS[resource?.type] || resource?.type || "ресурс",
+    resourceParticipatesInPlanning: resource ? resourceParticipatesInPlanning(resource) : false,
+    resourceParticipatesInCalculation: resource ? resourceParticipatesInCalculation(resource) : false,
+    resourceCapacity,
+    manualCapacity,
+    resourceCapacityLabel: resource?.capacity || (manualCapacity ? `${formatReportNumber(manualCapacity)} паралл.` : "-"),
+    resourceBaseCph,
+    resourceEfficiency,
+    resourceChangeoverMin,
+    calculationType,
+    calculationLabel: calculation?.summaryLabel || calculationType || "расчет",
+    calculationMeta: calculation?.meta || "",
+    durationMs,
+    durationLabel: durationMs ? formatDuration(durationMs) : "не рассчитано",
+    secondsPerPanel: Math.max(0, Number(operationContext.secondsPerPanel || 0)),
+    unitsPerHour: Math.max(0, Number(operationContext.unitsPerHour || 0)),
+    setupMin: Math.max(0, Number(operationContext.setupMin || 0)),
+    boardsPerPanel: normalizeBoardsPerPanel(operationContext.boardsPerPanel, 1),
+    bomLabel: bomList?.name || bomList?.resultItem || "BOM не привязан",
+  };
+}
+
+function renderRouteStepLaborReadout(route, step, options = {}) {
+  const snapshot = options.snapshot || getRouteStepLaborSnapshot(route, step, options);
+  const className = options.className ? ` ${escapeAttribute(options.className)}` : "";
+  return `
+    <div class="route-step-labor-readout is-ux-labor-test${className}">
+      <article>
+        <span>Метод</span>
+        <strong>${escapeHtml(snapshot.calculationLabel)}</strong>
+        <small>${escapeHtml(snapshot.calculationMeta)}</small>
+      </article>
+      <article>
+        <span>Объем операции</span>
+        <strong>${escapeHtml(formatReportNumber(snapshot.quantity))} шт.</strong>
+        <small>заказ-наряд ${escapeHtml(formatReportNumber(snapshot.routeQuantity))} шт.</small>
+      </article>
+      <article>
+        <span>Расчетная длительность</span>
+        <strong>${escapeHtml(snapshot.durationLabel)}</strong>
+        <small>setup ${escapeHtml(formatReportNumber(snapshot.setupMin))} мин</small>
+      </article>
+      <article>
+        <span>Ресурс</span>
+        <strong>${escapeHtml(snapshot.workCenterLabel)}</strong>
+        <small>${escapeHtml(snapshot.resourceLabel)}</small>
+      </article>
+      <article>
+        <span>Норма</span>
+        <strong>${escapeHtml(formatReportNumber(snapshot.secondsPerPanel))} сек</strong>
+        <small>${escapeHtml(formatReportNumber(snapshot.unitsPerHour))} шт/ч</small>
+      </article>
+      <article>
+        <span>Панель / BOM</span>
+        <strong>${escapeHtml(formatReportNumber(snapshot.boardsPerPanel))} шт.</strong>
+        <small>${escapeHtml(snapshot.bomLabel)}</small>
+      </article>
+    </div>
+    ${renderRouteStepResourceFactorReadout(snapshot, className)}
+  `;
+}
+
+function renderRouteStepResourceFactorReadout(snapshot, className = "") {
+  const planningLabel = snapshot.resourceParticipatesInPlanning ? "Да" : "Нет";
+  const calculationLabel = snapshot.resourceParticipatesInCalculation ? "Да" : "Нет";
+  const capacityLabel = snapshot.resourceCapacity
+    ? `${formatReportNumber(snapshot.resourceCapacity)} ед.`
+    : snapshot.resourceCapacityLabel || "-";
+  const manualCapacityLabel = snapshot.manualCapacity
+    ? `ручная формула: ${formatReportNumber(snapshot.manualCapacity)} паралл.`
+    : "ручная мощность не задана";
+  const cphLabel = snapshot.resourceBaseCph
+    ? `${Number(snapshot.resourceBaseCph || 0).toLocaleString("ru-RU")} комп./ч`
+    : "-";
+  const efficiencyLabel = snapshot.resourceEfficiency
+    ? `${formatReportNumber(snapshot.resourceEfficiency)} %`
+    : "-";
+
+  return `
+    <div class="route-step-resource-factors is-ux-labor-test${className}">
+      <article>
+        <span>Участие</span>
+        <strong>${escapeHtml(planningLabel)} / ${escapeHtml(calculationLabel)}</strong>
+        <small>Гант / расчет</small>
+      </article>
+      <article>
+        <span>Мощность</span>
+        <strong>${escapeHtml(capacityLabel)}</strong>
+        <small>${escapeHtml(manualCapacityLabel)}</small>
+      </article>
+      <article>
+        <span>База SMT</span>
+        <strong>${escapeHtml(cphLabel)}</strong>
+        <small>baseCph ресурса</small>
+      </article>
+      <article>
+        <span>Эффективность</span>
+        <strong>${escapeHtml(efficiencyLabel)}</strong>
+        <small>коэффициент линии</small>
+      </article>
+      <article>
+        <span>Setup ресурса</span>
+        <strong>${escapeHtml(formatReportNumber(snapshot.resourceChangeoverMin))} мин</strong>
+        <small>дефолт для операции</small>
+      </article>
+      <article>
+        <span>Тип ресурса</span>
+        <strong>${escapeHtml(snapshot.resourceTypeLabel)}</strong>
+        <small>${escapeHtml(snapshot.resourceLabel)}</small>
+      </article>
+    </div>
+  `;
+}
+
+function renderRouteStepLaborToggle(step) {
+  const isOpen = ui.routeLaborStepId === step.id;
+  return `
+    <button class="icon-button route-step-labor-toggle is-ux-labor-test ${isOpen ? "is-active" : ""}" data-route-step-labor-toggle="${escapeAttribute(step.id)}" type="button" aria-expanded="${isOpen ? "true" : "false"}" title="${isOpen ? "Скрыть трудоемкость" : "Показать трудоемкость и расчет длительности"}">
+      ${icon("clock")}
+    </button>
+  `;
+}
+
+function renderRouteStepLaborPanelRow(route, step, level) {
+  if (ui.routeLaborStepId !== step.id) return "";
+  const snapshot = getRouteStepLaborSnapshot(route, step);
+  const calculationOptions = getRouteStepCalculationTypeOptions();
+  const planningLineOptions = getRouteStepLaborPlanningWorkCenterOptions(step);
+  const planningLineValue = getRouteStepExplicitPlanningWorkCenterId(step) || snapshot.workCenterId;
+  const secondsLabel = snapshot.calculationType === "normative"
+    ? "Секунд на цикл"
+    : snapshot.calculationType === "components"
+      ? "Секунд вручную"
+      : "Секунд на штуку";
+
+  return `
+    <tr class="route-step-labor-panel-row is-ux-labor-test" data-route-step-labor-panel="${escapeAttribute(step.id)}" style="--speki-level: ${level};">
+      <td colspan="5">
+        <div class="route-step-labor-panel">
+          <header class="route-step-labor-head">
+            <div>
+              <strong>Трудоемкость операции</strong>
+              <span>Тестовый UI к существующим расчетным полям routeStep</span>
+            </div>
+            <em>Тест</em>
+          </header>
+          <div class="route-step-labor-controls">
+            <div class="form-field route-step-labor-field">
+              <span>Метод расчета</span>
+              ${renderDenseInlineSelect("calculationType", step.calculationType || snapshot.calculationType, calculationOptions, { type: "routeStep", stepId: step.id, tone: "labor-test" })}
+            </div>
+            <div class="form-field route-step-labor-field">
+              <span>Ресурс плана</span>
+              ${renderDenseInlineSelect("planningWorkCenterId", planningLineValue, planningLineOptions, { type: "routeStep", stepId: step.id, tone: "labor-test", disabled: planningLineOptions.length <= 1 && !planningLineValue })}
+            </div>
+            <label class="form-field route-step-labor-field">
+              <span>${escapeHtml(secondsLabel)}</span>
+              <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="secondsPerPanel" type="number" inputmode="decimal" min="0" step="1" value="${escapeAttribute(snapshot.secondsPerPanel)}" />
+            </label>
+            <label class="form-field route-step-labor-field">
+              <span>Штук в час</span>
+              <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="unitsPerHour" type="number" inputmode="decimal" min="0" step="0.1" value="${escapeAttribute(snapshot.unitsPerHour)}" />
+            </label>
+            <label class="form-field route-step-labor-field">
+              <span>Setup, мин</span>
+              <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="setupMin" type="number" inputmode="decimal" min="0" step="1" value="${escapeAttribute(snapshot.setupMin)}" />
+            </label>
+          </div>
+          ${renderRouteStepLaborReadout(route, step, { snapshot, className: "is-in-panel" })}
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
 function getWorkCenterIdForRouteTask(task) {
   const targetUnit = (planningState.workCenters || []).find((center) => (
     isPlanningWorkCenter(center)
@@ -15908,7 +17634,7 @@ function getSpecificationRouteTasks(specification, context = {}) {
   visitedSpecificationIds.add(specification.id);
 
   const tasks = [];
-  getSpekiStructureTableRows(specification).forEach(({ item, number, level }) => {
+  getSpekiStructureTableRows(specification).forEach(({ item, number, level, hasChildren, isLast, continuationLevels = [] }) => {
     const fulfillmentMode = getSpecificationItemFulfillmentMode(item);
     if (!isSchedulableFulfillmentMode(fulfillmentMode)) return;
 
@@ -15944,6 +17670,9 @@ function getSpecificationRouteTasks(specification, context = {}) {
       type: taskType,
       fulfillmentMode,
       title,
+      hasChildren,
+      isLast,
+      continuationLevels,
       operationId: operation?.id || item.operationId || "",
       operationName,
       departmentName: departmentName || "Отдел не выбран",
@@ -15989,59 +17718,14 @@ function getRouteBomTasks(route) {
   }];
 }
 
-function getRouteMainTask(route = null) {
-  return {
-    id: MAIN_ROUTE_TASK_ID,
-    sourceItemId: "",
-    number: "00",
-    level: 0,
-    type: "route",
-    title: "Общий маршрут состава изделия",
-    operationName: "Финальная последовательность",
-    departmentName: "Планирование",
-    quantity: 1,
-    unit: "маршрут",
-    workCenterId: getPlanningWorkCenters({ includeWarehouse: false })[0]?.id || "D5",
-    isMain: true,
-    routeId: route?.id || "",
-  };
-}
-
 function getRouteTasksForModule(route) {
-  const specification = getRouteSpecification(route);
-  const specTasks = specification ? getSpecificationRouteTasks(specification) : getRouteBomTasks(route);
-  const steps = route ? getRouteStepsForModule(route.id) : [];
-  const taskIds = new Set(specTasks.map((task) => task.id));
-  const hasMainSteps = steps.some((step) => getRouteStepTaskId(step) === MAIN_ROUTE_TASK_ID);
-  const orphanTasks = [...new Set(steps.map((step) => getRouteStepTaskId(step)))]
-    .filter((taskId) => taskId !== MAIN_ROUTE_TASK_ID && !taskIds.has(taskId))
-    .map((taskId) => {
-      const step = steps.find((item) => getRouteStepTaskId(item) === taskId);
-      return {
-        id: taskId,
-        sourceItemId: "",
-        number: "??",
-        level: 0,
-        type: "orphan",
-        title: step?.specTaskName || "Задача больше не найдена в составе изделия",
-        operationName: "Проверьте структуру состава изделия",
-        departmentName: "Связь потеряна",
-        quantity: 1,
-        unit: "задача",
-        workCenterId: step?.workCenterId || "D5",
-        isOrphan: true,
-      };
-    });
-
-  return [
-    ...(hasMainSteps || !specTasks.length ? [getRouteMainTask(route)] : []),
-    ...specTasks,
-    ...orphanTasks,
-  ];
+  return getRouteBaseTasks(route);
 }
 
 function getSchedulableRouteSteps(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId) || null;
   const steps = getRouteStepsForModule(routeId)
+    .filter((step) => isRouteStepLinkedToCurrentRouteTask(route, step))
     .filter((step) => step.isRequired)
     .filter((step) => Boolean(getOperationMapItem(step.operationId)));
   return steps.sort(compareRouteStepsForScheduling);
@@ -16058,7 +17742,9 @@ function compareRouteStepsForScheduling(left, right) {
 }
 
 function getInvalidRouteOperationSteps(routeId) {
+  const route = (planningState.routes || []).find((item) => item.id === routeId) || null;
   return getRouteStepsForModule(routeId)
+    .filter((step) => isRouteStepLinkedToCurrentRouteTask(route, step))
     .filter((step) => step.isRequired && !getOperationMapItem(step.operationId));
 }
 
@@ -16761,9 +18447,14 @@ function scheduleRouteBatchOptimally(project, batch, routeSteps, anchorStart, st
 
     orderedSteps.forEach((step) => {
       const existingSlot = planningState.slots.find((slot) => (
-        slot.projectId === project.id
-        && slot.batchId === batch.id
-        && slot.routeStepId === step.id
+        slot.routeStepId === step.id
+        && (
+          slot.routeId === step.routeId
+          || slot.batchId === step.routeId
+          || slot.batchId === batch.id
+          || slot.projectId === project.id
+          || slot.specificationId === project.id
+        )
       ));
       if (!existingSlot) {
         foundMissing = true;
@@ -16978,8 +18669,7 @@ function renderRoutesPage() {
     : "";
   const routeSelectionValue = normalizeRouteBindingValue(routeSelectionRawValue);
   const inferredRouteBindingMode = getRouteBindingModeForSelection(routeSelectionValue, route);
-  const routeBindingMode = routeSelectionValue ? inferredRouteBindingMode : normalizeRouteBindingMode(ui.routeBindingMode || inferredRouteBindingMode);
-  ui.routeBindingMode = routeBindingMode;
+  ui.routeBindingMode = inferredRouteBindingMode;
   const routeBinding = getRouteBindingContext(routeSelectionValue);
   const routeSpecification = hasPreviewRoute ? routeBinding.specification || getRouteSpecification(route) : null;
   const routeBom = hasPreviewRoute ? routeBinding.bom || getRouteBomList(route) : null;
@@ -16990,8 +18680,17 @@ function renderRoutesPage() {
     : "выберите карту слева";
   const canOpenRouteTarget = Boolean(hasPreviewRoute && (routeBom || routeSpecification || project));
   const stats = getRouteModuleStats(activeRoute);
-  const routeBindingOptions = getRouteBindingOptions(routeBindingMode);
+  const routeBindingOptions = getRouteBindingOptions();
   const hasRouteBindingOptions = routeBindingOptions.length > 1;
+  const routeHeaderDescription = hasPreviewRoute
+    ? routeBom
+      ? `${routeTargetName}: связанная плата/BOM для технологического документа.`
+      : routeSpecification || project
+        ? `${routeTargetName}: связанное изделие для технологического документа.`
+        : rkdContext
+          ? `${routeTargetName}: маршрут создан из РКД.`
+          : "Маршрутная карта хранит технологический документ независимо от конечного или промежуточного объекта."
+    : "Выберите маршрутную карту в перечне или создайте новую.";
 
   return `
     <section class="routes-page module-data-page" data-layout="main-content" aria-label="Маршрутные карты">
@@ -17005,18 +18704,23 @@ function renderRoutesPage() {
         </div>
           <div class="module-entity-list">
           <div class="module-list-label">Маршрутные карты</div>
-          ${isNewRoute ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая маршрутная карта</strong><small>${escapeHtml(routeTargetName)}</small></span><em>new</em></button>` : ""}
+          ${isNewRoute ? `<button class="module-entity-item is-active" type="button"><span><strong>${escapeHtml(routeTargetName)}</strong><small>Новая маршрутная карта</small></span><em>new</em></button>` : ""}
           ${getRoutesForModule().map((item) => {
             const routeProject = getRouteProductionContext(item);
             const itemSpecification = getRouteSpecification(item);
             const itemBom = getRouteBomList(item);
             const itemRkdContext = getRouteRkdContext(item);
             const steps = getRouteStepsForModule(item.id);
+            const itemTargetName = itemBom?.name
+              || itemSpecification?.name
+              || getProjectDisplayName(routeProject)
+              || (itemRkdContext ? `${itemRkdContext.rkd.number || itemRkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(itemRkdContext.board)}` : "")
+              || "связь не выбрана";
             return `
               <button class="module-entity-item ${item.id === activeRoute?.id ? "is-active" : ""}" data-route-open="${item.id}" type="button">
                 <span>
-                  <strong>${escapeHtml(item.name || "Маршрутная карта")}</strong>
-                  <small>${escapeHtml(itemBom?.name || itemSpecification?.name || getProjectDisplayName(routeProject) || (itemRkdContext ? `${itemRkdContext.rkd.number || itemRkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(itemRkdContext.board)}` : "связь не выбрана"))} · ${steps.length} шагов</small>
+                  <strong>${escapeHtml(itemTargetName)}</strong>
+                  <small>${escapeHtml(item.name || "Маршрутная карта")} · ${steps.length} шагов</small>
                 </span>
                 <em>${steps.length}</em>
               </button>
@@ -17030,7 +18734,7 @@ function renderRoutesPage() {
           <div>
             <span class="eyebrow">Маршрутная карта</span>
             <h2>${escapeHtml(hasPreviewRoute ? (isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта") : "Карта не выбрана")}</h2>
-            <p>${escapeHtml(hasPreviewRoute ? (routeBom ? `${routeTargetName}: маршрут для одной платы.` : routeSpecification || project ? `${routeTargetName}: маршрут по изделию с настройкой операций для составных частей.` : rkdContext ? `${routeTargetName}: маршрут создан из РКД. Для планирования выберите изделие.` : "Выберите изделие или плату и задайте последовательность операций.") : "Выберите маршрутную карту в перечне или создайте новую.")}</p>
+            <p>${escapeHtml(routeHeaderDescription)}</p>
           </div>
           <div class="directory-actions">
             <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>Создать заказ-наряд</span></button>
@@ -17042,24 +18746,14 @@ function renderRoutesPage() {
           <section class="module-panel route-editor-panel">
             <div class="report-card-head">
               <strong>Карточка маршрута</strong>
-              <span>${isNewRoute ? "создание технологической карты" : "состав изделия, статус и применение в плане"}</span>
+              <span>${isNewRoute ? "создание технологической карты" : "технологический документ и связь с планированием"}</span>
             </div>
 		            <form id="routeModuleForm" class="module-form route-module-form">
 		              <input type="hidden" name="routeId" value="${escapeAttribute(route.id)}" />
 		              <input type="hidden" name="isNew" value="${isNewRoute ? "yes" : "no"}" />
 		              <label class="form-field full"><span>Название маршрутной карты</span><input name="name" value="${escapeAttribute(route.name || "")}" placeholder="Основной маршрут" /></label>
-		              <div class="route-binding-mode full" role="group" aria-label="Тип входа маршрутной карты">
-		                <button class="${routeBindingMode === "product" ? "is-active" : ""}" data-route-binding-mode="product" type="button">
-		                  ${icon("tree")}
-		                  <span><strong>Изделие</strong><small>операции по составным частям</small></span>
-		                </button>
-		                <button class="${routeBindingMode === "bom" ? "is-active" : ""}" data-route-binding-mode="bom" type="button">
-		                  ${icon("bom")}
-		                  <span><strong>${BOARD_SPEC_TERM}</strong><small>одна плата / BOM</small></span>
-		                </button>
-		              </div>
 		              <label class="form-field command-field full">
-		                <span>${routeBindingMode === "bom" ? "Плата для маршрута" : "Изделие для маршрута"}</span>
+		                <span>Связь маршрутной карты</span>
 		                <select name="routeBindingId" data-route-binding-select ${hasRouteBindingOptions ? "" : "disabled"}>
 		                  ${routeBindingOptions.map((item) => `
 		                    <option value="${escapeAttribute(item.value)}" ${selected(routeSelectionValue, item.value)}>
@@ -17067,7 +18761,6 @@ function renderRoutesPage() {
 		                    </option>
 		                  `).join("")}
 		                </select>
-		                <small class="form-field-note">${hasRouteBindingOptions ? (routeBindingMode === "bom" ? "Выберите существующую плату. Новая плата здесь не создается." : "Выберите существующее изделие. Его состав станет списком объектов для операций маршрута.") : (routeBindingMode === "bom" ? "Сохраненных плат нет. Карту можно создать без связи и привязать ее позже." : "Сохраненных изделий нет. Карту можно создать без связи и привязать ее позже.")}</small>
 		              </label>
               <div class="module-form-actions full">
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewRoute ? "Создать карту" : "Сохранить карту"}</span></button>
@@ -17147,7 +18840,7 @@ function renderRouteModuleSequence(steps, route = null) {
 }
 
 function getRouteTaskTypeLabel(task) {
-  if (task?.isMain) return "общий";
+  if (task?.isMain) return "маршрут";
   if (task?.isOrphan) return "проверить";
   if (task?.fulfillmentMode === "from_stock") return "склад";
   if (task?.type === "bom") return "плата";
@@ -17157,36 +18850,94 @@ function getRouteTaskTypeLabel(task) {
   return "задача";
 }
 
+function getRouteTaskTypeVisual(task) {
+  const label = getRouteTaskTypeLabel(task);
+  if (task?.isOrphan) return { label, iconName: "alert", tone: "warning", tooltip: "Тип объекта: проверить связь" };
+  if (task?.isMain) return { label, iconName: "routeEdit", tone: "neutral", tooltip: "Тип объекта: маршрут" };
+  if (task?.fulfillmentMode === "from_stock") return { label, iconName: "warehouse", tone: "warehouse", tooltip: "Тип объекта: складской остаток" };
+  if (task?.type === "bom") return { label, iconName: "bom", tone: "bom", tooltip: "Тип объекта: плата" };
+  if (task?.type === "specification") return { label, iconName: "tree", tone: "spec", tooltip: "Тип объекта: состав изделия" };
+  if (task?.type === "assembly") return { label, iconName: "split", tone: "assembly", tooltip: "Тип объекта: узел" };
+  if (task?.type === "nomenclature" || task?.type === "part") return { label, iconName: "package", tone: "part", tooltip: "Тип объекта: позиция номенклатуры" };
+  return { label, iconName: "info", tone: "neutral", tooltip: `Тип объекта: ${label}` };
+}
+
+function getRouteStepTypeVisual(step) {
+  if (isManufacturingOutputReceiptRouteStep(step)) {
+    return {
+      label: "Приемка",
+      iconName: "package",
+      tone: "warehouse",
+      tooltip: "Тип операции: приемка на склад",
+    };
+  }
+
+  return {
+    label: "Операция",
+    iconName: "operation",
+    tone: "operation",
+    tooltip: "Тип операции: производственная операция",
+  };
+}
+
+function renderRouteTypeIconBadge(visual) {
+  const label = visual?.label || "Тип";
+  const tooltip = visual?.tooltip || `Тип: ${label}`;
+  return `
+    <span
+      class="route-type-icon-badge is-${escapeAttribute(visual?.tone || "neutral")}"
+      role="img"
+      aria-label="${escapeAttribute(tooltip)}"
+      title="${escapeAttribute(tooltip)}"
+      data-tooltip="${escapeAttribute(tooltip)}"
+    >
+      ${icon(visual?.iconName || "info")}
+    </span>
+  `;
+}
+
+function renderRouteTreeCell({
+  level = 0,
+  hasChildren = false,
+  isLast = true,
+  continuationLevels = [],
+  visual = {},
+  content = "",
+  className = "",
+} = {}) {
+  const safeLevel = Math.min(5, Math.max(0, Number(level || 0)));
+  return `
+    <div class="speki-tree-cell route-tree-cell is-level-${safeLevel} ${hasChildren ? "has-children" : ""} ${isLast ? "is-last" : ""} ${escapeAttribute(className)}">
+      ${renderStructureTreeGuides(continuationLevels)}
+      <span class="speki-tree-branch" aria-hidden="true"></span>
+      <div class="speki-tree-object">${content}</div>
+    </div>
+  `;
+}
+
+function getRouteTaskOperationContinuationLevels(task = {}) {
+  return [
+    ...(Array.isArray(task.continuationLevels) ? task.continuationLevels : []),
+    !task.isLast,
+  ];
+}
+
 function getRouteStepTaskOptions(route = null) {
   if (!route?.id) return [];
   const tasks = getRouteTasksForModule(route)
     .filter((task) => !task.isOrphan);
   const concreteTasks = tasks.filter((task) => !task.isMain);
-  const options = [];
-
-  if (concreteTasks.length > 1) {
-    options.push({
-      value: MAIN_ROUTE_TASK_ID,
-      label: "Общий маршрут изделия",
-      meta: "финальная сборка или общая операция",
-    });
-  }
-
-  concreteTasks.forEach((task) => {
-    options.push({
+  return concreteTasks.map((task) => ({
       value: task.id,
       label: task.title || "Объект маршрута",
       meta: `${getRouteTaskTypeLabel(task)} · ${getFulfillmentLabel(task.fulfillmentMode || "produce")} · ${task.quantity || 1} ${task.unit || "шт."}`,
-    });
-  });
-
-  return options;
+  }));
 }
 
 function getRouteStepTaskSelectValue(step = {}, route = null, options = getRouteStepTaskOptions(route)) {
   const currentTaskId = getRouteStepTaskId(step);
   if (options.some((item) => item.value === currentTaskId)) return currentTaskId;
-  return options[0]?.value || MAIN_ROUTE_TASK_ID;
+  return options[0]?.value || "";
 }
 
 function getRouteTaskById(route = null, taskId = "") {
@@ -17198,7 +18949,7 @@ function getRouteTaskById(route = null, taskId = "") {
 function applyRouteTaskToStep(step = {}, route = null, taskId = "") {
   const task = getRouteTaskById(route, taskId);
   const isMainTask = !task || task.id === MAIN_ROUTE_TASK_ID || task.isMain;
-  const nextTaskId = isMainTask ? MAIN_ROUTE_TASK_ID : task.id;
+  const nextTaskId = isMainTask ? "" : task.id;
   const quantity = Math.max(1, Number(task?.quantity || 1));
   return normalizeRouteStepCalculationFields({
     ...step,
@@ -17228,10 +18979,11 @@ function renderRouteStepsEditor(route, steps) {
 
   const orderedSteps = getRouteStepsForModule(route.id);
   const tasks = getRouteTasksForModule(route);
+  const hasRows = tasks.length;
 
   return `
     <div class="route-step-editor-shell route-object-editor-shell">
-      ${tasks.length ? renderRouteObjectRows(route, tasks, orderedSteps) : `
+      ${hasRows ? renderRouteObjectRows(route, tasks, orderedSteps) : `
         <div class="route-module-empty">
           ${icon("info")}
           <strong>Объекты маршрута не найдены</strong>
@@ -17243,12 +18995,7 @@ function renderRouteStepsEditor(route, steps) {
 }
 
 function getRouteTaskEditorSteps(route, task, steps = []) {
-  const directSteps = getRouteStepsForTask(steps, task?.id || MAIN_ROUTE_TASK_ID);
-  if (directSteps.length) return directSteps;
-  if (shouldUseMainRouteStepsForSingleTask(route, task, steps)) {
-    return getRouteStepsForTask(steps, MAIN_ROUTE_TASK_ID);
-  }
-  return directSteps;
+  return getRouteStepsForTask(steps, task?.id || "");
 }
 
 function renderRouteObjectRows(route, tasks, steps = []) {
@@ -17263,29 +19010,34 @@ function renderRouteObjectRows(route, tasks, steps = []) {
             <th>Тип</th>
             <th>Объект / операция</th>
             <th>Кол-во</th>
-            <th>Поток / статус</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           ${tasks.map((task) => {
             const taskSteps = getRouteTaskEditorSteps(route, task, steps);
-            const fulfillmentMode = task.isMain || task.isOrphan ? "" : task.fulfillmentMode || "produce";
-            const fulfillmentMarkup = fulfillmentMode
-              ? `<span class="speki-static-cell speki-fulfillment-cell is-${escapeAttribute(getFulfillmentTone(fulfillmentMode))}">${escapeHtml(getFulfillmentLabel(fulfillmentMode))}</span>`
-              : `<span class="speki-static-cell">${task.isOrphan ? "Проверить" : "Общий"}</span>`;
+            const taskTypeVisual = getRouteTaskTypeVisual(task);
+            const taskDisplayNumber = task.number === "00" ? "1" : task.number || "1";
+            const taskObjectContent = `
+              <div class="route-object-name-cell">
+                <strong title="${escapeAttribute(task.title || "Объект маршрута")}">${escapeHtml(task.title || "Объект маршрута")}</strong>
+                <small>${escapeHtml([task.parentTitle, task.departmentName].filter(Boolean).join(" · ") || task.operationName || "Маршрутная карта")}</small>
+              </div>
+            `;
             return `
               <tr class="route-object-row ${task.isMain ? "is-route-main" : ""} ${task.isOrphan ? "is-route-orphan" : ""}" data-route-task-row="${escapeAttribute(task.id)}" style="--speki-level: ${Number(task.level || 0)};">
-                <td><span class="speki-row-number">${escapeHtml(task.number || "00")}</span></td>
-                <td><span class="speki-static-cell">${escapeHtml(getRouteTaskTypeLabel(task))}</span></td>
-                <td>
-                  <div class="route-object-name-cell">
-                    <strong title="${escapeAttribute(task.title || "Объект маршрута")}">${escapeHtml(task.title || "Объект маршрута")}</strong>
-                    <small>${escapeHtml([task.parentTitle, task.departmentName].filter(Boolean).join(" · ") || task.operationName || "Маршрутная карта")}</small>
-                  </div>
-                </td>
+                <td><span class="speki-row-number">${escapeHtml(taskDisplayNumber)}</span></td>
+                <td>${renderRouteTypeIconBadge(taskTypeVisual)}</td>
+                <td>${renderRouteTreeCell({
+                  level: Number(task.level || 0),
+                  hasChildren: Boolean(task.hasChildren || taskSteps.length),
+                  isLast: task.isLast !== false,
+                  continuationLevels: task.continuationLevels || [],
+                  visual: taskTypeVisual,
+                  content: taskObjectContent,
+                  className: "is-route-object",
+                })}</td>
                 <td><span class="speki-static-cell">${escapeHtml(`${formatReportNumber(task.quantity || 1)} ${task.unit || "шт."}`)}</span></td>
-                <td>${fulfillmentMarkup}</td>
                 <td>
                   <div class="route-object-actions">
                     <button class="secondary-button route-object-add-button" data-route-add-step-task="${escapeAttribute(task.id)}" data-route-add-step-kind="operation" type="button" ${canAddOperation && !task.isOrphan ? "" : "disabled"}>${icon("plus")}<span>Операция</span></button>
@@ -17293,9 +19045,12 @@ function renderRouteObjectRows(route, tasks, steps = []) {
                   </div>
                 </td>
               </tr>
-              ${taskSteps.length ? taskSteps.map((step, index) => renderRouteStepTableRow(route, task, step, index, taskSteps)).join("") : `
+              ${taskSteps.length ? taskSteps.map((step, index) => renderRouteStepTableRow(route, task, step, index, taskSteps, {
+                continuationLevels: getRouteTaskOperationContinuationLevels(task),
+                isLast: index === taskSteps.length - 1,
+              })).join("") : `
                 <tr class="route-object-operation-row is-empty" style="--speki-level: ${Number(task.level || 0) + 1};">
-                  <td colspan="6">
+                  <td colspan="5">
                     <div class="route-task-empty">${icon("info")}<span>Для этого объекта операции еще не заданы</span></div>
                   </td>
                 </tr>
@@ -17308,7 +19063,7 @@ function renderRouteObjectRows(route, tasks, steps = []) {
   `;
 }
 
-function renderRouteStepTableRow(route, task, step, index, taskSteps = []) {
+function renderRouteStepTableRow(route, task, step, index, taskSteps = [], treeOptions = {}) {
   const workCenterOptions = getRouteStepWorkCenterOptions(step);
   const workCenterValue = getRouteStepWorkCenterSelectValue(step, workCenterOptions);
   const operationOptions = getRouteStepOperationOptions(step);
@@ -17318,40 +19073,53 @@ function renderRouteStepTableRow(route, task, step, index, taskSteps = []) {
   const hasValidOperation = Boolean(operation && getOperationRouteWorkCenterId(operation) === workCenterValue);
   const isWarehouse = isManufacturingOutputReceiptRouteStep(step);
   const multiplier = getRouteStepEffectiveQuantityMultiplier(step, route);
-  const level = Number(task?.level || 0) + 1;
-  const stepLabel = isWarehouse ? "Приемка" : "Операция";
+  const level = Number.isFinite(Number(treeOptions.level))
+    ? Number(treeOptions.level)
+    : Number(task?.level || 0) + 1;
+  const stepTypeVisual = getRouteStepTypeVisual(step);
+  const stepFieldsContent = `
+    <div class="route-step-compact-fields">
+      <label class="form-field route-step-center">
+        <span>Отдел</span>
+        ${renderDenseInlineSelect("workCenterId", workCenterValue, workCenterOptions, { type: "routeStep", stepId: step.id })}
+      </label>
+      <label class="form-field route-step-name">
+        <span>Операция</span>
+        ${renderDenseInlineSelect("operationId", operationValue, operationOptions, { type: "routeStep", stepId: step.id, disabled: !hasWorkCenter })}
+      </label>
+    </div>
+  `;
 
   return `
     <tr class="route-step-compact-row ${isWarehouse ? "is-warehouse" : ""} ${hasWorkCenter && hasValidOperation ? "" : "is-incomplete"}" data-route-step-row="${escapeAttribute(step.id)}" style="--speki-level: ${level};">
       <td>
         <div class="route-step-compact-order">
-          <button class="icon-button" data-route-step-up="${escapeAttribute(step.id)}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
           <span class="route-step-order-badge" title="Позиция операции в объекте маршрута" aria-label="Позиция операции в объекте маршрута">${index + 1}</span>
-          <button class="icon-button" data-route-step-down="${escapeAttribute(step.id)}" type="button" title="Опустить" ${index === taskSteps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
         </div>
       </td>
-      <td><span class="speki-section-chip route-step-type-chip ${isWarehouse ? "is-section-emerald" : "is-section-blue"}">${escapeHtml(stepLabel)}</span></td>
-      <td>
-        <div class="route-step-compact-fields">
-          <label class="form-field route-step-center">
-            <span>Отдел</span>
-            ${renderDenseInlineSelect("workCenterId", workCenterValue, workCenterOptions, { type: "routeStep", stepId: step.id })}
-          </label>
-          <label class="form-field route-step-name">
-            <span>Операция</span>
-            ${renderDenseInlineSelect("operationId", operationValue, operationOptions, { type: "routeStep", stepId: step.id, disabled: !hasWorkCenter })}
-          </label>
-        </div>
-      </td>
+      <td>${renderRouteTypeIconBadge(stepTypeVisual)}</td>
+      <td>${renderRouteTreeCell({
+        level,
+        hasChildren: false,
+        isLast: treeOptions.isLast !== false,
+        continuationLevels: treeOptions.continuationLevels || [],
+        visual: stepTypeVisual,
+        content: stepFieldsContent,
+        className: `is-route-step ${treeOptions.isRootStep ? "is-route-root-step" : ""}`,
+      })}</td>
       <td><span class="speki-static-cell route-step-quantity-cell" title="Множитель количества операции">x${escapeHtml(formatReportNumber(multiplier))}</span></td>
-      <td>${renderRouteStepFlowSummary(route, step)}</td>
       <td>
         <div class="route-step-compact-actions">
-          ${renderRouteStepFlowOverride(route, step)}
-          <button class="icon-button danger-soft" data-route-step-delete="${escapeAttribute(step.id)}" type="button" title="Удалить операцию">${icon("trash")}</button>
+          <button class="icon-button" data-route-step-up="${escapeAttribute(step.id)}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
+          <button class="icon-button" data-route-step-down="${escapeAttribute(step.id)}" type="button" title="Опустить" ${index === taskSteps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
+          ${renderRouteStepLaborToggle(step)}
+          ${renderRouteStepFlowToggle(step)}
+          <button class="icon-button danger-soft route-step-delete-button" data-route-step-delete="${escapeAttribute(step.id)}" type="button" title="Удалить операцию">${icon("trashSoft")}</button>
         </div>
       </td>
     </tr>
+    ${renderRouteStepLaborPanelRow(route, step, level)}
+    ${renderRouteStepFlowPanelRow(route, step, level)}
   `;
 }
 
@@ -17391,7 +19159,7 @@ function renderRouteStepRows(steps, options = {}) {
 	              <span>Операция</span>
 	              ${renderDenseInlineSelect("operationId", operationValue, operationOptions, { type: "routeStep", stepId: step.id, disabled: !hasWorkCenter })}
 	            </label>
-	            <button class="icon-button danger-soft" data-route-step-delete="${step.id}" type="button" title="Удалить операцию">${icon("trash")}</button>
+	            <button class="icon-button danger-soft route-step-delete-button" data-route-step-delete="${step.id}" type="button" title="Удалить операцию">${icon("trashSoft")}</button>
 	            ${renderRouteStepFlowEditor(route, step)}
 	          </article>
 	        `;
@@ -17407,11 +19175,10 @@ function getRouteStepOperationSelectValue(step, options = getRouteStepOperationO
 
 function getRouteStepWorkCenterOptions(step = {}) {
   const options = [
-    { value: "", label: "Отдел не выбран", meta: "сначала выберите отдел" },
+    { value: "", label: "Отдел не выбран" },
     ...getRouteInstructionWorkCenters().map((center) => ({
       value: center.id,
       label: center.name || "Отдел без названия",
-      meta: center.code || "отдел",
     })),
   ];
   const hasCurrent = !step.workCenterId || options.some((item) => item.value === step.workCenterId);
@@ -17419,7 +19186,6 @@ function getRouteStepWorkCenterOptions(step = {}) {
     options.push({
       value: step.workCenterId,
       label: getWorkCenter(step.workCenterId)?.name || "Отдел не найден",
-      meta: "проверьте справочник отделов",
     });
   }
   return options;
@@ -17436,7 +19202,6 @@ function getRouteStepOperationOptions(step = {}) {
     return [{
       value: "",
       label: "Сначала выберите отдел",
-      meta: "после этого откроется список операций",
       disabled: true,
     }];
   }
@@ -17446,11 +19211,9 @@ function getRouteStepOperationOptions(step = {}) {
     .filter((operation) => operation.coverage !== "blocked")
     .filter((operation) => getOperationRouteWorkCenterId(operation) === workCenterId)
     .map((operation) => {
-    const center = getWorkCenter(getOperationRouteWorkCenterId(operation));
     return {
       value: operation.id,
       label: operation.name || "Операция без названия",
-      meta: center?.name || "отдел не выбран",
     };
   });
 
@@ -17458,7 +19221,6 @@ function getRouteStepOperationOptions(step = {}) {
     return [{
       value: "",
       label: "Операция не выбрана",
-      meta: "в выбранном отделе нет операций",
       disabled: true,
     }];
   }
@@ -17468,7 +19230,6 @@ function getRouteStepOperationOptions(step = {}) {
     operations.unshift({
       value: "",
       label: "Операция не выбрана",
-      meta: "выберите операцию отдела",
       disabled: true,
     });
   }
@@ -18548,7 +20309,210 @@ function formatReportNumber(value) {
   return String(Math.round(Number(value || 0) * 10) / 10);
 }
 
+function isProductionResourceCalculationKey(sectionId, key) {
+  return sectionId === "productionResources" && PRODUCTION_RESOURCE_CALCULATION_KEYS.has(key);
+}
+
+function getDirectoryTableCellClass(sectionId, key, index) {
+  return [
+    index === 0 ? "primary-cell" : "",
+    isProductionResourceCalculationKey(sectionId, key) ? "is-resource-calculation-factor is-ux-labor-test" : "",
+  ].filter(Boolean).join(" ");
+}
+
+function renderDirectoryTableHead(directoryData) {
+  return `
+    <thead>
+      <tr>
+        ${directoryData.columns.map((column, index) => {
+          const key = directoryData.keys[index];
+          const factorClass = isProductionResourceCalculationKey(directoryData.sectionId, key)
+            ? " class=\"is-resource-calculation-factor is-ux-labor-test\""
+            : "";
+          return `<th${factorClass}>${escapeHtml(column)}</th>`;
+        }).join("")}
+        <th class="actions-cell">Действия</th>
+      </tr>
+    </thead>
+  `;
+}
+
+function getProductionResourceSortRank(resource = {}) {
+  const ranks = {
+    aggregate: 0,
+    line: 1,
+    machine: 2,
+    equipment: 3,
+    workplace: 4,
+    post: 5,
+    staff: 6,
+    tool: 7,
+    normative: 8,
+  };
+  return ranks[resource.type] ?? 20;
+}
+
+function compareProductionResourceItems(left, right) {
+  const rankDiff = getProductionResourceSortRank(left.row) - getProductionResourceSortRank(right.row);
+  if (rankDiff) return rankDiff;
+  return String(left.row.name || "").localeCompare(String(right.row.name || ""), "ru");
+}
+
+function getProductionResourceGroupSortIndex(workCenterId) {
+  const centerIndex = (planningState.workCenters || []).findIndex((center) => center.id === workCenterId);
+  return centerIndex >= 0 ? centerIndex : Number.MAX_SAFE_INTEGER;
+}
+
+function getProductionResourceGroups(rows = []) {
+  const groups = new Map();
+  rows.forEach((row, rowIndex) => {
+    const workCenterId = getProductionResourceWorkCenterId(row) || "__unassigned";
+    if (!groups.has(workCenterId)) {
+      groups.set(workCenterId, { workCenterId, items: [] });
+    }
+    groups.get(workCenterId).items.push({ row, rowIndex });
+  });
+
+  return [...groups.values()].sort((left, right) => {
+    const sortDiff = getProductionResourceGroupSortIndex(left.workCenterId) - getProductionResourceGroupSortIndex(right.workCenterId);
+    if (sortDiff) return sortDiff;
+    const leftLabel = getWorkCenter(left.workCenterId)?.name || left.workCenterId;
+    const rightLabel = getWorkCenter(right.workCenterId)?.name || right.workCenterId;
+    return String(leftLabel || "").localeCompare(String(rightLabel || ""), "ru");
+  });
+}
+
+function getProductionResourceTreeItems(items = []) {
+  const byId = new Map();
+  items.forEach((item) => {
+    const id = String(item.row.id || "");
+    if (id) byId.set(id, item);
+  });
+
+  const childrenByParent = new Map();
+  const roots = [];
+  items.forEach((item) => {
+    const id = String(item.row.id || "");
+    const parentId = String(item.row.parentResourceId || "");
+    if (parentId && parentId !== id && byId.has(parentId)) {
+      if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
+      childrenByParent.get(parentId).push(item);
+    } else {
+      roots.push(item);
+    }
+  });
+
+  const result = [];
+  const visited = new Set();
+  const visit = (item, level = 0, trail = new Set()) => {
+    const id = String(item.row.id || `row-${item.rowIndex}`);
+    if (trail.has(id) || visited.has(id)) return;
+    const children = (childrenByParent.get(id) || []).sort(compareProductionResourceItems);
+    visited.add(id);
+    result.push({
+      ...item,
+      level: Math.min(level, 5),
+      hasChildren: children.length > 0,
+    });
+    const nextTrail = new Set(trail);
+    nextTrail.add(id);
+    children.forEach((child) => visit(child, level + 1, nextTrail));
+  };
+
+  roots.sort(compareProductionResourceItems).forEach((item) => visit(item, 0));
+  items
+    .filter((item) => !visited.has(String(item.row.id || `row-${item.rowIndex}`)))
+    .sort(compareProductionResourceItems)
+    .forEach((item) => visit(item, 0));
+
+  return result;
+}
+
+function renderProductionResourceGroupRow(group, columnCount) {
+  const center = getWorkCenter(group.workCenterId);
+  const label = center?.name || (group.workCenterId === "__unassigned" ? "Отдел не задан" : group.workCenterId);
+  const code = center?.code || (group.workCenterId === "__unassigned" ? "без отдела" : group.workCenterId);
+  const planningCount = group.items.filter((item) => resourceParticipatesInPlanning(item.row)).length;
+  const calculationCount = group.items.filter((item) => resourceParticipatesInCalculation(item.row)).length;
+  const childCount = group.items.filter((item) => item.row.parentResourceId).length;
+
+  return `
+    <tr class="directory-resource-group-row">
+      <td colspan="${columnCount}">
+        <div class="directory-resource-group">
+          <strong>${escapeHtml(label)}</strong>
+          <span>${group.items.length} ресурсов · ${planningCount} в Ганте · ${calculationCount} в расчете · ${childCount} подуровней</span>
+          <em>${escapeHtml(code)}</em>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderProductionResourceNameCell(row, level, hasChildren) {
+  const typeLabel = PRODUCTION_RESOURCE_TYPE_LABELS[row.type] || row.type || "тип не задан";
+  const parentLabel = row.parentResourceId ? getProductionResource(row.parentResourceId)?.name || row.parentResourceId : "";
+  const meta = parentLabel ? `${typeLabel} · внутри: ${parentLabel}` : `${typeLabel} · верхний уровень`;
+
+  return `
+    <td class="primary-cell directory-resource-name-cell is-level-${level}" style="--resource-level: ${level};">
+      <span class="directory-resource-name-wrap">
+        <span class="directory-resource-tree-mark ${hasChildren ? "has-children" : ""}" aria-hidden="true"></span>
+        <span class="directory-resource-name-stack">
+          <strong>${escapeHtml(row.name || "Производственный ресурс")}</strong>
+          <small>${escapeHtml(meta)}</small>
+        </span>
+      </span>
+    </td>
+  `;
+}
+
+function renderProductionResourceTableRow(directoryData, treeItem) {
+  const { row, rowIndex, level, hasChildren } = treeItem;
+  return `
+    <tr class="${getSelectedDirectoryRowIndex(directoryData.sectionId, directoryData.rows) === rowIndex ? "is-selected" : ""}" data-directory-row="${rowIndex}">
+      ${directoryData.keys.map((key, index) => {
+        if (index === 0) return renderProductionResourceNameCell(row, level, hasChildren);
+        return `
+          <td class="${escapeAttribute(getDirectoryTableCellClass(directoryData.sectionId, key, index))}">${escapeHtml(formatDirectoryCell(directoryData.sectionId, key, row[key]))}</td>
+        `;
+      }).join("")}
+      <td class="actions-cell">
+        <button class="table-icon-button" data-edit-directory-row="${rowIndex}" type="button" title="Редактировать запись">${icon("edit")}</button>
+        <button class="table-icon-button danger-soft" data-delete-directory-row="${rowIndex}" type="button" title="Удалить запись">${icon("trash")}</button>
+      </td>
+    </tr>
+  `;
+}
+
+function renderProductionResourcesDirectoryTable(directoryData) {
+  const groups = getProductionResourceGroups(directoryData.rows);
+  const columnCount = directoryData.keys.length + 1;
+
+  return `
+    <div class="directory-table-toolbar">
+      <strong>${directoryData.rows.length} записей · ${groups.length} групп</strong>
+      <span>${escapeHtml(directoryData.caption)}</span>
+    </div>
+    <div class="directory-table-wrap directory-resource-table-wrap" data-layout="table">
+      <table class="directory-table directory-resource-table">
+        ${renderDirectoryTableHead(directoryData)}
+        <tbody>
+          ${groups.map((group) => `
+            ${renderProductionResourceGroupRow(group, columnCount)}
+            ${getProductionResourceTreeItems(group.items).map((treeItem) => renderProductionResourceTableRow(directoryData, treeItem)).join("")}
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderDirectoryTable(directoryData) {
+  if (directoryData.sectionId === "productionResources") {
+    return renderProductionResourcesDirectoryTable(directoryData);
+  }
+
   return `
     <div class="directory-table-toolbar">
       <strong>${directoryData.rows.length} записей</strong>
@@ -18556,17 +20520,12 @@ function renderDirectoryTable(directoryData) {
     </div>
     <div class="directory-table-wrap" data-layout="table">
       <table class="directory-table">
-        <thead>
-          <tr>
-            ${directoryData.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}
-            <th class="actions-cell">Действия</th>
-          </tr>
-        </thead>
+        ${renderDirectoryTableHead(directoryData)}
         <tbody>
           ${directoryData.rows.map((row, rowIndex) => `
             <tr class="${getSelectedDirectoryRowIndex(directoryData.sectionId, directoryData.rows) === rowIndex ? "is-selected" : ""}" data-directory-row="${rowIndex}">
               ${directoryData.keys.map((key, index) => `
-                <td class="${index === 0 ? "primary-cell" : ""}">${escapeHtml(formatDirectoryCell(directoryData.sectionId, key, row[key]))}</td>
+                <td class="${escapeAttribute(getDirectoryTableCellClass(directoryData.sectionId, key, index))}">${escapeHtml(formatDirectoryCell(directoryData.sectionId, key, row[key]))}</td>
               `).join("")}
               <td class="actions-cell">
                 <button class="table-icon-button" data-edit-directory-row="${rowIndex}" type="button" title="Редактировать запись">${icon("edit")}</button>
@@ -18599,6 +20558,7 @@ function renderDirectoryDetail(activeSection, directoryData) {
         <div><dt>Состояние</dt><dd>Нет записей</dd></div>
       `}
     </dl>
+    ${activeSection.id === "productionResources" && firstRow ? renderProductionResourceCalculationFactors(firstRow) : ""}
     <div class="directory-health">
       <div>
         <strong>${health.ready}</strong>
@@ -18608,6 +20568,51 @@ function renderDirectoryDetail(activeSection, directoryData) {
         <strong>${health.review}</strong>
         <span>требует проверки</span>
       </div>
+    </div>
+  `;
+}
+
+function renderProductionResourceCalculationFactors(resource = {}) {
+  const capacityValue = parseCapacityCount(resource.capacity);
+  const capacityLabel = capacityValue
+    ? `${formatReportNumber(capacityValue)} ед.`
+    : resource.capacity || "-";
+  const baseCph = Number(resource.baseCph || 0);
+  const efficiency = Number(resource.efficiency || 0);
+  const changeoverMin = Number(resource.changeoverMin || 0);
+
+  return `
+    <div class="production-resource-factor-panel is-ux-labor-test">
+      <article>
+        <span>В Ганте</span>
+        <strong>${resourceParticipatesInPlanning(resource) ? "Да" : "Нет"}</strong>
+        <small>может стать ресурсом slot</small>
+      </article>
+      <article>
+        <span>В расчете</span>
+        <strong>${resourceParticipatesInCalculation(resource) ? "Да" : "Нет"}</strong>
+        <small>учитывается формулой</small>
+      </article>
+      <article>
+        <span>Мощность</span>
+        <strong>${escapeHtml(capacityLabel)}</strong>
+        <small>для ручной трудоемкости</small>
+      </article>
+      <article>
+        <span>База SMT</span>
+        <strong>${baseCph ? `${baseCph.toLocaleString("ru-RU")} комп./ч` : "-"}</strong>
+        <small>baseCph линии</small>
+      </article>
+      <article>
+        <span>Эффективность</span>
+        <strong>${efficiency ? `${formatReportNumber(efficiency)} %` : "-"}</strong>
+        <small>множитель скорости</small>
+      </article>
+      <article>
+        <span>Setup</span>
+        <strong>${changeoverMin ? `${formatReportNumber(changeoverMin)} мин` : "-"}</strong>
+        <small>дефолт переналадки</small>
+      </article>
     </div>
   `;
 }
@@ -18998,7 +21003,97 @@ function getDirectoryHealth(sectionId) {
   };
 }
 
-function bindGlobalNavigation() {}
+function clearDenseInlineSelectPopover(select) {
+  const options = select?.querySelector?.(".dense-inline-options");
+  if (!options) return;
+  options.classList.remove("is-viewport-popover");
+  [
+    "--dense-popover-left",
+    "--dense-popover-top",
+    "--dense-popover-width",
+    "--dense-popover-max-height",
+  ].forEach((name) => options.style.removeProperty(name));
+}
+
+function closeDenseInlineSelects(except = null) {
+  document.querySelectorAll(".dense-inline-select[open]").forEach((select) => {
+    if (select === except) return;
+    select.open = false;
+    clearDenseInlineSelectPopover(select);
+  });
+}
+
+function positionDenseInlineSelectPopover(select) {
+  if (!select?.open) {
+    clearDenseInlineSelectPopover(select);
+    return;
+  }
+
+  const summary = select.querySelector("summary");
+  const options = select.querySelector(".dense-inline-options");
+  if (!summary || !options) return;
+
+  options.classList.add("is-viewport-popover");
+
+  const gap = 6;
+  const edge = 8;
+  const summaryRect = summary.getBoundingClientRect();
+  const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  const availableWidth = Math.max(160, viewportWidth - edge * 2);
+  const naturalWidth = Math.max(summaryRect.width, options.scrollWidth || 0, 220);
+  const width = Math.min(availableWidth, naturalWidth);
+  const left = Math.min(Math.max(edge, summaryRect.left), Math.max(edge, viewportWidth - width - edge));
+  const spaceBelow = Math.max(0, viewportHeight - summaryRect.bottom - gap - edge);
+  const spaceAbove = Math.max(0, summaryRect.top - gap - edge);
+  const openBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
+  const availableHeight = Math.max(96, openBelow ? spaceBelow : spaceAbove);
+  const maxHeight = Math.min(Math.max(96, availableHeight), Math.max(96, viewportHeight - edge * 2));
+  const optionsHeight = Math.min(options.scrollHeight || maxHeight, maxHeight);
+  const top = openBelow
+    ? Math.min(summaryRect.bottom + gap, viewportHeight - edge - optionsHeight)
+    : Math.max(edge, summaryRect.top - gap - optionsHeight);
+
+  options.style.setProperty("--dense-popover-left", `${Math.round(left)}px`);
+  options.style.setProperty("--dense-popover-top", `${Math.round(top)}px`);
+  options.style.setProperty("--dense-popover-width", `${Math.round(width)}px`);
+  options.style.setProperty("--dense-popover-max-height", `${Math.round(maxHeight)}px`);
+}
+
+function updateOpenDenseInlineSelectPopovers() {
+  document.querySelectorAll(".dense-inline-select[open]").forEach((select) => {
+    positionDenseInlineSelectPopover(select);
+  });
+}
+
+function bindDenseInlineSelectViewportEvents() {
+  app.querySelectorAll(".dense-inline-select").forEach((select) => {
+    if (select.dataset.denseViewportBound === "yes") return;
+    select.dataset.denseViewportBound = "yes";
+    select.addEventListener("toggle", () => {
+      if (select.open) {
+        closeDenseInlineSelects(select);
+        window.requestAnimationFrame(() => positionDenseInlineSelectPopover(select));
+        return;
+      }
+      clearDenseInlineSelectPopover(select);
+    });
+  });
+
+  if (denseInlineViewportListenersBound) return;
+  denseInlineViewportListenersBound = true;
+  window.addEventListener("resize", updateOpenDenseInlineSelectPopovers, { passive: true });
+  document.addEventListener("scroll", updateOpenDenseInlineSelectPopovers, { passive: true, capture: true });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    closeDenseInlineSelects();
+  });
+}
+
+function bindGlobalNavigation() {
+  bindDenseInlineSelectViewportEvents();
+  mountGlobalVisualSystem();
+}
 
 function switchInterfaceRole(roleId) {
   const nextRoleId = normalizeInterfaceRoleId(roleId);
@@ -19883,8 +21978,9 @@ function bindRoutesEvents() {
     ui.activeRouteId = "__new__";
     const defaultProductId = ui.activeSpecificationId || ui.activeProjectId || (directoryState.specifications || [])[0]?.id || "";
     const defaultBomId = ui.activeBomId || (directoryState.bomLists || [])[0]?.id || "";
-    ui.routeBindingMode = normalizeRouteBindingMode(ui.routeBindingMode || (defaultProductId ? "product" : "bom"));
-    ui.routeDraftBindingId = normalizeRouteBindingValue(ui.routeBindingMode === "bom" ? (defaultBomId ? `bom:${defaultBomId}` : "") : (defaultProductId ? `spec:${defaultProductId}` : ""));
+    const defaultBindingId = defaultProductId ? `spec:${defaultProductId}` : defaultBomId ? `bom:${defaultBomId}` : "";
+    ui.routeBindingMode = getRouteBindingModeForSelection(defaultBindingId);
+    ui.routeDraftBindingId = normalizeRouteBindingValue(defaultBindingId);
     const binding = getRouteBindingContext(ui.routeDraftBindingId);
     ui.activeProjectId = binding.specification?.id || "";
     persistUiState();
@@ -19924,35 +22020,6 @@ function bindRoutesEvents() {
     updateRouteProject(selectionValue);
   });
 
-  app.querySelectorAll("[data-route-binding-mode]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const nextMode = normalizeRouteBindingMode(button.dataset.routeBindingMode || "");
-      const activeRoute = getActiveRouteForModule();
-      const currentMode = activeRoute ? getRouteBindingModeForSelection(getRouteModuleSelectionValue(activeRoute), activeRoute) : normalizeRouteBindingMode(ui.routeBindingMode);
-      ui.routeBindingMode = nextMode;
-      ui.routeDraftBindingId = "";
-      if (activeRoute && ui.activeRouteId !== "__new__" && currentMode !== nextMode) {
-        planningState.routes = (planningState.routes || []).map((route) => route.id === activeRoute.id
-          ? {
-              ...route,
-              specificationId: "",
-              specificationName: "",
-              projectId: "",
-              bomListId: "",
-              updatedAt: new Date().toISOString(),
-            }
-          : route);
-        planningState.routeSteps = (planningState.routeSteps || []).map((step) => step.routeId === activeRoute.id
-          ? applyRouteTaskToStep(step, null, MAIN_ROUTE_TASK_ID)
-          : step);
-        ui.activeProjectId = "";
-        persistState();
-      }
-      persistUiState();
-      render();
-    });
-  });
-
   app.querySelector("[data-route-delete]")?.addEventListener("click", (event) => {
     event.preventDefault();
     const routeId = event.currentTarget.dataset.routeDelete || "";
@@ -19977,10 +22044,42 @@ function bindRoutesEvents() {
     });
   });
 
+  app.querySelectorAll("[data-route-step-flow-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mainContent = app.querySelector("[data-layout=\"main-content\"]");
+      const scrollTop = mainContent?.scrollTop || 0;
+      const stepId = button.dataset.routeStepFlowToggle || "";
+      ui.routeFlowStepId = ui.routeFlowStepId === stepId ? "" : stepId;
+      if (ui.routeFlowStepId) ui.routeLaborStepId = "";
+      persistUiState({ skipRememberScroll: true });
+      render();
+      window.requestAnimationFrame(() => {
+        const nextMainContent = app.querySelector("[data-layout=\"main-content\"]");
+        if (nextMainContent) nextMainContent.scrollTop = scrollTop;
+      });
+    });
+  });
+
+  app.querySelectorAll("[data-route-step-labor-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mainContent = app.querySelector("[data-layout=\"main-content\"]");
+      const scrollTop = mainContent?.scrollTop || 0;
+      const stepId = button.dataset.routeStepLaborToggle || "";
+      ui.routeLaborStepId = ui.routeLaborStepId === stepId ? "" : stepId;
+      if (ui.routeLaborStepId) ui.routeFlowStepId = "";
+      persistUiState({ skipRememberScroll: true });
+      render();
+      window.requestAnimationFrame(() => {
+        const nextMainContent = app.querySelector("[data-layout=\"main-content\"]");
+        if (nextMainContent) nextMainContent.scrollTop = scrollTop;
+      });
+    });
+  });
+
   bindRouteSmtCalculatorEvents();
   app.querySelectorAll("[data-route-add-step-task]").forEach((button) => {
     button.addEventListener("click", () => {
-      addRouteModuleStep(button.dataset.routeAddStepKind || "operation", button.dataset.routeAddStepTask || MAIN_ROUTE_TASK_ID);
+      addRouteModuleStep(button.dataset.routeAddStepKind || "operation", button.dataset.routeAddStepTask || "");
     });
   });
 
@@ -20155,7 +22254,7 @@ function updateRouteStepField(stepId, field, rawValue) {
       alert("Выберите объект маршрута из состава изделия.");
       return;
     }
-    value = value || MAIN_ROUTE_TASK_ID;
+    value = value || "";
   }
   if (["stepOrder", "setupMin", "secondsPerPanel"].includes(field)) {
     value = Math.max(field === "stepOrder" ? 1 : 0, Math.round(Number(rawValue || 0)));
@@ -20474,26 +22573,23 @@ function createEmptyRouteModuleStep(route, insertOrder, stamp = new Date().toISO
   }, planningState);
 }
 
-function getRouteStepAddTargetTaskId(route, requestedTaskId = "", steps = null) {
-  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
+function getRouteStepAddTargetTaskId(route, requestedTaskId = "") {
   const tasks = getRouteTasksForModule(route);
   const requestedTask = tasks.find((task) => task.id === requestedTaskId);
-  if (requestedTask && shouldUseMainRouteStepsForSingleTask(route, requestedTask, routeSteps)) {
-    return MAIN_ROUTE_TASK_ID;
-  }
   if (requestedTask && !requestedTask.isOrphan) return requestedTask.id;
   const concreteTasks = tasks.filter((task) => !task.isMain && !task.isOrphan);
-  if (concreteTasks.length === 1 && shouldUseMainRouteStepsForSingleTask(route, concreteTasks[0], routeSteps)) {
-    return MAIN_ROUTE_TASK_ID;
-  }
-  return concreteTasks.length === 1 ? concreteTasks[0].id : MAIN_ROUTE_TASK_ID;
+  return concreteTasks.length === 1 ? concreteTasks[0].id : "";
 }
 
 function addRouteModuleStep(operationKind = "operation", taskId = "") {
   const route = getActiveRouteForModule();
   if (!route) return;
   const steps = getRouteStepsForModule(route.id);
-  const targetTaskId = getRouteStepAddTargetTaskId(route, taskId, steps);
+  const targetTaskId = getRouteStepAddTargetTaskId(route, taskId);
+  if (!targetTaskId) {
+    alert("Выберите раздел изделия в таблице операций маршрута и добавьте операцию внутри его строки.");
+    return;
+  }
   const taskSteps = getRouteStepsForTask(steps, targetTaskId);
   const outputReceiptStep = taskSteps.find((step) => isManufacturingOutputReceiptRouteStep(step));
   const isWarehouse = operationKind === "warehouse";
@@ -23358,19 +25454,48 @@ function renderDirectorFlowStep(step) {
 }
 
 function renderTimeline(scaleInfo) {
+  const groupedDays = ui.scale === "days";
   return `
     <div class="timeline-row" style="height:${TIMELINE_HEIGHT}px;">
       <div class="timeline-corner">
         <span>Маршрутные карты и операции</span>
       </div>
-      <div class="timeline-cells" style="width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;">
-        ${scaleInfo.ticks.map((tick, index) => `
+      <div class="timeline-cells ${groupedDays ? "is-grouped-by-week" : ""}" style="width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;">
+        ${groupedDays ? `
+          <div class="timeline-week-group-row">
+            ${getTimelineWeekGroups(scaleInfo).map((group) => renderGanttTimelineWeekGroup(group, scaleInfo)).join("")}
+          </div>
+          <div class="timeline-day-cell-row">
+            ${scaleInfo.ticks.map((tick, index) => renderGanttTimelineDayCell(tick, index, scaleInfo)).join("")}
+          </div>
+        ` : scaleInfo.ticks.map((tick, index) => `
           <div class="timeline-cell" style="left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;">
             <strong>${escapeHtml(tick.label)}</strong>
             <small>${escapeHtml(tick.sublabel)}</small>
           </div>
         `).join("")}
       </div>
+    </div>
+  `;
+}
+
+function renderGanttTimelineWeekGroup(group, scaleInfo) {
+  const weekEnd = addMs(group.start, (group.dayCount - 1) * DAY_MS);
+  return `
+    <div class="timeline-week-group" style="left:${group.startIndex * scaleInfo.cellWidth}px; width:${group.dayCount * scaleInfo.cellWidth}px;">
+      <strong>Неделя ${getWeekNumber(group.start)}</strong>
+      <small>${escapeHtml(formatShortDate(group.start))}-${escapeHtml(formatShortDate(weekEnd))}</small>
+    </div>
+  `;
+}
+
+function renderGanttTimelineDayCell(tick, index, scaleInfo) {
+  const isWeekend = tick.start.getDay() === 0 || tick.start.getDay() === 6;
+  const isWeekStart = tick.start.getDay() === 1 || index === 0;
+  return `
+    <div class="timeline-cell ${isWeekend ? "is-weekend" : ""} ${isWeekStart ? "is-week-start" : ""}" style="left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;">
+      <strong>${escapeHtml(tick.label)}</strong>
+      <small>${escapeHtml(tick.sublabel || formatShortDate(tick.start))}</small>
     </div>
   `;
 }
@@ -24343,23 +26468,8 @@ function isTransferBatchDependencyPair(fromSlot = null, toSlot = null) {
   return Boolean(readiness?.mode === "transfer_batch" && readiness.sourceSlotIds?.has(fromSlot.id));
 }
 
-function renderTransferGateMarkers(markers = []) {
-  if (!markers.length) return "";
-  return markers.map((marker) => {
-    const label = `${Number(marker.quantity || 0).toLocaleString("ru-RU", { useGrouping: false })} компл.`;
-    const wipLabel = Number(marker.availableKitsNow || 0) > 0
-      ? `WIP ${Number(marker.availableKitsNow || 0).toLocaleString("ru-RU", { useGrouping: false })}`
-      : "WIP 0";
-    return `
-      <g class="transfer-gate-marker" transform="translate(${round(marker.x)} ${round(marker.y)})">
-        <title>${escapeHtml(marker.title)}</title>
-        <line x1="0" y1="-4" x2="0" y2="10"></line>
-        <rect x="-34" y="-28" width="68" height="23"></rect>
-        <text x="0" y="-18" text-anchor="middle">${escapeHtml(label)}</text>
-        <text x="0" y="-9" text-anchor="middle" class="is-wip">${escapeHtml(wipLabel)}</text>
-      </g>
-    `;
-  }).join("");
+function renderTransferGateMarkers() {
+  return "";
 }
 
 function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlacementMap) {
@@ -26916,6 +29026,7 @@ function closeModals() {
   ui.routeSmtPopup = null;
   ui.directoryEditor = null;
   ui.confirmDialog = null;
+  ui.activeSupplyDemandRowId = "";
   ui.activeShopMapWidgetId = "";
   render();
 }
@@ -27440,6 +29551,7 @@ function icon(name) {
     supply: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3Z"></path><path d="M14 10h4l3 3v3h-7Z"></path><circle cx="7" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="M5 11h5M5 14h3"></path></svg>`,
     warehouse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"></path><path d="M7 21V11h10v10"></path><path d="M7 15h10M7 18h10M12 11v10"></path><path d="M3 8h18"></path></svg>`,
     directory: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M7 12h10M7 16h7"></path></svg>`,
+    operation: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.6"></circle><circle cx="18" cy="6" r="2.6"></circle><circle cx="18" cy="18" r="2.6"></circle><path d="M8.4 10.9 15.6 7.1M8.4 13.1l7.2 3.8"></path></svg>`,
     settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,
     calculator: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M8 6h8M8 10h2M12 10h2M16 10h.01M8 14h2M12 14h2M16 14h.01M8 18h2M12 18h4"></path></svg>`,
     calendar: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path></svg>`,
@@ -27465,23 +29577,83 @@ function icon(name) {
     play: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z"></path></svg>`,
     split: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h6a4 4 0 0 1 4 4v8"></path><path d="M14 14a4 4 0 0 1 4-4h2"></path><path d="m18 6 2 4-2 4"></path><path d="m12 16 2 2 2-2"></path></svg>`,
     trash: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="m19 6-1 14H6L5 6"></path><path d="M10 11v5M14 11v5"></path></svg>`,
+    trashSoft: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h8"></path><path d="M10 8V6h4v2"></path><rect x="7" y="8" width="10" height="11" rx="2"></rect><path d="M10.5 12v3.5M13.5 12v3.5"></path></svg>`,
     save: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>`,
     chart: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"></path><rect x="7" y="12" width="3" height="5" rx="1"></rect><rect x="12" y="8" width="3" height="9" rx="1"></rect><rect x="17" y="5" width="3" height="12" rx="1"></rect></svg>`,
     upload: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9"></path><path d="m7 14 5-5 5 5"></path><path d="M5 3h14"></path></svg>`,
     download: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>`,
+    copy: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>`,
+    focus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>`,
     lock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>`,
     unlock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M15 10V7a4 4 0 0 0-7-2.6"></path></svg>`,
   };
-  return icons[name] || "";
+  const svg = icons[name] || "";
+  if (!svg) return "";
+  const safeName = escapeAttribute(name);
+  return svg.replace("<svg ", `<svg class="mes-icon mes-icon-${safeName}" data-icon="${safeName}" `);
 }
 
 window.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "f") {
+    event.preventDefault();
+    ui.focusMode = !ui.focusMode;
+    persistUiState();
+    notifySaveSuccess(ui.focusMode ? "Режим фокуса включен" : "Режим фокуса выключен");
+    render();
+    return;
+  }
+
+  if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "q") {
+    event.preventDefault();
+    ui.visualQaEnabled = !ui.visualQaEnabled;
+    persistUiState();
+    notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
+    render();
+    return;
+  }
+
   if (event.key === "Escape") {
     closeModals();
   }
 });
 
 window.addEventListener("click", (event) => {
+  const visualQaRefreshButton = event.target.closest?.("[data-visual-qa-refresh]");
+  if (visualQaRefreshButton) {
+    event.preventDefault();
+    updateVisualDebugOverlay();
+    return;
+  }
+
+  const visualQaCopyButton = event.target.closest?.("[data-visual-qa-copy]");
+  if (visualQaCopyButton) {
+    event.preventDefault();
+    copyVisualQaReport();
+    return;
+  }
+
+  const visualQaCloseButton = event.target.closest?.("[data-visual-qa-close]");
+  if (visualQaCloseButton) {
+    event.preventDefault();
+    ui.visualQaEnabled = false;
+    persistUiState();
+    notifySaveSuccess("Visual QA выключен");
+    render();
+    return;
+  }
+
+  const visualQaIssueButton = event.target.closest?.("[data-visual-qa-focus]");
+  if (visualQaIssueButton) {
+    event.preventDefault();
+    const index = Number(visualQaIssueButton.dataset.visualQaFocus || 0);
+    const marker = document.querySelectorAll(".visual-debug-marker")[index];
+    if (marker) {
+      marker.classList.remove("is-pulsing");
+      window.requestAnimationFrame(() => marker.classList.add("is-pulsing"));
+    }
+    return;
+  }
+
   const updateReloadButton = event.target.closest?.("[data-update-reload]");
   if (updateReloadButton) {
     reloadForLatestUpdate(updateReloadButton.dataset.updateReload || "");
@@ -27491,6 +29663,26 @@ window.addEventListener("click", (event) => {
   const updateDismissButton = event.target.closest?.("[data-update-dismiss]");
   if (updateDismissButton) {
     hideUpdateReadyNotice(updateDismissButton.dataset.updateDismiss || "");
+    return;
+  }
+
+  const focusModeButton = event.target.closest?.("[data-toggle-focus-mode]");
+  if (focusModeButton && (app.contains(focusModeButton) || focusModeButton.closest(".mes-visual-mode-tray"))) {
+    event.preventDefault();
+    ui.focusMode = !ui.focusMode;
+    persistUiState();
+    notifySaveSuccess(ui.focusMode ? "Режим фокуса включен" : "Режим фокуса выключен");
+    render();
+    return;
+  }
+
+  const visualQaToggleButton = event.target.closest?.("[data-toggle-visual-qa]");
+  if (visualQaToggleButton && (app.contains(visualQaToggleButton) || visualQaToggleButton.closest(".mes-visual-mode-tray"))) {
+    event.preventDefault();
+    ui.visualQaEnabled = !ui.visualQaEnabled;
+    persistUiState();
+    notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
+    render();
     return;
   }
 
@@ -27523,6 +29715,10 @@ window.addEventListener("click", (event) => {
   if (!moduleButton || !app.contains(moduleButton)) return;
   navigateToModule(moduleButton.dataset.module);
 });
+
+window.addEventListener("resize", () => {
+  if (ui.visualQaEnabled) scheduleVisualQaRefresh();
+}, { passive: true });
 
 window.addEventListener("beforeunload", () => {
   rememberScroll();
