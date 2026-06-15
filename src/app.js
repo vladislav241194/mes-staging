@@ -552,6 +552,7 @@ let calculatorDeferredRenderTimer = null;
 let pendingSaveFeedback = null;
 let bundledWorkflowPreset = null;
 let workflowPresetBootstrapStarted = false;
+let workflowPresetBootstrapPromise = null;
 ensureInitialWorkflowPreset();
 
 const directorySections = [
@@ -853,6 +854,7 @@ async function startSharedStateSync() {
     const snapshot = await requestSharedState("GET");
     if (snapshot.configured === false) {
       rememberSharedStateDisabled();
+      await startWorkflowPresetBootstrap();
       restoreWorkflowPresetIfCurrentPlanningEmpty(getWorkflowPreset());
       console.info("[MES] Shared staging state is disabled: storage is not configured.");
       return;
@@ -866,6 +868,13 @@ async function startSharedStateSync() {
     if (snapshot.version > 0 && snapshot.values) {
       applySharedStateSnapshot(snapshot, { silent: true });
     } else {
+      await startWorkflowPresetBootstrap();
+      const restoredPreset = restoreWorkflowPresetIfCurrentPlanningEmpty(getWorkflowPreset());
+      if (restoredPreset) {
+        await pushSharedState("initial-preset", { silent: true });
+        return;
+      }
+
       rememberSharedUiSignature();
       const counts = getWorkflowPresetCountsFromState();
       if (isMeaningfulWorkflowPresetCounts(counts)) {
@@ -1013,18 +1022,24 @@ async function saveWorkflowPresetSnapshot(options = {}) {
 function ensureInitialWorkflowPreset() {
   const preset = getWorkflowPreset();
   if (preset) return;
-  startWorkflowPresetBootstrap();
+  void startWorkflowPresetBootstrap();
 }
 
 async function startWorkflowPresetBootstrap() {
-  if (workflowPresetBootstrapStarted || typeof fetch !== "function") return;
+  if (workflowPresetBootstrapPromise) return workflowPresetBootstrapPromise;
+  workflowPresetBootstrapPromise = loadWorkflowPresetBootstrap();
+  return workflowPresetBootstrapPromise;
+}
+
+async function loadWorkflowPresetBootstrap() {
+  if (workflowPresetBootstrapStarted || typeof fetch !== "function") return getWorkflowPreset();
   workflowPresetBootstrapStarted = true;
 
   try {
     const response = await fetch(`${WORKFLOW_PRESET_FILE_URL}?v=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) return;
+    if (!response.ok) return getWorkflowPreset();
     const preset = await response.json();
-    if (!isUsableWorkflowPreset(preset)) return;
+    if (!isUsableWorkflowPreset(preset)) return getWorkflowPreset();
     bundledWorkflowPreset = preset;
     const hadSavedPreset = Boolean(localStorage.getItem(WORKFLOW_PRESET_STORAGE_KEY));
     if (!hadSavedPreset) {
@@ -1036,8 +1051,10 @@ async function startWorkflowPresetBootstrap() {
     if (!hadSavedPreset && !restored) {
       render();
     }
+    return preset;
   } catch {
     // File presets are optional in static deployments.
+    return getWorkflowPreset();
   }
 }
 
@@ -9187,6 +9204,8 @@ function renderModuleMenu() {
   const modules = getAvailableModules();
   const groups = getModuleGroups(modules);
   const activeRole = getActiveInterfaceRole();
+  const activeModule = modules.find((moduleItem) => moduleItem.id === ui.activeModule) || modules[0];
+  const activeModuleGroup = groups.find((group) => group.modules.some((moduleItem) => moduleItem.id === activeModule?.id));
 
   return `
     <nav class="module-menu" data-layout="sidebar" aria-label="Основное меню">
@@ -9194,6 +9213,32 @@ function renderModuleMenu() {
         <strong>MES</strong>
         <span>${APP_VERSION}</span>
       </div>
+      <details class="mobile-module-switcher">
+        <summary>
+          <span class="mobile-module-current">
+            ${activeModule ? icon(activeModule.icon) : ""}
+            <span>
+              <strong>${escapeHtml(activeModule?.label || "Модуль")}</strong>
+              ${activeModuleGroup?.label ? `<small>${escapeHtml(activeModuleGroup.label)}</small>` : ""}
+            </span>
+          </span>
+          <span class="mobile-module-menu-label">Модули ${icon("chevronDown")}</span>
+        </summary>
+        <div class="mobile-module-sheet">
+          ${groups.map((group) => `
+            <section class="mobile-module-group ${group.tone ? `is-${escapeAttribute(group.tone)}-group` : ""}" ${group.tone ? `data-module-group-tone="${escapeAttribute(group.tone)}"` : ""}>
+              <span class="mobile-module-group-title">${escapeHtml(group.label)}</span>
+              <div class="mobile-module-group-grid">
+                ${group.modules.map((moduleItem) => `
+                  <button class="mobile-module-tab ${ui.activeModule === moduleItem.id ? "is-active" : ""}" data-module="${moduleItem.id}" type="button" aria-label="${escapeAttribute(moduleItem.label)}">
+                    ${icon(moduleItem.icon)}<span>${escapeHtml(moduleItem.label)}</span>
+                  </button>
+                `).join("")}
+              </div>
+            </section>
+          `).join("")}
+        </div>
+      </details>
       <div class="module-tabs" role="tablist">
         ${groups.map((group) => `
           <div class="module-group ${group.tone ? `is-${escapeAttribute(group.tone)}-group` : ""}" ${group.tone ? `data-module-group-tone="${escapeAttribute(group.tone)}"` : ""}>
@@ -18088,7 +18133,6 @@ function renderConfirmModal() {
       <section class="modal confirm-modal" role="dialog" aria-modal="true" aria-label="${escapeAttribute(config.title)}">
         <div class="modal-header">
           <div>
-            <span class="eyebrow">MOD · Confirm Compact</span>
             <h2>${escapeHtml(config.title)}</h2>
           </div>
           <button class="icon-button" data-confirm-cancel type="button" title="Закрыть">${icon("close")}</button>
@@ -18752,7 +18796,6 @@ function renderDirectoryEditorModal(activeSection, directoryData) {
         <form id="directoryForm">
           <div class="modal-header">
             <div>
-              <span class="eyebrow">MOD · Form Modal · ${escapeHtml(activeSection.label)}</span>
               <h2>${isCreate ? "Новая запись" : "Редактирование записи"}</h2>
             </div>
             <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
@@ -25582,7 +25625,6 @@ function renderSlotDrawer(slotWarningMap) {
     <aside class="slot-drawer detail-drawer" aria-label="Карточка операции">
       <div class="drawer-header">
         <div>
-          <span class="eyebrow">MOD · Right Detail Drawer</span>
           <h2>${escapeHtml(slot.operationName)}</h2>
         </div>
         <button class="icon-button" data-close-drawer type="button" title="Закрыть">${icon("close")}</button>
@@ -25720,7 +25762,6 @@ function renderEditorModal() {
         <form id="slotForm">
           <div class="modal-header">
             <div>
-              <span class="eyebrow">MOD · Form Modal · ${isEdit ? "Редактирование" : "Новый слот"}</span>
               <h2>${escapeHtml(getProjectDisplayName(project) || PRODUCT_COMPOSITION_TERM)}</h2>
             </div>
             <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
