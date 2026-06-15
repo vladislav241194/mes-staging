@@ -20827,9 +20827,40 @@ function isProductionResourceCalculationKey(sectionId, key) {
   return sectionId === "productionResources" && PRODUCTION_RESOURCE_CALCULATION_KEYS.has(key);
 }
 
+function getDirectoryFieldClassKey(key) {
+  return String(key || "field")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "field";
+}
+
 function getDirectoryTableCellClass(sectionId, key, index) {
+  const longTextKeys = new Set(["name", "owner", "description", "usage", "scope", "workMode", "maintenance"]);
+  const compactKeys = new Set([
+    "code",
+    "unitType",
+    "planningStatus",
+    "unitsPerHour",
+    "capacity",
+    "workSchedule",
+    "status",
+    "type",
+    "participatesInPlanning",
+    "participatesInCalculation",
+    "baseCph",
+    "efficiency",
+    "changeoverMin",
+    "coefficient",
+    "placementsPerHour",
+    "setupSeconds",
+    "defaultCount",
+  ]);
   return [
     index === 0 ? "primary-cell" : "",
+    `is-key-${getDirectoryFieldClassKey(key)}`,
+    longTextKeys.has(key) ? "is-long-text" : "",
+    compactKeys.has(key) ? "is-compact-value" : "",
     isProductionResourceCalculationKey(sectionId, key) ? "is-resource-calculation-factor is-ux-labor-test" : "",
   ].filter(Boolean).join(" ");
 }
@@ -20840,10 +20871,11 @@ function renderDirectoryTableHead(directoryData) {
       <tr>
         ${directoryData.columns.map((column, index) => {
           const key = directoryData.keys[index];
-          const factorClass = isProductionResourceCalculationKey(directoryData.sectionId, key)
-            ? " class=\"is-resource-calculation-factor is-ux-labor-test\""
-            : "";
-          return `<th${factorClass}>${escapeHtml(column)}</th>`;
+          const className = getDirectoryTableCellClass(directoryData.sectionId, key, index)
+            .replace(/\bprimary-cell\b/g, "is-primary-field")
+            .replace(/\s+/g, " ")
+            .trim();
+          return `<th class="${escapeAttribute(className)}">${escapeHtml(column)}</th>`;
         }).join("")}
         <th class="actions-cell">Действия</th>
       </tr>

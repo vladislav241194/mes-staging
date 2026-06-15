@@ -36212,6 +36212,49 @@ main.app-shell[data-layout-page="directories"] :is(.directory-table, .directory-
   line-height: 15px !important;
 }
 
+main.app-shell[data-layout-page="directories"] .directory-table-wrap {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-table {
+  width: max-content !important;
+  min-width: max(100%, 1120px) !important;
+  table-layout: auto !important;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-resource-table {
+  min-width: max(100%, 1320px) !important;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-table th {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  line-height: 13px !important;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-table td:not(.actions-cell) {
+  max-width: 240px;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-table :is(.is-key-description, .is-key-owner, .is-key-work-mode) {
+  min-width: 140px;
+  max-width: 260px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-table :is(.is-key-code, .is-key-status, .is-key-planning-status, .is-key-participates-in-planning, .is-key-participates-in-calculation) {
+  min-width: 72px;
+  max-width: 112px;
+}
+
 main.app-shell[data-layout-page="gantt"] {
   font-size: var(--mes-ui-work-font) !important;
   line-height: var(--mes-ui-work-line) !important;
