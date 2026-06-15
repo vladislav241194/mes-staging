@@ -1,7 +1,7 @@
 # Модуль РКД: целевая архитектура
 
 Дата: 2026-06-05
-Контекст кода: текущий прототип хранит справочники и спецификации в `directoryState`, маршруты/партии/Гант в `planningState`, калькулятор в `calculatorState`.
+Контекст кода: текущий прототип хранит справочники и спецификации в `directoryState`, маршруты/слоты Ганта в `planningState`, калькулятор в `calculatorState`.
 
 ## 1. Роль РКД в системе
 
@@ -31,7 +31,7 @@ flowchart LR
 | Файлы | Существующий файловый механизм, если он есть | Хранит связь файла с РКД или платой |
 | Маршруты | Маршрутные карты | Хранит/показывает связь с маршрутом |
 | Производительность | Калькулятор | Показывает последний расчет по маршруту |
-| Партии и план | Планирование | Показывает готовность/связь |
+| Заказ-наряд и план | Планирование | Показывает готовность/связь |
 | Слоты и календарь | Гант | Показывает ссылку/статус |
 
 ## 2. Что уже есть в текущем коде
@@ -42,10 +42,10 @@ flowchart LR
 
 - `renderRkdPage()` сейчас показывает линейный мастер, но отдельной сущности РКД нет.
 - `directoryState.specifications` сейчас является центральным объектом производства.
-- `planningState.routes`, `planningState.routeSteps`, `planningState.batches`, `planningState.slots` используют `specificationId`, а `projectId` остается legacy alias.
+- `planningState.routes`, `planningState.routeSteps`, `planningState.slots` используют `specificationId`, а `projectId` остается legacy alias.
 - `getProductionContextForSpecification()` строит виртуальный production context из спецификации.
 - `saveCalculatorRouteToProject()` может создать маршрутную карту, если ее еще нет.
-- `ensureRouteBatches()` и `schedulePlanningRouteToGantt()` создают партии и слоты при передаче в Гант.
+- `schedulePlanningRouteToGantt()` создает слоты по заказ-наряду при передаче в Гант.
 - `saveBomModuleForm()`, `importBomFromXlsxFile()`, `updateBomImportRows()` синхронизируют BOM с номенклатурой.
 - `addSpecificationStructureItem()` сейчас может подставлять первый найденный объект номенклатуры/спецификации в новую строку. Для РКД такой подход нельзя наследовать.
 
@@ -376,7 +376,7 @@ Read-only endpoints без побочных эффектов:
 
 ### Гант
 
-Гант строится из маршрутов, партий и слотов. РКД не строит слоты. Карточка РКД может показывать ссылку на route/planning/gantt, если связь уже есть.
+Гант строится из маршрутов и слотов. РКД не строит слоты. Карточка РКД может показывать ссылку на route/planning/gantt, если связь уже есть.
 
 ## 10. Проверка комплектности
 

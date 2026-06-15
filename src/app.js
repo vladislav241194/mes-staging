@@ -112,6 +112,8 @@ const GANTT_DEPENDENCY_ARROW_LENGTH_MS = 90 * 60 * 1000;
 const GANTT_DEPENDENCY_ENTRY_MS = 90 * 60 * 1000;
 const TIMELINE_LOAD_CHUNK = { hours: 48, days: 30, weeks: 12 };
 const TIMELINE_MAX_COUNT = { hours: 2880, days: 540, weeks: 156 };
+const SUPPLY_WEEK_COUNT = 12;
+const SUPPLY_WEEK_WIDTH = 64;
 const PROJECT_ROW_HEIGHT = 88;
 const WORK_ROW_HEIGHT = 68;
 const WEEK_SLOT_HEIGHT = 18;
@@ -138,7 +140,7 @@ const GANTT_SLOT_CONTENT_MODES = [
   { id: "operationQuantity", label: "Операция + кол-во", shortLabel: "Опер. + кол." },
   { id: "operation", label: "Операция", shortLabel: "Операция" },
   { id: "quantity", label: "Количество", shortLabel: "Кол-во" },
-  { id: "batchStep", label: "Партия и шаг", shortLabel: "Партия" },
+  { id: "batchStep", label: "Заказ-наряд и шаг", shortLabel: "Заказ" },
 ];
 const WORK_CENTER_RATES = {
   D1: 300,
@@ -286,6 +288,7 @@ const defaultUiState = {
   activeOperationId: "",
   nomenclatureTypeFilter: "all",
   activeRouteId: "",
+  activeSupplyRouteId: "",
   routeDraftBindingId: "",
   routeBindingMode: "product",
   planningWorkItem: "",
@@ -417,8 +420,8 @@ const BOARD_BOM_TERM = "BOM платы";
 const DEFAULT_STATUSES = [
   ...PROJECT_STATUSES.map((status) => ({ id: `project-${status}`, name: PROJECT_STATUS_LABELS[status], type: PRODUCT_COMPOSITION_TERM, code: status, usage: `Карточка: ${PRODUCT_COMPOSITION_TERM_LOWER}` })),
   ...SLOT_STATUSES.map((status) => ({ id: `slot-${status}`, name: STATUS_LABELS[status], type: "Операция", code: status, usage: "Слот Ганта" })),
-  { id: "route-scheduled", name: "Запланирован", type: "Маршрут / партия", code: "scheduled", usage: "Маршрутная карта перенесена в Гант" },
-  { id: "route-canceled", name: "Отменен", type: "Маршрут / партия", code: "canceled", usage: "Отмена производственного заказа и связанной партии" },
+  { id: "route-scheduled", name: "Запланирован", type: "Маршрут / заказ-наряд", code: "scheduled", usage: "Маршрутная карта перенесена в Гант" },
+  { id: "route-canceled", name: "Отменен", type: "Маршрут / заказ-наряд", code: "canceled", usage: "Отмена производственного заказа и связанных операций" },
   { id: "directory-active-ru", name: "Активен", type: "Справочник", code: "Активен", usage: "Отделы, операции, типы компонентов, номенклатура, нормативы" },
   { id: "directory-disabled-ru", name: "Отключен", type: "Справочник", code: "Отключен", usage: "Исключение ресурса или строки справочника из активного использования" },
   { id: "work-center-active", name: "Активен", type: "Отдел", code: "active", usage: "Внутренний код активности отдела" },
@@ -893,7 +896,6 @@ function getWorkflowPresetCountsFromState(sourcePlanning = planningState, source
     nomenclature: Array.isArray(sourceDirectory?.nomenclature) ? sourceDirectory.nomenclature.length : 0,
     routes: Array.isArray(sourcePlanning?.routes) ? sourcePlanning.routes.length : 0,
     routeSteps: Array.isArray(sourcePlanning?.routeSteps) ? sourcePlanning.routeSteps.length : 0,
-    batches: Array.isArray(sourcePlanning?.batches) ? sourcePlanning.batches.length : 0,
     slots: Array.isArray(sourcePlanning?.slots) ? sourcePlanning.slots.length : 0,
     warehouseMovements: Array.isArray(sourcePlanning?.warehouseMovements) ? sourcePlanning.warehouseMovements.length : 0,
     warehouseReservations: Array.isArray(sourcePlanning?.warehouseReservations) ? sourcePlanning.warehouseReservations.length : 0,
@@ -904,7 +906,6 @@ function hasMeaningfulPlanningState(sourcePlanning = planningState) {
   return Boolean(
     sourcePlanning?.routes?.length
     || sourcePlanning?.routeSteps?.length
-    || sourcePlanning?.batches?.length
     || sourcePlanning?.slots?.length
     || sourcePlanning?.warehouseMovements?.length
     || sourcePlanning?.warehouseReservations?.length
@@ -925,7 +926,6 @@ function isMeaningfulWorkflowPresetCounts(counts = {}) {
     || counts.nomenclature
     || counts.routes
     || counts.routeSteps
-    || counts.batches
     || counts.slots
     || counts.warehouseMovements
     || counts.warehouseReservations
@@ -1240,14 +1240,13 @@ function getCriticalPlanningCounts(state) {
   return {
     routes: Array.isArray(state?.routes) ? state.routes.length : 0,
     routeSteps: Array.isArray(state?.routeSteps) ? state.routeSteps.length : 0,
-    batches: Array.isArray(state?.batches) ? state.batches.length : 0,
     slots: Array.isArray(state?.slots) ? state.slots.length : 0,
   };
 }
 
 function getPlanningRecoveryScore(snapshot) {
   const counts = getCriticalPlanningCounts(snapshot?.state);
-  return counts.routes * 10 + counts.routeSteps + counts.batches + counts.slots;
+  return counts.routes * 10 + counts.routeSteps + counts.slots;
 }
 
 function restorePlanningStateFromBackups(reason) {
@@ -1948,6 +1947,13 @@ function getProductionResourceWorkCenterId(resource = {}) {
   return resource.workCenterId || resolveWorkCenterIdFromName(resource.workCenter || resource.line || resource.department || "");
 }
 
+function normalizeProductionResourceCapacity(value = "") {
+  return String(value || "")
+    .replace(/партия/gi, "операция")
+    .replace(/партии/gi, "операции")
+    .trim();
+}
+
 function normalizeProductionResource(row = {}) {
   const workCenterId = getProductionResourceWorkCenterId(row) || "D5";
   const center = getWorkCenter(workCenterId);
@@ -1966,7 +1972,7 @@ function normalizeProductionResource(row = {}) {
     parentResourceId: row.parentResourceId || "",
     inventory: String(row.inventory || "").trim(),
     maintenance: String(row.maintenance || "").trim(),
-    capacity: String(row.capacity || "").trim(),
+    capacity: normalizeProductionResourceCapacity(row.capacity),
     baseCph: Math.max(0, Number(row.baseCph || 0)),
     efficiency: Math.max(0, Number(row.efficiency || 0)),
     changeoverMin: Math.max(0, Number(row.changeoverMin || 0)),
@@ -2655,25 +2661,6 @@ function migrateProjectEntityToSpecifications() {
   const routeByLegacyAfterMigration = new Map((planningState.routes || [])
     .map((route) => [route.projectId, route]));
 
-  planningState.batches = (planningState.batches || []).map((batch) => {
-    const route = routeById.get(batch.routeId)
-      || routeByLegacyProjectId.get(batch.projectId)
-      || routeByLegacyAfterMigration.get(projectToSpecificationId.get(batch.projectId) || batch.projectId);
-    const specificationId = batch.specificationId
-      || route?.specificationId
-      || projectToSpecificationId.get(batch.projectId)
-      || (getSpecificationById(batch.projectId) ? batch.projectId : "");
-    if (batch.routeId === route?.id && batch.specificationId === specificationId && batch.projectId === specificationId) return batch;
-    changed = true;
-    return {
-      ...batch,
-      routeId: route?.id || batch.routeId || "",
-      specificationId,
-      projectId: specificationId || batch.projectId || "",
-      updatedAt: batch.updatedAt || stamp,
-    };
-  });
-
   const routeByStepId = new Map((planningState.routeSteps || []).map((step) => [step.id, routeById.get(step.routeId)]));
   planningState.slots = (planningState.slots || []).map((slot) => {
     const route = routeByStepId.get(slot.routeStepId)
@@ -3034,6 +3021,7 @@ function persistUiState(options = {}) {
       activeNomenclatureId: ui.activeNomenclatureId,
       activeOperationId: ui.activeOperationId,
 	      activeRouteId: ui.activeRouteId,
+	      activeSupplyRouteId: ui.activeSupplyRouteId,
 	      routeBindingMode: ui.routeBindingMode,
       planningWorkItem: ui.planningWorkItem,
       activeShopMapWidgetId: ui.activeShopMapWidgetId,
@@ -3308,6 +3296,31 @@ function mergeMesWorkCenters(rows = []) {
   return [...merged, ...customRows];
 }
 
+function buildLegacyBatchRouteIdMap(state = {}) {
+  const routeIds = new Set((state.routes || []).map((route) => route.id).filter(Boolean));
+  return new Map((Array.isArray(state.batches) ? state.batches : [])
+    .filter((batch) => batch?.id)
+    .map((batch) => {
+      const routeId = routeIds.has(batch.routeId) ? batch.routeId : "";
+      return [batch.id, routeId];
+    })
+    .filter(([, routeId]) => routeId));
+}
+
+function normalizeSlotOrderLink(slot = {}, state = {}, legacyBatchRouteIdById = new Map()) {
+  const routeByStepId = new Map((state.routeSteps || []).map((step) => [step.id, step.routeId]));
+  const routeId = slot.routeId
+    || legacyBatchRouteIdById.get(slot.batchId)
+    || routeByStepId.get(slot.routeStepId)
+    || "";
+  if (!routeId) return slot;
+  return {
+    ...slot,
+    routeId,
+    batchId: routeId,
+  };
+}
+
 function normalizePlanningState(state) {
   const previousRuntimeState = planningState;
   const shouldUseStateAsRuntime = !planningState;
@@ -3315,8 +3328,8 @@ function normalizePlanningState(state) {
 
   try {
     state.projects = [];
-    state.batches = Array.isArray(state.batches) ? state.batches : [];
     state.routes = Array.isArray(state.routes) ? state.routes : [];
+    const legacyBatchRouteIdById = buildLegacyBatchRouteIdMap(state);
     state.routeSteps = Array.isArray(state.routeSteps) ? state.routeSteps : [];
     state.slots = Array.isArray(state.slots) ? state.slots : [];
     state.warehouseMovements = Array.isArray(state.warehouseMovements)
@@ -3328,6 +3341,8 @@ function normalizePlanningState(state) {
     state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
     state.workCenters = mergeMesWorkCenters(state.workCenters);
     state.routeSteps = state.routeSteps.map((step) => normalizeRouteStepCalculationFields(step, state));
+    state.slots = state.slots.map((slot) => normalizeSlotOrderLink(slot, state, legacyBatchRouteIdById));
+    delete state.batches;
 
     removeCanceledRouteGanttSlots(state);
     state.slots = state.slots.map((slot) => recalculateSlotEndByQuantity(slot, state));
@@ -4204,7 +4219,7 @@ function buildBacklogItems(limit = 14) {
     const project = getRoutePlanningContext(route);
     if (!project) continue;
     const routeSteps = getSchedulableRouteSteps(route.id);
-    const batches = planningState.batches.filter((batch) => batch.routeId === route.id || batch.specificationId === project.id || batch.projectId === project.id);
+    const batches = getRoutePlanningBatches(route, project);
 
     for (const batch of batches) {
       const plannedStepIds = getPlannedStepIds(route.id, batch.id);
@@ -4690,6 +4705,21 @@ function render(options = {}) {
     return;
   }
 
+  if (ui.activeModule === "supply") {
+    app.innerHTML = `
+      <main class="app-shell supply-app-shell" data-layout="app-shell" data-layout-page="supply">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderSupplyPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindSupplyEvents();
+    bindConfirmEvents();
+    return;
+  }
+
   if (ui.activeModule === "dispatch") {
     app.innerHTML = `
       <main class="app-shell dispatch-app-shell" data-layout="app-shell" data-layout-page="dispatch">
@@ -5042,7 +5072,7 @@ function renderPlanningPage() {
           <div>
             <span class="eyebrow">Заказ-наряд</span>
             <h2>${escapeHtml(routeTitle)}</h2>
-            <p>${escapeHtml(activeRoute ? `${specificationTitle}: заказ-наряд создан на основе маршрутной карты для подготовки к Ганту.` : "Выберите заказ-наряд в перечне, чтобы настроить количество, партийность и передачу в Гант.")}</p>
+            <p>${escapeHtml(activeRoute ? `${specificationTitle}: заказ-наряд создан на основе маршрутной карты для подготовки к Ганту.` : "Выберите заказ-наряд в перечне, чтобы настроить количество, обеспечение и передачу в Гант.")}</p>
           </div>
           <div class="directory-actions">
             <button class="secondary-button danger" data-planning-route-cancel="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.planned ? "" : "disabled"}>
@@ -5165,11 +5195,11 @@ function renderPlanningWorkbenchV2RouteMap(route, transferSummary, tasks, routeS
   const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
   const supplySummary = getPlanningSupplySummary(route, transferSummary, routeSteps);
   const chain = buildPlanningProductionChain(route, transferSummary, tasks, routeSteps);
-  const batchExpected = Number(transferSummary?.expected || 0);
-  const batchPlanned = Number(transferSummary?.planned || 0);
-  const batchMissing = Math.max(0, batchExpected - batchPlanned);
-  const batchTone = batchExpected && !batchMissing ? "ok" : batchExpected ? "warning" : "neutral";
-  const batchStatus = batchExpected && !batchMissing ? "готово" : batchMissing ? `${batchMissing} не размещено` : "подготовить";
+  const scheduleExpected = Number(transferSummary?.expected || 0);
+  const schedulePlanned = Number(transferSummary?.planned || 0);
+  const scheduleMissing = Math.max(0, scheduleExpected - schedulePlanned);
+  const scheduleTone = scheduleExpected && !scheduleMissing ? "ok" : scheduleExpected ? "warning" : "neutral";
+  const scheduleStatus = scheduleExpected && !scheduleMissing ? "готово" : scheduleMissing ? `${scheduleMissing} не размещено` : "подготовить";
 
   return `
     <section class="module-panel planning-v2-route-map" aria-label="Маршрут работы с заказ-нарядом">
@@ -5208,12 +5238,12 @@ function renderPlanningWorkbenchV2RouteMap(route, transferSummary, tasks, routeS
         </div>
 
         ${renderPlanningWorkbenchV2Phase({
-          id: "batches",
+          id: "schedule",
           selectedItem,
-          title: "Партии",
+          title: "Размещение в Ганте",
           meta: "",
-          status: batchStatus,
-          tone: batchTone,
+          status: scheduleStatus,
+          tone: scheduleTone,
         })}
       </div>
     </section>
@@ -5279,7 +5309,7 @@ function renderPlanningWorkbenchV2Detail(route, transferSummary, tasks, routeSte
   const { type, id } = parsePlanningWorkItemId(selectedItem);
   if (type === "supply") return renderPlanningWorkbenchV2SupplyDetail(route, transferSummary, tasks, routeSteps);
   if (type === "chain") return renderPlanningWorkbenchV2ChainDetail(route, transferSummary, tasks, routeSteps);
-  if (type === "batches") return renderPlanningWorkbenchV2BatchesDetail(route, transferSummary);
+  if (type === "schedule" || type === "batches") return renderPlanningWorkbenchV2ScheduleDetail(route, transferSummary);
   if (type === "task") {
     const task = tasks.find((item) => item.id === id) || tasks.find((item) => item.isMain) || tasks[0];
     return renderPlanningWorkbenchV2TaskDetail(route, task, transferSummary, routeSteps);
@@ -5465,7 +5495,7 @@ function renderPlanningWorkbenchV2ChainDetail(route, transferSummary, tasks, rou
 }
 
 function renderPlanningWorkbenchV2TaskDetail(route, task, transferSummary, routeSteps) {
-  if (!task) return renderPlanningWorkbenchV2BatchesDetail(route, transferSummary);
+  if (!task) return renderPlanningWorkbenchV2ScheduleDetail(route, transferSummary);
   const stats = getPlanningTaskOperationStats(route, task, routeSteps);
   const readiness = getPlanningTaskReadiness(task, stats);
   const body = `
@@ -5530,81 +5560,45 @@ function renderPlanningWorkbenchV2StepDetail(route, step, transferSummary, route
   });
 }
 
-function renderPlanningWorkbenchV2BatchesDetail(route, summary) {
-  const quantityDelta = Number(summary?.quantityDelta || 0);
-  const deltaTone = quantityDelta === 0 ? "ok" : quantityDelta > 0 ? "warning" : "critical";
+function renderPlanningWorkbenchV2ScheduleDetail(route, summary) {
+  const expected = Number(summary?.expected || 0);
+  const planned = Number(summary?.planned || 0);
+  const missing = Math.max(0, expected - planned);
+  const tone = expected && !missing ? "ok" : expected ? "warning" : "neutral";
   const body = `
-    ${renderPlanningWorkbenchV2Section("Настройка партий", "", `
-      ${renderPlanningWorkbenchV2BatchEditor(route, summary)}
+    ${renderPlanningWorkbenchV2Section("Операции заказ-наряда", "размещение строится от общего количества заказ-наряда", `
+      ${renderPlanningScheduleStatus(route, summary)}
     `)}
   `;
 
   return renderPlanningWorkbenchV2Record({
-    title: "Партии",
-    status: quantityDelta === 0 ? "готово" : "проверьте партии",
-    tone: deltaTone,
+    title: "Размещение в Ганте",
+    status: expected && !missing ? "готово" : missing ? `${missing} не размещено` : "подготовить",
+    tone,
     body,
   });
 }
 
-function renderPlanningWorkbenchV2BatchEditor(route, summary) {
-  const batches = summary?.batches || [];
-  const realBatches = batches.filter((batch) => batch.id !== "__pending__");
-  const routeId = route?.id || "";
-
+function renderPlanningScheduleStatus(route, summary) {
+  const planningQuantity = normalizeQuantity(summary?.planningQuantity || getPlanningRouteQuantity(route));
   return `
     <div class="planning-v2-batch-editor">
-      <div class="planning-v2-batch-actions">
-        <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("plus")}<span>Партия</span></button>
-        <button class="secondary-button" data-planning-batches-distribute="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("refresh")}<span>Поровну</span></button>
-        <button class="secondary-button" data-planning-batches-accept-total="${escapeAttribute(routeId)}" type="button" ${route && realBatches.length ? "" : "disabled"}>${icon("check")}<span>Принять</span></button>
-      </div>
-
-      <div class="planning-v2-batch-grid" role="table" aria-label="Настройка партий">
-        <div class="planning-v2-batch-row is-head" role="row">
-          <span>Партия</span>
-          <span>Кол-во</span>
-          <span></span>
-        </div>
-        ${batches.map((batch) => {
-          const isPending = batch.id === "__pending__";
-          return `
-            <div class="planning-v2-batch-row ${isPending ? "is-pending" : ""}" role="row">
-              <label>
-                <span>Партия</span>
-                <input
-                  aria-label="Номер партии"
-                  data-planning-batch-field="batchNumber"
-                  data-planning-batch-id="${escapeAttribute(batch.id)}"
-                  type="text"
-                  value="${escapeAttribute(batch.batchNumber || "")}"
-                  ${isPending ? "disabled" : ""}
-                />
-              </label>
-              <label>
-                <span>Кол-во</span>
-                <input
-                  aria-label="Количество в партии"
-                  data-planning-batch-field="quantity"
-                  data-planning-batch-id="${escapeAttribute(batch.id)}"
-                  type="number"
-                  inputmode="numeric"
-                  min="1"
-                  step="1"
-                  value="${escapeAttribute(batch.quantity || 1)}"
-                  ${isPending ? "disabled" : ""}
-                />
-              </label>
-              <div class="planning-v2-batch-row-actions">
-                ${isPending ? `
-                  <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button">${icon("plus")}<span>Создать</span></button>
-                ` : `
-                  <button class="icon-button danger-soft" data-planning-batch-delete="${escapeAttribute(batch.id)}" type="button" title="Удалить партию">${icon("trash")}</button>
-                `}
-              </div>
-            </div>
-          `;
-        }).join("")}
+      <div class="planning-batch-summary">
+        <article>
+          <span>Количество</span>
+          <strong>${planningQuantity.toLocaleString("ru-RU")} шт.</strong>
+          <small>хранится в заказ-наряде</small>
+        </article>
+        <article>
+          <span>Слоты</span>
+          <strong>${summary?.planned || 0}/${summary?.expected || 0}</strong>
+          <small>операций в Ганте</small>
+        </article>
+        <article>
+          <span>Платы</span>
+          <strong>${Number(summary?.totalPanels || 0).toLocaleString("ru-RU")}</strong>
+          <small>по мультипликации</small>
+        </article>
       </div>
     </div>
   `;
@@ -6452,6 +6446,454 @@ function renderDispatchRouteTableRow(row) {
   `;
 }
 
+function getSupplyOrderRoutes() {
+  return getRoutesForModule()
+    .filter((route) => route?.id)
+    .filter((route) => getRouteProductionContext(route) || getRouteSpecification(route) || getRouteBomList(route));
+}
+
+function getActiveSupplyRoute(routes = getSupplyOrderRoutes()) {
+  const active = routes.find((route) => route.id === ui.activeSupplyRouteId)
+    || routes.find((route) => route.id === ui.activeRouteId)
+    || routes[0]
+    || null;
+  if (active && ui.activeSupplyRouteId !== active.id) ui.activeSupplyRouteId = active.id;
+  return active;
+}
+
+function getSupplyRouteDueDate(route = null) {
+  const production = getRouteProductionContext(route);
+  const raw = production?.dueDate || route?.dueDate || "";
+  if (!raw) return null;
+  const value = String(raw).includes("T") ? toDate(raw) : toDate(fromDateInput(raw));
+  return Number.isNaN(value.getTime()) ? null : startOfDay(value);
+}
+
+function getSupplyWeekScale(route = null) {
+  const dueDate = getSupplyRouteDueDate(route);
+  const now = startOfWeek(ui.now || new Date());
+  const dueAnchor = dueDate && dueDate < now ? startOfWeek(dueDate) : now;
+  const rawScale = buildTimeScale("weeks", dueAnchor, SUPPLY_WEEK_COUNT);
+  return {
+    ...rawScale,
+    cellWidth: SUPPLY_WEEK_WIDTH,
+    width: SUPPLY_WEEK_COUNT * SUPPLY_WEEK_WIDTH,
+  };
+}
+
+function getSupplyBomEntries(route, transferSummary = null) {
+  if (!route) return [];
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route));
+  const specification = getRouteSpecification(route);
+  if (specification) {
+    return getSpecificationBomEntries(specification.id).map((entry) => {
+      const boardQuantity = Math.max(1, Math.round(planningQuantity * Math.max(1, Number(entry.quantity || 1))));
+      return {
+        ...entry,
+        sourceId: entry.structureItemId || entry.bom.id,
+        boardQuantity,
+      };
+    });
+  }
+
+  const bom = getRouteBomList(route);
+  return bom ? [{
+    bom,
+    quantity: 1,
+    boardsPerPanel: normalizeBoardsPerPanel(route.boardsPerPanel, 1),
+    slot: "PCB",
+    structureItemId: bom.id,
+    sourceId: bom.id,
+    boardQuantity: Math.max(1, planningQuantity),
+  }] : [];
+}
+
+function getSupplyComponentKey(row = {}, nomenclatureItem = null, bom = null, rowIndex = 0) {
+  if (nomenclatureItem?.id) return `rek:${nomenclatureItem.id}`;
+  const identityParts = [
+    row.manufacturerPart,
+    row.description,
+    row.manufacturer,
+    row.package,
+  ].map((part) => normalizeSmtComponentKeyPart(part)).filter(Boolean);
+  return identityParts.length
+    ? `rek:${identityParts.join(":")}`
+    : `rek:${bom?.id || "bom"}:${rowIndex + 1}`;
+}
+
+function buildSupplyProcurementRows(route) {
+  if (!route) return [];
+  const transferSummary = getPlanningRouteTransferSummary(route);
+  const bomEntries = getSupplyBomEntries(route, transferSummary);
+  const pcbRows = bomEntries.map((entry) => {
+    const resultItem = getBomResultNomenclatureItem(entry.bom.id);
+    return {
+      id: `pcb:${entry.sourceId}`,
+      kind: "pcb",
+      typeLabel: "Печатная плата",
+      title: resultItem?.name || entry.bom.resultItem || entry.bom.boardCode || entry.bom.name || "Печатная плата",
+      article: resultItem?.article || entry.bom.boardCode || "",
+      package: "PCB",
+      manufacturer: "",
+      sourceLabel: entry.bom.name || entry.bom.boardCode || BOARD_SPEC_TERM,
+      bomLabels: [entry.bom.name || entry.bom.boardCode || BOARD_SPEC_TERM],
+      designators: "",
+      requiredQuantity: entry.boardQuantity,
+      unit: "шт.",
+      erpDocs: [],
+      purchasedQuantity: 0,
+      deliveredQuantity: 0,
+      stockQuantity: 0,
+      tone: "warning",
+    };
+  });
+
+  const componentMap = new Map();
+  bomEntries.forEach((entry) => {
+    getBomImportRows(entry.bom)
+      .filter((row) => Number(row.quantity || 0) > 0)
+      .forEach((row, rowIndex) => {
+        const nomenclatureItem = getBomImportRowNomenclatureItem(row, entry.bom);
+        const key = getSupplyComponentKey(row, nomenclatureItem, entry.bom, rowIndex);
+        const existing = componentMap.get(key) || {
+          id: key,
+          kind: "rek",
+          typeLabel: "РЭК",
+          title: nomenclatureItem?.name || row.description || row.manufacturerPart || `Компонент BOM ${row.sequence || rowIndex + 1}`,
+          article: nomenclatureItem?.article || row.manufacturerPart || "",
+          package: nomenclatureItem?.package || row.package || "",
+          manufacturer: nomenclatureItem?.manufacturer || row.manufacturer || "",
+          sourceSet: new Set(),
+          designatorSet: new Set(),
+          requiredQuantity: 0,
+          unit: nomenclatureItem?.unit || "шт.",
+          erpDocs: [],
+          purchasedQuantity: 0,
+          deliveredQuantity: 0,
+          stockQuantity: 0,
+          tone: "warning",
+          bomRowCount: 0,
+        };
+        existing.sourceSet.add(entry.bom.name || entry.bom.boardCode || BOARD_SPEC_TERM);
+        if (row.designator) existing.designatorSet.add(row.designator);
+        existing.requiredQuantity += Math.max(0, Number(row.quantity || 0)) * entry.boardQuantity;
+        existing.bomRowCount += 1;
+        componentMap.set(key, existing);
+      });
+  });
+
+  const componentRows = [...componentMap.values()].map((row) => {
+    const bomLabels = [...row.sourceSet].filter(Boolean);
+    const designators = [...row.designatorSet].filter(Boolean);
+    return {
+      ...row,
+      sourceLabel: bomLabels.slice(0, 3).join(", ") + (bomLabels.length > 3 ? ` +${bomLabels.length - 3}` : ""),
+      bomLabels,
+      designators: designators.slice(0, 3).join(", ") + (designators.length > 3 ? ` +${designators.length - 3}` : ""),
+      requiredQuantity: Math.round(row.requiredQuantity * 1000) / 1000,
+    };
+  });
+
+  return [...pcbRows, ...componentRows]
+    .filter((row) => row.requiredQuantity > 0)
+    .sort((left, right) => {
+      if (left.kind !== right.kind) return left.kind === "pcb" ? -1 : 1;
+      return String(left.title || "").localeCompare(String(right.title || ""), "ru");
+    });
+}
+
+function getSupplyRouteStats(route) {
+  const rows = buildSupplyProcurementRows(route);
+  return {
+    rows,
+    total: rows.length,
+    pcb: rows.filter((row) => row.kind === "pcb").length,
+    rek: rows.filter((row) => row.kind === "rek").length,
+    pending: rows.filter((row) => !row.erpDocs.length).length,
+    purchasedQuantity: rows.reduce((sum, row) => sum + Number(row.purchasedQuantity || 0), 0),
+    requiredQuantity: rows.reduce((sum, row) => sum + Number(row.requiredQuantity || 0), 0),
+  };
+}
+
+function renderSupplyPage() {
+  const routes = getSupplyOrderRoutes();
+  const activeRoute = getActiveSupplyRoute(routes);
+  const production = getRouteProductionContext(activeRoute);
+  const transferSummary = activeRoute ? getPlanningRouteTransferSummary(activeRoute) : null;
+  const routeStats = getSupplyRouteStats(activeRoute);
+  const rows = routeStats.rows;
+  const scaleInfo = getSupplyWeekScale(activeRoute);
+  const dueDate = getSupplyRouteDueDate(activeRoute);
+  const routeTitle = activeRoute
+    ? getProjectDisplayName(production) || getRouteModuleSelectionName(activeRoute) || activeRoute.name || "Заказ-наряд"
+    : "Заказ-наряд не выбран";
+  const routeMeta = activeRoute
+    ? [
+      activeRoute.name || "маршрутная карта",
+      `${Number(transferSummary?.planningQuantity || getPlanningRouteQuantity(activeRoute) || 0).toLocaleString("ru-RU")} шт.`,
+      dueDate ? `срок ${formatDate(dueDate)}` : "срок не задан",
+    ].join(" · ")
+    : "Выберите заказ-наряд, чтобы увидеть потребность BOM.";
+
+  return `
+    <section class="supply-page module-data-page" data-layout="main-content" aria-label="Снабжение">
+      <aside class="directory-sidebar module-data-sidebar supply-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Закупочный контур</span>
+          <h1>Снабжение</h1>
+        </div>
+        <div class="supply-sidebar-summary">
+          <article>
+            <span>Заказ-наряды</span>
+            <strong>${routes.length.toLocaleString("ru-RU")}</strong>
+          </article>
+          <article>
+            <span>Строки BOM</span>
+            <strong>${routeStats.total.toLocaleString("ru-RU")}</strong>
+          </article>
+        </div>
+        <div class="module-entity-list supply-route-list">
+          <div class="module-list-label">Заказ-наряды</div>
+          ${routes.length ? routes.map((route) => renderSupplyRouteCard(route, route.id === activeRoute?.id)).join("") : renderModulePreviewEmpty({
+            iconName: "calendar",
+            title: "Заказ-нарядов нет",
+            text: "Снабжение строится от сохраненных маршрутных карт и заказ-нарядов.",
+          })}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace supply-workspace" data-layout="page-workspace">
+        <header class="directory-header supply-header">
+          <div>
+            <span class="eyebrow">Read-only дизайн</span>
+            <h2>${escapeHtml(routeTitle)}</h2>
+            <p>${escapeHtml(routeMeta)}</p>
+          </div>
+          <span class="supply-readonly-badge">${icon("lock")}<span>не влияет на систему</span></span>
+        </header>
+
+        <div class="module-data-content supply-content">
+          <section class="supply-kpi-grid" aria-label="Показатели снабжения">
+            ${renderSupplyKpi("Печатные платы", routeStats.pcb, "тиражи из BOM", "pcb")}
+            ${renderSupplyKpi("РЭК", routeStats.rek, "компоненты BOM", "rek")}
+            ${renderSupplyKpi("ERP документы", "0", "счета не подключены", "warning")}
+            ${renderSupplyKpi("Поставки", "0", "частичных приходов нет", "neutral")}
+          </section>
+
+          <section class="module-panel supply-gantt-panel">
+            <div class="report-card-head">
+              <div>
+                <strong>Гант снабжения</strong>
+                <span>фиксированный недельный горизонт; строки закупки считаются из BOM заказ-наряда</span>
+              </div>
+              <em class="supply-status-pill is-warning">закупки не заведены</em>
+            </div>
+            ${rows.length ? renderSupplyWeeklyGantt(activeRoute, rows, scaleInfo) : renderModulePreviewEmpty({
+              iconName: "bom",
+              title: "BOM-потребность не найдена",
+              text: "У выбранного заказ-наряда нет плат или строк BOM для закупочного контроля.",
+            })}
+          </section>
+
+          <section class="module-panel supply-table-panel">
+            <div class="report-card-head">
+              <div>
+                <strong>Реестр потребности</strong>
+                <span>${rows.length ? `${rows.length} строк к контролю` : "нет строк"}</span>
+              </div>
+            </div>
+            ${rows.length ? renderSupplyRegisterTable(rows) : renderModulePreviewEmpty({
+              iconName: "package",
+              title: "Компоненты не рассчитаны",
+              text: "После привязки BOM здесь появятся платы и РЭК без создания закупочных записей.",
+            })}
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderSupplyRouteCard(route, isActive = false) {
+  const production = getRouteProductionContext(route);
+  const dueDate = getSupplyRouteDueDate(route);
+  const stats = getSupplyRouteStats(route);
+  const title = getProjectDisplayName(production) || getRouteModuleSelectionName(route) || route.name || "Заказ-наряд";
+  return `
+    <button class="module-entity-item supply-route-card ${isActive ? "is-active" : ""}" data-supply-route-open="${escapeAttribute(route.id)}" type="button">
+      <span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(route.name || "маршрутная карта")} · ${dueDate ? escapeHtml(formatDate(dueDate)) : "срок не задан"}</small>
+      </span>
+      <em>${stats.total}</em>
+    </button>
+  `;
+}
+
+function renderSupplyKpi(label, value, meta, tone = "neutral") {
+  const iconName = tone === "pcb" ? "bom" : tone === "rek" ? "package" : tone === "warning" ? "alert" : "supply";
+  return `
+    <article class="supply-kpi-card is-${escapeAttribute(tone)}">
+      <span>${icon(iconName)}</span>
+      <div>
+        <small>${escapeHtml(label)}</small>
+        <strong>${escapeHtml(String(value))}</strong>
+        <em>${escapeHtml(meta)}</em>
+      </div>
+    </article>
+  `;
+}
+
+function renderSupplyWeeklyGantt(route, rows, scaleInfo) {
+  return `
+    <div class="supply-gantt-shell" style="--supply-left-width: 280px; --supply-timeline-width: ${scaleInfo.width}px;">
+      <div class="supply-timeline-row">
+        <div class="supply-timeline-corner">
+          <strong>Компоненты</strong>
+          <span>поставки по неделям</span>
+        </div>
+        <div class="supply-timeline-cells" style="width:${scaleInfo.width}px;">
+          ${scaleInfo.ticks.map((tick, index) => renderSupplyWeekCell(tick, index, scaleInfo.cellWidth)).join("")}
+        </div>
+      </div>
+      <div class="supply-gantt-body">
+        ${rows.map((row) => renderSupplyGanttRow(route, row, scaleInfo)).join("")}
+      </div>
+      <div class="supply-gantt-legend">
+        <span><i class="is-demand"></i>потребность BOM</span>
+        <span><i class="is-weekend"></i>выходные; праздничный календарь не подключен</span>
+        <span><i class="is-empty"></i>поставки и ERP-документы не подключены</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderSupplyWeekCell(tick, index, cellWidth) {
+  const dayStrip = Array.from({ length: 7 }, (_, dayIndex) => {
+    const day = addMs(tick.start, dayIndex * DAY_MS);
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    return `<i class="${isWeekend ? "is-weekend" : ""}" title="${escapeAttribute(formatDate(day))}"></i>`;
+  }).join("");
+  return `
+    <div class="supply-week-cell" style="left:${index * cellWidth}px; width:${cellWidth}px;">
+      <strong>${escapeHtml(tick.label)}</strong>
+      <small>${escapeHtml(tick.sublabel)}</small>
+      <span class="supply-week-day-strip">${dayStrip}</span>
+    </div>
+  `;
+}
+
+function getSupplyDemandBarStyle(route, scaleInfo) {
+  const dueDate = getSupplyRouteDueDate(route);
+  const barStart = scaleInfo.start;
+  const defaultEnd = scaleInfo.end;
+  const rawEnd = dueDate && dueDate > barStart ? addMs(dueDate, DAY_MS) : defaultEnd;
+  const end = new Date(Math.min(defaultEnd.getTime(), Math.max(addMs(barStart, 7 * DAY_MS).getTime(), rawEnd.getTime())));
+  const left = 8;
+  const width = Math.max(44, Math.min(scaleInfo.width - left - 8, dateToX(end, scaleInfo) - left));
+  return `left:${round(left)}px;width:${round(width)}px;`;
+}
+
+function renderSupplyDueMarker(route, scaleInfo) {
+  const dueDate = getSupplyRouteDueDate(route);
+  if (!dueDate || dueDate < scaleInfo.start || dueDate > scaleInfo.end) return "";
+  const left = Math.max(0, Math.min(scaleInfo.width, dateToX(dueDate, scaleInfo)));
+  return `<span class="supply-due-marker" style="left:${round(left)}px;" title="Срок заказ-наряда: ${escapeAttribute(formatDate(dueDate))}"></span>`;
+}
+
+function renderSupplyTodayMarker(scaleInfo) {
+  const today = startOfDay(ui.now || new Date());
+  if (today < scaleInfo.start || today > scaleInfo.end) return "";
+  const left = Math.max(0, Math.min(scaleInfo.width, dateToX(today, scaleInfo)));
+  return `<span class="supply-today-marker" style="left:${round(left)}px;" title="Сегодня"></span>`;
+}
+
+function renderSupplyLaneGrid(scaleInfo) {
+  return scaleInfo.ticks.map((tick, index) => `
+    <span class="supply-lane-week" style="left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;">
+      ${Array.from({ length: 7 }, (_, dayIndex) => {
+        const day = addMs(tick.start, dayIndex * DAY_MS);
+        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+        return `<i class="${isWeekend ? "is-weekend" : ""}"></i>`;
+      }).join("")}
+    </span>
+  `).join("");
+}
+
+function renderSupplyGanttRow(route, row, scaleInfo) {
+  const meta = [row.article ? `PN: ${row.article}` : "", row.package, row.sourceLabel].filter(Boolean).join(" · ") || row.typeLabel;
+  const tagLabel = row.kind === "pcb" ? "PCB" : "РЭК";
+  return `
+    <article class="supply-gantt-row is-${escapeAttribute(row.kind)}">
+      <div class="supply-gantt-label">
+        <b>${escapeHtml(tagLabel)}</b>
+        <span>
+          <strong>${escapeHtml(row.title)}</strong>
+          <small>${escapeHtml(meta)}</small>
+        </span>
+        <em>${escapeHtml(formatReportNumber(row.requiredQuantity))} ${escapeHtml(row.unit || "шт.")}</em>
+      </div>
+      <div class="supply-lane" style="width:${scaleInfo.width}px;">
+        ${renderSupplyLaneGrid(scaleInfo)}
+        ${renderSupplyTodayMarker(scaleInfo)}
+        ${renderSupplyDueMarker(route, scaleInfo)}
+        <span class="supply-demand-bar" style="${getSupplyDemandBarStyle(route, scaleInfo)}">
+          <strong>${escapeHtml(formatReportNumber(row.requiredQuantity))} ${escapeHtml(row.unit || "шт.")}</strong>
+          <small>не закуплено</small>
+        </span>
+        <span class="supply-no-delivery">поставок нет</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderSupplyRegisterTable(rows) {
+  return `
+    <div class="supply-table-wrap" data-layout="table">
+      <table class="supply-table">
+        <thead>
+          <tr>
+            <th>Позиция</th>
+            <th>BOM / источник</th>
+            <th>Потребность</th>
+            <th>ERP документ</th>
+            <th>Закуплено</th>
+            <th>Поставка</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              <td class="primary-cell">
+                <strong>${escapeHtml(row.title)}</strong>
+                <small>${escapeHtml([row.typeLabel, row.article ? `PN: ${row.article}` : "", row.package].filter(Boolean).join(" · "))}</small>
+              </td>
+              <td>${escapeHtml(row.sourceLabel || "-")}</td>
+              <td>${escapeHtml(formatReportNumber(row.requiredQuantity))} ${escapeHtml(row.unit || "шт.")}</td>
+              <td><span class="supply-status-pill is-warning">нет счета</span></td>
+              <td>0 / ${escapeHtml(formatReportNumber(row.requiredQuantity))}</td>
+              <td><span class="supply-status-pill is-neutral">не запланирована</span></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindSupplyEvents() {
+  app.querySelectorAll("[data-supply-route-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const routeId = button.dataset.supplyRouteOpen || "";
+      if (!routeId) return;
+      ui.activeSupplyRouteId = routeId;
+      ui.activeRouteId = routeId;
+      persistUiState();
+      render();
+    });
+  });
+}
+
 function renderWarehousePage() {
   const activeRole = getActiveInterfaceRole();
   const isWarehouseClerkRole = activeRole.id === "warehouseClerk";
@@ -6872,11 +7314,11 @@ function getPlanningWorkItemId(type, id = "") {
 
 function parsePlanningWorkItemId(value = "") {
   const [type, ...rest] = String(value || "").split(":");
-  return { type: type || "task", id: rest.join(":") };
+  return { type: type === "batches" ? "schedule" : type || "task", id: rest.join(":") };
 }
 
 function getPlanningWorkItemSet(route, tasks, routeSteps) {
-  const itemIds = new Set(["supply", "chain", "batches"]);
+  const itemIds = new Set(["supply", "chain", "schedule"]);
   tasks.forEach((task) => itemIds.add(getPlanningWorkItemId("task", task.id)));
   routeSteps.forEach((step) => itemIds.add(getPlanningWorkItemId("step", step.id)));
   return itemIds;
@@ -6895,7 +7337,7 @@ function getDefaultPlanningWorkItem(route, tasks, routeSteps) {
     || isSmtOperationWorkCenter(step.workCenterId, step, planningState)
   ));
   if (firstSmtStep) return getPlanningWorkItemId("step", firstSmtStep.id);
-  return "batches";
+  return "schedule";
 }
 
 function getPlanningActiveWorkItem(route, tasks, routeSteps) {
@@ -6931,11 +7373,11 @@ function renderPlanningWorkNavigator(route, transferSummary, tasks, routeSteps, 
   )).length;
   const supplySummary = getPlanningSupplySummary(route, transferSummary, routeSteps);
   const productionChain = buildPlanningProductionChain(route, transferSummary, tasks, routeSteps);
-  const batchExpected = Number(transferSummary?.expected || 0);
-  const batchPlanned = Number(transferSummary?.planned || 0);
-  const batchMissing = Math.max(0, batchExpected - batchPlanned);
-  const batchTone = batchExpected && !batchMissing ? "ok" : batchExpected ? "warning" : "neutral";
-  const batchStatus = batchExpected && !batchMissing ? "готово" : batchMissing ? `${batchMissing} не размещено` : "передача";
+  const scheduleExpected = Number(transferSummary?.expected || 0);
+  const schedulePlanned = Number(transferSummary?.planned || 0);
+  const scheduleMissing = Math.max(0, scheduleExpected - schedulePlanned);
+  const scheduleTone = scheduleExpected && !scheduleMissing ? "ok" : scheduleExpected ? "warning" : "neutral";
+  const scheduleStatus = scheduleExpected && !scheduleMissing ? "готово" : scheduleMissing ? `${scheduleMissing} не размещено` : "передача";
 
   return `
     <aside class="module-panel planning-work-nav" aria-label="Структура заказ-наряда">
@@ -7014,13 +7456,13 @@ function renderPlanningWorkNavigator(route, transferSummary, tasks, routeSteps, 
         </div>
 
         ${renderPlanningWorkNavButton({
-          id: "batches",
+          id: "schedule",
           selectedItem,
           eyebrow: "Гант",
-          title: "Партии",
-          meta: `${transferSummary?.batches?.length || 0} партий · ${transferSummary?.planned || 0}/${transferSummary?.expected || 0} слотов`,
-          status: batchStatus,
-          tone: batchTone,
+          title: "Размещение",
+          meta: `${transferSummary?.planned || 0}/${transferSummary?.expected || 0} слотов · ${normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route)).toLocaleString("ru-RU")} шт.`,
+          status: scheduleStatus,
+          tone: scheduleTone,
         })}
       </div>
     </aside>
@@ -7058,7 +7500,7 @@ function renderPlanningWorkDetail(route, transferSummary, tasks, routeSteps, sel
   const { type, id } = parsePlanningWorkItemId(selectedItem);
   if (type === "supply") return renderPlanningSupplyDetail(route, transferSummary, tasks, routeSteps);
   if (type === "chain") return renderPlanningProductionChainDetail(route, transferSummary, tasks, routeSteps);
-  if (type === "batches") return renderPlanningBatchConstructor(route, transferSummary);
+  if (type === "schedule") return renderPlanningBatchConstructor(route, transferSummary);
   if (type === "task") {
     const task = tasks.find((item) => item.id === id);
     return task ? renderPlanningTaskDetail(route, task, transferSummary, routeSteps) : renderPlanningTaskDetail(route, tasks.find((item) => item.isMain) || tasks[0], transferSummary, routeSteps);
@@ -7134,7 +7576,7 @@ function renderPlanningOrderQuantityBlock(route, transferSummary) {
           <span>Количество в заказ-наряде</span>
           <input data-planning-quantity="${escapeAttribute(route?.id || "")}" type="number" min="1" step="1" value="${escapeAttribute(transferSummary.planningQuantity || 1)}" ${route ? "" : "disabled"} />
         </label>
-        <small>Используется для партий, SMT-расчета и размещения в Ганте.</small>
+        <small>Используется для заказ-наряда, SMT-расчета и размещения в Ганте.</small>
       </div>
       <div class="planning-required-summary">
         <article>
@@ -7594,7 +8036,7 @@ function renderPlanningFlowRulePanel(route, chain) {
           <strong>Правило запуска сборки</strong>
           <span>${canUseTransfer
             ? "когда финальная сборка может брать готовые платы из входных веток"
-            : "передаточная партия доступна, когда есть несколько входных веток и общая сборка"}</span>
+            : "передаточный объем доступен, когда есть несколько входных веток и общая сборка"}</span>
         </div>
         <em class="planning-section-tag ${isTransferMode ? "is-calculated" : "is-info"}">
           ${escapeHtml(settings.modeLabel)}
@@ -7713,7 +8155,7 @@ function renderPlanningProductionChainDetail(route, transferSummary, tasks, rout
       ` : `
         <div class="planning-muted-state">
           ${icon("check")}
-          <span>Критичных разрывов цепочки не найдено. Проверьте партии и передайте заказ-наряд в Гант.</span>
+          <span>Критичных разрывов цепочки не найдено. Проверьте заказ-наряд и передайте его в Гант.</span>
         </div>
       `}
     </section>
@@ -8101,109 +8543,43 @@ function renderPlanningOperationsByComposition(route, steps) {
 }
 
 function renderPlanningBatchConstructor(route, summary) {
-  const batches = summary?.batches || [];
-  const realBatches = batches.filter((batch) => batch.id !== "__pending__");
   const planningQuantity = normalizeQuantity(summary?.planningQuantity || getPlanningRouteQuantity(route));
-  const batchQuantityTotal = normalizeQuantity(summary?.batchQuantityTotal || planningQuantity);
-  const quantityDelta = Number(summary?.quantityDelta || 0);
-  const deltaTone = quantityDelta === 0 ? "ok" : quantityDelta > 0 ? "warning" : "critical";
-  const deltaLabel = quantityDelta === 0
-    ? "совпадает"
-    : `${quantityDelta > 0 ? "+" : ""}${quantityDelta.toLocaleString("ru-RU")} шт.`;
-  const routeId = route?.id || "";
+  const expected = Number(summary?.expected || 0);
+  const planned = Number(summary?.planned || 0);
+  const missing = Math.max(0, expected - planned);
+  const scheduleTone = expected && !missing ? "ok" : expected ? "warning" : "neutral";
 
   return `
     <section class="module-panel planning-batch-constructor">
       <div class="report-card-head planning-batch-head">
         <div>
           <div>
-            <strong>Партии</strong>
-            <span>разделите заказ перед автоматическим размещением в Ганте</span>
+            <strong>Размещение в Ганте</strong>
+            <span>заказ-наряд планируется единым объемом</span>
           </div>
-        </div>
-        <div class="planning-batch-actions">
-          <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("plus")}<span>Партия</span></button>
-          <button class="secondary-button" data-planning-batches-distribute="${escapeAttribute(routeId)}" type="button" ${route ? "" : "disabled"}>${icon("refresh")}<span>Разделить поровну</span></button>
-          <button class="secondary-button" data-planning-batches-accept-total="${escapeAttribute(routeId)}" type="button" ${route && realBatches.length ? "" : "disabled"}>${icon("check")}<span>Принять сумму</span></button>
         </div>
       </div>
       <div class="planning-section-note">
         <em class="planning-section-tag is-required">заполняется</em>
-        <span>Если партии не созданы вручную, система подготовит одну партию из планируемого количества.</span>
+        <span>Повторный запуск в дальнейшем лучше делать копированием заказ-наряда без отдельной производственной сущности.</span>
       </div>
 
       <div class="planning-batch-summary">
         <article>
-          <span>План</span>
-          <strong>${planningQuantity.toLocaleString("ru-RU")} шт.</strong>
-          <small>целевое количество</small>
-        </article>
-        <article>
-          <span>По партиям</span>
-          <strong>${batchQuantityTotal.toLocaleString("ru-RU")} шт.</strong>
-          <small>${realBatches.length || batches.length} партий</small>
-        </article>
-        <article class="${deltaTone}">
-          <span>Разница</span>
-          <strong>${escapeHtml(deltaLabel)}</strong>
-          <small>${quantityDelta === 0 ? "можно передавать в Гант" : "проверьте партийность"}</small>
-        </article>
-        <article>
-          <span>Слоты</span>
-          <strong>${summary?.planned || 0}/${summary?.expected || 0}</strong>
-          <small>операций в Ганте</small>
-        </article>
-      </div>
-
-      <div class="planning-batch-table" role="table" aria-label="Конструктор партий">
-        <div class="planning-batch-row is-head" role="row">
-          <span>Партия</span>
           <span>Количество</span>
-          <span>Гант</span>
-          <span></span>
-        </div>
-        ${batches.map((batch) => {
-          const isPending = batch.id === "__pending__";
-          const slotsCount = isPending ? 0 : getPlanningBatchSlots(batch, route).length;
-          return `
-            <div class="planning-batch-row ${isPending ? "is-pending" : ""}" role="row">
-              <label>
-                <span>Партия</span>
-                <input
-                  data-planning-batch-field="batchNumber"
-                  data-planning-batch-id="${escapeAttribute(batch.id)}"
-                  type="text"
-                  value="${escapeAttribute(batch.batchNumber || "")}"
-                  ${isPending ? "disabled" : ""}
-                />
-              </label>
-              <label>
-                <span>Количество</span>
-                <input
-                  data-planning-batch-field="quantity"
-                  data-planning-batch-id="${escapeAttribute(batch.id)}"
-                  type="number"
-                  inputmode="numeric"
-                  min="1"
-                  step="1"
-                  value="${escapeAttribute(batch.quantity || 1)}"
-                  ${isPending ? "disabled" : ""}
-                />
-              </label>
-              <div class="planning-batch-state">
-                <strong>${slotsCount ? `${slotsCount} слотов` : "не размещена"}</strong>
-                <small>${slotsCount ? "уже есть в Ганте" : "будет создана при передаче"}</small>
-              </div>
-              <div class="planning-batch-row-actions">
-                ${isPending ? `
-                  <button class="secondary-button" data-planning-batch-add="${escapeAttribute(routeId)}" type="button">${icon("plus")}<span>Создать</span></button>
-                ` : `
-                  <button class="icon-button danger-soft" data-planning-batch-delete="${escapeAttribute(batch.id)}" type="button" title="Удалить партию">${icon("trash")}</button>
-                `}
-              </div>
-            </div>
-          `;
-        }).join("")}
+          <strong>${planningQuantity.toLocaleString("ru-RU")} шт.</strong>
+          <small>объем заказ-наряда</small>
+        </article>
+        <article>
+          <span>Платы</span>
+          <strong>${Number(summary?.totalPanels || 0).toLocaleString("ru-RU")}</strong>
+          <small>по мультипликации</small>
+        </article>
+        <article class="${scheduleTone}">
+          <span>Слоты</span>
+          <strong>${planned}/${expected}</strong>
+          <small>${missing ? `${missing} еще не размещено` : "операции в Ганте"}</small>
+        </article>
       </div>
     </section>
   `;
@@ -8213,7 +8589,7 @@ function renderTreePage() {
   const stats = getObjectTreeStats();
   const productionContexts = getProductionContexts();
   const layers = [
-    { title: "Производство", value: productionContexts.length, meta: "состав изделия, партии, слоты" },
+    { title: "Производство", value: productionContexts.length, meta: "состав изделия, заказ-наряды, слоты" },
     { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "изделия, платы, маршруты" },
     { title: "Справочники", value: getDirectoryObjectCount(), meta: "отделы, ресурсы, сотрудники" },
   ];
@@ -8252,7 +8628,7 @@ function renderTreePage() {
           <div>
             <span class="eyebrow">Структура объектов</span>
             <h2>Дерево связей MES</h2>
-            <p>Просмотр без редактирования: как изделия, платы, маршрутные карты, партии, слоты Ганта и справочники связаны между собой.</p>
+            <p>Просмотр без редактирования: как изделия, платы, маршрутные карты, заказ-наряды, слоты Ганта и справочники связаны между собой.</p>
           </div>
         </header>
 
@@ -8295,7 +8671,7 @@ function getObjectTreeStats() {
     { label: PRODUCT_COMPOSITION_TERM, value: String((directoryState.specifications || []).length), caption: `${productionCount} в производстве` },
     { label: BOARD_SPEC_LIST_TERM, value: String((directoryState.bomLists || []).length), caption: `${importedBomRows.toLocaleString("ru-RU")} импортированных строк` },
     { label: "Маршрутные карты", value: String(planningState.routes.length), caption: `${planningState.routeSteps.length} операций` },
-    { label: "Слоты Ганта", value: String(planningState.slots.length), caption: `${planningState.batches.length} партий` },
+    { label: "Слоты Ганта", value: String(planningState.slots.length), caption: `${planningState.routes.length} заказ-нарядов` },
     { label: "Номенклатура", value: String((directoryState.nomenclature || []).length), caption: "позиции справочника" },
     { label: "Справочники", value: String(getDirectoryObjectCount()), caption: "записей инфраструктуры" },
   ];
@@ -8349,14 +8725,16 @@ function renderProductionTree() {
 function renderProductionProjectTree(project) {
   const specification = getSpecificationByProjectId(project.id);
   const routes = planningState.routes.filter((route) => route.specificationId === project.id || route.projectId === project.id);
-  const batches = planningState.batches.filter((batch) => batch.specificationId === project.id || batch.projectId === project.id);
   const slots = planningState.slots.filter((slot) => slot.specificationId === project.id || slot.projectId === project.id);
   const routeNodes = routes.length
     ? routes.map((route) => renderRouteObjectTree(route)).join("")
     : renderObjectTreeLeaf("Маршрутная карта не создана", "Для передачи в планирование нужен маршрут.", "warning");
-  const batchNodes = batches.length
-    ? batches.map((batch) => renderBatchObjectTree(batch, slots.filter((slot) => slot.batchId === batch.id))).join("")
-    : renderObjectTreeLeaf("Партии не созданы", "Партии появятся при подготовке состава изделия к производству.", "empty");
+  const slotNodes = routes.length
+    ? routes.map((route) => renderBatchObjectTree(
+        getRoutePlanningOrder(route, project),
+        slots.filter((slot) => slot.routeId === route.id || slot.batchId === route.id),
+      )).join("")
+    : renderObjectTreeLeaf("Заказ-наряды не созданы", "Создайте маршрутную карту и передайте ее в Гант.", "empty");
 
   return renderObjectTreeNode({
     title: getProjectDisplayName(project) || project.name || "Состав изделия в производстве",
@@ -8376,11 +8754,11 @@ function renderProductionProjectTree(project) {
         children: [routeNodes],
       }),
       renderObjectTreeNode({
-        title: "Партии и слоты Ганта",
-        meta: `${batches.length} партий · ${slots.length} слотов`,
+        title: "Заказ-наряды и слоты Ганта",
+        meta: `${routes.length} заказ-нарядов · ${slots.length} слотов`,
         badge: slots.length,
         tone: "gantt",
-        children: [batchNodes],
+        children: [slotNodes],
       }),
     ],
   });
@@ -8581,6 +8959,7 @@ function renderRouteObjectTree(route) {
 }
 
 function renderBatchObjectTree(batch, slots) {
+  const route = (planningState.routes || []).find((item) => item.id === batch?.routeId) || null;
   const slotsByCenter = slots.reduce((map, slot) => {
     const key = slot.workCenterId || "unknown";
     if (!map.has(key)) map.set(key, []);
@@ -8589,7 +8968,7 @@ function renderBatchObjectTree(batch, slots) {
   }, new Map());
 
   return renderObjectTreeNode({
-    title: `Партия ${batch.batchNumber || batch.id}`,
+    title: route?.name || "Заказ-наряд",
     meta: `${Number(batch.quantity || 0).toLocaleString("ru-RU")} шт. · ${batch.status || "статус не задан"}`,
     badge: slots.length,
     tone: "batch",
@@ -8719,6 +9098,7 @@ function getModuleDefinitions() {
   return [
     { id: "gantt", label: "Гант", icon: "gantt" },
     { id: "planning", label: "Планирование", icon: "calendar" },
+    { id: "supply", label: "Снабжение", icon: "supply" },
     { id: "dispatch", label: "Диспетчерская", icon: "monitor" },
     { id: "warehouse", label: "Склад", icon: "warehouse" },
     { id: "shopMap", label: "Цех производства", icon: "map" },
@@ -8733,8 +9113,8 @@ function getModuleDefinitions() {
 
 function getModuleGroups(modules) {
   const groupMap = [
-    { label: "Производство", ids: ["gantt", "planning", "dispatch", "warehouse"] },
-    { label: "Технологии", ids: ["products", "routes", "bomLists", "nomenclature"] },
+    { label: "Производство", ids: ["gantt", "planning", "supply", "dispatch", "warehouse"] },
+    { label: "Технологии", ids: ["routes", "products", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
     { label: "UX-макеты", ids: ["shopMap", "rkd"], tone: "test" },
   ];
@@ -9448,7 +9828,6 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
         || planningState.routes.find((item) => item.projectId === project.id)
       : null;
     const routeSteps = route ? planningState.routeSteps.filter((step) => step.routeId === route.id) : [];
-    const batches = project ? planningState.batches.filter((batch) => batch.projectId === project.id) : [];
     const slots = project ? planningState.slots.filter((slot) => slot.projectId === project.id) : [];
     const isActive = specification.id === calc.specification?.id;
     const bomSummary = bomEntries.length
@@ -9460,14 +9839,13 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
     const routeSummary = routeSteps.length
       ? `${routeSteps.length} оп. · ${route?.name || "маршрут"}`
       : "маршрут не сохранен";
-    const launchSummary = `${Number(getSpecificationProductionQuantity(specification) || 0).toLocaleString("ru-RU")} шт. · ${batches.length} парт. · ${slots.length} слотов`;
+    const launchSummary = `${Number(getSpecificationProductionQuantity(specification) || 0).toLocaleString("ru-RU")} шт. · ${route ? "заказ-наряд" : "без заказа"} · ${slots.length} слотов`;
     return {
       project,
       specification,
       bomEntries,
       route,
       routeSteps,
-      batches,
       slots,
       isActive,
       bomSummary,
@@ -9689,6 +10067,7 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
     || { value: "", label: "Не выбрано", meta: "" };
   const summaryLabel = selectedItem.summaryLabel || selectedItem.label;
   const summaryMeta = Object.prototype.hasOwnProperty.call(selectedItem, "summaryMeta") ? selectedItem.summaryMeta : selectedItem.meta;
+  const selectedTone = String(options.tone || selectedItem.tone || "").trim();
   const rootAttribute = options.type === "specStructureBom"
     ? `data-dense-spec-structure-bom="${escapeAttribute(options.itemId || "")}"`
     : options.type === "specStructureParent"
@@ -9701,6 +10080,8 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
       ? `data-dense-speki-structure-specification="${escapeAttribute(options.itemId || "")}"`
     : options.type === "spekiStructureNomenclature"
       ? `data-dense-speki-structure-nomenclature="${escapeAttribute(options.itemId || "")}"`
+    : options.type === "spekiStructureNomenclatureType"
+      ? `data-dense-speki-structure-nomenclature-type="${escapeAttribute(options.itemId || "")}"`
     : options.type === "spekiStructureFulfillment"
       ? `data-dense-speki-structure-fulfillment="${escapeAttribute(options.itemId || "")}"`
     : options.type === "spekiStructureExecution"
@@ -9722,11 +10103,12 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
         : options.type === "toolbar"
           ? `data-dense-toolbar-select="${escapeAttribute(name)}"`
           : `data-dense-calc-select="${escapeAttribute(name)}"`;
+  const toneClass = selectedTone ? ` is-${escapeAttribute(selectedTone)}` : "";
   const actionClass = items.some((item) => item.action) ? " has-actions" : "";
   const disabledClass = options.disabled ? " is-disabled" : "";
 
   return `
-    <details class="dense-inline-select${options.type ? ` dense-select-${escapeAttribute(options.type)}` : ""}${actionClass}${disabledClass}" ${rootAttribute} ${options.disabled ? "aria-disabled=\"true\"" : ""}>
+    <details class="dense-inline-select${options.type ? ` dense-select-${escapeAttribute(options.type)}` : ""}${toneClass}${actionClass}${disabledClass}" ${rootAttribute} ${options.disabled ? "aria-disabled=\"true\"" : ""}>
       <summary ${options.disabled ? "tabindex=\"-1\"" : ""}>
         <span>
           <strong>${escapeHtml(summaryLabel)}</strong>
@@ -9735,12 +10117,15 @@ function renderDenseInlineSelect(name, value, items, options = {}) {
         ${icon("chevronDown")}
       </summary>
       <div class="dense-inline-options">
-        ${items.map((item) => `
-          <button class="${String(item.value) === String(value) ? "is-selected" : ""} ${item.action ? "is-command" : ""}" data-dense-value="${escapeAttribute(item.value)}" ${item.action ? `data-dense-action="${escapeAttribute(item.action)}"` : ""} type="button" ${options.disabled || item.disabled ? "disabled" : ""}>
+        ${items.map((item) => {
+          const itemToneClass = item.tone ? ` is-${escapeAttribute(item.tone)}` : "";
+          return `
+          <button class="${String(item.value) === String(value) ? "is-selected" : ""} ${item.action ? "is-command" : ""}${itemToneClass}" data-dense-value="${escapeAttribute(item.value)}" ${item.action ? `data-dense-action="${escapeAttribute(item.action)}"` : ""} type="button" ${options.disabled || item.disabled ? "disabled" : ""}>
             <strong>${escapeHtml(item.label)}</strong>
             ${item.meta ? `<small>${escapeHtml(item.meta)}</small>` : ""}
           </button>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
     </details>
   `;
@@ -10812,6 +11197,23 @@ function getFulfillmentTone(mode = "") {
   return "warning";
 }
 
+function getDefaultStructureNomenclatureType(type = "nomenclature") {
+  if (type === "bom") return "Печатные платы";
+  if (type === "assembly" || type === "specification") return "Производимые узлы";
+  return NOMENCLATURE_REA_COMPONENT_TYPE;
+}
+
+function inferStructureNomenclatureType(item = {}, nomenclatureItem = null) {
+  if (nomenclatureItem?.type) return normalizeNomenclatureType(nomenclatureItem.type);
+  const lookup = normalizeLookupText([item.name, item.resultItem, item.note, item.unit].filter(Boolean).join(" "));
+  if (item.type === "bom" || item.bomListId || lookup.includes("pcb") || lookup.includes("печатн") || lookup.includes("плата")) return "Печатные платы";
+  if (lookup.includes("жгут") || lookup.includes("кабел") || lookup.includes("шлейф")) return "Кабели и жгуты";
+  if (lookup.includes("корпус") || lookup.includes("крепеж") || lookup.includes("радиатор") || lookup.includes("механ")) return "Механика";
+  if (lookup.includes("паста") || lookup.includes("флюс") || lookup.includes("лак") || lookup.includes("расход")) return "Расходные материалы";
+  if (lookup.includes("упаков") || lookup.includes("этикет") || lookup.includes("маркир")) return "Упаковка и маркировка";
+  return getDefaultStructureNomenclatureType(item.type);
+}
+
 function normalizeSpecificationStructureItem(item, index = 0) {
   const allowedTypes = new Set(["assembly", "bom", "specification", "part", "nomenclature"]);
   const type = allowedTypes.has(item?.type) ? item.type : item?.bomListId ? "bom" : "part";
@@ -10832,6 +11234,8 @@ function normalizeSpecificationStructureItem(item, index = 0) {
     : String(linkedOperation?.name || item?.operationName || item?.operation || item?.routeOperation || "");
   const operationDepartment = linkedOperation ? getWorkCenter(linkedOperation.workCenterId)?.name || "" : "";
   const bomListId = type === "bom" ? String(item?.bomListId || item?.bomId || "") : "";
+  const rawNomenclatureType = String(item?.nomenclatureType || item?.sectionType || nomenclatureItem?.type || "").trim();
+  const nomenclatureType = rawNomenclatureType ? normalizeNomenclatureType(rawNomenclatureType) : "";
   return {
     id: String(item?.id || makeId("spi")),
     parentId: String(item?.parentId || "root"),
@@ -10844,6 +11248,7 @@ function normalizeSpecificationStructureItem(item, index = 0) {
     bomListId,
     specificationId: type === "specification" ? String(item?.specificationId || item?.linkedSpecificationId || "") : "",
     nomenclatureId: type === "nomenclature" ? String(item?.nomenclatureId || item?.itemId || "") : "",
+    nomenclatureType,
     name: String(item?.name || ""),
     quantity,
     unit: String(item?.unit || (type === "assembly" ? "узел" : type === "bom" ? "плата" : type === "specification" ? "состав" : "шт.")),
@@ -11714,6 +12119,14 @@ function syncNomenclatureTypeRename(previousName, nextName) {
       ? { ...item, type: next, updatedAt: new Date().toISOString() }
       : item
   ));
+  directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
+    ...specification,
+    structureItems: getSpecificationStructureItems(specification).map((item) => (
+      normalizeLookupText(item.nomenclatureType) === normalizeLookupText(previous)
+        ? { ...item, nomenclatureType: next }
+        : item
+    )),
+  }));
   if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(previous)) {
     ui.nomenclatureTypeFilter = next;
   }
@@ -11731,6 +12144,37 @@ function getNomenclatureTypeOptions(items = directoryState.nomenclature || []) {
     value: type.name,
     label: type.name,
     meta: type.description || type.code || "тип номенклатуры",
+  }));
+}
+
+function getNomenclatureTypeTone(typeName = "") {
+  const row = getNomenclatureTypeRows({ includeInactive: true })
+    .find((type) => normalizeLookupText(type.name) === normalizeLookupText(typeName));
+  const key = normalizeLookupText([row?.code, row?.name, typeName].filter(Boolean).join(" "));
+  if (key.includes("pcb") || key.includes("печат")) return "section-blue";
+  if (key.includes("cable") || key.includes("жгут") || key.includes("кабел")) return "section-violet";
+  if (key.includes("mech") || key.includes("механ")) return "section-slate";
+  if (key.includes("cons") || key.includes("расход")) return "section-amber";
+  if (key.includes("pack") || key.includes("упаков") || key.includes("маркир")) return "section-cyan";
+  if (key.includes("buy") || key.includes("покуп")) return "section-rose";
+  if (key.includes("make") || key.includes("производ")) return "section-indigo";
+  if (key.includes("tool") || key.includes("оснаст")) return "section-stone";
+  if (key.includes("rea") || key.includes("рэа")) return "section-emerald";
+  return "section-neutral";
+}
+
+function getSpekiStructureSectionOptions() {
+  const options = getNomenclatureTypeRows().map((type) => ({
+    value: type.name,
+    label: type.name,
+    meta: type.description || type.code || "раздел номенклатуры",
+    summaryMeta: "",
+    tone: getNomenclatureTypeTone(type.name),
+  }));
+  return options.length ? options : NOMENCLATURE_DEFAULT_TYPES.map((type) => ({
+    ...type,
+    summaryMeta: "",
+    tone: getNomenclatureTypeTone(type.value),
   }));
 }
 
@@ -12596,33 +13040,13 @@ function ensureSpecificationPlanningUnit(specification) {
 
   if (!existingRoute) return specificationId;
 
-  planningState.batches = (planningState.batches || []).some((batch) => batch.routeId === existingRoute.id)
-    ? planningState.batches.map((batch) => batch.routeId === existingRoute.id ? {
-        ...batch,
-        routeId: existingRoute.id,
-        specificationId,
-        projectId: specificationId,
-        quantity,
-        status,
-        updatedAt: stamp,
-      } : batch)
-    : [...planningState.batches, {
-        id: `b-${existingRoute.id}-1`,
-        routeId: existingRoute.id,
-        specificationId,
-        projectId: specificationId,
-        batchNumber: "1",
-        quantity,
-        status,
-        createdAt: stamp,
-        updatedAt: stamp,
-      }];
-
   planningState.routes = planningState.routes.map((route) => route.id === existingRoute.id ? {
     ...route,
     specificationId,
     specificationName: specification.name || name,
     projectId: specificationId,
+    planningQuantity: quantity,
+    planningStatus: status,
     updatedAt: stamp,
   } : route);
   planningState.projects = [];
@@ -13740,7 +14164,7 @@ function renderSpecificationsPage() {
               <label class="form-field full"><span>Итоговое изделие</span><input name="outputItem" value="${escapeAttribute(specification.outputItem)}" placeholder="Готовое изделие / узел" /></label>
               <label class="form-field"><span>Кол-во к производству</span><input name="productionQuantity" type="number" min="1" step="1" value="${escapeAttribute(productionQuantity)}" placeholder="например 1000" /></label>
               <label class="form-field"><span>Срок выпуска</span><input name="dueDate" type="date" value="${escapeAttribute(dueDate)}" /></label>
-              <label class="form-field"><span>Заказ / партия</span><input name="orderNumber" value="${escapeAttribute(getSpecificationProductionOrder(specification))}" placeholder="№ / партия" /></label>
+              <label class="form-field"><span>Заказ</span><input name="orderNumber" value="${escapeAttribute(getSpecificationProductionOrder(specification))}" placeholder="№ заказа" /></label>
               <label class="form-field"><span>Заказчик</span><input name="customer" value="${escapeAttribute(getSpecificationProductionCustomer(specification))}" placeholder="Компания / внутренний заказ" /></label>
               <label class="form-field"><span>Плата A</span><select name="bomListA"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListA, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во A</span><input name="bomQtyA" type="number" min="0" step="1" value="${Number(specification.bomQtyA || 0)}" /></label>
@@ -13849,7 +14273,6 @@ function renderSpekiWorkspace(options = {}) {
         <section class="module-panel speki-spec-table-panel">
           <div class="report-card-head">
             <strong>${PRODUCT_STRUCTURE_TERM}</strong>
-            <span>${escapeHtml(activeSpecification.name || "выбранное изделие")}</span>
           </div>
           ${renderSpekiStructureTable(activeSpecification, isEditing)}
         </section>
@@ -13865,6 +14288,61 @@ function renderSpekiWorkspace(options = {}) {
       </div>
     </div>
   `;
+}
+
+function getSpekiStructureTypeTone(type = "") {
+  if (type === "assembly") return "assembly";
+  if (type === "bom") return "bom";
+  if (type === "specification") return "specification";
+  return "nomenclature";
+}
+
+function renderSpekiStructureTypeChip(type, label) {
+  const tone = getSpekiStructureTypeTone(type);
+  return `<span class="speki-section-chip is-${escapeAttribute(tone)}">${escapeHtml(label)}</span>`;
+}
+
+function getSpekiStructureSectionValue(item = {}, nomenclatureItem = null) {
+  const explicitType = String(item.nomenclatureType || "").trim();
+  const actualType = nomenclatureItem?.type ? normalizeNomenclatureType(nomenclatureItem.type) : "";
+  if (actualType) return actualType;
+  const inferredType = inferStructureNomenclatureType(item, nomenclatureItem);
+  if (
+    explicitType
+    && normalizeLookupText(explicitType) === normalizeLookupText(NOMENCLATURE_REA_COMPONENT_TYPE)
+    && !item.nomenclatureId
+    && normalizeLookupText(inferredType) !== normalizeLookupText(NOMENCLATURE_REA_COMPONENT_TYPE)
+  ) {
+    return inferredType;
+  }
+  return explicitType ? normalizeNomenclatureType(explicitType) : inferredType;
+}
+
+function renderSpekiStructureSectionChip(label, tone) {
+  return `<span class="speki-section-chip is-${escapeAttribute(tone || getNomenclatureTypeTone(label))}">${escapeHtml(label || "Раздел не выбран")}</span>`;
+}
+
+function getSpekiNomenclatureOptions(sectionName = "", currentId = "") {
+  const normalizedSection = normalizeLookupText(sectionName);
+  const allItems = directoryState.nomenclature || [];
+  const currentItem = allItems.find((item) => item.id === currentId);
+  const sectionItems = allItems.filter((item) => !normalizedSection || normalizeLookupText(normalizeNomenclatureType(item.type)) === normalizedSection);
+  const options = sectionItems.map((item) => ({
+    value: item.id,
+    label: item.name || "Позиция без названия",
+    meta: [item.article, item.package || item.type].filter(Boolean).join(" · ") || "номенклатура",
+  }));
+  if (currentItem && !options.some((option) => option.value === currentItem.id)) {
+    options.unshift({
+      value: currentItem.id,
+      label: currentItem.name || "Позиция без названия",
+      meta: [currentItem.article, currentItem.package || currentItem.type].filter(Boolean).join(" · ") || "текущая позиция",
+    });
+  }
+  return [
+    { value: "", label: "Выберите номенклатуру", meta: sectionName ? `раздел: ${sectionName}` : "позиция состава" },
+    ...options,
+  ];
 }
 
 function renderSpekiStructureTable(specification, isEditing = false) {
@@ -13897,40 +14375,13 @@ function renderSpekiStructureTable(specification, isEditing = false) {
         meta: `${getSpecificationStructureItems(item).length} строк состава`,
       })),
   ];
-  const nomenclatureOptions = [
-    { value: "", label: "Выберите номенклатуру", meta: "позиция состава" },
-    ...(directoryState.nomenclature || []).map((item) => ({
-      value: item.id,
-      label: item.name || "Позиция без названия",
-      meta: [item.article, item.package || item.type].filter(Boolean).join(" · ") || "номенклатура",
-    })),
-  ];
-  const typeOptions = [
-    { value: "assembly", label: "Узел", meta: "группа строк состава", summaryMeta: "" },
-    { value: "bom", label: BOARD_SPEC_TERM, meta: "BOM / компонентный состав", summaryMeta: "" },
-    { value: "specification", label: PRODUCT_COMPOSITION_TERM, summaryLabel: "Изделие", meta: "вложенное изделие", summaryMeta: "" },
-    { value: "nomenclature", label: "Номенклатура", summaryLabel: "Позиция", meta: "материал, плата или изделие", summaryMeta: "" },
-  ];
-  const fulfillmentOptions = STRUCTURE_FULFILLMENT_MODES.map((mode) => ({
-    value: mode,
-    label: STRUCTURE_FULFILLMENT_LABELS[mode],
-    summaryMeta: "",
-    meta: STRUCTURE_FULFILLMENT_META[mode],
-  }));
-  const compositionSummary = getSpekiCompositionSummary(specification, rows);
-
+  const sectionOptions = getSpekiStructureSectionOptions();
   const miniCardMarkup = `
     <article class="speki-spec-mini-card">
       <label class="speki-spec-name-field">
         <span>Название состава изделия</span>
         <input data-speki-spec-name="${escapeAttribute(specification.id)}" value="${escapeAttribute(specification.name || "")}" placeholder="Введите название состава изделия" ${isEditing ? "" : "disabled"} />
       </label>
-      <div class="speki-composition-strip" aria-label="Сводка состава изделия">
-        <article><span>Строк</span><strong>${compositionSummary.totalRows}</strong></article>
-        <article><span>Узлов</span><strong>${compositionSummary.nodeCount}</strong></article>
-        <article><span>Позиций</span><strong>${compositionSummary.nomenclatureCount}</strong></article>
-        <article><span>Вложений</span><strong>${compositionSummary.nestedSpecificationCount}</strong></article>
-      </div>
       <div class="speki-spec-card-actions">
         ${isEditing
           ? `<button class="primary-button" data-speki-save="${escapeAttribute(specification.id)}" type="button">${icon("save")}<span>Сохранить</span></button>`
@@ -13951,7 +14402,6 @@ function renderSpekiStructureTable(specification, isEditing = false) {
             <th>Наименование</th>
             <th>Кол-во</th>
             <th>Ед.</th>
-            <th>Обеспечение</th>
             <th></th>
           </tr>
         </thead>
@@ -13966,13 +14416,15 @@ function renderSpekiStructureTable(specification, isEditing = false) {
               ? (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId) || bomResultItem
               : null;
             const rowType = item.type === "assembly" || item.type === "specification" || item.type === "bom" ? item.type : "nomenclature";
+            const sectionValue = getSpekiStructureSectionValue(item, nomenclatureItem);
+            const sectionTone = getNomenclatureTypeTone(sectionValue);
             const objectSelect = rowType === "specification"
               ? renderDenseInlineSelect("specificationId", item.specificationId, specificationOptions, { type: "spekiStructureSpecification", itemId: item.id })
               : rowType === "assembly"
                 ? `<input class="speki-node-name-input" data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="name" value="${escapeAttribute(item.name || "Новый узел")}" placeholder="Название узла" ${isEditing ? "" : "disabled"} />`
                 : rowType === "bom"
                   ? renderDenseInlineSelect("bomListId", item.bomListId, bomOptions, { type: "spekiStructureBom", itemId: item.id })
-                  : renderDenseInlineSelect("nomenclatureId", item.nomenclatureId || nomenclatureItem?.id || "", nomenclatureOptions, { type: "spekiStructureNomenclature", itemId: item.id });
+                  : renderDenseInlineSelect("nomenclatureId", item.nomenclatureId || nomenclatureItem?.id || "", getSpekiNomenclatureOptions(sectionValue, item.nomenclatureId || nomenclatureItem?.id || ""), { type: "spekiStructureNomenclature", itemId: item.id });
             const objectLabel = rowType === "specification"
               ? linkedSpecification?.name || item.name || "Изделие не выбрано"
               : rowType === "assembly"
@@ -13980,16 +14432,6 @@ function renderSpekiStructureTable(specification, isEditing = false) {
                 : rowType === "bom"
                   ? bom?.name || item.name || "Плата не выбрана"
                 : nomenclatureItem?.name || item.name || "Номенклатура не выбрана";
-            const typeLabel = rowType === "assembly"
-              ? "Узел"
-              : rowType === "specification"
-                ? PRODUCT_COMPOSITION_TERM
-                : rowType === "bom"
-                  ? BOARD_SPEC_TERM
-                : "Номенклатура";
-            const nextSibling = rows.slice(index + 1)
-              .find((row) => row.level === level && (row.item.parentId || "root") === (item.parentId || "root"));
-            const canCreateNode = isEditing && rowType !== "assembly" && Boolean(nextSibling);
             const objectMissing = rowType === "specification"
               ? !linkedSpecification
               : rowType === "assembly"
@@ -13999,25 +14441,23 @@ function renderSpekiStructureTable(specification, isEditing = false) {
                 : !nomenclatureItem;
             const quantityMissing = Number(item.quantity || 0) <= 0;
             const unitMissing = !String(item.unit || "").trim();
-            const fulfillmentMode = getSpecificationItemFulfillmentMode(item);
-            const fulfillmentMissing = fulfillmentMode === "not_selected";
             const objectContent = isEditing ? objectSelect : `<span class="speki-static-cell">${escapeHtml(objectLabel)}</span>`;
             const rowNumberContent = `<span class="speki-row-number">${escapeHtml(number)}</span>`;
-            const fulfillmentContent = isEditing
-              ? renderDenseInlineSelect("fulfillmentMode", fulfillmentMode, fulfillmentOptions, { type: "spekiStructureFulfillment", itemId: item.id })
-              : `<span class="speki-static-cell speki-fulfillment-cell is-${escapeAttribute(getFulfillmentTone(fulfillmentMode))}">${escapeHtml(getFulfillmentLabel(fulfillmentMode))}</span>`;
+            const sectionContent = rowType === "assembly"
+              ? `<span class="speki-node-section-cell">Узел</span>`
+              : isEditing
+                ? renderDenseInlineSelect("nomenclatureType", sectionValue, sectionOptions, { type: "spekiStructureNomenclatureType", itemId: item.id, tone: sectionTone })
+                : renderSpekiStructureSectionChip(sectionValue, sectionTone);
 
             return `
               <tr class="${rowType === "assembly" ? "is-speki-node" : ""}" data-speki-structure-row="${escapeAttribute(item.id)}" style="--speki-level: ${level};">
                 <td>${rowNumberContent}</td>
-                <td>${isEditing ? renderDenseInlineSelect("type", rowType, typeOptions, { type: "spekiStructureType", itemId: item.id }) : `<span class="speki-static-cell">${escapeHtml(typeLabel)}</span>`}</td>
+                <td>${sectionContent}</td>
                 <td class="${objectMissing ? "is-speki-field-missing" : ""}"><div class="speki-object-cell">${objectContent}</div></td>
                 <td class="${quantityMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="quantity" type="number" inputmode="numeric" min="0" step="1" value="${Math.round(Number(item.quantity || 0))}" />` : `<span class="speki-static-cell">${escapeHtml(formatReportNumber(item.quantity || 0))}</span>`}</td>
                 <td class="${unitMissing ? "is-speki-field-missing" : ""}">${isEditing ? `<input data-speki-structure-input="${escapeAttribute(item.id)}" data-speki-structure-field="unit" value="${escapeAttribute(item.unit)}" />` : `<span class="speki-static-cell">${escapeHtml(item.unit || "шт.")}</span>`}</td>
-                <td class="${fulfillmentMissing ? "is-speki-field-missing" : ""}">${fulfillmentContent}</td>
                 <td>
                   <div class="speki-table-row-actions">
-                    <button class="speki-node-button" data-speki-create-node-from-row="${escapeAttribute(item.id)}" type="button" title="Объединить эту и следующую строку в узел" ${canCreateNode ? "" : "disabled"}>${icon("split")}<span>Узел</span></button>
                     <button class="icon-button" data-speki-structure-outdent="${escapeAttribute(item.id)}" type="button" title="На уровень выше" ${!isEditing || level === 0 ? "disabled" : ""}>${icon("arrowLeft")}</button>
                     <button class="icon-button" data-speki-structure-indent="${escapeAttribute(item.id)}" type="button" title="На уровень ниже" ${!isEditing || index === 0 ? "disabled" : ""}>${icon("arrowRight")}</button>
                     <button class="icon-button" data-speki-structure-up="${escapeAttribute(item.id)}" type="button" title="Поднять" ${!isEditing || index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
@@ -14029,7 +14469,7 @@ function renderSpekiStructureTable(specification, isEditing = false) {
             `;
           }).join("") : `
             <tr>
-              <td colspan="7" class="primary-cell">
+              <td colspan="6" class="primary-cell">
                 <span class="component-name">Структура пока пустая</span>
                 <small>Добавьте строку под таблицей и выберите тип: узел, состав изделия или номенклатура.</small>
               </td>
@@ -14038,10 +14478,9 @@ function renderSpekiStructureTable(specification, isEditing = false) {
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="7">
+            <td colspan="6">
 	              <div class="speki-table-add-row">
 	                <button class="secondary-button" data-speki-add-row="assembly" type="button" ${isEditing ? "" : "disabled"}>${icon("split")}<span>Добавить узел</span></button>
-	                <button class="secondary-button" data-speki-add-row="bom" type="button" ${isEditing ? "" : "disabled"}>${icon("bom")}<span>Добавить плату</span></button>
 	                <button class="secondary-button" data-speki-add-row="nomenclature" type="button" ${isEditing ? "" : "disabled"}>${icon("plus")}<span>Добавить строку</span></button>
 	              </div>
             </td>
@@ -14050,30 +14489,6 @@ function renderSpekiStructureTable(specification, isEditing = false) {
       </table>
     </div>
   `;
-}
-
-function getSpekiCompositionSummary(specification, rows = getSpekiStructureTableRows(specification)) {
-  const items = getSpecificationStructureItems(specification);
-  const directNomenclatureItems = items.filter((item) => item.type === "nomenclature" || item.type === "part" || item.type === "bom");
-  const byNomenclatureType = directNomenclatureItems.reduce((acc, item) => {
-    const nomenclature = (directoryState.nomenclature || []).find((entry) => entry.id === item.nomenclatureId);
-    const type = normalizeNomenclatureType(nomenclature?.type || "Прочее");
-    acc[type] = (acc[type] || 0) + 1;
-    return acc;
-  }, {});
-
-  return {
-    totalRows: rows.length,
-    bomCount: items.filter((item) => Boolean(getSpecificationItemBomId(item))).length,
-    nodeCount: items.filter((item) => item.type === "assembly").length,
-    nestedSpecificationCount: items.filter((item) => item.type === "specification").length,
-    nomenclatureCount: directNomenclatureItems.length,
-    makeCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "produce").length,
-    stockCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "from_stock").length,
-    buyCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "purchase").length,
-    issueCount: items.filter((item) => getSpecificationItemFulfillmentMode(item) === "not_selected").length,
-    byNomenclatureType,
-  };
 }
 
 function getSpekiStructureTableRows(specification) {
@@ -15384,6 +15799,42 @@ function renderRouteStepFlowEditor(route, step) {
   `;
 }
 
+function renderRouteStepFlowSummary(route, step) {
+  const flow = getRouteStepFlowModel(route, step);
+  const title = `${flow.inputLabel} -> ${flow.outputLabel}`;
+  return `
+    <span class="route-step-flow-summary" title="${escapeAttribute(title)}">
+      <b>Вход</b>
+      <strong>${escapeHtml(flow.inputLabel)}</strong>
+      <i aria-hidden="true">&rarr;</i>
+      <b>Выход</b>
+      <strong>${escapeHtml(flow.outputLabel)}</strong>
+    </span>
+  `;
+}
+
+function renderRouteStepFlowOverride(route, step) {
+  const flow = getRouteStepFlowModel(route, step);
+  const inputValue = getRouteStepManualFlowLabel(step, "input");
+  const outputValue = getRouteStepManualFlowLabel(step, "output");
+  return `
+    <details class="route-step-flow-override route-step-flow-override-compact">
+      <summary title="Уточнить вход и выход операции">${icon("info")}<span>Поток</span></summary>
+      <div>
+        ${renderOperationFlowMap(flow, { compact: true, editable: true })}
+        <label class="form-field">
+          <span>Вход</span>
+          <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="operationInputs" value="${escapeAttribute(inputValue)}" placeholder="${escapeAttribute(flow.autoInputLabel)}" />
+        </label>
+        <label class="form-field">
+          <span>Выход</span>
+          <input data-route-step-input="${escapeAttribute(step.id)}" data-route-step-field="operationOutputs" value="${escapeAttribute(outputValue)}" placeholder="${escapeAttribute(flow.autoOutputLabel)}" />
+        </label>
+      </div>
+    </details>
+  `;
+}
+
 function getWorkCenterIdForRouteTask(task) {
   const targetUnit = (planningState.workCenters || []).find((center) => (
     isPlanningWorkCenter(center)
@@ -15656,19 +16107,17 @@ function getRouteModuleStats(route) {
 function getRouteDeleteUsage(routeId) {
   const steps = getRouteStepsForModule(routeId);
   const stepIds = new Set(steps.map((step) => step.id));
-  const batches = (planningState.batches || []).filter((batch) => batch.routeId === routeId);
-  const batchIds = new Set(batches.map((batch) => batch.id));
   const slots = (planningState.slots || []).filter((slot) => (
-    stepIds.has(slot.routeStepId) || batchIds.has(slot.batchId)
+    slot.routeId === routeId || stepIds.has(slot.routeStepId) || slot.batchId === routeId
   ));
   return {
     steps,
     stepIds,
-    batches,
-    batchIds,
+    batches: [],
+    batchIds: new Set(),
     slots,
     stepsCount: steps.length,
-    batchesCount: batches.length,
+    batchesCount: 0,
     slotsCount: slots.length,
   };
 }
@@ -15683,9 +16132,8 @@ function deleteRouteMapConfirmed(routeId) {
 
   planningState.routes = (planningState.routes || []).filter((item) => item.id !== routeId);
   planningState.routeSteps = (planningState.routeSteps || []).filter((step) => step.routeId !== routeId);
-  planningState.batches = (planningState.batches || []).filter((batch) => !usage.batchIds.has(batch.id));
   planningState.slots = (planningState.slots || []).filter((slot) => (
-    !usage.stepIds.has(slot.routeStepId) && !usage.batchIds.has(slot.batchId)
+    slot.routeId !== routeId && !usage.stepIds.has(slot.routeStepId) && slot.batchId !== routeId
   ));
   if (RKD_SERVICE_ENABLED) {
     directoryState.rkdKits = (directoryState.rkdKits || []).map((rkd) => normalizeDirectoryRow("rkdKits", {
@@ -15721,44 +16169,12 @@ function deleteRouteMapConfirmed(routeId) {
 
 function ensureProjectBatches(project) {
   if (!project) return [];
-  const existing = planningState.batches.filter((batch) => batch.projectId === project.id);
-  if (existing.length) return existing;
-
-  const stamp = new Date().toISOString();
-  const batch = {
-    id: `b-${project.id}-1`,
-    projectId: project.id,
-    batchNumber: "1",
-    quantity: normalizeQuantity(project.totalQuantity),
-    status: project.status || "planned",
-    createdAt: stamp,
-    updatedAt: stamp,
-  };
-  planningState.batches = [...planningState.batches, batch];
-  return [batch];
+  const route = (planningState.routes || []).find((item) => item.specificationId === project.id || item.projectId === project.id);
+  return route ? getRoutePlanningBatches(route, project) : [];
 }
 
 function ensureRouteBatches(route, production = null) {
-  if (!route) return [];
-  const context = production || getRoutePlanningContext(route);
-  if (!context) return [];
-  const existing = getRoutePlanningBatches(route, context);
-  if (existing.length) return existing;
-
-  const stamp = new Date().toISOString();
-  const batch = {
-    id: `b-${route.id}-1`,
-    routeId: route.id,
-    specificationId: context.id,
-    projectId: context.id,
-    batchNumber: "1",
-    quantity: normalizeQuantity(route.planningQuantity || context.totalQuantity),
-    status: context.status || "planned",
-    createdAt: stamp,
-    updatedAt: stamp,
-  };
-  planningState.batches = [...planningState.batches, batch];
-  return [batch];
+  return getRoutePlanningBatches(route, production);
 }
 
 function comparePlanningBatches(left, right) {
@@ -15768,23 +16184,33 @@ function comparePlanningBatches(left, right) {
   });
 }
 
-function getRoutePlanningBatches(route, production = null) {
-  if (!route) return [];
+function getRoutePlanningOrder(route, production = null) {
+  if (!route?.id) return null;
   const context = production || getRoutePlanningContext(route);
-  const routeId = route.id;
   const productionId = context?.id || getRouteProductionId(route);
-  return (planningState.batches || [])
-    .filter((batch) => (
-      batch.routeId === routeId
-      || (productionId && (batch.specificationId === productionId || batch.projectId === productionId))
-    ))
-    .sort(comparePlanningBatches);
+  return {
+    id: route.id,
+    routeId: route.id,
+    specificationId: productionId || route.specificationId || route.projectId || "",
+    projectId: productionId || route.projectId || route.specificationId || "",
+    batchNumber: "",
+    quantity: getPlanningRouteQuantity(route),
+    status: route.planningStatus || context?.status || "planned",
+    createdAt: route.createdAt || "",
+    updatedAt: route.updatedAt || "",
+    isRouteOrder: true,
+  };
+}
+
+function getRoutePlanningBatches(route, production = null) {
+  const order = getRoutePlanningOrder(route, production);
+  return order ? [order] : [];
 }
 
 function getPlanningBatchSlots(batch, route = null) {
   if (!batch?.id) return [];
   return (planningState.slots || []).filter((slot) => (
-    slot.batchId === batch.id
+    (slot.routeId === batch.routeId || slot.batchId === batch.id)
     && (!route || slot.routeId === route.id || slot.specificationId === route.specificationId || slot.projectId === route.projectId)
   ));
 }
@@ -15792,13 +16218,10 @@ function getPlanningBatchSlots(batch, route = null) {
 function getPlanningRouteSlots(route) {
   if (!route?.id) return [];
   const stepIds = new Set(getRouteStepsForModule(route.id).map((step) => step.id));
-  const batchIds = new Set(getRoutePlanningBatches(route)
-    .filter((batch) => !batch.routeId || batch.routeId === route.id)
-    .map((batch) => batch.id));
   return (planningState.slots || []).filter((slot) => (
     slot.routeId === route.id
     || stepIds.has(slot.routeStepId)
-    || (batchIds.has(slot.batchId) && (!slot.routeId || slot.routeId === route.id))
+    || slot.batchId === route.id
   ));
 }
 
@@ -15869,11 +16292,8 @@ function getPlanningRouteQuantity(route) {
   if (!route) return 1;
   const project = getRoutePlanningContext(route);
   const specification = getRouteSpecification(route);
-  const batches = getRoutePlanningBatches(route, project);
-  const firstBatch = batches[0];
   return normalizeOptionalPositiveInteger(route.planningQuantity)
     || normalizeOptionalPositiveInteger(specification?.productionQuantity)
-    || normalizeOptionalPositiveInteger(firstBatch?.quantity)
     || normalizeOptionalPositiveInteger(project?.totalQuantity)
     || 1;
 }
@@ -15900,43 +16320,18 @@ function syncPlanningRouteQuantity(routeId, value, options = {}) {
     } : item);
   }
 
-  const batches = getRoutePlanningBatches(route, production);
-  const targetBatch = batches[0];
-  if (targetBatch && batches.length <= 1) {
-    planningState.batches = planningState.batches.map((batch) => batch.id === targetBatch.id ? {
-      ...batch,
-      routeId: route.id,
-      specificationId: production.id,
-      projectId: production.id,
-      quantity,
-      updatedAt: stamp,
-    } : batch);
-  } else if (!targetBatch) {
-    planningState.batches = [...planningState.batches, {
-      id: `b-${route.id}-1`,
-      routeId: route.id,
-      specificationId: production.id,
-      projectId: production.id,
-      batchNumber: "1",
-      quantity,
-      status: production.status || "planned",
-      createdAt: stamp,
-      updatedAt: stamp,
-    }];
-  }
-
   if (options.updateSlots) {
     const routeSteps = getSchedulableRouteSteps(route.id);
     const stepById = byId(routeSteps);
-    const batchById = byId(getRoutePlanningBatches(route, production));
+    const routeOrder = getRoutePlanningOrder(route, production);
     planningState.slots = planningState.slots.map((slot) => {
       const step = stepById[slot.routeStepId];
-      const batch = batchById[slot.batchId];
-      if ((slot.routeId && slot.routeId !== route.id) || !batch || !step || slot.locked || slot.status === "completed") return slot;
-      const nextQuantity = getRouteStepQuantityForBatch(step, batch);
+      if ((slot.routeId && slot.routeId !== route.id) || !step || slot.locked || slot.status === "completed") return slot;
+      const nextQuantity = getRouteStepQuantityForBatch(step, routeOrder);
       return recalculateSlotEndByQuantity({
         ...slot,
         routeId: route.id,
+        batchId: route.id,
         specificationId: production.id,
         projectId: production.id,
         quantity: nextQuantity,
@@ -15958,43 +16353,19 @@ function syncPlanningRouteQuantity(routeId, value, options = {}) {
 
 function createPlanningBatch(routeId) {
   const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const production = getRoutePlanningContext(route);
-  if (!route || !production) return;
-
-  const stamp = new Date().toISOString();
-  const batches = getRoutePlanningBatches(route, production);
-  const planningQuantity = getPlanningRouteQuantity(route);
-  const batchTotal = getPlanningBatchQuantityTotal(batches);
-  const quantity = batches.length
-    ? Math.max(1, planningQuantity - batchTotal || Math.ceil(planningQuantity / (batches.length + 1)))
-    : planningQuantity;
-  const batch = {
-    id: makeId("b"),
-    routeId: route.id,
-    specificationId: production.id,
-    projectId: production.id,
-    batchNumber: getNextPlanningBatchNumber(batches),
-    quantity,
-    status: production.status || "planned",
-    createdAt: stamp,
-    updatedAt: stamp,
-  };
-  planningState.batches = [...planningState.batches, batch];
-  persistState();
-  notifySaveSuccess("Партия создана");
-  render();
+  if (route) notifySaveSuccess("Заказ-наряд уже является единицей планирования");
 }
 
 function recalculatePlanningBatchSlots(batchId, routeId, stamp = new Date().toISOString()) {
   const route = (planningState.routes || []).find((item) => item.id === routeId)
     || (planningState.routes || []).find((item) => item.id === getBatch(batchId)?.routeId);
   if (!route) return;
-  const batch = getBatch(batchId);
-  if (!batch) return;
+  const production = getRoutePlanningContext(route);
+  const batch = getRoutePlanningOrder(route, production);
   const stepById = byId(getSchedulableRouteSteps(route.id));
   planningState.slots = (planningState.slots || []).map((slot) => {
     const step = stepById[slot.routeStepId];
-    if (slot.batchId !== batch.id || !step || slot.locked || slot.status === "completed") return slot;
+    if ((slot.routeId !== route.id && slot.batchId !== route.id) || !step || slot.locked || slot.status === "completed") return slot;
     return recalculateSlotEndByQuantity({
       ...slot,
       routeId: route.id,
@@ -16007,107 +16378,30 @@ function recalculatePlanningBatchSlots(batchId, routeId, stamp = new Date().toIS
 }
 
 function updatePlanningBatchField(batchId, field, value) {
-  const batch = getBatch(batchId);
-  if (!batch || !["batchNumber", "quantity"].includes(field)) return;
-  const route = (planningState.routes || []).find((item) => item.id === batch.routeId)
-    || (planningState.routes || []).find((item) => item.specificationId === batch.specificationId || item.projectId === batch.projectId);
-  const production = getRoutePlanningContext(route) || getProject(batch.specificationId || batch.projectId);
-  const stamp = new Date().toISOString();
-  let nextValue = value;
-
-  if (field === "batchNumber") {
-    nextValue = String(value || "").trim();
-    if (!nextValue) return;
-  }
-
   if (field === "quantity") {
-    nextValue = normalizeOptionalPositiveInteger(value);
-    if (!nextValue) return;
+    syncPlanningRouteQuantity(batchId, value, { updateSlots: true, message: "Количество заказ-наряда сохранено" });
   }
-
-  planningState.batches = (planningState.batches || []).map((item) => item.id === batch.id ? {
-    ...item,
-    routeId: route?.id || item.routeId || "",
-    specificationId: production?.id || item.specificationId || item.projectId || "",
-    projectId: production?.id || item.projectId || item.specificationId || "",
-    [field]: nextValue,
-    updatedAt: stamp,
-  } : item);
-
-  if (field === "quantity") {
-    recalculatePlanningBatchSlots(batch.id, route?.id || "", stamp);
-  }
-
-  persistState();
-  notifySaveSuccess("Партия сохранена");
-  render();
 }
 
 function distributePlanningBatchesEvenly(routeId) {
-  const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const production = getRoutePlanningContext(route);
-  if (!route || !production) return;
-
-  let batches = getRoutePlanningBatches(route, production);
-  if (!batches.length) {
-    ensureRouteBatches(route, production);
-    batches = getRoutePlanningBatches(route, production);
-  }
-  const quantity = getPlanningRouteQuantity(route);
-  const base = Math.floor(quantity / batches.length);
-  let remainder = quantity % batches.length;
-  const stamp = new Date().toISOString();
-  planningState.batches = (planningState.batches || []).map((batch) => {
-    if (!batches.some((item) => item.id === batch.id)) return batch;
-    const nextQuantity = Math.max(1, base + (remainder > 0 ? 1 : 0));
-    remainder -= 1;
-    return {
-      ...batch,
-      routeId: route.id,
-      specificationId: production.id,
-      projectId: production.id,
-      quantity: nextQuantity,
-      updatedAt: stamp,
-    };
-  });
-  batches.forEach((batch) => recalculatePlanningBatchSlots(batch.id, route.id, stamp));
-  persistState();
-  notifySaveSuccess("Партии распределены");
-  render();
+  if (routeId) notifySaveSuccess("Заказ-наряд планируется единым объемом");
 }
 
 function acceptPlanningBatchTotal(routeId) {
-  const route = (planningState.routes || []).find((item) => item.id === routeId);
-  const production = getRoutePlanningContext(route);
-  if (!route || !production) return;
-  const batches = getRoutePlanningBatches(route, production);
-  const total = getPlanningBatchQuantityTotal(batches);
-  if (!total) return;
-  syncPlanningRouteQuantity(route.id, total, { updateSlots: true, message: "Количество принято из партий" });
+  if (routeId) notifySaveSuccess("Количество теперь хранится в заказ-наряде");
 }
 
 function requestDeletePlanningBatch(batchId) {
-  const batch = getBatch(batchId);
-  if (!batch) return;
-  const slotsCount = getPlanningBatchSlots(batch).length;
-  if (slotsCount) {
-    openConfirmDialog("planningDeleteBatch", { batchId });
-    return;
-  }
-  deletePlanningBatch(batchId, { deleteSlots: false });
+  if (batchId) notifySaveSuccess("Заказ-наряд остается единой единицей планирования");
 }
 
 function deletePlanningBatch(batchId, options = {}) {
-  const batch = getBatch(batchId);
-  if (!batch) return;
-  planningState.batches = (planningState.batches || []).filter((item) => item.id !== batch.id);
-  if (options.deleteSlots) {
-    planningState.slots = (planningState.slots || []).filter((slot) => slot.batchId !== batch.id);
+  if (batchId && options.deleteSlots) {
+    planningState.slots = (planningState.slots || []).filter((slot) => slot.routeId !== batchId && slot.batchId !== batchId);
     if (planningState.slots.every((slot) => slot.id !== ui.selectedSlotId)) ui.selectedSlotId = null;
+    persistState();
+    render();
   }
-  persistState();
-  notifySaveSuccess("Операции маршрута добавлены");
-  render();
 }
 
 function getPlanningBoardsPerPanelOverrides(route) {
@@ -16517,7 +16811,7 @@ function schedulePlanningRouteToGantt(routeId) {
   }
   const batches = ensureRouteBatches(route, project);
   if (!routeSteps.length || !batches.length) {
-    alert("Не удалось передать заказ-наряд в Гант: нет операций или партий для размещения.");
+    alert("Не удалось передать заказ-наряд в Гант: нет операций для размещения.");
     return;
   }
   const missingPlanningLines = getRouteStepsMissingPlanningLine(routeSteps, planningState);
@@ -16543,12 +16837,6 @@ function schedulePlanningRouteToGantt(routeId) {
     item.id === route.id
       ? { ...item, planningStatus: "scheduled", canceledAt: "", updatedAt: stamp }
       : item
-  ));
-  const batchIds = new Set(batches.map((batch) => batch.id));
-  planningState.batches = (planningState.batches || []).map((batch) => (
-    batchIds.has(batch.id)
-      ? { ...batch, status: "planned", updatedAt: stamp }
-      : batch
   ));
   planningState = normalizePlanningState(planningState);
   ui.activeModule = "gantt";
@@ -16584,15 +16872,6 @@ function cancelPlanningRoute(routeId) {
       ? { ...item, planningStatus: "canceled", canceledAt: stamp, updatedAt: stamp }
       : item
   ));
-  const routeBatchIds = new Set(getRoutePlanningBatches(route)
-    .filter((batch) => !batch.routeId || batch.routeId === route.id)
-    .map((batch) => batch.id));
-  planningState.batches = (planningState.batches || []).map((batch) => (
-    routeBatchIds.has(batch.id)
-      ? { ...batch, status: "canceled", updatedAt: stamp }
-      : batch
-  ));
-
   if (slotIds.has(ui.selectedSlotId)) ui.selectedSlotId = null;
 	  ui.activeModule = "planning";
 	  ui.activeRouteId = route.id;
@@ -16756,9 +17035,7 @@ function renderRoutesPage() {
 	            <div class="report-card-head">
 	              <strong>Операции маршрута</strong>
 	              <div class="route-steps-head-actions">
-	                <span>Операции выбираются только из справочника операций.</span>
-	                <button class="secondary-button" data-route-add-step="operation" type="button" ${getRouteInstructionWorkCenters({ includeWarehouse: false }).length ? "" : "disabled"}>${icon("plus")}<span>Добавить операцию</span></button>
-	                <button class="secondary-button" data-route-add-step="warehouse" type="button" ${getDefaultOperationMapItemForRouteKind("warehouse") ? "" : "disabled"}>${icon("package")}<span>Добавить приемку</span></button>
+	                <span>Выберите объект состава и добавьте операции внутри его строки.</span>
 	              </div>
 	            </div>
             ${renderRouteStepsEditor(activeRoute, stats.steps)}
@@ -16905,27 +17182,141 @@ function renderRouteStepsEditor(route, steps) {
   }
 
   const orderedSteps = getRouteStepsForModule(route.id);
+  const tasks = getRouteTasksForModule(route);
 
   return `
-    <div class="route-step-editor-shell">
-      ${orderedSteps.length ? renderRouteStepRows(orderedSteps) : `
+    <div class="route-step-editor-shell route-object-editor-shell">
+      ${tasks.length ? renderRouteObjectRows(route, tasks, orderedSteps) : `
         <div class="route-module-empty">
           ${icon("info")}
-          <strong>Операций пока нет</strong>
-          <span>Сначала заведите операции в справочнике, затем добавляйте их в маршрут.</span>
+          <strong>Объекты маршрута не найдены</strong>
+          <span>Сохраните связь с изделием или платой, чтобы добавить операции к объектам маршрута.</span>
         </div>
       `}
     </div>
   `;
 }
 
-function renderRouteStepRows(steps) {
+function getRouteTaskEditorSteps(route, task, steps = []) {
+  const directSteps = getRouteStepsForTask(steps, task?.id || MAIN_ROUTE_TASK_ID);
+  if (directSteps.length) return directSteps;
+  if (shouldUseMainRouteStepsForSingleTask(route, task, steps)) {
+    return getRouteStepsForTask(steps, MAIN_ROUTE_TASK_ID);
+  }
+  return directSteps;
+}
+
+function renderRouteObjectRows(route, tasks, steps = []) {
+  const canAddOperation = getRouteInstructionWorkCenters({ includeWarehouse: false }).length > 0;
+  const canAddWarehouse = Boolean(getDefaultOperationMapItemForRouteKind("warehouse"));
+  return `
+    <div class="speki-structure-table-wrap route-object-table-wrap" data-layout="table">
+      <table class="directory-table speki-structure-table route-object-table">
+        <thead>
+          <tr>
+            <th>П/п</th>
+            <th>Тип</th>
+            <th>Объект / операция</th>
+            <th>Кол-во</th>
+            <th>Поток / статус</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tasks.map((task) => {
+            const taskSteps = getRouteTaskEditorSteps(route, task, steps);
+            const fulfillmentMode = task.isMain || task.isOrphan ? "" : task.fulfillmentMode || "produce";
+            const fulfillmentMarkup = fulfillmentMode
+              ? `<span class="speki-static-cell speki-fulfillment-cell is-${escapeAttribute(getFulfillmentTone(fulfillmentMode))}">${escapeHtml(getFulfillmentLabel(fulfillmentMode))}</span>`
+              : `<span class="speki-static-cell">${task.isOrphan ? "Проверить" : "Общий"}</span>`;
+            return `
+              <tr class="route-object-row ${task.isMain ? "is-route-main" : ""} ${task.isOrphan ? "is-route-orphan" : ""}" data-route-task-row="${escapeAttribute(task.id)}" style="--speki-level: ${Number(task.level || 0)};">
+                <td><span class="speki-row-number">${escapeHtml(task.number || "00")}</span></td>
+                <td><span class="speki-static-cell">${escapeHtml(getRouteTaskTypeLabel(task))}</span></td>
+                <td>
+                  <div class="route-object-name-cell">
+                    <strong title="${escapeAttribute(task.title || "Объект маршрута")}">${escapeHtml(task.title || "Объект маршрута")}</strong>
+                    <small>${escapeHtml([task.parentTitle, task.departmentName].filter(Boolean).join(" · ") || task.operationName || "Маршрутная карта")}</small>
+                  </div>
+                </td>
+                <td><span class="speki-static-cell">${escapeHtml(`${formatReportNumber(task.quantity || 1)} ${task.unit || "шт."}`)}</span></td>
+                <td>${fulfillmentMarkup}</td>
+                <td>
+                  <div class="route-object-actions">
+                    <button class="secondary-button route-object-add-button" data-route-add-step-task="${escapeAttribute(task.id)}" data-route-add-step-kind="operation" type="button" ${canAddOperation && !task.isOrphan ? "" : "disabled"}>${icon("plus")}<span>Операция</span></button>
+                    <button class="secondary-button route-object-add-button" data-route-add-step-task="${escapeAttribute(task.id)}" data-route-add-step-kind="warehouse" type="button" ${canAddWarehouse && !task.isOrphan ? "" : "disabled"}>${icon("package")}<span>Приемка</span></button>
+                  </div>
+                </td>
+              </tr>
+              ${taskSteps.length ? taskSteps.map((step, index) => renderRouteStepTableRow(route, task, step, index, taskSteps)).join("") : `
+                <tr class="route-object-operation-row is-empty" style="--speki-level: ${Number(task.level || 0) + 1};">
+                  <td colspan="6">
+                    <div class="route-task-empty">${icon("info")}<span>Для этого объекта операции еще не заданы</span></div>
+                  </td>
+                </tr>
+              `}
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderRouteStepTableRow(route, task, step, index, taskSteps = []) {
+  const workCenterOptions = getRouteStepWorkCenterOptions(step);
+  const workCenterValue = getRouteStepWorkCenterSelectValue(step, workCenterOptions);
+  const operationOptions = getRouteStepOperationOptions(step);
+  const operationValue = getRouteStepOperationSelectValue(step, operationOptions);
+  const operation = getOperationMapItem(step.operationId);
+  const hasWorkCenter = Boolean(getWorkCenter(workCenterValue));
+  const hasValidOperation = Boolean(operation && getOperationRouteWorkCenterId(operation) === workCenterValue);
+  const isWarehouse = isManufacturingOutputReceiptRouteStep(step);
+  const multiplier = getRouteStepEffectiveQuantityMultiplier(step, route);
+  const level = Number(task?.level || 0) + 1;
+  const stepLabel = isWarehouse ? "Приемка" : "Операция";
+
+  return `
+    <tr class="route-step-compact-row ${isWarehouse ? "is-warehouse" : ""} ${hasWorkCenter && hasValidOperation ? "" : "is-incomplete"}" data-route-step-row="${escapeAttribute(step.id)}" style="--speki-level: ${level};">
+      <td>
+        <div class="route-step-compact-order">
+          <button class="icon-button" data-route-step-up="${escapeAttribute(step.id)}" type="button" title="Поднять" ${index === 0 ? "disabled" : ""}>${icon("chevronUp")}</button>
+          <span class="route-step-order-badge" title="Позиция операции в объекте маршрута" aria-label="Позиция операции в объекте маршрута">${index + 1}</span>
+          <button class="icon-button" data-route-step-down="${escapeAttribute(step.id)}" type="button" title="Опустить" ${index === taskSteps.length - 1 ? "disabled" : ""}>${icon("chevronDown")}</button>
+        </div>
+      </td>
+      <td><span class="speki-section-chip route-step-type-chip ${isWarehouse ? "is-section-emerald" : "is-section-blue"}">${escapeHtml(stepLabel)}</span></td>
+      <td>
+        <div class="route-step-compact-fields">
+          <label class="form-field route-step-center">
+            <span>Отдел</span>
+            ${renderDenseInlineSelect("workCenterId", workCenterValue, workCenterOptions, { type: "routeStep", stepId: step.id })}
+          </label>
+          <label class="form-field route-step-name">
+            <span>Операция</span>
+            ${renderDenseInlineSelect("operationId", operationValue, operationOptions, { type: "routeStep", stepId: step.id, disabled: !hasWorkCenter })}
+          </label>
+        </div>
+      </td>
+      <td><span class="speki-static-cell route-step-quantity-cell" title="Множитель количества операции">x${escapeHtml(formatReportNumber(multiplier))}</span></td>
+      <td>${renderRouteStepFlowSummary(route, step)}</td>
+      <td>
+        <div class="route-step-compact-actions">
+          ${renderRouteStepFlowOverride(route, step)}
+          <button class="icon-button danger-soft" data-route-step-delete="${escapeAttribute(step.id)}" type="button" title="Удалить операцию">${icon("trash")}</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderRouteStepRows(steps, options = {}) {
   return `
     <div class="route-step-editor-list">
       ${steps.map((step, index) => {
         const route = getRouteForStep(step);
         const taskOptions = getRouteStepTaskOptions(route);
-        const showTaskSelect = taskOptions.length > 1;
+        const showTaskSelect = !options.hideTaskSelect && taskOptions.length > 1;
         const taskValue = getRouteStepTaskSelectValue(step, route, taskOptions);
         const workCenterOptions = getRouteStepWorkCenterOptions(step);
         const workCenterValue = getRouteStepWorkCenterSelectValue(step, workCenterOptions);
@@ -17747,27 +18138,13 @@ function getConfirmDialogConfig(dialog) {
     };
   }
 
-  if (dialog?.action === "planningDeleteBatch") {
-    const batch = getBatch(payload.batchId);
-    const slotsCount = getPlanningBatchSlots(batch).length;
-    return {
-      title: "Удалить партию?",
-      body: `Партия ${batch?.batchNumber || ""} будет удалена из планирования${slotsCount ? ` вместе с ${slotsCount} слотами Ганта` : ""}.`,
-      meta: "Это изменит партийность заказ-наряда и может убрать операции из Ганта.",
-      confirmLabel: "Удалить",
-      confirmIcon: "trash",
-      icon: "alert",
-      tone: "danger",
-    };
-  }
-
   if (dialog?.action === "planningCancelRoute") {
     const route = (planningState.routes || []).find((item) => item.id === payload.routeId);
     const slotsCount = getPlanningRouteSlots(route).length;
     return {
       title: "Отменить заказ-наряд?",
       body: `Заказ-наряд "${route?.name || "без названия"}" будет отменен, а ${slotsCount} операций будут сняты из Ганта.`,
-      meta: "Заказ-наряд и партийность останутся в планировании, чтобы их можно было скорректировать и передать в Гант заново.",
+      meta: "Заказ-наряд останется в планировании, чтобы его можно было скорректировать и передать в Гант заново.",
       confirmLabel: "Отменить заказ-наряд",
       confirmIcon: "close",
       icon: "alert",
@@ -17809,7 +18186,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить состав изделия?",
       body: `Состав изделия "${specification?.name || "без названия"}" будет удален из перечня и больше не будет доступен в конструкторе.`,
-      meta: `Ссылки в другом составе изделия будут очищены. Также будет удалено: ${usage.routesCount} маршрутных карт, ${usage.batchesCount} партий, ${usage.slotsCount} слотов Ганта.`,
+      meta: `Ссылки в другом составе изделия будут очищены. Также будет удалено: ${usage.routesCount} маршрутных карт, ${usage.slotsCount} слотов Ганта.`,
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -17880,7 +18257,7 @@ function getConfirmDialogConfig(dialog) {
     const slot = planningState.slots.find((item) => item.id === payload.slotId);
     return {
       title: "Пересчитать цепочку?",
-      body: `Операции после "${slot?.operationName || "выбранного слота"}" будут сдвинуты по маршруту партии.`,
+      body: `Операции после "${slot?.operationName || "выбранного слота"}" будут сдвинуты по маршруту заказ-наряда.`,
       meta: "Действие влияет на Гант, предупреждения и отчеты.",
       confirmLabel: "Пересчитать",
       confirmIcon: "refresh",
@@ -17961,7 +18338,7 @@ function getConfirmDialogConfig(dialog) {
     return {
       title: "Удалить маршрутную карту?",
       body: `Маршрутная карта "${route?.name || "без названия"}" будет удалена из модуля.`,
-      meta: `Также будет удалено: ${usage.stepsCount} операций маршрута, ${usage.batchesCount} партий, ${usage.slotsCount} слотов Ганта.`,
+      meta: `Также будет удалено: ${usage.stepsCount} операций маршрута, ${usage.slotsCount} слотов Ганта.`,
       confirmLabel: "Удалить",
       confirmIcon: "trash",
       icon: "alert",
@@ -18547,7 +18924,7 @@ function createEmptyDirectoryRow(directoryData) {
     if (directoryData.sectionId === "operations" && key === "workCenterId") row[key] = getRouteInstructionWorkCenters({ includeWarehouse: false })[0]?.id || getRouteInstructionWorkCenters()[0]?.id || "D3";
     if (key === "totalQuantity" || key === "steps") row[key] = 0;
     if (key === "unitsPerHour") row[key] = 40;
-    if (key === "capacity") row[key] = directoryData.sectionId === "workCenters" ? 1 : "1 партия / смена";
+    if (key === "capacity") row[key] = directoryData.sectionId === "workCenters" ? 1 : "1 операция / смена";
     if (key === "baseCph") row[key] = 30000;
     if (key === "efficiency") row[key] = 85;
     if (key === "changeoverMin") row[key] = 15;
@@ -18632,6 +19009,9 @@ function navigateToModule(moduleId) {
   if (moduleId === "planning" && previousModule !== "planning") {
     ui.activeRouteId = "";
   }
+  if (moduleId === "supply" && previousModule !== "supply") {
+    ui.activeSupplyRouteId = "";
+  }
   persistUiState();
   render();
 }
@@ -18668,11 +19048,6 @@ function performConfirmedAction(dialog) {
 
   if (dialog.action === "deleteSlot") {
     deleteSlotConfirmed(payload.slotId);
-    return;
-  }
-
-  if (dialog.action === "planningDeleteBatch") {
-    deletePlanningBatch(payload.batchId, { deleteSlots: true });
     return;
   }
 
@@ -19560,6 +19935,12 @@ function bindRoutesEvents() {
   });
 
   bindRouteSmtCalculatorEvents();
+  app.querySelectorAll("[data-route-add-step-task]").forEach((button) => {
+    button.addEventListener("click", () => {
+      addRouteModuleStep(button.dataset.routeAddStepKind || "operation", button.dataset.routeAddStepTask || MAIN_ROUTE_TASK_ID);
+    });
+  });
+
   app.querySelectorAll("[data-route-add-step]").forEach((button) => {
     button.addEventListener("click", () => {
       addRouteModuleStep(button.dataset.routeAddStep || "operation");
@@ -20050,11 +20431,28 @@ function createEmptyRouteModuleStep(route, insertOrder, stamp = new Date().toISO
   }, planningState);
 }
 
-function addRouteModuleStep(operationKind = "operation") {
+function getRouteStepAddTargetTaskId(route, requestedTaskId = "", steps = null) {
+  const routeSteps = steps || getRouteStepsForModule(route?.id || "");
+  const tasks = getRouteTasksForModule(route);
+  const requestedTask = tasks.find((task) => task.id === requestedTaskId);
+  if (requestedTask && shouldUseMainRouteStepsForSingleTask(route, requestedTask, routeSteps)) {
+    return MAIN_ROUTE_TASK_ID;
+  }
+  if (requestedTask && !requestedTask.isOrphan) return requestedTask.id;
+  const concreteTasks = tasks.filter((task) => !task.isMain && !task.isOrphan);
+  if (concreteTasks.length === 1 && shouldUseMainRouteStepsForSingleTask(route, concreteTasks[0], routeSteps)) {
+    return MAIN_ROUTE_TASK_ID;
+  }
+  return concreteTasks.length === 1 ? concreteTasks[0].id : MAIN_ROUTE_TASK_ID;
+}
+
+function addRouteModuleStep(operationKind = "operation", taskId = "") {
   const route = getActiveRouteForModule();
   if (!route) return;
   const steps = getRouteStepsForModule(route.id);
-  const outputReceiptStep = steps.find((step) => isManufacturingOutputReceiptRouteStep(step));
+  const targetTaskId = getRouteStepAddTargetTaskId(route, taskId, steps);
+  const taskSteps = getRouteStepsForTask(steps, targetTaskId);
+  const outputReceiptStep = taskSteps.find((step) => isManufacturingOutputReceiptRouteStep(step));
   const isWarehouse = operationKind === "warehouse";
   const operation = isWarehouse ? getDefaultOperationMapItemForRouteKind(operationKind) : null;
   if (isWarehouse && !operation) {
@@ -20064,21 +20462,26 @@ function addRouteModuleStep(operationKind = "operation") {
     return;
   }
   const insertOrder = isWarehouse
-    ? Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1
-    : outputReceiptStep?.stepOrder || Math.max(0, ...steps.map((step) => Number(step.stepOrder || 0))) + 1;
+    ? Math.max(0, ...taskSteps.map((step) => Number(step.stepOrder || 0))) + 1
+    : outputReceiptStep?.stepOrder || Math.max(0, ...taskSteps.map((step) => Number(step.stepOrder || 0))) + 1;
   const stamp = new Date().toISOString();
-
-  planningState.routeSteps = [
-    ...planningState.routeSteps.map((step) => (
-      step.routeId === route.id && Number(step.stepOrder || 0) >= insertOrder
-        ? { ...step, stepOrder: Number(step.stepOrder || 0) + 1 }
-        : step
-    )),
+  const nextStep = applyRouteTaskToStep(
     isWarehouse
       ? createRouteStepFromOperationMapItem(route, operation, insertOrder, stamp)
       : createEmptyRouteModuleStep(route, insertOrder, stamp),
+    route,
+    targetTaskId,
+  );
+
+  planningState.routeSteps = [
+    ...planningState.routeSteps.map((step) => (
+      step.routeId === route.id && getRouteStepTaskId(step) === targetTaskId && Number(step.stepOrder || 0) >= insertOrder
+        ? { ...step, stepOrder: Number(step.stepOrder || 0) + 1 }
+        : step
+    )),
+    nextStep,
   ];
-  normalizeRouteStepOrders(route.id);
+  normalizeRouteStepOrders(route.id, targetTaskId);
   persistState();
   notifySaveSuccess(isWarehouse ? "Приемка результата добавлена" : "Строка операции добавлена");
   render();
@@ -20087,7 +20490,8 @@ function addRouteModuleStep(operationKind = "operation") {
 function moveRouteStep(stepId, direction) {
   const step = planningState.routeSteps.find((item) => item.id === stepId);
   if (!step) return;
-  const steps = getRouteStepsForModule(step.routeId);
+  const taskId = getRouteStepTaskId(step);
+  const steps = getRouteStepsForTask(getRouteStepsForModule(step.routeId), taskId);
   const index = steps.findIndex((item) => item.id === stepId);
   if (index < 0) return;
   const target = steps[index + direction];
@@ -20099,7 +20503,7 @@ function moveRouteStep(stepId, direction) {
     if (item.id === target.id) return { ...item, stepOrder: leftOrder, updatedAt: new Date().toISOString() };
     return item;
   });
-  normalizeRouteStepOrders(step.routeId);
+  normalizeRouteStepOrders(step.routeId, taskId);
   persistState();
   notifySaveSuccess("Порядок операций сохранен");
   render();
@@ -20123,8 +20527,9 @@ function deleteRouteStepConfirmed(stepId) {
     return;
   }
   const routeId = step.routeId;
+  const taskId = getRouteStepTaskId(step);
   planningState.routeSteps = planningState.routeSteps.filter((item) => item.id !== stepId);
-  normalizeRouteStepOrders(routeId);
+  normalizeRouteStepOrders(routeId, taskId);
   withPlanningEntityRemovalAllowed(() => persistState());
   notifySaveSuccess("Операция маршрута удалена");
   render();
@@ -20617,6 +21022,15 @@ function bindSpekiEvents() {
     });
   });
 
+  app.querySelectorAll("[data-dense-speki-structure-nomenclature-type] [data-dense-value]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const root = button.closest("[data-dense-speki-structure-nomenclature-type]");
+      if (!root) return;
+      updateSpecificationStructureItem(root.dataset.denseSpekiStructureNomenclatureType || "", "nomenclatureType", button.dataset.denseValue || NOMENCLATURE_REA_COMPONENT_TYPE);
+    });
+  });
+
   app.querySelectorAll("[data-dense-speki-structure-specification] [data-dense-value]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -20673,9 +21087,6 @@ function bindSpekiEvents() {
     button.addEventListener("click", () => deleteSpecificationStructureItem(button.dataset.spekiStructureDelete || ""));
   });
 
-  app.querySelectorAll("[data-speki-create-node-from-row]").forEach((button) => {
-    button.addEventListener("click", () => createSpekiNodeFromRow(button.dataset.spekiCreateNodeFromRow || ""));
-  });
 }
 
 function bindSpecificationsEvents() {
@@ -20825,6 +21236,7 @@ function addSpecificationStructureItem(type) {
   const nomenclatureItem = (directoryState.nomenclature || [])[0] || null;
   const executionType = nextType === "nomenclature" || nextType === "part" ? getDefaultNomenclatureExecutionType(nomenclatureItem) : "make";
   const fulfillmentMode = executionType === "make" ? "produce" : "purchase";
+  const nomenclatureType = normalizeNomenclatureType(nomenclatureItem?.type || getDefaultStructureNomenclatureType(nextType));
   updateSpecificationStructure((items) => [
     ...items,
     normalizeSpecificationStructureItem({
@@ -20834,6 +21246,7 @@ function addSpecificationStructureItem(type) {
 	      bomListId: nextType === "bom" ? defaultBom?.id || "" : "",
 	      specificationId: nextType === "specification" ? linkedSpecification?.id || "" : "",
 	      nomenclatureId: nextType === "nomenclature" ? nomenclatureItem?.id || "" : "",
+	      nomenclatureType,
 	      executionType,
       fulfillmentMode,
       operationId: "",
@@ -20887,6 +21300,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
         const selectedNomenclature = nextItem.type === "nomenclature"
           ? (directoryState.nomenclature || []).find((entry) => entry.id === nextItem.nomenclatureId) || (directoryState.nomenclature || [])[0]
           : null;
+        nextItem.nomenclatureType = normalizeNomenclatureType(selectedNomenclature?.type || getDefaultStructureNomenclatureType(nextItem.type));
         nextItem.fulfillmentMode = getDefaultStructureFulfillmentMode(nextItem.type, selectedNomenclature, "");
         nextItem.executionType = getExecutionTypeForFulfillmentMode(nextItem.fulfillmentMode);
         nextItem.operationId = "";
@@ -20967,6 +21381,7 @@ function updateSpecificationStructureItem(itemId, field, value) {
       if (field === "nomenclatureId") {
         const nomenclatureItem = (directoryState.nomenclature || []).find((entry) => entry.id === value);
         nextItem.nomenclatureId = nomenclatureItem?.id || "";
+        nextItem.nomenclatureType = normalizeNomenclatureType(nomenclatureItem?.type || nextItem.nomenclatureType || getDefaultStructureNomenclatureType(nextItem.type));
         nextItem.name = nomenclatureItem?.name || "";
         nextItem.resultItem = nomenclatureItem?.name || "";
         nextItem.unit = nomenclatureItem?.unit || nextItem.unit || "шт.";
@@ -20976,6 +21391,35 @@ function updateSpecificationStructureItem(itemId, field, value) {
         nextItem.operationName = "";
         nextItem.departmentName = "";
         if (!nextItem.note) nextItem.note = "Номенклатура";
+        return nextItem;
+      }
+
+      if (field === "nomenclatureType") {
+        const nextType = normalizeNomenclatureType(value);
+        const typeExists = getSpekiStructureSectionOptions()
+          .some((option) => normalizeLookupText(option.value) === normalizeLookupText(nextType));
+        const safeType = typeExists ? nextType : getFallbackNomenclatureType() || NOMENCLATURE_REA_COMPONENT_TYPE;
+        nextItem.nomenclatureType = safeType;
+
+        if (nextItem.type === "nomenclature" || nextItem.type === "part") {
+          const currentItem = (directoryState.nomenclature || []).find((entry) => entry.id === nextItem.nomenclatureId);
+          const currentMatches = currentItem && normalizeLookupText(normalizeNomenclatureType(currentItem.type)) === normalizeLookupText(safeType);
+          const replacementItem = currentMatches
+            ? currentItem
+            : (directoryState.nomenclature || []).find((entry) => normalizeLookupText(normalizeNomenclatureType(entry.type)) === normalizeLookupText(safeType));
+
+          nextItem.type = "nomenclature";
+          nextItem.nomenclatureId = replacementItem?.id || "";
+          nextItem.name = replacementItem?.name || "";
+          nextItem.resultItem = replacementItem?.name || "";
+          nextItem.unit = replacementItem?.unit || nextItem.unit || "шт.";
+          nextItem.fulfillmentMode = getDefaultStructureFulfillmentMode(nextItem.type, replacementItem, "");
+          nextItem.executionType = getExecutionTypeForFulfillmentMode(nextItem.fulfillmentMode);
+          nextItem.operationId = "";
+          nextItem.operationName = "";
+          nextItem.departmentName = "";
+          if (!nextItem.note) nextItem.note = "Номенклатура";
+        }
         return nextItem;
       }
 
@@ -21089,68 +21533,6 @@ function changeSpekiStructureLevel(itemId, direction) {
   updateSpecificationStructureItem(itemId, "parentId", parentItem?.parentId || "root");
 }
 
-function createSpekiNodeFromRow(itemId) {
-  const activeSpecification = getActiveSpecificationForModule();
-  if (!activeSpecification || !itemId) return;
-
-  const rows = getSpekiStructureTableRows(activeSpecification);
-  const rowIndex = rows.findIndex((row) => row.item.id === itemId);
-  const row = rows[rowIndex];
-  if (!row || row.item.type === "assembly") return;
-
-  const rowParentId = row.item.parentId || "root";
-  const nextSibling = rows.slice(rowIndex + 1)
-    .find((candidate) => candidate.level === row.level && (candidate.item.parentId || "root") === rowParentId);
-  if (!nextSibling) {
-    alert("Для создания узла нужна следующая строка того же уровня.");
-    return;
-  }
-
-  const nodeId = makeId("spi");
-  const nodeName = `Узел ${row.number}`;
-  const childIds = new Set([row.item.id, nextSibling.item.id]);
-  updateSpecificationStructure((items) => {
-    const nextItems = [];
-    let insertedNode = false;
-    items.forEach((item) => {
-      if (!insertedNode && item.id === row.item.id) {
-        nextItems.push({
-          id: nodeId,
-          parentId: rowParentId,
-          type: "assembly",
-          executionType: "make",
-          operationId: "",
-          operationName: "",
-          departmentName: "",
-          name: nodeName,
-          quantity: 1,
-          unit: "узел",
-          resultItem: nodeName,
-          note: "Узел",
-        });
-        insertedNode = true;
-      }
-      nextItems.push(childIds.has(item.id) ? { ...item, parentId: nodeId } : item);
-    });
-    if (!insertedNode) {
-      nextItems.push({
-        id: nodeId,
-        parentId: rowParentId,
-        type: "assembly",
-        executionType: "make",
-        operationName: nodeOperationName,
-        departmentName: nodeDepartmentName,
-        name: nodeName,
-        quantity: 1,
-        unit: "узел",
-        resultItem: nodeName,
-        note: "Узел",
-      });
-    }
-    return nextItems;
-  });
-}
-
 function saveSpekiSpecification(specificationId, value) {
   if (!specificationId) return;
   const name = String(value || "").trim() || "Изделие без названия";
@@ -21179,17 +21561,10 @@ function getSpecificationDeleteUsage(specificationId) {
   const routeStepIds = new Set((planningState.routeSteps || [])
     .filter((step) => routeIds.has(step.routeId))
     .map((step) => step.id));
-  const batchIds = new Set((planningState.batches || [])
-    .filter((batch) => (
-      routeIds.has(batch.routeId)
-      || batch.specificationId === specificationId
-      || batch.projectId === specificationId
-    ))
-    .map((batch) => batch.id));
   const slotsCount = (planningState.slots || []).filter((slot) => (
     routeIds.has(slot.routeId)
     || routeStepIds.has(slot.routeStepId)
-    || batchIds.has(slot.batchId)
+    || routeIds.has(slot.batchId)
     || slot.specificationId === specificationId
     || slot.projectId === specificationId
   )).length;
@@ -21197,9 +21572,9 @@ function getSpecificationDeleteUsage(specificationId) {
   return {
     routeIds,
     routeStepIds,
-    batchIds,
+    batchIds: new Set(),
     routesCount: routeIds.size,
-    batchesCount: batchIds.size,
+    batchesCount: 0,
     slotsCount,
   };
 }
@@ -21218,15 +21593,10 @@ function deleteSpekiSpecification(specificationId) {
 
   planningState.routes = (planningState.routes || []).filter((route) => !usage.routeIds.has(route.id));
   planningState.routeSteps = (planningState.routeSteps || []).filter((step) => !usage.routeIds.has(step.routeId));
-  planningState.batches = (planningState.batches || []).filter((batch) => (
-    !usage.routeIds.has(batch.routeId)
-    && batch.specificationId !== specificationId
-    && batch.projectId !== specificationId
-  ));
   planningState.slots = (planningState.slots || []).filter((slot) => (
     !usage.routeIds.has(slot.routeId)
     && !usage.routeStepIds.has(slot.routeStepId)
-    && !usage.batchIds.has(slot.batchId)
+    && !usage.routeIds.has(slot.batchId)
     && slot.specificationId !== specificationId
     && slot.projectId !== specificationId
   ));
@@ -22563,15 +22933,10 @@ function deleteDirectoryStateRow(sectionId, row) {
     }));
     planningState.routes = (planningState.routes || []).filter((route) => !usage.routeIds.has(route.id));
     planningState.routeSteps = (planningState.routeSteps || []).filter((step) => !usage.routeIds.has(step.routeId));
-    planningState.batches = (planningState.batches || []).filter((batch) => (
-      !usage.routeIds.has(batch.routeId)
-      && batch.specificationId !== rowId
-      && batch.projectId !== rowId
-    ));
     planningState.slots = (planningState.slots || []).filter((slot) => (
       !usage.routeIds.has(slot.routeId)
       && !usage.routeStepIds.has(slot.routeStepId)
-      && !usage.batchIds.has(slot.batchId)
+      && !usage.routeIds.has(slot.batchId)
       && slot.specificationId !== rowId
       && slot.projectId !== rowId
     ));
@@ -22606,6 +22971,14 @@ function deleteDirectoryStateRow(sectionId, row) {
         ? { ...item, type: fallbackType, updatedAt: new Date().toISOString() }
         : item
     ));
+    directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
+      ...specification,
+      structureItems: getSpecificationStructureItems(specification).map((item) => (
+        normalizeLookupText(item.nomenclatureType) === normalizeLookupText(row.name)
+          ? { ...item, nomenclatureType: fallbackType }
+          : item
+      )),
+    }));
     if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(row.name)) {
       ui.nomenclatureTypeFilter = fallbackType || "all";
     }
@@ -23740,7 +24113,7 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
         class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass} ${segmentedClass}"
         data-slot-id="${slot.id}"
         style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;"
-        title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
+        title="${escapeAttribute(`${routeMeta.routeName || project?.name || "Заказ-наряд"} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
         tabindex="0"
       >
         ${nonWorkingSegments.map((segment, index) => renderNonWorkingSlotSegment(segment, index, !workingSegments.length)).join("")}
@@ -23755,7 +24128,7 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
       class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass}"
       data-slot-id="${slot.id}"
       style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;"
-      title="${escapeAttribute(`${routeMeta.routeName || project?.name || ""}: партия ${batch?.batchNumber || ""} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
+      title="${escapeAttribute(`${routeMeta.routeName || project?.name || "Заказ-наряд"} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
       tabindex="0"
     >
       <div class="slot-accent"></div>
@@ -24009,7 +24382,7 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
           y: gateY,
           availableKitsNow: readiness.availableKitsNow || 0,
           quantity: readiness.transferBatchQuantity,
-          title: `Передаточная партия: старт сборки после накопления ${readiness.transferBatchQuantity} комплектов. Сейчас доступно ${readiness.availableKitsNow || 0} компл. Ближайший старт: ${formatDateTimeShort(readiness.readyAt)}.`,
+          title: `Передаточный объем: старт сборки после накопления ${readiness.transferBatchQuantity} комплектов. Сейчас доступно ${readiness.availableKitsNow || 0} компл. Ближайший старт: ${formatDateTimeShort(readiness.readyAt)}.`,
         });
       }
     }
@@ -25088,7 +25461,7 @@ function renderPlanningAssistantDock(warnings) {
             <article class="assistant-item backlog-item">
               <button class="assistant-item-main" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">
                 <strong>${escapeHtml(item.routeStep.operationName)}</strong>
-                <span>${escapeHtml(getProjectDisplayName(item.project) || item.project.name)} · партия ${escapeHtml(item.batch.batchNumber)} · ${item.quantity} шт.</span>
+                <span>${escapeHtml(getProjectDisplayName(item.project) || item.project.name)} · заказ-наряд · ${item.quantity} шт.</span>
               </button>
               <div class="assistant-item-meta">
                 <span>${escapeHtml(item.workCenter?.code || "")}</span>
@@ -25145,7 +25518,7 @@ function renderPlanningAssistantDock(warnings) {
         <div class="planning-controls">
           <label class="assistant-toggle">
             <input type="checkbox" data-auto-cascade ${ui.autoCascade ? "checked" : ""} />
-            <span>Автосдвиг цепочки партии</span>
+            <span>Автосдвиг цепочки заказ-наряда</span>
           </label>
           <button class="assistant-command" data-save-plan-snapshot type="button">${icon("save")}<span>Снимок плана</span></button>
         </div>
@@ -25217,7 +25590,7 @@ function renderSlotDrawer(slotWarningMap) {
 
       <div class="drawer-summary status-${slot.status}">
         <div>
-          <strong>Партия ${escapeHtml(batch?.batchNumber || "")}</strong>
+          <strong>Заказ-наряд</strong>
           <span>${Number(slot.quantity || 0).toLocaleString("ru-RU")} шт.</span>
         </div>
         <span>${STATUS_LABELS[slot.status]}</span>
@@ -25276,7 +25649,6 @@ function renderSlotDrawer(slotWarningMap) {
         <button class="secondary-button" data-find-window-slot="${slot.id}" type="button">${icon("search")}<span>Окно</span></button>
         <button class="secondary-button" data-cascade-slot="${slot.id}" type="button">${icon("refresh")}<span>Цепочка</span></button>
         <button class="secondary-button" data-toggle-lock-slot="${slot.id}" type="button">${icon(slot.locked ? "unlock" : "lock")}<span>${slot.locked ? "Снять фиксацию" : "Зафиксировать"}</span></button>
-        <button class="secondary-button" data-split-slot="${slot.id}" type="button">${icon("split")}<span>Разделить</span></button>
         <button class="secondary-button danger" data-delete-slot="${slot.id}" type="button">${icon("trash")}<span>Удалить</span></button>
       </div>
     </aside>
@@ -25286,8 +25658,8 @@ function renderSlotDrawer(slotWarningMap) {
 function renderDrawerRouteSequence(routeSteps, orderedSlots, currentSlot) {
   if (!routeSteps.length) return "";
   return `
-    <div class="drawer-route-sequence" aria-label="Последовательность партии">
-      <strong>Последовательность партии</strong>
+    <div class="drawer-route-sequence" aria-label="Последовательность заказ-наряда">
+      <strong>Последовательность заказ-наряда</strong>
       <div>
         ${routeSteps.map((step) => {
           const stepSlot = orderedSlots.find((item) => item.routeStepId === step.id);
@@ -25321,7 +25693,7 @@ function renderEditorModal() {
   const project = getRoutePlanningContext(slotRoute) || getProject(slot.specificationId || slot.projectId);
   const projectBatches = slotRoute
     ? getRoutePlanningBatches(slotRoute, project)
-    : planningState.batches.filter((batch) => batch.projectId === slot.projectId || batch.specificationId === slot.specificationId);
+    : [];
   const routeSteps = (slotRoute ? getRouteStepsForModule(slotRoute.id) : getProjectRouteSteps(project?.id || slot.projectId, planningState))
     .filter((step) => getOperationMapItem(step.operationId));
   const routeStep = routeSteps.find((step) => step.id === slot.routeStepId) || routeSteps.find((step) => step.workCenterId === slot.workCenterId) || routeSteps[0];
@@ -25363,12 +25735,7 @@ function renderEditorModal() {
               <input type="text" value="${escapeAttribute(getProjectDisplayName(project) || "")}" readonly />
             </label>
 
-            <label class="form-field command-field">
-              <span>Партия</span>
-              <select name="batchId" required>
-                ${projectBatches.map((item) => `<option value="${item.id}" ${selected(batch?.id, item.id)}>Партия ${escapeHtml(item.batchNumber)} · ${item.quantity} шт.</option>`).join("")}
-              </select>
-            </label>
+            <input type="hidden" name="batchId" value="${escapeAttribute(slotRoute?.id || batch?.id || slot.batchId || "")}" />
 
             <label class="form-field command-field">
               <span>Операция маршрута</span>
@@ -25444,47 +25811,7 @@ function renderEditorModal() {
 }
 
 function renderSplitModal() {
-  const slot = ui.splitSlotId ? planningState.slots.find((item) => item.id === ui.splitSlotId) : null;
-  if (!slot) return "";
-
-  const batch = getBatch(slot.batchId);
-  const max = Math.max(1, Number(slot.quantity || 0) - 1);
-
-  return `
-    <div class="modal-backdrop" data-modal-backdrop>
-      <section class="modal confirm-modal split-confirm-modal" role="dialog" aria-modal="true" aria-label="Разделение партии">
-        <form id="splitForm">
-          <div class="modal-header">
-            <div>
-              <span class="eyebrow">MOD · Confirm Compact · Разделение</span>
-              <h2>Партия ${escapeHtml(batch?.batchNumber || "")}</h2>
-            </div>
-            <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
-          </div>
-
-          <div class="confirm-body warning">
-            <div class="confirm-icon">${icon("split")}</div>
-            <div>
-              <p>Новый слот сохранит состав изделия, маршрутный шаг и отдел. Исходный слот будет уменьшен на указанное количество.</p>
-              <span>Действие влияет на план партии и последующую цепочку операций.</span>
-            </div>
-          </div>
-
-          <div class="compact-form-row">
-            <label class="form-field">
-              <span>Количество в новом слоте</span>
-              <input name="splitQuantity" type="number" min="1" max="${max}" value="${Math.ceil(max / 2)}" required />
-            </label>
-          </div>
-
-          <div class="modal-footer">
-            <button class="secondary-button" data-close-modal type="button">Отмена</button>
-            <button class="primary-button" type="submit">${icon("split")}<span>Разделить</span></button>
-          </div>
-        </form>
-      </section>
-    </div>
-  `;
+  return "";
 }
 
 function bindEvents(scaleInfo, rows, rowLayout) {
@@ -25627,6 +25954,11 @@ function bindEvents(scaleInfo, rows, rowLayout) {
       event.stopPropagation();
       if (ui.drag?.moved) return;
       if (shouldSuppressGanttSlotClick(slotId)) return;
+      if (window.matchMedia?.("(max-width: 768px)").matches) {
+        ui.selectedSlotId = slotId;
+        ui.editor = null;
+        render();
+      }
     });
 
     slotElement.addEventListener("dblclick", (event) => {
@@ -25680,13 +26012,6 @@ function bindEvents(scaleInfo, rows, rowLayout) {
   app.querySelectorAll("[data-cycle-status]").forEach((button) => {
     button.addEventListener("click", () => {
       cycleSlotStatus(button.dataset.cycleStatus);
-    });
-  });
-
-  app.querySelectorAll("[data-split-slot]").forEach((button) => {
-    button.addEventListener("click", () => {
-      ui.splitSlotId = button.dataset.splitSlot;
-      render();
     });
   });
 
@@ -25907,7 +26232,7 @@ function bindSlotForm() {
 	      routeId: selectedRoute?.id || currentSlot?.routeId || selectedRouteStep.routeId || "",
 	      specificationId: productionId,
 	      projectId: productionId,
-	      batchId: data.get("batchId"),
+	      batchId: selectedRoute?.id || currentSlot?.routeId || data.get("batchId") || "",
       routeWorkCenterId: selectedRouteStep.workCenterId,
       workCenterId: planningWorkCenterId,
       routeStepId: data.get("routeStepId"),
@@ -25967,83 +26292,7 @@ function bindSlotForm() {
 }
 
 function bindSplitForm() {
-  const form = app.querySelector("#splitForm");
-  if (!form) return;
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const sourceSlot = planningState.slots.find((slot) => slot.id === ui.splitSlotId);
-    if (!sourceSlot) return;
-
-    const data = new FormData(form);
-    const quantity = Number(data.get("splitQuantity"));
-    if (!quantity || quantity <= 0 || quantity >= sourceSlot.quantity) {
-      alert("Количество должно быть больше 0 и меньше количества исходного слота.");
-      return;
-    }
-
-	    const sourceBatch = getBatch(sourceSlot.batchId);
-	    const stamp = new Date().toISOString();
-	    const childIndex = planningState.batches.filter((batch) => batch.parentBatchId === (sourceBatch.parentBatchId || sourceBatch.id)).length + 1;
-	    const sourceQuantity = normalizeQuantity(sourceSlot.quantity - quantity);
-	    const sourcePatch = recalculateSlotEndByQuantity({
-	      ...sourceSlot,
-	      quantity: sourceQuantity,
-	    }, planningState);
-	    const childPatch = recalculateSlotEndByQuantity({
-	      ...sourceSlot,
-	      quantity,
-	      plannedStart: sourcePatch.plannedEnd,
-	    }, planningState);
-    const childBatch = {
-      id: makeId("b"),
-      routeId: sourceSlot.routeId || sourceBatch?.routeId || "",
-      specificationId: sourceSlot.specificationId || sourceBatch?.specificationId || sourceSlot.projectId,
-      projectId: sourceSlot.specificationId || sourceBatch?.specificationId || sourceSlot.projectId,
-      batchNumber: `${sourceBatch.batchNumber}.${childIndex}`,
-      quantity,
-      parentBatchId: sourceBatch.parentBatchId || sourceBatch.id,
-      status: "planned",
-      createdAt: stamp,
-      updatedAt: stamp,
-    };
-	    const childSlot = {
-	      ...sourceSlot,
-	      id: makeId("s"),
-	      batchId: childBatch.id,
-	      quantity,
-	      bomListId: childPatch.bomListId || sourceSlot.bomListId || "",
-	      boardsPerPanel: childPatch.boardsPerPanel,
-	      plannedStart: childPatch.plannedStart,
-	      plannedEnd: childPatch.plannedEnd,
-	      actualStart: "",
-	      actualEnd: "",
-      status: "planned",
-      comment: `Выделено из партии ${sourceBatch.batchNumber}.`,
-      createdAt: stamp,
-      updatedAt: stamp,
-    };
-
-    planningState.batches = [...planningState.batches, childBatch];
-	    planningState.slots = planningState.slots
-	      .map((slot) => slot.id === sourceSlot.id ? {
-	        ...slot,
-	        bomListId: sourcePatch.bomListId || slot.bomListId || "",
-	        boardsPerPanel: sourcePatch.boardsPerPanel,
-	        quantity: sourceQuantity,
-	        plannedEnd: sourcePatch.plannedEnd,
-	        updatedAt: stamp,
-	      } : slot)
-      .concat(childSlot);
-
-    cascadeIfEnabled(sourceSlot.id);
-    cascadeIfEnabled(childSlot.id);
-    ui.splitSlotId = null;
-    ui.selectedSlotId = childSlot.id;
-    persistState();
-    notifySaveSuccess("Партия разделена");
-    render();
-  });
+  ui.splitSlotId = null;
 }
 
 function toggleGanttDependencyEditMode() {
@@ -27095,7 +27344,9 @@ function getProjectDisplayOutput(project) {
 }
 
 function getBatch(id) {
-  return planningState.batches.find((batch) => batch.id === id);
+  const route = (planningState.routes || []).find((item) => item.id === id)
+    || (planningState.routes || []).find((item) => (planningState.slots || []).some((slot) => slot.batchId === id && slot.routeId === item.id));
+  return route ? getRoutePlanningOrder(route) : null;
 }
 
 function getWorkCenter(id) {
@@ -27145,6 +27396,7 @@ function icon(name) {
     document: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M14 3v6h6M8 13h8M8 17h6"></path></svg>`,
     bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z"></path><path d="M2 8h2M2 12h2M2 16h2M20 8h2M20 12h2M20 16h2M8 2v2M12 2v2M16 2v2M8 20v2M12 20v2M16 20v2"></path></svg>`,
     package: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"></path><path d="M4 7.5 12 12l8-4.5M12 12v9"></path><path d="m8 5.2 8 4.5"></path></svg>`,
+    supply: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3Z"></path><path d="M14 10h4l3 3v3h-7Z"></path><circle cx="7" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="M5 11h5M5 14h3"></path></svg>`,
     warehouse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"></path><path d="M7 21V11h10v10"></path><path d="M7 15h10M7 18h10M12 11v10"></path><path d="M3 8h18"></path></svg>`,
     directory: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M7 12h10M7 16h7"></path></svg>`,
     settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,

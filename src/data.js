@@ -8,7 +8,6 @@ export function createDefaultPlanningState() {
     // Legacy compatibility only. Production planning is specification-centered;
     // historical project records are migrated into directoryState.specifications.
     projects: [],
-    batches: [],
     workCenters: structuredClone(workCenters),
     routes: [],
     routeSteps: [],

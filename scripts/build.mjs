@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -41,6 +41,81 @@ async function fileHash(path) {
   return createHash("sha256").update(buffer).digest("hex").slice(0, 12);
 }
 
+function toPosixPath(path) {
+  return path.split(sep).join("/");
+}
+
+async function collectJsFiles(rootDir) {
+  const entries = await readdir(rootDir, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await collectJsFiles(entryPath));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".js")) files.push(entryPath);
+  }
+
+  return files;
+}
+
+async function getJsModuleHashes(rootDir, filePaths) {
+  const hashes = new Map();
+  await Promise.all(filePaths.map(async (filePath) => {
+    hashes.set(toPosixPath(relative(rootDir, filePath)), await fileHash(filePath));
+  }));
+  return hashes;
+}
+
+function withVersionedLocalJsImport(rootDir, importerPath, hashes, prefix, specifier, suffix) {
+  const targetPath = join(dirname(importerPath), specifier);
+  const targetKey = toPosixPath(relative(rootDir, targetPath));
+  const version = hashes.get(targetKey);
+  if (!version) return `${prefix}${specifier}${suffix}`;
+  return `${prefix}${specifier}?v=${version}${suffix}`;
+}
+
+async function versionLocalJsImports(rootDir) {
+  const filePaths = await collectJsFiles(rootDir);
+  let hashes = await getJsModuleHashes(rootDir, filePaths);
+
+  for (let iteration = 0; iteration < 8; iteration += 1) {
+    let sourceChanged = false;
+
+    for (const filePath of filePaths) {
+      const source = await readFile(filePath, "utf-8");
+      const versioned = source
+        .replace(/(from\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
+          withVersionedLocalJsImport(rootDir, filePath, hashes, prefix, specifier, suffix)
+        ))
+        .replace(/(\bimport\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
+          withVersionedLocalJsImport(rootDir, filePath, hashes, prefix, specifier, suffix)
+        ))
+        .replace(/(\bimport\s*\(\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["']\s*\))/g, (match, prefix, specifier, suffix) => (
+          withVersionedLocalJsImport(rootDir, filePath, hashes, prefix, specifier, suffix)
+        ));
+
+      if (versioned !== source) {
+        sourceChanged = true;
+        await writeFile(filePath, versioned);
+      }
+    }
+
+    const nextHashes = await getJsModuleHashes(rootDir, filePaths);
+    const hashChanged = filePaths.some((filePath) => {
+      const key = toPosixPath(relative(rootDir, filePath));
+      return nextHashes.get(key) !== hashes.get(key);
+    });
+    hashes = nextHashes;
+
+    if (!sourceChanged && !hashChanged) break;
+  }
+
+  return hashes;
+}
+
 function replaceRequired(html, pattern, replacement, label) {
   if (!pattern.test(html)) {
     throw new Error(`Cannot find ${label} in staging index.html`);
@@ -77,11 +152,12 @@ if (await pathExists(workflowPresetPath)) {
   await copyFile(workflowPresetPath, join(stagingDistDir, "workflow-preset.json"));
 }
 
-const [stylesVersion, appVersion, faviconVersion] = await Promise.all([
+const jsModuleHashes = await versionLocalJsImports(join(stagingDistDir, "src"));
+const [stylesVersion, faviconVersion] = await Promise.all([
   fileHash(join(stagingDistDir, "styles.css")),
-  fileHash(join(stagingDistDir, "src", "app.js")),
   pathExists(join(stagingDistDir, "favicon.svg")).then((exists) => exists ? fileHash(join(stagingDistDir, "favicon.svg")) : ""),
 ]);
+const appVersion = jsModuleHashes.get("app.js") || await fileHash(join(stagingDistDir, "src", "app.js"));
 
 let html = await readFile(join(stagingDistDir, "index.html"), "utf-8");
 html = replaceRequired(

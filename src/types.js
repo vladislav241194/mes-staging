@@ -5,14 +5,14 @@
  * BOMList: technical key for board "Плата" with BOM rows in directoryState.bomLists.
  * NomenclatureItem: material/component/PCB master data in directoryState.nomenclature.
  * OperationMapItem: operation directory row stored in directoryState.operationMap.
- * Route: route card for product composition in planningState.routes.
+ * Route: route card and production order for product composition in planningState.routes.
  * RouteStep: operation in a route card, linked to a work center and optionally OperationMapItem.
- * Batch: production lot in planningState.batches, created from a route before Gantt transfer.
  * OperationSlot: scheduled Gantt operation in planningState.slots.
  * WorkCenter: planning/resource row in planningState.workCenters with separate workSchedule and workMode fields.
  *
- * Compatibility note: projectId still appears in routes, batches and slots as
- * an alias for specificationId. There is no separate Project entity in the UI.
+ * Compatibility note: projectId still appears in routes and slots as an alias
+ * for specificationId. Legacy batchId may exist in older saved slots, but the
+ * active planning model is route/order-centered and has no Batch entity.
  *
  * Main fields:
  * Specification ("Состав изделия"): id, name, structureItems, productionQuantity, dueDate, orderNumber, customer, productionStatus
@@ -22,8 +22,7 @@
  * transferBatchQuantity, canceledAt, isDefault
  * RouteStep: id, routeId, operationId, workCenterId, operationName, stepOrder, isRequired, specTaskId, fulfillmentMode,
  * operationInputs, operationOutputs
- * Batch: id, routeId, specificationId, projectId, batchNumber, quantity, parentBatchId, status, createdAt, updatedAt
- * OperationSlot: id, routeId, specificationId, projectId, batchId, workCenterId, routeStepId, operationName, quantity,
+ * OperationSlot: id, routeId, specificationId, projectId, workCenterId, routeStepId, operationName, quantity,
  * plannedStart, plannedEnd, actualStart, actualEnd, status, comment, operationInputs, operationOutputs, createdAt, updatedAt
  */
 
