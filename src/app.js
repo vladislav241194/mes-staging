@@ -338,6 +338,9 @@ window.addEventListener("unhandledrejection", (event) => {
 var denseInlineViewportListenersBound = false;
 var visualQaRefreshFrame = 0;
 var visualQaLastReport = null;
+var visualQaInspectorActive = false;
+var visualQaSelectedElementReport = null;
+var visualQaHoveredElementReport = null;
 
 const defaultUiState = {
   activeRole: DEFAULT_INTERFACE_ROLE_ID,
@@ -2875,6 +2878,12 @@ function mountGlobalVisualSystem() {
   const shell = app.querySelector(".app-shell");
   document.body.classList.toggle("is-mes-focus-mode", Boolean(ui.focusMode));
   document.body.classList.toggle("is-mes-visual-qa-enabled", Boolean(ui.visualQaEnabled));
+  document.body.classList.toggle("is-mes-visual-qa-inspecting", Boolean(ui.visualQaEnabled && visualQaInspectorActive));
+  if (!ui.visualQaEnabled) {
+    visualQaInspectorActive = false;
+    visualQaSelectedElementReport = null;
+    visualQaHoveredElementReport = null;
+  }
   if (shell) {
     shell.classList.toggle("is-focus-mode", Boolean(ui.focusMode));
     shell.classList.toggle("is-visual-qa-enabled", Boolean(ui.visualQaEnabled));
@@ -2918,6 +2927,8 @@ function mountVisualDebugOverlay() {
   document.querySelectorAll(".visual-debug-overlay-root, .visual-debug-marker-layer").forEach((element) => element.remove());
   if (!ui.visualQaEnabled) {
     visualQaLastReport = null;
+    visualQaInspectorActive = false;
+    visualQaHoveredElementReport = null;
     return;
   }
 
@@ -2930,11 +2941,13 @@ function mountVisualDebugOverlay() {
       <span>${icon("bug")}<strong>Visual QA</strong></span>
       <div class="visual-debug-actions">
         <button type="button" data-visual-qa-refresh title="Обновить проверку">${icon("refresh")}</button>
-        <button type="button" data-visual-qa-copy title="Скопировать отчет">${icon("copy")}</button>
+        <button class="${visualQaInspectorActive ? "is-active" : ""}" type="button" data-visual-qa-inspect title="Выбрать проблемный элемент">${icon("target")}</button>
+        <button type="button" data-visual-qa-copy title="Скопировать отчет для Codex">${icon("copy")}</button>
         <button type="button" data-visual-qa-close title="Выключить QA">${icon("close")}</button>
       </div>
     </header>
     <div class="visual-debug-summary" data-visual-qa-summary>Проверяю интерфейс...</div>
+    <div class="visual-debug-inspector" data-visual-qa-inspector-panel></div>
     <div class="visual-debug-list" data-visual-qa-list></div>
   `;
 
@@ -2947,6 +2960,7 @@ function mountVisualDebugOverlay() {
 
 function isElementVisibleForQa(element) {
   if (!element || element.closest?.(".visual-debug-overlay-root, .visual-debug-marker-layer")) return false;
+  if (element.closest?.("details:not([open])")) return false;
   const rect = element.getBoundingClientRect();
   if (rect.width < 1 || rect.height < 1) return false;
   const style = window.getComputedStyle(element);
@@ -2973,6 +2987,205 @@ function getVisualQaSelector(element) {
 function getVisualQaElementLabel(element) {
   const label = element.getAttribute?.("aria-label") || element.getAttribute?.("title") || element.textContent || "";
   return String(label).replace(/\s+/g, " ").trim().slice(0, 90) || getVisualQaSelector(element);
+}
+
+function isVisualQaUiElement(element) {
+  return Boolean(element?.closest?.(".visual-debug-overlay-root, .visual-debug-marker-layer"));
+}
+
+function getVisualQaModuleLabel(moduleId = ui.activeModule) {
+  return getModuleDefinitions().find((moduleItem) => moduleItem.id === moduleId)?.label || moduleId || "unknown";
+}
+
+function getVisualQaNodeSignature(element) {
+  if (!element) return "";
+  const classes = [...element.classList || []]
+    .filter((className) => !className.startsWith("is-") && !className.startsWith("has-"))
+    .slice(0, 4)
+    .map((className) => `.${className}`)
+    .join("");
+  const id = element.id ? `#${element.id}` : "";
+  const dataAttrs = ["layout", "module", "layoutPage", "visualQaFocus", "routeStepId", "supplyDemandId", "shopMapWidgetId"]
+    .map((key) => element.dataset?.[key] ? `[data-${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}="${element.dataset[key]}"]` : "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("");
+  return `${element.tagName.toLowerCase()}${id}${classes}${dataAttrs}`;
+}
+
+function getVisualQaParentChain(element, limit = 5) {
+  const chain = [];
+  let current = element?.parentElement || null;
+  while (current && current !== document.body && chain.length < limit) {
+    if (!isVisualQaUiElement(current)) chain.push(getVisualQaNodeSignature(current));
+    current = current.parentElement;
+  }
+  return chain.filter(Boolean);
+}
+
+function getVisualQaClosestScrollContainer(element) {
+  let current = element?.parentElement || null;
+  while (current && current !== document.body) {
+    const style = window.getComputedStyle(current);
+    const canScrollX = ["auto", "scroll", "hidden", "clip"].includes(style.overflowX)
+      && current.scrollWidth > current.clientWidth + 2;
+    const canScrollY = ["auto", "scroll", "hidden", "clip"].includes(style.overflowY)
+      && current.scrollHeight > current.clientHeight + 2;
+    if (canScrollX || canScrollY) return current;
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function getInspectableVisualQaElement(target) {
+  if (!target || target.nodeType !== Node.ELEMENT_NODE || isVisualQaUiElement(target)) return null;
+  const element = target.closest([
+    "button",
+    "input",
+    "select",
+    "textarea",
+    "summary",
+    "a[href]",
+    "[role='button']",
+    "[role='dialog']",
+    "[popover]",
+    ".operation-slot",
+    ".supply-demand-bar",
+    ".dense-inline-select",
+    ".dense-inline-options",
+    ".supply-detail-popover",
+    ".route-object-table td",
+    ".speki-structure-table td",
+    ".directory-table td",
+    ".supply-table td",
+    ".module-panel",
+    ".module-card",
+    ".form-field",
+    "[data-layout='table']",
+    "[data-layout='main-content']",
+  ].join(","));
+  return element && !isVisualQaUiElement(element) ? element : target;
+}
+
+function getVisualQaRectSummary(element) {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: Math.round(rect.left),
+    y: Math.round(rect.top),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+    right: Math.round(rect.right),
+    bottom: Math.round(rect.bottom),
+  };
+}
+
+function collectVisualQaElementReport(element) {
+  if (!element) return null;
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+  const scroller = getVisualQaClosestScrollContainer(element);
+  const parent = element.parentElement;
+  const parentRect = parent?.getBoundingClientRect?.();
+  const parentStyle = parent ? window.getComputedStyle(parent) : null;
+  const controlType = String(element.type || element.getAttribute?.("type") || "").toLowerCase();
+  const touchMin = viewportWidth <= 768 ? 36 : 28;
+  const flags = [];
+  const text = String(element.textContent || element.value || "").replace(/\s+/g, " ").trim();
+  const xOverflow = element.scrollWidth > element.clientWidth + 2;
+  const yOverflow = element.scrollHeight > element.clientHeight + 2;
+
+  if (rect.right > viewportWidth + 1 || rect.left < -1) flags.push("element-outside-viewport-x");
+  if (rect.bottom > viewportHeight + 1 || rect.top < -1) flags.push("element-outside-viewport-y");
+  if (xOverflow || yOverflow) flags.push(`self-overflow-${xOverflow ? "x" : ""}${yOverflow ? "y" : ""}`);
+  if (!element.disabled && (rect.width < touchMin || rect.height < touchMin) && controlType !== "hidden") flags.push("small-touch-target");
+  if (style.whiteSpace === "nowrap" && xOverflow) flags.push("nowrap-text-overflow");
+  if (parentRect && parentStyle && ["hidden", "clip"].includes(parentStyle.overflowX) && rect.right > parentRect.right + 1) flags.push("clipped-by-parent-x");
+  if (parentRect && parentStyle && ["hidden", "clip"].includes(parentStyle.overflowY) && rect.bottom > parentRect.bottom + 1) flags.push("clipped-by-parent-y");
+  if (element.matches?.(".modal, .slot-drawer, .dense-inline-options, .supply-detail-popover, [popover]")) flags.push("floating-layer");
+
+  const report = {
+    generatedAt: new Date().toISOString(),
+    type: "visual-qa-inspector",
+    module: ui.activeModule,
+    moduleLabel: getVisualQaModuleLabel(),
+    viewport: { width: viewportWidth, height: viewportHeight },
+    selector: getVisualQaSelector(element),
+    signature: getVisualQaNodeSignature(element),
+    label: getVisualQaElementLabel(element),
+    text: text.slice(0, 260),
+    rect: getVisualQaRectSummary(element),
+    scroll: {
+      scrollWidth: Math.round(element.scrollWidth || 0),
+      clientWidth: Math.round(element.clientWidth || 0),
+      scrollHeight: Math.round(element.scrollHeight || 0),
+      clientHeight: Math.round(element.clientHeight || 0),
+    },
+    style: {
+      display: style.display,
+      position: style.position,
+      zIndex: style.zIndex,
+      overflowX: style.overflowX,
+      overflowY: style.overflowY,
+      whiteSpace: style.whiteSpace,
+      textOverflow: style.textOverflow,
+      fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      lineHeight: style.lineHeight,
+    },
+    parentChain: getVisualQaParentChain(element),
+    scrollContainer: scroller ? {
+      selector: getVisualQaSelector(scroller),
+      signature: getVisualQaNodeSignature(scroller),
+      rect: getVisualQaRectSummary(scroller),
+      scrollWidth: Math.round(scroller.scrollWidth || 0),
+      clientWidth: Math.round(scroller.clientWidth || 0),
+      scrollHeight: Math.round(scroller.scrollHeight || 0),
+      clientHeight: Math.round(scroller.clientHeight || 0),
+      overflowX: window.getComputedStyle(scroller).overflowX,
+      overflowY: window.getComputedStyle(scroller).overflowY,
+    } : null,
+    flags,
+  };
+  window.__mesVisualQaInspectorReport = report;
+  return report;
+}
+
+function formatVisualQaInspectorReport(report = visualQaSelectedElementReport) {
+  if (!report) return "Visual QA Inspector: элемент не выбран.";
+  return [
+    "Visual QA Inspector report",
+    `Модуль: ${report.moduleLabel} (${report.module})`,
+    `Viewport: ${report.viewport.width}x${report.viewport.height}`,
+    `Элемент: ${report.label}`,
+    `Selector: ${report.selector}`,
+    `Signature: ${report.signature}`,
+    `Rect: x=${report.rect.x}, y=${report.rect.y}, w=${report.rect.width}, h=${report.rect.height}, right=${report.rect.right}, bottom=${report.rect.bottom}`,
+    `Scroll: ${report.scroll.scrollWidth}x${report.scroll.scrollHeight} / client ${report.scroll.clientWidth}x${report.scroll.clientHeight}`,
+    `CSS: display=${report.style.display}; position=${report.style.position}; z-index=${report.style.zIndex}; overflow=${report.style.overflowX}/${report.style.overflowY}; white-space=${report.style.whiteSpace}; text-overflow=${report.style.textOverflow}; font=${report.style.fontWeight} ${report.style.fontSize}/${report.style.lineHeight}`,
+    `Flags: ${report.flags.length ? report.flags.join(", ") : "нет автоматических флагов"}`,
+    report.scrollContainer
+      ? `Scroll container: ${report.scrollContainer.signature} (${report.scrollContainer.clientWidth}x${report.scrollContainer.clientHeight}, scroll ${report.scrollContainer.scrollWidth}x${report.scrollContainer.scrollHeight}, overflow ${report.scrollContainer.overflowX}/${report.scrollContainer.overflowY})`
+      : "Scroll container: не найден",
+    `Parent chain: ${report.parentChain.join(" > ") || "нет"}`,
+    report.text ? `Text: ${report.text}` : "Text: нет",
+    "Что проверить: визуальное положение элемента, переполнение, ближайший scroll-контейнер, z-index/dropdown и размеры touch target.",
+  ].join("\n");
+}
+
+function formatVisualQaAutoReport(report = visualQaLastReport || collectVisualQaIssues()) {
+  const issues = report.issues || [];
+  return [
+    "Visual QA auto-scan report",
+    `Модуль: ${getVisualQaModuleLabel(report.module)} (${report.module})`,
+    `Viewport: ${report.viewport?.width || 0}x${report.viewport?.height || 0}`,
+    `Замечаний: ${issues.length}`,
+    ...issues.slice(0, 20).map((issue, index) => (
+      `${index + 1}. [${issue.severity}] ${issue.type}: ${issue.message}\n   ${issue.label}\n   ${issue.selector}\n   rect=${JSON.stringify(issue.rect)}`
+    )),
+    issues.length > 20 ? `...и еще ${issues.length - 20}` : "",
+  ].filter(Boolean).join("\n");
 }
 
 function isInsideAllowedHorizontalQaScroller(element) {
@@ -3106,6 +3319,7 @@ function collectVisualQaIssues() {
     if (issues.length >= VISUAL_QA_MAX_ISSUES || !isElementVisibleForQa(element)) return;
     const text = String(element.textContent || "").replace(/\s+/g, " ").trim();
     if (text.length < 2) return;
+    if (element.closest(".is-loading")) return;
     const style = window.getComputedStyle(element);
     const xOverflow = element.scrollWidth > element.clientWidth + 2;
     const yOverflow = element.scrollHeight > element.clientHeight + 2;
@@ -3134,7 +3348,7 @@ function collectVisualQaIssues() {
 function renderVisualQaMarkers(issues = []) {
   const layer = document.querySelector(".visual-debug-marker-layer");
   if (!layer) return;
-  layer.innerHTML = issues.slice(0, VISUAL_QA_MAX_ISSUES).map((issue, index) => {
+  const issueMarkers = issues.slice(0, VISUAL_QA_MAX_ISSUES).map((issue, index) => {
     const rect = issue.rect || {};
     const left = Math.max(0, Math.min(rect.x || 0, window.innerWidth - 10));
     const top = Math.max(0, Math.min(rect.y || 0, window.innerHeight - 10));
@@ -3147,7 +3361,59 @@ function renderVisualQaMarkers(issues = []) {
         title="${escapeAttribute(`${index + 1}. ${issue.message} · ${issue.label}`)}"
       ></span>
     `;
-  }).join("");
+  });
+  const inspectorMarkers = [visualQaSelectedElementReport, visualQaInspectorActive ? visualQaHoveredElementReport : null]
+    .filter(Boolean)
+    .map((report, index) => {
+      const rect = report.rect || {};
+      const left = Math.max(0, Math.min(rect.x || 0, window.innerWidth - 10));
+      const top = Math.max(0, Math.min(rect.y || 0, window.innerHeight - 10));
+      const width = Math.max(6, Math.min(rect.width || 6, window.innerWidth - left));
+      const height = Math.max(6, Math.min(rect.height || 6, window.innerHeight - top));
+      return `
+        <span
+          class="visual-debug-marker is-inspector ${index === 0 && visualQaSelectedElementReport ? "is-selected" : "is-hover"}"
+          style="left:${left}px; top:${top}px; width:${width}px; height:${height}px;"
+          title="${escapeAttribute(`Inspector · ${report.label}`)}"
+        ></span>
+      `;
+    });
+  layer.innerHTML = [...issueMarkers, ...inspectorMarkers].join("");
+}
+
+function renderVisualQaInspectorPanel(report = visualQaSelectedElementReport) {
+  if (!visualQaInspectorActive && !report) {
+    return `
+      <div class="visual-debug-inspector-idle">
+        ${icon("target")}
+        <span>Авто-скан активен. Для точного отчета нажми прицел и кликни проблемный элемент.</span>
+      </div>
+    `;
+  }
+  if (visualQaInspectorActive && !report) {
+    return `
+      <div class="visual-debug-inspector-selecting">
+        ${icon("target")}
+        <span>Кликни проблемный элемент на экране. Esc отменяет выбор.</span>
+      </div>
+    `;
+  }
+  return `
+    <div class="visual-debug-inspector-card">
+      <div>
+        <strong>${escapeHtml(report.label)}</strong>
+        <small>${escapeHtml(report.selector)} · ${report.rect.width}x${report.rect.height}px</small>
+      </div>
+      <div class="visual-debug-inspector-flags">
+        ${(report.flags.length ? report.flags : ["без авто-флагов"]).map((flag) => `<span>${escapeHtml(flag)}</span>`).join("")}
+      </div>
+      <button type="button" data-visual-qa-copy-selected>${icon("copy")}<span>Скопировать для Codex</span></button>
+      <details class="visual-debug-report-preview">
+        <summary>Текст отчета</summary>
+        <textarea readonly data-visual-qa-report-text>${escapeHtml(formatVisualQaInspectorReport(report))}</textarea>
+      </details>
+    </div>
+  `;
 }
 
 function updateVisualDebugOverlay() {
@@ -3164,6 +3430,7 @@ function updateVisualDebugOverlay() {
     return acc;
   }, {});
   const summary = overlay.querySelector("[data-visual-qa-summary]");
+  const inspector = overlay.querySelector("[data-visual-qa-inspector-panel]");
   const list = overlay.querySelector("[data-visual-qa-list]");
   if (summary) {
     summary.innerHTML = `
@@ -3184,20 +3451,64 @@ function updateVisualDebugOverlay() {
       `).join("")
       : `<div class="visual-debug-empty">${icon("check")} Подозрительных визуальных проблем не найдено</div>`;
   }
+  if (inspector) {
+    inspector.innerHTML = renderVisualQaInspectorPanel();
+  }
   renderVisualQaMarkers(report.issues);
 }
 
 function copyVisualQaReport() {
   const report = visualQaLastReport || collectVisualQaIssues();
-  const text = JSON.stringify(report, null, 2);
+  const text = visualQaSelectedElementReport
+    ? formatVisualQaInspectorReport(visualQaSelectedElementReport)
+    : formatVisualQaAutoReport(report);
+  copyTextToClipboard(
+    text,
+    visualQaSelectedElementReport ? "Отчет по элементу скопирован" : "Visual QA отчет скопирован",
+    visualQaSelectedElementReport ? "Отчет показан в панели Visual QA" : "Visual QA отчет доступен в window.__mesVisualQaReport",
+  );
+  if (!visualQaSelectedElementReport) window.__mesVisualQaReport = report;
+}
+
+function copyTextToClipboard(text, successMessage, fallbackMessage) {
+  const legacyCopy = () => {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    }
+    textarea.remove();
+    notifySaveSuccess(copied ? successMessage : fallbackMessage);
+    return copied;
+  };
+
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text)
-      .then(() => notifySaveSuccess("Visual QA отчет скопирован"))
-      .catch(() => notifySaveSuccess("Visual QA отчет доступен в window.__mesVisualQaReport"));
+      .then(() => notifySaveSuccess(successMessage))
+      .catch(() => legacyCopy());
     return;
   }
-  window.__mesVisualQaReport = report;
-  notifySaveSuccess("Visual QA отчет доступен в window.__mesVisualQaReport");
+  legacyCopy();
+}
+
+function copyVisualQaInspectorReport() {
+  if (!visualQaSelectedElementReport) {
+    notifySaveSuccess("Сначала выбери проблемный элемент");
+    return;
+  }
+  const text = formatVisualQaInspectorReport(visualQaSelectedElementReport);
+  window.__mesVisualQaInspectorReport = visualQaSelectedElementReport;
+  copyTextToClipboard(text, "Отчет по элементу скопирован", "Отчет показан в панели Visual QA");
 }
 
 function getFormControlSignatureEntry(control) {
@@ -5180,6 +5491,20 @@ function render(options = {}) {
     `;
     bindGlobalNavigation();
     bindRkdUxEvents();
+    bindConfirmEvents();
+    return;
+  }
+
+  if (ui.activeModule === "visualSystem") {
+    app.innerHTML = `
+      <main class="app-shell visual-system-app-shell" data-layout="app-shell" data-layout-page="visualSystem">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderVisualSystemPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
     bindConfirmEvents();
     return;
   }
@@ -10222,6 +10547,7 @@ function getModuleDefinitions() {
     { id: "dispatch", label: "Диспетчерская", icon: "monitor" },
     { id: "warehouse", label: "Склад", icon: "warehouse" },
     { id: "shopMap", label: "Цех производства", icon: "map" },
+    { id: "visualSystem", label: "UI-состояния", icon: "palette" },
     { id: "products", label: PRODUCT_COMPOSITION_LIST_TERM, icon: "tree" },
     { id: "routes", label: "Маршрутная карта", icon: "split" },
     { id: "bomLists", label: BOARD_SPEC_LIST_TERM, icon: "bom" },
@@ -10236,7 +10562,7 @@ function getModuleGroups(modules) {
     { label: "Производство", ids: ["gantt", "planning", "dispatch", "warehouse"] },
     { label: "Технологии", ids: ["routes", "products", "bomLists", "nomenclature"] },
     { label: "Система", ids: ["directories"] },
-    { label: "UX-макеты", ids: ["supply", "shopMap", "rkd"], tone: "test" },
+    { label: "UX-макеты", ids: ["visualSystem", "supply", "shopMap", "rkd"], tone: "test" },
   ];
 
   return groupMap
@@ -15501,6 +15827,194 @@ function renderRkdReadinessStep(rkd) {
           ${readiness.warnings.length ? readiness.warnings.map((warning) => `<span>${icon("info")}${escapeHtml(warning)}</span>`).join("") : `<span>${icon("check")}Замечаний нет</span>`}
         </article>
       </div>
+    </section>
+  `;
+}
+
+function renderVisualSystemPage() {
+  const signalRows = Object.entries(MES_SIGNAL_TYPES).map(([id, meta]) => ({
+    id,
+    label: meta.label,
+    tone: meta.tone,
+  }));
+  const stateRows = [
+    { id: "normal", label: "Normal", text: "базовое состояние без декоративного шума" },
+    { id: "hover", label: "Hover", text: "легкая подсветка без скачка размера" },
+    { id: "active", label: "Active", text: "короткое нажатие, только микросдвиг" },
+    { id: "focus", label: "Focus", text: "единый focus ring через :focus-visible" },
+    { id: "disabled", label: "Disabled", text: "недоступно, но читаемо" },
+    { id: "loading", label: "Loading", text: "локальная загрузка, не блокирует экран" },
+    { id: "dirty", label: "Dirty", text: "есть несохраненное изменение" },
+    { id: "saved", label: "Saved", text: "короткое подтверждение сохранения" },
+    { id: "error", label: "Error", text: "ошибка рядом с проблемным объектом" },
+    { id: "selected", label: "Selected", text: "выбранная строка или слот" },
+  ];
+  const snapshotRows = [
+    ["desktop-1556", "1556x1006", "Гант, маршрут, изделие, снабжение, справочники"],
+    ["mobile-390", "390x844", "навигация, таблицы, popup, dropdown, Gantt"],
+    ["mobile-430", "430x932", "длинные формы и таблицы"],
+    ["tablet-768", "768x1024", "переход mobile/tablet и внутренние скроллы"],
+  ];
+
+  return `
+    <section class="visual-system-page" data-layout="main-content" aria-label="MES Visual System">
+      <header class="visual-system-hero">
+        <span class="eyebrow">UX-макет · проверочный стенд</span>
+        <div>
+          <h2>MES Visual System v1 Completion</h2>
+          <p>Единый экран для проверки статусов, состояний, таблиц, форм, Gantt-элементов, empty/loading/error и QA-инспектора.</p>
+        </div>
+        <div class="visual-system-hero-actions">
+          <button class="secondary-button" data-toggle-focus-mode type="button">${icon("focus")}<span>Фокус</span></button>
+          <button class="primary-button" data-toggle-visual-qa type="button">${icon("bug")}<span>Visual QA</span></button>
+        </div>
+      </header>
+
+      <section class="visual-system-grid">
+        <article class="visual-system-panel">
+          <div class="visual-system-panel-title">
+            ${icon("alert")}
+            <div><h3>Сигналы системы</h3><p>Один смысл - один визуальный язык во всех модулях.</p></div>
+          </div>
+          <div class="visual-signal-grid">
+            ${signalRows.map((signal) => `
+              <span class="mes-signal is-${escapeAttribute(signal.tone)}" title="${escapeAttribute(signal.id)}">${escapeHtml(signal.label)}</span>
+            `).join("")}
+          </div>
+        </article>
+
+        <article class="visual-system-panel">
+          <div class="visual-system-panel-title">
+            ${icon("target")}
+            <div><h3>Interaction States Bible</h3><p>Матрица проверяется здесь, а не только в документе.</p></div>
+          </div>
+          <div class="visual-state-grid">
+            ${stateRows.map((state) => `
+              <button class="visual-state-card is-${escapeAttribute(state.id)}" type="button" ${state.id === "disabled" ? "disabled" : ""}>
+                <strong>${escapeHtml(state.label)}</strong>
+                <span>${escapeHtml(state.text)}</span>
+              </button>
+            `).join("")}
+          </div>
+        </article>
+
+        <article class="visual-system-panel">
+          <div class="visual-system-panel-title">
+            ${icon("edit")}
+            <div><h3>Формы и поля</h3><p>Dirty, saved, warning, error, disabled, расчетное поле.</p></div>
+          </div>
+          <div class="visual-form-grid">
+            <label class="form-field visual-state-dirty"><span>Название</span><input value="Несохраненное изменение" /></label>
+            <label class="form-field visual-state-saved"><span>ERP документ</span><input value="ERP-2451 сохранен" /></label>
+            <label class="form-field visual-state-error"><span>Срок</span><input value="не помещается" aria-invalid="true" /><small>Ошибка рядом с полем</small></label>
+            <label class="form-field is-resource-calculation-factor is-ux-labor-test"><span>Норма</span><input value="42 сек/цикл" readonly /></label>
+            <label class="form-field"><span>Статус</span><select><option>Ожидает поставки</option></select></label>
+            <label class="visual-checkbox-row"><input type="checkbox" checked /><span>Крупная touch-зона</span></label>
+          </div>
+        </article>
+
+        <article class="visual-system-panel is-wide">
+          <div class="visual-system-panel-title">
+            ${icon("directory")}
+            <div><h3>Плотные таблицы MES</h3><p>Sticky actions, tree cell, compact chips, inline edit и внутренний scroll только внутри таблицы.</p></div>
+          </div>
+          <div class="visual-table-wrap" data-layout="table">
+            <table class="visual-system-table">
+              <thead>
+                <tr><th>Дерево</th><th>Тип</th><th>Состояние</th><th>Поле</th><th>Действия</th></tr>
+              </thead>
+              <tbody>
+                <tr class="is-selected">
+                  <td><span class="visual-tree-cell" style="--level:0">${icon("tree")} Финальная сборка</span></td>
+                  <td><span class="mes-signal is-manual">узел</span></td>
+                  <td><span class="mes-signal is-ready">готово</span></td>
+                  <td><input value="строка выбрана" /></td>
+                  <td class="actions-cell"><button class="table-icon-button" type="button" title="Редактировать">${icon("edit")}</button></td>
+                </tr>
+                <tr>
+                  <td><span class="visual-tree-cell" style="--level:1">${icon("bom")} Плата BOM_ELF</span></td>
+                  <td><span class="mes-signal is-calc">расчет</span></td>
+                  <td><span class="mes-signal is-warning">ожидание</span></td>
+                  <td><input value="inline edit" /></td>
+                  <td class="actions-cell"><button class="table-icon-button" type="button" title="Удалить">${icon("trashSoft")}</button></td>
+                </tr>
+                <tr>
+                  <td><span class="visual-tree-cell" style="--level:2">${icon("operation")} SMT монтаж</span></td>
+                  <td><span class="mes-signal is-test">UX</span></td>
+                  <td><span class="mes-signal is-risk">риск</span></td>
+                  <td><input value="dropdown не должен выходить" /></td>
+                  <td class="actions-cell"><button class="table-icon-button" type="button" title="Открыть">${icon("arrowRight")}</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="visual-system-panel">
+          <div class="visual-system-panel-title">
+            ${icon("gantt")}
+            <div><h3>Gantt Design System</h3><p>Скругление = начало/конец, прямой угол = перенос через нерабочее время.</p></div>
+          </div>
+          <div class="visual-gantt-demo" aria-label="Пример Gantt-состояний">
+            <div class="visual-gantt-row"><span>План</span><i class="visual-gantt-bar is-plan"></i></div>
+            <div class="visual-gantt-row"><span>Разрыв</span><i class="visual-gantt-bar is-split"><b></b></i></div>
+            <div class="visual-gantt-row"><span>Передача</span><i class="visual-gantt-bar is-transfer"><em></em></i></div>
+            <div class="visual-gantt-row"><span>Риск</span><i class="visual-gantt-bar is-risk"></i></div>
+            <div class="visual-gantt-row"><span>Выбрано</span><i class="visual-gantt-bar is-selected"></i></div>
+          </div>
+        </article>
+
+        <article class="visual-system-panel">
+          <div class="visual-system-panel-title">
+            ${icon("info")}
+            <div><h3>Empty / Loading / Error</h3><p>Одинаковый тон для служебных состояний.</p></div>
+          </div>
+          <div class="visual-state-stack">
+            <div class="empty-state">${icon("search")}<span>Нет данных по текущему фильтру</span></div>
+            <div class="visual-loading-line is-loading"><span>Локальная загрузка строки</span></div>
+            <div class="visual-error-line">${icon("alert")}<span>Системная ошибка рядом с объектом</span></div>
+          </div>
+        </article>
+
+        <article class="visual-system-panel">
+          <div class="visual-system-panel-title">
+            ${icon("keyboard")}
+            <div><h3>Keyboard UX</h3><p>Проверка профессионального поведения без мыши.</p></div>
+          </div>
+          <div class="visual-keyboard-list">
+            <span><kbd>Tab</kbd> видимый focus ring</span>
+            <span><kbd>Esc</kbd> закрытие dropdown/modal или отмена QA Inspector</span>
+            <span><kbd>Cmd</kbd><kbd>Shift</kbd><kbd>F</kbd> Focus Mode</span>
+            <span><kbd>Cmd</kbd><kbd>Shift</kbd><kbd>Q</kbd> Visual QA</span>
+          </div>
+        </article>
+
+        <article class="visual-system-panel is-wide">
+          <div class="visual-system-panel-title">
+            ${icon("copy")}
+            <div><h3>Design QA Snapshots</h3><p>Воспроизводимая проверка ключевых viewport и модулей.</p></div>
+          </div>
+          <div class="visual-snapshot-table">
+            ${snapshotRows.map((row) => `
+              <div><strong>${escapeHtml(row[0])}</strong><span>${escapeHtml(row[1])}</span><small>${escapeHtml(row[2])}</small></div>
+            `).join("")}
+          </div>
+          <code>node scripts/design-qa-snapshots.mjs --url=http://localhost:4174/</code>
+        </article>
+
+        <article class="visual-system-panel is-wide">
+          <div class="visual-system-panel-title">
+            ${icon("bug")}
+            <div><h3>Visual QA Inspector</h3><p>Пользовательский сценарий передачи бага в Codex.</p></div>
+          </div>
+          <ol class="visual-qa-steps">
+            <li>Нажать <strong>QA</strong>.</li>
+            <li>Нажать кнопку с прицелом.</li>
+            <li>Кликнуть проблемный элемент.</li>
+            <li>Нажать <strong>Скопировать для Codex</strong> и вставить отчет в чат.</li>
+          </ol>
+        </article>
+      </section>
     </section>
   `;
 }
@@ -21092,7 +21606,25 @@ function bindDenseInlineSelectViewportEvents() {
 
 function bindGlobalNavigation() {
   bindDenseInlineSelectViewportEvents();
+  exposeVisualQaRuntimeApi();
   mountGlobalVisualSystem();
+}
+
+function exposeVisualQaRuntimeApi() {
+  window.__mesVisualQaRuntime = {
+    navigateToModule(moduleId) {
+      const target = String(moduleId || "");
+      if (!getAvailableModules().some((moduleItem) => moduleItem.id === target)) return ui.activeModule;
+      navigateToModule(target);
+      return ui.activeModule;
+    },
+    getActiveModule() {
+      return ui.activeModule;
+    },
+    getActiveModuleLabel() {
+      return getVisualQaModuleLabel(ui.activeModule);
+    },
+  };
 }
 
 function switchInterfaceRole(roleId) {
@@ -29544,6 +30076,9 @@ function icon(name) {
     bug: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2l1.5 2.5M16 2l-1.5 2.5"></path><rect x="7" y="5" width="10" height="14" rx="5"></rect><path d="M3 9h4M17 9h4M3 14h4M17 14h4M12 5v14M8 19l-2 3M16 19l2 3"></path></svg>`,
     monitor: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path><path d="M7 10h3l2-3 2 6 2-3h1"></path></svg>`,
     map: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18-6 3V6l6-3 6 3 6-3v15l-6 3Z"></path><path d="M9 3v15M15 6v15"></path></svg>`,
+    palette: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.7H17a4 4 0 0 0 4-4.1C20.8 6.6 16.9 3 12 3Z"></path><circle cx="7.5" cy="10" r="1"></circle><circle cx="10" cy="7.5" r="1"></circle><circle cx="14" cy="7.5" r="1"></circle><circle cx="16.5" cy="10.5" r="1"></circle></svg>`,
+    target: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>`,
+    keyboard: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M7 9h.01M11 9h.01M15 9h.01M19 9h.01M7 13h.01M11 13h.01M15 13h.01M7 17h10"></path></svg>`,
     book: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z"></path><path d="M8 7h8M8 11h8"></path></svg>`,
     document: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M14 3v6h6M8 13h8M8 17h6"></path></svg>`,
     bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z"></path><path d="M2 8h2M2 12h2M2 16h2M20 8h2M20 12h2M20 16h2M8 2v2M12 2v2M16 2v2M8 20v2M12 20v2M16 20v2"></path></svg>`,
@@ -29606,6 +30141,11 @@ window.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "q") {
     event.preventDefault();
     ui.visualQaEnabled = !ui.visualQaEnabled;
+    if (!ui.visualQaEnabled) {
+      visualQaInspectorActive = false;
+      visualQaSelectedElementReport = null;
+      visualQaHoveredElementReport = null;
+    }
     persistUiState();
     notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
     render();
@@ -29613,15 +30153,62 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.key === "Escape") {
+    if (visualQaInspectorActive) {
+      event.preventDefault();
+      visualQaInspectorActive = false;
+      visualQaHoveredElementReport = null;
+      document.body.classList.remove("is-mes-visual-qa-inspecting");
+      updateVisualDebugOverlay();
+      notifySaveSuccess("Выбор элемента отменен");
+      return;
+    }
     closeModals();
   }
 });
+
+window.addEventListener("pointermove", (event) => {
+  if (!ui.visualQaEnabled || !visualQaInspectorActive) return;
+  const element = getInspectableVisualQaElement(event.target);
+  if (!element) {
+    visualQaHoveredElementReport = null;
+    renderVisualQaMarkers(visualQaLastReport?.issues || []);
+    return;
+  }
+  visualQaHoveredElementReport = collectVisualQaElementReport(element);
+  renderVisualQaMarkers(visualQaLastReport?.issues || []);
+}, { passive: true });
+
+window.addEventListener("click", (event) => {
+  if (!ui.visualQaEnabled || !visualQaInspectorActive) return;
+  if (isVisualQaUiElement(event.target)) return;
+  const element = getInspectableVisualQaElement(event.target);
+  if (!element) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  visualQaSelectedElementReport = collectVisualQaElementReport(element);
+  visualQaHoveredElementReport = null;
+  visualQaInspectorActive = false;
+  document.body.classList.remove("is-mes-visual-qa-inspecting");
+  updateVisualDebugOverlay();
+  notifySaveSuccess("Элемент выбран для Visual QA");
+}, true);
 
 window.addEventListener("click", (event) => {
   const visualQaRefreshButton = event.target.closest?.("[data-visual-qa-refresh]");
   if (visualQaRefreshButton) {
     event.preventDefault();
     updateVisualDebugOverlay();
+    return;
+  }
+
+  const visualQaInspectButton = event.target.closest?.("[data-visual-qa-inspect]");
+  if (visualQaInspectButton) {
+    event.preventDefault();
+    visualQaInspectorActive = !visualQaInspectorActive;
+    visualQaHoveredElementReport = null;
+    document.body.classList.toggle("is-mes-visual-qa-inspecting", visualQaInspectorActive);
+    updateVisualDebugOverlay();
+    notifySaveSuccess(visualQaInspectorActive ? "Кликни проблемный элемент" : "Выбор элемента выключен");
     return;
   }
 
@@ -29632,10 +30219,20 @@ window.addEventListener("click", (event) => {
     return;
   }
 
+  const visualQaCopySelectedButton = event.target.closest?.("[data-visual-qa-copy-selected]");
+  if (visualQaCopySelectedButton) {
+    event.preventDefault();
+    copyVisualQaInspectorReport();
+    return;
+  }
+
   const visualQaCloseButton = event.target.closest?.("[data-visual-qa-close]");
   if (visualQaCloseButton) {
     event.preventDefault();
     ui.visualQaEnabled = false;
+    visualQaInspectorActive = false;
+    visualQaSelectedElementReport = null;
+    visualQaHoveredElementReport = null;
     persistUiState();
     notifySaveSuccess("Visual QA выключен");
     render();
@@ -29680,6 +30277,11 @@ window.addEventListener("click", (event) => {
   if (visualQaToggleButton && (app.contains(visualQaToggleButton) || visualQaToggleButton.closest(".mes-visual-mode-tray"))) {
     event.preventDefault();
     ui.visualQaEnabled = !ui.visualQaEnabled;
+    if (!ui.visualQaEnabled) {
+      visualQaInspectorActive = false;
+      visualQaSelectedElementReport = null;
+      visualQaHoveredElementReport = null;
+    }
     persistUiState();
     notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
     render();
