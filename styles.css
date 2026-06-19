@@ -31053,7 +31053,7 @@ main[data-layout="app-shell"],
 
 .gantt-shell .today-marker {
   background: var(--mes-danger, #dc2626) !important;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10) !important;
+  box-shadow: none !important;
 }
 
 .gantt-shell .slot-quantity-badge,
