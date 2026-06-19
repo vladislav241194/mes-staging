@@ -17615,10 +17615,36 @@ function renderVisualSystemPage() {
     { id: "selected", label: "Selected", text: "выбранная строка или слот" },
   ];
   const snapshotRows = [
-    ["desktop-1556", "1556x1006", "Гант, маршрут, изделие, снабжение, справочники"],
-    ["mobile-390", "390x844", "навигация, таблицы, popup, dropdown, Gantt"],
-    ["mobile-430", "430x932", "длинные формы и таблицы"],
+    ["desktop-1556", "1556x1006", "Заказ-наряды, маршрут, Планирование, сотрудники, диспетчерская"],
+    ["mobile-390", "390x844", "навигация, таблицы, popup, dropdown, mobile shell"],
+    ["mobile-430", "430x932", "длинные формы, сотрудники, мастерская и диспетчерская"],
     ["tablet-768", "768x1024", "переход mobile/tablet и внутренние скроллы"],
+  ];
+  const stabilizationRows = [
+    ["Сайдбары", "единый shell", "Только module-data-sidebar, одинаковая высота, выделение активной строки без старых module-entity-card паттернов."],
+    ["Типографика", "плотная", "Шрифт не крупнее справочников; жирность только для заголовка строки, критичных чисел и активного состояния."],
+    ["Таблицы", "MES dense", "Страница не скроллится по X; внутренний scroll остается только у таблицы или временной шкалы."],
+    ["Dropdown", "viewport-safe", "Список должен быть доступен без прокрутки всей рабочей зоны; QA ловит выход за viewport."],
+    ["Focus Mode", "без потерь", "Скрывает вторичные панели, но не отключает действия и не меняет данные."],
+    ["Mobile", "читаемо", "Плотные схемы переходят в wrapped-слои, если иначе текст превращается в нечитаемую вертикаль."],
+  ];
+  const qaCoverageRows = [
+    ["Screenshot QA", "25/25", "visualSystem, planning, routes, gantt, products, nomenclature, shiftMaster, dispatch, employees, supply, shopMap, rkd, directories + focus"],
+    ["Scroll / dropdown QA", "13/13", "проверяет доступность прокрутки, dropdown, popover, sticky и page overflow"],
+    ["MacBook 16", "1556x1006", "ручные снимки ключевых экранов через встроенный браузер"],
+    ["Build gate", "обязателен", "node --check src/app.js, git diff --check, node scripts/build.mjs"],
+  ];
+  const scrollZoneRows = [
+    ["Разрешено", "таблицы", "directory-table-wrap, route-object-table-wrap, visual-table-wrap"],
+    ["Разрешено", "временная шкала", "gantt-shell, supply-gantt-shell"],
+    ["Разрешено", "карта производства", "production-flow-lane как внутренний canvas"],
+    ["Запрещено", "страница", "body/app-shell/main-content не должны получать горизонтальный scroll"],
+  ];
+  const legacyGuardRows = [
+    ["Старые карточки сайдбара", "не использовать", "Новые модули не добавляют отдельные switcher-кнопки над сайдбаром."],
+    ["Плашки-счетчики без действия", "удалять", "KPI вида Участков 6 / Планов 2 не добавлять, если они не помогают сценарию."],
+    ["Дубли паспорта", "удалять", "Если информация уже есть в структуре документа, не добавлять второй summary-блок."],
+    ["Демо-функция", "помечать", "Черная плашка с белым текстом: редактируемо в прототипе, но не влияет на расчет."],
   ];
 
   return `
@@ -17636,6 +17662,59 @@ function renderVisualSystemPage() {
       </header>
 
       <section class="visual-system-grid">
+        <article class="visual-system-panel is-full visual-stabilization-panel">
+          <div class="visual-system-panel-title">
+            ${icon("target")}
+            <div><h3>MES Stabilization Pass v1</h3><p>Живые правила, которые теперь обязаны использовать новые и существующие модули.</p></div>
+          </div>
+          <div class="visual-stabilization-grid">
+            ${stabilizationRows.map((row) => `
+              <div class="visual-rule-card">
+                <strong>${escapeHtml(row[0])}</strong>
+                <span>${escapeHtml(row[1])}</span>
+                <small>${escapeHtml(row[2])}</small>
+              </div>
+            `).join("")}
+          </div>
+        </article>
+
+        <article class="visual-system-panel is-wide">
+          <div class="visual-system-panel-title">
+            ${icon("bug")}
+            <div><h3>QA-покрытие после стабилизации</h3><p>Это не просто скриншоты, а gate для возврата старых визуальных проблем.</p></div>
+          </div>
+          <div class="visual-qa-coverage-grid">
+            ${qaCoverageRows.map((row) => `
+              <div>
+                <strong>${escapeHtml(row[0])}</strong>
+                <span>${escapeHtml(row[1])}</span>
+                <small>${escapeHtml(row[2])}</small>
+              </div>
+            `).join("")}
+          </div>
+        </article>
+
+        <article class="visual-system-panel">
+          <div class="visual-system-panel-title">
+            ${icon("directory")}
+            <div><h3>Запрет старого UI</h3><p>Правила для новых модулей, чтобы не возвращались старые решения.</p></div>
+          </div>
+          <div class="visual-legacy-guard-list">
+            ${legacyGuardRows.map((row) => `
+              <div>
+                <strong>${escapeHtml(row[0])}</strong>
+                <span>${escapeHtml(row[1])}</span>
+                <small>${escapeHtml(row[2])}</small>
+              </div>
+            `).join("")}
+          </div>
+          <div class="visual-demo-function-card">
+            <span class="visual-demo-function-token">Демо</span>
+            <strong>Трудозатраты заказ-наряда</strong>
+            <small>можно редактировать, но расчет Планирования пока не меняется</small>
+          </div>
+        </article>
+
         <article class="visual-system-panel">
           <div class="visual-system-panel-title">
             ${icon("alert")}
@@ -17765,6 +17844,22 @@ function renderVisualSystemPage() {
             `).join("")}
           </div>
           <code>node scripts/design-qa-snapshots.mjs --url=http://localhost:4174/</code>
+        </article>
+
+        <article class="visual-system-panel is-wide">
+          <div class="visual-system-panel-title">
+            ${icon("focus")}
+            <div><h3>Scroll ownership</h3><p>Где можно оставлять внутренний scroll, а где это считается ошибкой верстки.</p></div>
+          </div>
+          <div class="visual-scroll-zone-grid">
+            ${scrollZoneRows.map((row) => `
+              <div class="${row[0] === "Запрещено" ? "is-forbidden" : "is-allowed"}">
+                <strong>${escapeHtml(row[0])}</strong>
+                <span>${escapeHtml(row[1])}</span>
+                <small>${escapeHtml(row[2])}</small>
+              </div>
+            `).join("")}
+          </div>
         </article>
 
         <article class="visual-system-panel is-wide">

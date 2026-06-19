@@ -43686,6 +43686,10 @@ main.app-shell[data-layout-page="visualSystem"] {
   grid-column: span 2;
 }
 
+.visual-system-panel.is-full {
+  grid-column: 1 / -1;
+}
+
 .visual-system-panel-title {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
@@ -43718,6 +43722,133 @@ main.app-shell[data-layout-page="visualSystem"] {
   align-items: stretch;
   gap: 8px;
   min-width: 0;
+}
+
+.visual-stabilization-grid,
+.visual-qa-coverage-grid,
+.visual-scroll-zone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.visual-legacy-guard-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.visual-rule-card,
+.visual-qa-coverage-grid div,
+.visual-scroll-zone-grid div,
+.visual-legacy-guard-list div,
+.visual-demo-function-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 12px;
+  background: #fff;
+  padding: 9px;
+}
+
+.visual-rule-card {
+  border-color: rgba(251, 191, 36, 0.42);
+  background: rgba(255, 251, 235, 0.72);
+}
+
+.visual-qa-coverage-grid div {
+  border-color: rgba(191, 219, 254, 0.76);
+  background: rgba(239, 246, 255, 0.82);
+}
+
+.visual-scroll-zone-grid div.is-allowed {
+  border-color: rgba(187, 247, 208, 0.86);
+  background: rgba(240, 253, 244, 0.78);
+}
+
+.visual-scroll-zone-grid div.is-forbidden {
+  border-color: rgba(254, 202, 202, 0.9);
+  background: rgba(254, 242, 242, 0.86);
+}
+
+.visual-legacy-guard-list div {
+  border-color: rgba(226, 232, 240, 0.92);
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.visual-rule-card strong,
+.visual-qa-coverage-grid strong,
+.visual-scroll-zone-grid strong,
+.visual-legacy-guard-list strong,
+.visual-demo-function-card strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visual-rule-card span,
+.visual-qa-coverage-grid span,
+.visual-scroll-zone-grid span,
+.visual-legacy-guard-list span {
+  justify-self: start;
+  min-height: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--mes-ui-text-secondary, #334155);
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 14px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.visual-rule-card small,
+.visual-qa-coverage-grid small,
+.visual-scroll-zone-grid small,
+.visual-legacy-guard-list small,
+.visual-demo-function-card small {
+  min-width: 0;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 560;
+  line-height: 14px;
+  overflow-wrap: anywhere;
+}
+
+.visual-demo-function-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  border-color: rgba(15, 23, 42, 0.14);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.visual-demo-function-card small {
+  grid-column: 2;
+}
+
+.visual-demo-function-token,
+.mes-signal.is-demo-function {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border: 1px solid #0f172a;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 820;
+  line-height: 14px;
+  padding: 3px 8px;
+  white-space: nowrap;
 }
 
 .visual-state-card {
