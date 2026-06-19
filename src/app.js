@@ -12317,9 +12317,9 @@ function getModuleDefinitions() {
 
 function getModuleGroups(modules) {
   const groupMap = [
-    { label: "Технологии", ids: ["nomenclature", "products", "routes"] },
-    { label: "Планирование нагрузки", ids: ["planning", "gantt"] },
-    { label: "Оперативное управление", ids: ["shiftMaster", "dispatch"] },
+    { label: "Технологии", ids: ["routes", "products", "nomenclature"] },
+    { label: "Планирование нагрузки", ids: ["gantt", "planning"] },
+    { label: "Оперативное управление", ids: ["dispatch", "shiftMaster"] },
     { label: "Система", ids: ["employees", "directories"] },
     { label: "UX-макеты", ids: ["visualSystem", "supply", "shopMap", "rkd"], tone: "test" },
   ];
