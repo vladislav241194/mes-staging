@@ -46974,6 +46974,7 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path {
   stroke-width: 1px !important;
   stroke-dasharray: 4 4 !important;
   stroke-linecap: butt !important;
+  filter: none !important;
 }
 
 main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path.is-transfer {
@@ -46991,7 +46992,14 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow {
   stroke-width: 1px !important;
   stroke-linecap: butt !important;
   stroke-linejoin: round !important;
+  filter: none !important;
   paint-order: normal !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow.has-issue {
+  filter: none !important;
+  paint-order: normal !important;
+  stroke: #475569 !important;
 }
 
 main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow.is-transfer {
