@@ -101,20 +101,15 @@ const INTERFACE_ROLES = [
     moduleIds: null,
     defaultModule: "gantt",
   },
-  {
-    id: "warehouseClerk",
-    label: "Кладовщик",
-    caption: "склад и поступления",
-    icon: "warehouse",
-    moduleIds: ["warehouse", "gantt"],
-    defaultModule: "warehouse",
-  },
 ];
 const LEFT_WIDTH = 360;
 const TIMELINE_HEIGHT = 48;
 const GANTT_SNAP_MS = 15 * 60 * 1000;
 const GANTT_DEPENDENCY_ARROW_LENGTH_MS = 90 * 60 * 1000;
 const GANTT_DEPENDENCY_ENTRY_MS = 90 * 60 * 1000;
+const GANTT_DEPENDENCY_ARROW_BASE_REF_X = 1;
+const GANTT_DEPENDENCY_ARROW_TIP_X = 9.5;
+const GANTT_DEPENDENCY_ARROW_HEAD_ADVANCE = GANTT_DEPENDENCY_ARROW_TIP_X - GANTT_DEPENDENCY_ARROW_BASE_REF_X;
 const TIMELINE_LOAD_CHUNK = { hours: 48, days: 30, weeks: 12 };
 const TIMELINE_MAX_COUNT = { hours: 2880, days: 540, weeks: 156 };
 const SUPPLY_WEEK_COUNT = 12;
@@ -192,6 +187,7 @@ const DEFAULT_ROUTE_BUFFER_MS = 30 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_RESOURCE_CPH = 30000;
 const DEPENDENCY_CROSSING_GAP_RADIUS = 7;
+const DEPENDENCY_HORIZONTAL_TRACK_GAP = 6;
 const SMT_MIN_PACKAGE_COEFFICIENT = 0.01;
 const SMT_MACHINE_BASE_CPH = {
   s2: 92000,
@@ -341,6 +337,99 @@ var visualQaLastReport = null;
 var visualQaInspectorActive = false;
 var visualQaSelectedElementReport = null;
 var visualQaHoveredElementReport = null;
+var visualQaProblemDescription = "";
+var employeeHierarchyConnectorFrame = 0;
+var planningRouteStructureSidebarFrame = 0;
+var ganttScrollRestoreInProgress = false;
+
+const ROUTE_DOCUMENT_KIND_LABELS = {
+  main: "Главная маршрутная карта",
+  child: "Дочерняя маршрутная карта",
+  shift: "Маршрутная карта смены",
+};
+
+const ROUTE_DOCUMENT_KIND_SHORT_LABELS = {
+  main: "Главная карта",
+  child: "Дочерняя карта",
+  shift: "Карта смены",
+};
+
+const ROUTE_DOCUMENT_KIND_ORDER = {
+  main: 0,
+  child: 1,
+  shift: 2,
+};
+
+const SHIFT_MASTER_PROFILES = [
+  {
+    id: "master-smt",
+    name: "Иванов Алексей",
+    role: "Мастер SMT",
+    workCenterIds: ["D3_L1", "D3_L2", "D3_AOI", "D3_UW", "D3_MANUAL_CC", "D3_CC"],
+  },
+  {
+    id: "master-tht",
+    name: "Кузьмина Анна",
+    role: "Мастер ручного монтажа",
+    workCenterIds: ["D5"],
+  },
+  {
+    id: "master-assembly",
+    name: "Смирнов Павел",
+    role: "Мастер сборки",
+    workCenterIds: ["D6", "D9", "D11"],
+  },
+  {
+    id: "master-qc",
+    name: "Орлова Мария",
+    role: "Мастер контроля",
+    workCenterIds: ["D4"],
+  },
+  {
+    id: "master-warehouse",
+    name: "Никитин Роман",
+    role: "Мастер склада",
+    workCenterIds: ["D1"],
+  },
+];
+
+const SHIFT_MASTER_EMPLOYEES = [
+  { id: "emp-smt-01", name: "Петров Денис", role: "Оператор линии", workCenterIds: ["D3_L1", "D3_L2"] },
+  { id: "emp-smt-02", name: "Волкова Ирина", role: "Оператор контроля", workCenterIds: ["D3_AOI", "D3_UW", "D3_CC", "D3_MANUAL_CC"] },
+  { id: "emp-tht-01", name: "Лебедев Артем", role: "Монтажник РЭА", workCenterIds: ["D5"] },
+  { id: "emp-tht-02", name: "Сафонова Елена", role: "Монтажник РЭА", workCenterIds: ["D5"] },
+  { id: "emp-assembly-01", name: "Морозов Кирилл", role: "Сборщик", workCenterIds: ["D9", "D11"] },
+  { id: "emp-assembly-02", name: "Громова Ольга", role: "Оператор прошивки", workCenterIds: ["D6"] },
+  { id: "emp-qc-01", name: "Белова Наталья", role: "Контролер ОТК", workCenterIds: ["D4"] },
+  { id: "emp-wh-01", name: "Егоров Максим", role: "Кладовщик смены", workCenterIds: ["D1"] },
+];
+
+const DEFAULT_EMPLOYEES = [
+  ...SHIFT_MASTER_PROFILES.map((profile) => ({
+    ...profile,
+    personKind: "master",
+    source: "Справочник сотрудников",
+    department: "",
+    status: "Активен",
+  })),
+  ...SHIFT_MASTER_EMPLOYEES.map((employee) => ({
+    ...employee,
+    personKind: "employee",
+    source: "Справочник сотрудников",
+    department: "",
+    status: "Активен",
+  })),
+];
+
+const DISPATCH_FACT_STATUS_OPTIONS = [
+  { value: "not_reported", label: "Не внесен", tone: "neutral" },
+  { value: "accepted", label: "Принят", tone: "ok" },
+  { value: "partial", label: "Частично", tone: "warning" },
+  { value: "problem", label: "Проблема", tone: "critical" },
+];
+
+const SHIFT_WORKBENCH_WINDOW_DAYS = 7;
+const GANTT_DEPENDENCY_ROUTE_VERSION = 2;
 
 const defaultUiState = {
   activeRole: DEFAULT_INTERFACE_ROLE_ID,
@@ -356,17 +445,23 @@ const defaultUiState = {
   activeRkdId: "",
   activeBomId: "",
   activeNomenclatureId: "",
+  activeNomenclaturePane: "items",
   activeOperationId: "",
   nomenclatureTypeFilter: "all",
   activeRouteId: "",
+  routePrintPreviewId: "",
   routeFlowStepId: "",
   routeLaborStepId: "",
   activeSupplyRouteId: "",
   activeSupplyDemandRowId: "",
+  activeShiftMasterId: "master-smt",
+  shiftMasterSelectedSlotId: "",
+  activeDispatchSlotId: "",
   routeDraftBindingId: "",
   routeBindingMode: "product",
   supplyCollapsedGroups: {},
   planningWorkItem: "",
+  planningDemoLaborByRow: {},
   activeShopMapWidgetId: "",
   shopMapEditMode: false,
   shopMapWidgetLayouts: {},
@@ -374,6 +469,7 @@ const defaultUiState = {
   confirmDialog: null,
   directoryEditor: null,
   selectedDirectoryRows: {},
+  directoryColumnFilters: {},
   scale: "days",
   windowStart: "2026-06-01",
   search: "",
@@ -386,6 +482,7 @@ const defaultUiState = {
   visualQaEnabled: false,
   ganttZoom: 1,
   ganttSlotContent: "operationQuantity",
+  ganttShowQuantity: true,
   ganttDependencyEditMode: false,
   ganttDependencyRoutes: {},
   ganttDependencyRouteDrafts: null,
@@ -481,38 +578,20 @@ const DEFAULT_NORMS = [
 ];
 
 // Business terminology after the 2026-06 rename:
-// - directoryState.specifications stores "Изделия" with a production structure.
+// - directoryState.specifications stores product specifications with a production structure.
 // - directoryState.bomLists stores boards with a BOM/component table.
 // Technical keys stay unchanged to preserve existing localStorage data.
 const PRODUCT_COMPOSITION_TERM = "Изделие";
 const PRODUCT_COMPOSITION_TERM_LOWER = "изделие";
-const PRODUCT_COMPOSITION_LIST_TERM = "Изделия";
+const PRODUCT_COMPOSITION_LIST_TERM = "Спецификации";
 const PRODUCT_STRUCTURE_TERM = "Состав изделия";
 const PRODUCT_STRUCTURE_TERM_LOWER = "состав изделия";
 const BOARD_SPEC_TERM = "Плата";
 const BOARD_SPEC_TERM_LOWER = "плата";
 const BOARD_SPEC_LIST_TERM = "Платы";
 const BOARD_BOM_TERM = "BOM платы";
+const WORK_ORDERS_MODULE_LABEL = "Заказ-наряды";
 
-const DEFAULT_STATUSES = [
-  ...PROJECT_STATUSES.map((status) => ({ id: `project-${status}`, name: PROJECT_STATUS_LABELS[status], type: PRODUCT_COMPOSITION_TERM, code: status, usage: `Карточка: ${PRODUCT_COMPOSITION_TERM_LOWER}` })),
-  ...SLOT_STATUSES.map((status) => ({ id: `slot-${status}`, name: STATUS_LABELS[status], type: "Операция", code: status, usage: "Слот Ганта" })),
-  { id: "route-scheduled", name: "Запланирован", type: "Маршрут / заказ-наряд", code: "scheduled", usage: "Маршрутная карта перенесена в Гант" },
-  { id: "route-canceled", name: "Отменен", type: "Маршрут / заказ-наряд", code: "canceled", usage: "Отмена производственного заказа и связанных операций" },
-  { id: "directory-active-ru", name: "Активен", type: "Справочник", code: "Активен", usage: "Отделы, операции, типы компонентов, номенклатура, нормативы" },
-  { id: "directory-disabled-ru", name: "Отключен", type: "Справочник", code: "Отключен", usage: "Исключение ресурса или строки справочника из активного использования" },
-  { id: "work-center-active", name: "Активен", type: "Отдел", code: "active", usage: "Внутренний код активности отдела" },
-  { id: "work-center-inactive", name: "Отключен", type: "Отдел", code: "inactive", usage: "Внутренний код отключенного отдела или ресурса" },
-  { id: "participation-yes", name: "Да", type: "Признак участия", code: "yes", usage: "Отдел или ресурс участвует в планировании/расчёте" },
-  { id: "participation-no", name: "Нет", type: "Признак участия", code: "no", usage: "Отдел или ресурс исключён из планирования/расчёта" },
-  { id: "resource-available", name: "Доступен", type: "Производственный ресурс", code: "Доступен", usage: "Линии, посты, стенды и оборудование доступны для планирования" },
-  { id: "resource-loaded", name: "Загружен", type: "Производственный ресурс", code: "Загружен", usage: "Ресурс уже занят или имеет высокую загрузку" },
-  { id: "equipment-working", name: "Работает", type: "Оборудование", code: "Работает", usage: "Оборудование в составе производственного ресурса исправно" },
-  { id: "equipment-check", name: "Проверка", type: "Оборудование", code: "Проверка", usage: "Оборудование или проверка данных требует внимания" },
-  { id: "resource-normative", name: "Норматив", type: "Производственный ресурс", code: "Норматив", usage: "Расчётный ресурс отдела, созданный из норматива мощности" },
-  { id: "document-draft", name: "Черновик", type: "Технологические данные", code: "Черновик", usage: "Изделие, плата или BOM ещё не утверждены" },
-  { id: "document-ready", name: "Готова", type: "Технологические данные", code: "Готова", usage: "Импортированный BOM или связанная запись готовы к использованию" },
-];
 const RKD_STATUSES = [
   "Черновик",
   "На проверке",
@@ -542,15 +621,361 @@ const STRUCTURE_FULFILLMENT_META = {
   external: "подрядчик / вне MES",
 };
 const STRUCTURE_SCHEDULABLE_FULFILLMENT_MODES = new Set(["produce", "from_stock"]);
-const WAREHOUSE_MOVEMENT_TYPES = [
-  { value: "receipt", label: "Приход", direction: "in", tone: "ok", meta: "поступление на склад" },
-  { value: "issue", label: "Выдача", direction: "out", tone: "warning", meta: "выдача или списание" },
-  { value: "production_receipt", label: "Приемка производства", direction: "in", tone: "ok", meta: "готовое изделие или полуфабрикат" },
-  { value: "production_issue", label: "Выдача в производство", direction: "out", tone: "active", meta: "материалы под заказ-наряд" },
-  { value: "adjustment_in", label: "Корректировка +", direction: "in", tone: "neutral", meta: "ручное увеличение остатка" },
-  { value: "adjustment_out", label: "Корректировка -", direction: "out", tone: "neutral", meta: "ручное уменьшение остатка" },
+function makeStatusDirectoryRow(row) {
+  const annotation = String(row.annotation || row.usage || "").trim();
+  return {
+    id: row.id,
+    group: row.group || "Система",
+    registryKind: row.registryKind || getDefaultStatusRegistryKind(row),
+    name: row.name,
+    type: row.type || "Статус",
+    code: row.code,
+    usage: row.usage || annotation,
+    annotation,
+    impact: row.impact || "",
+  };
+}
+
+function getDefaultStatusRegistryKind(row = {}) {
+  const type = normalizeLookupText(row.type || "");
+  const id = String(row.id || "");
+  if (type.includes("сигнал") || type.includes("расчет") || id.startsWith("planning-supply-")) return "signal";
+  if (type.includes("режим")) return "mode";
+  if (type.includes("флаг")) return "flag";
+  return "status";
+}
+
+function getStatusRegistryKindLabel(kind = "") {
+  return {
+    status: "Статус объекта",
+    signal: "Расчетный сигнал",
+    mode: "Режим",
+    flag: "Флаг",
+  }[kind] || "Статус объекта";
+}
+
+const DEFAULT_STATUSES = [
+  ...PROJECT_STATUSES.map((status) => makeStatusDirectoryRow({
+    id: `project-${status}`,
+    group: `Производство / ${PRODUCT_COMPOSITION_LIST_TERM}`,
+    name: PROJECT_STATUS_LABELS[status],
+    type: PRODUCT_COMPOSITION_TERM,
+    code: status,
+    annotation: `Производственный статус карточки ${PRODUCT_COMPOSITION_TERM_LOWER}: ${PROJECT_STATUS_LABELS[status]}.`,
+    impact: "Влияет на сегменты статуса в спецификации, портфель производства, отчеты готовности и фильтрацию производственных объектов.",
+  })),
+  ...SLOT_STATUSES.map((status) => makeStatusDirectoryRow({
+    id: `slot-${status}`,
+    group: "Производство / Планирование",
+    name: STATUS_LABELS[status],
+    type: "Операция Gantt",
+    code: status,
+    annotation: `Статус запланированной операции на диаграмме планирования: ${STATUS_LABELS[status]}.`,
+    impact: "Влияет на Gantt, прогресс маршрутной карты, предупреждения, мастерскую, диспетчерскую и ожидаемые складские поступления.",
+  })),
+  ...[
+    {
+      id: "route-planned",
+      name: "В плане",
+      code: "planned",
+      annotation: "Маршрутная карта или заказ-наряд подготовлены, но операции еще не размещены в планировании.",
+      impact: "Показывает документ в очереди заказ-нарядов и не создает сменные строки для мастерской и диспетчерской.",
+    },
+    {
+      id: "route-queued",
+      name: "В очереди",
+      code: "queued",
+      annotation: "Расчетное состояние заказ-наряда: документ выбран, но слоты по нему еще не созданы.",
+      impact: "Используется в панели заказ-нарядов и подсказывает, что следующий шаг - передача операций в планирование.",
+    },
+    {
+      id: "route-partial",
+      name: "Частично",
+      code: "partial",
+      annotation: "Часть операций заказ-наряда уже размещена, часть еще остается вне диаграммы.",
+      impact: "Подсвечивает неполную постановку маршрута и помогает найти разрыв между маршрутной картой и планированием.",
+    },
+    {
+      id: "route-scheduled",
+      name: "В планировании",
+      code: "scheduled",
+      annotation: "Маршрутная карта перенесена в диаграмму планирования полностью или по текущему расчету.",
+      impact: "Операции появляются на диаграмме; становятся доступны мастерской, диспетчерской и складским ожиданиям.",
+    },
+    {
+      id: "route-canceled",
+      name: "Отменен",
+      code: "canceled",
+      annotation: "Заказ-наряд отменен, связанные операции снимаются из диаграммы.",
+      impact: "Исключает документ из активного производственного планирования и очищает связанные слоты при отмене.",
+    },
+  ].map((row) => makeStatusDirectoryRow({
+    ...row,
+    group: "Планирование / Заказ-наряды",
+    type: "Маршрут / заказ-наряд",
+  })),
+  ...[
+    {
+      id: "shift-master-draft",
+      name: "План смены",
+      code: "draft",
+      annotation: "Сменная строка видна мастеру, но еще не выпущена как сменный заказ-наряд.",
+      impact: "Остается доступной для распределения по ресурсу и исполнителю; в диспетчерской считается планом без выпуска мастером.",
+    },
+    {
+      id: "shift-master-issued",
+      name: "Выпущен",
+      code: "issued",
+      annotation: "Мастер распределил сменную строку и выпустил ее в работу.",
+      impact: "Строка становится полноценным сменным заказ-нарядом для диспетчерской и печатного сменного листа.",
+    },
+  ].map((row) => makeStatusDirectoryRow({
+    ...row,
+    group: "Производство / Мастерская",
+    type: "Сменный заказ-наряд",
+  })),
+  ...DISPATCH_FACT_STATUS_OPTIONS.map((status) => makeStatusDirectoryRow({
+    id: `dispatch-${status.value}`,
+    group: "Производство / Диспетчерская",
+    name: status.label,
+    type: "Факт смены",
+    code: status.value,
+    annotation: `Статус внесения факта по сменному заказ-наряду: ${status.label}.`,
+    impact: "Влияет на показатели план/факт, отклонения диспетчерской и оперативный контроль смены; производственный Gantt пока не пересчитывает.",
+  })),
+  ...STRUCTURE_FULFILLMENT_MODES.map((mode) => makeStatusDirectoryRow({
+    id: `fulfillment-${mode}`,
+    group: "Технологии / Обеспечение состава",
+    name: STRUCTURE_FULFILLMENT_LABELS[mode],
+    type: "Режим обеспечения",
+    code: mode,
+    annotation: STRUCTURE_FULFILLMENT_META[mode],
+    impact: "Влияет на готовность состава изделия, правила создания операций маршрута, потребность склада/снабжения и попадание ветки в планирование.",
+  })),
+  ...[
+    ["planning-supply-select", "Выберите обеспечение", "select_fulfillment", "Для строки состава изделия не выбран способ обеспечения.", "Блокирует понятную подготовку заказ-наряда и требует решения: производить, взять со склада, закупить или вынести во внешнее обеспечение."],
+    ["planning-supply-route-needed", "Нужен маршрут", "route_required", "Строка должна производиться, но для нее нет операций маршрута.", "Создает предупреждение в структуре работ и не дает считать ветку готовой к плану."],
+    ["planning-supply-no-production", "Нет производственной операции", "no_production_step", "Ветка отмечена как производственная, но среди операций нет производственной операции.", "Подсвечивает ошибку маршрутной карты перед размещением в планировании."],
+    ["planning-supply-production", "Производственная ветка", "production_branch", "Ветка состава изделия обеспечивается собственным производством и имеет производственные операции.", "Разрешает воспринимать ветку как планируемую производственную часть заказ-наряда."],
+    ["planning-supply-remove-production", "Уберите производственные операции", "remove_production_steps", "Строка идет со склада, но в маршруте остались производственные операции.", "Предупреждает о конфликте между обеспечением со склада и производственным маршрутом."],
+    ["planning-supply-warehouse-issue-needed", "Нужна складская выдача", "warehouse_issue_required", "Строка идет со склада, но маршрут не содержит выдачу в производство.", "Требует добавить складскую операцию, чтобы связать склад и производство."],
+    ["planning-supply-warehouse-issue", "Складская выдача", "warehouse_issue", "Ветка обеспечивается со склада и имеет операцию выдачи.", "Разрешает считать складскую часть маршрута подготовленной."],
+    ["planning-supply-purchase-outside", "Закупка вне планирования", "purchase_outside_gantt", "Строка состава обеспечивается закупкой и не ставится в производственный Gantt.", "Переносит контроль в снабжение и исключает производственные операции для этой ветки."],
+    ["planning-supply-external", "Внешнее обеспечение", "external_fulfillment", "Строка состава выполняется вне MES или подрядчиком.", "Оставляет ветку вне производственного планирования и требует внешнего контроля."],
+  ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
+    id,
+    group: "Планирование / Готовность состава",
+    name,
+    type: "Расчетный статус готовности",
+    code,
+    annotation,
+    impact,
+  })),
+  ...[
+    ["planning-task-link", "Проверьте связь", "check_link", "Объект маршрута потерял связь с актуальной строкой состава изделия.", "Требует проверки маршрутной карты и структуры изделия перед планированием."],
+    ["planning-task-fulfillment", "Обеспечение не выбрано", "fulfillment_missing", "Для составной части не выбран режим обеспечения.", "Не дает считать ветку готовой к заказ-наряду."],
+    ["planning-task-outside", "Вне маршрута", "outside_route", "Ветка не должна попадать в производственный маршрут.", "Исключает ветку из производственных операций и планирования."],
+    ["planning-task-no-operations", "Нет операций", "no_steps", "Для ветки нет операций маршрута.", "Требует заполнить маршрутную карту перед передачей в планирование."],
+    ["planning-task-extra-production", "Лишние производственные операции", "extra_production_steps", "Ветка не должна производиться, но содержит производственные операции.", "Предупреждает о лишних операциях и возможном дублировании работ."],
+    ["planning-task-smt-line", "Выберите SMT-участок", "smt_line_required", "SMT-операция требует выбора конкретной линии планирования.", "Без выбора линии операция не может корректно попасть в Gantt."],
+    ["planning-task-bom", "BOM не привязан", "bom_required", "Для платы или BOM-ветки отсутствует связанный BOM.", "Блокирует корректный расчет состава, мультипликации и SMT-трудоемкости."],
+    ["planning-task-ready", "Готово к плану", "ready_for_plan", "Ветка состава изделия имеет достаточные данные для постановки в план.", "Позволяет переходить к размещению операций в планировании."],
+  ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
+    id,
+    group: "Планирование / Структура работ",
+    name,
+    type: "Расчетный статус ветки",
+    code,
+    annotation,
+    impact,
+  })),
+  ...[
+    ["planning-shift-empty", "Пусто", "empty", "В выбранной смене нет строк заказ-наряда.", "Отображается в сменном срезе, когда плановые операции не найдены."],
+    ["planning-shift-planned", "Запланирован", "planned", "Сменный срез содержит плановые операции без проблемных статусов.", "Используется как агрегированное состояние сменного заказ-наряда."],
+    ["planning-shift-in-progress", "В работе", "in_progress", "В сменном срезе есть операции в работе.", "Показывает активное выполнение сменного задания."],
+    ["planning-shift-paused", "Пауза", "paused", "В сменном срезе есть остановленные операции.", "Требует внимания мастера или диспетчера к остановке."],
+    ["planning-shift-closed", "Закрыт", "closed", "Все операции сменного среза завершены.", "Позволяет считать сменный срез закрытым по статусам операций."],
+    ["planning-shift-problem", "Проблема", "problem", "В сменном срезе есть проблемные или просроченные операции.", "Поднимает критичный сигнал для диспетчерской и контроля смены."],
+  ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
+    id,
+    group: "Планирование / Сменный срез",
+    name,
+    type: "Агрегированный статус смены",
+    code,
+    annotation,
+    impact,
+  })),
+  ...[
+    {
+      id: "directory-active-ru",
+      group: "Справочники",
+      name: "Активен",
+      type: "Строка справочника",
+      code: "Активен",
+      annotation: "Запись справочника доступна для выбора и участия в расчетах.",
+      impact: "Используется отделами, операциями, типами компонентов, номенклатурой и нормативами как активное состояние.",
+    },
+    {
+      id: "directory-disabled-ru",
+      group: "Справочники",
+      name: "Отключен",
+      type: "Строка справочника",
+      code: "Отключен",
+      annotation: "Запись справочника исключена из активного использования.",
+      impact: "Отключенные ресурсы и строки не подставляются в планирование, расчет и выбор в формах.",
+    },
+    {
+      id: "work-center-active",
+      group: "Производство / Отделы",
+      name: "Активен",
+      type: "Отдел",
+      code: "active",
+      annotation: "Отдел включен в организационную модель.",
+      impact: "Отдел участвует в справочнике, может отображаться в планировании, ресурсах и карте производства при включенных признаках.",
+    },
+    {
+      id: "work-center-inactive",
+      group: "Производство / Отделы",
+      name: "Отключен",
+      type: "Отдел",
+      code: "inactive",
+      annotation: "Отдел отключен на уровне внутреннего кода.",
+      impact: "Отдел исключается из активной производственной логики и не должен использоваться для новых операций.",
+    },
+    {
+      id: "participation-yes",
+      group: "Производство / Отделы и ресурсы",
+      name: "Да",
+      type: "Признак участия",
+      code: "yes",
+      annotation: "Отдел или ресурс участвует в планировании либо расчете.",
+      impact: "Разрешает использовать отдел/ресурс в Gantt, трудоемкости и расчетах производительности.",
+    },
+    {
+      id: "participation-no",
+      group: "Производство / Отделы и ресурсы",
+      name: "Нет",
+      type: "Признак участия",
+      code: "no",
+      annotation: "Отдел или ресурс исключен из планирования либо расчета.",
+      impact: "Запрещает подстановку в Gantt/расчет, но сохраняет запись в справочнике как мастер-данные.",
+    },
+    {
+      id: "resource-available",
+      group: "Производство / Ресурсы",
+      name: "Доступен",
+      type: "Производственный ресурс",
+      code: "Доступен",
+      annotation: "Линия, пост, стенд или оборудование доступны для планирования.",
+      impact: "Ресурс может быть выбран в маршруте, мастерской, расчетах и отображаться на карте производства.",
+    },
+    {
+      id: "resource-loaded",
+      group: "Производство / Ресурсы",
+      name: "Загружен",
+      type: "Производственный ресурс",
+      code: "Загружен",
+      annotation: "Ресурс занят или имеет высокую текущую нагрузку.",
+      impact: "Подсказывает диспетчерскую/планировочную нагрузку, но сам по себе не блокирует расчет без отдельного правила.",
+    },
+    {
+      id: "resource-normative",
+      group: "Производство / Ресурсы",
+      name: "Норматив",
+      type: "Производственный ресурс",
+      code: "Норматив",
+      annotation: "Расчетный ресурс отдела, созданный из норматива мощности.",
+      impact: "Используется как fallback для трудоемкости и планирования, когда физическая линия/станок не детализированы.",
+    },
+    {
+      id: "equipment-working",
+      group: "Производство / Оборудование",
+      name: "Работает",
+      type: "Оборудование",
+      code: "Работает",
+      annotation: "Оборудование исправно и доступно в составе производственного ресурса.",
+      impact: "Подтверждает возможность использовать оборудование в визуальной карте и справочнике ресурсов.",
+    },
+    {
+      id: "equipment-check",
+      group: "Производство / Оборудование",
+      name: "Проверка",
+      type: "Оборудование",
+      code: "Проверка",
+      annotation: "Оборудование или связанные с ним данные требуют проверки.",
+      impact: "Должно привлекать внимание к ресурсу перед планированием или эксплуатацией.",
+    },
+    {
+      id: "document-draft",
+      group: "Технологии / Документы",
+      name: "Черновик",
+      type: "Технологические данные",
+      code: "Черновик",
+      annotation: "Изделие, плата, BOM или технологический документ еще не утверждены.",
+      impact: "Подсказывает, что данные можно редактировать и нужно проверить перед передачей в маршрут/планирование.",
+    },
+    {
+      id: "document-ready",
+      group: "Технологии / Документы",
+      name: "Готова",
+      type: "Технологические данные",
+      code: "Готова",
+      annotation: "Импортированный BOM или связанная технологическая запись готовы к использованию.",
+      impact: "Разрешает воспринимать запись как рабочую основу для состава изделия, маршрута и расчетов.",
+    },
+  ].map(makeStatusDirectoryRow),
+  ...[
+    ["planning-passport-ready", "Готов", "ready", "Карточка подготовки имеет выбранный состав изделия или достаточный входной объект.", "Показывает, что этап паспорта заказ-наряда заполнен и можно переходить к следующей проверке."],
+    ["planning-passport-no-specification", "Нет состава изделия", "no_specification", "Для подготовки заказ-наряда не выбран состав изделия.", "Блокирует сквозную готовность карточки и требует выбрать или создать состав изделия."],
+    ["planning-passport-linked", "Привязана", "linked", "Состав изделия привязан к производственному объекту.", "Подтверждает связь заказ-наряда со спецификацией и позволяет считать структуру источником маршрута."],
+    ["planning-passport-no-link", "Нет СП", "no_specification_link", "Связь с составом изделия отсутствует.", "Подсказывает, что маршрут или заказ-наряд не имеет надежного источника структуры."],
+    ["planning-passport-boards", "Платы есть", "boards_linked", "В составе или маршруте есть привязанные платы/BOM.", "Разрешает использовать плату как источник SMT-потребности и снабжения."],
+    ["planning-passport-no-boards", "Нет плат", "no_boards", "Для состава изделия не найдены привязанные платы.", "Предупреждает, что SMT/BOM-контроль может быть неполным."],
+    ["planning-passport-route", "Маршрут есть", "route_ready", "Маршрутная карта содержит операции.", "Позволяет передавать операции в планирование и строить сменные задания."],
+    ["planning-passport-no-route", "Нет маршрута", "no_route", "Маршрутная карта или ветка состава не содержит операций.", "Блокирует корректное размещение в планировании до заполнения операций."],
+    ["planning-passport-slots", "Размещен", "scheduled", "Операции заказ-наряда уже размещены на диаграмме планирования.", "Дает основание для мастерской, диспетчерской и сменных заказ-нарядов."],
+    ["planning-passport-no-slots", "Нет слотов", "no_slots", "По заказ-наряду нет размещенных операций на диаграмме.", "Оставляет документ вне оперативного сменного контроля."],
+    ["planning-passport-backlog", "В очереди", "backlog", "Есть операции или ветки, ожидающие размещения.", "Показывает неполную постановку документа в планирование."],
+  ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
+    id,
+    group: "Планирование / Паспорт заказ-наряда",
+    name,
+    type: "Расчетный индикатор",
+    code,
+    annotation,
+    impact,
+  })),
+  ...[
+    ["planning-flow-ready", "готово", "ready", "Расчетный раздел структуры заказ-наряда не содержит блокирующих проблем.", "Позволяет воспринимать соответствующий этап как подготовленный."],
+    ["planning-flow-has-problems", "есть проблемы", "has_problems", "Расчетный раздел содержит одну или несколько проблем.", "Поднимает предупреждение в структуре работ и требует перейти в проблемный раздел."],
+    ["planning-flow-prepare", "подготовить", "prepare", "Для раздела еще нет достаточных данных или ожидаемого размещения.", "Оставляет этап в нейтральном состоянии до выполнения следующего действия."],
+    ["planning-flow-transfer", "передача", "transfer", "Размещение или передача операций в планирование еще не выполнены.", "Подсказывает, что следующий шаг связан с переносом задания в диаграмму."],
+    ["planning-flow-missing-placement", "не размещено", "not_scheduled", "Часть ожидаемых операций отсутствует на диаграмме планирования.", "Показывает количественный разрыв между маршрутом и планом."],
+    ["planning-flow-after-gantt", "после Ганта", "after_gantt", "Сменные наряды появятся только после размещения операций на диаграмме.", "Объясняет, почему мастерская и диспетчерская еще не получили сменные строки."],
+    ["planning-flow-smt", "SMT", "smt_step", "Операция относится к SMT-контексту или требует выбора SMT-линии.", "Влияет на балансировку установщиков, выбор линии и расчет производительности."],
+    ["planning-flow-route", "маршрут", "route_step", "Операция относится к обычному маршрутному шагу без отдельной SMT-специализации.", "Используется как нейтральный типовой индикатор операции в структуре работ."],
+    ["planning-flow-operations-set", "операции заданы", "operations_set", "Для ветки или финального маршрута есть операции.", "Позволяет считать соответствующую часть маршрута заполненной."],
+    ["planning-flow-final-operation-needed", "нужна финальная операция", "final_operation_required", "Финальная часть маршрута не содержит завершающей операции.", "Предупреждает, что выпуск изделия не описан до конца."],
+  ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
+    id,
+    group: "Планирование / Расчетные индикаторы UI",
+    name,
+    type: "Расчетный индикатор",
+    code,
+    annotation,
+    impact,
+  })),
+  ...Object.entries(MES_SIGNAL_TYPES).map(([code, signal]) => makeStatusDirectoryRow({
+    id: `signal-${code}`,
+    group: "UI-состояния / Системные сигналы",
+    name: signal.label,
+    type: "Визуальный сигнал",
+    code,
+    annotation: `Единый визуальный смысл: ${signal.label}.`,
+    impact: "Влияет на цвет, подсветку и восприятие состояния в разных модулях; бизнес-данные напрямую не изменяет.",
+  })),
 ];
-const WAREHOUSE_MOVEMENT_TYPE_VALUES = new Set(WAREHOUSE_MOVEMENT_TYPES.map((item) => item.value));
+const REMOVED_DIRECTORY_STATUS_ID_PREFIXES = ["supply-ui-", "warehouse-movement-"];
 const NOMENCLATURE_REA_COMPONENT_TYPE = "РЭА компоненты";
 const DEFAULT_NOMENCLATURE_TYPES = [
   { id: "nom-type-rea", name: NOMENCLATURE_REA_COMPONENT_TYPE, code: "REA", description: "Резисторы, конденсаторы, микросхемы", status: "Активен" },
@@ -809,6 +1234,7 @@ function applySharedStateSnapshot(snapshot, options = {}) {
   try {
     writeSharedStateValues(snapshot.values);
     directoryState = loadDirectoryState();
+    ensureStatusDirectoryDefaults();
     planningState = loadState();
     supplyControlState = loadSupplyControlState();
     alignGanttWindowToPlan({ onlyWhenFar: true });
@@ -997,8 +1423,6 @@ function getWorkflowPresetCountsFromState(sourcePlanning = planningState, source
     routes: Array.isArray(sourcePlanning?.routes) ? sourcePlanning.routes.length : 0,
     routeSteps: Array.isArray(sourcePlanning?.routeSteps) ? sourcePlanning.routeSteps.length : 0,
     slots: Array.isArray(sourcePlanning?.slots) ? sourcePlanning.slots.length : 0,
-    warehouseMovements: Array.isArray(sourcePlanning?.warehouseMovements) ? sourcePlanning.warehouseMovements.length : 0,
-    warehouseReservations: Array.isArray(sourcePlanning?.warehouseReservations) ? sourcePlanning.warehouseReservations.length : 0,
   };
 }
 
@@ -1007,8 +1431,6 @@ function hasMeaningfulPlanningState(sourcePlanning = planningState) {
     sourcePlanning?.routes?.length
     || sourcePlanning?.routeSteps?.length
     || sourcePlanning?.slots?.length
-    || sourcePlanning?.warehouseMovements?.length
-    || sourcePlanning?.warehouseReservations?.length
   );
 }
 
@@ -1027,8 +1449,6 @@ function isMeaningfulWorkflowPresetCounts(counts = {}) {
     || counts.routes
     || counts.routeSteps
     || counts.slots
-    || counts.warehouseMovements
-    || counts.warehouseReservations
   );
 }
 
@@ -1066,7 +1486,6 @@ function formatWorkflowPresetCounts(counts = {}) {
   if (counts.bomLists) parts.push(`${counts.bomLists} BOM`);
   if (counts.routes) parts.push(`${counts.routes} карт`);
   if (counts.slots) parts.push(`${counts.slots} слотов`);
-  if (counts.warehouseMovements) parts.push(`${counts.warehouseMovements} склад`);
   return parts.length ? parts.slice(0, 3).join(" · ") : "нет объектов";
 }
 
@@ -1195,6 +1614,7 @@ function applyWorkflowPresetValues(preset, options = {}) {
   });
 
   directoryState = loadDirectoryState();
+  ensureStatusDirectoryDefaults();
   planningState = loadState();
   calculatorState = loadCalculatorState();
   ui = loadUiState();
@@ -1242,9 +1662,7 @@ function createDefaultDirectoryState() {
     specifications: DEFAULT_SPECIFICATIONS,
     rkdKits: [],
     componentTypes: DEFAULT_COMPONENT_TYPES,
-    // Legacy compatibility bucket only. Employees are no longer an active
-    // planning directory and should not be auto-seeded.
-    employees: [],
+    employees: DEFAULT_EMPLOYEES,
     equipment: DEFAULT_EQUIPMENT,
     norms: DEFAULT_NORMS,
     statuses: DEFAULT_STATUSES,
@@ -1274,7 +1692,12 @@ function loadState() {
       if (restored) return restored;
       return normalizePlanningState(createDefaultPlanningState());
     }
-    return normalizePlanningState(parsed);
+    const normalized = normalizePlanningState(parsed);
+    const normalizedRaw = JSON.stringify(normalized);
+    if (normalizedRaw !== raw) {
+      localStorage.setItem(STORAGE_KEY, normalizedRaw);
+    }
+    return normalized;
   } catch {
     const restored = restorePlanningStateFromBackups("broken-planning-storage");
     if (restored) return restored;
@@ -2305,7 +2728,7 @@ function normalizeDirectoryOrganizationTerminology() {
   };
 
   directoryState.norms = (directoryState.norms || []).map((row) => normalizeRowFields(row, ["name", "value", "scope", "status"]));
-  directoryState.statuses = (directoryState.statuses || []).map((row) => normalizeRowFields(row, ["name", "type", "usage"]));
+  directoryState.statuses = (directoryState.statuses || []).map((row) => normalizeRowFields(row, ["group", "name", "type", "usage", "annotation", "impact"]));
   return changed;
 }
 
@@ -2883,6 +3306,7 @@ function mountGlobalVisualSystem() {
     visualQaInspectorActive = false;
     visualQaSelectedElementReport = null;
     visualQaHoveredElementReport = null;
+    visualQaProblemDescription = "";
   }
   if (shell) {
     shell.classList.toggle("is-focus-mode", Boolean(ui.focusMode));
@@ -2971,6 +3395,10 @@ function getVisualQaSelector(element) {
   if (!element) return "";
   const id = element.id ? `#${element.id}` : "";
   if (id) return id;
+  if (element.dataset?.hierarchyId) return `[data-hierarchy-id="${element.dataset.hierarchyId}"]`;
+  if (element.dataset?.hierarchyRoot !== undefined) return "[data-hierarchy-root]";
+  if (element.dataset?.connectorTo) return `[data-connector-to="${element.dataset.connectorTo}"]`;
+  if (element.dataset?.connectorKind && element.dataset?.connectorFrom) return `[data-connector-kind="${element.dataset.connectorKind}"][data-connector-from="${element.dataset.connectorFrom}"]`;
   const classes = [...element.classList || []]
     .filter((className) => !className.startsWith("is-") && !className.startsWith("has-"))
     .slice(0, 3)
@@ -3005,7 +3433,7 @@ function getVisualQaNodeSignature(element) {
     .map((className) => `.${className}`)
     .join("");
   const id = element.id ? `#${element.id}` : "";
-  const dataAttrs = ["layout", "module", "layoutPage", "visualQaFocus", "routeStepId", "supplyDemandId", "shopMapWidgetId"]
+  const dataAttrs = ["layout", "module", "layoutPage", "hierarchyId", "hierarchyRoot", "visualQaTarget", "connectorKind", "connectorFrom", "connectorTo", "visualQaFocus", "routeStepId", "supplyDemandId", "shopMapWidgetId"]
     .map((key) => element.dataset?.[key] ? `[data-${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}="${element.dataset[key]}"]` : "")
     .filter(Boolean)
     .slice(0, 2)
@@ -3054,6 +3482,11 @@ function getInspectableVisualQaElement(target) {
     ".dense-inline-select",
     ".dense-inline-options",
     ".supply-detail-popover",
+    ".employee-hierarchy-node",
+    ".employee-root-card",
+    ".employee-hierarchy-connector",
+    ".employee-hierarchy-layer-label",
+    ".employees-org-annotation",
     ".route-object-table td",
     ".speki-structure-table td",
     ".directory-table td",
@@ -3062,6 +3495,7 @@ function getInspectableVisualQaElement(target) {
     ".module-card",
     ".form-field",
     "[data-layout='table']",
+    "[data-layout='sidebar']",
     "[data-layout='main-content']",
   ].join(","));
   return element && !isVisualQaUiElement(element) ? element : target;
@@ -3154,10 +3588,12 @@ function collectVisualQaElementReport(element) {
 
 function formatVisualQaInspectorReport(report = visualQaSelectedElementReport) {
   if (!report) return "Visual QA Inspector: элемент не выбран.";
+  const userDescription = visualQaProblemDescription.trim();
   return [
     "Visual QA Inspector report",
     `Модуль: ${report.moduleLabel} (${report.module})`,
     `Viewport: ${report.viewport.width}x${report.viewport.height}`,
+    userDescription ? `Описание пользователя: ${userDescription}` : "",
     `Элемент: ${report.label}`,
     `Selector: ${report.selector}`,
     `Signature: ${report.signature}`,
@@ -3171,7 +3607,7 @@ function formatVisualQaInspectorReport(report = visualQaSelectedElementReport) {
     `Parent chain: ${report.parentChain.join(" > ") || "нет"}`,
     report.text ? `Text: ${report.text}` : "Text: нет",
     "Что проверить: визуальное положение элемента, переполнение, ближайший scroll-контейнер, z-index/dropdown и размеры touch target.",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function formatVisualQaAutoReport(report = visualQaLastReport || collectVisualQaIssues()) {
@@ -3407,6 +3843,11 @@ function renderVisualQaInspectorPanel(report = visualQaSelectedElementReport) {
       <div class="visual-debug-inspector-flags">
         ${(report.flags.length ? report.flags : ["без авто-флагов"]).map((flag) => `<span>${escapeHtml(flag)}</span>`).join("")}
       </div>
+      <label class="visual-debug-problem-field">
+        <span>Описание проблемы</span>
+        <textarea data-visual-qa-problem-description rows="2" placeholder="Опиши проблему и нажми Enter">${escapeHtml(visualQaProblemDescription)}</textarea>
+        <small>Enter копирует отчет для Codex · Shift+Enter перенос строки</small>
+      </label>
       <button type="button" data-visual-qa-copy-selected>${icon("copy")}<span>Скопировать для Codex</span></button>
       <details class="visual-debug-report-preview">
         <summary>Текст отчета</summary>
@@ -3506,9 +3947,24 @@ function copyVisualQaInspectorReport() {
     notifySaveSuccess("Сначала выбери проблемный элемент");
     return;
   }
+  const field = document.querySelector("[data-visual-qa-problem-description]");
+  if (field) visualQaProblemDescription = String(field.value || "");
   const text = formatVisualQaInspectorReport(visualQaSelectedElementReport);
   window.__mesVisualQaInspectorReport = visualQaSelectedElementReport;
+  window.__mesVisualQaSmartReport = {
+    description: visualQaProblemDescription.trim(),
+    report: visualQaSelectedElementReport,
+    text,
+  };
   copyTextToClipboard(text, "Отчет по элементу скопирован", "Отчет показан в панели Visual QA");
+}
+
+function syncVisualQaProblemDescription(value) {
+  visualQaProblemDescription = String(value || "");
+  const preview = document.querySelector("[data-visual-qa-report-text]");
+  if (preview && visualQaSelectedElementReport) {
+    preview.value = formatVisualQaInspectorReport(visualQaSelectedElementReport);
+  }
 }
 
 function getFormControlSignatureEntry(control) {
@@ -3692,7 +4148,8 @@ function normalizeOptionalPositiveInteger(value) {
 function normalizeGanttDependencyRouteStore(value = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
 
-  return Object.fromEntries(Object.entries(value).map(([routeKey, route]) => {
+  return Object.fromEntries(Object.entries(value).flatMap(([routeKey, route]) => {
+    if (Number(route?.version || 0) !== GANTT_DEPENDENCY_ROUTE_VERSION) return [];
     const offsets = route?.offsets && typeof route.offsets === "object" && !Array.isArray(route.offsets)
       ? route.offsets
       : {};
@@ -3709,7 +4166,7 @@ function normalizeGanttDependencyRouteStore(value = {}) {
       return [[String(index), normalized]];
     }));
 
-    return [String(routeKey), { offsets: normalizedOffsets }];
+    return [[String(routeKey), { version: GANTT_DEPENDENCY_ROUTE_VERSION, offsets: normalizedOffsets }]];
   }).filter(([, route]) => Object.keys(route.offsets).length));
 }
 
@@ -3727,6 +4184,15 @@ function normalizeSupplyCollapsedGroups(value = {}) {
   }));
 }
 
+function normalizePlanningDemoLaborByRow(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).flatMap(([key, labor]) => {
+    const normalizedKey = String(key || "").trim();
+    const normalizedLabor = String(labor || "").trim().slice(0, 80);
+    return normalizedKey && normalizedLabor ? [[normalizedKey, normalizedLabor]] : [];
+  }));
+}
+
 function loadUiState() {
   try {
     const raw = localStorage.getItem(UI_STORAGE_KEY);
@@ -3736,16 +4202,20 @@ function loadUiState() {
       ...defaultUiState,
       ...parsed,
       activeRole: normalizeInterfaceRoleId(parsed.activeRole),
+      activeModule: parsed.activeModule === "bomLists" ? "nomenclature" : parsed.activeModule || defaultUiState.activeModule,
       scale: parsed.scale === "weeks" ? "days" : scaleConfig[parsed.scale] ? parsed.scale : defaultUiState.scale,
       expandedProjects: new Set(parsed.expandedProjects || defaultUiState.expandedProjects),
       selectedDirectoryRows: parsed.selectedDirectoryRows || {},
+      directoryColumnFilters: normalizeDirectoryColumnFilters(parsed.directoryColumnFilters),
       spekiStaleItemIds: Array.isArray(parsed.spekiStaleItemIds) ? parsed.spekiStaleItemIds : [],
       spekiCollapsedBomIds: Array.isArray(parsed.spekiCollapsedBomIds) ? parsed.spekiCollapsedBomIds : [],
       supplyCollapsedGroups: normalizeSupplyCollapsedGroups(parsed.supplyCollapsedGroups),
       routeBindingMode: parsed.routeBindingMode === "bom" ? "bom" : "product",
       planningWorkItem: String(parsed.planningWorkItem || ""),
+      planningDemoLaborByRow: normalizePlanningDemoLaborByRow(parsed.planningDemoLaborByRow),
       activeRkdStep: normalizeRkdStepId(parsed.activeRkdStep),
       activeRkdId: String(parsed.activeRkdId || ""),
+      activeNomenclaturePane: parsed.activeModule === "bomLists" || parsed.activeNomenclaturePane === "boards" ? "boards" : "items",
       shopMapEditMode: Boolean(parsed.shopMapEditMode),
       shopMapWidgetLayouts: normalizeShopMapLayoutStore(parsed.shopMapWidgetLayouts),
       ganttDependencyEditMode: false,
@@ -3758,6 +4228,7 @@ function loadUiState() {
       editor: null,
       splitSlotId: null,
       routeSmtPopup: null,
+      routePrintPreviewId: "",
       drag: null,
       timelineCounts: {
         ...defaultUiState.timelineCounts,
@@ -3765,6 +4236,7 @@ function loadUiState() {
       },
       ganttZoom: normalizeGanttZoom(parsed.ganttZoom),
       ganttSlotContent: normalizeGanttSlotContent(parsed.ganttSlotContent),
+      ganttShowQuantity: typeof parsed.ganttShowQuantity === "boolean" ? parsed.ganttShowQuantity : defaultUiState.ganttShowQuantity,
       hideSharedNonWorkingZones: Boolean(parsed.hideSharedNonWorkingZones),
       focusMode: Boolean(parsed.focusMode),
       visualQaEnabled: Boolean(parsed.visualQaEnabled),
@@ -3796,19 +4268,22 @@ function persistUiState(options = {}) {
       activeRkdId: ui.activeRkdId,
       activeBomId: ui.activeBomId,
       activeNomenclatureId: ui.activeNomenclatureId,
+      activeNomenclaturePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
       activeOperationId: ui.activeOperationId,
 	      activeRouteId: ui.activeRouteId,
 	      routeFlowStepId: ui.routeFlowStepId,
 	      routeLaborStepId: ui.routeLaborStepId,
 	      activeSupplyRouteId: ui.activeSupplyRouteId,
-	      supplyCollapsedGroups: normalizeSupplyCollapsedGroups(ui.supplyCollapsedGroups),
-	      routeBindingMode: ui.routeBindingMode,
+      supplyCollapsedGroups: normalizeSupplyCollapsedGroups(ui.supplyCollapsedGroups),
+      routeBindingMode: ui.routeBindingMode,
       planningWorkItem: ui.planningWorkItem,
+      planningDemoLaborByRow: normalizePlanningDemoLaborByRow(ui.planningDemoLaborByRow),
       activeShopMapWidgetId: ui.activeShopMapWidgetId,
       shopMapEditMode: ui.shopMapEditMode,
       shopMapWidgetLayouts: ui.shopMapWidgetLayouts,
       calculatorStep: ui.calculatorStep,
       selectedDirectoryRows: ui.selectedDirectoryRows,
+      directoryColumnFilters: normalizeDirectoryColumnFilters(ui.directoryColumnFilters),
     scale: ui.scale,
     windowStart: ui.windowStart,
     search: ui.search,
@@ -3821,6 +4296,7 @@ function persistUiState(options = {}) {
     visualQaEnabled: Boolean(ui.visualQaEnabled),
     ganttZoom: ui.ganttZoom,
     ganttSlotContent: ui.ganttSlotContent,
+    ganttShowQuantity: Boolean(ui.ganttShowQuantity),
     ganttDependencyRoutes: normalizeGanttDependencyRouteStore(ui.ganttDependencyRoutes),
     timelineCounts: ui.timelineCounts,
     expandedProjects: [...ui.expandedProjects],
@@ -3855,6 +4331,7 @@ function normalizeDirectoryState(state, options = {}) {
     ];
     return [sectionId, rows
       .filter((row) => !OBSOLETE_DIRECTORY_ROW_IDS[sectionId]?.has(row?.id))
+      .filter((row) => sectionId !== "statuses" || !REMOVED_DIRECTORY_STATUS_ID_PREFIXES.some((prefix) => String(row?.id || "").startsWith(prefix)))
       .filter((row) => shouldKeepDirectoryRow(sectionId, row))
       .map((row, index) => normalizeDirectoryRow(sectionId, {
         ...(fallbackRows.find((fallbackRow) => fallbackRow.id === row.id) || fallbackRows[index]),
@@ -3948,6 +4425,24 @@ function normalizeDirectoryRow(sectionId, row) {
     };
   }
 
+  if (sectionId === "statuses") {
+    const annotation = String(row.annotation || row.usage || "").trim();
+    const { audit: _audit, ...statusRow } = row || {};
+    return {
+      ...statusRow,
+      group: String(row.group || row.department || "Система").trim(),
+      registryKind: ["status", "signal", "mode", "flag"].includes(row.registryKind)
+        ? row.registryKind
+        : getDefaultStatusRegistryKind(row),
+      name: String(row.name || "").trim(),
+      type: String(row.type || "Статус").trim(),
+      code: String(row.code || "").trim(),
+      usage: String(row.usage || annotation).trim(),
+      annotation,
+      impact: String(row.impact || "").trim(),
+    };
+  }
+
   if (sectionId === "specifications") {
     const { revision, ...rowWithoutRevision } = row || {};
     const linkedProject = planningState?.projects?.find((project) => project.id === row.projectId);
@@ -3996,13 +4491,29 @@ function normalizeDirectoryRow(sectionId, row) {
   }
 
   if (sectionId === "employees") {
-    let migratedDepartment = EMPLOYEE_DEPARTMENT_MIGRATION[row.department] || row.department || "Отдел поверхностного монтажа";
+    const workCenterIds = Array.isArray(row.workCenterIds)
+      ? row.workCenterIds.map((id) => mapLegacyWorkCenterId(id)).filter(Boolean)
+      : [];
+    let migratedDepartment = EMPLOYEE_DEPARTMENT_MIGRATION[row.department]
+      || row.department
+      || getEmployeeDepartmentLabelForWorkCenters(workCenterIds)
+      || "Отдел поверхностного монтажа";
     if (row.department === "Производство") {
       migratedDepartment = String(row.role || "").toLowerCase().includes("smt") ? "Отдел поверхностного монтажа" : "Отдел ручного монтажа";
     }
+    const personKind = row.personKind === "master" || row.kind === "master" || String(row.id || "").startsWith("master-")
+      ? "master"
+      : "employee";
     return {
       ...row,
+      id: String(row.id || "").trim(),
+      name: String(row.name || row.login || row.email || "").trim(),
+      role: String(row.role || row.position || (personKind === "master" ? "Мастер" : "Сотрудник")).trim(),
+      personKind,
       department: migratedDepartment,
+      workCenterIds,
+      source: String(row.source || "Справочник сотрудников").trim(),
+      status: String(row.status || "Активен").trim(),
       password: row.password ?? "",
     };
   }
@@ -4043,6 +4554,10 @@ function normalizeRkdFileLink(row = {}, index = 0) {
 
 function shouldKeepDirectoryRow(sectionId, row) {
   if (!row || typeof row !== "object") return false;
+  if (sectionId === "statuses") {
+    const rowId = String(row.id || "");
+    if (rowId.startsWith("supply-") || rowId.startsWith("rkd-")) return false;
+  }
   if ((sectionId === "bomLists" || sectionId === "specifications" || sectionId === "rkdKits") && row.id) return true;
   return !isBlankDirectoryRow(row);
 }
@@ -4092,6 +4607,7 @@ function buildLegacyBatchRouteIdMap(state = {}) {
 function normalizeSlotOrderLink(slot = {}, state = {}, legacyBatchRouteIdById = new Map()) {
   const routeByStepId = new Map((state.routeSteps || []).map((step) => [step.id, step.routeId]));
   const routeId = slot.routeId
+    || slot.planningOrderId
     || legacyBatchRouteIdById.get(slot.batchId)
     || routeByStepId.get(slot.routeStepId)
     || "";
@@ -4099,6 +4615,7 @@ function normalizeSlotOrderLink(slot = {}, state = {}, legacyBatchRouteIdById = 
   return {
     ...slot,
     routeId,
+    planningOrderId: routeId,
     batchId: routeId,
   };
 }
@@ -4131,7 +4648,7 @@ function dedupeRouteStepSlots(slots = [], state = {}) {
 
   slots.forEach((slot) => {
     const routeId = slot.routeId || routeByStepId.get(slot.routeStepId) || "";
-    const batchId = slot.batchId || routeId;
+    const batchId = slot.planningOrderId || slot.batchId || routeId;
     if (!routeId || !batchId || !slot.routeStepId) {
       passthrough.push(slot);
       return;
@@ -4163,14 +4680,13 @@ function normalizePlanningState(state) {
     const legacyBatchRouteIdById = buildLegacyBatchRouteIdMap(state);
     state.routeSteps = Array.isArray(state.routeSteps) ? state.routeSteps : [];
     state.slots = Array.isArray(state.slots) ? state.slots : [];
-    state.warehouseMovements = Array.isArray(state.warehouseMovements)
-      ? state.warehouseMovements.map(normalizeWarehouseMovement).filter(Boolean)
-      : [];
-    state.warehouseReservations = Array.isArray(state.warehouseReservations)
-      ? state.warehouseReservations.map(normalizeWarehouseReservation).filter(Boolean)
-      : [];
-    state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
-    state.workCenters = mergeMesWorkCenters(state.workCenters);
+    delete state.warehouseMovements;
+    delete state.warehouseReservations;
+	    state.shiftMasterAssignments = normalizeShiftMasterRecordMap(state.shiftMasterAssignments, normalizeShiftMasterAssignment);
+	    state.dispatchFacts = normalizeShiftMasterRecordMap(state.dispatchFacts, normalizeDispatchFact);
+	    state.planningCorrections = normalizeShiftMasterRecordMap(state.planningCorrections, normalizePlanningCorrection);
+	    state.workCenters = Array.isArray(state.workCenters) ? state.workCenters : [];
+	    state.workCenters = mergeMesWorkCenters(state.workCenters);
     state.routeSteps = state.routeSteps.map((step) => normalizeRouteStepCalculationFields(step, state));
     const removedRouteStepIds = pruneRouteStepsOutsideCurrentRouteTasks(state);
     if (removedRouteStepIds.size) {
@@ -4185,70 +4701,86 @@ function normalizePlanningState(state) {
     return state;
   } finally {
     if (shouldUseStateAsRuntime) planningState = previousRuntimeState;
-  }
+	  }
+	}
+
+function normalizeShiftMasterRecordMap(source, normalizeFn) {
+  const result = {};
+  const entries = Array.isArray(source)
+    ? source.map((value) => [value?.slotId || value?.id || "", value])
+    : Object.entries(source && typeof source === "object" ? source : {});
+  entries.forEach(([key, value]) => {
+    const normalized = normalizeFn({ ...(value || {}), slotId: value?.slotId || key });
+    if (normalized?.slotId) result[normalized.slotId] = normalized;
+  });
+  return result;
+}
+
+function normalizeShiftMasterAssignment(row = {}) {
+  const slotId = String(row.slotId || row.id || "").trim();
+  if (!slotId) return null;
+  const masterId = getShiftMasterProfiles().some((profile) => profile.id === row.masterId)
+    ? row.masterId
+    : "";
+  return {
+    slotId,
+    masterId,
+    workCenterId: String(row.workCenterId || ""),
+    resourceId: String(row.resourceId || ""),
+    employeeId: String(row.employeeId || ""),
+    status: row.status === "issued" ? "issued" : "draft",
+    issuedAt: String(row.issuedAt || ""),
+    note: String(row.note || ""),
+    plannedQuantity: normalizeQuantity(row.plannedQuantity || 0),
+    updatedAt: String(row.updatedAt || ""),
+  };
+}
+
+function normalizeDispatchFact(row = {}) {
+  const slotId = String(row.slotId || row.id || "").trim();
+  if (!slotId) return null;
+  const status = DISPATCH_FACT_STATUS_OPTIONS.some((option) => option.value === row.status)
+    ? row.status
+    : "not_reported";
+  return {
+    slotId,
+    actualQuantity: normalizeQuantity(row.actualQuantity || 0),
+    defectQuantity: normalizeQuantity(row.defectQuantity || 0),
+    status,
+    comment: String(row.comment || ""),
+    updatedAt: String(row.updatedAt || ""),
+  };
+}
+
+function normalizePlanningCorrection(row = {}) {
+  const slotId = String(row.slotId || row.id || "").trim();
+  if (!slotId) return null;
+  const plannedQuantity = normalizeQuantity(row.plannedQuantity || 0);
+  const actualQuantity = normalizeQuantity(row.actualQuantity || 0);
+  const defectQuantity = normalizeQuantity(row.defectQuantity || 0);
+  const deltaQuantity = actualQuantity - plannedQuantity;
+  return {
+    slotId,
+    source: String(row.source || "dispatch").trim(),
+    state: row.state === "resolved" ? "resolved" : "open",
+    routeId: String(row.routeId || ""),
+    planningOrderId: String(row.planningOrderId || row.batchId || row.routeId || ""),
+    routeStepId: String(row.routeStepId || ""),
+    workCenterId: String(row.workCenterId || ""),
+    plannedQuantity,
+    actualQuantity,
+    defectQuantity,
+    deltaQuantity,
+    status: String(row.status || "not_reported"),
+    reason: String(row.reason || "").trim(),
+    updatedAt: String(row.updatedAt || ""),
+  };
 }
 
 function normalizeWarehouseQuantity(value) {
   const quantity = Number(String(value ?? "").replace(",", "."));
   if (!Number.isFinite(quantity) || quantity <= 0) return 0;
   return Math.round(quantity * 1000) / 1000;
-}
-
-function normalizeWarehouseMovement(row = {}) {
-  const movementType = WAREHOUSE_MOVEMENT_TYPE_VALUES.has(row.movementType || row.type)
-    ? String(row.movementType || row.type)
-    : "receipt";
-  const quantity = normalizeWarehouseQuantity(row.quantity);
-  if (!row?.id || !row?.nomenclatureItemId || quantity <= 0) {
-    return row?.id ? {
-      ...row,
-      movementType,
-      quantity,
-      nomenclatureItemId: String(row.nomenclatureItemId || ""),
-      routeId: String(row.routeId || ""),
-      slotId: String(row.slotId || ""),
-      warehouseName: String(row.warehouseName || ""),
-      locationName: String(row.locationName || ""),
-      comment: String(row.comment || ""),
-      createdAt: row.createdAt || new Date().toISOString(),
-    } : null;
-  }
-  return {
-    ...row,
-    id: String(row.id),
-    movementType,
-    quantity,
-    nomenclatureItemId: String(row.nomenclatureItemId || ""),
-    routeId: String(row.routeId || ""),
-    slotId: String(row.slotId || ""),
-    warehouseName: String(row.warehouseName || ""),
-    locationName: String(row.locationName || ""),
-    comment: String(row.comment || ""),
-    createdAt: row.createdAt || new Date().toISOString(),
-  };
-}
-
-function normalizeWarehouseReservation(row = {}) {
-  const quantity = normalizeWarehouseQuantity(row.quantity);
-  if (!row?.id || !row?.nomenclatureItemId || quantity <= 0) {
-    return row?.id ? {
-      ...row,
-      quantity,
-      nomenclatureItemId: String(row.nomenclatureItemId || ""),
-      routeId: String(row.routeId || ""),
-      comment: String(row.comment || ""),
-      createdAt: row.createdAt || new Date().toISOString(),
-    } : null;
-  }
-  return {
-    ...row,
-    id: String(row.id),
-    quantity,
-    nomenclatureItemId: String(row.nomenclatureItemId || ""),
-    routeId: String(row.routeId || ""),
-    comment: String(row.comment || ""),
-    createdAt: row.createdAt || new Date().toISOString(),
-  };
 }
 
 function removeCanceledRouteGanttSlots(state) {
@@ -5419,6 +5951,21 @@ function render(options = {}) {
   persistUiState({ skipRememberScroll: options.skipRememberScroll });
   scheduleGlobalSaveUxRefresh();
 
+  if (ui.activeModule === "employees") {
+    app.innerHTML = `
+      <main class="app-shell employees-app-shell" data-layout="app-shell" data-layout-page="employees">
+        ${renderModuleMenu()}
+        ${renderAppTopbar()}
+        ${renderEmployeesPage()}
+        ${renderConfirmModal()}
+      </main>
+    `;
+    bindGlobalNavigation();
+    bindEmployeeHierarchyEvents();
+    bindConfirmEvents();
+    return;
+  }
+
   if (ui.activeModule === "directories") {
     app.innerHTML = `
       <main class="app-shell directory-app-shell" data-layout="app-shell" data-layout-page="directories">
@@ -5509,20 +6056,21 @@ function render(options = {}) {
     return;
   }
 
-  if (ui.activeModule === "nomenclature") {
-    app.innerHTML = `
-      <main class="app-shell nomenclature-app-shell" data-layout="app-shell" data-layout-page="nomenclature">
-        ${renderModuleMenu()}
-        ${renderAppTopbar()}
+	  if (ui.activeModule === "nomenclature") {
+	    app.innerHTML = `
+	      <main class="app-shell nomenclature-app-shell" data-layout="app-shell" data-layout-page="nomenclature">
+	        ${renderModuleMenu()}
+	        ${renderAppTopbar()}
         ${renderNomenclaturePage()}
         ${renderConfirmModal()}
       </main>
-    `;
-    bindGlobalNavigation();
-    bindNomenclatureEvents();
-    bindConfirmEvents();
-    return;
-  }
+	    `;
+	    bindGlobalNavigation();
+	    bindNomenclatureEvents();
+	    bindBomListsEvents();
+	    bindConfirmEvents();
+	    return;
+	  }
 
   if (ui.activeModule === "routes") {
     app.innerHTML = `
@@ -5531,6 +6079,7 @@ function render(options = {}) {
         ${renderAppTopbar()}
         ${renderRoutesPage()}
         ${renderConfirmModal()}
+        ${renderRoutePrintPreviewModal()}
       </main>
     `;
     bindGlobalNavigation();
@@ -5552,12 +6101,13 @@ function render(options = {}) {
     bindGlobalNavigation();
     bindPlanningEvents();
     bindConfirmEvents();
+    schedulePlanningRouteStructureSidebarSync();
     return;
   }
 
-  if (ui.activeModule === "supply") {
-    app.innerHTML = `
-      <main class="app-shell supply-app-shell" data-layout="app-shell" data-layout-page="supply">
+	  if (ui.activeModule === "supply") {
+	    app.innerHTML = `
+	      <main class="app-shell supply-app-shell" data-layout="app-shell" data-layout-page="supply">
         ${renderModuleMenu()}
         ${renderAppTopbar()}
         ${renderSupplyPage()}
@@ -5567,37 +6117,38 @@ function render(options = {}) {
     bindGlobalNavigation();
     bindSupplyEvents();
     bindConfirmEvents();
-    return;
-  }
+	    return;
+	  }
 
-  if (ui.activeModule === "dispatch") {
-    app.innerHTML = `
-      <main class="app-shell dispatch-app-shell" data-layout="app-shell" data-layout-page="dispatch">
+	  if (ui.activeModule === "shiftMaster") {
+	    app.innerHTML = `
+	      <main class="app-shell shift-master-app-shell" data-layout="app-shell" data-layout-page="shiftMaster">
+	        ${renderModuleMenu()}
+	        ${renderAppTopbar()}
+	        ${renderShiftMasterPage()}
+	        ${renderConfirmModal()}
+	      </main>
+	    `;
+	    bindGlobalNavigation();
+	    bindShiftMasterEvents();
+	    bindConfirmEvents();
+	    return;
+	  }
+
+	  if (ui.activeModule === "dispatch") {
+	    app.innerHTML = `
+	      <main class="app-shell dispatch-app-shell" data-layout="app-shell" data-layout-page="dispatch">
         ${renderModuleMenu()}
         ${renderAppTopbar()}
         ${renderDispatchPage()}
         ${renderConfirmModal()}
       </main>
-    `;
-    bindGlobalNavigation();
-    bindConfirmEvents();
-    return;
-  }
-
-  if (ui.activeModule === "warehouse") {
-    app.innerHTML = `
-      <main class="app-shell warehouse-app-shell" data-layout="app-shell" data-layout-page="warehouse">
-        ${renderModuleMenu()}
-        ${renderAppTopbar()}
-        ${renderWarehousePage()}
-        ${renderConfirmModal()}
-      </main>
-    `;
-    bindGlobalNavigation();
-    bindWarehouseEvents();
-    bindConfirmEvents();
-    return;
-  }
+	    `;
+	    bindGlobalNavigation();
+	    bindDispatchEvents();
+	    bindConfirmEvents();
+	    return;
+	  }
 
   const scaleStart = fromDateInput(ui.windowStart);
   const scaleInfo = buildGanttScaleInfo(ui.scale, scaleStart, getTimelineCount(ui.scale, scaleStart));
@@ -5875,12 +6426,12 @@ function renderPlanningPage() {
 
   if (!routes.length) {
     return `
-      <section class="planning-empty-page" data-layout="main-content" aria-label="Планирование">
+      <section class="planning-empty-page" data-layout="main-content" aria-label="${WORK_ORDERS_MODULE_LABEL}">
         <section class="planning-empty-panel">
           <div class="planning-empty-icon">${icon("calendar")}</div>
           <div>
             <span class="eyebrow">Новый модуль</span>
-            <h2>Планирование</h2>
+            <h2>${WORK_ORDERS_MODULE_LABEL}</h2>
             <p>Заказ-нарядов пока нет. Создайте маршрутную карту в модуле «Маршрутная карта», затем создайте по ней заказ-наряд.</p>
           </div>
         </section>
@@ -5889,11 +6440,11 @@ function renderPlanningPage() {
   }
 
   return `
-    <section class="planning-page module-data-page" data-layout="main-content" aria-label="Планирование">
+    <section class="planning-page module-data-page" data-layout="main-content" aria-label="${WORK_ORDERS_MODULE_LABEL}">
       <aside class="directory-sidebar module-data-sidebar planning-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Очередь</span>
-          <h1>Планирование</h1>
+          <h1>${WORK_ORDERS_MODULE_LABEL}</h1>
         </div>
         <div class="module-entity-list">
           <div class="module-list-label">Заказ-наряды</div>
@@ -5964,16 +6515,17 @@ function renderPlanningWorkbenchV2Page() {
   const routeSteps = stats.steps || getRouteStepsForModule(activeRoute?.id || "");
   const tasks = getPlanningTasksForRoute(activeRoute, routeSteps);
   const selectedItem = activeRoute ? getPlanningActiveWorkItem(activeRoute, tasks, routeSteps) : "";
-  const routeTitle = activeRoute?.name || "Заказ-наряд не выбран";
+  const orderTitle = activeRoute ? getPlanningWorkOrderTitle(activeRoute) : "Заказ-наряд не выбран";
+  const orderSubtitle = activeRoute ? getPlanningWorkOrderSubtitle(activeRoute, transferSummary, routeSteps) : "";
 
   if (!routes.length) {
     return `
-      <section class="planning-empty-page planning-v2-empty" data-layout="main-content" aria-label="Планирование">
+      <section class="planning-empty-page planning-v2-empty" data-layout="main-content" aria-label="${WORK_ORDERS_MODULE_LABEL}">
         <section class="planning-empty-panel">
           <div class="planning-empty-icon">${icon("calendar")}</div>
           <div>
-            <h2>Планирование</h2>
-            <p>Нет заказ-нарядов.</p>
+            <h2>${WORK_ORDERS_MODULE_LABEL}</h2>
+            <p>Нет маршрутных заданий для сборки заказ-наряда.</p>
           </div>
         </section>
       </section>
@@ -5981,13 +6533,15 @@ function renderPlanningWorkbenchV2Page() {
   }
 
   return `
-    <section class="planning-page module-data-page planning-v2-page is-heroui" data-layout="main-content" aria-label="Планирование">
+    <section class="planning-page module-data-page planning-v2-page is-heroui is-flat-workbench is-route-structure" data-layout="main-content" aria-label="${WORK_ORDERS_MODULE_LABEL}">
       ${renderPlanningWorkbenchV2Queue(routes, activeRoute)}
 
       <div class="planning-v2-main" data-layout="page-workspace">
         <header class="planning-v2-header">
           <div>
-            <h2>${escapeHtml(routeTitle)}</h2>
+            <span class="eyebrow">Производственный документ</span>
+            <h2>${escapeHtml(orderTitle)}</h2>
+            ${orderSubtitle ? `<p>${escapeHtml(orderSubtitle)}</p>` : ""}
           </div>
           <div class="directory-actions planning-v2-actions">
             <button class="secondary-button danger" data-planning-route-cancel="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.planned ? "" : "disabled"}>
@@ -6002,7 +6556,7 @@ function renderPlanningWorkbenchV2Page() {
         ${activeRoute ? `
           <div class="planning-v2-workspace">
             ${renderPlanningWorkbenchV2RouteMap(activeRoute, transferSummary, tasks, routeSteps, selectedItem)}
-            <div class="planning-v2-detail planning-work-detail" aria-label="Детали выбранного этапа">
+            <div class="planning-v2-detail planning-work-detail" aria-label="Рабочая область выбранного этапа">
               ${renderPlanningWorkbenchV2Detail(activeRoute, transferSummary, tasks, routeSteps, selectedItem)}
             </div>
           </div>
@@ -6022,17 +6576,22 @@ function renderPlanningWorkbenchV2Page() {
 
 function renderPlanningWorkbenchV2Queue(routes, activeRoute) {
   return `
-    <aside class="directory-sidebar module-data-sidebar planning-v2-queue">
+    <aside class="directory-sidebar module-data-sidebar planning-v2-queue" data-layout="sidebar" data-visual-qa-target="planning-work-order-sidebar" aria-label="Список заказ-нарядов">
       <div class="directory-sidebar-head">
+        <span class="eyebrow">Планирование</span>
         <h1>Заказ-наряды</h1>
       </div>
       <div class="module-entity-list planning-v2-route-list">
         ${routes.map((route) => {
+          const state = getPlanningRouteOrderState(route);
+          const quantity = getPlanningRouteQuantity(route);
           return `
             <button class="module-entity-item planning-v2-route-item ${route.id === activeRoute?.id ? "is-active" : ""}" data-planning-route-open="${escapeAttribute(route.id)}" type="button">
               <span>
-                <strong>${escapeHtml(route.name || "Заказ-наряд")}</strong>
+                <strong>${escapeHtml(getPlanningWorkOrderQueueTitle(route))}</strong>
+                <small>${escapeHtml(getRouteDocumentKindShortLabel(route))} · ${quantity.toLocaleString("ru-RU")} шт.</small>
               </span>
+              <em class="is-${escapeAttribute(state.tone)}">${escapeHtml(state.label)}</em>
             </button>
           `;
         }).join("")}
@@ -6050,53 +6609,251 @@ function renderPlanningWorkbenchV2RouteMap(route, transferSummary, tasks, routeS
   const scheduleMissing = Math.max(0, scheduleExpected - schedulePlanned);
   const scheduleTone = scheduleExpected && !scheduleMissing ? "ok" : scheduleExpected ? "warning" : "neutral";
   const scheduleStatus = scheduleExpected && !scheduleMissing ? "готово" : scheduleMissing ? `${scheduleMissing} не размещено` : "подготовить";
+  const shiftOrders = getPlanningShiftOrdersForRoute(route, routeSteps);
 
   return `
-    <section class="module-panel planning-v2-route-map" aria-label="Маршрут работы с заказ-нарядом">
+    <section class="module-panel planning-v2-route-map planning-order-structure-panel" aria-label="Структура заказ-наряда">
       <div class="planning-v2-map-head">
         <div>
-          <strong>Структура работ</strong>
+          <strong>Структура заказ-наряда</strong>
+          <span>${planningQuantity.toLocaleString("ru-RU")} шт. · ${tasks.length.toLocaleString("ru-RU")} объектов · ${routeSteps.length.toLocaleString("ru-RU")} операций</span>
         </div>
+        <em class="planning-section-tag">${escapeHtml(getRouteDocumentKindLabel(route))}</em>
       </div>
 
-      <div class="planning-v2-flow">
-        ${renderPlanningWorkbenchV2Phase({
-          id: "supply",
-          selectedItem,
-          title: "Состав и обеспечение",
-          meta: "",
-          status: supplySummary.blocking ? `${supplySummary.blocking} проблем` : "готово",
-          tone: supplySummary.blocking ? "warning" : "ok",
-        })}
+      <div class="planning-order-checkpoints" aria-label="Контрольные разделы заказ-наряда">
+          ${renderPlanningWorkbenchV2Phase({
+            id: "supply",
+            selectedItem,
+            title: "Состав и обеспечение",
+            meta: "",
+            status: supplySummary.blocking ? `${supplySummary.blocking} проблем` : "готово",
+            tone: supplySummary.blocking ? "warning" : "ok",
+          })}
 
-        ${renderPlanningWorkbenchV2Phase({
-          id: "chain",
-          selectedItem,
-          title: "Правило запуска",
-          meta: "",
-          status: chain.issues.length ? `${chain.issues.length} проблем` : "готово",
-          tone: chain.issues.length ? "warning" : "ok",
-        })}
+          ${renderPlanningWorkbenchV2Phase({
+            id: "chain",
+            selectedItem,
+            title: "Правило запуска",
+            meta: "",
+            status: chain.issues.length ? `${chain.issues.length} проблем` : "готово",
+            tone: chain.issues.length ? "warning" : "ok",
+          })}
 
-        <div class="planning-v2-lanes" aria-label="Составные части и операции">
-          ${tasks.length ? tasks.map((task) => renderPlanningWorkbenchV2TaskLane(route, task, routeSteps, selectedItem, planningQuantity)).join("") : `
-            <div class="planning-muted-state">
-              ${icon("info")}
-              <span>Состав заказ-наряда не найден.</span>
-            </div>
-          `}
-        </div>
+          ${renderPlanningWorkbenchV2Phase({
+            id: "schedule",
+            selectedItem,
+            title: "Размещение в Ганте",
+            meta: "",
+            status: scheduleStatus,
+            tone: scheduleTone,
+          })}
 
-        ${renderPlanningWorkbenchV2Phase({
-          id: "schedule",
-          selectedItem,
-          title: "Размещение в Ганте",
-          meta: "",
-          status: scheduleStatus,
-          tone: scheduleTone,
-        })}
+          ${renderPlanningWorkbenchV2Phase({
+            id: "shifts",
+            selectedItem,
+            title: "Сменные наряды",
+            meta: "",
+            status: shiftOrders.length ? `${shiftOrders.length} смен` : "после Ганта",
+            tone: shiftOrders.length ? "ok" : "neutral",
+          })}
       </div>
+
+      ${renderPlanningOrderStructureTable(route, tasks, routeSteps, selectedItem, planningQuantity)}
     </section>
+  `;
+}
+
+function getPlanningDemoLaborKey(route, itemId = "") {
+  return `${route?.id || "route"}::${String(itemId || "").trim()}`;
+}
+
+function getPlanningDemoLaborValue(key = "") {
+  return normalizePlanningDemoLaborByRow(ui.planningDemoLaborByRow)[key] || "";
+}
+
+function getPlanningDemoLaborPlaceholder(durationMs = 0) {
+  return durationMs > 0 ? `расчет: ${formatDuration(durationMs)}` : "демо-оценка";
+}
+
+function getPlanningStepDemoLaborPlaceholder(route, step, planningQuantity) {
+  const snapshot = getRouteStepLaborSnapshot(route, step, { routeQuantity: planningQuantity });
+  return getPlanningDemoLaborPlaceholder(snapshot.durationMs);
+}
+
+function getPlanningTaskDemoLaborPlaceholder(route, steps = [], planningQuantity) {
+  const durationMs = steps.reduce((sum, step) => (
+    sum + Math.max(0, Number(getRouteStepLaborSnapshot(route, step, { routeQuantity: planningQuantity }).durationMs || 0))
+  ), 0);
+  return getPlanningDemoLaborPlaceholder(durationMs);
+}
+
+function renderPlanningDemoLaborField(key, placeholder) {
+  const value = getPlanningDemoLaborValue(key);
+  return `
+    <label class="planning-demo-labor-field" title="Демо-функция: редактируется только как UI-пометка и не влияет на расчеты">
+      <span>Демо</span>
+      <input
+        data-planning-demo-labor="${escapeAttribute(key)}"
+        type="text"
+        value="${escapeAttribute(value)}"
+        placeholder="${escapeAttribute(placeholder)}"
+        aria-label="Демо-функция: трудозатраты"
+      />
+    </label>
+  `;
+}
+
+function renderPlanningOrderStructureTable(route, tasks, routeSteps, selectedItem, planningQuantity) {
+  if (!tasks.length) {
+    return `
+      <div class="planning-muted-state">
+        ${icon("info")}
+        <span>Состав заказ-наряда не найден.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="speki-structure-table-wrap route-object-table-wrap planning-order-table-wrap" data-layout="table">
+      <table class="directory-table speki-structure-table route-object-table planning-order-table">
+        <thead>
+          <tr>
+            <th>П/п</th>
+            <th>Тип</th>
+            <th>Объект / операция</th>
+            <th>Кол-во</th>
+            <th>Трудозатраты</th>
+            <th>Состояние</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tasks.map((task) => renderPlanningOrderTaskRows(route, task, routeSteps, selectedItem, planningQuantity)).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderPlanningOrderTaskRows(route, task, routeSteps, selectedItem, planningQuantity) {
+  const stats = getPlanningTaskOperationStats(route, task, routeSteps);
+  const readiness = getPlanningTaskReadiness(task, stats);
+  const taskTypeVisual = getRouteTaskTypeVisual(task);
+  const taskQuantity = normalizeQuantity(task.quantity || 1);
+  const orderQuantity = normalizeQuantity(planningQuantity * taskQuantity);
+  const taskUnit = /маршрут/i.test(task.unit || "") ? "шт." : task.unit || "шт.";
+  const taskItemId = getPlanningWorkItemId("task", task.id);
+  const taskDemoLaborKey = getPlanningDemoLaborKey(route, taskItemId);
+  const taskDemoLaborPlaceholder = getPlanningTaskDemoLaborPlaceholder(route, stats.steps, planningQuantity);
+  const taskDisplayNumber = task.number === "00" ? "1" : task.number || "1";
+  const taskObjectContent = `
+    <div class="route-object-name-cell planning-order-name-cell">
+      <strong title="${escapeAttribute(task.title || "Составная часть")}">${escapeHtml(task.title || "Составная часть")}</strong>
+      <small>${escapeHtml([task.parentTitle, getPlanningTaskBomLabel(task)].filter(Boolean).join(" · ") || getRouteTaskTypeLabel(task))}</small>
+    </div>
+  `;
+
+  return `
+    <tr
+      class="route-object-row planning-order-object-row ${taskItemId === selectedItem ? "is-selected" : ""} ${task.isMain ? "is-route-main" : ""} ${task.isOrphan ? "is-route-orphan" : ""}"
+      data-planning-order-row="${escapeAttribute(taskItemId)}"
+      style="--speki-level: ${Number(task.level || 0)};"
+    >
+      <td><span class="speki-row-number">${escapeHtml(taskDisplayNumber)}</span></td>
+      <td>${renderRouteTypeIconBadge(taskTypeVisual)}</td>
+      <td>${renderRouteTreeCell({
+        level: Number(task.level || 0),
+        hasChildren: Boolean(task.hasChildren || stats.steps.length),
+        isLast: task.isLast !== false,
+        continuationLevels: task.continuationLevels || [],
+        visual: taskTypeVisual,
+        content: taskObjectContent,
+        className: "is-route-object is-planning-order-object",
+      })}</td>
+      <td>
+        <span class="speki-static-cell planning-order-quantity">
+          <strong>${orderQuantity.toLocaleString("ru-RU")}</strong>
+          <small>${escapeHtml(taskUnit)}</small>
+        </span>
+      </td>
+      <td>${renderPlanningDemoLaborField(taskDemoLaborKey, taskDemoLaborPlaceholder)}</td>
+      <td>
+        <div class="planning-order-state-cell">
+          <span class="planning-v2-state-token is-${escapeAttribute(readiness.tone)}">${escapeHtml(readiness.label)}</span>
+          <button class="icon-button" data-planning-work-item="${escapeAttribute(taskItemId)}" type="button" title="Открыть объект">${icon("chevronRight")}</button>
+        </div>
+      </td>
+    </tr>
+    ${stats.steps.length ? stats.steps.map((step, index) => renderPlanningOrderStepRow(route, task, step, index, stats.steps, selectedItem, planningQuantity, {
+      continuationLevels: getRouteTaskOperationContinuationLevels(task),
+      isLast: index === stats.steps.length - 1,
+    })).join("") : `
+      <tr class="route-object-operation-row planning-order-operation-row is-empty" style="--speki-level: ${Number(task.level || 0) + 1};">
+        <td colspan="6">
+          <div class="route-task-empty">${icon("info")}<span>Для этого объекта операции не заданы</span></div>
+        </td>
+      </tr>
+    `}
+  `;
+}
+
+function renderPlanningOrderStepRow(route, task, step, index, taskSteps = [], selectedItem, planningQuantity, treeOptions = {}) {
+  const itemId = getPlanningWorkItemId("step", step.id);
+  const stepDemoLaborKey = getPlanningDemoLaborKey(route, itemId);
+  const stepDemoLaborPlaceholder = getPlanningStepDemoLaborPlaceholder(route, step, planningQuantity);
+  const tone = getPlanningStepTone(step);
+  const stepTypeVisual = getRouteStepTypeVisual(step);
+  const isSmtStep = routeStepRequiresManualPlanningLine(step, planningState) || isSmtOperationWorkCenter(step.workCenterId, step, planningState);
+  const stepQuantity = getRouteStepQuantityForBatch(step, { quantity: planningQuantity });
+  const stepMeta = [
+    getPlanningStepLineLabel(step),
+    isSmtStep ? "SMT" : isManufacturingOutputReceiptRouteStep(step) ? "приемка" : "",
+  ].filter(Boolean).join(" · ");
+  const level = Number.isFinite(Number(treeOptions.level))
+    ? Number(treeOptions.level)
+    : Number(task?.level || 0) + 1;
+  const stepContent = `
+    <div class="route-object-name-cell planning-order-name-cell planning-order-step-name">
+      <strong title="${escapeAttribute(step.operationName || "Операция")}">${escapeHtml(step.operationName || "Операция")}</strong>
+      <small>${escapeHtml(stepMeta || "ресурс не выбран")}</small>
+    </div>
+  `;
+
+  return `
+    <tr
+      class="route-step-compact-row planning-order-step-row ${itemId === selectedItem ? "is-selected" : ""} ${isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : ""} is-${escapeAttribute(tone)}"
+      data-planning-order-row="${escapeAttribute(itemId)}"
+      style="--speki-level: ${level};"
+    >
+      <td>
+        <div class="route-step-compact-order">
+          <span class="route-step-order-badge" title="Позиция операции в объекте маршрута">${index + 1}</span>
+        </div>
+      </td>
+      <td>${renderRouteTypeIconBadge(stepTypeVisual)}</td>
+      <td>${renderRouteTreeCell({
+        level,
+        hasChildren: false,
+        isLast: treeOptions.isLast !== false,
+        continuationLevels: treeOptions.continuationLevels || [],
+        visual: stepTypeVisual,
+        content: stepContent,
+        className: "is-route-step is-planning-order-step",
+      })}</td>
+      <td>
+        <span class="speki-static-cell planning-order-quantity">
+          <strong>${Number(stepQuantity || 0).toLocaleString("ru-RU")}</strong>
+          <small>шт.</small>
+        </span>
+      </td>
+      <td>${renderPlanningDemoLaborField(stepDemoLaborKey, stepDemoLaborPlaceholder)}</td>
+      <td>
+        <div class="planning-order-state-cell">
+          <span class="planning-v2-state-token is-${escapeAttribute(tone)}">${escapeHtml(tone === "warning" ? "проверьте" : isSmtStep ? "SMT" : isManufacturingOutputReceiptRouteStep(step) ? "приемка" : "готово")}</span>
+          <button class="icon-button" data-planning-work-item="${escapeAttribute(itemId)}" type="button" title="Открыть операцию">${icon("chevronRight")}</button>
+        </div>
+      </td>
+    </tr>
   `;
 }
 
@@ -6159,6 +6916,7 @@ function renderPlanningWorkbenchV2Detail(route, transferSummary, tasks, routeSte
   const { type, id } = parsePlanningWorkItemId(selectedItem);
   if (type === "supply") return renderPlanningWorkbenchV2SupplyDetail(route, transferSummary, tasks, routeSteps);
   if (type === "chain") return renderPlanningWorkbenchV2ChainDetail(route, transferSummary, tasks, routeSteps);
+  if (type === "shifts") return renderPlanningWorkbenchV2ShiftOrdersDetail(route, transferSummary, routeSteps);
   if (type === "schedule" || type === "batches") return renderPlanningWorkbenchV2ScheduleDetail(route, transferSummary);
   if (type === "task") {
     const task = tasks.find((item) => item.id === id) || tasks.find((item) => item.isMain) || tasks[0];
@@ -6433,6 +7191,55 @@ function renderPlanningWorkbenchV2ScheduleDetail(route, summary) {
   });
 }
 
+function renderPlanningWorkbenchV2ShiftOrdersDetail(route, transferSummary, routeSteps) {
+  const shiftOrders = getPlanningShiftOrdersForRoute(route, routeSteps);
+  const body = `
+	    ${renderPlanningWorkbenchV2Section("Планы смены", "расчетные дневные фрагменты из размещенных слотов; мастер выпускает из них сменный заказ-наряд", `
+	      ${shiftOrders.length ? `
+	        <div class="planning-v2-shift-list" role="table" aria-label="Планы смены">
+          ${shiftOrders.map((shiftOrder) => `
+            <article class="planning-v2-shift-card is-${escapeAttribute(shiftOrder.tone)}">
+              <header>
+                <div>
+                  <strong>${escapeHtml(shiftOrder.title)}</strong>
+                  <span>${escapeHtml(shiftOrder.meta)}</span>
+                </div>
+                <em>${escapeHtml(shiftOrder.statusLabel)}</em>
+              </header>
+              <div class="planning-v2-shift-rows">
+                ${shiftOrder.rows.map((row) => `
+                  <div class="planning-v2-shift-row">
+                    <span>
+                      <strong>${escapeHtml(row.operationName)}</strong>
+                      <small>${escapeHtml(row.taskLabel)}</small>
+                    </span>
+                    <span>${escapeHtml(row.resourceLabel)}</span>
+                    <span>${row.quantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</span>
+                    <span>${escapeHtml(row.timeLabel)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="planning-muted-state">
+          ${icon("info")}
+	          <span>Планы смены появятся после размещения заказ-наряда в Ганте. Это еще не печатный сменный заказ-наряд: мастер смены распределяет строки на реальные ресурсы отдельно.</span>
+        </div>
+      `}
+    `)}
+  `;
+
+  return renderPlanningWorkbenchV2Record({
+	    title: "Планы смен",
+	    subtitle: "заготовка для работы мастеров",
+    status: shiftOrders.length ? `${shiftOrders.length} смен` : "после Ганта",
+    tone: shiftOrders.length ? "ok" : "neutral",
+    body,
+  });
+}
+
 function renderPlanningScheduleStatus(route, summary) {
   const planningQuantity = normalizeQuantity(summary?.planningQuantity || getPlanningRouteQuantity(route));
   return `
@@ -6458,41 +7265,12 @@ function renderPlanningScheduleStatus(route, summary) {
   `;
 }
 
-function getWarehouseMovementTypeConfig(value = "") {
-  return WAREHOUSE_MOVEMENT_TYPES.find((item) => item.value === value) || WAREHOUSE_MOVEMENT_TYPES[0];
-}
-
-function getWarehouseMovementSignedQuantity(movement = {}) {
-  const config = getWarehouseMovementTypeConfig(movement.movementType || movement.type);
-  const quantity = normalizeWarehouseQuantity(movement.quantity);
-  return config.direction === "out" ? -quantity : quantity;
-}
-
 function formatWarehouseQuantity(value, unit = "шт.") {
   const quantity = Number(value || 0);
   const text = quantity.toLocaleString("ru-RU", {
     maximumFractionDigits: quantity % 1 ? 3 : 0,
   });
   return `${text} ${unit || "шт."}`;
-}
-
-function getWarehouseNomenclatureOptions() {
-  return [...(directoryState.nomenclature || [])]
-    .filter((item) => item?.id)
-    .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "ru"))
-    .map((item) => ({
-      value: item.id,
-      label: item.name || "Позиция без названия",
-      meta: [item.article, normalizeNomenclatureType(item.type), item.package].filter(Boolean).join(" · "),
-    }));
-}
-
-function getWarehouseRouteOptions() {
-  return getRoutesForModule().map((route) => ({
-    value: route.id,
-    label: route.name || "Заказ-наряд без названия",
-    meta: getRouteModuleSelectionName(route) || getRoutePlanningContext(route)?.name || "связь не выбрана",
-  }));
 }
 
 function stripWarehouseReceiptLabel(label = "") {
@@ -6637,21 +7415,6 @@ function getWarehouseBalanceRows() {
     return row;
   };
 
-  (planningState.warehouseMovements || []).forEach((movement) => {
-    if (!movement.nomenclatureItemId) return;
-    const row = ensureRow(movement.nomenclatureItemId);
-    const signedQuantity = getWarehouseMovementSignedQuantity(movement);
-    if (signedQuantity >= 0) row.incoming += signedQuantity;
-    if (signedQuantity < 0) row.outgoing += Math.abs(signedQuantity);
-    row.onHand += signedQuantity;
-  });
-
-  (planningState.warehouseReservations || []).forEach((reservation) => {
-    if (!reservation.nomenclatureItemId) return;
-    const row = ensureRow(reservation.nomenclatureItemId);
-    row.reserved += normalizeWarehouseQuantity(reservation.quantity);
-  });
-
   getWarehouseProductionReceiptRows().forEach((receipt) => {
     if (!receipt.itemId) return;
     const row = ensureRow(receipt.itemId);
@@ -6687,27 +7450,485 @@ function getWarehouseBalanceForNomenclature(nomenclatureItemId) {
   return getWarehouseBalanceRows().find((row) => row.itemId === nomenclatureItemId) || null;
 }
 
-function renderWarehouseSelectOptions(options, selectedValue = "", emptyLabel = "Не выбрано") {
-  return `
-    <option value="" ${selected(selectedValue, "")}>${escapeHtml(emptyLabel)}</option>
-    ${options.map((option) => `
-      <option value="${escapeAttribute(option.value)}" ${selected(selectedValue, option.value)}>
-        ${escapeHtml(option.label)}${option.meta ? ` · ${escapeHtml(option.meta)}` : ""}
-      </option>
-    `).join("")}
-  `;
+function getShiftMasterProfiles() {
+  const directoryProfiles = getDirectoryEmployeeRows()
+    .filter((employee) => employee.personKind === "master" && employee.workCenterIds?.length);
+  return directoryProfiles.length
+    ? directoryProfiles
+    : DEFAULT_EMPLOYEES.filter((employee) => employee.personKind === "master");
+}
+
+function getShiftMasterEmployeeRows() {
+  const directoryEmployees = getDirectoryEmployeeRows()
+    .filter((employee) => employee.personKind !== "master" && employee.workCenterIds?.length);
+  return directoryEmployees.length
+    ? directoryEmployees
+    : DEFAULT_EMPLOYEES.filter((employee) => employee.personKind !== "master");
+}
+
+function getShiftMasterProfile(masterId = ui.activeShiftMasterId) {
+  const profiles = getShiftMasterProfiles();
+  return profiles.find((profile) => profile.id === masterId) || profiles[0] || null;
+}
+
+function shiftMasterProfileOwnsWorkCenter(profile = null, workCenterId = "") {
+  if (!profile) return true;
+  const normalizedId = mapLegacyWorkCenterId(getCalendarWorkCenterId(workCenterId) || workCenterId);
+  return (profile.workCenterIds || []).some((id) => mapLegacyWorkCenterId(getCalendarWorkCenterId(id) || id) === normalizedId);
+}
+
+function getShiftMasterProfilesForWorkCenter(workCenterId = "") {
+  return getShiftMasterProfiles().filter((profile) => shiftMasterProfileOwnsWorkCenter(profile, workCenterId));
+}
+
+function getShiftMasterEmployeesForWorkCenter(workCenterId = "") {
+  const normalizedId = mapLegacyWorkCenterId(getCalendarWorkCenterId(workCenterId) || workCenterId);
+  return getShiftMasterEmployeeRows().filter((employee) => (
+    employee.workCenterIds || []
+  ).some((id) => mapLegacyWorkCenterId(getCalendarWorkCenterId(id) || id) === normalizedId));
+}
+
+function getShiftMasterEmployee(employeeId = "") {
+  return getShiftMasterEmployeeRows().find((employee) => employee.id === employeeId) || null;
+}
+
+function getShiftMasterAssignment(slotId = "") {
+  return planningState.shiftMasterAssignments?.[slotId] || null;
+}
+
+function getDispatchFact(slotId = "") {
+  return planningState.dispatchFacts?.[slotId] || null;
+}
+
+function getDispatchFactStatusConfig(status = "") {
+  return DISPATCH_FACT_STATUS_OPTIONS.find((option) => option.value === status) || DISPATCH_FACT_STATUS_OPTIONS[0];
+}
+
+function getShiftWorkOrderPlannedQuantity(slot = {}, assignment = null) {
+  const assignmentQuantity = normalizeQuantity(assignment?.plannedQuantity || 0);
+  if (assignmentQuantity > 0) return assignmentQuantity;
+  return normalizeQuantity(slot.quantity || 0);
+}
+
+function getShiftMasterResourceOptions(workCenterId = "", preferredResourceId = "") {
+  const resourceMap = new Map();
+  getProductionResourcesForWorkCenter(workCenterId, { includeInactive: false, includePassive: true })
+    .forEach((resource) => resourceMap.set(resource.id, resource));
+  const preferred = preferredResourceId ? getProductionResource(preferredResourceId) : null;
+  if (preferred?.id) resourceMap.set(preferred.id, preferred);
+  if (!resourceMap.size && workCenterId) {
+    const fallback = makeFallbackProductionResource(workCenterId);
+    resourceMap.set(fallback.id, fallback);
+  }
+  return [...resourceMap.values()].sort((left, right) => (
+    String(left.name || "").localeCompare(String(right.name || ""), "ru")
+  ));
+}
+
+function getShiftRowWorkCenterId(slot = {}, step = null) {
+  const resolveResourceWorkCenterId = (resourceId = "") => {
+    const resource = resourceId ? getProductionResource(resourceId) : null;
+    const resourceWorkCenterId = resource ? getProductionResourceWorkCenterId(resource) : "";
+    const mappedResourceWorkCenterId = mapLegacyWorkCenterId(resourceWorkCenterId);
+    if (mappedResourceWorkCenterId && getWorkCenter(mappedResourceWorkCenterId)) return mappedResourceWorkCenterId;
+
+    const mappedResourceId = mapLegacyWorkCenterId(resourceId);
+    return mappedResourceId && getWorkCenter(mappedResourceId) ? mappedResourceId : "";
+  };
+  const candidates = [
+    slot.planningWorkCenterId,
+    step?.planningWorkCenterId,
+    resolveResourceWorkCenterId(slot.resourceId),
+    resolveResourceWorkCenterId(step?.resourceId),
+    getSlotGanttWorkCenterId(slot),
+    slot.workCenterId,
+    step?.workCenterId,
+  ];
+  for (const candidate of candidates) {
+    const normalizedId = mapLegacyWorkCenterId(candidate || "");
+    if (!normalizedId) continue;
+    const calendarId = getCalendarWorkCenterId(normalizedId) || normalizedId;
+    if (calendarId && getWorkCenter(calendarId)) return calendarId;
+  }
+  return "";
+}
+
+function getShiftWorkOrderRows(options = {}) {
+  const window = options.window || getDispatchWindow();
+  const masterProfile = options.masterProfile || null;
+  const onlyIssued = Boolean(options.onlyIssued);
+  const stepById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
+  const rows = (planningState.slots || [])
+    .filter((slot) => isSlotInsideDispatchWindow(slot, window))
+    .map((slot) => {
+      const step = stepById.get(slot.routeStepId) || null;
+      const route = getSlotRoute(slot) || (slot.routeId ? (planningState.routes || []).find((item) => item.id === slot.routeId) : null);
+      const workCenterId = getShiftRowWorkCenterId(slot, step);
+      if (masterProfile && !shiftMasterProfileOwnsWorkCenter(masterProfile, workCenterId)) return null;
+      const workCenter = getWorkCenter(workCenterId) || getWorkCenter(slot.workCenterId) || null;
+      const task = route && step ? getRouteStepPlanningTask(route, step) : null;
+      const assignment = getShiftMasterAssignment(slot.id) || null;
+      if (onlyIssued && assignment?.status !== "issued") return null;
+      const resourceOptions = getShiftMasterResourceOptions(workCenterId, assignment?.resourceId || slot.resourceId || step?.resourceId || "");
+      const defaultResource = resourceOptions.find((resource) => resource.id === (assignment?.resourceId || slot.resourceId || step?.resourceId))
+        || resourceOptions[0]
+        || null;
+      const employees = getShiftMasterEmployeesForWorkCenter(workCenterId);
+      const defaultEmployee = employees.find((employee) => employee.id === assignment?.employeeId) || employees[0] || null;
+      const ownerProfile = assignment?.masterId
+        ? getShiftMasterProfile(assignment.masterId)
+        : getShiftMasterProfilesForWorkCenter(workCenterId)[0] || null;
+      const fact = getDispatchFact(slot.id) || null;
+      const plannedQuantity = getShiftWorkOrderPlannedQuantity(slot, assignment);
+      const actualQuantity = normalizeQuantity(fact?.actualQuantity || 0);
+      const defectQuantity = normalizeQuantity(fact?.defectQuantity || 0);
+      const deltaQuantity = actualQuantity - plannedQuantity;
+      const factStatus = getDispatchFactStatusConfig(fact?.status || (actualQuantity > 0 ? "partial" : "not_reported"));
+      const dateKey = toDateInput(slot.plannedStart || slot.plannedEnd || window.start);
+      const documentNumber = [
+        "СЗН",
+        dateKey.replaceAll("-", ""),
+        workCenter?.code || workCenterId || "WC",
+        String(slot.id || "").slice(-4).toUpperCase(),
+      ].filter(Boolean).join("-");
+
+      return {
+        id: slot.id,
+        slot,
+        step,
+        route,
+        task,
+        dateKey,
+        documentNumber,
+        routeName: route?.name || "Маршрутная карта не найдена",
+        orderLabel: getPlanningOrderObjectLabel(route) || route?.name || "Заказ-наряд",
+        taskLabel: task ? [task.number, task.title].filter(Boolean).join(" · ") : step?.specTaskName || "Объект маршрута",
+        operationName: slot.operationName || step?.operationName || "Операция",
+        workCenterId,
+        workCenter,
+        workCenterLabel: workCenter?.name || workCenterId || "Участок не задан",
+        resourceOptions,
+        resourceId: assignment?.resourceId || defaultResource?.id || "",
+        resourceLabel: defaultResource?.name || "Ресурс не назначен",
+        employees,
+        employeeId: assignment?.employeeId || defaultEmployee?.id || "",
+        employeeLabel: defaultEmployee ? defaultEmployee.name : "Исполнитель не назначен",
+        masterProfile: ownerProfile,
+        assignment,
+        isIssued: assignment?.status === "issued",
+        issuedAt: assignment?.issuedAt || "",
+        note: assignment?.note || "",
+        plannedQuantity,
+        actualQuantity,
+        defectQuantity,
+        deltaQuantity,
+        completion: plannedQuantity > 0 ? Math.max(0, Math.min(140, Math.round(actualQuantity / plannedQuantity * 100))) : 0,
+        fact,
+        factStatus,
+        unit: slot.unit || task?.unit || "шт.",
+        rawStatus: slot.status || "planned",
+        timeLabel: getPlanningShiftSlotTimeLabel(slot),
+        startsAt: toDate(slot.plannedStart),
+        endsAt: toDate(slot.plannedEnd),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => (
+      left.startsAt - right.startsAt
+      || String(left.workCenterLabel || "").localeCompare(String(right.workCenterLabel || ""), "ru")
+      || String(left.operationName || "").localeCompare(String(right.operationName || ""), "ru")
+    ));
+
+  return rows;
+}
+
+function groupShiftRowsByWorkCenter(rows = []) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const key = row.workCenterId || "unknown";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: key,
+        workCenter: row.workCenter,
+        label: row.workCenterLabel,
+        rows: [],
+        plannedQuantity: 0,
+        actualQuantity: 0,
+        issuedCount: 0,
+      });
+    }
+    const group = groups.get(key);
+    group.rows.push(row);
+    group.plannedQuantity += row.plannedQuantity;
+    group.actualQuantity += row.actualQuantity;
+    if (row.isIssued) group.issuedCount += 1;
+  });
+  return [...groups.values()].sort((left, right) => (
+    String(left.label || "").localeCompare(String(right.label || ""), "ru")
+  ));
+}
+
+function updateShiftMasterAssignment(slotId = "", patch = {}) {
+  const row = getShiftWorkOrderRows({ window: getShiftWorkbenchWindow() }).find((item) => item.id === slotId);
+  if (!row) return;
+  const previous = getShiftMasterAssignment(slotId) || {};
+  const masterProfile = getShiftMasterProfile(ui.activeShiftMasterId);
+  const next = normalizeShiftMasterAssignment({
+    ...previous,
+    slotId,
+    masterId: patch.masterId || previous.masterId || masterProfile.id,
+    workCenterId: patch.workCenterId || previous.workCenterId || row.workCenterId,
+    resourceId: typeof patch.resourceId === "undefined" ? previous.resourceId || row.resourceId : patch.resourceId,
+    employeeId: typeof patch.employeeId === "undefined" ? previous.employeeId || row.employeeId : patch.employeeId,
+    status: patch.status || previous.status || "draft",
+    issuedAt: patch.status === "issued" ? new Date().toISOString() : previous.issuedAt || "",
+    note: typeof patch.note === "undefined" ? previous.note || "" : patch.note,
+    plannedQuantity: row.plannedQuantity,
+    updatedAt: new Date().toISOString(),
+  });
+  planningState.shiftMasterAssignments = {
+    ...(planningState.shiftMasterAssignments || {}),
+    [slotId]: next,
+  };
+  persistState();
+}
+
+function issueShiftMasterRows(rows = []) {
+  if (!rows.length) return 0;
+  const issuedAt = new Date().toISOString();
+  const masterProfile = getShiftMasterProfile(ui.activeShiftMasterId);
+  const nextAssignments = { ...(planningState.shiftMasterAssignments || {}) };
+  rows.forEach((row) => {
+    const previous = getShiftMasterAssignment(row.id) || {};
+    nextAssignments[row.id] = normalizeShiftMasterAssignment({
+      ...previous,
+      slotId: row.id,
+      masterId: previous.masterId || masterProfile.id,
+      workCenterId: previous.workCenterId || row.workCenterId,
+      resourceId: previous.resourceId || row.resourceId,
+      employeeId: previous.employeeId || row.employeeId,
+      status: "issued",
+      issuedAt: previous.issuedAt || issuedAt,
+      note: previous.note || row.note || "",
+      plannedQuantity: row.plannedQuantity,
+      updatedAt: issuedAt,
+    });
+  });
+  planningState.shiftMasterAssignments = nextAssignments;
+  persistState();
+  return rows.length;
+}
+
+function updateDispatchFact(slotId = "", patch = {}) {
+  const previous = getDispatchFact(slotId) || {};
+  const updatedAt = new Date().toISOString();
+  const next = normalizeDispatchFact({
+    ...previous,
+    slotId,
+    actualQuantity: typeof patch.actualQuantity === "undefined" ? previous.actualQuantity || 0 : patch.actualQuantity,
+    defectQuantity: typeof patch.defectQuantity === "undefined" ? previous.defectQuantity || 0 : patch.defectQuantity,
+    status: patch.status || previous.status || "not_reported",
+    comment: typeof patch.comment === "undefined" ? previous.comment || "" : patch.comment,
+    updatedAt,
+  });
+  planningState.dispatchFacts = {
+    ...(planningState.dispatchFacts || {}),
+    [slotId]: next,
+  };
+  syncPlanningCorrectionFromDispatchFact(slotId, next, updatedAt);
+  persistState();
+}
+
+function shouldCreatePlanningCorrectionFromFact(fact = {}, plannedQuantity = 0) {
+  if (!fact || fact.status === "not_reported") return false;
+  const actualQuantity = normalizeQuantity(fact.actualQuantity || 0);
+  const defectQuantity = normalizeQuantity(fact.defectQuantity || 0);
+  if (fact.status === "problem") return true;
+  if (defectQuantity > 0) return true;
+  return actualQuantity !== normalizeQuantity(plannedQuantity || 0);
+}
+
+function getPlanningCorrectionReason(fact = {}, plannedQuantity = 0) {
+  const actualQuantity = normalizeQuantity(fact.actualQuantity || 0);
+  const defectQuantity = normalizeQuantity(fact.defectQuantity || 0);
+  if (fact.status === "problem") return "Диспетчерская отметила проблему по сменному заданию.";
+  if (defectQuantity > 0) return "Есть брак, требуется учесть годный остаток и возможное перепланирование.";
+  if (actualQuantity < plannedQuantity) return "Факт ниже плана, остаток должен вернуться в планирование.";
+  if (actualQuantity > plannedQuantity) return "Факт выше плана, нужно проверить будущую нагрузку и остатки.";
+  return "";
+}
+
+function removePlanningCorrectionForSlot(slotId = "") {
+  if (!slotId) return;
+  const nextCorrections = { ...(planningState.planningCorrections || {}) };
+  delete nextCorrections[slotId];
+  planningState.planningCorrections = nextCorrections;
+}
+
+function syncPlanningCorrectionFromDispatchFact(slotId = "", fact = null, updatedAt = new Date().toISOString()) {
+  const slot = (planningState.slots || []).find((item) => item.id === slotId);
+  if (!slot || !fact) {
+    removePlanningCorrectionForSlot(slotId);
+    return;
+  }
+  const assignment = getShiftMasterAssignment(slotId);
+  const plannedQuantity = getShiftWorkOrderPlannedQuantity(slot, assignment);
+  if (!shouldCreatePlanningCorrectionFromFact(fact, plannedQuantity)) {
+    removePlanningCorrectionForSlot(slotId);
+    return;
+  }
+  const correction = normalizePlanningCorrection({
+    slotId,
+    source: "dispatch",
+    state: "open",
+    routeId: slot.routeId || "",
+    planningOrderId: slot.planningOrderId || slot.batchId || slot.routeId || "",
+    routeStepId: slot.routeStepId || "",
+    workCenterId: slot.workCenterId || "",
+    plannedQuantity,
+    actualQuantity: fact.actualQuantity,
+    defectQuantity: fact.defectQuantity,
+    status: fact.status,
+    reason: getPlanningCorrectionReason(fact, plannedQuantity),
+    updatedAt,
+  });
+  if (!correction) return;
+  planningState.planningCorrections = {
+    ...(planningState.planningCorrections || {}),
+    [slotId]: correction,
+  };
+}
+
+function fillDispatchFactsFromRows(rows = []) {
+  if (!rows.length) return 0;
+  const updatedAt = new Date().toISOString();
+  const nextFacts = { ...(planningState.dispatchFacts || {}) };
+  rows.forEach((row) => {
+    const previous = getDispatchFact(row.id) || {};
+    nextFacts[row.id] = normalizeDispatchFact({
+      ...previous,
+      slotId: row.id,
+      actualQuantity: row.plannedQuantity,
+      defectQuantity: 0,
+      status: "accepted",
+      comment: previous.comment || "",
+      updatedAt,
+    });
+  });
+  planningState.dispatchFacts = nextFacts;
+  rows.forEach((row) => syncPlanningCorrectionFromDispatchFact(row.id, nextFacts[row.id], updatedAt));
+  persistState();
+  return rows.length;
+}
+
+function clearDispatchFactsForRows(rows = []) {
+  if (!rows.length) return 0;
+  const nextFacts = { ...(planningState.dispatchFacts || {}) };
+  rows.forEach((row) => {
+    delete nextFacts[row.id];
+    removePlanningCorrectionForSlot(row.id);
+  });
+  planningState.dispatchFacts = nextFacts;
+  persistState();
+  return rows.length;
 }
 
 function getDispatchWindow() {
   const fallbackStart = getEarliestPlannedSlotStart() || ui.now || new Date();
   const anchor = fromDateInput(ui.windowStart || toDateInput(fallbackStart));
-  const start = startOfDay(anchor);
+  let start = startOfDay(anchor);
+  if (ui.windowStart === defaultUiState.windowStart && fallbackStart) {
+    const defaultEnd = addMs(start, DAY_MS);
+    const hasSlotsOnDefaultDate = (planningState.slots || []).some((slot) => (
+      slot?.plannedStart && slot?.plannedEnd && windowsOverlap(start, defaultEnd, slot.plannedStart, slot.plannedEnd)
+    ));
+    if (!hasSlotsOnDefaultDate) start = startOfDay(fallbackStart);
+  }
   const end = addMs(start, DAY_MS);
   return {
     start,
     end,
     label: `${formatDate(start)} · ${formatTime(start)}-${formatTime(end)}`,
   };
+}
+
+function getShiftWorkbenchWindow(dayCount = SHIFT_WORKBENCH_WINDOW_DAYS) {
+  const base = getDispatchWindow();
+  const days = Math.max(1, Math.round(Number(dayCount) || 1));
+  const end = addMs(base.start, DAY_MS * days);
+  const lastDay = addMs(end, -DAY_MS);
+  return {
+    start: base.start,
+    end,
+    days,
+    label: days > 1
+      ? `${formatDate(base.start)}-${formatDate(lastDay)}`
+      : base.label,
+  };
+}
+
+function getShiftWindowDayCount(window) {
+  if (Number.isFinite(window?.days)) return Math.max(1, Math.round(window.days));
+  return Math.max(1, Math.round((window.end.getTime() - window.start.getTime()) / DAY_MS));
+}
+
+function renderShiftWindowRuler(window) {
+  const days = getShiftWindowDayCount(window);
+  const marks = Array.from({ length: days }, (_, index) => addMs(window.start, DAY_MS * index));
+  return `
+    <div class="dispatch-window-ruler is-days" style="--dispatch-ruler-days:${days};">
+      ${marks.map((mark) => `
+        <span>${mark.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })}</span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function normalizeDateInput(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const date = raw.includes("T") ? toDate(raw) : toDate(fromDateInput(raw));
+  return Number.isNaN(date.getTime()) ? "" : toDateInput(date);
+}
+
+function setShiftWorkbenchDate(value = "") {
+  const nextDate = normalizeDateInput(value);
+  if (!nextDate) return false;
+  ui.windowStart = nextDate;
+  ui.shiftMasterSelectedSlotId = "";
+  ui.activeDispatchSlotId = "";
+  persistUiState();
+  render();
+  return true;
+}
+
+function moveShiftWorkbenchDate(dayDelta = 0) {
+  const delta = Math.round(Number(dayDelta) || 0);
+  if (!delta) return false;
+  const window = getShiftWorkbenchWindow();
+  return setShiftWorkbenchDate(toDateInput(addMs(startOfDay(window.start), DAY_MS * delta)));
+}
+
+function setShiftWorkbenchToday() {
+  return setShiftWorkbenchDate(toDateInput(startOfDay(ui.now || new Date())));
+}
+
+function renderShiftCalendarControl(window, options = {}) {
+  const inputId = options.inputId || "shift-calendar-date";
+  const label = options.label || "Дата смены";
+  return `
+    <div class="shift-calendar-control" data-shift-calendar-control>
+      <button class="icon-button shift-calendar-step" data-shift-calendar-step="-1" type="button" title="Предыдущий день" aria-label="Предыдущий день">${icon("arrowLeft")}</button>
+      <label class="shift-calendar-field" for="${escapeAttribute(inputId)}">
+        <span>${escapeHtml(label)}</span>
+        <input id="${escapeAttribute(inputId)}" data-shift-calendar-date type="date" value="${escapeAttribute(toDateInput(window.start))}" aria-label="${escapeAttribute(label)}" />
+      </label>
+      <button class="icon-button shift-calendar-open" data-shift-calendar-open="${escapeAttribute(inputId)}" type="button" title="Открыть календарь" aria-label="Открыть календарь">${icon("calendar")}</button>
+      <button class="icon-button shift-calendar-step" data-shift-calendar-step="1" type="button" title="Следующий день" aria-label="Следующий день">${icon("arrowRight")}</button>
+      <button class="secondary-button shift-calendar-today" data-shift-calendar-today type="button">${icon("today")}<span>Сегодня</span></button>
+      <span class="shift-calendar-range" title="Окно сменных заказ-нарядов">${escapeHtml(window.label)}</span>
+    </div>
+  `;
 }
 
 function isSlotInsideDispatchWindow(slot, window) {
@@ -7012,37 +8233,252 @@ function buildDispatchBoardData() {
   return data;
 }
 
+function renderShiftMasterPage() {
+  const window = getShiftWorkbenchWindow();
+  const shiftMasterProfiles = getShiftMasterProfiles();
+  const profileRowCounts = new Map(shiftMasterProfiles.map((profile) => [
+    profile.id,
+    getShiftWorkOrderRows({ window, masterProfile: profile }).length,
+  ]));
+  let activeProfile = getShiftMasterProfile(ui.activeShiftMasterId);
+  if (ui.activeShiftMasterId !== activeProfile.id) ui.activeShiftMasterId = activeProfile.id;
+  let rows = getShiftWorkOrderRows({ window, masterProfile: activeProfile });
+  if (!rows.length && ui.activeShiftMasterId === defaultUiState.activeShiftMasterId) {
+    const fallbackProfile = shiftMasterProfiles.find((profile) => (profileRowCounts.get(profile.id) || 0) > 0);
+    if (fallbackProfile) {
+      activeProfile = fallbackProfile;
+      ui.activeShiftMasterId = fallbackProfile.id;
+      rows = getShiftWorkOrderRows({ window, masterProfile: activeProfile });
+    }
+  }
+  const selectedRow = rows.find((row) => row.id === ui.shiftMasterSelectedSlotId) || rows[0] || null;
+  if (selectedRow && ui.shiftMasterSelectedSlotId !== selectedRow.id) ui.shiftMasterSelectedSlotId = selectedRow.id;
+  const issuedRows = rows.filter((row) => row.isIssued);
+  const assignedRows = rows.filter((row) => row.resourceId && row.employeeId);
+  const plannedQuantity = rows.reduce((sum, row) => sum + row.plannedQuantity, 0);
+  const issuedQuantity = issuedRows.reduce((sum, row) => sum + row.plannedQuantity, 0);
+  const groups = groupShiftRowsByWorkCenter(rows);
+
+  return `
+    <section class="shift-master-page module-data-page" data-layout="main-content" aria-label="Мастерская">
+      <aside class="directory-sidebar module-data-sidebar shift-master-sidebar">
+        <div class="directory-sidebar-head">
+          <span class="eyebrow">Вход мастера</span>
+          <h1>Мастерская</h1>
+        </div>
+        <div class="shift-master-login-list">
+          ${shiftMasterProfiles.map((profile) => {
+            const rowCount = profileRowCounts.get(profile.id) || 0;
+            return `
+            <button class="shift-master-login ${profile.id === activeProfile.id ? "is-active" : ""}" data-shift-master-login="${escapeAttribute(profile.id)}" type="button">
+              <span>${icon("worker")}</span>
+              <strong>${escapeHtml(profile.name)}</strong>
+              <small>${escapeHtml(profile.role)}${rowCount ? ` · ${rowCount.toLocaleString("ru-RU")} строк` : ""}</small>
+            </button>
+          `;
+          }).join("")}
+        </div>
+        <div class="module-entity-list shift-master-section-list">
+          <div class="module-list-label">Участки мастера</div>
+          ${groups.length ? groups.map((group) => `
+            <article class="module-entity-item shift-master-section-card">
+              <span>
+                <strong>${escapeHtml(group.label)}</strong>
+                <small>${group.issuedCount}/${group.rows.length} выпущено · ${group.plannedQuantity.toLocaleString("ru-RU")} шт.</small>
+              </span>
+              <em>${group.issuedCount}/${group.rows.length}</em>
+            </article>
+          `).join("") : renderModulePreviewEmpty({
+            iconName: "calendar",
+            title: "Планов нет",
+            text: "На выбранную дату в участках мастера нет слотов Ганта.",
+          })}
+        </div>
+      </aside>
+
+      <div class="directory-workspace module-data-workspace shift-master-workspace" data-layout="page-workspace">
+        <header class="directory-header shift-master-header">
+          <div>
+            <span class="eyebrow">План смены → сменный заказ-наряд</span>
+            <h2>${escapeHtml(activeProfile.role)}</h2>
+            <p>${escapeHtml(activeProfile.name)} распределяет плановые строки на реальные ресурсы и выпускает сменные листы. Производственный Гант не изменяется.</p>
+          </div>
+          <div class="shift-master-header-actions">
+            ${renderShiftCalendarControl(window, { inputId: "shift-master-calendar-date" })}
+            <button class="secondary-button" data-shift-master-issue-all type="button" ${rows.length ? "" : "disabled"}>
+              ${icon("document")}<span>Выпустить план</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="module-data-content shift-master-content">
+          <section class="dispatch-kpi-grid shift-master-kpi-grid" aria-label="Показатели мастера смены">
+            ${[
+              { label: "План смены", value: `${rows.length.toLocaleString("ru-RU")} строк`, meta: `${plannedQuantity.toLocaleString("ru-RU")} шт.`, tone: rows.length ? "active" : "neutral", iconName: "calendar" },
+              { label: "Выпущено", value: `${issuedRows.length}/${rows.length || 0}`, meta: `${issuedQuantity.toLocaleString("ru-RU")} шт.`, tone: issuedRows.length === rows.length && rows.length ? "ok" : issuedRows.length ? "warning" : "neutral", iconName: "document" },
+              { label: "Назначено", value: `${assignedRows.length}/${rows.length || 0}`, meta: "ресурс + исполнитель", tone: assignedRows.length === rows.length && rows.length ? "ok" : assignedRows.length ? "warning" : "neutral", iconName: "worker" },
+              { label: "Окно", value: `${window.days} дней`, meta: window.label, tone: "active", iconName: "clock" },
+            ].map(renderDispatchKpi).join("")}
+          </section>
+
+          <section class="shift-master-board-grid">
+            <article class="module-panel shift-master-plan-panel">
+              <div class="report-card-head">
+                <div>
+                  <strong>План смены</strong>
+                  <span>строки из Ганта, доступные мастеру выбранного участка</span>
+                </div>
+              </div>
+              <div class="shift-master-row-list">
+                ${rows.length ? rows.map((row) => renderShiftMasterRow(row, selectedRow?.id)).join("") : renderModulePreviewEmpty({
+                  iconName: "calendar",
+                  title: "Нет сменных строк",
+                  text: "Выбери дату, где в Ганте есть операции участков этого мастера.",
+                })}
+              </div>
+            </article>
+
+            <article class="module-panel shift-master-print-panel">
+              <div class="report-card-head">
+                <div>
+                  <strong>Печатный лист</strong>
+                  <span>${selectedRow ? escapeHtml(selectedRow.documentNumber) : "строка не выбрана"}</span>
+                </div>
+              </div>
+              ${selectedRow ? renderShiftMasterPrintSheet(selectedRow, activeProfile) : renderModulePreviewEmpty({
+                iconName: "document",
+                title: "Выбери строку",
+                text: "Здесь появится сменный заказ-наряд для печати мастером.",
+              })}
+            </article>
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderShiftMasterRow(row, selectedSlotId = "") {
+  const statusTone = row.isIssued ? "ok" : row.resourceId && row.employeeId ? "warning" : "neutral";
+  return `
+    <article class="shift-master-row is-${escapeAttribute(statusTone)} ${row.id === selectedSlotId ? "is-active" : ""}" data-shift-master-row="${escapeAttribute(row.id)}">
+      <button class="shift-master-row-main" data-shift-master-select="${escapeAttribute(row.id)}" type="button">
+        <span>
+          <strong>${escapeHtml(row.operationName)}</strong>
+          <small>${escapeHtml(row.taskLabel)} · ${escapeHtml(row.routeName)}</small>
+        </span>
+        <em>${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</em>
+      </button>
+      <div class="shift-master-row-meta">
+        <span>${escapeHtml(row.workCenterLabel)}</span>
+        <span>${escapeHtml(row.timeLabel)}</span>
+        <span>${row.isIssued ? `выпущен ${escapeHtml(formatDateTimeShort(row.issuedAt))}` : "план смены"}</span>
+      </div>
+      <div class="shift-master-controls">
+        <label>
+          <span>Ресурс</span>
+          <select data-shift-master-resource="${escapeAttribute(row.id)}">
+            ${row.resourceOptions.map((resource) => `
+              <option value="${escapeAttribute(resource.id)}" ${selected(row.resourceId, resource.id)}>${escapeHtml(resource.name || resource.id)}</option>
+            `).join("")}
+          </select>
+        </label>
+        <label>
+          <span>Исполнитель</span>
+          <select data-shift-master-employee="${escapeAttribute(row.id)}">
+            ${row.employees.length ? row.employees.map((employee) => `
+              <option value="${escapeAttribute(employee.id)}" ${selected(row.employeeId, employee.id)}>${escapeHtml(employee.name)} · ${escapeHtml(employee.role)}</option>
+            `).join("") : `<option value="">Исполнитель не задан</option>`}
+          </select>
+        </label>
+        <label>
+          <span>Комментарий</span>
+          <input data-shift-master-note="${escapeAttribute(row.id)}" value="${escapeAttribute(row.note)}" placeholder="сменное уточнение" />
+        </label>
+        <div class="shift-master-row-actions">
+          <button class="secondary-button" data-shift-master-select="${escapeAttribute(row.id)}" type="button">${icon("document")}<span>Лист</span></button>
+          <button class="primary-button" data-shift-master-issue="${escapeAttribute(row.id)}" type="button">${icon("check")}<span>${row.isIssued ? "Обновить" : "Выпустить"}</span></button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderShiftMasterPrintSheet(row, activeProfile) {
+  const employee = getShiftMasterEmployee(row.employeeId);
+  const master = row.assignment?.masterId ? getShiftMasterProfile(row.assignment.masterId) : activeProfile;
+  return `
+    <div class="shift-master-print-sheet">
+      <div class="shift-master-print-title">
+        <span>Сменный заказ-наряд</span>
+        <strong>${escapeHtml(row.documentNumber)}</strong>
+      </div>
+      <dl class="shift-master-print-grid">
+        <div><dt>Дата</dt><dd>${escapeHtml(getPlanningShiftDateLabel(row.dateKey))}</dd></div>
+        <div><dt>Мастер</dt><dd>${escapeHtml(master?.name || activeProfile.name)}</dd></div>
+        <div><dt>Участок</dt><dd>${escapeHtml(row.workCenterLabel)}</dd></div>
+        <div><dt>Ресурс</dt><dd>${escapeHtml(row.resourceLabel)}</dd></div>
+        <div><dt>Исполнитель</dt><dd>${escapeHtml(employee?.name || row.employeeLabel)}</dd></div>
+        <div><dt>План</dt><dd>${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</dd></div>
+      </dl>
+      <div class="shift-master-print-operation">
+        <span>${escapeHtml(row.routeName)}</span>
+        <strong>${escapeHtml(row.operationName)}</strong>
+        <small>${escapeHtml(row.taskLabel)} · ${escapeHtml(row.timeLabel)}</small>
+      </div>
+      <div class="shift-master-print-note">
+        <span>Комментарий мастера</span>
+        <p>${row.note ? escapeHtml(row.note) : "Без уточнений."}</p>
+      </div>
+      <div class="shift-master-print-signatures">
+        <span>Выдал мастер</span>
+        <span>Принял исполнитель</span>
+        <span>Передано диспетчеру</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderDispatchPage() {
-  const data = buildDispatchBoardData();
-  const routeRows = data.routeRows.slice(0, 8);
+  const window = getShiftWorkbenchWindow();
+  const rows = getShiftWorkOrderRows({ window });
+  const groups = groupShiftRowsByWorkCenter(rows);
+  const issuedRows = rows.filter((row) => row.isIssued);
+  const selectedRow = rows.find((row) => row.id === ui.activeDispatchSlotId) || issuedRows[0] || rows[0] || null;
+  if (selectedRow && ui.activeDispatchSlotId !== selectedRow.id) ui.activeDispatchSlotId = selectedRow.id;
+  const plannedQuantity = rows.reduce((sum, row) => sum + row.plannedQuantity, 0);
+  const actualQuantity = rows.reduce((sum, row) => sum + row.actualQuantity, 0);
+  const defectQuantity = rows.reduce((sum, row) => sum + row.defectQuantity, 0);
+  const rowsWithFacts = rows.filter((row) => row.fact?.updatedAt || row.actualQuantity > 0 || row.fact?.status !== "not_reported");
+  const factCompletion = plannedQuantity > 0 ? Math.round(actualQuantity / plannedQuantity * 100) : 0;
   const kpis = [
     {
-      label: "Операции в окне",
-      value: data.shiftSlots.length.toLocaleString("ru-RU"),
-      meta: `${Math.round(data.plannedHours * 10) / 10} ч в плане`,
-      tone: data.shiftSlots.length ? "active" : "neutral",
+      label: "Сменные ЗН",
+      value: `${issuedRows.length}/${rows.length || 0}`,
+      meta: "выпущено мастером",
+      tone: issuedRows.length === rows.length && rows.length ? "ok" : issuedRows.length ? "warning" : "neutral",
       iconName: "gantt",
     },
     {
-      label: "Сигналы",
-      value: data.warnings.length.toLocaleString("ru-RU"),
-      meta: `${data.criticalWarnings.length} критичных`,
-      tone: data.criticalWarnings.length ? "critical" : data.warnings.length ? "warning" : "ok",
-      iconName: data.warnings.length ? "alert" : "check",
-    },
-    {
-      label: "Очередь",
-      value: data.backlog.length.toLocaleString("ru-RU"),
-      meta: "ожидает размещения",
-      tone: data.backlog.length ? "warning" : "ok",
+      label: "План",
+      value: `${plannedQuantity.toLocaleString("ru-RU")} шт.`,
+      meta: `${rows.length.toLocaleString("ru-RU")} строк смены`,
+      tone: rows.length ? "active" : "neutral",
       iconName: "calendar",
     },
     {
-      label: "Выпуск",
-      value: `${data.completedOutputReceipt}/${data.outputReceiptSlots.length || 0}`,
-      meta: "приемка из Ганта",
-      tone: data.outputReceiptSlots.length && data.completedOutputReceipt === data.outputReceiptSlots.length ? "ok" : "active",
-      iconName: "warehouse",
+      label: "Факт",
+      value: `${actualQuantity.toLocaleString("ru-RU")} шт.`,
+      meta: `${factCompletion}% от плана`,
+      tone: actualQuantity >= plannedQuantity && plannedQuantity ? "ok" : actualQuantity ? "warning" : "neutral",
+      iconName: "check",
+    },
+    {
+      label: "Отклонение",
+      value: `${(actualQuantity - plannedQuantity).toLocaleString("ru-RU")} шт.`,
+      meta: `брак: ${defectQuantity.toLocaleString("ru-RU")} шт.`,
+      tone: actualQuantity < plannedQuantity && rowsWithFacts.length ? "warning" : "neutral",
+      iconName: "chart",
     },
   ];
 
@@ -7050,25 +8486,23 @@ function renderDispatchPage() {
     <section class="dispatch-page module-data-page" data-layout="main-content" aria-label="Диспетчерская">
       <aside class="directory-sidebar module-data-sidebar dispatch-sidebar">
         <div class="directory-sidebar-head">
-          <span class="eyebrow">Оперативный контур</span>
+          <span class="eyebrow">Факт смены</span>
           <h1>Диспетчерская</h1>
         </div>
-        <div class="dispatch-sidebar-summary">
-          <article>
-            <span>Окно</span>
-            <strong>${escapeHtml(data.window.label)}</strong>
-          </article>
-          <article>
-            <span>Маршруты</span>
-            <strong>${data.routeRows.length.toLocaleString("ru-RU")}</strong>
-          </article>
-        </div>
-        <div class="module-entity-list dispatch-route-list">
-          <div class="module-list-label">Контроль маршрутов</div>
-          ${routeRows.length ? routeRows.map(renderDispatchSidebarRoute).join("") : renderModulePreviewEmpty({
+        <div class="module-entity-list dispatch-route-list dispatch-section-list">
+          <div class="module-list-label">Участки смены</div>
+          ${groups.length ? groups.map((group) => `
+            <button class="module-entity-item dispatch-section-card ${selectedRow?.workCenterId === group.id ? "is-active" : ""}" data-dispatch-select-slot="${escapeAttribute(group.rows[0]?.id || "")}" type="button">
+              <span>
+                <strong>${escapeHtml(group.label)}</strong>
+                <small>план ${group.plannedQuantity.toLocaleString("ru-RU")} · факт ${group.actualQuantity.toLocaleString("ru-RU")}</small>
+              </span>
+              <em>${group.rows.length}</em>
+            </button>
+          `).join("") : renderModulePreviewEmpty({
             iconName: "gantt",
-            title: "Маршрутов нет",
-            text: "Для диспетчерской нужен план в Ганте.",
+            title: "Сменных строк нет",
+            text: "Для ввода факта нужен план смены из размещенных слотов Ганта.",
           })}
         </div>
       </aside>
@@ -7076,9 +8510,18 @@ function renderDispatchPage() {
       <div class="directory-workspace module-data-workspace dispatch-workspace" data-layout="page-workspace">
         <header class="directory-header dispatch-header">
           <div>
-            <span class="eyebrow">Первый оперативный уровень</span>
-            <h2>Оперативный контроль</h2>
-            <p>Сменный срез Ганта, выпуск и сигналы производства.</p>
+            <span class="eyebrow">Сменный заказ-наряд → факт</span>
+            <h2>Диспетчерский ввод факта</h2>
+            <p>План читается из Ганта и сменных нарядов мастера, факт хранится только внутри диспетчерской.</p>
+          </div>
+          <div class="dispatch-header-actions">
+            ${renderShiftCalendarControl(window, { inputId: "dispatch-calendar-date" })}
+            <button class="secondary-button" data-dispatch-fill-plan type="button" ${issuedRows.length ? "" : "disabled"} title="Заполнить факт по сменным заказ-нарядам, выпущенным мастером">
+              ${icon("check")}<span>Факт = план</span>
+            </button>
+            <button class="secondary-button" data-dispatch-clear-facts type="button" ${rowsWithFacts.length ? "" : "disabled"}>
+              ${icon("close")}<span>Сбросить факт</span>
+            </button>
           </div>
         </header>
 
@@ -7087,94 +8530,144 @@ function renderDispatchPage() {
             ${kpis.map(renderDispatchKpi).join("")}
           </section>
 
-          <section class="module-panel dispatch-rhythm-panel" aria-label="Реперные точки смены">
+          <section class="module-panel dispatch-rhythm-panel dispatch-fact-focus" aria-label="Выбранный сменный заказ-наряд">
             <div class="report-card-head">
               <div>
-                <strong>Реперные точки смены</strong>
-                <span>${data.activeCheckpoint ? `текущий фокус: ${escapeHtml(data.activeCheckpoint.title)}` : "контроль по смене"}</span>
+                <strong>${selectedRow ? escapeHtml(selectedRow.documentNumber) : "Сменный заказ-наряд не выбран"}</strong>
+                <span>${selectedRow ? `${escapeHtml(selectedRow.operationName)} · ${escapeHtml(selectedRow.workCenterLabel)}` : "выбери строку на диаграмме или в списке"}</span>
               </div>
             </div>
-            <div class="dispatch-rhythm-body">
-              <div class="dispatch-checkpoint-strip">
-                ${data.checkpoints.map(renderDispatchCheckpoint).join("")}
-              </div>
-              ${data.activeCheckpoint ? renderDispatchCurrentFocus(data.activeCheckpoint) : ""}
-            </div>
+            ${selectedRow ? renderDispatchSelectedFactCard(selectedRow) : ""}
           </section>
 
-          <section class="dispatch-board-grid" aria-label="Сменный контроль">
-            <article class="module-panel dispatch-shift-panel">
-              <div class="report-card-head">
-                <div>
-                  <strong>Сменный срез</strong>
-                  <span>${escapeHtml(data.window.label)}</span>
-                </div>
-              </div>
-              <div class="dispatch-window-ruler">
-                <span>${formatTime(data.window.start)}</span>
-                <span>${formatTime(addMs(data.window.start, 6 * 60 * 60 * 1000))}</span>
-                <span>${formatTime(addMs(data.window.start, 12 * 60 * 60 * 1000))}</span>
-                <span>${formatTime(addMs(data.window.start, 18 * 60 * 60 * 1000))}</span>
-                <span>${formatTime(data.window.end)}</span>
-              </div>
-              <div class="dispatch-workcenter-list">
-                ${data.workCenterRows.length ? data.workCenterRows.map((row) => renderDispatchWorkCenterRow(row, data.window)).join("") : renderModulePreviewEmpty({
-                  iconName: "calendar",
-                  title: "Нет операций в окне",
-                  text: "Сменный срез появится при наличии слотов Ганта.",
-                })}
-              </div>
-            </article>
-
-            <article class="module-panel dispatch-signal-panel">
-              <div class="report-card-head">
-                <div>
-                  <strong>Оперативные сигналы</strong>
-                  <span>${data.signals.length ? `${data.signals.length} событий` : "без событий"}</span>
-                </div>
-              </div>
-              <div class="dispatch-signal-list">
-                ${data.signals.length ? data.signals.map(renderDispatchSignal).join("") : renderModulePreviewEmpty({
-                  iconName: "check",
-                  title: "Сигналов нет",
-                  text: "Конфликты и очередь по текущему окну не найдены.",
-                })}
-              </div>
-            </article>
-          </section>
-
-          <article class="module-panel dispatch-route-panel">
+          <article class="module-panel dispatch-shift-panel dispatch-fact-gantt-panel" style="--dispatch-ruler-days:${getShiftWindowDayCount(window)};">
             <div class="report-card-head">
               <div>
-                <strong>Контроль маршрутных карт</strong>
-                <span>по действующему плану</span>
+                <strong>Диаграмма сменных заказ-нарядов</strong>
+                <span>${escapeHtml(window.label)}</span>
               </div>
             </div>
-            <div class="dispatch-table-wrap" data-layout="table">
-              <table class="dispatch-table">
-                <thead>
-                  <tr>
-                    <th>Маршрут</th>
-                    <th>Статус</th>
-                    <th>Прогресс</th>
-                    <th>Срок</th>
-                    <th>Ближайшая операция</th>
-                    <th>Сигналы</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${data.routeRows.length ? data.routeRows.map(renderDispatchRouteTableRow).join("") : `
-                    <tr>
-                      <td colspan="6">Нет маршрутных карт для контроля.</td>
-                    </tr>
-                  `}
-                </tbody>
-              </table>
+            ${renderShiftWindowRuler(window)}
+            <div class="dispatch-workcenter-list dispatch-fact-lane-list">
+              ${groups.length ? groups.map((group) => renderDispatchFactLane(group, window, selectedRow?.id)).join("") : renderModulePreviewEmpty({
+                iconName: "calendar",
+                title: "Нет операций в окне",
+                text: "Сменный срез появится при наличии слотов Ганта.",
+              })}
+            </div>
+          </article>
+
+          <article class="module-panel dispatch-route-panel dispatch-fact-panel">
+            <div class="report-card-head">
+              <div>
+                <strong>Ввод факта по сменным заказ-нарядам</strong>
+                <span>план остается неизменным, факт сохраняется отдельным слоем диспетчерской</span>
+              </div>
+            </div>
+            <div class="dispatch-fact-row-list">
+              ${rows.length ? rows.map((row) => renderDispatchFactRow(row, selectedRow?.id)).join("") : renderModulePreviewEmpty({
+                iconName: "document",
+                title: "Строк для факта нет",
+                text: "Факт появится после планирования смены и выпуска нарядов мастером.",
+              })}
             </div>
           </article>
         </div>
       </div>
     </section>
+  `;
+}
+
+function renderDispatchSelectedFactCard(row) {
+  return `
+    <div class="dispatch-selected-fact-grid">
+      <article>
+        <span>План</span>
+        <strong>${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</strong>
+      </article>
+      <article>
+        <span>Факт</span>
+        <strong>${row.actualQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</strong>
+      </article>
+      <article>
+        <span>Отклонение</span>
+        <strong>${row.deltaQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</strong>
+      </article>
+      <article>
+        <span>Наряд</span>
+        <strong>${row.isIssued ? "выпущен" : "ожидает мастера"}</strong>
+      </article>
+    </div>
+  `;
+}
+
+function renderDispatchFactLane(group, window, selectedSlotId = "") {
+  return `
+    <article class="dispatch-workcenter-row dispatch-fact-lane-row">
+      <div class="dispatch-workcenter-meta">
+        <strong>${escapeHtml(group.label)}</strong>
+        <span>${group.issuedCount}/${group.rows.length} ЗН · план ${group.plannedQuantity.toLocaleString("ru-RU")} · факт ${group.actualQuantity.toLocaleString("ru-RU")}</span>
+      </div>
+      <div class="dispatch-lane" aria-label="${escapeAttribute(group.label)}">
+        ${group.rows.map((row) => renderDispatchFactBar(row, window, selectedSlotId)).join("")}
+      </div>
+      <div class="dispatch-workcenter-state">
+        <span>${group.actualQuantity.toLocaleString("ru-RU")} / ${group.plannedQuantity.toLocaleString("ru-RU")} шт.</span>
+        <em>${group.issuedCount === group.rows.length ? "наряды выпущены" : "есть план без мастера"}</em>
+      </div>
+    </article>
+  `;
+}
+
+function renderDispatchFactBar(row, window, selectedSlotId = "") {
+  const tone = row.factStatus.tone;
+  return `
+    <button
+      class="dispatch-slot-bar dispatch-fact-bar is-${escapeAttribute(tone)} ${row.id === selectedSlotId ? "is-selected" : ""}"
+      style="${getDispatchSlotWindowStyle(row.slot, window)}; --fact-progress:${row.completion}%;"
+      data-dispatch-select-slot="${escapeAttribute(row.id)}"
+      type="button"
+      title="${escapeAttribute(`${row.documentNumber} · ${row.operationName} · план ${row.plannedQuantity} / факт ${row.actualQuantity}`)}"
+    >
+      <span></span>
+    </button>
+  `;
+}
+
+function renderDispatchFactRow(row, selectedSlotId = "") {
+  return `
+    <article class="dispatch-fact-row is-${escapeAttribute(row.factStatus.tone)} ${row.id === selectedSlotId ? "is-active" : ""}">
+      <button class="dispatch-fact-row-title" data-dispatch-select-slot="${escapeAttribute(row.id)}" type="button">
+        <span>
+          <strong>${escapeHtml(row.documentNumber)}</strong>
+          <small>${escapeHtml(row.operationName)} · ${escapeHtml(row.taskLabel)}</small>
+        </span>
+        <em>${row.isIssued ? "СЗН" : "план"}</em>
+      </button>
+      <span class="dispatch-fact-row-context">${escapeHtml(row.workCenterLabel)} · ${escapeHtml(row.resourceLabel)} · ${escapeHtml(row.employeeLabel)}</span>
+      <span class="dispatch-fact-plan">${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</span>
+      <label>
+        <span>Факт</span>
+        <input data-dispatch-fact-actual="${escapeAttribute(row.id)}" type="number" min="0" step="1" value="${escapeAttribute(row.actualQuantity || "")}" />
+      </label>
+      <label>
+        <span>Брак</span>
+        <input data-dispatch-fact-defect="${escapeAttribute(row.id)}" type="number" min="0" step="1" value="${escapeAttribute(row.defectQuantity || "")}" />
+      </label>
+      <label>
+        <span>Статус</span>
+        <select data-dispatch-fact-status="${escapeAttribute(row.id)}">
+          ${DISPATCH_FACT_STATUS_OPTIONS.map((option) => `
+            <option value="${escapeAttribute(option.value)}" ${selected(row.factStatus.value, option.value)}>${escapeHtml(option.label)}</option>
+          `).join("")}
+        </select>
+      </label>
+      <label class="dispatch-fact-comment">
+        <span>Комментарий</span>
+        <input data-dispatch-fact-comment="${escapeAttribute(row.id)}" value="${escapeAttribute(row.fact?.comment || "")}" placeholder="причина отклонения / передача" />
+      </label>
+      <strong class="dispatch-fact-delta">${row.deltaQuantity.toLocaleString("ru-RU")}</strong>
+    </article>
   `;
 }
 
@@ -7763,16 +9256,6 @@ function renderSupplyPage() {
           <span class="eyebrow">Закупочный контур</span>
           <h1>Снабжение</h1>
         </div>
-        <div class="supply-sidebar-summary">
-          <article>
-            <span>Заказ-наряды</span>
-            <strong>${routes.length.toLocaleString("ru-RU")}</strong>
-          </article>
-          <article>
-            <span>Строки BOM</span>
-            <strong>${routeStats.total.toLocaleString("ru-RU")}</strong>
-          </article>
-        </div>
         <div class="module-entity-list supply-route-list">
           <div class="module-list-label">Заказ-наряды</div>
           ${routes.length ? routes.map((route) => renderSupplyRouteCard(route, route.id === activeRoute?.id)).join("") : renderModulePreviewEmpty({
@@ -8289,10 +9772,19 @@ function bindSupplyEvents() {
   });
 
   app.querySelectorAll("[data-supply-demand-open]").forEach((button) => {
-    button.addEventListener("dblclick", (event) => {
+    const openDemandDetail = (event) => {
       event.preventDefault();
       ui.activeSupplyDemandRowId = button.dataset.supplyDemandOpen || "";
       render();
+    };
+
+    button.addEventListener("click", (event) => {
+      if (event.detail < 2) return;
+      openDemandDetail(event);
+    });
+
+    button.addEventListener("dblclick", (event) => {
+      openDemandDetail(event);
     });
   });
 
@@ -8337,420 +9829,6 @@ function bindSupplyEvents() {
   });
 }
 
-function renderWarehousePage() {
-  const activeRole = getActiveInterfaceRole();
-  const isWarehouseClerkRole = activeRole.id === "warehouseClerk";
-  const movements = [...(planningState.warehouseMovements || [])]
-    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
-  const reservations = [...(planningState.warehouseReservations || [])]
-    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
-  const productionReceipts = getWarehouseProductionReceiptRows();
-  const balanceRows = getWarehouseBalanceRows();
-  const nomenclatureOptions = getWarehouseNomenclatureOptions();
-  const routeOptions = getWarehouseRouteOptions();
-  const totalOnHand = balanceRows.reduce((sum, row) => sum + row.onHand, 0);
-  const totalReserved = balanceRows.reduce((sum, row) => sum + row.reserved, 0);
-  const totalProductionIncoming = productionReceipts.reduce((sum, row) => sum + row.quantity, 0);
-  const shortageRows = balanceRows.filter((row) => row.shortage > 0);
-  const formDisabled = nomenclatureOptions.length ? "" : "disabled";
-
-  return `
-    <section class="warehouse-page module-data-page" data-layout="main-content" aria-label="Склад">
-      <aside class="directory-sidebar module-data-sidebar warehouse-sidebar">
-        <div class="directory-sidebar-head">
-          <span class="eyebrow">Регистр</span>
-          <h1>Склад</h1>
-        </div>
-        <div class="warehouse-sidebar-summary">
-          <article>
-            <span>Позиции</span>
-            <strong>${balanceRows.length.toLocaleString("ru-RU")}</strong>
-          </article>
-          <article>
-            <span>Поступит</span>
-            <strong>${formatWarehouseQuantity(totalProductionIncoming)}</strong>
-          </article>
-        </div>
-        <div class="module-entity-list warehouse-balance-list">
-          <div class="module-list-label">Остатки и поступления</div>
-          ${balanceRows.length ? balanceRows.map((row) => `
-            <article class="warehouse-balance-card ${row.shortage ? "is-shortage" : ""}">
-              <span>
-                <strong>${escapeHtml(row.name)}</strong>
-                <small>${escapeHtml([row.article, row.type].filter(Boolean).join(" · ") || "позиция номенклатуры")}</small>
-              </span>
-              <em>
-                ${formatWarehouseQuantity(row.available, row.unit)}
-                ${row.productionIncoming ? `<small>+${formatWarehouseQuantity(row.productionIncoming, row.unit)}</small>` : ""}
-              </em>
-            </article>
-          `).join("") : renderModulePreviewEmpty({
-            iconName: "warehouse",
-            title: "Остатков пока нет",
-            text: "Добавьте движение или передайте в Гант операцию поступления из производства.",
-          })}
-        </div>
-      </aside>
-
-      <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
-        <header class="directory-header">
-          <div>
-            <span class="eyebrow">${isWarehouseClerkRole ? "Рабочее место" : "Материальный контур"}</span>
-            <h2>${isWarehouseClerkRole ? "Кладовщик" : "Склад"}</h2>
-            <p>${isWarehouseClerkRole ? "Приемка выпуска, складские движения и резервы по текущему производственному плану." : "Фактический остаток считается из явных движений и резервов. Поступления из производства показываются динамически из Ганта без создания складских записей."}</p>
-          </div>
-        </header>
-
-        <div class="module-data-content warehouse-content">
-          <section class="module-panel warehouse-kpi-panel">
-            <div class="warehouse-kpi-grid">
-              <article><span>На складе</span><strong>${formatWarehouseQuantity(totalOnHand)}</strong><small>по всем движениям</small></article>
-              <article><span>Поступит из производства</span><strong>${formatWarehouseQuantity(totalProductionIncoming)}</strong><small>по операциям Ганта</small></article>
-              <article><span>Зарезервировано</span><strong>${formatWarehouseQuantity(totalReserved)}</strong><small>под заказ-наряды</small></article>
-              <article class="${shortageRows.length ? "is-warning" : "is-ok"}"><span>Дефицит</span><strong>${shortageRows.length.toLocaleString("ru-RU")}</strong><small>${shortageRows.length ? "позиций требуют внимания" : "не обнаружен"}</small></article>
-            </div>
-          </section>
-
-          ${isWarehouseClerkRole ? renderWarehouseClerkPanel({
-            productionReceipts,
-            reservations,
-            movements,
-            shortageRows,
-          }) : ""}
-
-          <section class="module-panel warehouse-actions-panel">
-            <div class="report-card-head">
-              <strong>Новое движение</strong>
-              <span>приход, выдача, приемка производства или корректировка</span>
-            </div>
-            <form id="warehouseMovementForm" class="module-form warehouse-form">
-              <input type="hidden" name="isNew" value="yes" />
-              <label class="form-field full">
-                <span>Номенклатура</span>
-                <select name="nomenclatureItemId" ${formDisabled}>
-                  ${renderWarehouseSelectOptions(nomenclatureOptions, "", "Выберите существующую позицию")}
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Тип движения</span>
-                <select name="movementType" ${formDisabled}>
-                  ${WAREHOUSE_MOVEMENT_TYPES.map((item) => `
-                    <option value="${escapeAttribute(item.value)}">${escapeHtml(item.label)}</option>
-                  `).join("")}
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Количество</span>
-                <input name="quantity" type="number" min="0.001" step="0.001" placeholder="0" ${formDisabled} />
-              </label>
-              <label class="form-field">
-                <span>Склад</span>
-                <input name="warehouseName" placeholder="Не указан" ${formDisabled} />
-              </label>
-              <label class="form-field">
-                <span>Ячейка</span>
-                <input name="locationName" placeholder="Не указана" ${formDisabled} />
-              </label>
-              <label class="form-field full">
-                <span>Связанный заказ-наряд</span>
-                <select name="routeId" ${formDisabled}>
-                  ${renderWarehouseSelectOptions(routeOptions, "", "Без заказ-наряда")}
-                </select>
-              </label>
-              <label class="form-field full">
-                <span>Комментарий</span>
-                <textarea name="comment" rows="2" placeholder="Основание движения, накладная, пояснение" ${formDisabled}></textarea>
-              </label>
-              <div class="module-form-actions full">
-                <button class="primary-button" type="submit" ${formDisabled}>${icon("save")}<span>Добавить движение</span></button>
-              </div>
-            </form>
-          </section>
-
-          <section class="module-panel warehouse-reserve-panel">
-            <div class="report-card-head">
-              <strong>Резерв под заказ-наряд</strong>
-              <span>резерв не списывает склад, а фиксирует потребность</span>
-            </div>
-            <form id="warehouseReservationForm" class="module-form warehouse-form">
-              <input type="hidden" name="isNew" value="yes" />
-              <label class="form-field">
-                <span>Номенклатура</span>
-                <select name="nomenclatureItemId" ${formDisabled}>
-                  ${renderWarehouseSelectOptions(nomenclatureOptions, "", "Выберите позицию")}
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Заказ-наряд</span>
-                <select name="routeId" ${formDisabled}>
-                  ${renderWarehouseSelectOptions(routeOptions, "", "Не выбран")}
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Количество</span>
-                <input name="quantity" type="number" min="0.001" step="0.001" placeholder="0" ${formDisabled} />
-              </label>
-              <label class="form-field">
-                <span>Комментарий</span>
-                <input name="comment" placeholder="Причина резерва" ${formDisabled} />
-              </label>
-              <div class="module-form-actions full">
-                <button class="secondary-button" type="submit" ${formDisabled}>${icon("lock")}<span>Зарезервировать</span></button>
-              </div>
-            </form>
-          </section>
-
-          <section class="module-panel warehouse-table-panel">
-            <div class="report-card-head">
-              <strong>Остатки и резервы</strong>
-              <span>${balanceRows.length ? `${balanceRows.length} позиций` : "нет данных"}</span>
-            </div>
-            ${balanceRows.length ? renderWarehouseBalanceTable(balanceRows) : renderModulePreviewEmpty({
-              iconName: "package",
-              title: "Нет складских данных",
-              text: "Остатки появятся после явного движения, резерва или планового поступления из производства.",
-            })}
-          </section>
-
-          <section class="module-panel warehouse-table-panel">
-            <div class="report-card-head">
-              <strong>Поступления из производства</strong>
-              <span>${productionReceipts.length ? `${productionReceipts.length} операций` : "операций нет"}</span>
-            </div>
-            ${productionReceipts.length ? renderWarehouseProductionReceiptTable(productionReceipts) : renderModulePreviewEmpty({
-              iconName: "gantt",
-              title: "Поступлений из Ганта нет",
-              text: "Добавьте в маршрут операцию приемки результата производства и передайте заказ-наряд в Гант.",
-            })}
-          </section>
-
-          <section class="module-panel warehouse-table-panel">
-            <div class="report-card-head">
-              <strong>Журнал движений</strong>
-              <span>${movements.length ? `${movements.length} записей` : "движений нет"}</span>
-            </div>
-            ${movements.length ? renderWarehouseMovementTable(movements) : renderModulePreviewEmpty({
-              iconName: "warehouse",
-              title: "Движений пока нет",
-              text: "Склад не заполняется тестовыми строками. Добавьте движение вручную.",
-            })}
-          </section>
-
-          <section class="module-panel warehouse-table-panel">
-            <div class="report-card-head">
-              <strong>Резервы</strong>
-              <span>${reservations.length ? `${reservations.length} записей` : "резервов нет"}</span>
-            </div>
-            ${reservations.length ? renderWarehouseReservationTable(reservations) : renderModulePreviewEmpty({
-              iconName: "lock",
-              title: "Резервов пока нет",
-              text: "Резерв создается только явным действием пользователя.",
-            })}
-          </section>
-        </div>
-      </div>
-    </section>
-  `;
-}
-
-function renderWarehouseClerkPanel({ productionReceipts = [], reservations = [], movements = [], shortageRows = [] } = {}) {
-  const plannedReceipts = productionReceipts.filter((receipt) => receipt.status !== "completed");
-  const totalReceiptQuantity = plannedReceipts.reduce((sum, receipt) => sum + receipt.quantity, 0);
-  const totalReservationQuantity = reservations.reduce((sum, reservation) => sum + normalizeWarehouseQuantity(reservation.quantity), 0);
-
-  return `
-    <section class="module-panel warehouse-role-panel">
-      <div class="report-card-head">
-        <strong>Задачи кладовщика</strong>
-        <span>оперативный складской контур</span>
-      </div>
-      <div class="warehouse-role-grid">
-        <article class="${plannedReceipts.length ? "is-active" : "is-ok"}">
-          <span>Принять из производства</span>
-          <strong>${formatWarehouseQuantity(totalReceiptQuantity)}</strong>
-          <small>${plannedReceipts.length ? `${plannedReceipts.length} операций Ганта` : "нет ожиданий"}</small>
-        </article>
-        <article class="${shortageRows.length ? "is-warning" : "is-ok"}">
-          <span>Дефицит</span>
-          <strong>${shortageRows.length.toLocaleString("ru-RU")}</strong>
-          <small>${shortageRows.length ? "позиций" : "не обнаружен"}</small>
-        </article>
-        <article>
-          <span>Резервы</span>
-          <strong>${formatWarehouseQuantity(totalReservationQuantity)}</strong>
-          <small>${reservations.length ? `${reservations.length} записей` : "нет резервов"}</small>
-        </article>
-        <article>
-          <span>Движения</span>
-          <strong>${movements.length.toLocaleString("ru-RU")}</strong>
-          <small>ручной журнал</small>
-        </article>
-      </div>
-    </section>
-  `;
-}
-
-function renderWarehouseBalanceTable(rows) {
-  return `
-    <div class="warehouse-table-wrap">
-      <table class="warehouse-table">
-        <thead>
-          <tr>
-            <th>Номенклатура</th>
-            <th>Приход</th>
-            <th>Расход</th>
-            <th>На складе</th>
-            <th>Поступит</th>
-            <th>Резерв</th>
-            <th>Доступно</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((row) => `
-            <tr class="${row.shortage ? "is-shortage" : ""}">
-              <td class="primary-cell">
-                <strong>${escapeHtml(row.name)}</strong>
-                <small>${escapeHtml([row.article, row.type].filter(Boolean).join(" · ") || "позиция номенклатуры")}</small>
-              </td>
-              <td>${formatWarehouseQuantity(row.incoming, row.unit)}</td>
-              <td>${formatWarehouseQuantity(row.outgoing, row.unit)}</td>
-              <td>${formatWarehouseQuantity(row.onHand, row.unit)}</td>
-              <td>${row.productionIncoming ? formatWarehouseQuantity(row.productionIncoming, row.unit) : "&mdash;"}</td>
-              <td>${formatWarehouseQuantity(row.reserved, row.unit)}</td>
-              <td>
-                <span class="warehouse-availability ${row.shortage ? "is-shortage" : "is-ok"}">
-                  ${row.shortage ? `-${formatWarehouseQuantity(row.shortage, row.unit)}` : formatWarehouseQuantity(row.available, row.unit)}
-                  ${row.productionIncoming ? `<small>с выпуском ${formatWarehouseQuantity(row.availableWithProduction, row.unit)}</small>` : ""}
-                </span>
-              </td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function renderWarehouseProductionReceiptTable(receipts) {
-  return `
-    <div class="warehouse-table-wrap">
-      <table class="warehouse-table warehouse-production-table">
-        <thead>
-          <tr>
-            <th>Поступит</th>
-            <th>Результат</th>
-            <th>Количество</th>
-            <th>Заказ-наряд</th>
-            <th>Операция</th>
-            <th>Статус</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${receipts.map((receipt) => `
-            <tr class="${receipt.itemId ? "" : "is-warning"}">
-              <td>${escapeHtml(formatDateTimeShort(receipt.plannedEnd))}</td>
-              <td class="primary-cell">
-                <strong>${escapeHtml(receipt.name)}</strong>
-                <small>${escapeHtml(receipt.itemId ? [receipt.article, receipt.type].filter(Boolean).join(" · ") : "нет связи с номенклатурой")}</small>
-              </td>
-              <td>
-                <span class="warehouse-production-quantity">
-                  ${formatWarehouseQuantity(receipt.quantity, receipt.unit)}
-                  ${receipt.producedQuantity > 0 && receipt.producedQuantity < receipt.quantity ? `<small>сейчас ${formatWarehouseQuantity(receipt.producedQuantity, receipt.unit)}</small>` : ""}
-                </span>
-              </td>
-              <td>${escapeHtml(receipt.routeName)}</td>
-              <td>${escapeHtml(receipt.operationName)}</td>
-              <td><span class="warehouse-type is-${receipt.status === "completed" ? "ok" : "active"}">${escapeHtml(STATUS_LABELS[receipt.status] || receipt.status || "статус")}</span></td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function renderWarehouseMovementTable(movements) {
-  return `
-    <div class="warehouse-table-wrap">
-      <table class="warehouse-table">
-        <thead>
-          <tr>
-            <th>Дата</th>
-            <th>Тип</th>
-            <th>Номенклатура</th>
-            <th>Количество</th>
-            <th>Склад / ячейка</th>
-            <th>Заказ-наряд</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${movements.map((movement) => {
-            const item = getNomenclatureItem(movement.nomenclatureItemId);
-            const route = (planningState.routes || []).find((entry) => entry.id === movement.routeId);
-            const config = getWarehouseMovementTypeConfig(movement.movementType);
-            return `
-              <tr>
-                <td>${escapeHtml(formatDateTimeShort(movement.createdAt))}</td>
-                <td><span class="warehouse-type is-${escapeAttribute(config.tone)}">${escapeHtml(config.label)}</span></td>
-                <td class="primary-cell">
-                  <strong>${escapeHtml(item?.name || "Номенклатура не выбрана")}</strong>
-                  <small>${escapeHtml(item?.article || item?.type || "нет связи")}</small>
-                </td>
-                <td>${config.direction === "out" ? "-" : "+"}${formatWarehouseQuantity(movement.quantity, item?.unit || "шт.")}</td>
-                <td>${escapeHtml([movement.warehouseName || "Не указан", movement.locationName].filter(Boolean).join(" · "))}</td>
-                <td>${escapeHtml(route?.name || "Без заказ-наряда")}</td>
-                <td><button class="table-icon-button danger-soft" data-warehouse-delete-movement="${escapeAttribute(movement.id)}" type="button" title="Удалить движение">${icon("trash")}</button></td>
-              </tr>
-            `;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function renderWarehouseReservationTable(reservations) {
-  return `
-    <div class="warehouse-table-wrap">
-      <table class="warehouse-table">
-        <thead>
-          <tr>
-            <th>Дата</th>
-            <th>Номенклатура</th>
-            <th>Количество</th>
-            <th>Заказ-наряд</th>
-            <th>Состояние</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${reservations.map((reservation) => {
-            const item = getNomenclatureItem(reservation.nomenclatureItemId);
-            const route = (planningState.routes || []).find((entry) => entry.id === reservation.routeId);
-            const balance = getWarehouseBalanceForNomenclature(reservation.nomenclatureItemId);
-            const isShortage = Boolean(balance?.shortage);
-            return `
-              <tr class="${isShortage ? "is-shortage" : ""}">
-                <td>${escapeHtml(formatDateTimeShort(reservation.createdAt))}</td>
-                <td class="primary-cell">
-                  <strong>${escapeHtml(item?.name || "Номенклатура не выбрана")}</strong>
-                  <small>${escapeHtml(reservation.comment || item?.article || "резерв")}</small>
-                </td>
-                <td>${formatWarehouseQuantity(reservation.quantity, item?.unit || "шт.")}</td>
-                <td>${escapeHtml(route?.name || "Заказ-наряд не выбран")}</td>
-                <td><span class="warehouse-availability ${isShortage ? "is-shortage" : "is-ok"}">${isShortage ? "дефицит" : "обеспечен"}</span></td>
-                <td><button class="table-icon-button danger-soft" data-warehouse-delete-reservation="${escapeAttribute(reservation.id)}" type="button" title="Удалить резерв">${icon("trash")}</button></td>
-              </tr>
-            `;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
 function getPlanningWorkItemId(type, id = "") {
   return id ? `${type}:${id}` : type;
 }
@@ -8761,7 +9839,7 @@ function parsePlanningWorkItemId(value = "") {
 }
 
 function getPlanningWorkItemSet(route, tasks, routeSteps) {
-  const itemIds = new Set(["supply", "chain", "schedule"]);
+  const itemIds = new Set(["supply", "chain", "schedule", "shifts"]);
   tasks.forEach((task) => itemIds.add(getPlanningWorkItemId("task", task.id)));
   routeSteps.forEach((step) => itemIds.add(getPlanningWorkItemId("step", step.id)));
   return itemIds;
@@ -9644,7 +10722,7 @@ function renderPlanningSupplyDetail(route, transferSummary, tasks, routeSteps) {
             const warehouseMeta = row.mode === "from_stock"
               ? warehouseBalance
                 ? `склад: доступно ${formatWarehouseQuantity(warehouseBalance.available, warehouseBalance.unit)}${warehouseBalance.shortage ? `, дефицит ${formatWarehouseQuantity(warehouseBalance.shortage, warehouseBalance.unit)}` : ""}`
-                : "склад: остаток не найден"
+                : "складской учет отключен"
               : row.mode === "produce" ? "производственный маршрут" : "без автосоздания";
             return `
             <div class="planning-supply-row is-${escapeAttribute(row.statusTone)}" role="row" style="--supply-level: ${Math.min(4, Math.max(0, Number(row.level || 0)))};">
@@ -9687,7 +10765,7 @@ function renderPlanningSupplyDetail(route, transferSummary, tasks, routeSteps) {
 
       <div class="planning-muted-state">
         ${icon("info")}
-        <span>Остатки берутся из модуля «Склад» только как read-only расчет по явным движениям и резервам. “Со склада” не создает складскую выдачу автоматически.</span>
+        <span>Складской учет временно отключен до нового ТЗ. Режим “со склада” остается техническим признаком маршрута и не создает ручных движений или резервов.</span>
       </div>
     </section>
   `;
@@ -10030,12 +11108,692 @@ function renderPlanningBatchConstructor(route, summary) {
   `;
 }
 
+function renderEmployeesPage() {
+  const model = buildEmployeeOrgModel();
+  return `
+    <section class="employees-page module-data-page is-diagram-only" data-layout="main-content" aria-label="Сотрудники">
+      <div class="directory-workspace module-data-workspace employees-workspace" data-layout="page-workspace">
+        <div class="module-data-content employees-content">
+          <section class="module-panel employees-org-panel">
+            <div class="report-card-head">
+              <strong>Диаграмма подчиненности</strong>
+              <span>начальник производства → отделы → вложенные уровни → ресурсы</span>
+            </div>
+            <div class="employees-org-chart">
+              ${renderEmployeeRootNode(model)}
+              <svg class="employee-hierarchy-connectors" data-employee-hierarchy-connectors aria-hidden="true" focusable="false"></svg>
+              ${renderEmployeeHierarchyMap(model)}
+            </div>
+            <div class="employees-org-annotation" aria-label="Аннотация к диаграмме подчиненности">
+              <strong>Аннотация</strong>
+              <span><i class="is-production"></i> отделы, участки и вложенные подразделения</span>
+              <span><i class="is-person"></i> мастера и линейные сотрудники</span>
+              <span><i class="is-capacity"></i> расчетная мощность</span>
+              <span><i class="is-resource"></i> оборудование и посты</span>
+              <em>Стрелки показывают подчиненность сверху вниз; узлы одного уровня расположены на общей горизонтали.</em>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function buildEmployeeOrgModel() {
+  const workCenters = [...(planningState.workCenters || [])]
+    .filter((center) => center?.id)
+    .sort(compareEmployeeWorkCenters);
+  const workCenterById = new Map(workCenters.map((center) => [center.id, center]));
+  const childrenByParent = workCenters.reduce((map, center) => {
+    const parentId = center.parentWorkCenterId && workCenterById.has(center.parentWorkCenterId) ? center.parentWorkCenterId : "";
+    if (!map.has(parentId)) map.set(parentId, []);
+    map.get(parentId).push(center);
+    return map;
+  }, new Map());
+  const directoryEmployees = getDirectoryEmployeeRows();
+  const employeeRows = dedupeEmployeeOrgRows([
+    ...directoryEmployees,
+    ...getShiftMasterEmployeeRows(),
+  ]);
+  const personRows = dedupeEmployeeOrgRows([
+    ...getShiftMasterProfiles().map((profile) => ({
+      ...profile,
+      personKind: "master",
+    })),
+    ...employeeRows.map((employee) => ({
+      ...employee,
+      personKind: "employee",
+    })),
+  ]).map((person) => ({
+    ...person,
+    homeWorkCenterId: getEmployeePersonHomeWorkCenterId(person.workCenterIds || [], workCenterById),
+  })).filter((person) => person.homeWorkCenterId);
+  const resources = getProductionResources({ includeInactive: true });
+  const ownerNames = new Set(workCenters.map((center) => String(center.owner || "").trim()).filter(Boolean));
+  const matrixRows = workCenters.map((center) => ({
+    center,
+    typeLabel: UNIT_TYPE_LABELS[center.unitType] || "Отдел",
+    owner: String(center.owner || "").trim(),
+    masters: getEmployeeMastersForWorkCenter(center.id),
+    employees: getEmployeePeopleForWorkCenter(center, employeeRows),
+    resources: resources.filter((resource) => getProductionResourceWorkCenterId(resource) === center.id),
+  }));
+
+  return {
+    childrenByParent,
+    employeeRows,
+    personRows,
+    matrixRows,
+    orgWorkCenters: workCenters,
+    resourceRows: resources,
+    topWorkCenters: childrenByParent.get("") || [],
+    workCenterCount: workCenters.length,
+    ownerCount: ownerNames.size,
+    masterCount: getShiftMasterProfiles().length,
+    employeeCount: personRows.length,
+    resourceCount: resources.length,
+  };
+}
+
+function compareEmployeeWorkCenters(left, right) {
+  const leftIsParent = left.parentWorkCenterId ? 1 : 0;
+  const rightIsParent = right.parentWorkCenterId ? 1 : 0;
+  return leftIsParent - rightIsParent
+    || String(left.parentWorkCenterId || "").localeCompare(String(right.parentWorkCenterId || ""), "ru")
+    || String(left.name || "").localeCompare(String(right.name || ""), "ru");
+}
+
+function getDirectoryEmployeeRows() {
+  const rows = Array.isArray(directoryState?.employees) ? directoryState.employees : [];
+  return rows.map((employee, index) => {
+    const explicitWorkCenterIds = Array.isArray(employee.workCenterIds)
+      ? employee.workCenterIds.map((id) => mapLegacyWorkCenterId(id)).filter(Boolean)
+      : [];
+    const workCenterIds = explicitWorkCenterIds.length
+      ? explicitWorkCenterIds
+      : getEmployeeWorkCenterIdsByDepartment(employee.department);
+    const personKind = employee.personKind === "master" || employee.kind === "master" || String(employee.id || "").startsWith("master-")
+      ? "master"
+      : "employee";
+    return {
+      id: String(employee.id || `employee-directory-${index + 1}`),
+      name: String(employee.name || employee.login || employee.email || "Сотрудник без имени").trim(),
+      role: String(employee.role || employee.position || "Сотрудник").trim(),
+      department: String(employee.department || "").trim(),
+      source: "Справочник сотрудников",
+      personKind,
+      workCenterIds,
+    };
+  });
+}
+
+function getEmployeeWorkCenterIdsByDepartment(departmentName = "") {
+  const normalized = normalizeLookupText(departmentName);
+  if (!normalized) return [];
+  return (planningState.workCenters || [])
+    .filter((center) => (
+      normalizeLookupText(center.name) === normalized
+      || normalizeLookupText(center.code) === normalized
+      || normalizeLookupText(center.id) === normalized
+    ))
+    .map((center) => center.id);
+}
+
+function getEmployeeDepartmentLabelForWorkCenters(workCenterIds = []) {
+  const normalizedIds = workCenterIds.map((id) => mapLegacyWorkCenterId(id)).filter(Boolean);
+  const center = normalizedIds
+    .map((id) => MES_WORK_CENTERS.find((item) => item.id === id))
+    .find(Boolean);
+  if (!center) return "";
+  const parent = center.parentWorkCenterId
+    ? MES_WORK_CENTERS.find((item) => item.id === center.parentWorkCenterId)
+    : null;
+  return parent?.name || center.name || "";
+}
+
+function dedupeEmployeeOrgRows(rows = []) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const name = String(row.name || "").trim();
+    if (!name) return false;
+    const key = `${normalizeLookupText(name)}::${normalizeLookupText(row.role || "")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getEmployeeMastersForWorkCenter(workCenterId) {
+  return getShiftMasterProfiles().filter((profile) => shiftMasterProfileOwnsWorkCenter(profile, workCenterId));
+}
+
+function getEmployeePeopleForWorkCenter(center, employees = []) {
+  const centerIds = new Set([center.id]);
+  if (center.parentWorkCenterId) centerIds.add(center.parentWorkCenterId);
+  return employees.filter((employee) => {
+    const employeeWorkCenterIds = new Set(employee.workCenterIds || []);
+    if ([...centerIds].some((id) => employeeWorkCenterIds.has(id))) return true;
+    const department = normalizeLookupText(employee.department || "");
+    return department && (
+      department === normalizeLookupText(center.name)
+      || department === normalizeLookupText(center.code)
+    );
+  });
+}
+
+function getEmployeePersonHomeWorkCenterId(workCenterIds = [], workCenterById = new Map()) {
+  const ids = [...new Set(workCenterIds
+    .map((id) => mapLegacyWorkCenterId(getCalendarWorkCenterId(id) || id))
+    .filter((id) => id && workCenterById.has(id)))];
+  if (!ids.length) return "";
+  if (ids.length === 1) return ids[0];
+  const parentIds = ids
+    .map((id) => workCenterById.get(id)?.parentWorkCenterId || "")
+    .filter((id) => id && workCenterById.has(id));
+  const uniqueParentIds = [...new Set(parentIds)];
+  if (uniqueParentIds.length === 1) return uniqueParentIds[0];
+  return ids[0];
+}
+
+function renderEmployeeRootNode(model) {
+  return `
+    <article class="employee-root-card is-root" data-hierarchy-root>
+      <strong>Начальник производства</strong>
+    </article>
+  `;
+}
+
+function bindEmployeeHierarchyEvents() {
+  scheduleEmployeeHierarchyConnectorRender();
+}
+
+function schedulePlanningRouteStructureSidebarSync() {
+  if (planningRouteStructureSidebarFrame) {
+    window.cancelAnimationFrame(planningRouteStructureSidebarFrame);
+  }
+  planningRouteStructureSidebarFrame = window.requestAnimationFrame(() => {
+    planningRouteStructureSidebarFrame = 0;
+    syncPlanningRouteStructureSidebarHeight();
+  });
+}
+
+function syncPlanningRouteStructureSidebarHeight() {
+  const page = app.querySelector(".planning-v2-page.is-route-structure");
+  const sidebar = page?.querySelector(":scope > .planning-v2-queue");
+  const main = page?.querySelector(":scope > .planning-v2-main");
+  if (!page || !sidebar || !main) return;
+
+  sidebar.style.removeProperty("min-height");
+  const contentHeight = Math.max(main.scrollHeight, main.clientHeight, sidebar.scrollHeight);
+  sidebar.style.setProperty("min-height", `${Math.ceil(contentHeight)}px`, "important");
+}
+
+function scheduleEmployeeHierarchyConnectorRender() {
+  if (employeeHierarchyConnectorFrame) {
+    window.cancelAnimationFrame(employeeHierarchyConnectorFrame);
+  }
+  employeeHierarchyConnectorFrame = window.requestAnimationFrame(() => {
+    employeeHierarchyConnectorFrame = 0;
+    renderEmployeeHierarchyConnectors();
+  });
+}
+
+function renderEmployeeHierarchyConnectors() {
+  const chart = app.querySelector(".employees-org-chart");
+  const svg = app.querySelector("[data-employee-hierarchy-connectors]");
+  if (!chart || !svg) return;
+  const chartRect = chart.getBoundingClientRect();
+  const nodeById = new Map([...chart.querySelectorAll(".employee-hierarchy-node[data-hierarchy-id]")]
+    .map((node) => [node.dataset.hierarchyId, node]));
+  const root = chart.querySelector("[data-hierarchy-root]");
+  const childGroups = new Map();
+
+  nodeById.forEach((node) => {
+    const parentId = node.dataset.parentId || "";
+    const parent = parentId ? nodeById.get(parentId) : root;
+    if (!parent) return;
+    const groupId = parentId || "root";
+    if (!childGroups.has(groupId)) childGroups.set(groupId, { groupId, parent, children: [] });
+    childGroups.get(groupId).children.push(node);
+  });
+
+  const width = Math.max(Math.ceil(chart.scrollWidth), Math.ceil(chartRect.width));
+  const height = Math.max(Math.ceil(chart.scrollHeight), Math.ceil(chartRect.height));
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("width", String(width));
+  svg.setAttribute("height", String(height));
+
+  const paths = [...childGroups.values()].flatMap(({ groupId, parent, children }) => {
+    const parentRect = parent.getBoundingClientRect();
+    const parentX = parentRect.left - chartRect.left + parentRect.width / 2;
+    const parentY = parentRect.bottom - chartRect.top + 3;
+    const childPoints = children
+      .map((child) => {
+        const rect = child.getBoundingClientRect();
+        return {
+          child,
+          x: rect.left - chartRect.left + rect.width / 2,
+          y: rect.top - chartRect.top - 3,
+          tone: child.classList.contains("is-resource")
+            ? "resource"
+            : child.classList.contains("is-capacity") ? "capacity"
+            : child.classList.contains("is-person") ? "person" : "unit",
+        };
+      })
+      .sort((left, right) => left.x - right.x);
+    if (!childPoints.length) return [];
+    const minChildY = Math.min(...childPoints.map((point) => point.y));
+    const availableY = Math.max(minChildY - parentY, 1);
+    const busY = parentY + availableY / 2;
+    const groupPaths = [];
+    const fromAttr = escapeAttribute(groupId);
+    const leftX = childPoints[0].x;
+    const rightX = childPoints[childPoints.length - 1].x;
+    groupPaths.push(`<path class="employee-hierarchy-connector is-trunk" data-visual-qa-target="employee-connector" data-connector-kind="trunk" data-connector-from="${fromAttr}" aria-label="Связь оргструктуры от ${fromAttr}" d="M ${formatSvgNumber(parentX)} ${formatSvgNumber(parentY)} L ${formatSvgNumber(parentX)} ${formatSvgNumber(busY)}" />`);
+    if (Math.abs(rightX - leftX) > 2) {
+      groupPaths.push(`<path class="employee-hierarchy-connector is-bus" data-visual-qa-target="employee-connector" data-connector-kind="bus" data-connector-from="${fromAttr}" aria-label="Горизонтальная связь оргструктуры от ${fromAttr}" d="M ${formatSvgNumber(leftX)} ${formatSvgNumber(busY)} L ${formatSvgNumber(rightX)} ${formatSvgNumber(busY)}" />`);
+    }
+    childPoints.forEach((point) => {
+      const markerId = point.tone === "resource"
+        ? "employeeHierarchyArrowResource"
+        : point.tone === "capacity" ? "employeeHierarchyArrowCapacity"
+        : point.tone === "person" ? "employeeHierarchyArrowPerson" : "employeeHierarchyArrow";
+      const toAttr = escapeAttribute(point.child.dataset.hierarchyId || "");
+      groupPaths.push(`<path class="employee-hierarchy-connector is-drop is-${point.tone}" data-visual-qa-target="employee-connector" data-connector-kind="drop" data-connector-from="${fromAttr}" data-connector-to="${toAttr}" aria-label="Связь оргструктуры ${fromAttr} → ${toAttr}" d="M ${formatSvgNumber(point.x)} ${formatSvgNumber(busY)} L ${formatSvgNumber(point.x)} ${formatSvgNumber(point.y)}" marker-end="url(#${markerId})" />`);
+    });
+    return groupPaths;
+  }).join("");
+
+  svg.innerHTML = `${getEmployeeHierarchyArrowDefs()}${paths}`;
+}
+
+function getEmployeeHierarchyArrowDefs() {
+  return `
+    <defs>
+      <marker id="employeeHierarchyArrow" markerWidth="5" markerHeight="5" refX="4.2" refY="2.5" orient="auto" markerUnits="strokeWidth">
+        <path d="M 0.6 0.7 L 4.4 2.5 L 0.6 4.3 z" />
+      </marker>
+      <marker id="employeeHierarchyArrowResource" markerWidth="5" markerHeight="5" refX="4.2" refY="2.5" orient="auto" markerUnits="strokeWidth">
+        <path d="M 0.6 0.7 L 4.4 2.5 L 0.6 4.3 z" />
+      </marker>
+      <marker id="employeeHierarchyArrowPerson" markerWidth="5" markerHeight="5" refX="4.2" refY="2.5" orient="auto" markerUnits="strokeWidth">
+        <path d="M 0.6 0.7 L 4.4 2.5 L 0.6 4.3 z" />
+      </marker>
+      <marker id="employeeHierarchyArrowCapacity" markerWidth="5" markerHeight="5" refX="4.2" refY="2.5" orient="auto" markerUnits="strokeWidth">
+        <path d="M 0.6 0.7 L 4.4 2.5 L 0.6 4.3 z" />
+      </marker>
+    </defs>
+  `;
+}
+
+function formatSvgNumber(value) {
+  return Number(value || 0).toFixed(1);
+}
+
+function renderEmployeeHierarchyMap(model) {
+  const layers = buildEmployeeHierarchyLayers(model);
+  if (!layers.length) return "";
+  return `
+    <div class="employee-hierarchy-map" aria-label="Слои оргструктуры с общей горизонталью каждого уровня">
+      ${layers.map((layer) => `
+        <section class="employee-hierarchy-layer is-level-${Number(layer.level)} is-${escapeAttribute(layer.kind)}">
+          <div class="employee-hierarchy-layer-label">
+            <strong>${escapeHtml(layer.title)}</strong>
+            <small>${Number(layer.nodes.length || 0).toLocaleString("ru-RU")}</small>
+          </div>
+          <div class="employee-hierarchy-row" style="--employee-grid-columns:${Number(layer.totalColumns || 1)}">
+            ${layer.nodes.map((node) => renderEmployeeHierarchyNode(node)).join("")}
+          </div>
+        </section>
+      `).join("")}
+    </div>
+  `;
+}
+
+function buildEmployeeHierarchyLayers(model) {
+  const centers = model.topWorkCenters?.length ? model.topWorkCenters : model.orgWorkCenters || [];
+  if (!centers.length) return [];
+  const rootNodes = centers.map((center) => buildEmployeeHierarchyTree(center, null, 0, model));
+  let cursor = 1;
+  rootNodes.forEach((node) => {
+    cursor = assignEmployeeHierarchyGrid(node, cursor);
+  });
+  const totalColumns = Math.max(cursor - 1, 1);
+  const layersByLevel = new Map();
+  rootNodes.forEach((node) => collectEmployeeHierarchyLayers(node, layersByLevel));
+  return [...layersByLevel.entries()]
+    .sort(([leftLevel], [rightLevel]) => leftLevel - rightLevel)
+    .map(([level, nodes]) => ({
+      level,
+      title: level === 0 ? "Отделы" : getEmployeeHierarchyLayerTitle(nodes),
+      kind: getEmployeeHierarchyLayerKind(nodes),
+      totalColumns,
+      nodes,
+    }));
+}
+
+function buildEmployeeHierarchyTree(center, parentNode, level, model) {
+  const node = makeEmployeeHierarchyCenterNode(center, parentNode, level);
+  const childCenters = model.childrenByParent.get(center.id) || [];
+  const childPeople = (model.personRows || [])
+    .filter((person) => person.homeWorkCenterId === center.id)
+    .map((person) => makeEmployeeHierarchyPersonNode(person, node, level + 1, person.personKind || "employee"));
+  const childResources = model.resourceRows.filter((resource) => getProductionResourceWorkCenterId(resource) === center.id);
+  node.children = [
+    ...childCenters.map((childCenter) => buildEmployeeHierarchyTree(childCenter, node, level + 1, model)),
+    ...childPeople,
+    ...childResources.map((resource) => makeEmployeeHierarchyResourceNode(resource, node, level + 1)),
+  ];
+  node.leafSpan = node.children.length
+    ? node.children.reduce((sum, child) => sum + Math.max(Number(child.leafSpan || 1), 1), 0)
+    : 1;
+  return node;
+}
+
+function assignEmployeeHierarchyGrid(node, startColumn) {
+  node.gridStart = startColumn;
+  node.gridSpan = Math.max(Number(node.leafSpan || 1), 1);
+  let cursor = startColumn;
+  (node.children || []).forEach((child) => {
+    cursor = assignEmployeeHierarchyGrid(child, cursor);
+  });
+  return startColumn + node.gridSpan;
+}
+
+function collectEmployeeHierarchyLayers(node, layersByLevel) {
+  const level = Number(node.level || 0);
+  if (!layersByLevel.has(level)) layersByLevel.set(level, []);
+  layersByLevel.get(level).push(node);
+  (node.children || []).forEach((child) => collectEmployeeHierarchyLayers(child, layersByLevel));
+}
+
+function getEmployeeHierarchyLayerTitle(nodes = []) {
+  const unitCount = nodes.filter((node) => node.kind === "unit").length;
+  const personCount = nodes.filter((node) => node.kind === "person").length;
+  const capacityCount = nodes.filter((node) => node.kind === "capacity").length;
+  const resourceCount = nodes.filter((node) => node.kind === "resource").length;
+  if (unitCount && (personCount || capacityCount || resourceCount)) return "Участки / люди";
+  if (unitCount) return "Вложенные участки";
+  if (personCount && (capacityCount || resourceCount)) return "Люди / мощность";
+  if (personCount) return "Люди";
+  if (capacityCount && resourceCount) return "Мощность / ресурсы";
+  if (capacityCount) return "Расчетная мощность";
+  return "Ресурсы";
+}
+
+function getEmployeeHierarchyLayerKind(nodes = []) {
+  const unitCount = nodes.filter((node) => node.kind === "unit").length;
+  const personCount = nodes.filter((node) => node.kind === "person").length;
+  const capacityCount = nodes.filter((node) => node.kind === "capacity").length;
+  const resourceCount = nodes.filter((node) => node.kind === "resource").length;
+  if ([unitCount, personCount, capacityCount, resourceCount].filter(Boolean).length > 1) return "mixed";
+  if (unitCount) return "units";
+  if (personCount) return "people";
+  if (capacityCount) return "capacity";
+  return "resources";
+}
+
+function makeEmployeeHierarchyCenterNode(center, parentNode = null, level = 0) {
+  const typeLabel = UNIT_TYPE_LABELS[center.unitType] || "Отдел";
+  const label = getEmployeeHierarchyRussianLabel(center.name || center.code || "Отдел");
+  const parentLabel = parentNode?.label || "";
+  const leadLabel = getEmployeeHierarchyLeadLabel(center);
+  return {
+    id: `center-${center.id}`,
+    parentId: parentNode?.id || "",
+    kind: "unit",
+    level,
+    label,
+    leadLabel,
+    parentLabel,
+    title: `${center.name || "Отдел без названия"} · ${typeLabel}${parentLabel ? ` · родитель: ${parentLabel}` : ""}`,
+    subtitle: level === 0 ? typeLabel : `от ${parentLabel}`,
+    tone: getEmployeeWorkCenterTone(center),
+    source: center,
+  };
+}
+
+function makeEmployeeHierarchyResourceNode(resource, parentNode, level = 0) {
+  const typeLabel = PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || "Ресурс";
+  const isStaffCapacity = resource.type === "staff";
+  const label = isStaffCapacity
+    ? "Мощность"
+    : getEmployeeHierarchyRussianLabel(resource.name || resource.code || "Ресурс");
+  const parentLabel = parentNode?.label || "";
+  const capacityLabel = [resource.name || "", resource.capacity || ""].filter(Boolean).join(" · ");
+  return {
+    id: `resource-${resource.id}`,
+    parentId: parentNode?.id || "",
+    kind: isStaffCapacity ? "capacity" : "resource",
+    level,
+    label,
+    leadLabel: isStaffCapacity ? capacityLabel : "",
+    parentLabel,
+    title: `${resource.name || "Ресурс без названия"} · ${typeLabel}${parentLabel ? ` · родитель: ${parentLabel}` : ""}`,
+    subtitle: parentLabel ? `от ${parentLabel}` : typeLabel,
+    tone: isStaffCapacity ? "capacity" : "resource",
+    source: resource,
+    children: [],
+    leafSpan: 1,
+  };
+}
+
+function makeEmployeeHierarchyPersonNode(person, parentNode, level = 0, personKind = "employee") {
+  const role = String(person.role || (personKind === "master" ? "Мастер" : "Сотрудник")).trim();
+  const label = getEmployeeHierarchyRussianLabel(person.name || "Сотрудник без имени");
+  const parentLabel = parentNode?.label || "";
+  const personId = String(person.id || `${personKind}-${label}`).replace(/[^a-zA-Z0-9_-]+/g, "-");
+  return {
+    id: `person-${personKind}-${personId}-${parentNode?.id || "root"}`,
+    parentId: parentNode?.id || "",
+    kind: "person",
+    level,
+    label,
+    leadLabel: role,
+    parentLabel,
+    title: `${label} · ${role}${parentLabel ? ` · родитель: ${parentLabel}` : ""}`,
+    subtitle: parentLabel ? `от ${parentLabel}` : role,
+    tone: personKind === "master" ? "master" : "employee",
+    source: person,
+    children: [],
+    leafSpan: 1,
+  };
+}
+
+function getEmployeeHierarchyLeadLabel(center = {}) {
+  const ownerName = String(center.owner || "").trim();
+  if (ownerName) return `${getEmployeeHierarchyOwnerRole(center, ownerName)}: ${ownerName}`;
+  const masters = getEmployeeMastersForWorkCenter(center.id || "");
+  if (!masters.length) return "";
+  const masterLabels = masters
+    .map((master) => {
+      const name = String(master.name || "").trim();
+      if (!name) return "";
+      const role = String(master.role || "Мастер").trim();
+      return `${role}: ${name}`;
+    })
+    .filter(Boolean);
+  return masterLabels.join(", ");
+}
+
+function getEmployeeHierarchyOwnerRole(center = {}, ownerName = "") {
+  const directoryRole = getEmployeeDirectoryRoleByName(ownerName);
+  if (directoryRole && normalizeLookupText(directoryRole) !== normalizeLookupText("Сотрудник")) return directoryRole;
+  const name = String(center.name || "").trim();
+  if (center.unitType === "warehouse" || /склад/i.test(name)) return "Заведующий складом";
+  if (/участок/i.test(name)) return "Начальник участка";
+  if (/отдел/i.test(name)) return "Начальник отдела";
+  return "Ответственный";
+}
+
+function getEmployeeDirectoryRoleByName(name = "") {
+  const normalizedName = normalizeLookupText(name);
+  if (!normalizedName) return "";
+  const employee = getDirectoryEmployeeRows()
+    .find((row) => normalizeLookupText(row.name) === normalizedName);
+  return String(employee?.role || "").trim();
+}
+
+function getEmployeeHierarchyRussianLabel(value) {
+  return String(value || "")
+    .replace(/SMT участок\s*(\d+)/gi, "Участок поверхностного монтажа $1")
+    .replace(/SMT линия\s*(\d+)/gi, "Линия поверхностного монтажа $1")
+    .replace(/АОИ-установка/g, "Установка автоматической оптической инспекции")
+    .replace(/Ручная малая ванна УЗ/g, "Ручная малая ванна ультразвуковой отмывки")
+    .replace(/Большая ванна УЗ/g, "Большая ванна ультразвуковой отмывки")
+    .replace(/Комплекс УЗ/g, "Комплекс ультразвуковой отмывки")
+    .replace(/\bSMT\b/gi, "Поверхностный монтаж")
+    .replace(/\bTHT\b/gi, "Ручной монтаж")
+    .replace(/\bAOI\b/gi, "Оптический контроль")
+    .replace(/\bWH\b/gi, "Склад")
+    .replace(/\bQC\b/gi, "Контроль")
+    .replace(/\bBBA\b/gi, "Сборка")
+    .replace(/\bPRG\b/gi, "Программная подготовка")
+    .replace(/\bLAB\b/gi, "Маркировка")
+    .replace(/\bPE\b/gi, "Подготовка")
+    .replace(/\bUW\b/gi, "Отмывка")
+    .replace(/\bCC\b/gi, "Влагозащита")
+    .replace(/АОИ/g, "Автоматическая оптическая инспекция")
+    .replace(/УЗ/g, "Ультразвуковой")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function renderEmployeeHierarchyNode(node) {
+  return `
+    <article class="employee-hierarchy-node is-${escapeAttribute(node.kind)} is-${escapeAttribute(node.tone)}" style="grid-column:${Number(node.gridStart || 1)} / span ${Number(node.gridSpan || 1)}" data-hierarchy-id="${escapeAttribute(node.id)}" data-parent-id="${escapeAttribute(node.parentId || "")}" title="${escapeAttribute(node.title)}">
+      <strong>${escapeHtml(node.label)}</strong>
+      ${node.leadLabel ? `<small>${escapeHtml(node.leadLabel)}</small>` : ""}
+    </article>
+  `;
+}
+
+function renderEmployeeWorkCenterNode(center, model, level = 0, options = {}) {
+  const children = model.childrenByParent.get(center.id) || [];
+  const includeChildren = options.includeChildren !== false;
+  const resources = model.resourceRows.filter((resource) => getProductionResourceWorkCenterId(resource) === center.id);
+  const masters = getEmployeeMastersForWorkCenter(center.id);
+  const employees = getEmployeePeopleForWorkCenter(center, model.employeeRows);
+  const typeLabel = UNIT_TYPE_LABELS[center.unitType] || "Отдел";
+  const tone = getEmployeeWorkCenterTone(center);
+  const ownerName = String(center.owner || "").trim();
+
+  return `
+    <article class="employee-org-unit is-${escapeAttribute(tone)}" style="--employee-level:${Number(level || 0)}">
+      <header class="employee-org-unit-head">
+        <span class="employee-node-icon">${icon(getEmployeeWorkCenterIcon(center))}</span>
+        <div>
+          <strong>${escapeHtml(center.name || "Отдел без названия")}</strong>
+          <small>${escapeHtml(typeLabel)} · ${escapeHtml(center.code || "код не задан")} · ${isPlanningWorkCenter(center) ? "участвует в планировании" : "не плановый ресурс"}</small>
+        </div>
+        <em>${Number(resources.length || 0).toLocaleString("ru-RU")} рес.</em>
+      </header>
+
+      <div class="employee-org-unit-flow">
+        <section class="employee-org-stage is-owner">
+          <span class="employee-stage-label">Руководитель</span>
+          <div class="employee-org-stage-items">
+            ${ownerName
+              ? renderEmployeePersonCard({ name: ownerName, role: "Руководитель отдела", source: "owner отдела" }, "owner")
+              : renderEmployeeEmptyCard("Руководитель не назначен", "Поле owner в справочнике отдела пустое.")}
+          </div>
+        </section>
+
+        <section class="employee-org-stage is-master">
+          <span class="employee-stage-label">Мастера</span>
+          <div class="employee-org-stage-items">
+            ${masters.length ? masters.map((master) => renderEmployeePersonCard(master, "master")).join("") : renderEmployeeEmptyCard("Мастера не назначены", "Для участка нет профиля мастерской.")}
+          </div>
+        </section>
+
+        <section class="employee-org-stage is-employee">
+          <span class="employee-stage-label">Исполнители</span>
+          <div class="employee-org-stage-items">
+            ${employees.length ? employees.map((employee) => renderEmployeePersonCard(employee, "employee")).join("") : renderEmployeeEmptyCard("Исполнители не назначены", "В текущих данных нет сотрудников для этого участка.")}
+          </div>
+        </section>
+
+        <section class="employee-org-stage is-resource">
+          <span class="employee-stage-label">Ресурсы</span>
+          <div class="employee-org-stage-items">
+            ${resources.length ? resources.map((resource) => renderEmployeeResourceCard(resource)).join("") : renderEmployeeEmptyCard("Ресурсы не заведены", "В справочнике ресурсов нет строки для этого участка.")}
+          </div>
+        </section>
+      </div>
+
+      ${includeChildren && children.length ? `
+        <div class="employee-org-children">
+          ${children.map((child) => renderEmployeeWorkCenterNode(child, model, level + 1, options)).join("")}
+        </div>
+      ` : ""}
+    </article>
+  `;
+}
+
+function getEmployeeWorkCenterTone(center = {}) {
+  if (center.parentWorkCenterId) return "section";
+  return "production";
+}
+
+function getEmployeeWorkCenterIcon(center = {}) {
+  if (center.unitType === "warehouse") return "warehouse";
+  if (center.unitType === "quality") return "monitor";
+  if (center.unitType === "administrative") return "settings";
+  return center.parentWorkCenterId ? "operation" : "map";
+}
+
+function renderEmployeePersonCard(person = {}, kind = "employee") {
+  const label = kind === "owner" ? "Руководитель" : kind === "master" ? "Мастер" : "Исполнитель";
+  return `
+    <article class="employee-person-card is-${escapeAttribute(kind)}">
+      <span class="employee-avatar">${escapeHtml(getEmployeeInitials(person.name))}</span>
+      <div>
+        <strong>${escapeHtml(person.name || "Сотрудник без имени")}</strong>
+        <small>${escapeHtml(person.role || label)}${person.source ? ` · ${escapeHtml(person.source)}` : ""}</small>
+      </div>
+      <em>${escapeHtml(label)}</em>
+    </article>
+  `;
+}
+
+function renderEmployeeResourceCard(resource = {}) {
+  const typeLabel = PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "Ресурс";
+  return `
+    <article class="employee-resource-card is-${escapeAttribute(resource.type || "resource")}">
+      <span class="employee-node-icon">${icon(resource.type === "staff" ? "worker" : "settings")}</span>
+      <div>
+        <strong>${escapeHtml(resource.name || "Ресурс без названия")}</strong>
+        <small>${escapeHtml(typeLabel)} · ${escapeHtml(resource.capacity || resource.inventory || "мощность не задана")}</small>
+      </div>
+      <em>${escapeHtml(resource.status || "статус")}</em>
+    </article>
+  `;
+}
+
+function renderEmployeeEmptyCard(title, description) {
+  return `
+    <article class="employee-empty-card">
+      ${icon("info")}
+      <span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(description)}</small>
+      </span>
+    </article>
+  `;
+}
+
+function getEmployeeInitials(name = "") {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "—";
+  return parts.slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+}
+
 function renderTreePage() {
   const stats = getObjectTreeStats();
   const productionContexts = getProductionContexts();
   const layers = [
     { title: "Производство", value: productionContexts.length, meta: "состав изделия, заказ-наряды, слоты" },
-    { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "изделия, платы, маршруты" },
+    { title: "Технологии", value: (directoryState.specifications || []).length + (directoryState.bomLists || []).length, meta: "спецификации, платы, маршруты" },
     { title: "Справочники", value: getDirectoryObjectCount(), meta: "отделы, ресурсы, сотрудники" },
   ];
 
@@ -10224,7 +11982,7 @@ function renderTechnologyTree() {
         tone: "specification",
         children: [(directoryState.specifications || []).length
           ? (directoryState.specifications || []).map((specification) => renderSpecificationObjectTree(specification)).join("")
-          : renderObjectTreeLeaf("Изделия пока нет", "Создайте изделие или работайте напрямую с платой/BOM.", "empty")],
+          : renderObjectTreeLeaf("Спецификации пока нет", "Создайте спецификацию или работайте напрямую с платой/BOM.", "empty")],
       }),
       renderObjectTreeNode({
         title: BOARD_SPEC_LIST_TERM,
@@ -10265,7 +12023,7 @@ function renderSpecificationObjectTree(specification, options = {}) {
     children: [
       structureItems.length
         ? renderSpecificationStructureObjectTree(specification, structureItems, visitedSpecificationIds)
-        : renderObjectTreeLeaf("Структура состава изделия пуста", "Добавьте плату, номенклатуру или узлы в модуле «Изделия».", "warning"),
+        : renderObjectTreeLeaf("Структура состава изделия пуста", "Добавьте плату, номенклатуру или узлы в модуле «Спецификации».", "warning"),
     ],
   });
 }
@@ -10435,7 +12193,7 @@ function renderBatchObjectTree(batch, slots) {
             .join("")],
         });
       }).join("")
-      : renderObjectTreeLeaf("Слоты еще не размещены", "Передайте маршрут из модуля «Планирование» в Гант.", "warning")],
+      : renderObjectTreeLeaf("Слоты еще не размещены", "Передайте маршрут из модуля «Заказ-наряды» в Гант.", "warning")],
   });
 }
 
@@ -10541,17 +12299,17 @@ function isModuleAllowedForRole(moduleId = "", role = getActiveInterfaceRole()) 
 
 function getModuleDefinitions() {
   return [
-    { id: "gantt", label: "Гант", icon: "gantt" },
-    { id: "planning", label: "Планирование", icon: "calendar" },
-    { id: "supply", label: "Снабжение", icon: "supply" },
-    { id: "dispatch", label: "Диспетчерская", icon: "monitor" },
-    { id: "warehouse", label: "Склад", icon: "warehouse" },
+	    { id: "gantt", label: "Планирование", icon: "gantt" },
+	    { id: "planning", label: WORK_ORDERS_MODULE_LABEL, icon: "calendar" },
+	    { id: "shiftMaster", label: "Мастерская", icon: "worker" },
+	    { id: "supply", label: "Снабжение", icon: "supply" },
+	    { id: "dispatch", label: "Диспетчерская", icon: "monitor" },
     { id: "shopMap", label: "Цех производства", icon: "map" },
     { id: "visualSystem", label: "UI-состояния", icon: "palette" },
     { id: "products", label: PRODUCT_COMPOSITION_LIST_TERM, icon: "tree" },
     { id: "routes", label: "Маршрутная карта", icon: "split" },
-    { id: "bomLists", label: BOARD_SPEC_LIST_TERM, icon: "bom" },
     { id: "nomenclature", label: "Номенклатура", icon: "package" },
+    { id: "employees", label: "Сотрудники", icon: "worker" },
     { id: "directories", label: "Справочники", icon: "directory" },
     { id: "rkd", label: "РКД", icon: "document" },
   ];
@@ -10559,9 +12317,10 @@ function getModuleDefinitions() {
 
 function getModuleGroups(modules) {
   const groupMap = [
-    { label: "Производство", ids: ["gantt", "planning", "dispatch", "warehouse"] },
-    { label: "Технологии", ids: ["routes", "products", "bomLists", "nomenclature"] },
-    { label: "Система", ids: ["directories"] },
+    { label: "Технологии", ids: ["nomenclature", "products", "routes"] },
+    { label: "Планирование нагрузки", ids: ["planning", "gantt"] },
+    { label: "Оперативное управление", ids: ["shiftMaster", "dispatch"] },
+    { label: "Система", ids: ["employees", "directories"] },
     { label: "UX-макеты", ids: ["visualSystem", "supply", "shopMap", "rkd"], tone: "test" },
   ];
 
@@ -10591,6 +12350,13 @@ function ensureAuthorizedModule() {
   }
   if (ui.activeModule === "planning2" || ui.activeModule === "planningWorkbench") {
     ui.activeModule = "planning";
+  }
+  if (ui.activeModule === "warehouse") {
+    ui.activeModule = "gantt";
+  }
+  if (ui.activeModule === "bomLists") {
+    ui.activeModule = "nomenclature";
+    ui.activeNomenclaturePane = "boards";
   }
   const availableModules = getAvailableModules();
   if (!availableModules.some((moduleItem) => moduleItem.id === ui.activeModule)) {
@@ -10744,9 +12510,7 @@ function renderAppTopbar() {
   const activeContext = ui.activeModule === "directories"
       ? directorySections.find((section) => section.id === ui.activeDirectory)?.label || "Справочники"
       : activeModuleGroup?.label || "";
-  const searchPlaceholder = activeRole.id === "warehouseClerk"
-    ? "Поиск по складу, поступлениям и заказ-нарядам"
-    : "Поиск по изделиям, платам и операциям";
+  const searchPlaceholder = "Поиск по изделиям, платам и операциям";
 
   return `
     <header class="app-topbar" data-layout="header" aria-label="Верхняя панель MES">
@@ -13709,6 +15473,7 @@ function getNomenclatureTypeCounts(items = directoryState.nomenclature || []) {
 function getNomenclatureTypeFilterValue(items = directoryState.nomenclature || []) {
   const selected = ui.nomenclatureTypeFilter || "all";
   if (selected === "all") return selected;
+  if (selected === "Печатные платы") return "all";
   return getNomenclatureTypeOptions(items).some((item) => item.value === selected) ? selected : "all";
 }
 
@@ -15334,7 +17099,7 @@ function renderRkdUxOnlyStepContent(stepId) {
             <article class="is-warning"><span>BOM</span><strong>0</strong><small>BOM не привязан</small></article>
             <article class="is-warning"><span>Маршруты</span><strong>0</strong><small>Маршрут не создан</small></article>
           </div>
-          ${renderRkdEmptyPanel("Состав не используется", "РКД отключено от рабочего процесса. Добавляйте BOM в модуле «Платы» и связывайте его с маршрутной картой напрямую.")}
+          ${renderRkdEmptyPanel("Состав не используется", "РКД отключено от рабочего процесса. Добавляйте BOM в разделе «Номенклатура → Платы» и связывайте его с маршрутной картой напрямую.")}
         </section>
       `;
     case "files":
@@ -16146,9 +17911,10 @@ function renderSpecificationsPage() {
 function renderProductsPage() {
   return renderSpekiPage({
     ariaLabel: PRODUCT_COMPOSITION_LIST_TERM,
-    sidebarEyebrow: "Состав",
+    sidebarEyebrow: "Технологии",
     sidebarTitle: PRODUCT_COMPOSITION_LIST_TERM,
-    listLabel: "Реестр изделий",
+    listLabel: "Реестр спецификаций",
+    createLabel: "Новая спецификация",
   });
 }
 
@@ -16173,6 +17939,7 @@ function renderSpekiWorkspace(options = {}) {
   const sidebarEyebrow = options.sidebarEyebrow || "Перечень";
   const sidebarTitle = options.sidebarTitle || PRODUCT_COMPOSITION_TERM;
   const listLabel = options.listLabel || PRODUCT_COMPOSITION_LIST_TERM;
+  const createLabel = options.createLabel || "Новое изделие";
 
   return `
     <aside class="directory-sidebar module-data-sidebar speki-sidebar">
@@ -16181,7 +17948,7 @@ function renderSpekiWorkspace(options = {}) {
         <h1>${escapeHtml(sidebarTitle)}</h1>
       </div>
       <div class="module-sidebar-actions">
-        <button class="primary-button" data-speki-create-specification type="button">${icon("plus")}<span>Новое изделие</span></button>
+        <button class="primary-button" data-speki-create-specification type="button">${icon("plus")}<span>${escapeHtml(createLabel)}</span></button>
       </div>
       <div class="module-entity-list speki-spec-list">
         <div class="module-list-label">${escapeHtml(listLabel)}</div>
@@ -16194,8 +17961,8 @@ function renderSpekiWorkspace(options = {}) {
             </button>
           `).join("") : `
           <article class="module-empty-note">
-            <strong>Изделия пока не созданы</strong>
-            <span>Создайте изделие и соберите его из плат, узлов и номенклатуры.</span>
+            <strong>Спецификации пока не созданы</strong>
+            <span>Создайте спецификацию и соберите ее из плат, узлов и номенклатуры.</span>
           </article>
         `}
       </div>
@@ -16678,6 +18445,37 @@ function getActiveNomenclatureItem() {
   return getNomenclatureItem(ui.activeNomenclatureId);
 }
 
+function getActiveNomenclaturePane() {
+  return ui.activeNomenclaturePane === "boards" ? "boards" : "items";
+}
+
+function renderNomenclatureSectionFilter({ activePane = getActiveNomenclaturePane(), activeFilter = "all", typeOptions = [], typeCounts = {}, allCount = 0 } = {}) {
+  const boardCount = (directoryState.bomLists || []).length;
+  const boardTypeValue = "Печатные платы";
+  const hasBoardType = typeOptions.some((type) => type.value === boardTypeValue);
+  const renderBoardTypeButton = () => `
+    <button class="${activePane === "boards" ? "is-active" : ""}" data-nomenclature-pane="boards" type="button">
+      <span>Печатные платы</span>
+      <em>${boardCount.toLocaleString("ru-RU")}</em>
+    </button>
+  `;
+  return `
+    <div class="nomenclature-type-filter" aria-label="Разделы номенклатуры">
+      <button class="${activePane === "items" && activeFilter === "all" ? "is-active" : ""}" data-nomenclature-type-filter="all" type="button">
+        <span>Все разделы</span>
+        <em>${Number(allCount || 0).toLocaleString("ru-RU")}</em>
+      </button>
+      ${activePane === "boards" ? renderBoardTypeButton() : typeOptions.map((type) => type.value === boardTypeValue ? renderBoardTypeButton() : `
+          <button class="${activePane === "items" && activeFilter === type.value ? "is-active" : ""}" data-nomenclature-type-filter="${escapeAttribute(type.value)}" type="button">
+            <span>${escapeHtml(type.label)}</span>
+            <em>${Number(typeCounts[type.value] || 0).toLocaleString("ru-RU")}</em>
+          </button>
+        `).join("")}
+      ${activePane === "boards" || hasBoardType ? "" : renderBoardTypeButton()}
+    </div>
+  `;
+}
+
 function getNomenclatureItem(itemId) {
   return (directoryState.nomenclature || []).find((item) => item.id === itemId) || null;
 }
@@ -16708,6 +18506,9 @@ function renderModulePreviewEmpty({ iconName = "info", title, text, action = "" 
 }
 
 function renderNomenclaturePage() {
+  const activePane = getActiveNomenclaturePane();
+  if (activePane === "boards") return renderBomListsPage({ embeddedInNomenclature: true });
+
   const allItems = directoryState.nomenclature || [];
   const items = getFilteredNomenclatureItems(allItems);
   const typeOptions = getNomenclatureTypeOptions(allItems);
@@ -16742,18 +18543,7 @@ function renderNomenclaturePage() {
         <div class="module-sidebar-actions">
           <button class="primary-button" data-nomenclature-create type="button">${icon("plus")}<span>Новая позиция</span></button>
         </div>
-        <div class="nomenclature-type-filter" aria-label="Разделы номенклатуры">
-          <button class="${activeFilter === "all" ? "is-active" : ""}" data-nomenclature-type-filter="all" type="button">
-            <span>Все разделы</span>
-            <em>${allItems.length}</em>
-          </button>
-          ${typeOptions.map((type) => `
-            <button class="${activeFilter === type.value ? "is-active" : ""}" data-nomenclature-type-filter="${escapeAttribute(type.value)}" type="button">
-              <span>${escapeHtml(type.label)}</span>
-              <em>${typeCounts[type.value] || 0}</em>
-            </button>
-          `).join("")}
-        </div>
+        ${renderNomenclatureSectionFilter({ activePane, activeFilter, typeOptions, typeCounts, allCount: allItems.length })}
       </aside>
 
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
@@ -16853,7 +18643,8 @@ function renderNomenclatureTable(items, activeItem) {
   `;
 }
 
-function renderBomListsPage() {
+function renderBomListsPage(options = {}) {
+  const embeddedInNomenclature = Boolean(options.embeddedInNomenclature);
   const activeBom = getActiveBomForModule();
   const isNewBom = ui.activeBomId === "__new__";
   const hasPreviewBom = isNewBom || Boolean(activeBom);
@@ -16872,15 +18663,22 @@ function renderBomListsPage() {
   const importHeaders = hasPreviewBom ? getBomImportHeaders(bom) : [];
 
   return `
-    <section class="bom-lists-page module-data-page" data-layout="main-content" aria-label="${BOARD_SPEC_LIST_TERM}">
+    <section class="bom-lists-page module-data-page ${embeddedInNomenclature ? "nomenclature-page is-boards-pane" : ""}" data-layout="main-content" aria-label="${embeddedInNomenclature ? "Номенклатура · Платы" : BOARD_SPEC_LIST_TERM}">
       <aside class="directory-sidebar module-data-sidebar">
         <div class="directory-sidebar-head">
-          <span class="eyebrow">Печатные платы</span>
-          <h1>${BOARD_SPEC_LIST_TERM}</h1>
+          <span class="eyebrow">${embeddedInNomenclature ? "Материалы и компоненты" : "Печатные платы"}</span>
+          <h1>${embeddedInNomenclature ? "Номенклатура" : BOARD_SPEC_LIST_TERM}</h1>
         </div>
         <div class="module-sidebar-actions">
           <button class="primary-button" data-bom-create type="button">${icon("plus")}<span>Новая плата</span></button>
         </div>
+        ${embeddedInNomenclature ? renderNomenclatureSectionFilter({
+          activePane: "boards",
+          activeFilter: getNomenclatureTypeFilterValue(directoryState.nomenclature || []),
+          typeOptions: getNomenclatureTypeOptions(directoryState.nomenclature || []),
+          typeCounts: getNomenclatureTypeCounts(directoryState.nomenclature || []),
+          allCount: (directoryState.nomenclature || []).length,
+        }) : ""}
         <div class="module-entity-list">
           <div class="module-list-label">${BOARD_SPEC_LIST_TERM}</div>
           ${isNewBom ? `<button class="module-entity-item is-active" type="button"><span><strong>Новая плата</strong><small>компонентный состав / BOM</small></span><em>new</em></button>` : ""}
@@ -17421,11 +19219,96 @@ function getRouteModuleSelectionName(route, fallbackSpecification = null) {
   return getProjectDisplayName(getRouteProductionContext(route)) || "";
 }
 
+function getRouteDocumentKind(route = null) {
+  const rawKind = String(route?.routeDocumentKind || route?.documentKind || "").trim();
+  if (ROUTE_DOCUMENT_KIND_LABELS[rawKind]) return rawKind;
+  if (route?.shiftParentRouteId || route?.shiftDate || route?.shiftRouteId) return "shift";
+  if (route?.parentRouteId || route?.routeTaskId || route?.routeTaskSourceItemId) return "child";
+  return "main";
+}
+
+function getRouteDocumentKindLabel(route = null) {
+  return ROUTE_DOCUMENT_KIND_LABELS[getRouteDocumentKind(route)] || ROUTE_DOCUMENT_KIND_LABELS.main;
+}
+
+function getRouteDocumentKindShortLabel(route = null) {
+  return ROUTE_DOCUMENT_KIND_SHORT_LABELS[getRouteDocumentKind(route)] || ROUTE_DOCUMENT_KIND_SHORT_LABELS.main;
+}
+
+function getRouteRootRoute(route = null) {
+  if (!route) return null;
+  const kind = getRouteDocumentKind(route);
+  const rootRouteId = route.rootRouteId || (kind === "main" ? route.id : "");
+  return (planningState.routes || []).find((item) => item.id === rootRouteId)
+    || (kind === "main" ? route : null);
+}
+
+function getRouteParentRoute(route = null) {
+  if (!route) return null;
+  return (planningState.routes || []).find((item) => item.id === route.parentRouteId)
+    || getRouteRootRoute(route)
+    || null;
+}
+
+function getRouteSortRootId(route = null) {
+  const kind = getRouteDocumentKind(route);
+  return route?.rootRouteId || (kind === "main" ? route?.id : route?.parentRouteId) || route?.id || "";
+}
+
+function getRouteScopeSourceItemId(route = null) {
+  return String(route?.routeTaskSourceItemId || route?.routeScopeSourceItemId || route?.specTaskSourceItemId || "").trim();
+}
+
+function getRouteScopeRootTask(route = null, tasks = getRouteUnscopedBaseTasks(route)) {
+  const routeTaskId = String(route?.routeTaskId || "").trim();
+  const sourceItemId = getRouteScopeSourceItemId(route);
+  const sourceSpecificationId = String(route?.routeTaskSourceSpecificationId || "").trim();
+  if (routeTaskId) {
+    const task = tasks.find((item) => item.id === routeTaskId);
+    if (task) return task;
+  }
+  if (!sourceItemId) return null;
+  return tasks.find((item) => (
+    item.sourceItemId === sourceItemId
+    && (!sourceSpecificationId || item.sourceSpecificationId === sourceSpecificationId)
+  )) || null;
+}
+
+function scopeRouteTasks(route = null, tasks = []) {
+  const scopeRootTask = getRouteScopeRootTask(route, tasks);
+  if (!scopeRootTask) return tasks;
+  return [{
+    ...scopeRootTask,
+    level: 0,
+    continuationLevels: [],
+    routeScopeRoot: true,
+    hasChildren: false,
+    isLast: true,
+    parentTitle: "",
+  }];
+}
+
+function getRouteLineageSubjectName(route = null) {
+  const taskName = String(route?.routeTaskName || "").trim();
+  if (taskName) return taskName;
+  const task = getRouteScopeRootTask(route);
+  if (task?.title) return task.title;
+  return getRouteModuleSelectionName(route) || "Объект не выбран";
+}
+
 function getRoutesForModule() {
   return [...(planningState.routes || [])].sort((left, right) => {
-    const leftProject = getProjectDisplayName(getRouteProductionContext(left)) || getRouteModuleSelectionName(left) || "";
-    const rightProject = getProjectDisplayName(getRouteProductionContext(right)) || getRouteModuleSelectionName(right) || "";
-    return leftProject.localeCompare(rightProject, "ru") || String(left.name || "").localeCompare(String(right.name || ""), "ru");
+    const leftRoot = (planningState.routes || []).find((route) => route.id === getRouteSortRootId(left)) || left;
+    const rightRoot = (planningState.routes || []).find((route) => route.id === getRouteSortRootId(right)) || right;
+    const leftProject = getProjectDisplayName(getRouteProductionContext(leftRoot)) || getRouteModuleSelectionName(leftRoot) || "";
+    const rightProject = getProjectDisplayName(getRouteProductionContext(rightRoot)) || getRouteModuleSelectionName(rightRoot) || "";
+    const leftKind = getRouteDocumentKind(left);
+    const rightKind = getRouteDocumentKind(right);
+    return leftProject.localeCompare(rightProject, "ru")
+      || String(leftRoot.name || "").localeCompare(String(rightRoot.name || ""), "ru")
+      || (ROUTE_DOCUMENT_KIND_ORDER[leftKind] ?? 9) - (ROUTE_DOCUMENT_KIND_ORDER[rightKind] ?? 9)
+      || String(left.routeTaskNumber || "").localeCompare(String(right.routeTaskNumber || ""), "ru", { numeric: true })
+      || String(left.name || "").localeCompare(String(right.name || ""), "ru");
   });
 }
 
@@ -17449,6 +19332,10 @@ function getRouteStepsForTask(steps, taskId) {
 }
 
 function getRouteBaseTasks(route) {
+  return scopeRouteTasks(route, getRouteUnscopedBaseTasks(route));
+}
+
+function getRouteUnscopedBaseTasks(route) {
   const specification = getRouteSpecification(route);
   return specification ? getSpecificationRouteTasks(specification) : getRouteBomTasks(route);
 }
@@ -18269,9 +20156,9 @@ function getSchedulableProjectRouteSteps(projectId) {
 
 function ensureRouteTaskSeedSteps(routeId, specification) {
   if (!routeId || !specification) return false;
-  const tasks = getSpecificationRouteTasks(specification);
-  if (!tasks.length) return false;
   const route = (planningState.routes || []).find((item) => item.id === routeId) || null;
+  const tasks = route ? getRouteTasksForModule(route) : getSpecificationRouteTasks(specification);
+  if (!tasks.length) return false;
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   let changed = false;
 
@@ -18347,6 +20234,224 @@ function getRouteModuleStats(route) {
     warnings,
     hours,
   };
+}
+
+function getRouteChildGenerationTasks(rootRoute = null) {
+  if (!rootRoute) return [];
+  return getRouteUnscopedBaseTasks(rootRoute)
+    .filter((task) => !task.isMain && !task.isOrphan)
+    .filter((task) => isSchedulableFulfillmentMode(task.fulfillmentMode || "produce"));
+}
+
+function getRouteTaskSubtreeIds(rootRoute = null, rootTask = null) {
+  if (!rootRoute || !rootTask) return new Set();
+  const rootNumber = String(rootTask.number || "");
+  const rootPrefix = rootNumber ? `${rootNumber}.` : "";
+  return new Set(getRouteUnscopedBaseTasks(rootRoute)
+    .filter((task) => task.id === rootTask.id || (rootPrefix && String(task.number || "").startsWith(rootPrefix)))
+    .map((task) => task.id));
+}
+
+function isDirectRouteChildTask(parentTask = null, candidateTask = null) {
+  if (!parentTask || !candidateTask || parentTask.id === candidateTask.id) return false;
+  const parentNumber = String(parentTask.number || "").trim();
+  const candidateNumber = String(candidateTask.number || "").trim();
+  if (!parentNumber || !candidateNumber.startsWith(`${parentNumber}.`)) return false;
+  const tail = candidateNumber.slice(parentNumber.length + 1);
+  return Boolean(tail) && !tail.includes(".");
+}
+
+function getRouteLinkedChildTasks(route = null) {
+  if (!route?.id) return [];
+  const kind = getRouteDocumentKind(route);
+  const rootRoute = getRouteGenerationRoot(route);
+  if (!rootRoute) return [];
+  const tasks = getRouteUnscopedBaseTasks(rootRoute)
+    .filter((task) => !task.isMain && !task.isOrphan)
+    .filter((task) => isSchedulableFulfillmentMode(task.fulfillmentMode || "produce"));
+
+  if (kind === "main") {
+    return tasks.filter((task) => Number(task.level || 0) === 0);
+  }
+
+  const scopeRootTask = getRouteScopeRootTask(route, tasks);
+  if (!scopeRootTask) return [];
+  return tasks.filter((task) => isDirectRouteChildTask(scopeRootTask, task));
+}
+
+function getRouteLinkedChildDocuments(route = null) {
+  const rootRoute = getRouteGenerationRoot(route);
+  if (!rootRoute) return [];
+  return getRouteLinkedChildTasks(route).map((task) => ({
+    task,
+    route: findGeneratedChildRoute(rootRoute, task),
+  }));
+}
+
+function findGeneratedChildRoute(rootRoute = null, rootTask = null) {
+  if (!rootRoute || !rootTask) return null;
+  return (planningState.routes || []).find((route) => (
+    getRouteDocumentKind(route) === "child"
+    && (route.rootRouteId === rootRoute.id || route.parentRouteId === rootRoute.id)
+    && (
+      route.routeTaskId === rootTask.id
+      || (
+        route.routeTaskSourceItemId === rootTask.sourceItemId
+        && (!route.routeTaskSourceSpecificationId || route.routeTaskSourceSpecificationId === rootTask.sourceSpecificationId)
+      )
+    )
+  )) || null;
+}
+
+function getGeneratedChildRouteName(task = {}) {
+  return [task.number, task.title].filter(Boolean).join(" ") || "Дочерняя маршрутная карта";
+}
+
+function shouldRefreshGeneratedChildRouteName(route = null) {
+  const name = String(route?.name || "").trim();
+  return !name || name.startsWith("Дочерняя маршрутная карта · ");
+}
+
+function buildChildRouteCard(rootRoute, task, existingRoute = null, stamp = new Date().toISOString()) {
+  return {
+    ...(existingRoute || {}),
+    id: existingRoute?.id || makeId("r"),
+    specificationId: rootRoute.specificationId || task.sourceSpecificationId || "",
+    specificationName: rootRoute.specificationName || getRouteSpecification(rootRoute)?.name || "",
+    projectId: rootRoute.projectId || rootRoute.specificationId || task.sourceSpecificationId || "",
+    bomListId: "",
+    name: shouldRefreshGeneratedChildRouteName(existingRoute) ? getGeneratedChildRouteName(task) : existingRoute.name,
+    isDefault: false,
+    routeDocumentKind: "child",
+    rootRouteId: rootRoute.rootRouteId || rootRoute.id,
+    parentRouteId: rootRoute.id,
+    routeTaskId: task.id,
+    routeTaskSourceItemId: task.sourceItemId || "",
+    routeTaskSourceSpecificationId: task.sourceSpecificationId || "",
+    routeTaskName: task.title || "",
+    routeTaskNumber: task.number || "",
+    routeTaskBomListId: task.bomListId || "",
+    routeScope: "own",
+    planningQuantity: normalizeOptionalPositiveInteger(rootRoute.planningQuantity) || normalizeOptionalPositiveInteger(existingRoute?.planningQuantity) || 1,
+    planningBoardsPerPanelBySource: {
+      ...(rootRoute.planningBoardsPerPanelBySource || {}),
+      ...(existingRoute?.planningBoardsPerPanelBySource || {}),
+    },
+    planningStatus: existingRoute?.planningStatus || "planned",
+    createdAt: existingRoute?.createdAt || stamp,
+    updatedAt: stamp,
+  };
+}
+
+function cloneRouteStepForChildRoute(sourceStep, childRoute, stamp = new Date().toISOString()) {
+  return normalizeRouteStepCalculationFields({
+    ...sourceStep,
+    id: makeId("rs"),
+    routeId: childRoute.id,
+    sourceRouteId: sourceStep.sourceRouteId || sourceStep.routeId || childRoute.parentRouteId || "",
+    sourceRouteStepId: sourceStep.sourceRouteStepId || sourceStep.id,
+    generatedFromRouteStepId: sourceStep.generatedFromRouteStepId || sourceStep.id,
+    createdAt: stamp,
+    updatedAt: stamp,
+  }, planningState);
+}
+
+function syncGeneratedChildRouteSteps(rootRoute, childRoute, rootTask, stamp = new Date().toISOString()) {
+  const taskId = String(rootTask?.id || "").trim();
+  if (!taskId) return 0;
+  const sourceSteps = getRouteStepsForModule(rootRoute.id)
+    .filter((step) => getRouteStepTaskId(step) === taskId);
+  if (!sourceSteps.length) return 0;
+
+  const existingGeneratedSourceIds = new Set(getRouteStepsForModule(childRoute.id)
+    .map((step) => step.sourceRouteStepId || step.generatedFromRouteStepId || "")
+    .filter(Boolean));
+  const missingSteps = sourceSteps
+    .filter((step) => !existingGeneratedSourceIds.has(step.id))
+    .map((step) => cloneRouteStepForChildRoute(step, childRoute, stamp));
+  if (!missingSteps.length) return 0;
+
+  planningState.routeSteps = [
+    ...(planningState.routeSteps || []),
+    ...missingSteps,
+  ];
+  getRouteBaseTasks(childRoute).forEach((task) => normalizeRouteStepOrders(childRoute.id, task.id));
+  return missingSteps.length;
+}
+
+function getRouteGenerationRoot(route = null) {
+  if (!route) return null;
+  if (getRouteDocumentKind(route) === "main") return route;
+  return getRouteRootRoute(route) || route;
+}
+
+function generateChildRouteCardsForActiveRoute() {
+  const activeRoute = getActiveRouteForModule();
+  const rootRoute = getRouteGenerationRoot(activeRoute);
+  if (!rootRoute) {
+    alert("Сначала выберите главную маршрутную карту.");
+    return;
+  }
+  const specification = getRouteSpecification(rootRoute);
+  if (!specification) {
+    alert("Дочерние маршрутные карты можно сформировать только от карты, связанной с составом изделия.");
+    return;
+  }
+  const tasks = getRouteChildGenerationTasks(rootRoute);
+  if (!tasks.length) {
+    alert("В составе изделия нет производственных веток для дочерних маршрутных карт.");
+    return;
+  }
+
+  const stamp = new Date().toISOString();
+  let createdCount = 0;
+  let reusedCount = 0;
+  let copiedSteps = 0;
+  const nextRoutes = [];
+  const generatedRouteIds = new Set();
+  planningState.routes = (planningState.routes || []).map((route) => (
+    route.id === rootRoute.id
+      ? {
+          ...route,
+          routeDocumentKind: "main",
+          rootRouteId: route.rootRouteId || route.id,
+          updatedAt: stamp,
+        }
+      : route
+  ));
+  const normalizedRootRoute = (planningState.routes || []).find((route) => route.id === rootRoute.id) || rootRoute;
+
+  tasks.forEach((task) => {
+    const existingRoute = findGeneratedChildRoute(normalizedRootRoute, task);
+    const childRoute = buildChildRouteCard(normalizedRootRoute, task, existingRoute, stamp);
+    generatedRouteIds.add(childRoute.id);
+    nextRoutes.push(childRoute);
+    if (existingRoute) reusedCount += 1;
+    else createdCount += 1;
+  });
+
+  planningState.routes = [
+    ...(planningState.routes || []).filter((route) => !generatedRouteIds.has(route.id)),
+    ...nextRoutes,
+  ];
+
+  nextRoutes.forEach((childRoute) => {
+    const task = tasks.find((item) => (
+      item.id === childRoute.routeTaskId
+      || (
+        item.sourceItemId === childRoute.routeTaskSourceItemId
+        && item.sourceSpecificationId === childRoute.routeTaskSourceSpecificationId
+      )
+    ));
+    copiedSteps += syncGeneratedChildRouteSteps(normalizedRootRoute, childRoute, task, stamp);
+  });
+
+  planningState = normalizePlanningState(planningState);
+  ui.activeRouteId = nextRoutes[0]?.id || normalizedRootRoute.id;
+  persistState();
+  persistUiState();
+  notifySaveSuccess(`Дочерние карты: создано ${createdCount}, обновлено ${reusedCount}, операций добавлено ${copiedSteps}`);
+  render();
 }
 
 function getRouteDeleteUsage(routeId) {
@@ -18436,6 +20541,7 @@ function getRoutePlanningOrder(route, production = null) {
   return {
     id: route.id,
     routeId: route.id,
+    planningOrderId: route.id,
     specificationId: productionId || route.specificationId || route.projectId || "",
     projectId: productionId || route.projectId || route.specificationId || "",
     batchNumber: "",
@@ -18483,6 +20589,130 @@ function getPlanningRouteOrderState(route, summary = null) {
     return { id: "partial", label: "Частично", tone: "warning" };
   }
   return { id: "queued", label: "В очереди", tone: "neutral" };
+}
+
+function getPlanningOrderSourceLabel(route = null) {
+  if (!route) return "Маршрутное задание не выбрано";
+  return `${getRouteDocumentKindLabel(route)} · ${route.name || "Маршрутная карта"}`;
+}
+
+function getPlanningOrderObjectLabel(route = null) {
+  if (!route) return "Объект не выбран";
+  if (getRouteDocumentKind(route) === "child") {
+    const rootName = getRouteModuleSelectionName(getRouteRootRoute(route) || route);
+    return [getRouteLineageSubjectName(route), rootName].filter(Boolean).join(" / ") || "Объект не выбран";
+  }
+  return getRouteModuleSelectionName(route)
+    || getRouteLineageSubjectName(route)
+    || getProjectDisplayName(getRoutePlanningContext(route))
+    || "Объект не выбран";
+}
+
+function getPlanningWorkOrderTitle(route = null) {
+  if (!route) return "Заказ-наряд";
+  const production = getRoutePlanningContext(route);
+  const productionOrder = String(production?.orderNumber || "").trim();
+  if (productionOrder && productionOrder !== route.name) return `Заказ-наряд ${productionOrder}`;
+  return "Заказ-наряд";
+}
+
+function getPlanningWorkOrderQueueTitle(route = null) {
+  if (!route) return "Заказ-наряд";
+  const objectLabel = getPlanningOrderObjectLabel(route);
+  const kind = getRouteDocumentKind(route);
+  if (kind === "child") return getRouteLineageSubjectName(route);
+  return objectLabel || route.name || "Заказ-наряд";
+}
+
+function getPlanningWorkOrderSubtitle(route = null, summary = null, routeSteps = null) {
+  if (!route) return "";
+  const quantity = normalizeQuantity(summary?.planningQuantity || getPlanningRouteQuantity(route));
+  const steps = routeSteps || getRouteStepsForModule(route.id);
+  return `${getPlanningOrderObjectLabel(route)} · ${quantity.toLocaleString("ru-RU")} шт. · ${steps.length.toLocaleString("ru-RU")} операций · основание: ${getRouteDocumentKindLabel(route)}`;
+}
+
+function getPlanningShiftDateLabel(value = "") {
+  return toDate(value).toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function getPlanningShiftSlotTimeLabel(slot = {}) {
+  if (!slot.plannedStart || !slot.plannedEnd) return "время не задано";
+  return `${formatDateTimeShort(slot.plannedStart)}-${formatDateTimeShort(slot.plannedEnd)}`;
+}
+
+function getPlanningShiftOrderTone(rows = []) {
+  if (rows.some((row) => ["problem", "overdue"].includes(row.rawStatus))) return "critical";
+  if (rows.some((row) => ["in_progress", "paused"].includes(row.rawStatus))) return "warning";
+  if (rows.length && rows.every((row) => row.rawStatus === "completed")) return "ok";
+  return rows.length ? "neutral" : "neutral";
+}
+
+function getPlanningShiftOrderStatusLabel(rows = []) {
+  if (!rows.length) return "пусто";
+  if (rows.some((row) => ["problem", "overdue"].includes(row.rawStatus))) return "проблема";
+  if (rows.some((row) => row.rawStatus === "in_progress")) return "в работе";
+  if (rows.some((row) => row.rawStatus === "paused")) return "пауза";
+  if (rows.every((row) => row.rawStatus === "completed")) return "закрыт";
+  return "запланирован";
+}
+
+function getPlanningShiftOrdersForRoute(route = null, routeSteps = null) {
+  if (!route?.id) return [];
+  const steps = routeSteps || getRouteStepsForModule(route.id);
+  const stepById = new Map(steps.map((step) => [step.id, step]));
+  const slots = getPlanningRouteSlots(route)
+    .filter((slot) => stepById.has(slot.routeStepId))
+    .sort((left, right) => (
+      toDate(left.plannedStart) - toDate(right.plannedStart)
+      || String(left.operationName || "").localeCompare(String(right.operationName || ""), "ru")
+    ));
+  const groups = new Map();
+
+  slots.forEach((slot) => {
+    const dateKey = toDateInput(slot.plannedStart || slot.plannedEnd || new Date());
+    if (!groups.has(dateKey)) groups.set(dateKey, []);
+    const step = stepById.get(slot.routeStepId) || null;
+    const task = step ? getRouteStepPlanningTask(route, step, steps) : null;
+    const workCenter = getWorkCenter(slot.workCenterId || step?.workCenterId || "");
+    const resource = getProductionResource(slot.resourceId || step?.resourceId || "");
+    const taskLabel = task
+      ? [task.number, task.title].filter(Boolean).join(" · ")
+      : step?.specTaskName || getPlanningOrderObjectLabel(route);
+    const resourceLabel = [
+      workCenter?.name || slot.workCenterId || "Участок не задан",
+      resource?.name || slot.resourceId || "",
+    ].filter(Boolean).join(" · ");
+
+    groups.get(dateKey).push({
+      id: slot.id,
+      operationName: slot.operationName || step?.operationName || "Операция",
+      taskLabel,
+      resourceLabel,
+      quantity: normalizeQuantity(slot.quantity || 0),
+      unit: "шт.",
+      rawStatus: slot.status || "planned",
+      statusLabel: STATUS_LABELS[slot.status] || slot.status || "запланирован",
+      timeLabel: getPlanningShiftSlotTimeLabel(slot),
+    });
+  });
+
+  return [...groups.entries()].map(([dateKey, rows], index) => {
+    const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+    const tone = getPlanningShiftOrderTone(rows);
+    return {
+      id: `${route.id}:${dateKey}`,
+      dateKey,
+	      title: `План смены ${index + 1}`,
+      meta: `${getPlanningShiftDateLabel(dateKey)} · ${rows.length.toLocaleString("ru-RU")} строк · ${totalQuantity.toLocaleString("ru-RU")} шт.`,
+      rows,
+      tone,
+      statusLabel: getPlanningShiftOrderStatusLabel(rows),
+    };
+  });
 }
 
 function renderPlanningRequiredSettings(route, transferSummary) {
@@ -18550,33 +20780,30 @@ function syncPlanningRouteQuantity(routeId, value, options = {}) {
   if (!route || !production || !quantity) return false;
 
   const stamp = new Date().toISOString();
+  const nextRoute = {
+    ...route,
+    planningQuantity: quantity,
+    updatedAt: stamp,
+  };
   planningState.routes = planningState.routes.map((item) => item.id === route.id ? {
     ...item,
     planningQuantity: quantity,
     updatedAt: stamp,
   } : item);
 
-  const specification = getRouteSpecification(route);
-  if (specification?.id) {
-    directoryState.specifications = (directoryState.specifications || []).map((item) => item.id === specification.id ? {
-      ...item,
-      productionQuantity: quantity,
-      updatedAt: stamp,
-    } : item);
-  }
-
   if (options.updateSlots) {
-    const routeSteps = getSchedulableRouteSteps(route.id);
+    const routeSteps = getSchedulableRouteSteps(nextRoute.id);
     const stepById = byId(routeSteps);
-    const routeOrder = getRoutePlanningOrder(route, production);
+    const routeOrder = getRoutePlanningOrder(nextRoute, production);
     planningState.slots = planningState.slots.map((slot) => {
       const step = stepById[slot.routeStepId];
-      if ((slot.routeId && slot.routeId !== route.id) || !step || slot.locked || slot.status === "completed") return slot;
+      if ((slot.routeId && slot.routeId !== nextRoute.id) || !step || slot.locked || slot.status === "completed") return slot;
       const nextQuantity = getRouteStepQuantityForBatch(step, routeOrder);
       return recalculateSlotEndByQuantity({
         ...slot,
-        routeId: route.id,
-        batchId: route.id,
+        routeId: nextRoute.id,
+        batchId: nextRoute.id,
+        planningOrderId: nextRoute.id,
         specificationId: production.id,
         projectId: production.id,
         quantity: nextQuantity,
@@ -18587,10 +20814,9 @@ function syncPlanningRouteQuantity(routeId, value, options = {}) {
 
   if (options.persist !== false) {
     persistState();
-    persistDirectoryState();
   }
   if (options.notify !== false) {
-    notifySaveSuccess(options.message || "Количество к производству сохранено");
+    notifySaveSuccess(options.message || "Количество заказ-наряда сохранено");
   }
   if (options.render !== false) render();
   return true;
@@ -18610,10 +20836,12 @@ function recalculatePlanningBatchSlots(batchId, routeId, stamp = new Date().toIS
   const stepById = byId(getSchedulableRouteSteps(route.id));
   planningState.slots = (planningState.slots || []).map((slot) => {
     const step = stepById[slot.routeStepId];
-    if ((slot.routeId !== route.id && slot.batchId !== route.id) || !step || slot.locked || slot.status === "completed") return slot;
+    if ((slot.routeId !== route.id && slot.batchId !== route.id && slot.planningOrderId !== route.id) || !step || slot.locked || slot.status === "completed") return slot;
     return recalculateSlotEndByQuantity({
       ...slot,
       routeId: route.id,
+      planningOrderId: route.id,
+      batchId: route.id,
       specificationId: batch.specificationId || route.specificationId || slot.specificationId || slot.projectId,
       projectId: batch.specificationId || route.specificationId || slot.projectId,
       quantity: getRouteStepQuantityForBatch(step, batch),
@@ -18642,7 +20870,7 @@ function requestDeletePlanningBatch(batchId) {
 
 function deletePlanningBatch(batchId, options = {}) {
   if (batchId && options.deleteSlots) {
-    planningState.slots = (planningState.slots || []).filter((slot) => slot.routeId !== batchId && slot.batchId !== batchId);
+    planningState.slots = (planningState.slots || []).filter((slot) => slot.routeId !== batchId && slot.batchId !== batchId && slot.planningOrderId !== batchId);
     if (planningState.slots.every((slot) => slot.id !== ui.selectedSlotId)) ui.selectedSlotId = null;
     persistState();
     render();
@@ -18915,6 +21143,7 @@ function createSlotFromRouteStep(project, batch, routeStep, window, quantity, st
     routeId: route?.id || routeStep.routeId || "",
     specificationId,
     projectId: specificationId,
+    planningOrderId: batch.id,
     batchId: batch.id,
     routeWorkCenterId: routeStep.workCenterId,
     workCenterId: planningWorkCenterId,
@@ -18941,7 +21170,7 @@ function createSlotFromRouteStep(project, batch, routeStep, window, quantity, st
     actualStart: "",
     actualEnd: "",
     status: "planned",
-    comment: "Передано из модуля «Планирование».",
+    comment: "Передано из модуля «Заказ-наряды».",
     createdAt: stamp,
     updatedAt: stamp,
   };
@@ -19156,8 +21385,84 @@ function openPlanningForRoute(routeId = "") {
 	  ui.activeRouteId = route.id;
   ui.selectedSlotId = null;
   ui.editor = null;
-  persistUiState();
-  render();
+	  persistUiState();
+	  render();
+}
+
+function renderRouteLineagePanel(route, options = {}) {
+  if (!route?.id) {
+    return `
+      <div class="route-lineage-panel is-main">
+        <div class="route-lineage-title">
+          <span class="route-card-kind-pill is-main">Главная маршрутная карта</span>
+          <strong>Новая карта</strong>
+        </div>
+        <div class="route-lineage-grid">
+          <span><b>Принадлежность</b><em>будет задана после сохранения документа</em></span>
+        </div>
+      </div>
+    `;
+  }
+
+  const kind = getRouteDocumentKind(route);
+  const rootRoute = getRouteRootRoute(route);
+  const parentRoute = getRouteParentRoute(route);
+  const subjectName = getRouteLineageSubjectName(route);
+  const targetName = options.targetName || getRouteModuleSelectionName(route) || "Объект не выбран";
+  const childCount = kind === "main"
+    ? (planningState.routes || []).filter((item) => (
+        getRouteDocumentKind(item) === "child"
+        && (item.rootRouteId === route.id || item.parentRouteId === route.id)
+      )).length
+    : 0;
+  const linkedDocuments = getRouteLinkedChildDocuments(route);
+  const rows = kind === "main"
+    ? [
+        ["Объект", targetName],
+        ["Карта", route.name || "Маршрутная карта"],
+        ["Дочерние карты", childCount ? String(childCount) : "пока не сформированы"],
+      ]
+    : [
+        ["Ветка состава", `${route.routeTaskNumber ? `${route.routeTaskNumber} · ` : ""}${subjectName}`],
+        ["Главная карта", rootRoute?.name || "не найдена"],
+        ["Родитель", parentRoute?.name || rootRoute?.name || "не найден"],
+        ["Объект", getRouteModuleSelectionName(rootRoute || route) || targetName],
+      ];
+
+  return `
+    <div class="route-lineage-panel is-${escapeAttribute(kind)}">
+      <div class="route-lineage-title">
+        <span class="route-card-kind-pill is-${escapeAttribute(kind)}">${escapeHtml(getRouteDocumentKindLabel(route))}</span>
+        <strong>${escapeHtml(subjectName)}</strong>
+      </div>
+      <div class="route-lineage-grid">
+        ${rows.map(([label, value]) => `
+          <span>
+            <b>${escapeHtml(label)}</b>
+            <em>${escapeHtml(value || "-")}</em>
+          </span>
+        `).join("")}
+      </div>
+      ${linkedDocuments.length ? `
+        <div class="route-linked-cards">
+          <b>Вложенные маршрутные карты</b>
+          <div class="route-linked-card-list">
+            ${linkedDocuments.map(({ task, route: linkedRoute }) => linkedRoute ? `
+              <button class="route-linked-card" data-route-open="${escapeAttribute(linkedRoute.id)}" type="button">
+                <span>${escapeHtml([task.number, task.title].filter(Boolean).join(" · ") || linkedRoute.name || "Дочерняя карта")}</span>
+                <small>${escapeHtml(linkedRoute.name || getRouteDocumentKindLabel(linkedRoute))}</small>
+              </button>
+            ` : `
+              <span class="route-linked-card is-missing">
+                <span>${escapeHtml([task.number, task.title].filter(Boolean).join(" · ") || "Дочерняя карта")}</span>
+                <small>не сформирована</small>
+              </span>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
 }
 
 function renderRoutesPage() {
@@ -19196,14 +21501,21 @@ function renderRoutesPage() {
   const stats = getRouteModuleStats(activeRoute);
   const routeBindingOptions = getRouteBindingOptions();
   const hasRouteBindingOptions = routeBindingOptions.length > 1;
+  const routeKindLabel = hasPreviewRoute ? getRouteDocumentKindLabel(route) : "Маршрутная карта";
+  const routeGenerationRoot = activeRoute ? getRouteGenerationRoot(activeRoute) : null;
+  const canGenerateChildRoutes = Boolean(activeRoute && getRouteSpecification(routeGenerationRoot));
   const routeHeaderDescription = hasPreviewRoute
-    ? routeBom
-      ? `${routeTargetName}: связанная плата/BOM для технологического документа.`
-      : routeSpecification || project
-        ? `${routeTargetName}: связанное изделие для технологического документа.`
-        : rkdContext
-          ? `${routeTargetName}: маршрут создан из РКД.`
-          : "Маршрутная карта хранит технологический документ независимо от конечного или промежуточного объекта."
+    ? getRouteDocumentKind(route) === "child"
+      ? `${getRouteLineageSubjectName(route)}: дочернее технологическое задание ветки состава изделия. Заказ-наряд собирается в модуле «Заказ-наряды».`
+      : getRouteDocumentKind(route) === "shift"
+        ? `${getRouteLineageSubjectName(route)}: маршрутная карта смены для частичной передачи объема.`
+      : routeBom
+          ? `${routeTargetName}: технологическое задание по плате/BOM.`
+          : routeSpecification || project
+            ? `${routeTargetName}: главное технологическое задание по составу изделия.`
+            : rkdContext
+              ? `${routeTargetName}: маршрут создан из РКД.`
+              : "Маршрутная карта хранит технологическое задание независимо от конечного или промежуточного объекта."
     : "Выберите маршрутную карту в перечне или создайте новую.";
 
   return `
@@ -19230,12 +21542,14 @@ function renderRoutesPage() {
               || getProjectDisplayName(routeProject)
               || (itemRkdContext ? `${itemRkdContext.rkd.number || itemRkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(itemRkdContext.board)}` : "")
               || "связь не выбрана";
+            const itemKind = getRouteDocumentKind(item);
+            const itemSubjectName = itemKind === "main" ? itemTargetName : getRouteLineageSubjectName(item);
             return `
-              <button class="module-entity-item ${item.id === activeRoute?.id ? "is-active" : ""}" data-route-open="${item.id}" type="button">
+              <button class="module-entity-item route-card-list-item is-route-${escapeAttribute(itemKind)} ${item.id === activeRoute?.id ? "is-active" : ""}" data-route-open="${item.id}" type="button">
                 <span>
-                  <strong>${escapeHtml(itemTargetName)}</strong>
-                  <small>${escapeHtml(item.name || "Маршрутная карта")} · ${steps.length} шагов</small>
-                </span>
+	                  <strong>${escapeHtml(itemSubjectName)}</strong>
+	                  <small><i>${escapeHtml(getRouteDocumentKindShortLabel(item))}</i>${escapeHtml(` · ${item.name || "Маршрутная карта"} · ${steps.length} шагов`)}</small>
+	                </span>
                 <em>${steps.length}</em>
               </button>
             `;
@@ -19246,22 +21560,23 @@ function renderRoutesPage() {
       <div class="directory-workspace module-data-workspace" data-layout="page-workspace">
         <header class="directory-header">
           <div>
-            <span class="eyebrow">Маршрутная карта</span>
+            <span class="eyebrow">${escapeHtml(routeKindLabel)}</span>
             <h2>${escapeHtml(hasPreviewRoute ? (isNewRoute ? "Новая маршрутная карта" : route.name || "Маршрутная карта") : "Карта не выбрана")}</h2>
             <p>${escapeHtml(routeHeaderDescription)}</p>
           </div>
           <div class="directory-actions">
-            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>Создать заказ-наряд</span></button>
+            <button class="secondary-button" data-route-print-preview="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute ? "" : "disabled"}>${icon("document")}<span>Печатная форма</span></button>
+            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>Собрать заказ-наряд</span></button>
           </div>
         </header>
 
         <div class="module-data-content route-module-content">
           ${hasPreviewRoute ? `
-          <section class="module-panel route-editor-panel">
-            <div class="report-card-head">
-              <strong>Карточка маршрута</strong>
-              <span>${isNewRoute ? "создание технологической карты" : "технологический документ и связь с планированием"}</span>
-            </div>
+	          <section class="module-panel route-editor-panel">
+	            <div class="report-card-head">
+	              <strong>Карточка маршрута</strong>
+	              <span>${isNewRoute ? "создание технологического задания" : "технологическое задание и основание для планирования"}</span>
+	            </div>
 		            <form id="routeModuleForm" class="module-form route-module-form">
 		              <input type="hidden" name="routeId" value="${escapeAttribute(route.id)}" />
 		              <input type="hidden" name="isNew" value="${isNewRoute ? "yes" : "no"}" />
@@ -19278,10 +21593,11 @@ function renderRoutesPage() {
 		              </label>
               <div class="module-form-actions full">
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewRoute ? "Создать карту" : "Сохранить карту"}</span></button>
-                ${isNewRoute ? "" : `<button class="secondary-button danger" data-route-delete="${escapeAttribute(route.id)}" type="button">${icon("trash")}<span>Удалить карту</span></button>`}
-              </div>
-            </form>
-          </section>
+	                ${isNewRoute ? "" : `<button class="secondary-button danger" data-route-delete="${escapeAttribute(route.id)}" type="button">${icon("trash")}<span>Удалить карту</span></button>`}
+	              </div>
+	            </form>
+              ${renderRouteLineagePanel(activeRoute || null, { targetName: routeTargetName })}
+	          </section>
 
 	          <section class="module-panel route-steps-panel">
 	            <div class="report-card-head">
@@ -19296,6 +21612,483 @@ function renderRoutesPage() {
         </div>
       </div>
     </section>
+  `;
+}
+
+function getRoutePrintTargetName(route) {
+  if (!route) return "Маршрутная карта";
+  const bom = getRouteBomList(route);
+  const specification = getRouteSpecification(route);
+  const production = getRouteProductionContext(route);
+  const rkdContext = getRouteRkdContext(route);
+  return bom?.name
+    || specification?.name
+    || getProjectDisplayName(production)
+    || (rkdContext ? `${rkdContext.rkd.number || rkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(rkdContext.board)}` : "")
+    || "Самостоятельный документ";
+}
+
+function renderRoutePrintTreeLines(task = {}) {
+  const level = Math.max(0, Number(task.level || 0));
+  if (!level) return "";
+  const continuationLevels = Array.isArray(task.continuationLevels) ? task.continuationLevels : [];
+  const guides = continuationLevels
+    .slice(1, level)
+    .map((isActive, index) => isActive ? `<i class="route-print-tree-guide" style="--tree-line:${index}" aria-hidden="true"></i>` : "")
+    .join("");
+  return `${guides}<i class="route-print-tree-branch ${task.isLast ? "is-last" : ""}" style="--tree-line:${level - 1}" aria-hidden="true"></i>`;
+}
+
+function getQrFiniteFieldProduct(left, right) {
+  let result = 0;
+  for (let value = right; value > 0; value >>>= 1) {
+    if (value & 1) result ^= left;
+    left <<= 1;
+    if (left & 0x100) left ^= 0x11d;
+  }
+  return result;
+}
+
+function getQrReedSolomonDivisor(degree) {
+  const result = Array(degree).fill(0);
+  result[degree - 1] = 1;
+  let root = 1;
+  for (let index = 0; index < degree; index += 1) {
+    for (let item = 0; item < degree; item += 1) {
+      result[item] = getQrFiniteFieldProduct(result[item], root);
+      if (item + 1 < degree) result[item] ^= result[item + 1];
+    }
+    root = getQrFiniteFieldProduct(root, 2);
+  }
+  return result;
+}
+
+function getQrReedSolomonRemainder(data, degree) {
+  const divisor = getQrReedSolomonDivisor(degree);
+  const result = Array(degree).fill(0);
+  data.forEach((byte) => {
+    const factor = byte ^ result.shift();
+    result.push(0);
+    divisor.forEach((coefficient, index) => {
+      result[index] ^= getQrFiniteFieldProduct(coefficient, factor);
+    });
+  });
+  return result;
+}
+
+function appendQrBits(bits, value, length) {
+  for (let index = length - 1; index >= 0; index -= 1) {
+    bits.push((value >>> index) & 1);
+  }
+}
+
+function getRoutePrintQrPayload() {
+  return "https://images.meme-arsenal.com/8e2a489b9edf3b50b3e2f195f3693d0b.jpg";
+}
+
+const ROUTE_PRINT_QR_SIZE = 37;
+const ROUTE_PRINT_QR_VARIANTS = [
+  "1111111000001011000011110101101111111100000101110110001111011011110100000110111010000111011000101010011010111011011101000110111000100110011001011101101110101011011001010011001100101110110000010010101100011001110110010000011111111010101010101010101010101111111000000000101000010010111110010000000010101010001100000001101001110000100101010000100010001010111001110001101001101101110011100001111010100010011101100000100010110010100111001101000000101101111010001110110101011100111000011110011011111000011000000100001100000101100010001111100010010000100011001010101000110111011011010000110011010011100000100110111110110000111011100101110101000111010111111000010101110010010010111100111011101000001000010100011000100011100000011110100111110010101000000111001010110110111101000110010000110100101110110001001001100111101011100111111110111011000010111001110011111111100100001100001111001111110100101011111110100100000110101100001101011001011001000100101011010010000110001110100011110111100001110010000010011110101010111101011010011000111000101010101110111010101011111100011111111101100000000110110001110100011011000110111111111000000010001001000001101011011100000100111001101101001010010001100010111010111111111011000011101111110111011101000111111101101001010100111010101110101001111110100110100110001011110000010010011001101011101101101100101111111011100111011011001100111000011",
+  "1111111011011110010110100000101111111100000100011100100101110001010100000110111010110010001101111111001010111011011101001100010010001100110001011101101110100110001100000110011000101110110000010100000110110011011100010000011111111010101010101010101010101111111000000000000010111000010100110000000010100011011001010100111100100001001011111010001000100000010011011011000011111000100110110100101111110111001000101010001000011000001101100111101010001000101111011011100000001001101101001100110001010010110010101110100110101100110111011010110111000101110110011110000010011101110001111010011001111001110101110011101011100101101110110000111111101101111101010010111111011000110111101001101110111101011101000001001010001001001010110100001101011000000001010010011111100011101000010011000100011110000100011011100011001101000001110010101011101110010111101100100110110101001110100110100101100101011110001110101011110001010011111001011000001011110011101110000001111000101100100111110110100010110100100111010111001010000000010111110000110010010010000000111011101111111110101001001011111000100000000100011011011110110001000100011111111011010111011100010100101010001100000100010011000111100000110001001010111010001010101110010110111111100011011101001101010111000011111110010000101110101100101011110011110011011110110000010000110011000001000111000110001111111010110010001110011001101101001",
+  "1111111001101000100000010110001111111100000100111000000001010101110100000110111010111111100000010010100010111011011101010101011011000101111001011101101110101101010111011101000010101110110000010110010100100001001110010000011111111010101010101010101010101111111000000001100110011100110000010000000010111110010100111001010001001011111000110010000001101001011010010010001010100011111101101111110100101100010011111000001010001010011111110101111000011110011001101101010110111111011011111000010001110110010110001010000010001001011010110111011010101000011011110011001010010100111000110011010000110000101110101000110000111110110101101011101101101111101111000000101101001010100001011111011000001011101011110111111110101001101110010000101001111100100100111111110010001110000101111110101001010110001101010010101010000100001000101001110000110101001100110111111101100111001100110100110111110111001100011000011101000111100101001111101110111111010011001010100101011100001000000010011011001111011001001010111010100111001000011110111001111011011011001001100000110100100101110010010011111011100000000110001001001100100011000110001111111001100001101010100010101010111100000101110111100011000100010001101110111010100111000011111011011111101111011101010100011110001010110111011001101110101111110000101000101000000101110000010010100001010011010101010100011111111010000100111000101111011011111",
+  "1111111011101000100000010110001111111100000101010101101100111000010100000110111010000100111011001001111010111011011101010101011011000101111001011101101110100000111010110000101110101110110000010001001111111010010101010000011111111010101010101010101010101111111000000001001011110001011101110000000010110111001111100010001010010010010110110010000001101001011010010010001010001110110000000010011001000001111110000011000001010001000100101110100011001110011001101101010110111111011011111101111000011011111011100111101111100110000011101100000001110011000000101001001010010100111000110011010000110000000011100101011101010011011000000110010110100100110100011011110110010001110001011111011000001011101011110111111011000000000011111101000100010001001011100110101001010101011110100101110011010110001101010010101010000100001000000100111101011000100001011010010000011100000111101111101100101100010111001000011101000111100101001111101110111010111010100111001000110001100101101101000010010100000010010001100001111101001000011110111001111011011011001001001101111001001000011111111111111110000000000101010010010111111001000101011111111011100001101010100010101010111100000101011010001110101001110001000010111010011100011000100000001111110101011101010100011110001010110111011001101110101010011101000101000101101000010000010001111010001000001110001111001111111010000100111000101111011011111",
+  "1111111010101111100111010001001111111100000100011011100010110110010100000110111010010001101110011100101010111011011101010010011100000010111101011101101110101001001011000001011110101110110000010100011010101111000000010000011111111010101010101010101010101111111000000001111010000000101100000000000010001011100101001000100000111111110010001010111001010001100010101010110010000000111110001100010111001111110000001001101011111011101110000100001001101001011110101010010001111000011100111011110010010101110101101001100001101011010110111001010100100110010101111100001100010011111111110100010111110111110010110100101100100010101001110111100011100001100001001110100011000100101001101111100000110011010011001111000010110001110010001100110101100000111001001110000011111111110100001111011001101110110101101010010010111100110000001010110011010110101111010100011110010110101101000101000110000110111101101111011010000000100010001000101001111100110000101001000110111111101011100000010111000001010111000100110100101000001110011001111110111100011100001110111100101000111001101110001111111111100000000100000111000010101101000100001111111011011001010010011010101010000100000100101011111111011000010001110010111010110110110010001010101111111111011101001100100110110010001111100001101110100100010011001011001011100110010000010011010000100010100100100101101111111011000011111111101000011100111",
+  "1111111001011110010110100000101111111100000101011000100001110101010100000110111010111111100000010010100010111011011101011001000111011001100101011101101110100101010111011101000010101110110000010000010110100011001100010000011111111010101010101010101010101111111000000001000110111100010000110000000010000010110100111001010001001110011100101110011101110101000110001110010110100011111101101111110100101100010011111010001000001000011101110111111010011000101111011011100000001001101101001000110001010110110110101010100010101001011010110111011010101000011011110011010110001000100100101111001100101100101110101000110000111110110101101011101111101101101101000010101111001000100111101001101110111101011101000001001110001001001110110000001001011100000100111111110010001110000101111110101001001010010001001110110110011000010100101001110000110101001100110111111101100101001110110110110101110101001110011110101011110001010011111001011000001111110011101010000101111100101000100010011011001111011001001010111010100111010100000010100101100111000111010101100000110100100101110010010011111011100000000100001011001110100001000100001111111001010111011100010100101010001100000100010111000011100100110001001110111010000111000011111011011111101111011101001000000010010110101011000101101110100111110000101000101000000101110000010000100011010001010111010110011111111010110010001110011001101101001",
+  "1111111011011110010110100000101111111100000101011011100010110110010100000110111010110110101001011011101010111011011101001001000111011001100101011101101110101100011110010100001010101110110000010001110111000010101101010000011111111010101010101010101010101111111000000000000101111111010011110000000010011111111101110000011000000100101110101110011101110101000110001110010110101010110100100110111101100101011010111011101001101001111100010110011011111000101111011011100000001001101101001011110010010101110101101001100001101000010011111110010011100001010010111011010110001000100100101111001100101100100111100001111001110111111100100010101110001100001100100011001110101001000111101001101110111101011101000001001101001010001101110011001010011111000101110110111011000111001100110111100001001010010001001110110110011000010100100000111001111100000101111110110100100100101111010111010100010100101111111110101011110001010011111001011000001100110000101001000110111111101011100011010010000110010000000011110011101111010100000010100101100111000111010101101001111101101100111011011011111010100000000101101010101111000001000101101111111011010111011100010100101010001100000101010100000000100111110001001110111010101110001010110010011111100111011101011000000010010110101011000101101110100110111001100001100001001100110000010001000010110000110110110111111111111010110010001110011001101101001",
+  "1111111000001011000011110101101111111100000100100100011101001001100100000110111010000011111100001110111010111011011101000110111000100110011001011101101110100001001011000001011110101110110000010110001000111101010010010000011111111010101010101010101010101111111000000000111010000000101100000000000010010110101000100101001101010101000001010000100010001010111001110001101001111111100001110011101000110000001111100100000110010110000011101001100100001101111010001110110101011100111000011100001001101010001010010110011110010101000110101011000110110100000111101110101000110111011011010000110011010011110010110100101100100010101001110111110001100011110011011100110001010110110010111100111011101000001000010100011010110001110010001100110101100000111000100011101110010010011001100010110100110100101110110001001001100111101011110101101100101001010000101011100001111011000000101000101011101011010000001011111110100100000110101100001101011011001011010110111001000000010100011110000111010011000101010110100110111010101010111101011010011000111000101010111100101000111001101110001111111111100000000110010101010000111111000110011111111000000010001001000001101011011100000101101011111111011000010001110010111010011011011111100111001111110011011101010111111101101001010100111010101110100011101100110100110100011001110000010010111101001111001001001000001111111011100111011011001100111000011",
+];
+
+function createRoutePrintQrMatrix(payload) {
+  const size = 21;
+  const dataCodewordsCount = 19;
+  const errorCodewordsCount = 7;
+  const matrix = Array.from({ length: size }, () => Array(size).fill(false));
+  const reserved = Array.from({ length: size }, () => Array(size).fill(false));
+  const setModule = (x, y, value, isReserved = true) => {
+    if (x < 0 || y < 0 || x >= size || y >= size) return;
+    matrix[y][x] = Boolean(value);
+    if (isReserved) reserved[y][x] = true;
+  };
+  const addFinder = (left, top) => {
+    for (let y = top - 1; y <= top + 7; y += 1) {
+      for (let x = left - 1; x <= left + 7; x += 1) {
+        setModule(x, y, false);
+      }
+    }
+    for (let y = top; y < top + 7; y += 1) {
+      for (let x = left; x < left + 7; x += 1) {
+        const isOuter = x === left || x === left + 6 || y === top || y === top + 6;
+        const isCore = x >= left + 2 && x <= left + 4 && y >= top + 2 && y <= top + 4;
+        setModule(x, y, isOuter || isCore);
+      }
+    }
+  };
+  const addAlignment = (centerX, centerY) => {
+    for (let y = -2; y <= 2; y += 1) {
+      for (let x = -2; x <= 2; x += 1) {
+        const distance = Math.max(Math.abs(x), Math.abs(y));
+        setModule(centerX + x, centerY + y, distance === 2 || distance === 0);
+      }
+    }
+  };
+  const reserveFormat = () => {
+    for (let index = 0; index < 15; index += 1) {
+      const first = index < 6 ? [8, index]
+        : index === 6 ? [8, 7]
+        : index === 7 ? [8, 8]
+        : index === 8 ? [7, 8]
+        : [14 - index, 8];
+      const second = index < 8 ? [size - 1 - index, 8] : [8, size - 15 + index];
+      setModule(first[0], first[1], false);
+      setModule(second[0], second[1], false);
+    }
+  };
+  addFinder(0, 0);
+  addFinder(size - 7, 0);
+  addFinder(0, size - 7);
+  for (let index = 8; index < size - 8; index += 1) {
+    const value = index % 2 === 0;
+    setModule(index, 6, value);
+    setModule(6, index, value);
+  }
+  setModule(8, size - 8, true);
+  reserveFormat();
+
+  const payloadBytes = Array.from(new TextEncoder().encode(payload));
+  const dataBits = [];
+  appendQrBits(dataBits, 0x4, 4);
+  appendQrBits(dataBits, payloadBytes.length, 8);
+  payloadBytes.forEach((byte) => appendQrBits(dataBits, byte, 8));
+  const capacityBits = dataCodewordsCount * 8;
+  const terminatorLength = Math.min(4, capacityBits - dataBits.length);
+  appendQrBits(dataBits, 0, Math.max(0, terminatorLength));
+  while (dataBits.length % 8) dataBits.push(0);
+  const dataCodewords = [];
+  for (let index = 0; index < dataBits.length; index += 8) {
+    dataCodewords.push(dataBits.slice(index, index + 8).reduce((byte, bit) => (byte << 1) | bit, 0));
+  }
+  for (let padIndex = 0; dataCodewords.length < dataCodewordsCount; padIndex += 1) {
+    dataCodewords.push(padIndex % 2 === 0 ? 0xec : 0x11);
+  }
+  const codewords = [...dataCodewords, ...getQrReedSolomonRemainder(dataCodewords, errorCodewordsCount)];
+  const codewordBits = [];
+  codewords.forEach((byte) => appendQrBits(codewordBits, byte, 8));
+
+  let bitIndex = 0;
+  let upward = true;
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (let vertical = 0; vertical < size; vertical += 1) {
+      const y = upward ? size - 1 - vertical : vertical;
+      for (let column = 0; column < 2; column += 1) {
+        const x = right - column;
+        if (reserved[y][x]) continue;
+        matrix[y][x] = Boolean(codewordBits[bitIndex] || 0);
+        bitIndex += 1;
+      }
+    }
+    upward = !upward;
+  }
+  const masks = [
+    (x, y) => (x + y) % 2 === 0,
+    (x, y) => y % 2 === 0,
+    (x) => x % 3 === 0,
+    (x, y) => (x + y) % 3 === 0,
+    (x, y) => (Math.floor(y / 2) + Math.floor(x / 3)) % 2 === 0,
+    (x, y) => ((x * y) % 2) + ((x * y) % 3) === 0,
+    (x, y) => (((x * y) % 2) + ((x * y) % 3)) % 2 === 0,
+    (x, y) => (((x + y) % 2) + ((x * y) % 3)) % 2 === 0,
+  ];
+  const maskIndex = Math.floor(Math.random() * masks.length);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      if (!reserved[y][x] && masks[maskIndex](x, y)) matrix[y][x] = !matrix[y][x];
+    }
+  }
+  const errorCorrectionBits = 1;
+  let formatData = (errorCorrectionBits << 3) | maskIndex;
+  let remainder = formatData;
+  for (let index = 0; index < 10; index += 1) {
+    remainder = (remainder << 1) ^ (((remainder >>> 9) & 1) ? 0x537 : 0);
+  }
+  const formatBits = ((formatData << 10) | remainder) ^ 0x5412;
+  for (let index = 0; index < 15; index += 1) {
+    const value = ((formatBits >>> index) & 1) !== 0;
+    const first = index < 6 ? [8, index]
+      : index === 6 ? [8, 7]
+      : index === 7 ? [8, 8]
+      : index === 8 ? [7, 8]
+      : [14 - index, 8];
+    const second = index < 8 ? [size - 1 - index, 8] : [8, size - 15 + index];
+    setModule(first[0], first[1], value);
+    setModule(second[0], second[1], value);
+  }
+  return matrix;
+}
+
+function renderRoutePrintQrCode() {
+  const payload = getRoutePrintQrPayload();
+  const variant = ROUTE_PRINT_QR_VARIANTS[Math.floor(Math.random() * ROUTE_PRINT_QR_VARIANTS.length)] || ROUTE_PRINT_QR_VARIANTS[0];
+  const quietZone = 4;
+  const moduleSize = ROUTE_PRINT_QR_SIZE + quietZone * 2;
+  const cells = [];
+  for (let index = 0; index < variant.length; index += 1) {
+    if (variant[index] !== "1") continue;
+    cells.push([index % ROUTE_PRINT_QR_SIZE + quietZone, Math.floor(index / ROUTE_PRINT_QR_SIZE) + quietZone]);
+  }
+  return `
+    <svg class="route-print-qr-placeholder" viewBox="0 0 ${moduleSize} ${moduleSize}" width="116" height="116" style="width:116px;height:116px;stroke:none;shape-rendering:crispEdges" role="img" aria-label="QR: ${escapeAttribute(payload)}" data-qr-payload="${escapeAttribute(payload)}">
+      <title>${escapeHtml(payload)}</title>
+      ${cells.map(([x, y]) => `<rect x="${x}" y="${y}" width="1" height="1" fill="#0f172a" />`).join("")}
+    </svg>
+  `;
+}
+
+function renderRoutePrintQrBox() {
+  return `
+    <div class="route-print-qr-box">
+      ${renderRoutePrintQrCode()}
+    </div>
+  `;
+}
+
+function renderRoutePrintCompositionTree(route) {
+  const tasks = getRouteTasksForModule(route).filter((task) => !task.isMain && !task.isOrphan);
+  const routeQuantity = getPlanningRouteQuantity(route);
+  if (!tasks.length) {
+    return `
+      <div class="route-print-empty">
+        <strong>Дерево объектов маршрута не найдено</strong>
+        <span>Сохраните связь с изделием или платой, чтобы маршрутная карта получила структуру для печати.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <table class="route-print-table route-print-composition-table">
+      <thead>
+        <tr>
+          <th>П/п</th>
+          <th>Объект</th>
+          <th>Ед. изм.</th>
+          <th>Кол-во на изд.</th>
+          <th>Кол-во партии</th>
+          <th class="route-print-qr-head">Код</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tasks.map((task, index) => `
+          <tr>
+            <td>${escapeHtml(task.number || String(index + 1))}</td>
+            <td>
+              <div class="route-print-tree-name" style="--level:${Math.max(0, Number(task.level || 0))}">
+                ${renderRoutePrintTreeLines(task)}
+                <strong>${escapeHtml(task.title || "Объект маршрута")}</strong>
+                <span>${escapeHtml(task.parentTitle || getRouteTaskTypeLabel(task))}</span>
+              </div>
+            </td>
+            <td>${escapeHtml(task.unit || "шт.")}</td>
+            <td>${escapeHtml(formatReportNumber(task.quantity || 1))}</td>
+            <td>${escapeHtml(formatReportNumber((task.quantity || 1) * routeQuantity))}</td>
+            ${index === 0 ? `<td class="route-print-qr-cell" rowspan="${tasks.length}">${renderRoutePrintQrBox()}</td>` : ""}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function getRoutePrintOperationQuantityView(snapshot = {}, step = {}, operationLabel = "") {
+  const quantity = Math.max(1, normalizeQuantity(snapshot.quantity || 1));
+  const boardsPerPanel = normalizeBoardsPerPanel(snapshot.boardsPerPanel || step.boardsPerPanel || 1, 1);
+  const isSmtLike = snapshot.calculationType === "components"
+    || isSmtOperationWorkCenter(snapshot.workCenterId || step.workCenterId || "", {
+      ...step,
+      operationName: operationLabel || step.operationName || "",
+      resourceId: snapshot.resourceId || step.resourceId || "",
+      boardsPerPanel,
+    }, planningState);
+  if (!isSmtLike) {
+    return {
+      unitLabel: "шт.",
+      quantityLabel: formatReportNumber(quantity),
+      extraParts: [],
+    };
+  }
+  return {
+    unitLabel: "мультипл.",
+    quantityLabel: formatReportNumber(Math.max(1, Math.ceil(quantity / boardsPerPanel))),
+    extraParts: [
+      `${formatReportNumber(quantity)} шт.`,
+      `${formatReportNumber(boardsPerPanel)} плат/мульт.`,
+    ],
+  };
+}
+
+function renderRoutePrintOperationsTable(route) {
+  const steps = getRouteStepsForModule(route?.id || "");
+  const tasks = getRouteTasksForModule(route);
+  const routeQuantity = getPlanningRouteQuantity(route);
+  const hasOperations = tasks.some((task) => getRouteStepsForTask(steps, task.id).length);
+  if (!tasks.length) {
+    return `
+      <div class="route-print-empty">
+        <strong>Объекты маршрута не найдены</strong>
+        <span>Сохраните связь с изделием или платой, чтобы маршрутная карта получила структуру для операций.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <table class="route-print-table route-print-operations-table">
+      <thead>
+        <tr>
+          <th>П/п</th>
+          <th>Операция</th>
+          <th>Ресурс</th>
+          <th>Дополнительно</th>
+          <th>Ед. изм.</th>
+          <th>Кол-во</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tasks.map((task) => {
+          const taskSteps = getRouteStepsForTask(steps, task.id);
+          const taskNumber = task.number === "00" ? "1" : task.number || "1";
+          return `
+            <tr class="route-print-task-row">
+              <td>${escapeHtml(taskNumber)}</td>
+              <td colspan="5">
+                <strong>${escapeHtml(task.title || "Объект маршрута")}</strong>
+                <span>${escapeHtml(`${formatReportNumber(task.quantity || 1)} ${task.unit || "шт."}${task.parentTitle ? ` · ${task.parentTitle}` : ""}`)}</span>
+              </td>
+            </tr>
+            ${taskSteps.length ? taskSteps.map((step, index) => {
+              const snapshot = getRouteStepLaborSnapshot(route, step, { routeQuantity });
+              const operation = getOperationMapItem(step.operationId);
+              const operationLabel = step.operationName || operation?.name || "Операция не выбрана";
+              const workCenterLabel = snapshot.workCenterLabel || getWorkCenter(step.workCenterId)?.name || step.workCenterId || "Отдел не выбран";
+              const resourceLabel = snapshot.resourceLabel && snapshot.resourceLabel !== "авто" ? snapshot.resourceLabel : "ресурс не задан";
+              const quantityView = getRoutePrintOperationQuantityView(snapshot, step, operationLabel);
+              const extraLabel = [resourceLabel, ...quantityView.extraParts].filter(Boolean).join(" · ");
+              return `
+                <tr>
+	                  <td>${escapeHtml(`оп. ${index + 1}`)}</td>
+	                  <td>
+	                    <span class="route-print-operation-main">${escapeHtml(operationLabel)}</span>
+		                  </td>
+	                  <td><span class="route-print-resource-main">${escapeHtml(workCenterLabel)}</span></td>
+	                  <td><span class="route-print-operation-extra">${escapeHtml(extraLabel)}</span></td>
+	                  <td>${escapeHtml(quantityView.unitLabel)}</td>
+	                  <td>${escapeHtml(quantityView.quantityLabel)}</td>
+	                </tr>
+              `;
+            }).join("") : `
+              <tr class="route-print-muted-row">
+                <td></td>
+                <td colspan="5">Операции для этого объекта не заданы</td>
+              </tr>
+            `}
+          `;
+        }).join("")}
+        ${hasOperations ? "" : `
+          <tr class="route-print-muted-row">
+            <td></td>
+            <td colspan="5">В маршрутной карте пока нет заполненных операций.</td>
+          </tr>
+        `}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderRoutePrintSignatureGrid() {
+  return `
+    <div class="route-print-signatures">
+      ${["Технолог", "Мастер участка", "Контроль качества", "Дата"].map((label) => `
+        <article>
+          <span>${escapeHtml(label)}</span>
+          <i aria-hidden="true"></i>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderRoutePrintSheet(route) {
+  const documentDate = formatDateTimeShort(new Date().toISOString());
+  const targetName = getRoutePrintTargetName(route);
+  const routeQuantity = getPlanningRouteQuantity(route);
+  const targetSummary = [targetName, `${formatReportNumber(routeQuantity)} шт.`].filter(Boolean).join(" | ");
+  return `
+    <article class="route-print-sheet" aria-label="Печатная форма маршрутной карты">
+      <section class="route-print-title-block">
+        <div class="route-print-title-row">
+          <h1>${escapeHtml(route?.name || "Маршрутная карта")}</h1>
+          <time class="route-print-title-date">${escapeHtml(documentDate)}</time>
+        </div>
+        <p>${escapeHtml(targetSummary)}</p>
+      </section>
+
+      <section class="route-print-section">
+        <header class="route-print-section-head">
+          <div>
+            <span>Состав изделия</span>
+            <h2>Дерево объектов маршрута</h2>
+          </div>
+        </header>
+        ${renderRoutePrintCompositionTree(route)}
+      </section>
+
+      <section class="route-print-section">
+        <header class="route-print-section-head">
+          <div>
+            <span>Технология</span>
+            <h2>Операции маршрута</h2>
+          </div>
+        </header>
+        ${renderRoutePrintOperationsTable(route)}
+      </section>
+
+      <section class="route-print-section route-print-notes">
+        <header class="route-print-section-head">
+          <div>
+            <span>Производство</span>
+            <h2>Отметки</h2>
+          </div>
+        </header>
+        <div>
+        </div>
+      </section>
+
+      ${renderRoutePrintSignatureGrid()}
+    </article>
+  `;
+}
+
+function renderRoutePrintPreviewModal() {
+  if (!ui.routePrintPreviewId) return "";
+  const route = (planningState.routes || []).find((item) => item.id === ui.routePrintPreviewId) || getActiveRouteForModule();
+  if (!route) return "";
+  return `
+    <div class="modal-backdrop route-print-backdrop" data-modal-backdrop>
+      <section class="modal large-modal route-print-modal" role="dialog" aria-modal="true" aria-label="Печатная форма маршрутной карты">
+        <div class="modal-header route-print-ui">
+          <div>
+            <span class="eyebrow">Печатная форма</span>
+            <h2>${escapeHtml(route.name || "Маршрутная карта")}</h2>
+          </div>
+          <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
+        </div>
+        <div class="route-print-scroll">
+          ${renderRoutePrintSheet(route)}
+        </div>
+        <div class="modal-footer route-print-ui">
+          <button class="secondary-button" data-close-modal type="button">${icon("close")}<span>Закрыть</span></button>
+          <button class="primary-button" data-route-print-run type="button">${icon("download")}<span>Печать / PDF</span></button>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -20134,7 +22927,7 @@ function renderRouteSmtModal() {
   if (!route || !step) return "";
   const calc = getRouteSmtStepCalculation(route, step);
   const title = ui.routeSmtPopup.type === "coefficients" ? "Коэффициенты типоразмеров" : "Расчет по компонентам BOM";
-  const contextLabel = ui.activeModule === "planning" ? "Планирование · SMT" : "SMT расчет";
+  const contextLabel = ui.activeModule === "planning" ? "Заказ-наряды · SMT" : "SMT расчет";
   return `
     <div class="modal-backdrop" data-modal-backdrop>
       <section class="modal large-modal form-modal route-smt-modal" role="dialog" aria-modal="true" aria-label="${escapeAttribute(title)}">
@@ -20315,6 +23108,7 @@ function renderDirectoryPage() {
               <input type="search" placeholder="Поиск по справочнику" />
             </label>
             <button class="secondary-button" data-directory-refresh type="button">${icon("refresh")}<span>Обновить</span></button>
+            <button class="secondary-button" data-directory-clear-filters type="button" ${directoryData.activeFilterCount ? "" : "disabled"}>${icon("filter")}<span>Сбросить фильтры</span></button>
             <button class="secondary-button danger" data-delete-directory-selected type="button" ${directoryData.rows.length ? "" : "disabled"}>${icon("trash")}<span>Удалить выбранное</span></button>
             <button class="primary-button" data-add-directory type="button">${icon("plus")}<span>Добавить запись</span></button>
           </div>
@@ -20466,34 +23260,6 @@ function getConfirmDialogConfig(dialog) {
       meta: "Заказ-наряд останется в планировании, чтобы его можно было скорректировать и передать в Гант заново.",
       confirmLabel: "Отменить заказ-наряд",
       confirmIcon: "close",
-      icon: "alert",
-      tone: "danger",
-    };
-  }
-
-  if (dialog?.action === "warehouseDeleteMovement") {
-    const movement = (planningState.warehouseMovements || []).find((item) => item.id === payload.movementId);
-    const item = getNomenclatureItem(movement?.nomenclatureItemId);
-    return {
-      title: "Удалить складское движение?",
-      body: `Движение по позиции "${item?.name || "номенклатура не выбрана"}" будет удалено из журнала склада.`,
-      meta: "Остаток пересчитается только из оставшихся явных движений и резервов.",
-      confirmLabel: "Удалить",
-      confirmIcon: "trash",
-      icon: "alert",
-      tone: "danger",
-    };
-  }
-
-  if (dialog?.action === "warehouseDeleteReservation") {
-    const reservation = (planningState.warehouseReservations || []).find((item) => item.id === payload.reservationId);
-    const item = getNomenclatureItem(reservation?.nomenclatureItemId);
-    return {
-      title: "Удалить резерв склада?",
-      body: `Резерв по позиции "${item?.name || "номенклатура не выбрана"}" будет снят.`,
-      meta: "Фактические складские движения не изменятся.",
-      confirmLabel: "Удалить",
-      confirmIcon: "trash",
       icon: "alert",
       tone: "danger",
     };
@@ -20836,7 +23602,7 @@ function getDirectoryFieldClassKey(key) {
 }
 
 function getDirectoryTableCellClass(sectionId, key, index) {
-  const longTextKeys = new Set(["name", "owner", "description", "usage", "scope", "workMode", "maintenance"]);
+  const longTextKeys = new Set(["name", "group", "owner", "description", "usage", "annotation", "impact", "scope", "workMode", "maintenance"]);
   const compactKeys = new Set([
     "code",
     "unitType",
@@ -20875,11 +23641,57 @@ function renderDirectoryTableHead(directoryData) {
             .replace(/\bprimary-cell\b/g, "is-primary-field")
             .replace(/\s+/g, " ")
             .trim();
-          return `<th class="${escapeAttribute(className)}">${escapeHtml(column)}</th>`;
+          return `<th class="${escapeAttribute(className)}">${renderDirectoryColumnFilter(directoryData, key, column)}</th>`;
         }).join("")}
         <th class="actions-cell">Действия</th>
       </tr>
     </thead>
+  `;
+}
+
+function renderDirectoryColumnFilter(directoryData, key, column) {
+  const options = getDirectoryColumnFilterOptions(directoryData, key);
+  const selectedValues = getDirectoryColumnFilterValues(directoryData.sectionId, key);
+  const selectedSet = new Set(selectedValues);
+  const isActive = selectedValues.length > 0;
+  const selectedCount = isActive ? selectedValues.length : options.length;
+  const fieldId = `${directoryData.sectionId}:${key}`;
+
+  return `
+    <details class="directory-column-filter ${isActive ? "is-active" : ""}" data-directory-filter="${escapeAttribute(fieldId)}">
+      <summary title="Фильтр по колонке ${escapeAttribute(column)}">
+        <span>${escapeHtml(column)}</span>
+        <em>${isActive ? `${selectedCount}/${options.length}` : ""}</em>
+        ${icon("filter")}
+      </summary>
+      <div class="directory-filter-menu" role="group" aria-label="Фильтр по колонке ${escapeAttribute(column)}">
+        <label class="directory-filter-search">
+          ${icon("search")}
+          <input type="search" data-directory-filter-search placeholder="Найти значение" />
+        </label>
+        <label class="directory-filter-option is-all">
+          <input type="checkbox" data-directory-filter-all ${selectedCount === options.length ? "checked" : ""} />
+          <span>Выбрать все</span>
+          <em>${options.length}</em>
+        </label>
+        <div class="directory-filter-options">
+          ${options.map((option) => {
+            const checked = !isActive || selectedSet.has(option.value);
+            return `
+              <label class="directory-filter-option" data-directory-filter-option-row="${escapeAttribute(normalizeDirectoryFilterSearch(option.value))}">
+                <input type="checkbox" data-directory-filter-option value="${escapeAttribute(option.value)}" ${checked ? "checked" : ""} />
+                <span>${escapeHtml(option.value)}</span>
+                <em>${option.count}</em>
+              </label>
+            `;
+          }).join("")}
+        </div>
+        <div class="directory-filter-actions">
+          <button type="button" data-directory-filter-reset data-directory-filter-section="${escapeAttribute(directoryData.sectionId)}" data-directory-filter-key="${escapeAttribute(key)}">Сбросить</button>
+          <button type="button" data-directory-filter-apply data-directory-filter-section="${escapeAttribute(directoryData.sectionId)}" data-directory-filter-key="${escapeAttribute(key)}">Применить</button>
+        </div>
+      </div>
+    </details>
   `;
 }
 
@@ -20911,7 +23723,9 @@ function getProductionResourceGroupSortIndex(workCenterId) {
 
 function getProductionResourceGroups(rows = []) {
   const groups = new Map();
-  rows.forEach((row, rowIndex) => {
+  rows.forEach((entry, index) => {
+    const row = entry?.row || entry;
+    const rowIndex = Number.isFinite(entry?.rowIndex) ? entry.rowIndex : index;
     const workCenterId = getProductionResourceWorkCenterId(row) || "__unassigned";
     if (!groups.has(workCenterId)) {
       groups.set(workCenterId, { workCenterId, items: [] });
@@ -21032,22 +23846,33 @@ function renderProductionResourceTableRow(directoryData, treeItem) {
 }
 
 function renderProductionResourcesDirectoryTable(directoryData) {
-  const groups = getProductionResourceGroups(directoryData.rows);
+  const groups = getProductionResourceGroups(directoryData.visibleRows);
   const columnCount = directoryData.keys.length + 1;
+  const visibleCount = directoryData.visibleRows.length;
+  const countLabel = directoryData.activeFilterCount
+    ? `${visibleCount} из ${directoryData.rows.length} записей · ${groups.length} групп · ${directoryData.activeFilterCount} фильтр.`
+    : `${directoryData.rows.length} записей · ${groups.length} групп`;
 
   return `
     <div class="directory-table-toolbar">
-      <strong>${directoryData.rows.length} записей · ${groups.length} групп</strong>
+      <strong>${countLabel}</strong>
       <span>${escapeHtml(directoryData.caption)}</span>
     </div>
     <div class="directory-table-wrap directory-resource-table-wrap" data-layout="table">
       <table class="directory-table directory-resource-table">
         ${renderDirectoryTableHead(directoryData)}
         <tbody>
-          ${groups.map((group) => `
+          ${groups.length ? groups.map((group) => `
             ${renderProductionResourceGroupRow(group, columnCount)}
             ${getProductionResourceTreeItems(group.items).map((treeItem) => renderProductionResourceTableRow(directoryData, treeItem)).join("")}
-          `).join("")}
+          `).join("") : `
+            <tr>
+              <td class="primary-cell directory-empty-filter-cell" colspan="${columnCount}">
+                <strong>Нет строк по текущим фильтрам</strong>
+                <span>Сбросьте фильтры или выберите другие значения в заголовках колонок.</span>
+              </td>
+            </tr>
+          `}
         </tbody>
       </table>
     </div>
@@ -21058,36 +23883,66 @@ function renderDirectoryTable(directoryData) {
   if (directoryData.sectionId === "productionResources") {
     return renderProductionResourcesDirectoryTable(directoryData);
   }
+  const tableClass = directoryData.sectionId === "statuses"
+    ? "directory-table directory-status-table"
+    : "directory-table";
+  const visibleCount = directoryData.visibleRows.length;
+  const countLabel = directoryData.activeFilterCount
+    ? `${visibleCount} из ${directoryData.rows.length} записей · ${directoryData.activeFilterCount} фильтр.`
+    : `${directoryData.rows.length} записей`;
 
   return `
     <div class="directory-table-toolbar">
-      <strong>${directoryData.rows.length} записей</strong>
+      <strong>${countLabel}</strong>
       <span>${escapeHtml(directoryData.caption)}</span>
     </div>
     <div class="directory-table-wrap" data-layout="table">
-      <table class="directory-table">
+      <table class="${tableClass}">
         ${renderDirectoryTableHead(directoryData)}
         <tbody>
-          ${directoryData.rows.map((row, rowIndex) => `
-            <tr class="${getSelectedDirectoryRowIndex(directoryData.sectionId, directoryData.rows) === rowIndex ? "is-selected" : ""}" data-directory-row="${rowIndex}">
+          ${directoryData.visibleRows.length ? directoryData.visibleRows.map(({ row, rowIndex }) => `
+            <tr class="${escapeAttribute(getDirectoryTableRowClass(directoryData.sectionId, row, rowIndex, directoryData.rows))}" data-directory-row="${rowIndex}">
               ${directoryData.keys.map((key, index) => `
-                <td class="${escapeAttribute(getDirectoryTableCellClass(directoryData.sectionId, key, index))}">${escapeHtml(formatDirectoryCell(directoryData.sectionId, key, row[key]))}</td>
+                <td class="${escapeAttribute(getDirectoryTableCellClass(directoryData.sectionId, key, index))}">${renderDirectoryCellContent(directoryData.sectionId, key, row[key], row)}</td>
               `).join("")}
               <td class="actions-cell">
                 <button class="table-icon-button" data-edit-directory-row="${rowIndex}" type="button" title="Редактировать запись">${icon("edit")}</button>
                 <button class="table-icon-button danger-soft" data-delete-directory-row="${rowIndex}" type="button" title="Удалить запись">${icon("trash")}</button>
               </td>
             </tr>
-          `).join("")}
+          `).join("") : `
+            <tr>
+              <td class="primary-cell directory-empty-filter-cell" colspan="${directoryData.keys.length + 1}">
+                <strong>Нет строк по текущим фильтрам</strong>
+                <span>Сбросьте фильтры или выберите другие значения в заголовках колонок.</span>
+              </td>
+            </tr>
+          `}
         </tbody>
       </table>
     </div>
   `;
 }
 
+function getDirectoryTableRowClass(sectionId, row, rowIndex, rows = []) {
+  return [
+    getSelectedDirectoryRowIndex(sectionId, rows) === rowIndex ? "is-selected" : "",
+    sectionId === "statuses" ? `is-status-audit-${getStatusAuditInfo(row).tone}` : "",
+  ].filter(Boolean).join(" ");
+}
+
+function renderDirectoryCellContent(sectionId, key, value, row = {}) {
+  if (sectionId === "statuses" && key === "audit") {
+    const audit = getStatusAuditInfo(row);
+    return `<span class="status-audit-token is-${escapeAttribute(audit.tone)}" title="${escapeAttribute(audit.meta)}">${escapeHtml(audit.label)}</span>`;
+  }
+  return escapeHtml(formatDirectoryCell(sectionId, key, value));
+}
+
 function renderDirectoryDetail(activeSection, directoryData) {
   const firstRow = directoryData.rows[getSelectedDirectoryRowIndex(activeSection.id, directoryData.rows)];
   const health = getDirectoryHealth(activeSection.id);
+  const detailKeys = activeSection.id === "statuses" ? directoryData.keys : directoryData.keys.slice(0, 5);
 
   return `
     <div class="detail-card-head">
@@ -21095,15 +23950,19 @@ function renderDirectoryDetail(activeSection, directoryData) {
       <h3>${escapeHtml(firstRow?.[directoryData.keys[0]] || activeSection.label)}</h3>
     </div>
     <dl class="directory-detail-list">
-      ${firstRow ? directoryData.keys.slice(0, 5).map((key, index) => `
+      ${firstRow ? detailKeys.map((key) => {
+        const columnIndex = directoryData.keys.indexOf(key);
+        return `
         <div>
-          <dt>${escapeHtml(directoryData.columns[index])}</dt>
+          <dt>${escapeHtml(directoryData.columns[columnIndex] || key)}</dt>
           <dd>${escapeHtml(formatDirectoryCell(activeSection.id, key, firstRow[key]))}</dd>
         </div>
-      `).join("") : `
+      `;
+      }).join("") : `
         <div><dt>Состояние</dt><dd>Нет записей</dd></div>
       `}
     </dl>
+    ${activeSection.id === "statuses" && firstRow ? renderStatusImpactMap(firstRow) : ""}
     ${activeSection.id === "productionResources" && firstRow ? renderProductionResourceCalculationFactors(firstRow) : ""}
     <div class="directory-health">
       <div>
@@ -21116,6 +23975,249 @@ function renderDirectoryDetail(activeSection, directoryData) {
       </div>
     </div>
   `;
+}
+
+function renderStatusImpactMap(row = {}) {
+  const impact = getStatusImpactMap(row);
+  return `
+    <section class="status-impact-map" aria-label="Карта влияния статуса">
+      <div class="status-impact-head">
+        <span>Карта влияния</span>
+        <strong>${escapeHtml(row.name || row.code || "Статус")}</strong>
+        <em class="is-${escapeAttribute(impact.decisionTone)}">${escapeHtml(impact.decision)}</em>
+      </div>
+      <div class="status-impact-grid">
+        <article>
+          <span>Где используется</span>
+          <strong>${escapeHtml(impact.modules.join(" · "))}</strong>
+        </article>
+        <article>
+          <span>Что блокирует</span>
+          <strong>${escapeHtml(impact.blocks)}</strong>
+        </article>
+        <article>
+          <span>Что меняет</span>
+          <strong>${escapeHtml(impact.changes)}</strong>
+        </article>
+        <article>
+          <span>Можно ли удалить</span>
+          <strong>${escapeHtml(impact.deleteRule)}</strong>
+        </article>
+      </div>
+      <p>${escapeHtml(impact.note)}</p>
+    </section>
+  `;
+}
+
+function getStatusImpactMap(row = {}) {
+  const id = String(row.id || "").trim();
+  const code = String(row.code || "").trim();
+  const group = normalizeLookupText(row.group || "");
+  const type = normalizeLookupText(row.type || "");
+  const name = normalizeLookupText(row.name || "");
+
+  const makeImpact = (config = {}) => ({
+    modules: config.modules || ["Справочники"],
+    blocks: config.blocks || "не блокирует напрямую",
+    changes: config.changes || row.impact || row.annotation || "визуальное состояние строки",
+    deleteRule: config.deleteRule || "можно удалить после проверки связей",
+    decision: config.decision || "Проверить",
+    decisionTone: config.decisionTone || "warning",
+    note: config.note || "Это предварительная карта влияния: она помогает понять, является ли статус бизнес-состоянием, сигналом или кандидатом на удаление.",
+  });
+
+  if (id.startsWith("signal-")) {
+    return makeImpact({
+      modules: ["UI-состояния", "Визуальный язык"],
+      blocks: "ничего не блокирует",
+      changes: "только цвет, подпись и визуальную семантику интерфейса",
+      deleteRule: "можно убрать из бизнес-статусов; оставить как дизайн-токен",
+      decision: "Без влияния",
+      decisionTone: "muted",
+      note: "Это чистый визуальный сигнал. Он не хранит состояние объекта и не меняет расчет или процесс.",
+    });
+  }
+
+  if (id.startsWith("planning-flow-") || id.startsWith("planning-passport-")) {
+    return makeImpact({
+      modules: ["Заказ-наряды", "UI"],
+      blocks: "самостоятельно ничего не блокирует",
+      changes: "подписи, плашки и подсказки, которые выводятся из других данных",
+      deleteRule: "можно убрать из справочника статусов и оставить как расчетный UI-текст",
+      decision: "UI-индикатор",
+      decisionTone: "muted",
+      note: "Это не состояние, которое пользователь должен вести руками. Его можно вычислять из маршрута, слотов, ERP-полей или состава.",
+    });
+  }
+
+  if (id.startsWith("slot-") || type.includes("операция gantt")) {
+    const isCompleted = code === "completed";
+    const isProblem = code === "problem" || code === "overdue";
+    return makeImpact({
+      modules: ["Планирование", "Гант", "Заказ-наряды", "Мастерская", "Диспетчерская"],
+      blocks: isCompleted
+        ? "перетаскивание, пересчет и часть правок завершенной операции"
+        : isProblem ? "не блокирует, но поднимает критический сигнал" : "не блокирует напрямую",
+      changes: isCompleted
+        ? "прогресс маршрута, доступность редактирования, пересчеты календаря"
+        : "цвет колбаски, фильтры, отчеты, состояние сменных заданий",
+      deleteRule: "нельзя удалять без замены в модели операций",
+      decision: "Ядро",
+      decisionTone: "critical",
+      note: "Это состояние операции на Ганте. Его удаление меняет не только подпись, но и поведение слота.",
+    });
+  }
+
+  if (id.startsWith("project-") || type.includes("изделие") || group.includes("специфика")) {
+    return makeImpact({
+      modules: ["Спецификации", "Заказ-наряды", "Планирование", "Отчеты"],
+      blocks: code === "completed" ? "дальнейшую трактовку изделия как незавершенного" : "не блокирует напрямую",
+      changes: "портфель изделий, фильтры, готовность производственного объекта и верхнеуровневый прогресс",
+      deleteRule: "оставить минимальный набор жизненного цикла изделия",
+      decision: "Ядро",
+      decisionTone: "critical",
+      note: "Это состояние производственного объекта. Его можно сократить, но нужно заменить понятной моделью жизненного цикла.",
+    });
+  }
+
+  if (id.startsWith("route-") || type.includes("заказ") || type.includes("маршрут")) {
+    return makeImpact({
+      modules: ["Заказ-наряды", "Маршрутные карты", "Планирование", "Гант"],
+      blocks: code === "canceled" ? "активное размещение отмененного заказ-наряда" : "повторную трактовку очереди без явного состояния",
+      changes: "очередь заказ-нарядов, передачу в Гант, отмену, признак частичного размещения",
+      deleteRule: "оставить минимум: черновик / в планировании / отменен",
+      decision: "Ядро",
+      decisionTone: "critical",
+      note: "Это состояние документа, а не декоративный бейдж. Его можно сокращать, но нельзя просто стереть.",
+    });
+  }
+
+  if (id.startsWith("dispatch-")) {
+    return makeImpact({
+      modules: ["Диспетчерская", "Мастерская"],
+      blocks: code === "not_reported" ? "различение пустого факта и факта с нулем" : "закрытие сменного факта без явного результата",
+      changes: "план/факт смены, отклонения, проблемные сменные заказ-наряды",
+      deleteRule: "нельзя удалять до замены расчетом факта",
+      decision: "Ядро",
+      decisionTone: "critical",
+      note: "Фактический статус нужен, чтобы диспетчер видел, что именно произошло со сменным заданием.",
+    });
+  }
+
+  if (id.startsWith("fulfillment-") || ["not_selected", "produce", "from_stock", "purchase", "external"].includes(code)) {
+    return makeImpact({
+      modules: ["Спецификации", "Маршрутные карты", "Заказ-наряды", "Складской контур", "Снабжение"],
+      blocks: code === "not_selected" ? "передачу заказ-наряда в Гант до выбора обеспечения" : "ошибочную маршрутизацию состава",
+      changes: "правила обеспечения состава: производить, взять со склада, купить или вынести наружу",
+      deleteRule: "это не статус, а режим обеспечения; удалять нельзя",
+      decision: "Ядро",
+      decisionTone: "critical",
+      note: "Эти строки лучше переименовать из статусов в режимы обеспечения, но бизнес-логику надо сохранить.",
+    });
+  }
+
+  if (id.startsWith("planning-supply-")) {
+    return makeImpact({
+      modules: ["Заказ-наряды", "Маршрутные карты", "Спецификации"],
+      blocks: name.includes("нуж") || name.includes("выберите") || name.includes("уберите")
+        ? "передачу заказ-наряда в Гант до исправления состава/маршрута"
+        : "не блокирует напрямую",
+      changes: "готовность ветки состава, предупреждения, список причин блокировки",
+      deleteRule: "перевести в расчетные сигналы, не хранить как ручные статусы",
+      decision: "Расчетный",
+      decisionTone: "ok",
+      note: "Это хороший кандидат на автоматический сигнал: он должен вычисляться из состава и операций.",
+    });
+  }
+
+  if (code === "active" || code === "inactive" || code === "Активен" || code === "Отключен" || name.includes("актив") || name.includes("отключ")) {
+    return makeImpact({
+      modules: ["Справочники", "Ресурсы", "Расчеты", "Гант"],
+      blocks: "участие отключенных ресурсов и отделов в планировании",
+      changes: "доступность отдела/ресурса, участие в расчетах и выбор в формах",
+      deleteRule: "оставить как технический флаг активности, не как статусный шум",
+      decision: "Флаг",
+      decisionTone: "warning",
+      note: "Это лучше воспринимать как boolean-флаг активности, а не как производственный статус.",
+    });
+  }
+
+  if (code === "yes" || code === "no" || name === "да" || name === "нет") {
+    return makeImpact({
+      modules: ["Справочники", "Ресурсы"],
+      blocks: "участие ресурса в планировании или расчете",
+      changes: "попадание ресурса в варианты выбора и формулы",
+      deleteRule: "перевести в отдельные флаги, из справочника статусов убрать",
+      decision: "Флаг",
+      decisionTone: "warning",
+      note: "Это не статус. Это настройка участия, ее нужно держать отдельно от жизненных состояний.",
+    });
+  }
+
+  if (group.includes("производство") || group.includes("планирование")) {
+    return makeImpact({
+      modules: ["Производственные модули"],
+      blocks: "зависит от конкретного использования",
+      changes: row.impact || "производственные фильтры и сигналы",
+      deleteRule: "проверить вручную перед удалением",
+      decision: "Проверить",
+      decisionTone: "warning",
+      note: "Статус похож на производственный, но требует ручной проверки связей.",
+    });
+  }
+
+  return makeImpact();
+}
+
+function getStatusAuditInfo(row = {}) {
+  const id = String(row.id || "").trim();
+  const impact = getStatusImpactMap(row);
+
+  if (impact.decision === "Без влияния") {
+    return {
+      label: "Без влияния",
+      tone: "visual",
+      meta: "Чистый визуальный сигнал: не хранит бизнес-состояние и не меняет расчеты.",
+    };
+  }
+
+  if (impact.decision === "UI-индикатор") {
+    return {
+      label: "UI-индикатор",
+      tone: "visual",
+      meta: "Расчетная подпись экрана: можно убрать из справочника статусов и вычислять из данных.",
+    };
+  }
+
+  if (impact.decision === "Расчетный") {
+    return {
+      label: "Расчетный",
+      tone: "computed",
+      meta: "Не должен храниться вручную, но отражает реальную проверку данных.",
+    };
+  }
+
+  if (impact.decision === "Флаг") {
+    return {
+      label: "Флаг",
+      tone: "flag",
+      meta: "Лучше хранить как настройку/boolean, а не как статус жизненного цикла.",
+    };
+  }
+
+  if (impact.decision === "Ядро") {
+    return {
+      label: "Ядро",
+      tone: "core",
+      meta: "Влияет на сценарии, расчеты, блокировки или жизненный цикл объекта.",
+    };
+  }
+
+  return {
+    label: "Проверить",
+    tone: "review",
+    meta: "Нужно проверить вручную перед удалением или переносом.",
+  };
 }
 
 function renderProductionResourceCalculationFactors(resource = {}) {
@@ -21188,10 +24290,14 @@ function getDirectoryData(sectionId) {
 
   if (sectionId === "statuses") {
     return makeDirectoryData(sectionId, {
-      caption: "Единые статусы для производственного планирования, мониторинга, ресурсов, оборудования и системных справочников.",
-      columns: ["Статус", "Тип", "Код", "Использование"],
-      keys: ["name", "type", "code", "usage"],
-      rows: directoryState.statuses,
+      caption: "Единые статусы, режимы и системные сигналы по отделам и модулям MES. Аннотация объясняет смысл, а влияние показывает, какую часть системы меняет статус.",
+      columns: ["Группа / отдел", "Категория", "Статус", "Ревизия", "Объект", "Код", "Аннотация", "Влияние"],
+      keys: ["group", "registryKind", "name", "audit", "type", "code", "annotation", "impact"],
+      rows: (directoryState.statuses || []).map((row) => ({
+        ...row,
+        registryKind: getStatusRegistryKindLabel(row.registryKind),
+        audit: getStatusAuditInfo(row).label,
+      })),
     });
   }
 
@@ -21235,7 +24341,8 @@ function getDirectoryData(sectionId) {
 }
 
 function makeDirectoryData(sectionId, config) {
-  return {
+  const rows = Array.isArray(config.rows) ? config.rows : [];
+  const data = {
     sectionId,
     fields: config.keys.map((key, index) => ({
       key,
@@ -21245,7 +24352,116 @@ function makeDirectoryData(sectionId, config) {
       readonly: isDirectoryFieldReadonly(sectionId, key),
     })),
     ...config,
+    rows,
   };
+  const visibleRows = rows
+    .map((row, rowIndex) => ({ row, rowIndex }))
+    .filter(({ row }) => directoryRowMatchesColumnFilters(data, row));
+  return {
+    ...data,
+    visibleRows,
+    activeFilterCount: getDirectoryActiveFilterCount(sectionId),
+  };
+}
+
+function normalizeDirectoryColumnFilters(filters = {}) {
+  if (!filters || typeof filters !== "object") return {};
+  return Object.fromEntries(Object.entries(filters).map(([sectionId, sectionFilters]) => {
+    if (!sectionFilters || typeof sectionFilters !== "object") return [sectionId, {}];
+    const normalizedSection = Object.fromEntries(Object.entries(sectionFilters).map(([key, values]) => [
+      key,
+      Array.isArray(values)
+        ? [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))]
+        : [],
+    ]).filter(([, values]) => values.length));
+    return [sectionId, normalizedSection];
+  }).filter(([, sectionFilters]) => Object.keys(sectionFilters).length));
+}
+
+function getDirectorySectionFilters(sectionId) {
+  const normalized = normalizeDirectoryColumnFilters(ui.directoryColumnFilters);
+  if (normalized !== ui.directoryColumnFilters) ui.directoryColumnFilters = normalized;
+  return normalized[sectionId] || {};
+}
+
+function getDirectoryColumnFilterValues(sectionId, key) {
+  return getDirectorySectionFilters(sectionId)[key] || [];
+}
+
+function getDirectoryActiveFilterCount(sectionId) {
+  return Object.values(getDirectorySectionFilters(sectionId))
+    .filter((values) => Array.isArray(values) && values.length)
+    .length;
+}
+
+function getDirectoryFilterCellValue(sectionId, key, row = {}) {
+  if (sectionId === "statuses" && key === "audit") return getStatusAuditInfo(row).label;
+  return formatDirectoryCell(sectionId, key, row[key]);
+}
+
+function getDirectoryFilterToken(sectionId, key, row = {}) {
+  return String(getDirectoryFilterCellValue(sectionId, key, row) ?? "").trim() || "-";
+}
+
+function normalizeDirectoryFilterSearch(value = "") {
+  return normalizeLookupText(value).replace(/\s+/g, " ").trim();
+}
+
+function directoryRowMatchesColumnFilters(directoryData, row = {}) {
+  const filters = getDirectorySectionFilters(directoryData.sectionId);
+  return Object.entries(filters).every(([key, values]) => {
+    if (!Array.isArray(values) || !values.length) return true;
+    return values.includes(getDirectoryFilterToken(directoryData.sectionId, key, row));
+  });
+}
+
+function getDirectoryColumnFilterOptions(directoryData, key) {
+  const counts = new Map();
+  directoryData.rows.forEach((row) => {
+    const token = getDirectoryFilterToken(directoryData.sectionId, key, row);
+    counts.set(token, (counts.get(token) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((left, right) => {
+      if (left.value === "-") return 1;
+      if (right.value === "-") return -1;
+      return left.value.localeCompare(right.value, "ru", { numeric: true });
+    });
+}
+
+function setDirectoryColumnFilter(sectionId, key, values = []) {
+  const normalizedValues = [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+  const nextFilters = normalizeDirectoryColumnFilters(ui.directoryColumnFilters);
+  const sectionFilters = { ...(nextFilters[sectionId] || {}) };
+  if (normalizedValues.length) {
+    sectionFilters[key] = normalizedValues;
+  } else {
+    delete sectionFilters[key];
+  }
+  if (Object.keys(sectionFilters).length) {
+    nextFilters[sectionId] = sectionFilters;
+  } else {
+    delete nextFilters[sectionId];
+  }
+  ui.directoryColumnFilters = nextFilters;
+  const nextData = getDirectoryData(sectionId);
+  ui.selectedDirectoryRows[sectionId] = nextData.visibleRows[0]?.rowIndex ?? 0;
+  persistUiState();
+  render();
+}
+
+function clearDirectoryColumnFilter(sectionId, key) {
+  setDirectoryColumnFilter(sectionId, key, []);
+}
+
+function clearDirectorySectionFilters(sectionId) {
+  const nextFilters = normalizeDirectoryColumnFilters(ui.directoryColumnFilters);
+  delete nextFilters[sectionId];
+  ui.directoryColumnFilters = nextFilters;
+  ui.selectedDirectoryRows[sectionId] = 0;
+  persistUiState();
+  render();
 }
 
 function getDirectoryFieldType(sectionId, key) {
@@ -21282,6 +24498,8 @@ function getDirectoryFieldType(sectionId, key) {
 }
 
 function isDirectoryFieldReadonly(sectionId, key) {
+  if (sectionId === "statuses" && key === "audit") return true;
+  if (sectionId === "statuses" && key === "registryKind") return true;
   return false;
 }
 
@@ -21646,7 +24864,8 @@ function exposeVisualQaRuntimeApi() {
   window.__mesVisualQaRuntime = {
     navigateToModule(moduleId) {
       const target = String(moduleId || "");
-      if (!getAvailableModules().some((moduleItem) => moduleItem.id === target)) return ui.activeModule;
+      const normalizedTarget = target === "bomLists" ? "nomenclature" : target;
+      if (!getAvailableModules().some((moduleItem) => moduleItem.id === normalizedTarget)) return ui.activeModule;
       navigateToModule(target);
       return ui.activeModule;
     },
@@ -21655,6 +24874,15 @@ function exposeVisualQaRuntimeApi() {
     },
     getActiveModuleLabel() {
       return getVisualQaModuleLabel(ui.activeModule);
+    },
+    setFocusMode(enabled) {
+      ui.focusMode = Boolean(enabled);
+      persistUiState();
+      render();
+      return ui.focusMode;
+    },
+    getFocusMode() {
+      return Boolean(ui.focusMode);
     },
   };
 }
@@ -21684,6 +24912,8 @@ function switchInterfaceRole(roleId) {
 }
 
 function navigateToModule(moduleId) {
+  const requestedModuleId = moduleId;
+  moduleId = moduleId === "bomLists" ? "nomenclature" : moduleId;
   if (!getAvailableModules().some((moduleItem) => moduleItem.id === moduleId)) return;
   const previousModule = ui.activeModule;
   ui.activeModule = moduleId;
@@ -21694,9 +24924,7 @@ function navigateToModule(moduleId) {
   ui.activeShopMapWidgetId = "";
   if (moduleId === "nomenclature" && previousModule !== "nomenclature") {
     ui.activeNomenclatureId = "";
-  }
-  if (moduleId === "bomLists" && previousModule !== "bomLists") {
-    ui.activeBomId = "";
+    ui.activeNomenclaturePane = requestedModuleId === "bomLists" ? "boards" : "items";
   }
   if (moduleId === "rkd" && previousModule !== "rkd") {
     ui.activeSpecificationId = "";
@@ -21755,16 +24983,6 @@ function performConfirmedAction(dialog) {
 
   if (dialog.action === "planningCancelRoute") {
     cancelPlanningRoute(payload.routeId);
-    return;
-  }
-
-  if (dialog.action === "warehouseDeleteMovement") {
-    deleteWarehouseMovementConfirmed(payload.movementId);
-    return;
-  }
-
-  if (dialog.action === "warehouseDeleteReservation") {
-    deleteWarehouseReservationConfirmed(payload.reservationId);
     return;
   }
 
@@ -22088,6 +25306,59 @@ function bindDirectoryEvents() {
     render();
   });
 
+  app.querySelector("[data-directory-clear-filters]")?.addEventListener("click", () => {
+    clearDirectorySectionFilters(ui.activeDirectory);
+  });
+
+  app.querySelectorAll("[data-directory-filter-search]").forEach((field) => {
+    field.addEventListener("input", () => {
+      const root = field.closest(".directory-filter-menu");
+      const query = normalizeDirectoryFilterSearch(field.value);
+      root?.querySelectorAll("[data-directory-filter-option-row]").forEach((optionRow) => {
+        const matches = !query || String(optionRow.dataset.directoryFilterOptionRow || "").includes(query);
+        optionRow.hidden = !matches;
+      });
+    });
+  });
+
+  app.querySelectorAll("[data-directory-filter-all]").forEach((field) => {
+    field.addEventListener("change", () => {
+      const root = field.closest(".directory-filter-menu");
+      root?.querySelectorAll("[data-directory-filter-option]").forEach((option) => {
+        if (option.closest("[data-directory-filter-option-row]")?.hidden) return;
+        option.checked = field.checked;
+      });
+    });
+  });
+
+  app.querySelectorAll("[data-directory-filter-option]").forEach((field) => {
+    field.addEventListener("change", () => {
+      const root = field.closest(".directory-filter-menu");
+      const visibleOptions = [...(root?.querySelectorAll("[data-directory-filter-option]") || [])]
+        .filter((option) => !option.closest("[data-directory-filter-option-row]")?.hidden);
+      const allToggle = root?.querySelector("[data-directory-filter-all]");
+      if (allToggle) allToggle.checked = visibleOptions.length > 0 && visibleOptions.every((option) => option.checked);
+    });
+  });
+
+  app.querySelectorAll("[data-directory-filter-apply]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const root = button.closest(".directory-filter-menu");
+      const allOptions = [...(root?.querySelectorAll("[data-directory-filter-option]") || [])];
+      const checkedValues = allOptions
+        .filter((option) => option.checked)
+        .map((option) => option.value);
+      const nextValues = checkedValues.length === allOptions.length ? [] : checkedValues;
+      setDirectoryColumnFilter(button.dataset.directoryFilterSection, button.dataset.directoryFilterKey, nextValues);
+    });
+  });
+
+  app.querySelectorAll("[data-directory-filter-reset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      clearDirectoryColumnFilter(button.dataset.directoryFilterSection, button.dataset.directoryFilterKey);
+    });
+  });
+
   app.querySelectorAll("[data-close-modal], [data-modal-backdrop]").forEach((element) => {
     element.addEventListener("click", (event) => {
       if (event.target !== element && !element.matches("[data-close-modal]")) return;
@@ -22299,6 +25570,26 @@ function bindPlanningEvents() {
     });
   });
 
+  app.querySelectorAll("[data-planning-demo-labor]").forEach((field) => {
+    const commit = () => {
+      const key = field.dataset.planningDemoLabor || "";
+      if (!key) return;
+      ui.planningDemoLaborByRow = normalizePlanningDemoLaborByRow({
+        ...(ui.planningDemoLaborByRow || {}),
+        [key]: field.value,
+      });
+      persistUiState();
+    };
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      field.blur();
+      commit();
+    });
+    field.addEventListener("input", commit);
+    field.addEventListener("change", commit);
+  });
+
   app.querySelectorAll("[data-planning-supply-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       updatePlanningSupplyFulfillment(
@@ -22342,110 +25633,200 @@ function bindPlanningEvents() {
       persistUiState();
       render();
     });
-  });
-}
+	  });
+	}
 
-function bindWarehouseEvents() {
-  app.querySelector("#warehouseMovementForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    createWarehouseMovementFromForm(event.currentTarget);
-  });
-
-  app.querySelector("#warehouseReservationForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    createWarehouseReservationFromForm(event.currentTarget);
-  });
-
-  app.querySelectorAll("[data-warehouse-delete-movement]").forEach((button) => {
+function bindShiftMasterEvents() {
+  app.querySelectorAll("[data-shift-master-login]").forEach((button) => {
     button.addEventListener("click", () => {
-      openConfirmDialog("warehouseDeleteMovement", { movementId: button.dataset.warehouseDeleteMovement || "" });
+      ui.activeShiftMasterId = button.dataset.shiftMasterLogin || getShiftMasterProfiles()[0]?.id || "";
+      ui.shiftMasterSelectedSlotId = "";
+      persistUiState();
+      render();
     });
   });
 
-  app.querySelectorAll("[data-warehouse-delete-reservation]").forEach((button) => {
+  bindShiftCalendarEvents();
+
+  app.querySelectorAll("[data-shift-master-select]").forEach((button) => {
     button.addEventListener("click", () => {
-      openConfirmDialog("warehouseDeleteReservation", { reservationId: button.dataset.warehouseDeleteReservation || "" });
+      ui.shiftMasterSelectedSlotId = button.dataset.shiftMasterSelect || "";
+      persistUiState();
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-shift-master-resource]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateShiftMasterAssignment(field.dataset.shiftMasterResource || "", { resourceId: field.value });
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-shift-master-employee]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateShiftMasterAssignment(field.dataset.shiftMasterEmployee || "", { employeeId: field.value });
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-shift-master-note]").forEach((field) => {
+    const commit = () => {
+      updateShiftMasterAssignment(field.dataset.shiftMasterNote || "", { note: field.value });
+      render();
+    };
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      field.blur();
+      commit();
+    });
+    field.addEventListener("change", commit);
+  });
+
+  app.querySelector("[data-shift-master-issue-all]")?.addEventListener("click", () => {
+    const window = getShiftWorkbenchWindow();
+    const activeProfile = getShiftMasterProfile(ui.activeShiftMasterId);
+    const rows = getShiftWorkOrderRows({ window, masterProfile: activeProfile });
+    const updatedCount = issueShiftMasterRows(rows);
+    notifySaveSuccess(updatedCount
+      ? `Выпущено сменных листов: ${updatedCount.toLocaleString("ru-RU")}`
+      : "Нет строк для выпуска");
+    render();
+  });
+
+  app.querySelectorAll("[data-shift-master-issue]").forEach((button) => {
+    button.addEventListener("click", () => {
+      updateShiftMasterAssignment(button.dataset.shiftMasterIssue || "", { status: "issued" });
+      notifySaveSuccess("Сменный заказ-наряд выпущен");
+      render();
     });
   });
 }
 
-function createWarehouseMovementFromForm(form) {
-  const formData = new FormData(form);
-  const nomenclatureItemId = String(formData.get("nomenclatureItemId") || "").trim();
-  const item = getNomenclatureItem(nomenclatureItemId);
-  if (!item) {
-    notifySaveSuccess("Выберите существующую позицию номенклатуры");
-    return;
-  }
+function bindDispatchEvents() {
+  bindShiftCalendarEvents();
 
-  const quantity = normalizeWarehouseQuantity(formData.get("quantity"));
-  if (quantity <= 0) {
-    notifySaveSuccess("Укажите количество больше нуля");
-    return;
-  }
-
-  const movement = normalizeWarehouseMovement({
-    id: makeId("wm"),
-    movementType: String(formData.get("movementType") || "receipt"),
-    nomenclatureItemId,
-    quantity,
-    routeId: String(formData.get("routeId") || ""),
-    warehouseName: String(formData.get("warehouseName") || "").trim(),
-    locationName: String(formData.get("locationName") || "").trim(),
-    comment: String(formData.get("comment") || "").trim(),
-    createdAt: new Date().toISOString(),
+  app.querySelectorAll("[data-dispatch-select-slot]").forEach((button) => {
+    button.addEventListener("click", () => {
+      ui.activeDispatchSlotId = button.dataset.dispatchSelectSlot || "";
+      persistUiState();
+      render();
+    });
   });
-  if (!movement) return;
 
-  planningState.warehouseMovements = [movement, ...(planningState.warehouseMovements || [])];
-  persistState();
-  notifySaveSuccess("Складское движение добавлено");
-  render();
-}
-
-function createWarehouseReservationFromForm(form) {
-  const formData = new FormData(form);
-  const nomenclatureItemId = String(formData.get("nomenclatureItemId") || "").trim();
-  const item = getNomenclatureItem(nomenclatureItemId);
-  if (!item) {
-    notifySaveSuccess("Выберите существующую позицию номенклатуры");
-    return;
-  }
-
-  const quantity = normalizeWarehouseQuantity(formData.get("quantity"));
-  if (quantity <= 0) {
-    notifySaveSuccess("Укажите количество резерва больше нуля");
-    return;
-  }
-
-  const reservation = normalizeWarehouseReservation({
-    id: makeId("wr"),
-    nomenclatureItemId,
-    quantity,
-    routeId: String(formData.get("routeId") || ""),
-    comment: String(formData.get("comment") || "").trim(),
-    createdAt: new Date().toISOString(),
+  app.querySelectorAll("[data-dispatch-fact-actual]").forEach((field) => {
+    const commit = () => {
+      const slotId = field.dataset.dispatchFactActual || "";
+      const row = getShiftWorkOrderRows({ window: getShiftWorkbenchWindow() }).find((item) => item.id === slotId);
+      const previous = getDispatchFact(slotId);
+      const actualQuantity = normalizeQuantity(field.value || 0);
+      const nextStatus = previous?.status && previous.status !== "not_reported"
+        ? previous.status
+        : actualQuantity >= normalizeQuantity(row?.plannedQuantity || 0) && actualQuantity > 0
+          ? "accepted"
+          : actualQuantity > 0
+            ? "partial"
+            : "not_reported";
+      updateDispatchFact(slotId, { actualQuantity, status: nextStatus });
+      render();
+    };
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      field.blur();
+      commit();
+    });
+    field.addEventListener("change", commit);
   });
-  if (!reservation) return;
 
-  planningState.warehouseReservations = [reservation, ...(planningState.warehouseReservations || [])];
-  persistState();
-  notifySaveSuccess("Резерв склада добавлен");
-  render();
+  app.querySelector("[data-dispatch-fill-plan]")?.addEventListener("click", () => {
+    const rows = getShiftWorkOrderRows({ window: getShiftWorkbenchWindow() }).filter((row) => row.isIssued);
+    const updatedCount = fillDispatchFactsFromRows(rows);
+    notifySaveSuccess(updatedCount
+      ? `Факт заполнен по плану: ${updatedCount.toLocaleString("ru-RU")} строк`
+      : "Нет выпущенных сменных заказ-нарядов для факта");
+    render();
+  });
+
+  app.querySelector("[data-dispatch-clear-facts]")?.addEventListener("click", () => {
+    const rows = getShiftWorkOrderRows({ window: getShiftWorkbenchWindow() });
+    const updatedCount = clearDispatchFactsForRows(rows);
+    notifySaveSuccess(updatedCount
+      ? `Факт очищен: ${updatedCount.toLocaleString("ru-RU")} строк`
+      : "Нет строк для очистки");
+    render();
+  });
+
+  app.querySelectorAll("[data-dispatch-fact-defect]").forEach((field) => {
+    const commit = () => {
+      const defectQuantity = normalizeQuantity(field.value || 0);
+      updateDispatchFact(field.dataset.dispatchFactDefect || "", {
+        defectQuantity,
+        ...(defectQuantity > 0 ? { status: "problem" } : {}),
+      });
+      render();
+    };
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      field.blur();
+      commit();
+    });
+    field.addEventListener("change", commit);
+  });
+
+  app.querySelectorAll("[data-dispatch-fact-status]").forEach((field) => {
+    field.addEventListener("change", () => {
+      updateDispatchFact(field.dataset.dispatchFactStatus || "", { status: field.value });
+      render();
+    });
+  });
+
+  app.querySelectorAll("[data-dispatch-fact-comment]").forEach((field) => {
+    const commit = () => {
+      updateDispatchFact(field.dataset.dispatchFactComment || "", { comment: field.value });
+      render();
+    };
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      field.blur();
+      commit();
+    });
+    field.addEventListener("change", commit);
+  });
 }
 
-function deleteWarehouseMovementConfirmed(movementId) {
-  planningState.warehouseMovements = (planningState.warehouseMovements || []).filter((movement) => movement.id !== movementId);
-  persistState();
-  notifySaveSuccess("Складское движение удалено");
-  render();
-}
+function bindShiftCalendarEvents() {
+  const dateField = app.querySelector("[data-shift-calendar-date]");
+  dateField?.addEventListener("change", (event) => {
+    setShiftWorkbenchDate(event.target.value);
+  });
 
-function deleteWarehouseReservationConfirmed(reservationId) {
-  planningState.warehouseReservations = (planningState.warehouseReservations || []).filter((reservation) => reservation.id !== reservationId);
-  persistState();
-  notifySaveSuccess("Резерв склада удален");
-  render();
+  app.querySelectorAll("[data-shift-calendar-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      moveShiftWorkbenchDate(button.dataset.shiftCalendarStep || 0);
+    });
+  });
+
+  app.querySelector("[data-shift-calendar-today]")?.addEventListener("click", () => {
+    setShiftWorkbenchToday();
+  });
+
+  app.querySelectorAll("[data-shift-calendar-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const inputId = button.dataset.shiftCalendarOpen || "";
+      const field = inputId
+        ? app.querySelector(`#${CSS.escape(inputId)}`)
+        : dateField;
+      if (!field) return;
+      field.focus({ preventScroll: true });
+      if (typeof field.showPicker === "function") {
+        field.showPicker();
+      }
+    });
+  });
 }
 
 function applyOperationMapChangesToRoutes(operation) {
@@ -22551,6 +25932,10 @@ function bindRoutesEvents() {
     render();
   });
 
+  app.querySelector("[data-route-generate-child-cards]")?.addEventListener("click", () => {
+    generateChildRouteCardsForActiveRoute();
+  });
+
   app.querySelectorAll("[data-route-open]").forEach((button) => {
     button.addEventListener("click", () => {
       const route = planningState.routes.find((item) => item.id === button.dataset.routeOpen);
@@ -22589,6 +25974,24 @@ function bindRoutesEvents() {
     const routeId = event.currentTarget.dataset.routeDelete || "";
     if (!routeId) return;
     openConfirmDialog("routeDeleteMap", { routeId });
+  });
+
+  app.querySelector("[data-route-print-preview]")?.addEventListener("click", (event) => {
+    const routeId = event.currentTarget.dataset.routePrintPreview || getActiveRouteForModule()?.id || "";
+    if (!routeId) return;
+    ui.routePrintPreviewId = routeId;
+    render();
+  });
+
+  app.querySelector("[data-route-print-run]")?.addEventListener("click", () => {
+    const previousTitle = document.title;
+    const restoreTitle = () => {
+      document.title = previousTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
+    document.title = "";
+    window.addEventListener("afterprint", restoreTitle, { once: true });
+    window.requestAnimationFrame(() => window.print());
   });
 
   app.querySelectorAll("[data-dense-route-field] [data-dense-value]").forEach((button) => {
@@ -22667,19 +26070,19 @@ function bindRoutesEvents() {
     });
   });
 
-  app.querySelector("[data-route-to-planning]")?.addEventListener("click", () => {
-    const route = getActiveRouteForModule();
-    if (!route) {
-      alert("Сначала сохраните маршрутную карту, затем создайте заказ-наряд.");
-      return;
+	  app.querySelector("[data-route-to-planning]")?.addEventListener("click", () => {
+	    const route = getActiveRouteForModule();
+	    if (!route) {
+	      alert("Сначала сохраните маршрутную карту, затем откройте заказ-наряд в планировании.");
+	      return;
 	    }
 	    const specification = getRouteSpecification(route);
 	    const bom = getRouteBomList(route);
 	    const production = getRouteProductionContext(route);
-    if (!bom && !specification && !production) {
-      alert("Чтобы создать заказ-наряд, выберите BOM или состав изделия в карточке маршрута и сохраните карту.");
-      return;
-    }
+	    if (!bom && !specification && !production) {
+	      alert("Чтобы собрать заказ-наряд, выберите BOM или состав изделия в карточке маршрута и сохраните карту.");
+	      return;
+	    }
     if (specification && !production) {
       ensureRouteModuleProjectForSpecification(specification);
 	    }
@@ -22709,19 +26112,22 @@ function saveRouteModuleForm(form) {
     return;
   }
 
-  const stamp = new Date().toISOString();
-  const routeId = isNew ? makeId("r") : existingRoute?.id || String(data.get("routeId") || makeId("r"));
-  const nextRoute = {
-    ...(existingRoute || {}),
-    id: routeId,
-    specificationId: selectedSpecification ? selectedSpecification.id || projectId : "",
-    specificationName: selectedSpecification ? selectedSpecification.name || "" : "",
-    projectId: selectedSpecification ? projectId || selectedSpecification.id : "",
-    bomListId: selectedBom ? selectedBom.id : "",
-    name,
-    isDefault: Boolean(existingRoute?.isDefault),
-    updatedAt: stamp,
-  };
+	  const stamp = new Date().toISOString();
+	  const routeId = isNew ? makeId("r") : existingRoute?.id || String(data.get("routeId") || makeId("r"));
+	  const existingRouteKind = getRouteDocumentKind(existingRoute);
+	  const nextRoute = {
+	    ...(existingRoute || {}),
+	    id: routeId,
+	    specificationId: selectedSpecification ? selectedSpecification.id || projectId : "",
+	    specificationName: selectedSpecification ? selectedSpecification.name || "" : "",
+	    projectId: selectedSpecification ? projectId || selectedSpecification.id : "",
+	    bomListId: selectedBom ? selectedBom.id : "",
+	    name,
+	    isDefault: Boolean(existingRoute?.isDefault),
+	    routeDocumentKind: existingRoute?.routeDocumentKind || "main",
+	    rootRouteId: existingRoute?.rootRouteId || (existingRouteKind === "main" ? routeId : ""),
+	    updatedAt: stamp,
+	  };
 
   planningState.routes = [
     ...planningState.routes
@@ -23619,12 +27025,13 @@ function bindSpekiEvents() {
 
   app.querySelectorAll("[data-rkd-open-bom]").forEach((button) => {
     button.addEventListener("click", () => {
-      const bom = getBomList(button.dataset.rkdOpenBom || "");
-      if (!bom) return;
-      ui.activeModule = "bomLists";
-      ui.activeBomId = bom.id;
-      persistUiState();
-      render();
+	      const bom = getBomList(button.dataset.rkdOpenBom || "");
+	      if (!bom) return;
+	      ui.activeModule = "nomenclature";
+	      ui.activeNomenclaturePane = "boards";
+	      ui.activeBomId = bom.id;
+	      persistUiState();
+	      render();
     });
   });
 
@@ -23837,12 +27244,13 @@ function bindSpecificationsEvents() {
     openConfirmDialog("spekiDeleteSpecification", { specificationId: event.currentTarget.dataset.specificationDelete || "" });
   });
 
-  app.querySelector("[data-open-spec-boms]")?.addEventListener("click", () => {
-    const specification = getActiveSpecificationForModule();
-    ui.activeModule = "bomLists";
-    if (specification) {
-      ui.activeProjectId = specification.projectId;
-      ui.activeBomId = specification.bomListA || specification.bomListB || (directoryState.bomLists || []).find((bom) => bom.projectId === specification.projectId)?.id || "__new__";
+	  app.querySelector("[data-open-spec-boms]")?.addEventListener("click", () => {
+	    const specification = getActiveSpecificationForModule();
+	    ui.activeModule = "nomenclature";
+	    ui.activeNomenclaturePane = "boards";
+	    if (specification) {
+	      ui.activeProjectId = specification.projectId;
+	      ui.activeBomId = specification.bomListA || specification.bomListB || (directoryState.bomLists || []).find((bom) => bom.projectId === specification.projectId)?.id || "__new__";
     }
     persistUiState();
     render();
@@ -24356,8 +27764,23 @@ function deleteSpecificationStructureItem(itemId) {
 }
 
 function bindNomenclatureEvents() {
+  app.querySelectorAll("[data-nomenclature-pane]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const pane = button.dataset.nomenclaturePane === "boards" ? "boards" : "items";
+      ui.activeNomenclaturePane = pane;
+      if (pane === "items") {
+        ui.activeBomId = "";
+      } else {
+        ui.activeNomenclatureId = "";
+      }
+      persistUiState();
+      render();
+    });
+  });
+
   app.querySelectorAll("[data-nomenclature-create]").forEach((button) => {
     button.addEventListener("click", () => {
+      ui.activeNomenclaturePane = "items";
       ui.activeNomenclatureId = "__new__";
       persistUiState();
       render();
@@ -24366,6 +27789,8 @@ function bindNomenclatureEvents() {
 
   app.querySelectorAll("[data-nomenclature-type-filter]").forEach((button) => {
     button.addEventListener("click", () => {
+      ui.activeNomenclaturePane = "items";
+      ui.activeBomId = "";
       ui.nomenclatureTypeFilter = button.dataset.nomenclatureTypeFilter || "all";
       persistUiState();
       render();
@@ -24462,6 +27887,7 @@ function deleteNomenclatureItem(itemId) {
 
 function bindBomListsEvents() {
   app.querySelector("[data-bom-create]")?.addEventListener("click", () => {
+    ui.activeNomenclaturePane = "boards";
     ui.activeBomId = "__new__";
     persistUiState();
     render();
@@ -24471,6 +27897,7 @@ function bindBomListsEvents() {
     button.addEventListener("click", () => {
       const bom = getBomList(button.dataset.bomOpen);
       if (!bom) return;
+      ui.activeNomenclaturePane = "boards";
       ui.activeBomId = bom.id;
       ui.activeProjectId = bom.projectId || ui.activeProjectId || "";
       persistUiState();
@@ -24740,12 +28167,13 @@ function bindCalculatorEvents() {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       const root = button.closest("[data-dense-calc-select]");
-      if (!root) return;
-      if (button.dataset.denseAction === "createProject") {
-        ui.activeModule = "bomLists";
-        ui.activeSpecificationId = "__new__";
-        persistUiState();
-        render();
+	      if (!root) return;
+	      if (button.dataset.denseAction === "createProject") {
+	        ui.activeModule = "nomenclature";
+	        ui.activeNomenclaturePane = "boards";
+	        ui.activeSpecificationId = "__new__";
+	        persistUiState();
+	        render();
         return;
       }
       if (button.dataset.denseAction === "createSpecification") {
@@ -25473,7 +28901,7 @@ function bindDirectoryForm() {
     };
 
     for (const field of directoryData.fields) {
-      if (field.readonly && rowIndex >= 0) continue;
+      if (field.readonly) continue;
       if (!data.has(field.key)) continue;
       const rawValue = data.get(field.key);
       nextRow[field.key] = field.type === "number" ? Number(rawValue || 0) : String(rawValue || "").trim();
@@ -25766,9 +29194,18 @@ function rememberScroll() {
 function restoreScroll() {
   const shell = app.querySelector("[data-gantt-shell]");
   if (!shell) return;
-  shell.scrollLeft = ui.scrollLeft;
-  shell.scrollTop = ui.scrollTop;
+  ganttScrollRestoreInProgress = true;
+  const maxScrollLeft = Math.max(0, shell.scrollWidth - shell.clientWidth);
+  const maxScrollTop = Math.max(0, shell.scrollHeight - shell.clientHeight);
+  shell.scrollLeft = Math.min(Math.max(0, Number(ui.scrollLeft || 0)), maxScrollLeft);
+  shell.scrollTop = Math.min(Math.max(0, Number(ui.scrollTop || 0)), maxScrollTop);
   updateDependencyClip(shell);
+  window.requestAnimationFrame(() => {
+    ganttScrollRestoreInProgress = false;
+  });
+  window.setTimeout(() => {
+    ganttScrollRestoreInProgress = false;
+  }, 80);
 }
 
 function getCalculatorScrollSnapshot() {
@@ -25862,7 +29299,7 @@ function renderToolbar(scaleInfo, stats) {
   return `
     <header class="topbar">
       <div class="brand-block">
-        <div class="brand-title">Гант маршрутных карт</div>
+        <div class="brand-title">Планирование</div>
         <div class="brand-subtitle">Маршрутная карта как производственное задание</div>
       </div>
 
@@ -25894,6 +29331,10 @@ function renderToolbar(scaleInfo, stats) {
         <button class="toggle-switch-button ${allRoutesExpanded ? "is-on" : ""}" data-toggle-all-projects type="button" aria-pressed="${allRoutesExpanded ? "true" : "false"}" title="${allRoutesExpanded ? "Свернуть все маршрутные карты" : "Развернуть все маршрутные карты"}">
           <span class="toggle-switch-knob"></span>
           <span>${allRoutesExpanded ? "Свернуть" : "Развернуть"}</span>
+        </button>
+        <button class="toggle-switch-button ${ui.ganttShowQuantity ? "is-on" : ""}" data-toggle-gantt-quantity type="button" aria-pressed="${ui.ganttShowQuantity ? "true" : "false"}" title="${ui.ganttShowQuantity ? "Скрыть количество на диаграмме" : "Показать количество на диаграмме"}">
+          <span class="toggle-switch-knob"></span>
+          <span>Кол-во</span>
         </button>
         <button class="icon-button" id="todayButton" type="button" title="Перейти к сегодняшнему дню">${icon("today")}</button>
         <button
@@ -25981,7 +29422,7 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
           <strong>Портфель → очередь → Гант → контроль → выпуск</strong>
         </div>
         <div class="director-command-actions">
-          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Планирование</span></button>
+          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть заказ-наряды</span></button>
           <button class="secondary-button ${critical.length ? "danger" : ""}" data-fix-all-warnings type="button" ${warnings.length ? "" : "disabled"}>${icon("refresh")}<span>Исправить конфликты</span></button>
           <button class="secondary-button" data-save-plan-snapshot type="button">${icon("save")}<span>Снимок</span></button>
         </div>
@@ -26884,6 +30325,8 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
 }
 
 function renderGanttSlotLine({ slot, quantity, isWeekSlot, visualWidth = 0 }) {
+  if (!ui.ganttShowQuantity) return "";
+
   const lineClass = isWeekSlot ? "week-slot-line" : "slot-line";
   const quantityValue = Number(quantity || 0).toLocaleString("ru-RU", { useGrouping: false });
   const quantityText = `${quantityValue} шт.`;
@@ -27066,10 +30509,14 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     const toRect = toPlacement?.rect || getSlotVisualRect(to, scaleInfo);
     const fromConnectionRect = getDependencyConnectionRect(fromLayout, fromPlacement, fromRect, false);
     const toConnectionRect = getDependencyConnectionRect(toLayout, toPlacement, toRect, false);
-    let x1 = fromConnectionRect.right;
-    let y1 = fromConnectionRect.centerY;
-    const x2 = toConnectionRect.x;
-    const y2 = toConnectionRect.centerY;
+    const fromAnchorRect = getDependencyTimelineAnchorRect(fromConnectionRect, scaleInfo);
+    const toAnchorRect = getDependencyTimelineAnchorRect(toConnectionRect, scaleInfo);
+    if (!shouldRenderDependencyBetweenTimelineAnchors(fromAnchorRect, toAnchorRect)) continue;
+
+    let x1 = fromAnchorRect.right;
+    let y1 = fromAnchorRect.centerY;
+    const x2 = toAnchorRect.x;
+    const y2 = toAnchorRect.centerY;
     const dependencyArrowLength = Math.max(1, getGanttDependencyArrowLength(scaleInfo));
     const dependencyEntryWidth = Math.max(1, getGanttDependencyEntryWidth(scaleInfo));
     let startStubPoint = { x: x1 + dependencyArrowLength, y: y1 };
@@ -27103,10 +30550,11 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
         });
       }
     }
-    const pathData = buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect, {
+    const pathData = buildDependencyPathAroundSlots(x1, y1, x2, y2, fromAnchorRect, toAnchorRect, {
       dependencyArrowLength,
       dependencyEntryWidth,
       fromSlotId: from.id,
+      rowLayoutHeight: rowLayout.totalHeight,
       slotMaskRects,
       startStubPoint,
       toSlotId: to.id,
@@ -27131,12 +30579,19 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     });
   }
 
-  const dependencyCrossings = getDependencyRouteCrossings(dependencyRoutes);
+  const dependencyRenderRoutes = getDependencyRenderRoutesWithSeparatedHorizontals(dependencyRoutes, rowLayout.totalHeight);
+  dependencyRenderRoutes.forEach((route, index) => {
+    if (dependencyPathItems[index]?.pathData) {
+      dependencyPathItems[index].pathData.renderPoints = route.points;
+    }
+  });
+  const dependencyCrossings = getDependencyRouteCrossings(dependencyRenderRoutes);
   const crossingJumpsByRoute = getDependencyCrossingJumpsByRoute(dependencyCrossings);
   const renderedPathItems = dependencyPathItems.map((item, routeIndex) => {
     const crossingJumps = crossingJumpsByRoute.get(routeIndex) || [];
+    const renderPoints = getDependencyPathPointsBeforeArrow(item.pathData.renderPoints || item.pathData.points);
     const d = buildDependencyPathWithLineJumps(
-      item.pathData.points,
+      renderPoints,
       crossingJumps,
       item.pathData.cornerRadius,
       item.pathData.pathOptions,
@@ -27145,6 +30600,7 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
 
     if (hasCrossingJumps) {
       return {
+        d,
         hasCrossingJumps,
         markup: `
         <path class="${item.className}" d="${d}" marker-end="url(#${item.markerId})"${maskAttribute} />
@@ -27153,6 +30609,7 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
     }
 
     return {
+      d,
       hasCrossingJumps,
       markup: `
       <path class="${item.underlayClassName} dependency-path-muted" d="${d}" />
@@ -27165,29 +30622,32 @@ function renderDependencies(rows, rowLayout, scaleInfo, slotWarningMap, slotPlac
   const paths = [
     ...renderedPathItems.filter((item) => !item.hasCrossingJumps),
     ...renderedPathItems.filter((item) => item.hasCrossingJumps),
-  ].map((item) => item.markup);
+  ].filter((item, index, items) => {
+    if (ui.ganttDependencyEditMode) return true;
+    return items.findIndex((candidate) => candidate.d === item.d) === index;
+  }).map((item) => item.markup);
   const dependencyEditControls = renderGanttDependencyEditControls(dependencyPathItems);
   const transferGateMarkers = renderTransferGateMarkers([...transferGateBySlotId.values()]);
 
   return `
     <svg class="dependencies-layer ${ui.scale === "weeks" ? "week-dependencies" : ""}" style="left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --dependency-clip-left:${ui.scrollLeft}px;" aria-hidden="true">
       <defs>
-        <marker id="dependencyArrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+        <marker id="dependencyArrow" markerWidth="11" markerHeight="11" refX="${GANTT_DEPENDENCY_ARROW_BASE_REF_X}" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow" />
         </marker>
-        <marker id="dependencyArrowIssue" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+        <marker id="dependencyArrowIssue" markerWidth="11" markerHeight="11" refX="${GANTT_DEPENDENCY_ARROW_BASE_REF_X}" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow has-issue" />
         </marker>
-        <marker id="dependencyArrowMuted" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+        <marker id="dependencyArrowMuted" markerWidth="11" markerHeight="11" refX="${GANTT_DEPENDENCY_ARROW_BASE_REF_X}" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow is-muted" />
         </marker>
-        <marker id="dependencyArrowIssueMuted" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+        <marker id="dependencyArrowIssueMuted" markerWidth="11" markerHeight="11" refX="${GANTT_DEPENDENCY_ARROW_BASE_REF_X}" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow has-issue is-muted" />
         </marker>
-        <marker id="dependencyArrowTransfer" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+        <marker id="dependencyArrowTransfer" markerWidth="11" markerHeight="11" refX="${GANTT_DEPENDENCY_ARROW_BASE_REF_X}" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow is-transfer" />
         </marker>
-        <marker id="dependencyArrowTransferMuted" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+        <marker id="dependencyArrowTransferMuted" markerWidth="11" markerHeight="11" refX="${GANTT_DEPENDENCY_ARROW_BASE_REF_X}" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M 1 1.5 L 9.5 5.5 L 1 9.5 Z" class="dependency-arrow is-transfer is-muted" />
         </marker>
         ${slotMaskRects.length ? `
@@ -27291,22 +30751,24 @@ function buildDependencySlotMaskRects(rows, rowLayout, scaleInfo, slotPlacementM
     return getRowSlots(row).map((slot) => {
       const placement = slotPlacementMap[row.id]?.[slot.id];
       const rect = placement?.rect || getSlotVisualRect(slot, scaleInfo, isAggregate);
+      const clippedRect = clipDependencyRectToTimeline(rect, scaleInfo.width);
+      if (!clippedRect) return null;
       const top = placement?.top ?? getSlotTop(isAggregate);
       const height = placement?.height ?? getSlotHeight(isAggregate);
       return {
         slotId: slot.id,
         rowId: row.id,
-        rawX: rect.x,
+        rawX: clippedRect.x,
         rawY: layout.top + top,
-        rawWidth: rect.width,
+        rawWidth: clippedRect.width,
         rawHeight: height,
-        x: Math.max(0, rect.x - padding),
+        x: Math.max(0, clippedRect.x - padding),
         y: Math.max(0, layout.top + top - padding),
-        width: rect.width + padding * 2,
+        width: clippedRect.width + padding * 2,
         height: height + padding * 2,
         radius: getGanttSlotGeometryRadius(height),
       };
-    });
+    }).filter(Boolean);
   });
 }
 
@@ -27364,57 +30826,67 @@ function getDependencyConnectionRect(rowLayout, placement, rect, isAggregate = f
   };
 }
 
+function clipDependencyRectToTimeline(rect, timelineWidth) {
+  const left = Number(rect?.x || 0);
+  const rawWidth = Number(rect?.width || 0);
+  const right = Number.isFinite(rect?.right) ? Number(rect.right) : left + rawWidth;
+  const clippedLeft = Math.max(0, left);
+  const clippedRight = Math.min(Math.max(0, Number(timelineWidth || 0)), right);
+  if (clippedRight <= clippedLeft) return null;
+  return {
+    ...rect,
+    x: clippedLeft,
+    width: clippedRight - clippedLeft,
+    right: clippedRight,
+  };
+}
+
+function getDependencyTimelineAnchorRect(connectionRect, scaleInfo) {
+  const timelineWidth = Math.max(0, Number(scaleInfo?.width || 0));
+  const left = Number(connectionRect?.x || 0);
+  const right = Number.isFinite(connectionRect?.right)
+    ? Number(connectionRect.right)
+    : left + Number(connectionRect?.width || 0);
+  const offLeft = right <= 0;
+  const offRight = left >= timelineWidth;
+  const clippedLeft = offLeft ? 0 : offRight ? timelineWidth : Math.max(0, left);
+  const clippedRight = offLeft ? 0 : offRight ? timelineWidth : Math.min(timelineWidth, right);
+  const width = Math.max(0, clippedRight - clippedLeft);
+
+  return {
+    ...connectionRect,
+    x: clippedLeft,
+    width,
+    right: clippedRight,
+    centerX: clippedLeft + width / 2,
+    side: offLeft ? "left" : offRight ? "right" : "visible",
+    isVisibleInTimeline: !offLeft && !offRight,
+  };
+}
+
+function shouldRenderDependencyBetweenTimelineAnchors(fromAnchorRect, toAnchorRect) {
+  if (!fromAnchorRect || !toAnchorRect) return false;
+  if (fromAnchorRect.isVisibleInTimeline || toAnchorRect.isVisibleInTimeline) {
+    return fromAnchorRect.side !== "right" && toAnchorRect.side !== "left";
+  }
+  return false;
+}
+
 function buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect, options = {}) {
   const cornerRadius = ui.scale === "weeks" ? 5 : 8;
-  const targetLeft = toRect.x;
   const dependencyEntryWidth = Number.isFinite(options.dependencyEntryWidth)
     ? options.dependencyEntryWidth
     : (ui.scale === "weeks" ? 10 : 18);
   const dependencyArrowLength = Number.isFinite(options.dependencyArrowLength)
     ? options.dependencyArrowLength
     : dependencyEntryWidth;
-  const targetApproachX = targetLeft - dependencyEntryWidth;
-  const targetEntryLeadX = targetApproachX - dependencyEntryWidth;
-  const fallbackStubX = (fromRect.right ?? x1) + (ui.scale === "weeks" ? 8 : 16);
-  const startStubPoint = options.startStubPoint || { x: fallbackStubX, y: y1 };
-  const startPoints = [
-    [x1, y1],
-    [startStubPoint.x, startStubPoint.y],
-  ];
-  const exitsFromBottom = Math.abs(startStubPoint.x - x1) < 0.1 && startStubPoint.y > y1;
-  const canDropDirectlyToTargetLevel = exitsFromBottom && y2 >= startStubPoint.y;
-  const outgoingConstantLength = Math.max(1, Math.hypot(startStubPoint.x - x1, startStubPoint.y - y1));
-  const routePoints = [...startPoints];
-
-  if (canDropDirectlyToTargetLevel) {
-    routePoints[1] = [x1, y2];
-  } else {
-    const targetEntryLeadPoint = { x: targetEntryLeadX, y: startStubPoint.y };
-
-    if (dependencyRouteBacktracksOverStart({ x: x1, y: y1 }, startStubPoint, targetEntryLeadPoint, y2)) {
-      const detourPoint = getDependencyStartDetourPoint(
-        { x: x1, y: y1 },
-        startStubPoint,
-        targetEntryLeadX,
-        y2,
-        outgoingConstantLength,
-      );
-      routePoints.push([detourPoint.x, detourPoint.y], [targetEntryLeadX, detourPoint.y]);
-    } else {
-      routePoints.push([targetEntryLeadX, startStubPoint.y]);
-    }
-  }
-
-  const basePoints = [
-    ...routePoints,
-    [targetEntryLeadX, y2],
-    [targetApproachX, y2],
-    [x2, y2],
-  ];
-  const obstacleRects = getDependencyObstacleRects(
-    options.slotMaskRects || [],
-  );
-  const routedPoints = routeDependencyPointsAroundSlots(basePoints, obstacleRects, dependencyArrowLength);
+  const routePoints = buildGanttFinishStartDependencyPoints(x1, y1, x2, y2, fromRect, toRect, {
+    dependencyArrowLength,
+    dependencyEntryWidth,
+    rowLayoutHeight: options.rowLayoutHeight,
+    startStubPoint: options.startStubPoint,
+  });
+  const routedPoints = routePoints.map((point) => [point.x, point.y]);
   const pathOptions = {};
 
   return {
@@ -27423,6 +30895,80 @@ function buildDependencyPathAroundSlots(x1, y1, x2, y2, fromRect, toRect, option
     pathOptions,
     points: routedPoints,
   };
+}
+
+function buildGanttFinishStartDependencyPoints(x1, y1, x2, y2, fromRect = {}, toRect = {}, options = {}) {
+  const entryWidth = Math.max(4, Number(options.dependencyEntryWidth || 0) || (ui.scale === "weeks" ? 10 : 18));
+  const arrowLength = Math.max(4, Number(options.dependencyArrowLength || 0) || entryWidth);
+  const shortStub = Math.max(6, Math.min(24, entryWidth));
+  const rowHeight = Math.max(
+    18,
+    Number(fromRect.height || 0),
+    Number(toRect.height || 0),
+    Math.abs(y2 - y1) || 0,
+  );
+  const rowBend = Math.max(10, Math.min(36, Math.floor(rowHeight / 2)));
+  const sameRow = Math.abs(y2 - y1) < 0.5;
+  const targetIsAbove = y2 < y1;
+  const rowDirection = targetIsAbove ? -1 : 1;
+  const startStub = options.startStubPoint && Number.isFinite(options.startStubPoint.x) && Number.isFinite(options.startStubPoint.y)
+    ? { x: options.startStubPoint.x, y: options.startStubPoint.y }
+    : { x: x1 + shortStub, y: y1 };
+  const targetLeadX = Math.max(2, x2 - shortStub * 2);
+  const hasForwardSpace = x1 + arrowLength + shortStub < x2;
+
+  if (sameRow) {
+    if (hasForwardSpace) {
+      return compactDependencyPointObjects([
+        { x: x1, y: y1 },
+        { x: x2, y: y2 },
+      ]);
+    }
+
+    const preferredY = (Number(fromRect.y || 0) - rowBend) > 4
+      ? Number(fromRect.y || y1) - rowBend
+      : Number(fromRect.bottom || y1) + rowBend;
+    const svgHeight = Number(options.rowLayoutHeight || 0);
+    const corridorY = svgHeight
+      ? Math.max(6, Math.min(svgHeight - 6, preferredY))
+      : preferredY;
+    return compactDependencyPointObjects([
+      { x: x1, y: y1 },
+      { x: x1 + shortStub, y: y1 },
+      { x: x1 + shortStub, y: corridorY },
+      { x: targetLeadX, y: corridorY },
+      { x: targetLeadX, y: y2 },
+      { x: x2, y: y2 },
+    ]);
+  }
+
+  if (hasForwardSpace) {
+    const corridorX = Math.min(x2 - shortStub, Math.max(x1 + shortStub, startStub.x));
+    return compactDependencyPointObjects([
+      { x: x1, y: y1 },
+      { x: corridorX, y: y1 },
+      { x: corridorX, y: y2 },
+      { x: x2, y: y2 },
+    ]);
+  }
+
+  const corridorY = y2 - rowDirection * rowBend;
+  return compactDependencyPointObjects([
+    { x: x1, y: y1 },
+    { x: x1 + shortStub, y: y1 },
+    { x: x1 + shortStub, y: corridorY },
+    { x: targetLeadX, y: corridorY },
+    { x: targetLeadX, y: y2 },
+    { x: x2, y: y2 },
+  ]);
+}
+
+function compactDependencyPointObjects(points) {
+  return points.filter((point, index) => (
+    index === 0
+    || Math.abs(point.x - points[index - 1].x) > 0.1
+    || Math.abs(point.y - points[index - 1].y) > 0.1
+  ));
 }
 
 function dependencyRouteBacktracksOverStart(startPoint, startStubPoint, nextPoint, targetY) {
@@ -27714,6 +31260,30 @@ function compactDependencyPoints(points) {
   ));
 }
 
+function getDependencyPathPointsBeforeArrow(points = []) {
+  if (!Array.isArray(points) || points.length < 2) return points;
+  const nextPoints = points.map((point) => [...point]);
+  const endIndex = nextPoints.length - 1;
+  const previous = nextPoints[endIndex - 1];
+  const end = nextPoints[endIndex];
+  const dx = end[0] - previous[0];
+  const dy = end[1] - previous[1];
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length <= 1) return nextPoints;
+
+  const trim = Math.min(GANTT_DEPENDENCY_ARROW_HEAD_ADVANCE, Math.max(0, length - 1));
+  nextPoints[endIndex] = [
+    end[0] - (dx / length) * trim,
+    end[1] - (dy / length) * trim,
+  ];
+
+  return nextPoints.filter((point, index) => (
+    index === 0
+    || point[0] !== nextPoints[index - 1][0]
+    || point[1] !== nextPoints[index - 1][1]
+  ));
+}
+
 function buildDependencyOrthogonalPath(points, cornerRadius, options = {}) {
   const sharpCornerIndexes = options.sharpCornerIndexes || [];
   return roundedOrthogonalPath(points, cornerRadius, { sharpCornerIndexes });
@@ -27906,6 +31476,111 @@ function getDependencyCrossingJumpsByRoute(crossings) {
     groups.set(crossing.routeIndex, current);
     return groups;
   }, new Map());
+}
+
+function getDependencyRenderRoutesWithSeparatedHorizontals(routes = [], rowLayoutHeight = 0) {
+  if (ui.ganttDependencyEditMode || routes.length < 2) {
+    return routes.map((route) => ({
+      ...route,
+      points: route.points.map((point) => [...point]),
+    }));
+  }
+
+  const nextRoutes = routes.map((route) => ({
+    ...route,
+    points: route.points.map((point) => [...point]),
+  }));
+  const horizontalSegments = nextRoutes.flatMap((route, routeIndex) => (
+    getDependencyRouteSegments(route.points)
+      .filter((segment) => segment.horizontal && segment.maxX - segment.minX >= 4)
+      .map((segment) => ({
+        ...segment,
+        routeIndex,
+        yKey: Math.round(segment.start.y * 2) / 2,
+      }))
+  ));
+  if (!horizontalSegments.length) return nextRoutes;
+
+  const groupedSegments = horizontalSegments.reduce((groups, segment) => {
+    const current = groups.get(segment.yKey) || [];
+    current.push(segment);
+    groups.set(segment.yKey, current);
+    return groups;
+  }, new Map());
+  const offsetsByRoute = new Map();
+
+  groupedSegments.forEach((segments) => {
+    const lanes = [];
+    segments
+      .sort((left, right) => (
+        left.minX - right.minX
+        || left.maxX - right.maxX
+        || left.routeIndex - right.routeIndex
+        || left.segmentIndex - right.segmentIndex
+      ))
+      .forEach((segment) => {
+        const laneIndex = lanes.findIndex((lane) => !lane.some((laneSegment) => dependencyHorizontalSegmentsOverlap(laneSegment, segment)));
+        const resolvedLaneIndex = laneIndex >= 0 ? laneIndex : lanes.length;
+        if (!lanes[resolvedLaneIndex]) lanes[resolvedLaneIndex] = [];
+        lanes[resolvedLaneIndex].push(segment);
+
+        if (resolvedLaneIndex <= 0) return;
+        const routeOffsets = offsetsByRoute.get(segment.routeIndex) || new Map();
+        routeOffsets.set(segment.segmentIndex, getDependencyHorizontalTrackY(segment.start.y, resolvedLaneIndex, rowLayoutHeight));
+        offsetsByRoute.set(segment.routeIndex, routeOffsets);
+      });
+  });
+
+  offsetsByRoute.forEach((segmentTargetYByIndex, routeIndex) => {
+    nextRoutes[routeIndex].points = applyDependencyHorizontalTrackDetours(nextRoutes[routeIndex].points, segmentTargetYByIndex);
+  });
+
+  return nextRoutes;
+}
+
+function dependencyHorizontalSegmentsOverlap(left, right) {
+  const minOverlap = 2;
+  if (Math.abs(left.start.y - right.start.y) > 0.5) return false;
+  return Math.min(left.maxX, right.maxX) - Math.max(left.minX, right.minX) > minOverlap;
+}
+
+function getDependencyHorizontalTrackY(baseY, laneIndex, rowLayoutHeight = 0) {
+  const track = Math.ceil(laneIndex / 2);
+  const direction = laneIndex % 2 ? -1 : 1;
+  const preferred = baseY + direction * track * DEPENDENCY_HORIZONTAL_TRACK_GAP;
+  const fallback = baseY - direction * track * DEPENDENCY_HORIZONTAL_TRACK_GAP;
+  const minY = 4;
+  const maxY = rowLayoutHeight ? Math.max(minY, rowLayoutHeight - 4) : Infinity;
+  if (preferred >= minY && preferred <= maxY) return round(preferred);
+  return round(Math.max(minY, Math.min(maxY, fallback)));
+}
+
+function applyDependencyHorizontalTrackDetours(points = [], segmentTargetYByIndex = new Map()) {
+  if (!segmentTargetYByIndex.size || points.length < 2) return points;
+  const nextPoints = [];
+  const pushPoint = (point) => {
+    const last = nextPoints[nextPoints.length - 1];
+    if (last && Math.abs(last[0] - point[0]) < 0.1 && Math.abs(last[1] - point[1]) < 0.1) return;
+    nextPoints.push([round(point[0]), round(point[1])]);
+  };
+
+  pushPoint(points[0]);
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const start = points[index];
+    const end = points[index + 1];
+    const targetY = segmentTargetYByIndex.get(index);
+    const isHorizontal = Math.abs(start[1] - end[1]) < 0.1;
+
+    if (isHorizontal && Number.isFinite(targetY) && Math.abs(targetY - start[1]) > 0.1) {
+      pushPoint([start[0], targetY]);
+      pushPoint([end[0], targetY]);
+      pushPoint(end);
+    } else {
+      pushPoint(end);
+    }
+  }
+
+  return nextPoints;
 }
 
 function getDependencyRouteCrossings(routes) {
@@ -28169,7 +31844,7 @@ function renderPlanningAssistantDock(warnings) {
         <div class="assistant-panel-head">
           <div>
             <strong>Очередь из Планирования</strong>
-            <span>${backlog.length ? "операции доступны только через модуль Планирование" : "очередь пуста"}</span>
+            <span>${backlog.length ? "операции доступны только через модуль «Заказ-наряды»" : "очередь пуста"}</span>
           </div>
           <em>${backlog.length}</em>
         </div>
@@ -28183,7 +31858,7 @@ function renderPlanningAssistantDock(warnings) {
               <div class="assistant-item-meta">
                 <span>${escapeHtml(item.workCenter?.code || "")}</span>
                 <span>${item.requiresPlanningLine ? "выберите линию" : formatDateTime(item.plannedStart)}</span>
-                <button class="mini-action" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">Открыть Планирование</button>
+                <button class="mini-action" data-open-planning-for-project="${escapeAttribute(item.project.id)}" type="button">Открыть заказ-наряды</button>
               </div>
             </article>
           `).join("") : `
@@ -28191,7 +31866,7 @@ function renderPlanningAssistantDock(warnings) {
           `}
         </div>
         <div class="assistant-panel-actions">
-          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть Планирование</span></button>
+          <button class="secondary-button" data-open-planning-module type="button">${icon("calendar")}<span>Открыть заказ-наряды</span></button>
         </div>
       </section>
 
@@ -28531,14 +32206,27 @@ function renderSplitModal() {
 
 function bindEvents(scaleInfo, rows, rowLayout) {
   const shell = app.querySelector("[data-gantt-shell]");
+  let lastScrollLeft = shell?.scrollLeft || 0;
+  const markUserScrollIntent = () => {
+    if (shell) shell.dataset.ganttUserScrollIntent = "1";
+  };
+  shell?.addEventListener("pointerdown", markUserScrollIntent);
+  shell?.addEventListener("touchstart", markUserScrollIntent, { passive: true });
+  shell?.addEventListener("keydown", (event) => {
+    if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) markUserScrollIntent();
+  });
   shell?.addEventListener("scroll", () => {
+    const horizontalChanged = Math.abs(shell.scrollLeft - lastScrollLeft) > 0.5;
+    lastScrollLeft = shell.scrollLeft;
     ui.scrollLeft = shell.scrollLeft;
     ui.scrollTop = shell.scrollTop;
     updateDependencyClip(shell);
+    if (ganttScrollRestoreInProgress || shell.dataset.ganttUserScrollIntent !== "1" || !horizontalChanged) return;
     if (prependTimelineIfNeeded(shell, scaleInfo)) return;
     extendTimelineIfNeeded(shell, scaleInfo);
   }, { passive: true });
   shell?.addEventListener("wheel", (event) => {
+    if (Math.abs(event.deltaX) > 1 || (event.shiftKey && Math.abs(event.deltaY) > 1)) markUserScrollIntent();
     const horizontalBack = event.deltaX < -1;
     const shiftedVerticalBack = event.shiftKey && event.deltaY < -1;
     if (!horizontalBack && !shiftedVerticalBack) return;
@@ -28617,6 +32305,12 @@ function bindEvents(scaleInfo, rows, rowLayout) {
     render();
   });
 
+  app.querySelector("[data-toggle-gantt-quantity]")?.addEventListener("click", () => {
+    ui.ganttShowQuantity = !ui.ganttShowQuantity;
+    persistUiState();
+    render();
+  });
+
   app.querySelectorAll("[data-toggle-project]").forEach((button) => {
     button.addEventListener("click", () => {
       const id = button.dataset.toggleProject;
@@ -28669,11 +32363,9 @@ function bindEvents(scaleInfo, rows, rowLayout) {
       event.stopPropagation();
       if (ui.drag?.moved) return;
       if (shouldSuppressGanttSlotClick(slotId)) return;
-      if (window.matchMedia?.("(max-width: 768px)").matches) {
-        ui.selectedSlotId = slotId;
-        ui.editor = null;
-        render();
-      }
+      ui.selectedSlotId = slotId;
+      ui.editor = null;
+      render();
     });
 
     slotElement.addEventListener("dblclick", (event) => {
@@ -28947,6 +32639,7 @@ function bindSlotForm() {
 	      routeId: selectedRoute?.id || currentSlot?.routeId || selectedRouteStep.routeId || "",
 	      specificationId: productionId,
 	      projectId: productionId,
+	      planningOrderId: selectedRoute?.id || currentSlot?.planningOrderId || currentSlot?.routeId || data.get("batchId") || "",
 	      batchId: selectedRoute?.id || currentSlot?.routeId || data.get("batchId") || "",
       routeWorkCenterId: selectedRouteStep.workCenterId,
       workCenterId: planningWorkCenterId,
@@ -29113,7 +32806,8 @@ function updateGanttDependencyRouteDraft(event) {
 
 function setGanttDependencyDraftOffset(routeKey, pointIndex, offset) {
   if (!ui.ganttDependencyRouteDrafts) ui.ganttDependencyRouteDrafts = {};
-  const route = ui.ganttDependencyRouteDrafts[routeKey] || { offsets: {} };
+  const route = ui.ganttDependencyRouteDrafts[routeKey] || { version: GANTT_DEPENDENCY_ROUTE_VERSION, offsets: {} };
+  route.version = GANTT_DEPENDENCY_ROUTE_VERSION;
   const normalizedOffset = {
     x: round(offset.x),
     y: round(offset.y),
@@ -29588,6 +33282,7 @@ function closeModals() {
   ui.editor = null;
   ui.splitSlotId = null;
   ui.routeSmtPopup = null;
+  ui.routePrintPreviewId = "";
   ui.directoryEditor = null;
   ui.confirmDialog = null;
   ui.activeSupplyDemandRowId = "";
@@ -30105,6 +33800,7 @@ function escapeAttribute(value) {
 function icon(name) {
   const icons = {
     search: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>`,
+    filter: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7Z"></path></svg>`,
     bug: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2l1.5 2.5M16 2l-1.5 2.5"></path><rect x="7" y="5" width="10" height="14" rx="5"></rect><path d="M3 9h4M17 9h4M3 14h4M17 14h4M12 5v14M8 19l-2 3M16 19l2 3"></path></svg>`,
     monitor: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path><path d="M7 10h3l2-3 2 6 2-3h1"></path></svg>`,
     map: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18-6 3V6l6-3 6 3 6-3v15l-6 3Z"></path><path d="M9 3v15M15 6v15"></path></svg>`,
@@ -30115,8 +33811,9 @@ function icon(name) {
     document: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M14 3v6h6M8 13h8M8 17h6"></path></svg>`,
     bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z"></path><path d="M2 8h2M2 12h2M2 16h2M20 8h2M20 12h2M20 16h2M8 2v2M12 2v2M16 2v2M8 20v2M12 20v2M16 20v2"></path></svg>`,
     package: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"></path><path d="M4 7.5 12 12l8-4.5M12 12v9"></path><path d="m8 5.2 8 4.5"></path></svg>`,
-    supply: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3Z"></path><path d="M14 10h4l3 3v3h-7Z"></path><circle cx="7" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="M5 11h5M5 14h3"></path></svg>`,
-    warehouse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"></path><path d="M7 21V11h10v10"></path><path d="M7 15h10M7 18h10M12 11v10"></path><path d="M3 8h18"></path></svg>`,
+	    supply: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3Z"></path><path d="M14 10h4l3 3v3h-7Z"></path><circle cx="7" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="M5 11h5M5 14h3"></path></svg>`,
+	    worker: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10a6 6 0 0 1 12 0"></path><path d="M5 10h14"></path><circle cx="12" cy="13" r="3"></circle><path d="M4 21a8 8 0 0 1 16 0"></path><path d="M9 6.5V4h6v2.5"></path></svg>`,
+	    warehouse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"></path><path d="M7 21V11h10v10"></path><path d="M7 15h10M7 18h10M12 11v10"></path><path d="M3 8h18"></path></svg>`,
     directory: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M7 12h10M7 16h7"></path></svg>`,
     operation: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.6"></circle><circle cx="18" cy="6" r="2.6"></circle><circle cx="18" cy="18" r="2.6"></circle><path d="M8.4 10.9 15.6 7.1M8.4 13.1l7.2 3.8"></path></svg>`,
     settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,
@@ -30161,6 +33858,13 @@ function icon(name) {
 }
 
 window.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && event.target?.matches?.("[data-visual-qa-problem-description]") && !event.shiftKey) {
+    event.preventDefault();
+    syncVisualQaProblemDescription(event.target.value);
+    copyVisualQaInspectorReport();
+    return;
+  }
+
   if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "f") {
     event.preventDefault();
     ui.focusMode = !ui.focusMode;
@@ -30177,6 +33881,7 @@ window.addEventListener("keydown", (event) => {
       visualQaInspectorActive = false;
       visualQaSelectedElementReport = null;
       visualQaHoveredElementReport = null;
+      visualQaProblemDescription = "";
     }
     persistUiState();
     notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
@@ -30219,11 +33924,18 @@ window.addEventListener("click", (event) => {
   event.stopImmediatePropagation();
   visualQaSelectedElementReport = collectVisualQaElementReport(element);
   visualQaHoveredElementReport = null;
+  visualQaProblemDescription = "";
   visualQaInspectorActive = false;
   document.body.classList.remove("is-mes-visual-qa-inspecting");
   updateVisualDebugOverlay();
   notifySaveSuccess("Элемент выбран для Visual QA");
 }, true);
+
+window.addEventListener("input", (event) => {
+  if (event.target?.matches?.("[data-visual-qa-problem-description]")) {
+    syncVisualQaProblemDescription(event.target.value);
+  }
+});
 
 window.addEventListener("click", (event) => {
   const visualQaRefreshButton = event.target.closest?.("[data-visual-qa-refresh]");
@@ -30265,6 +33977,7 @@ window.addEventListener("click", (event) => {
     visualQaInspectorActive = false;
     visualQaSelectedElementReport = null;
     visualQaHoveredElementReport = null;
+    visualQaProblemDescription = "";
     persistUiState();
     notifySaveSuccess("Visual QA выключен");
     render();
@@ -30313,6 +34026,7 @@ window.addEventListener("click", (event) => {
       visualQaInspectorActive = false;
       visualQaSelectedElementReport = null;
       visualQaHoveredElementReport = null;
+      visualQaProblemDescription = "";
     }
     persistUiState();
     notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
@@ -30352,6 +34066,8 @@ window.addEventListener("click", (event) => {
 
 window.addEventListener("resize", () => {
   if (ui.visualQaEnabled) scheduleVisualQaRefresh();
+  if (ui.activeModule === "employees") scheduleEmployeeHierarchyConnectorRender();
+  if (ui.activeModule === "planning") schedulePlanningRouteStructureSidebarSync();
 }, { passive: true });
 
 window.addEventListener("beforeunload", () => {

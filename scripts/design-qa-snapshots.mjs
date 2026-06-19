@@ -14,7 +14,8 @@ const viewports = [
   { name: "mobile-430", width: 430, height: 932, mobile: true },
   { name: "tablet-768", width: 768, height: 1024, mobile: true },
 ];
-const moduleIds = ["visualSystem", "gantt", "routes", "products", "supply", "directories"];
+const moduleIds = ["visualSystem", "gantt", "planning", "shiftMaster", "dispatch", "routes", "products", "nomenclature", "employees", "supply", "shopMap", "rkd", "directories"];
+const focusModuleIds = ["gantt", "planning", "shiftMaster", "dispatch", "routes", "products", "nomenclature", "employees", "supply", "shopMap", "rkd", "directories"];
 
 function getArg(name, fallback) {
   const prefix = `${name}=`;
@@ -272,6 +273,31 @@ async function switchModule(client, moduleId) {
   throw new Error(`Expected module ${moduleId}, got ${activeModule || "unknown"}`);
 }
 
+async function setFocusMode(client, enabled) {
+  const runtimeResult = await evaluate(client, (value) => {
+    if (!window.__mesVisualQaRuntime?.setFocusMode) return null;
+    return window.__mesVisualQaRuntime.setFocusMode(Boolean(value));
+  }, enabled);
+  await delay(520);
+  await waitForApp(client);
+  const runtimeOk = await evaluate(client, () => ({
+    classActive: Boolean(document.querySelector("main.app-shell")?.classList.contains("is-focus-mode")),
+    runtimeActive: Boolean(window.__mesVisualQaRuntime?.getFocusMode?.()),
+  }));
+  if (runtimeResult !== null && runtimeOk.classActive === Boolean(enabled) && runtimeOk.runtimeActive === Boolean(enabled)) return;
+
+  await evaluate(client, (payload) => {
+    const { storageKey, value } = payload;
+    const state = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    state.focusMode = Boolean(value);
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    window.location.reload();
+    return true;
+  }, { storageKey: uiStorageKey, value: enabled });
+  await delay(650);
+  await waitForApp(client);
+}
+
 async function auditVisualLayout(client, moduleId) {
   return evaluate(client, (id) => {
     const ignoredScrollRootSelector = [
@@ -287,6 +313,7 @@ async function auditVisualLayout(client, moduleId) {
       ".mobile-module-sheet",
       ".dense-inline-options",
       ".supply-detail-popover",
+      ".production-flow-lane",
       "[data-layout='table']",
     ].join(",");
     const visible = (el) => {
@@ -309,6 +336,7 @@ async function auditVisualLayout(client, moduleId) {
     const tiny = [];
     const floating = [];
     const textOverflow = [];
+    const legacySidebarItems = [];
     const root = document.querySelector("main.app-shell");
     const viewport = { width: innerWidth, height: innerHeight };
 
@@ -356,9 +384,23 @@ async function auditVisualLayout(client, moduleId) {
       }
     }
 
+    for (const el of document.querySelectorAll("main.app-shell :is(.module-data-sidebar, .directory-sidebar) .module-entity-item")) {
+      if (!visible(el)) continue;
+      const hasDirectLegacyText = Boolean(el.querySelector(":scope > strong, :scope > small"));
+      const hasTextContainer = Boolean(el.querySelector(":scope > span, :scope > .module-entity-title"));
+      if (hasDirectLegacyText || !hasTextContainer) {
+        legacySidebarItems.push({
+          selector: selectorOf(el),
+          text: el.textContent.trim().replace(/\s+/g, " ").slice(0, 90),
+          reason: hasDirectLegacyText ? "direct strong/small" : "missing text container",
+        });
+      }
+    }
+
     return {
       id,
       module: root?.dataset.layoutPage || "",
+      focusModeActive: Boolean(root?.classList.contains("is-focus-mode")),
       viewport,
       docWidth: document.documentElement.scrollWidth,
       bodyWidth: document.body.scrollWidth,
@@ -367,11 +409,13 @@ async function auditVisualLayout(client, moduleId) {
       tiny: tiny.slice(0, 12),
       floating: floating.slice(0, 12),
       textOverflow: textOverflow.slice(0, 12),
+      legacySidebarItems: legacySidebarItems.slice(0, 12),
       counts: {
         outside: outside.length,
         tiny: tiny.length,
         floating: floating.length,
         textOverflow: textOverflow.length,
+        legacySidebarItems: legacySidebarItems.length,
       },
     };
   }, moduleId);
@@ -405,9 +449,9 @@ function renderMarkdownReport(report) {
     lines.push(`Passed: ${viewport.modules.length - failures.length}/${viewport.modules.length}`);
     lines.push("");
     for (const moduleItem of viewport.modules) {
-      lines.push(`- ${moduleItem.failed ? "FAIL" : "OK"} ${moduleItem.id}: overflowX=${moduleItem.pageOverflowX}, outside=${moduleItem.counts.outside}, tiny=${moduleItem.counts.tiny}, floating=${moduleItem.counts.floating}, text=${moduleItem.counts.textOverflow}`);
+      lines.push(`- ${moduleItem.failed ? "FAIL" : "OK"} ${moduleItem.id}: overflowX=${moduleItem.pageOverflowX}, outside=${moduleItem.counts.outside}, tiny=${moduleItem.counts.tiny}, floating=${moduleItem.counts.floating}, text=${moduleItem.counts.textOverflow}, legacySidebar=${moduleItem.counts.legacySidebarItems}`);
       if (moduleItem.screenshot) lines.push(`  - screenshot: ${moduleItem.screenshot}`);
-      for (const issue of [...moduleItem.outside, ...moduleItem.tiny, ...moduleItem.floating, ...moduleItem.textOverflow].slice(0, 3)) {
+      for (const issue of [...moduleItem.outside, ...moduleItem.tiny, ...moduleItem.floating, ...moduleItem.textOverflow, ...moduleItem.legacySidebarItems].slice(0, 3)) {
         lines.push(`  - ${issue.selector}: ${issue.text || JSON.stringify(issue.rect || {})}`);
       }
     }
@@ -464,10 +508,33 @@ async function main() {
           || audit.counts.outside > 0
           || audit.counts.tiny > 0
           || audit.counts.floating > 0
-          || audit.counts.textOverflow > 0;
+          || audit.counts.textOverflow > 0
+          || audit.counts.legacySidebarItems > 0;
         if (audit.failed) hasFailure = true;
         viewportReport.modules.push(audit);
       }
+      await setFocusMode(client, true);
+      for (const moduleId of focusModuleIds) {
+        await switchModule(client, moduleId);
+        await setFocusMode(client, true);
+        const auditId = `${moduleId}-focus`;
+        const audit = await auditVisualLayout(client, auditId);
+        audit.focusMode = true;
+        audit.screenshot = await saveScreenshot(client, outDir, viewport.name, auditId).catch((error) => {
+          audit.screenshotError = error.message;
+          return "";
+        });
+        audit.failed = audit.pageOverflowX > 1
+          || !audit.focusModeActive
+          || audit.counts.outside > 0
+          || audit.counts.tiny > 0
+          || audit.counts.floating > 0
+          || audit.counts.textOverflow > 0
+          || audit.counts.legacySidebarItems > 0;
+        if (audit.failed) hasFailure = true;
+        viewportReport.modules.push(audit);
+      }
+      await setFocusMode(client, false);
       report.viewports.push(viewportReport);
     }
   } finally {
@@ -483,7 +550,7 @@ async function main() {
     const failures = viewport.modules.filter((moduleItem) => moduleItem.failed);
     console.log(`${viewport.viewport.name}: ${viewport.modules.length - failures.length}/${viewport.modules.length} modules passed`);
     for (const failure of failures) {
-      console.log(`  FAIL ${failure.id}: overflowX=${failure.pageOverflowX}, outside=${failure.counts.outside}, tiny=${failure.counts.tiny}, floating=${failure.counts.floating}, text=${failure.counts.textOverflow}`);
+      console.log(`  FAIL ${failure.id}: overflowX=${failure.pageOverflowX}, outside=${failure.counts.outside}, tiny=${failure.counts.tiny}, floating=${failure.counts.floating}, text=${failure.counts.textOverflow}, legacySidebar=${failure.counts.legacySidebarItems}`);
     }
   }
   if (hasFailure) process.exitCode = 1;

@@ -3112,7 +3112,7 @@ svg {
 .directory-nav-item.is-active {
   border-color: #7f99b3;
   background: #dfeaf4;
-  box-shadow: inset 3px 0 0 var(--blue);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .directory-nav-item strong {
@@ -4359,7 +4359,7 @@ body {
   border-color: #bfdbfe;
   background: #eff6ff;
   color: #0f172a;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .directory-nav-item em {
@@ -4474,7 +4474,7 @@ body {
 }
 
 .project-row .row-label {
-  box-shadow: inset 3px 0 0 #94a3b8;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.16) inset;
 }
 
 .gantt-row {
@@ -5282,7 +5282,7 @@ body {
   border-bottom: 1px solid #d7e0ea;
   background: #eef2f6;
   padding: 10px 12px;
-  box-shadow: inset 4px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .debug-section-head h3 {
@@ -5323,9 +5323,9 @@ body {
   align-items: center;
   min-width: 0;
   border: 1px solid #cbd5e1;
-  border-left: 4px solid #2563eb;
   border-radius: 8px;
   background: #f8fafc;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
   padding: 9px 10px;
 }
 
@@ -5511,7 +5511,7 @@ body {
 .block-stepper div.is-active {
   border-color: #bfdbfe;
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .guided-step.is-done span,
@@ -6174,7 +6174,7 @@ body {
 .spec-mini-tree button.is-active {
   border-color: #93c5fd;
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .spec-mini-tree span {
@@ -6951,9 +6951,9 @@ body {
 .scada-metric {
   min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-left: 3px solid #38bdf8;
   border-radius: 6px;
   background: rgba(15, 23, 42, 0.7);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.14) inset;
   padding: 8px;
 }
 
@@ -6982,21 +6982,24 @@ body {
 .scada-node.ok,
 .scada-mimic-node.ok,
 .scada-project.ok {
-  border-left-color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.34);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.14) inset;
 }
 
 .scada-metric.warning,
 .scada-node.warning,
 .scada-mimic-node.warning,
 .scada-project.warning {
-  border-left-color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.34);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.14) inset;
 }
 
 .scada-metric.critical,
 .scada-node.critical,
 .scada-mimic-node.critical,
 .scada-project.critical {
-  border-left-color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.34);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.14) inset;
 }
 
 .scada-mimic {
@@ -7011,9 +7014,9 @@ body {
   position: relative;
   min-height: 86px;
   border: 1px solid rgba(125, 211, 252, 0.2);
-  border-left: 3px solid #38bdf8;
   border-radius: 7px;
   background: rgba(11, 28, 40, 0.86);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.14) inset;
   padding: 8px;
 }
 
@@ -7068,9 +7071,9 @@ body {
 .scada-node {
   min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-left: 3px solid #38bdf8;
   border-radius: 7px;
   background: rgba(15, 23, 42, 0.68);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.14) inset;
   padding: 8px;
 }
 
@@ -7128,22 +7131,25 @@ body {
 .scada-alarm,
 .scada-project {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-left: 3px solid #38bdf8;
   border-radius: 7px;
   background: rgba(15, 23, 42, 0.68);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.14) inset;
   padding: 8px;
 }
 
 .scada-alarm.critical {
-  border-left-color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.34);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.14) inset;
 }
 
 .scada-alarm.warning {
-  border-left-color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.34);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.14) inset;
 }
 
 .scada-alarm.ok {
-  border-left-color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.34);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.14) inset;
 }
 
 .scada-alarm span {
@@ -7399,10 +7405,9 @@ body {
 .report-workspace .kpi-card {
   border-radius: 4px;
   border-color: #cbd5e1;
-  border-left: 3px solid #2563eb;
   background: #f8fafc;
   padding: 8px 9px;
-  box-shadow: none;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .report-workspace .kpi-card strong {
@@ -7947,7 +7952,7 @@ body {
 .calculator-process-stepper .is-active button {
   border-color: #93c5fd;
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .calculator-process-stepper .is-done button > span {
@@ -8204,26 +8209,30 @@ body {
   gap: 7px;
   min-width: 0;
   border: 1px solid #cbd5e1;
-  border-left: 3px solid #0891b2;
   border-radius: 7px;
   background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(8, 145, 178, 0.1) inset;
   padding: 8px;
 }
 
 .smt-line-card.ok {
-  border-left-color: #22c55e;
+  border-color: #bbf7d0;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12) inset;
 }
 
 .smt-line-card.warning {
-  border-left-color: #f59e0b;
+  border-color: #fde68a;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.12) inset;
 }
 
 .smt-line-card.critical {
-  border-left-color: #ef4444;
+  border-color: #fecaca;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.12) inset;
 }
 
 .smt-line-card.active {
-  border-left-color: #2563eb;
+  border-color: #bfdbfe;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12) inset;
 }
 
 .smt-line-head,
@@ -8585,9 +8594,9 @@ body {
   gap: 7px;
   min-width: 0;
   border: 1px solid #d7e0ea;
-  border-left: 3px solid #2563eb;
   border-radius: 7px;
   background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
   padding: 8px;
   cursor: grab;
 }
@@ -8899,7 +8908,7 @@ body {
 .calculator-process-stepper .is-active .stepper-status-card {
   border-color: #93c5fd;
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .calculator-process-stepper .is-done .stepper-status-index {
@@ -9108,7 +9117,7 @@ body {
 .project-binding-item.is-active {
   border-color: #93c5fd;
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .project-binding-main {
@@ -9202,7 +9211,7 @@ body {
 
 .project-list-row.is-active {
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .project-list-head {
@@ -10388,7 +10397,7 @@ body {
 .module-entity-item.is-active {
   border-color: #93c5fd;
   background: #eff6ff;
-  box-shadow: inset 3px 0 0 #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .module-entity-item span {
@@ -10727,6 +10736,556 @@ body {
   color: #64748b;
 }
 
+.employees-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.employees-sidebar {
+  align-self: start;
+  grid-template-rows: auto auto auto;
+  overflow: visible;
+}
+
+.employees-content .module-panel {
+  grid-template-rows: auto auto;
+  overflow: visible;
+}
+
+.employee-sidebar-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  border-bottom: 1px solid #d7e0ea;
+  padding: 8px;
+}
+
+.employee-sidebar-stats article {
+  min-width: 0;
+  border: 1px solid #e3e9f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 7px;
+}
+
+.employee-sidebar-stats strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.employee-sidebar-stats span,
+.employee-sidebar-stats small {
+  display: block;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-sidebar-stats span {
+  margin-top: 4px;
+}
+
+.employee-legend {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 0;
+  overflow: visible;
+  padding: 8px;
+}
+
+.employee-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  border: 1px solid #e3e9f0;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #334155;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.employee-legend-item i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--employee-tone, #64748b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--employee-tone, #64748b) 14%, transparent);
+}
+
+.employee-legend-item.is-root,
+.employee-root-card.is-root {
+  --employee-tone: #1d4ed8;
+}
+
+.employee-legend-item.is-owner,
+.employee-person-card.is-owner {
+  --employee-tone: #7c3aed;
+}
+
+.employee-legend-item.is-unit,
+.employee-org-unit.is-production,
+.employee-org-unit.is-section {
+  --employee-tone: #0891b2;
+}
+
+.employee-legend-item.is-master,
+.employee-person-card.is-master {
+  --employee-tone: #d97706;
+}
+
+.employee-legend-item.is-employee,
+.employee-person-card.is-employee {
+  --employee-tone: #16a34a;
+}
+
+.employee-legend-item.is-resource,
+.employee-resource-card {
+  --employee-tone: #475569;
+}
+
+.employee-org-unit.is-warehouse {
+  --employee-tone: #0f766e;
+}
+
+.employee-org-unit.is-quality {
+  --employee-tone: #2563eb;
+}
+
+.employee-org-unit.is-admin {
+  --employee-tone: #64748b;
+}
+
+.employees-source-note {
+  display: inline-flex;
+  align-items: center;
+  max-width: 420px;
+  gap: 8px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.employees-source-note svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+
+.employees-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
+.employees-kpi-grid article {
+  min-width: 0;
+  border: 1px solid #e3e9f0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  padding: 9px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--employee-tone, #cbd5e1) 18%, transparent) inset;
+}
+
+.employees-kpi-grid article.is-owner {
+  --employee-tone: #7c3aed;
+}
+
+.employees-kpi-grid article.is-master {
+  --employee-tone: #d97706;
+}
+
+.employees-kpi-grid article.is-employee {
+  --employee-tone: #16a34a;
+}
+
+.employees-kpi-grid article.is-resource {
+  --employee-tone: #475569;
+}
+
+.employees-kpi-grid article.is-unit {
+  --employee-tone: #0891b2;
+}
+
+.employees-kpi-grid span,
+.employees-kpi-grid small {
+  display: block;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employees-kpi-grid strong {
+  display: block;
+  margin: 5px 0 3px;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 920;
+  line-height: 1;
+}
+
+.employees-org-panel {
+  min-height: 560px;
+}
+
+.employees-org-chart {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  overflow: visible;
+  padding: 10px;
+}
+
+.employee-root-card,
+.employee-org-unit,
+.employee-person-card,
+.employee-resource-card,
+.employee-empty-card {
+  min-width: 0;
+  border: 1px solid #e3e9f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.employee-root-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  max-width: 620px;
+  justify-self: center;
+  width: min(620px, 100%);
+  border-color: color-mix(in srgb, var(--employee-tone) 36%, #cbd5e1);
+  background: linear-gradient(180deg, #ffffff, #eff6ff);
+  padding: 10px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--employee-tone) 18%, transparent) inset;
+}
+
+.employee-root-card strong,
+.employee-root-card small,
+.employee-org-unit-head strong,
+.employee-org-unit-head small,
+.employee-person-card strong,
+.employee-person-card small,
+.employee-resource-card strong,
+.employee-resource-card small,
+.employee-empty-card strong,
+.employee-empty-card small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-root-card strong,
+.employee-org-unit-head strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 880;
+}
+
+.employee-root-card small,
+.employee-org-unit-head small,
+.employee-person-card small,
+.employee-resource-card small,
+.employee-empty-card small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.employee-root-card em,
+.employee-org-unit-head em,
+.employee-person-card em,
+.employee-resource-card em {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--employee-tone, #64748b) 10%, #ffffff);
+  color: var(--employee-tone, #475569);
+  padding: 0 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.employee-node-icon,
+.employee-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--employee-tone, #64748b) 28%, #cbd5e1);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--employee-tone, #64748b) 9%, #ffffff);
+  color: var(--employee-tone, #475569);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.employee-node-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.employees-org-branches,
+.employee-org-children {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.employees-org-branches {
+  position: relative;
+  border-left: 0;
+  margin-left: 0;
+  padding-left: 0;
+  padding-top: 14px;
+}
+
+.employees-org-branches::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 14px;
+  border-left: 1px solid #cbd5e1;
+}
+
+.employee-org-children {
+  position: relative;
+  border-left: 1px solid #d7e0ea;
+  margin: 8px 0 0 15px;
+  padding-left: 12px;
+}
+
+.employee-org-unit {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border-color: color-mix(in srgb, var(--employee-tone, #64748b) 24%, #dbe3ec);
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  padding: 10px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--employee-tone, #64748b) 18%, transparent) inset;
+}
+
+.employee-org-unit::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  height: 9px;
+  border-left: 1px solid #d7e0ea;
+}
+
+.employee-org-unit-head {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.employee-org-unit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.employee-org-unit-flow {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-left: 18px;
+}
+
+.employee-org-unit-flow::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--employee-tone, #64748b) 24%, #d7e0ea);
+}
+
+.employee-org-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.employee-org-stage::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: -12px;
+  width: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--employee-tone, #64748b) 24%, #d7e0ea);
+}
+
+.employee-stage-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border: 1px solid color-mix(in srgb, var(--employee-tone, #64748b) 24%, #dbe3ec);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--employee-tone, #64748b) 6%, #ffffff);
+  color: color-mix(in srgb, var(--employee-tone, #64748b) 78%, #0f172a);
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 860;
+  white-space: nowrap;
+}
+
+.employee-org-stage-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.employee-org-stage.is-owner {
+  --employee-tone: #7c3aed;
+}
+
+.employee-org-stage.is-master {
+  --employee-tone: #d97706;
+}
+
+.employee-org-stage.is-employee {
+  --employee-tone: #16a34a;
+}
+
+.employee-org-stage.is-resource {
+  --employee-tone: #475569;
+}
+
+.employee-person-card,
+.employee-resource-card,
+.employee-empty-card {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--employee-tone, #64748b) 20%, #e3e9f0);
+  background: color-mix(in srgb, var(--employee-tone, #64748b) 4%, #ffffff);
+  padding: 6px 8px;
+}
+
+.employee-resource-card.is-machine,
+.employee-resource-card.is-equipment {
+  --employee-tone: #2563eb;
+}
+
+.employee-resource-card.is-staff {
+  --employee-tone: #16a34a;
+}
+
+.employee-resource-card.is-aggregate,
+.employee-resource-card.is-line {
+  --employee-tone: #0891b2;
+}
+
+.employee-empty-card {
+  grid-template-columns: 18px minmax(0, 1fr);
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.employee-empty-card svg {
+  width: 15px;
+  height: 15px;
+}
+
+.employees-responsibility-table-wrap {
+  min-width: 0;
+  overflow: visible;
+  padding: 10px;
+}
+
+.employees-responsibility-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.employees-responsibility-table th,
+.employees-responsibility-table td {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+
+.employees-responsibility-table th:nth-child(1),
+.employees-responsibility-table td:nth-child(1) {
+  width: 24%;
+}
+
+.employees-responsibility-table th:nth-child(2),
+.employees-responsibility-table td:nth-child(2) {
+  width: 16%;
+}
+
+.employees-responsibility-table .readonly-token {
+  margin: 1px 3px 1px 0;
+  max-width: 100%;
+}
+
+.employees-responsibility-table .readonly-token.is-master {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.employees-responsibility-table .readonly-token.is-employee {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.employees-responsibility-table .readonly-token.is-resource {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.employees-responsibility-table .muted-cell {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 720;
+}
+
 .bom-editor-panel {
   grid-column: 1 / -1;
 }
@@ -11017,7 +11576,8 @@ body {
 
 .spec-module-tree article {
   position: relative;
-  border-left: 3px solid #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .spec-module-tree article::after {
@@ -12408,7 +12968,7 @@ button,
 .directory-nav-item.is-active,
 .module-entity-item.is-active {
   background: #ffffff;
-  box-shadow: inset 3px 0 0 var(--blue), var(--shadow-soft);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset, var(--shadow-soft);
 }
 
 .directory-nav-item,
@@ -16299,8 +16859,8 @@ main.planning-app-shell > .planner-workspace {
 }
 
 .gantt-shell .route-label {
-  border-left: 3px solid var(--mes-accent, #2563eb);
   background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0));
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
 }
 
 .gantt-shell .route-task-badge {
@@ -19486,15 +20046,18 @@ main.planning-app-shell > .planner-workspace {
   align-items: end;
   overflow: visible;
   padding: 9px;
-  border-left: 4px solid #94a3b8;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.12) inset;
 }
 
 .spec-constructor-item.is-assembly {
-  border-left-color: #2563eb;
+  border-color: #bfdbfe;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12) inset;
 }
 
 .spec-constructor-item.is-bom {
-  border-left-color: #22c55e;
+  border-color: #bbf7d0;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12) inset;
 }
 
 .spec-constructor-item.is-part {
@@ -21027,7 +21590,7 @@ main.planning-app-shell > .planner-workspace {
   border-color: var(--mes-primary-border) !important;
   background: var(--mes-primary-soft) !important;
   color: var(--mes-primary) !important;
-  box-shadow: inset 3px 0 0 var(--mes-primary) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset !important;
 }
 
 .module-data-page .module-data-sidebar .module-entity-item span,
@@ -21457,7 +22020,7 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .pl
 
 .calculator-smt-result-panel .smt-panel-kpi,
 .calculator-smt-result-panel .smt-machine-kpi {
-  box-shadow: inset 3px 0 0 rgba(15, 23, 42, 0.08);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08) inset;
 }
 
 .calculator-smt-result-panel .smt-panel-kpi {
@@ -23767,11 +24330,20 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
   grid-template-rows: auto auto minmax(0, 1fr) !important;
 }
 
+.nomenclature-page.is-boards-pane .module-data-sidebar {
+  grid-template-rows: auto auto auto minmax(0, 1fr) !important;
+}
+
 .nomenclature-page .nomenclature-type-filter {
   min-height: 0;
   height: 100%;
   max-height: none;
   overflow: auto;
+}
+
+.nomenclature-page.is-boards-pane .nomenclature-type-filter {
+  height: auto;
+  max-height: 220px;
 }
 
 .nomenclature-page .module-entity-list {
@@ -24717,14 +25289,16 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .to
   display: grid;
   gap: 2px;
   min-width: 0;
-  border-left: 3px solid #cbd5e1;
+  border: 1px solid #d7e0ea;
   border-radius: 10px;
   background: #f8fafc;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.08) inset;
   padding: 7px 8px;
 }
 
 .production-flow-next-list article.is-active {
-  border-left-color: #2563eb;
+  border-color: #bfdbfe;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12) inset;
 }
 
 .production-flow-next-list article.is-warning {
@@ -31585,7 +32159,7 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .pl
 .app-shell[data-layout-page="planning"] .planning-v2-route-item.is-active {
   border-color: #85b8ff !important;
   background: var(--planning-v2-selected) !important;
-  box-shadow: inset 3px 0 0 var(--planning-v2-selected-border) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset !important;
 }
 
 .app-shell[data-layout-page="planning"] .planning-v2-route-item > em {
@@ -31748,7 +32322,7 @@ main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .pl
 .app-shell[data-layout-page="planning"] .planning-v2-step-pill.is-active {
   border-color: #85b8ff;
   background: var(--planning-v2-selected);
-  box-shadow: inset 3px 0 0 var(--planning-v2-selected-border), var(--planning-v2-shadow);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset, var(--planning-v2-shadow);
 }
 
 .app-shell[data-layout-page="planning"] .planning-v2-phase b,
@@ -34908,6 +35482,7 @@ main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(1) {
 main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(2),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(2) {
   width: 48px !important;
+  overflow: hidden !important;
   text-align: center !important;
 }
 
@@ -34923,8 +35498,9 @@ main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(4) {
 
 main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(5),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(5) {
-  width: 170px !important;
-  padding-right: 14px !important;
+  width: 190px !important;
+  padding-right: 8px !important;
+  padding-left: 8px !important;
 }
 
 main.app-shell[data-layout-page="routes"] .route-object-table th,
@@ -34934,6 +35510,204 @@ main.app-shell[data-layout-page="routes"] .route-object-table td {
 
 main.app-shell[data-layout-page="routes"] .route-object-table th {
   font-weight: 600 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-card-list-item small {
+  display: block !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout-page="routes"] .route-card-list-item small i {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 650;
+  line-height: 1.2;
+  vertical-align: 1px;
+}
+
+main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-main small i,
+main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-main {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-child small i,
+main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-child {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: #fffbeb;
+  color: #92400e;
+}
+
+main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-shift small i,
+main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-shift {
+  border-color: rgba(16, 185, 129, 0.24);
+  background: #ecfdf5;
+  color: #047857;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: var(--mes-ui-radius-md);
+  background: #f8fafc;
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="routes"] .route-card-kind-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 0 6px;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-title strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: var(--mes-ui-module-font-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-grid span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #ffffff;
+  padding: 6px 7px;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-grid b,
+main.app-shell[data-layout-page="routes"] .route-lineage-grid em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-grid b {
+  color: #64748b;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+}
+
+main.app-shell[data-layout-page="routes"] .route-lineage-grid em {
+  color: #0f172a;
+  font-size: var(--mes-ui-module-font-sm);
+  font-style: normal;
+  font-weight: 500;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-cards {
+  display: grid;
+  gap: 5px;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-cards > b {
+  color: #64748b;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 600;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-card-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-card {
+  appearance: none;
+  display: inline-grid;
+  gap: 1px;
+  max-width: 260px;
+  min-height: 34px;
+  min-width: 0;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fffbeb;
+  color: #78350f;
+  padding: 5px 8px;
+  text-align: left;
+}
+
+main.app-shell[data-layout-page="routes"] button.route-linked-card {
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="routes"] button.route-linked-card:hover {
+  border-color: rgba(245, 158, 11, 0.44);
+  background: #fef3c7;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-card span,
+main.app-shell[data-layout-page="routes"] .route-linked-card small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-card span {
+  font-size: var(--mes-ui-module-font-sm);
+  font-weight: 600;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-card small {
+  color: #92400e;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-card.is-missing {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: #ffffff;
+  color: #64748b;
+}
+
+main.app-shell[data-layout-page="routes"] .route-linked-card.is-missing small {
+  color: #94a3b8;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="routes"] .route-lineage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 main.app-shell[data-layout-page="routes"] .route-type-icon-badge {
@@ -35038,6 +35812,7 @@ main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-node-icon
 }
 
 main.app-shell[data-layout-page="routes"] .route-type-icon-badge::after {
+  display: none !important;
   position: absolute;
   z-index: 120;
   top: 50%;
@@ -35483,7 +36258,7 @@ main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-v2-page
 main.app-shell[data-layout-page="rkd"] .rkd-page .module-entity-item.is-active {
   border-color: var(--mes-ui-primary-border) !important;
   background: var(--mes-ui-primary-soft) !important;
-  box-shadow: inset 3px 0 0 var(--mes-ui-primary) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset !important;
 }
 
 main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-v2-page) .module-entity-item strong,
@@ -36228,12 +37003,208 @@ main.app-shell[data-layout-page="directories"] .directory-resource-table {
 }
 
 main.app-shell[data-layout-page="directories"] .directory-table th {
+  position: relative;
   overflow: visible !important;
   text-overflow: clip !important;
   white-space: normal !important;
   overflow-wrap: normal !important;
   word-break: normal !important;
   line-height: 13px !important;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 22px;
+  border-radius: var(--mes-ui-radius-xs, 5px);
+  cursor: pointer;
+  list-style: none;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter > summary::-webkit-details-marker {
+  display: none;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter > summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter > summary em {
+  min-width: 0;
+  color: var(--mes-ui-primary);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 10px;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter > summary svg {
+  width: 12px;
+  height: 12px;
+  color: var(--mes-ui-muted);
+  stroke-width: 2;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter.is-active > summary {
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="directories"] .directory-column-filter.is-active > summary svg {
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 80;
+  display: grid;
+  gap: 7px;
+  width: min(260px, calc(100vw - 28px));
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-md, 8px);
+  background: var(--mes-ui-surface, #fff);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  padding: 9px;
+  color: var(--mes-ui-text);
+  text-align: left;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-search {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm, 6px);
+  background: var(--mes-ui-surface-soft, #f8fafc);
+  padding: 0 8px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-search svg {
+  width: 13px;
+  height: 13px;
+  color: var(--mes-ui-muted);
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-options {
+  display: grid;
+  gap: 3px;
+  max-height: 210px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-option {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 25px;
+  border-radius: var(--mes-ui-radius-xs, 5px);
+  padding: 3px 5px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-option:hover {
+  background: var(--mes-ui-surface-soft, #f8fafc);
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-option input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-option em {
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 11px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-option.is-all {
+  border-bottom: 1px solid var(--mes-ui-line);
+  border-radius: 0;
+  padding-bottom: 7px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid var(--mes-ui-line);
+  padding-top: 8px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-actions button {
+  min-height: 26px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm, 6px);
+  background: var(--mes-ui-surface);
+  padding: 3px 8px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 9.5px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-filter-actions button:last-child {
+  border-color: color-mix(in srgb, var(--mes-ui-primary) 34%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-ui-primary) 8%, var(--mes-ui-surface));
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell {
+  padding: 20px !important;
+  text-align: center;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell strong,
+main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell span {
+  display: block;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell span {
+  margin-top: 4px;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
 }
 
 main.app-shell[data-layout-page="directories"] .directory-table td:not(.actions-cell) {
@@ -37135,7 +38106,7 @@ main.app-shell[data-layout-page="dispatch"] :is(.dispatch-sidebar, .dispatch-wor
 
 main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -37160,42 +38131,6 @@ main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar .directory-sidebar
   font-size: 15px;
   font-weight: 760;
   line-height: 18px;
-}
-
-main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar-summary {
-  display: grid;
-  gap: 6px;
-  padding: 8px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.72);
-}
-
-main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar-summary article {
-  display: grid;
-  gap: 2px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface-soft);
-  padding: 7px 8px;
-}
-
-main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar-summary span,
-main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar-summary strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar-summary span {
-  color: var(--mes-ui-muted);
-  font-size: var(--dispatch-font-xs);
-  line-height: 13px;
-}
-
-main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar-summary strong {
-  color: var(--mes-ui-text);
-  font-size: var(--dispatch-font-sm);
-  line-height: 15px;
 }
 
 main.app-shell[data-layout-page="dispatch"] .dispatch-route-list {
@@ -37755,7 +38690,7 @@ main.app-shell[data-layout-page="dispatch"] .dispatch-lane {
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: var(--mes-ui-radius-sm);
   background:
-    linear-gradient(90deg, rgba(148, 163, 184, 0.14) 1px, transparent 1px) 0 0 / 25% 100%,
+    linear-gradient(90deg, rgba(148, 163, 184, 0.14) 1px, transparent 1px) 0 0 / calc(100% / var(--dispatch-ruler-days, 7)) 100%,
     var(--mes-ui-surface-soft);
 }
 
@@ -38215,7 +39150,7 @@ main.app-shell[data-layout-page="dispatch"] .dispatch-sidebar .directory-sidebar
   line-height: var(--mes-ui-line-section-title) !important;
 }
 
-main.app-shell[data-layout-page="dispatch"] :is(.dispatch-sidebar-summary, .dispatch-route-list) {
+main.app-shell[data-layout-page="dispatch"] .dispatch-route-list {
   border-bottom: 0 !important;
   padding: 0 !important;
   gap: 6px !important;
@@ -38393,7 +39328,7 @@ main.app-shell[data-layout-page="supply"] :is(.supply-sidebar, .supply-workspace
 main.app-shell[data-layout-page="supply"] .supply-sidebar {
   align-self: stretch;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 6px;
   height: 100%;
   padding: 8px;
@@ -38436,41 +39371,6 @@ main.app-shell[data-layout-page="supply"] .supply-header h2 {
   font-size: var(--mes-ui-type-section-title);
   font-weight: var(--mes-ui-weight-bold);
   line-height: var(--mes-ui-line-section-title);
-}
-
-main.app-shell[data-layout-page="supply"] .supply-sidebar-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-main.app-shell[data-layout-page="supply"] .supply-sidebar-summary article {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface-soft);
-  padding: 6px 7px;
-}
-
-main.app-shell[data-layout-page="supply"] .supply-sidebar-summary :is(span, strong) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="supply"] .supply-sidebar-summary span {
-  color: var(--mes-ui-muted);
-  font-size: var(--mes-ui-type-caption);
-  line-height: var(--mes-ui-line-caption);
-}
-
-main.app-shell[data-layout-page="supply"] .supply-sidebar-summary strong {
-  color: var(--mes-ui-text);
-  font-size: var(--mes-ui-type-card-title);
-  font-weight: var(--mes-ui-weight-bold);
-  line-height: var(--mes-ui-line-card-title);
 }
 
 main.app-shell[data-layout-page="supply"] .supply-route-list {
@@ -40917,8 +41817,8 @@ main.app-shell[data-layout-page="rkd"] [data-layout="main-content"] .rkd-form te
   }
 
   main.app-shell[data-layout-page="shopMap"] .shop-map-widget {
-    min-width: 34px !important;
-    min-height: 34px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
   }
 
   main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(.directory-search, .search-field) input {
@@ -40929,6 +41829,67 @@ main.app-shell[data-layout-page="rkd"] [data-layout="main-content"] .rkd-form te
 
   main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(.directory-search, .search-field) svg {
     grid-column: 1 !important;
+  }
+}
+
+/* MES Stabilization Pass v1: employees is a dense org map. Desktop keeps the aligned
+   hierarchy; mobile switches to readable wrapped layers instead of unreadable vertical text. */
+@media (max-width: 768px) {
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    grid-template-columns: none !important;
+    gap: 6px !important;
+    justify-content: flex-start !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors {
+    display: none !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label {
+    justify-self: stretch !important;
+    min-height: 32px !important;
+    padding: 5px 8px !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label strong {
+    font-size: 9px !important;
+    line-height: 11px !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label small {
+    min-width: 16px !important;
+    min-height: 12px !important;
+    font-size: 7px !important;
+    line-height: 9px !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-node,
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node,
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource {
+    flex: 1 1 128px !important;
+    max-width: 100% !important;
+    min-height: 42px !important;
+    padding: 6px 8px !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-node strong,
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node strong,
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource strong {
+    font-size: 9px !important;
+    line-height: 11px !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-hierarchy-node small {
+    margin-top: 2px !important;
+    font-size: 7.5px !important;
+    line-height: 9px !important;
   }
 }
 
@@ -42507,15 +43468,21 @@ main.app-shell[data-layout="app-shell"] :is(
 }
 
 main.app-shell[data-layout="app-shell"] :is(
-  .directory-table,
-  .warehouse-table,
-  .speki-structure-table,
-  .route-object-table
+  .directory-table:not(.route-object-table),
+  .warehouse-table:not(.route-object-table),
+  .speki-structure-table:not(.route-object-table)
 ) :is(.actions-cell, .row-actions-cell, td:last-child) {
   position: sticky;
   right: 0;
   z-index: 4;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.72), #fff 12px) !important;
+}
+
+main.app-shell[data-layout="app-shell"] .route-smt-balance-table-wrap .smt-machine-split-table td:last-child {
+  position: static !important;
+  right: auto !important;
+  z-index: auto !important;
+  background: inherit !important;
 }
 
 main.app-shell[data-layout="app-shell"] :is(.row-actions, .table-actions, .speki-row-actions, .route-step-actions, .directory-table-actions) {
@@ -42738,17 +43705,27 @@ main.app-shell[data-layout-page="visualSystem"] {
 }
 
 .visual-signal-grid,
-.visual-state-grid,
-.visual-form-grid {
+.visual-state-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 8px;
   min-width: 0;
 }
 
+.visual-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
 .visual-state-card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
+  box-sizing: border-box;
+  max-width: 100%;
   min-height: 58px;
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 12px;
@@ -42760,18 +43737,25 @@ main.app-shell[data-layout-page="visualSystem"] {
 }
 
 .visual-state-card strong {
+  display: block;
+  min-width: 0;
   font-size: 11px;
   font-weight: 780;
   line-height: 14px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .visual-state-card span {
+  display: block;
+  min-width: 0;
   color: var(--mes-ui-muted, #64748b);
   font-size: 10px;
   font-weight: 560;
   line-height: 13px;
   overflow-wrap: anywhere;
   white-space: normal;
+  word-break: break-word;
 }
 
 .visual-state-card.is-hover,
@@ -42821,20 +43805,105 @@ main.app-shell[data-layout-page="visualSystem"] {
 
 .visual-form-grid .form-field {
   min-width: 0;
+  gap: 4px;
+  min-height: 58px;
+  align-content: start;
+  border-radius: 12px;
+  padding: 7px 9px;
+}
+
+.visual-form-grid .form-field > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visual-form-grid .form-field :is(input, select) {
+  width: 100% !important;
+  min-width: 0;
+  height: 30px !important;
+  min-height: 30px !important;
+  border-radius: 9px !important;
+  font-size: 11px !important;
+  font-weight: 560 !important;
+  line-height: 15px !important;
+}
+
+.visual-form-grid .form-field select {
+  overflow: hidden !important;
+  padding-right: 26px !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.visual-form-grid .form-field small {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .visual-checkbox-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
+  gap: 7px;
+  min-width: 0;
+  min-height: 58px;
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 12px;
   background: #fff;
-  padding: 7px 9px;
+  padding: 8px 9px;
   color: var(--mes-ui-text, #0f172a);
   font-size: 11px;
-  font-weight: 680;
+  font-weight: 620;
+  line-height: 14px;
+}
+
+.visual-checkbox-row input[type="checkbox"] {
+  appearance: none;
+  box-sizing: border-box !important;
+  display: block;
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.74);
+  border-radius: 5px;
+  background: #fff;
+  accent-color: var(--mes-ui-primary, #2563eb);
+}
+
+.visual-checkbox-row input[type="checkbox"]:checked {
+  border-color: var(--mes-ui-primary, #2563eb);
+  background-color: var(--mes-ui-primary, #2563eb);
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 7.1L5.6 9.7L11 4.3' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+}
+
+.visual-checkbox-row input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--mes-state-focus, rgba(37, 99, 235, 0.32));
+  outline-offset: 2px;
+}
+
+.visual-checkbox-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .visual-table-wrap {
@@ -43235,6 +44304,50 @@ main.app-shell[data-layout-page="visualSystem"] {
   padding: 1px 6px;
 }
 
+.visual-debug-problem-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.visual-debug-problem-field span {
+  color: rgba(207, 250, 254, 0.82);
+  font-size: 9.5px;
+  font-weight: 780;
+  line-height: 12px;
+}
+
+.visual-debug-problem-field textarea,
+.visual-debug-overlay-root [data-visual-qa-problem-description] {
+  width: 100%;
+  min-height: 44px !important;
+  max-height: 92px;
+  resize: vertical;
+  border: 1px solid rgba(103, 232, 249, 0.34) !important;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.74) !important;
+  color: #ecfeff !important;
+  font: 620 10.5px/14px Inter, system-ui, sans-serif !important;
+  outline: none;
+  padding: 7px 8px;
+}
+
+.visual-debug-problem-field textarea:focus,
+.visual-debug-overlay-root [data-visual-qa-problem-description]:focus {
+  border-color: rgba(251, 191, 36, 0.82) !important;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.16) !important;
+}
+
+.visual-debug-problem-field small {
+  overflow: visible;
+  color: rgba(207, 250, 254, 0.58);
+  font-size: 9px;
+  font-weight: 620;
+  line-height: 12px;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .visual-debug-inspector-card button {
   display: inline-flex;
   align-items: center;
@@ -43585,5 +44698,3776 @@ main.app-shell[data-layout-page="visualSystem"] {
     bottom: 8px;
     width: calc(100vw - 16px);
     max-height: min(58dvh, 460px);
+  }
+}
+
+.route-print-backdrop {
+  z-index: 10060;
+  padding: 18px;
+}
+
+.route-print-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(1280px, calc(100vw - 36px));
+  max-height: min(94dvh, 980px);
+  overflow: hidden;
+}
+
+.route-print-scroll {
+  min-height: 0;
+  overflow: auto;
+  background:
+    linear-gradient(135deg, rgba(148, 163, 184, 0.11), rgba(226, 232, 240, 0.4)),
+    #eef2f7;
+  padding: 18px;
+}
+
+.route-print-sheet {
+  display: grid;
+  gap: 12px;
+  width: 297mm;
+  min-height: 210mm;
+  margin: 0 auto;
+  border: 1px solid #d8dee8;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+  padding: 6mm;
+}
+
+.route-print-sheet,
+.route-print-sheet * {
+  box-sizing: border-box;
+}
+
+.route-print-title-block,
+.route-print-section-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.route-print-sheet span,
+.route-print-section-head span,
+.route-print-table th,
+.route-print-signatures span {
+  color: #64748b;
+  font-size: 8.4px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.route-print-sheet strong,
+.route-print-sheet h1,
+.route-print-sheet h2 {
+  color: #0f172a;
+}
+
+.route-print-title-block {
+  gap: 4px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.route-print-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: baseline;
+}
+
+.route-print-title-block h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 760;
+  line-height: 1.16;
+}
+
+.route-print-title-date {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.16;
+  white-space: nowrap;
+}
+
+.route-print-title-block p {
+  margin: 0;
+  color: #334155;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.route-print-section {
+  display: grid;
+  gap: 7px;
+}
+
+.route-print-section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 5px;
+}
+
+.route-print-section-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.15;
+}
+
+.route-print-section-head > strong {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.route-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8.4px;
+  line-height: 1.16;
+}
+
+.route-print-table th,
+.route-print-table td {
+  vertical-align: top;
+  border: 1px solid #cbd5e1;
+  padding: 3px 4px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.route-print-table th {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.route-print-composition-table th:nth-child(1),
+.route-print-composition-table td:nth-child(1) {
+  width: 38px;
+  text-align: center;
+}
+
+.route-print-composition-table th:nth-child(3),
+.route-print-composition-table td:nth-child(3) {
+  width: 64px;
+  text-align: center;
+}
+
+.route-print-composition-table th:nth-child(4),
+.route-print-composition-table td:nth-child(4) {
+  width: 76px;
+  text-align: center;
+}
+
+.route-print-composition-table th:nth-child(5),
+.route-print-composition-table td:nth-child(5) {
+  width: 76px;
+  text-align: center;
+}
+
+.route-print-composition-table th:nth-child(6),
+.route-print-composition-table td:nth-child(6) {
+  width: 132px;
+  text-align: center;
+}
+
+.route-print-composition-table td:nth-child(2) {
+  padding-bottom: 0;
+  padding-top: 0;
+}
+
+.route-print-qr-head {
+  background: #f1f5f9;
+}
+
+.route-print-qr-cell {
+  position: relative;
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+  background: #f8fafc;
+}
+
+.route-print-qr-box {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.route-print-qr-placeholder {
+  display: block;
+  width: 116px;
+  height: 116px;
+  margin: 0 auto;
+  shape-rendering: crispEdges;
+}
+
+.route-print-tree-name {
+  --tree-step: 14px;
+  --tree-line-color: #cbd5e1;
+  position: relative;
+  min-height: 21px;
+  padding: 3px 0 3px calc(var(--level) * var(--tree-step) + 8px);
+}
+
+.route-print-tree-guide,
+.route-print-tree-branch {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--tree-line) * var(--tree-step) + 5px);
+  width: 0;
+  pointer-events: none;
+}
+
+.route-print-tree-guide::before,
+.route-print-tree-branch::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--tree-line-color);
+}
+
+.route-print-tree-branch.is-last::before {
+  bottom: 50%;
+}
+
+.route-print-tree-branch::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 9px;
+  height: 1px;
+  background: var(--tree-line-color);
+}
+
+.route-print-operations-table th:nth-child(1),
+.route-print-operations-table td:nth-child(1) {
+  width: 43px;
+  text-align: center;
+}
+
+.route-print-operations-table th:nth-child(2),
+.route-print-operations-table td:nth-child(2) {
+  width: 36%;
+}
+
+.route-print-operations-table th:nth-child(3),
+.route-print-operations-table td:nth-child(3) {
+  width: 24%;
+}
+
+.route-print-operations-table th:nth-child(4),
+.route-print-operations-table td:nth-child(4) {
+  width: 22%;
+}
+
+.route-print-operations-table th:nth-child(5),
+.route-print-operations-table td:nth-child(5) {
+  width: 48px;
+  text-align: center;
+}
+
+.route-print-operations-table th:nth-child(6),
+.route-print-operations-table td:nth-child(6) {
+  width: 58px;
+  text-align: center;
+}
+
+.route-print-table strong {
+  display: block;
+  font-size: 8.6px;
+  font-weight: 650;
+  line-height: 1.16;
+}
+
+.route-print-table td span {
+  display: block;
+  margin-top: 1px;
+  color: #64748b;
+  font-size: 7.6px;
+  font-weight: 520;
+  text-transform: none;
+}
+
+.route-print-task-row td {
+  background: #f8fbff;
+  color: #1d4ed8;
+  font-weight: 720;
+}
+
+.route-print-task-row td:first-child {
+  color: #1e3a8a;
+  text-align: center;
+}
+
+.route-print-task-row td:nth-child(2) {
+  color: #1e3a8a;
+  text-align: left;
+}
+
+.route-print-operation-main,
+.route-print-resource-main,
+.route-print-operation-extra {
+  display: block;
+  margin: 0;
+  color: #334155;
+  font-size: 8.4px;
+  font-weight: 520;
+  line-height: 1.16;
+}
+
+.route-print-operation-extra {
+  color: #64748b;
+}
+
+.route-print-muted-row td,
+.route-print-empty {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.route-print-empty {
+  display: grid;
+  gap: 4px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.route-print-notes > div {
+  min-height: 38px;
+  border: 1px solid #cbd5e1;
+  padding: 7px;
+}
+
+.route-print-signatures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.route-print-signatures article {
+  display: grid;
+  gap: 13px;
+}
+
+.route-print-signatures i {
+  display: block;
+  border-bottom: 1px solid #111827;
+  min-height: 16px;
+}
+
+@media (max-width: 760px) {
+  .route-print-backdrop {
+    padding: 8px;
+  }
+
+  .route-print-modal {
+    display: grid !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    overflow: hidden !important;
+  }
+
+  .route-print-scroll {
+    overflow: auto !important;
+    padding: 8px;
+  }
+
+  .route-print-sheet {
+    min-height: 0;
+    padding: 6mm;
+  }
+
+  .route-print-signatures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 297mm !important;
+    min-width: 297mm !important;
+    min-height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .route-print-backdrop,
+  .route-print-backdrop *,
+  .route-print-modal,
+  .route-print-modal * {
+    visibility: visible !important;
+  }
+
+  .route-print-ui {
+    display: none !important;
+  }
+
+  .route-print-backdrop {
+    position: static !important;
+    display: block !important;
+    width: 297mm !important;
+    min-width: 297mm !important;
+    height: auto !important;
+    min-height: 210mm !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .route-print-modal {
+    position: static !important;
+    display: block !important;
+    width: 297mm !important;
+    min-width: 297mm !important;
+    max-width: 297mm !important;
+    max-height: none !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .route-print-scroll {
+    display: block !important;
+    width: 297mm !important;
+    min-width: 297mm !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+
+  .route-print-sheet {
+    width: 297mm !important;
+    max-width: 297mm !important;
+    min-height: 210mm !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 6mm !important;
+  }
+
+  .route-print-table tr,
+  .route-print-signatures article {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Planning workbench flattening: keep existing behavior, give the order area the full width. */
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench {
+  grid-template-columns: minmax(184px, 220px) minmax(0, 1fr) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-main {
+  min-height: 0;
+  overflow: auto;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-header {
+  min-height: 0;
+  padding: 10px 12px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-header h2 {
+  font-size: 17px !important;
+  line-height: 1.16 !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  align-items: stretch;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-route-item {
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  align-items: center;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-route-item :is(strong, small) {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-route-item > em.is-ok {
+  background: var(--planning-v2-green-bg) !important;
+  color: var(--planning-v2-green-text) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-route-item > em.is-warning {
+  background: var(--planning-v2-yellow-bg) !important;
+  color: var(--planning-v2-yellow-text) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-route-item > em.is-critical {
+  background: var(--planning-v2-red-bg) !important;
+  color: var(--planning-v2-red-text) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-route-map {
+  padding: 10px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-phase-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-phase {
+  min-height: 38px !important;
+  padding: 7px 9px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-lane {
+  gap: 6px;
+  padding: 7px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-step-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-step-pill {
+  min-height: 34px !important;
+  padding: 6px 8px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-detail {
+  display: block;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-record {
+  gap: 9px !important;
+  padding: 10px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-record-head {
+  min-height: 0;
+  padding-bottom: 8px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-record-head h3 {
+  font-size: 15px !important;
+  line-height: 1.18 !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-record-section {
+  gap: 7px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-record-section + .planning-v2-record-section {
+  border-top: 1px solid rgba(226, 232, 240, 0.9) !important;
+  padding-top: 9px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-row {
+  padding: 7px 8px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-table.is-operations .planning-v2-register-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, 0.55fr) minmax(70px, max-content) minmax(78px, max-content) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-table.is-wip .planning-v2-register-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(90px, max-content) minmax(90px, max-content) minmax(110px, max-content) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-table.is-supply .planning-v2-register-row {
+  grid-template-areas: "item qty actions route status" !important;
+  grid-template-columns: minmax(220px, 1fr) minmax(88px, max-content) minmax(340px, 0.95fr) minmax(150px, 0.5fr) minmax(84px, max-content) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-segmented-actions {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--planning-v2-line);
+  border-radius: var(--planning-v2-radius);
+  background: var(--planning-v2-surface);
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card header div,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card header span,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card header strong {
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card header strong {
+  display: block;
+  color: var(--planning-v2-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card header span {
+  display: block;
+  color: var(--planning-v2-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card header em {
+  border-radius: var(--planning-v2-radius-sm);
+  background: var(--planning-v2-subtle);
+  color: var(--planning-v2-muted);
+  padding: 2px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 16px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card.is-ok header em {
+  background: var(--planning-v2-green-bg);
+  color: var(--planning-v2-green-text);
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card.is-warning header em {
+  background: var(--planning-v2-yellow-bg);
+  color: var(--planning-v2-yellow-text);
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-card.is-critical header em {
+  background: var(--planning-v2-red-bg);
+  color: var(--planning-v2-red-text);
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-rows {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, 0.7fr) minmax(78px, max-content) minmax(120px, max-content);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--planning-v2-line);
+  border-radius: var(--planning-v2-radius-sm);
+  background: var(--planning-v2-subtle);
+  padding: 6px 8px;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-row span {
+  min-width: 0;
+  color: var(--planning-v2-text);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-row strong,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-row small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-row strong {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-row small {
+  color: var(--planning-v2-muted);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-workspace {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-structure-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-map-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-map-head strong,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-map-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-map-head strong {
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-module-font-md);
+  font-weight: 600;
+  line-height: 1.18;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-map-head span {
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-checkpoints {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-checkpoints .planning-v2-phase {
+  min-height: 32px !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  gap: 6px !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  padding: 6px 8px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-checkpoints .planning-v2-phase > b {
+  display: none !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-checkpoints .planning-v2-phase strong,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-checkpoints .planning-v2-phase em {
+  font-size: var(--mes-ui-module-font-xs) !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table {
+  width: max(100%, 1080px) !important;
+  min-width: 1080px !important;
+  max-width: none !important;
+  table-layout: fixed !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th:nth-child(1),
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table td:nth-child(1) {
+  width: 54px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th:nth-child(2),
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table td:nth-child(2) {
+  width: 46px !important;
+  text-align: center !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th:nth-child(3),
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table td:nth-child(3) {
+  width: auto !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th:nth-child(4),
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table td:nth-child(4) {
+  width: 92px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th:nth-child(5),
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table td:nth-child(5) {
+  width: 172px !important;
+  padding-right: 6px !important;
+  padding-left: 6px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th:nth-child(6),
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table td:nth-child(6) {
+  width: 162px !important;
+  padding-right: 8px !important;
+  padding-left: 8px !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th {
+  font-weight: 600 !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table :is(th, td) {
+  min-width: 0 !important;
+  vertical-align: middle !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-object-row.is-selected td,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-step-row.is-selected td {
+  background: var(--mes-ui-selected) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-step-row.is-warning td {
+  background: #fffbeb;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-step-row.is-output td,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-step-row.is-warehouse td {
+  background: color-mix(in srgb, var(--mes-success-soft, #ecfdf5), #ffffff 58%);
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .route-type-icon-badge {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #f8fafc;
+  color: #475569;
+  vertical-align: middle;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .route-type-icon-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .route-tree-cell {
+  min-height: 29px;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .route-tree-cell .speki-tree-object {
+  display: grid;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-name-cell strong {
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-module-font-sm) !important;
+  font-weight: 600 !important;
+  line-height: 1.2;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-name-cell small {
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-module-font-xs) !important;
+  font-weight: 500 !important;
+  line-height: 1.2;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-quantity {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  font-weight: 400 !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-quantity strong,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-quantity small {
+  overflow: hidden;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 400 !important;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-demo-labor-field {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #111827;
+  color: #ffffff;
+  padding: 3px 6px;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-demo-labor-field span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  text-transform: none;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-demo-labor-field input {
+  min-width: 0;
+  width: 100%;
+  height: 20px;
+  min-height: 20px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  padding: 0 !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  line-height: 14px !important;
+  outline: none;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-demo-labor-field input::placeholder {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-demo-labor-field:focus-within {
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.16);
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-state-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-state-cell .planning-v2-state-token {
+  min-width: 0;
+  max-width: 110px;
+  overflow: hidden;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-state-cell .icon-button {
+  flex: 0 0 auto;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-checkpoints {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item :is(strong, small, i),
+main.app-shell[data-layout-page="routes"] .routes-page .route-lineage-panel :is(strong, em),
+main.app-shell[data-layout-page="routes"] .routes-page .route-card-kind-pill {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
+main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item small {
+  display: block;
+}
+
+main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item small i {
+  display: inline;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-shift-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-phase-strip,
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-table.is-supply .planning-v2-register-row,
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-table.is-wip .planning-v2-register-row,
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-table.is-operations .planning-v2-register-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-register-table.is-supply .planning-v2-register-row {
+    grid-template-areas:
+      "item status"
+      "qty route"
+      "actions actions" !important;
+  }
+}
+
+/* Shift master and dispatcher fact layer: planning slots stay read-only, assignments/facts live separately. */
+main.app-shell[data-layout-page="shiftMaster"],
+main.app-shell[data-layout-page="dispatch"] {
+  --shift-master-sidebar-width: 256px;
+  --shift-master-gap: 10px;
+  --shift-master-radius: var(--mes-ui-radius-xl);
+  --shift-master-field-height: 30px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-page {
+  display: grid;
+  grid-template-columns: minmax(var(--shift-master-sidebar-width), var(--shift-master-sidebar-width)) minmax(0, 1fr);
+  gap: var(--shift-master-gap);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--mes-ui-density-page);
+  overflow: hidden;
+  background: var(--mes-ui-bg-gradient), var(--mes-ui-bg);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] :is(.shift-master-sidebar, .shift-master-workspace, .shift-master-plan-panel, .shift-master-print-panel),
+main.app-shell[data-layout-page="dispatch"] :is(.dispatch-fact-gantt-panel, .dispatch-fact-panel, .dispatch-fact-focus) {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--shift-master-radius);
+  background: var(--mes-ui-surface-raised);
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-sidebar {
+  display: grid;
+  grid-template-rows: auto minmax(0, auto) minmax(0, 1fr);
+  overflow: hidden;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login-list,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-section-list {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid transparent;
+  border-radius: var(--mes-ui-radius-sm);
+  background: transparent;
+  padding: 7px 8px;
+  color: var(--mes-ui-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login:hover,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login.is-active {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: var(--mes-ui-primary-soft);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login svg {
+  width: 15px;
+  height: 15px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login :is(strong, small) {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login strong {
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-body);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-login small {
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-header h2,
+main.app-shell[data-layout-page="dispatch"] .dispatch-header h2 {
+  font-size: 17px;
+  line-height: 21px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-header-actions,
+main.app-shell[data-layout-page="dispatch"] .dispatch-header-actions {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-header-actions button,
+main.app-shell[data-layout-page="dispatch"] .dispatch-header-actions button {
+  min-height: var(--shift-master-field-height);
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-control,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-control {
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-field,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-field {
+  display: grid;
+  gap: 3px;
+  flex: 0 0 136px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-field span,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-field span {
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-caption);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-field input,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-field input {
+  width: 100%;
+  height: var(--shift-master-field-height);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 3px 8px;
+  font-size: var(--mes-ui-type-body);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-step,
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-open,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-step,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-open {
+  width: var(--shift-master-field-height);
+  min-width: var(--shift-master-field-height);
+  min-height: var(--shift-master-field-height);
+  padding: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-today,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-today {
+  gap: 5px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-range,
+main.app-shell[data-layout-page="dispatch"] .shift-calendar-range {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--shift-master-field-height);
+  max-width: 190px;
+  padding: 0 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(248, 250, 252, 0.88);
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-caption);
+  line-height: var(--mes-ui-line-caption);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-content {
+  display: grid;
+  align-content: start;
+  gap: var(--shift-master-gap);
+  min-width: 0;
+  padding: var(--mes-ui-density-card);
+  overflow: auto;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--shift-master-gap);
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 64px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: var(--mes-ui-radius-lg);
+  background: var(--mes-ui-surface-raised);
+  padding: 9px;
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card svg {
+  width: 16px;
+  height: 16px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card :is(small, strong, em) {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card small,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card em {
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-style: normal;
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card strong {
+  color: var(--mes-ui-text);
+  font-size: 16px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 20px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card.is-ok > span {
+  background: var(--mes-ui-success-soft);
+  color: var(--mes-ui-success);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid .dispatch-kpi-card.is-warning > span {
+  background: var(--mes-ui-warning-soft);
+  color: var(--mes-ui-warning);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-board-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: var(--shift-master-gap);
+  min-width: 0;
+  align-items: start;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-list {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface);
+  padding: 7px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row.is-active {
+  border-color: rgba(37, 99, 235, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row.is-ok {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: linear-gradient(180deg, var(--mes-ui-success-soft), #fff);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row.is-warning {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: linear-gradient(180deg, var(--mes-ui-warning-soft), #fff);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-main :is(strong, small),
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-meta span,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid dd,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-operation :is(strong, span, small) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-main strong {
+  display: block;
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-main small,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-meta span {
+  display: block;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-main em {
+  color: var(--mes-ui-primary);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(160px, 1fr) minmax(170px, 0.8fr);
+  gap: 6px;
+  align-items: end;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-controls label,
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-controls label span,
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row label span {
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-controls :is(select, input),
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row :is(select, input) {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 5px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-actions button {
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-panel {
+  align-self: start;
+  overflow: hidden;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-sheet {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-title {
+  display: grid;
+  gap: 2px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  padding-bottom: 8px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-title span,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid dt,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-note span {
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-title strong {
+  color: var(--mes-ui-text);
+  font-size: 15px;
+  line-height: 18px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-xs);
+  background: var(--mes-ui-surface-soft);
+  padding: 5px 6px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid dt,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid dd {
+  margin: 0;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid dd {
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-operation,
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-note {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  padding: 7px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-operation strong {
+  color: var(--mes-ui-text);
+  font-size: 13px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 16px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-operation :is(span, small),
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-note p {
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-note p {
+  margin: 0;
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-signatures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-signatures span {
+  min-height: 34px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.28);
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-content {
+  grid-template-rows: repeat(4, max-content);
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-section-list {
+  overflow: auto;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-section-card {
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-focus {
+  overflow: hidden;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-selected-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-selected-fact-grid article {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  padding: 7px 8px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-selected-fact-grid span {
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-selected-fact-grid strong {
+  color: var(--mes-ui-text);
+  font-size: 13px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 16px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-lane-list {
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-window-ruler.is-days {
+  display: grid;
+  grid-template-columns: repeat(var(--dispatch-ruler-days, 7), minmax(0, 1fr));
+  gap: 0;
+  padding: 6px 12px 0;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-window-ruler.is-days span {
+  justify-self: start;
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-lane-row {
+  grid-template-columns: minmax(180px, 0.32fr) minmax(280px, 1fr) minmax(150px, 0.28fr);
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-lane-row .dispatch-lane {
+  height: 32px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-bar {
+  top: 2px;
+  height: 28px;
+  min-height: 28px;
+  min-width: 28px;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-bar.is-neutral {
+  background: #94a3b8;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-bar.is-selected {
+  outline: 2px solid rgba(37, 99, 235, 0.42);
+  outline-offset: 2px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-bar span {
+  display: block;
+  width: min(100%, var(--fact-progress, 0%));
+  height: 100%;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1.15fr)
+    minmax(180px, 0.95fr)
+    minmax(72px, max-content)
+    minmax(76px, 0.35fr)
+    minmax(68px, 0.3fr)
+    minmax(112px, 0.46fr)
+    minmax(170px, 0.8fr)
+    minmax(56px, max-content);
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: 6px 7px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row.is-active,
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row:hover {
+  border-color: rgba(37, 99, 235, 0.26);
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row.is-ok {
+  background: linear-gradient(180deg, var(--mes-ui-success-soft), #fff);
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row.is-warning {
+  background: linear-gradient(180deg, var(--mes-ui-warning-soft), #fff);
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row.is-critical {
+  background: linear-gradient(180deg, var(--mes-ui-danger-soft), #fff);
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-title :is(strong, small),
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-context,
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-plan {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-title strong {
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-title small,
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-context {
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row-title em {
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-muted);
+  padding: 1px 6px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-plan,
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-delta {
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+  text-align: right;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-comment input {
+  min-width: 150px;
+}
+
+main.app-shell[data-layout-page="dispatch"] .dispatch-fact-delta {
+  justify-self: end;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-page {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-sidebar {
+    max-height: 360px;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-board-grid,
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-selected-fact-grid,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-fact-lane-row,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-board-grid,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-selected-fact-grid,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-fact-lane-row,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-actions {
+    justify-content: start;
+  }
+}
+
+@media (max-width: 768px) {
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-page,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-page {
+    padding: var(--mes-mobile-page-pad);
+    gap: var(--mes-mobile-gap);
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-header,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-header-actions,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-control,
+  main.app-shell[data-layout-page="dispatch"] .shift-calendar-control {
+    width: 100%;
+    display: grid;
+    grid-template-columns: var(--mes-mobile-touch) minmax(0, 1fr) var(--mes-mobile-touch) var(--mes-mobile-touch);
+    align-items: end;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-field,
+  main.app-shell[data-layout-page="dispatch"] .shift-calendar-field {
+    flex-basis: auto;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-step,
+  main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-open,
+  main.app-shell[data-layout-page="dispatch"] .shift-calendar-step,
+  main.app-shell[data-layout-page="dispatch"] .shift-calendar-open {
+    width: 100%;
+    min-width: 0;
+    min-height: var(--mes-mobile-touch);
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-today,
+  main.app-shell[data-layout-page="dispatch"] .shift-calendar-today {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: var(--mes-mobile-touch);
+    justify-content: center;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-calendar-range,
+  main.app-shell[data-layout-page="dispatch"] .shift-calendar-range {
+    grid-column: 1 / -1;
+    max-width: none;
+    min-height: var(--mes-mobile-touch);
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-header-actions button,
+  main.app-shell[data-layout-page="dispatch"] .dispatch-header-actions button {
+    width: 100%;
+    min-height: var(--mes-mobile-touch);
+    justify-content: center;
+  }
+
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-controls,
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-row-meta,
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-kpi-grid,
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-grid,
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-print-signatures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout-page="dispatch"] .dispatch-fact-row :is(select, input),
+  main.app-shell[data-layout-page="shiftMaster"] .shift-master-controls :is(select, input) {
+    min-height: var(--mes-mobile-touch);
+  }
+
+  main.app-shell[data-layout-page="dispatch"] .dispatch-fact-bar {
+    min-width: var(--mes-mobile-touch);
+    min-height: var(--mes-mobile-touch);
+  }
+}
+
+main.app-shell.is-focus-mode[data-layout-page="shiftMaster"] .shift-master-page,
+main.app-shell.is-focus-mode[data-layout-page="dispatch"] .dispatch-page {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+main.app-shell.is-focus-mode[data-layout-page="shiftMaster"] .shift-master-sidebar,
+main.app-shell.is-focus-mode[data-layout-page="dispatch"] .dispatch-sidebar {
+  display: none !important;
+}
+
+/* Planning Gantt: outlined sausages without fill for every slot variant. */
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot {
+  background: transparent !important;
+  border-color: var(--slot-border, var(--mes-gantt-plan-border)) !important;
+  border-style: dashed !important;
+  color: var(--slot-text, var(--mes-primary)) !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:not(.is-segmented) {
+  border-width: 1px !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-completed,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.warehouse-slot {
+  background: transparent !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-in_progress,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-problem,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-overdue,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.has-warning.warning,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.has-warning.critical {
+  background: transparent !important;
+  border-style: dashed !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.slot-working-segment, .slot-non-working-segment) {
+  background: transparent !important;
+  border-style: dashed !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-working-segment {
+  border-color: var(--slot-border, var(--mes-gantt-plan-border)) !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-non-working-segment {
+  border-color: var(--slot-break-border, var(--mes-gantt-break-border)) !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented :is(.slot-working-segment, .slot-non-working-segment).is-continuation-start {
+  border-left-width: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented :is(.slot-working-segment, .slot-non-working-segment).is-continuation-end {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path-underlay {
+  display: none !important;
+  opacity: 0 !important;
+  stroke: transparent !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path.dependency-path-muted {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path {
+  stroke-width: 1px !important;
+  stroke-dasharray: 4 4 !important;
+  stroke-linecap: butt !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path.is-transfer {
+  stroke-width: 1px !important;
+  stroke-dasharray: 4 4 !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .week-dependencies .dependency-path {
+  stroke-dasharray: 4 4 !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow {
+  fill: none !important;
+  stroke: #475569 !important;
+  stroke-width: 1px !important;
+  stroke-linecap: butt !important;
+  stroke-linejoin: round !important;
+  paint-order: normal !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow.is-transfer {
+  fill: none !important;
+  stroke: #2563eb !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.slot-accent, .slot-working-segment .slot-accent, .slot-non-working-segment .slot-accent) {
+  background: transparent !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.operation-slot .slot-content, .slot-working-segment .slot-content, .slot-non-working-segment .slot-content) {
+  background: transparent !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-transfer-batch-indicator {
+  background: transparent !important;
+  border-color: var(--slot-border, var(--mes-gantt-plan-border)) !important;
+  border-style: dashed !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-transfer-batch-indicator::after {
+  display: none !important;
+}
+
+/* Status directory: keep annotation and impact readable in the default desktop view. */
+main.app-shell[data-layout-page="directories"] .directory-status-table {
+  table-layout: fixed !important;
+  width: 100% !important;
+  min-width: 100% !important;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th,
+main.app-shell[data-layout-page="directories"] .directory-status-table td {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(1),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(1) {
+  width: 15%;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(2),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(2) {
+  width: 11%;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(3),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(3) {
+  width: 10%;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(4),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(4) {
+  width: 10%;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(5),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(5) {
+  width: 9%;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(6),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(6) {
+  width: 21%;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(7),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(7) {
+  width: 18%;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table th:nth-child(8),
+main.app-shell[data-layout-page="directories"] .directory-status-table td:nth-child(8) {
+  width: 70px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-audit-token {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 20px;
+  border: 1px solid var(--status-audit-border, var(--mes-ui-line));
+  border-radius: var(--mes-ui-pill);
+  background: var(--status-audit-bg, var(--mes-ui-surface-soft));
+  padding: 2px 7px;
+  color: var(--status-audit-color, var(--mes-ui-text-secondary));
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="directories"] .status-audit-token.is-visual {
+  --status-audit-bg: #f8fafc;
+  --status-audit-border: #dbe3ef;
+  --status-audit-color: #64748b;
+}
+
+main.app-shell[data-layout-page="directories"] .status-audit-token.is-computed {
+  --status-audit-bg: #f0fdf4;
+  --status-audit-border: #bbf7d0;
+  --status-audit-color: #15803d;
+}
+
+main.app-shell[data-layout-page="directories"] .status-audit-token.is-flag {
+  --status-audit-bg: #eff6ff;
+  --status-audit-border: #bfdbfe;
+  --status-audit-color: #1d4ed8;
+}
+
+main.app-shell[data-layout-page="directories"] .status-audit-token.is-core {
+  --status-audit-bg: #fef2f2;
+  --status-audit-border: #fecaca;
+  --status-audit-color: #b91c1c;
+}
+
+main.app-shell[data-layout-page="directories"] .status-audit-token.is-review {
+  --status-audit-bg: #fefce8;
+  --status-audit-border: #fde68a;
+  --status-audit-color: #854d0e;
+}
+
+main.app-shell[data-layout-page="directories"] .directory-status-table tr.is-status-audit-visual td {
+  background: color-mix(in srgb, #f8fafc 66%, transparent);
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-map {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-soft);
+  padding: 10px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  align-items: center;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-head span {
+  grid-column: 1 / -1;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+  text-transform: uppercase;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-head strong {
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 16px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-head em {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-surface);
+  padding: 2px 8px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-head em.is-critical {
+  border-color: color-mix(in srgb, var(--mes-signal-danger, #ef4444) 32%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-signal-danger, #ef4444) 9%, var(--mes-ui-surface));
+  color: var(--mes-signal-danger, #b91c1c);
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-head em.is-warning {
+  border-color: color-mix(in srgb, var(--mes-signal-warning, #f59e0b) 36%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-signal-warning, #f59e0b) 11%, var(--mes-ui-surface));
+  color: #92400e;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-head em.is-ok {
+  border-color: color-mix(in srgb, var(--mes-signal-ready, #16a34a) 32%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-signal-ready, #16a34a) 9%, var(--mes-ui-surface));
+  color: var(--mes-signal-ready, #15803d);
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-grid article {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--mes-ui-line) 86%, transparent);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: 7px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-grid span {
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-grid strong {
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-map p {
+  margin: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 14px;
+}
+
+/* Employees module: org diagrams should expand inside the page, not create nested scroll areas. */
+main.app-shell[data-layout-page="employees"] .employees-content {
+  display: block !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-content > .module-panel + .module-panel {
+  margin-top: 8px;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-content .module-panel,
+main.app-shell[data-layout-page="employees"] .employees-org-panel,
+main.app-shell[data-layout-page="employees"] .employees-responsibility-panel {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  grid-template-rows: auto auto !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-chart,
+main.app-shell[data-layout-page="employees"] .employee-legend,
+main.app-shell[data-layout-page="employees"] .employees-responsibility-table-wrap {
+  position: relative;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-responsibility-table.directory-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-responsibility-table th,
+main.app-shell[data-layout-page="employees"] .employees-responsibility-table td {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+/* Employees module: compact horizontal role levels inside each department. */
+main.app-shell[data-layout-page="employees"] .employee-root-card {
+  position: relative;
+  width: min(520px, 100%) !important;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 8px 9px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card::after {
+  display: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card strong,
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head strong {
+  font-size: 11px;
+  font-weight: 860;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card small,
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head small,
+main.app-shell[data-layout-page="employees"] .employee-person-card small,
+main.app-shell[data-layout-page="employees"] .employee-resource-card small,
+main.app-shell[data-layout-page="employees"] .employee-empty-card small {
+  font-size: 9px;
+  font-weight: 700;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card em,
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head em,
+main.app-shell[data-layout-page="employees"] .employee-person-card em,
+main.app-shell[data-layout-page="employees"] .employee-resource-card em {
+  min-height: 18px;
+  padding: 0 6px;
+  font-size: 9px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-node-icon,
+main.app-shell[data-layout-page="employees"] .employee-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: 9px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-node-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-unit {
+  gap: 7px;
+  padding: 7px 8px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head {
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-unit-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding-left: 0;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-unit-flow::before {
+  display: none;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--employee-tone, #64748b) 18%, #e3e9f0);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--employee-tone, #64748b) 3%, #ffffff);
+  padding: 6px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage::before {
+  display: none;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  top: 10px;
+  right: -13px;
+  z-index: 2;
+  width: 12px;
+  color: color-mix(in srgb, var(--employee-tone, #64748b) 60%, #94a3b8);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-stage-label {
+  justify-content: start;
+  min-height: 22px;
+  border-radius: 6px;
+  padding: 0 7px;
+  font-size: 9px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage-items {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-person-card,
+main.app-shell[data-layout-page="employees"] .employee-resource-card,
+main.app-shell[data-layout-page="employees"] .employee-empty-card {
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 6px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-person-card em,
+main.app-shell[data-layout-page="employees"] .employee-resource-card em {
+  justify-self: start;
+  grid-column: 2;
+  min-height: 16px;
+  margin-top: -2px;
+}
+
+@media (max-width: 1280px) {
+  main.app-shell[data-layout-page="employees"] .employee-org-unit-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-org-stage:nth-child(2n)::after {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  main.app-shell[data-layout-page="employees"] .employee-org-unit-flow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout-page="employees"] .employee-org-stage::after {
+    display: none !important;
+  }
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-unit-flow {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage:not(:last-child)::after {
+  display: block !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-person-card strong,
+main.app-shell[data-layout-page="employees"] .employee-resource-card strong,
+main.app-shell[data-layout-page="employees"] .employee-empty-card strong {
+  font-size: 10px;
+  font-weight: 820;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-person-card,
+main.app-shell[data-layout-page="employees"] .employee-resource-card,
+main.app-shell[data-layout-page="employees"] .employee-empty-card {
+  min-height: 30px;
+  padding: 4px 5px;
+}
+
+/* Employees module: align the org chart with the MES UI kit visual language. */
+main.app-shell[data-layout-page="employees"] {
+  --employee-role-root: var(--mes-ui-primary);
+  --employee-role-owner: #7c3aed;
+  --employee-role-master: var(--mes-ui-warning);
+  --employee-role-employee: var(--mes-ui-success);
+  --employee-role-resource: var(--mes-ui-muted);
+}
+
+main.app-shell[data-layout-page="employees"] .employees-page {
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only .employees-workspace {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: auto !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only .employees-content {
+  margin: 0 !important;
+  padding: 8px !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only .employees-org-panel {
+  margin: 0 !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.employees-sidebar, .employees-workspace, .module-panel) {
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-xl) !important;
+  background: var(--mes-ui-surface-raised) !important;
+  box-shadow: var(--mes-ui-shadow-md) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-header {
+  border-bottom-color: var(--mes-ui-line) !important;
+  background: linear-gradient(180deg, var(--mes-ui-surface), var(--mes-ui-surface-soft)) !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.directory-sidebar-head h1, .employees-header h2) {
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-type-section-title, 15px) !important;
+  font-weight: var(--mes-ui-weight-bold, 760) !important;
+  line-height: var(--mes-ui-line-section-title, 18px) !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.eyebrow, .employees-header p, .report-card-head span, .employee-sidebar-stats span, .employee-sidebar-stats small) {
+  color: var(--mes-ui-muted) !important;
+  font-size: var(--mes-ui-type-caption, 10px) !important;
+  font-weight: var(--mes-ui-weight-regular, 600) !important;
+  line-height: var(--mes-ui-line-caption, 13px) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .report-card-head {
+  border-bottom-color: var(--mes-ui-line) !important;
+  background: transparent !important;
+  min-height: 38px !important;
+}
+
+main.app-shell[data-layout-page="employees"] .report-card-head strong {
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-type-card-title, 12px) !important;
+  font-weight: var(--mes-ui-weight-bold, 760) !important;
+  line-height: var(--mes-ui-line-card-title, 16px) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-sidebar-stats {
+  border-bottom-color: var(--mes-ui-line) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-sidebar-stats article,
+main.app-shell[data-layout-page="employees"] .employee-legend-item,
+main.app-shell[data-layout-page="employees"] .employees-kpi-grid article {
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface-soft) !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-sidebar-stats strong,
+main.app-shell[data-layout-page="employees"] .employees-kpi-grid strong {
+  color: var(--mes-ui-text) !important;
+  font-size: 16px !important;
+  font-weight: var(--mes-ui-weight-bold, 760) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-legend-item {
+  min-height: 26px !important;
+  color: var(--mes-ui-text-secondary) !important;
+  font-size: var(--mes-ui-type-caption, 10px) !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-legend-item i {
+  width: 8px !important;
+  height: 8px !important;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-source-note {
+  border-color: var(--mes-ui-warning-border) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-warning-soft) !important;
+  color: #92400e !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-kpi-grid article {
+  padding: 8px !important;
+  box-shadow: inset 2px 0 0 var(--employee-tone, var(--mes-ui-line-strong)) !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.employee-root-card, .employee-org-unit, .employee-person-card, .employee-resource-card, .employee-empty-card) {
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface) !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card {
+  border-color: var(--mes-ui-primary-border) !important;
+  background: var(--mes-ui-primary-soft) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card::after {
+  display: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-unit {
+  border-color: var(--mes-ui-line) !important;
+  background: var(--mes-ui-surface) !important;
+  box-shadow: inset 2px 0 0 var(--employee-tone, var(--mes-ui-primary)) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head {
+  min-height: 30px !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.employee-root-card strong, .employee-org-unit-head strong, .employee-person-card strong, .employee-resource-card strong, .employee-empty-card strong) {
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-type-body, 11px) !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+  line-height: var(--mes-ui-line-body, 15px) !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.employee-root-card small, .employee-org-unit-head small, .employee-person-card small, .employee-resource-card small, .employee-empty-card small) {
+  color: var(--mes-ui-muted) !important;
+  font-size: var(--mes-ui-type-caption, 10px) !important;
+  font-weight: var(--mes-ui-weight-regular, 600) !important;
+  line-height: var(--mes-ui-line-caption, 13px) !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.employee-node-icon, .employee-avatar) {
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  background: var(--mes-ui-surface-soft) !important;
+  color: var(--employee-tone, var(--mes-ui-primary)) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage {
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-stage-label,
+main.app-shell[data-layout-page="employees"] :is(.employee-root-card em, .employee-org-unit-head em, .employee-person-card em, .employee-resource-card em) {
+  border: 1px solid var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-pill) !important;
+  background: var(--mes-ui-surface) !important;
+  color: var(--employee-tone, var(--mes-ui-text-secondary)) !important;
+  font-size: var(--mes-ui-type-caption, 10px) !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage.is-owner,
+main.app-shell[data-layout-page="employees"] .employee-person-card.is-owner,
+main.app-shell[data-layout-page="employees"] .employee-legend-item.is-owner {
+  --employee-tone: var(--employee-role-owner);
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage.is-master,
+main.app-shell[data-layout-page="employees"] .employee-person-card.is-master,
+main.app-shell[data-layout-page="employees"] .employee-legend-item.is-master {
+  --employee-tone: var(--employee-role-master);
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage.is-employee,
+main.app-shell[data-layout-page="employees"] .employee-person-card.is-employee,
+main.app-shell[data-layout-page="employees"] .employee-legend-item.is-employee {
+  --employee-tone: var(--employee-role-employee);
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage.is-resource,
+main.app-shell[data-layout-page="employees"] .employee-resource-card,
+main.app-shell[data-layout-page="employees"] .employee-legend-item.is-resource {
+  --employee-tone: var(--employee-role-resource);
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage:not(:last-child)::after {
+  color: var(--mes-ui-muted-soft) !important;
+}
+
+main.app-shell[data-layout-page="employees"] :is(.employees-org-branches::before, .employees-org-branches::after, .employee-org-unit::before) {
+  border-color: var(--mes-ui-line-strong) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-responsibility-table {
+  border-color: var(--mes-ui-line) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-responsibility-table .readonly-token {
+  border-color: var(--mes-ui-line) !important;
+  background: var(--mes-ui-surface-soft) !important;
+  color: var(--mes-ui-text-secondary) !important;
+  font-size: var(--mes-ui-type-caption, 10px) !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-avatar, .employee-node-icon, .employee-person-card em, .employee-resource-card em) {
+  display: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-person-card, .employee-resource-card, .employee-empty-card) {
+  display: block !important;
+  min-height: 36px !important;
+  padding: 6px 7px !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-person-card strong, .employee-resource-card strong, .employee-empty-card strong) {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-person-card small, .employee-resource-card small, .employee-empty-card small) {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-stage-label {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-map {
+  position: relative;
+  display: grid;
+  gap: 34px;
+  min-width: 0;
+  padding: 38px 0 12px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+body.is-mes-visual-qa-inspecting main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors {
+  z-index: 4;
+  pointer-events: none;
+}
+
+body.is-mes-visual-qa-inspecting main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector {
+  pointer-events: stroke;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker path {
+  fill: color-mix(in srgb, var(--mes-ui-primary) 52%, var(--mes-ui-line-strong));
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker#employeeHierarchyArrowResource path {
+  fill: color-mix(in srgb, var(--employee-role-resource) 68%, var(--mes-ui-line-strong));
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker#employeeHierarchyArrowPerson path {
+  fill: color-mix(in srgb, #16a34a 60%, var(--mes-ui-line-strong));
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker#employeeHierarchyArrowCapacity path {
+  fill: color-mix(in srgb, #6366f1 56%, var(--mes-ui-line-strong));
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector {
+  fill: none;
+  stroke: color-mix(in srgb, var(--mes-ui-primary) 46%, var(--mes-ui-line-strong));
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.76;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-trunk,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-bus {
+  stroke-width: 1.2;
+  opacity: 0.68;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-drop {
+  opacity: 0.84;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-resource {
+  stroke: color-mix(in srgb, var(--mes-ui-primary) 46%, var(--mes-ui-line-strong));
+  stroke-dasharray: none;
+  opacity: 0.84;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-person {
+  stroke: color-mix(in srgb, #16a34a 48%, var(--mes-ui-line-strong));
+  opacity: 0.84;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-capacity {
+  stroke: color-mix(in srgb, #6366f1 48%, var(--mes-ui-line-strong));
+  opacity: 0.82;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-map::before {
+  display: none;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer:not(:first-child)::before {
+  display: none;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  padding: 4px 5px;
+  text-align: center;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label small {
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label strong {
+  display: block;
+  color: var(--mes-ui-text-secondary);
+  font-size: 6.6px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 7.6px;
+  overflow-wrap: normal;
+  white-space: normal;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 13px;
+  min-height: 10px;
+  border: 1px solid color-mix(in srgb, var(--mes-ui-line) 84%, transparent);
+  border-radius: 999px;
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-muted);
+  font-size: 6px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 8px;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--employee-grid-columns), minmax(32px, 1fr));
+  gap: 2px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-row::before {
+  display: none;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer:first-child .employee-hierarchy-row::before {
+  top: 0;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 1px 3px;
+  align-content: center;
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-xs);
+  background: var(--mes-ui-surface);
+  box-shadow: inset 0 2px 0 var(--employee-tone, var(--mes-ui-primary));
+  padding: 4px 3px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node::before {
+  display: none;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  grid-row: 1 / span 2;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--mes-ui-radius-xs);
+  background: var(--mes-ui-surface-soft);
+  color: var(--employee-tone, var(--mes-ui-primary));
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node svg {
+  width: 10px;
+  height: 10px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node strong {
+  color: var(--mes-ui-text);
+  font-size: 8px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 10px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node small {
+  color: var(--mes-ui-muted);
+  font-size: 7px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 9px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource {
+  min-height: 25px;
+  grid-template-columns: 12px minmax(0, 1fr);
+  padding: 3px;
+  box-shadow: inset 0 2px 0 var(--employee-role-resource);
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node span,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource span {
+  width: 12px;
+  height: 12px;
+  background: transparent;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node small,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource small {
+  display: none;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource strong {
+  font-size: 7px;
+  line-height: 9px;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-production,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-section {
+  --employee-tone: #0891b2;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-master {
+  --employee-tone: #d97706;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-employee {
+  --employee-tone: #16a34a;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-capacity {
+  --employee-tone: #6366f1;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource {
+  --employee-tone: var(--employee-role-resource);
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card {
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-items: center !important;
+  width: min(360px, 100%) !important;
+  min-height: 34px !important;
+  border-color: #bfdbfe !important;
+  background: #edf5ff !important;
+  box-shadow: none !important;
+  padding: 7px 12px !important;
+  text-align: center !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card :is(.employee-node-icon, small, em, svg) {
+  display: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-root-card strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--mes-ui-text) !important;
+  font-size: 9px !important;
+  line-height: 12px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-row {
+  grid-template-columns: repeat(var(--employee-grid-columns), minmax(30px, 1fr));
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto !important;
+  gap: 0 !important;
+  align-content: center !important;
+  justify-items: center !important;
+  min-height: 32px !important;
+  border-color: var(--employee-node-border, var(--mes-ui-line)) !important;
+  background: var(--employee-node-bg, #f8fafc) !important;
+  box-shadow: none !important;
+  padding: 3px 4px !important;
+  text-align: center !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node :is(span, svg) {
+  display: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource strong {
+  display: block !important;
+  max-width: 100%;
+  overflow: visible !important;
+  color: var(--mes-ui-text) !important;
+  font-size: 6px !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+  hyphens: auto;
+  line-height: 7px !important;
+  overflow-wrap: anywhere !important;
+  text-align: center !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node small {
+  display: block !important;
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: visible !important;
+  color: var(--mes-ui-muted);
+  font-size: 5.4px !important;
+  font-weight: var(--mes-ui-weight-regular, 500) !important;
+  line-height: 6.4px !important;
+  overflow-wrap: anywhere !important;
+  text-align: center;
+  white-space: normal !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource small {
+  display: none !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-production,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-section {
+  --employee-node-bg: #e9f9fb;
+  --employee-node-border: #bae6fd;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-master {
+  --employee-node-bg: #fff7ed;
+  --employee-node-border: #fed7aa;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-employee {
+  --employee-node-bg: #f0fdf4;
+  --employee-node-border: #bbf7d0;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-capacity {
+  --employee-node-bg: #eef2ff;
+  --employee-node-border: #c7d2fe;
+}
+
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource {
+  --employee-node-bg: #f6f7fb;
+  --employee-node-border: #d9dee8;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  min-height: 30px;
+  border-top: 1px solid var(--mes-ui-line);
+  padding: 7px 10px 8px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 9px;
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation strong {
+  color: var(--mes-ui-text);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation i {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 8px;
+  border: 1px solid var(--employee-annotation-border, var(--mes-ui-line));
+  border-radius: 3px;
+  background: var(--employee-annotation-bg, var(--mes-ui-surface-soft));
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-production {
+  --employee-annotation-bg: #e9f9fb;
+  --employee-annotation-border: #bae6fd;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-person {
+  --employee-annotation-bg: #f0fdf4;
+  --employee-annotation-border: #bbf7d0;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-capacity {
+  --employee-annotation-bg: #eef2ff;
+  --employee-annotation-border: #c7d2fe;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-resource {
+  --employee-annotation-bg: #f6f7fb;
+  --employee-annotation-border: #d9dee8;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-annotation em {
+  flex: 1 1 260px;
+  min-width: 220px;
+  color: var(--mes-ui-muted);
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-regular, 600);
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-branches {
+  padding-top: 8px !important;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-branches::before,
+main.app-shell[data-layout-page="employees"] .employees-org-branches::after,
+main.app-shell[data-layout-page="employees"] .employees-org-branches > .employee-org-unit::before {
+  display: none !important;
+}
+
+/* Employees module: direct departments are sibling branches under the production chief. */
+main.app-shell[data-layout-page="employees"] .employees-org-branches {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start;
+  gap: 10px;
+  padding-top: 22px;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-branches::before {
+  top: 0;
+  left: 50%;
+  height: 22px;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-branches::after {
+  content: "";
+  position: absolute;
+  top: 22px;
+  left: 18px;
+  right: 18px;
+  border-top: 1px solid #cbd5e1;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-branches > .employee-org-unit {
+  align-self: start;
+}
+
+main.app-shell[data-layout-page="employees"] .employees-org-branches > .employee-org-unit::before {
+  top: -22px;
+  height: 22px;
+  z-index: 1;
+  background: transparent;
+}
+
+@media (min-width: 1680px) {
+  main.app-shell[data-layout-page="employees"] .employees-org-branches {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 980px) {
+  main.app-shell[data-layout-page="employees"] .employees-org-branches {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout-page="employees"] .employees-org-branches::after {
+    display: none;
+  }
+}
+
+/* MES UI Kit generation guard.
+   New operational modules must use this contract:
+   .module-data-sidebar + .module-entity-list + .module-entity-item.
+   Module-specific legacy queue/list styles are normalized here so new objects do
+   not revive the old left-stripe active state or mismatched sidebar rhythm. */
+:root {
+  --mes-ui-sidebar-row-height: 34px;
+  --mes-ui-sidebar-row-gap: 6px;
+  --mes-ui-sidebar-row-pad-y: 7px;
+  --mes-ui-sidebar-row-pad-x: 8px;
+  --mes-ui-sidebar-badge-height: 20px;
+  --mes-ui-sidebar-badge-width: 28px;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-heroui,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench {
+  --planning-v2-bg: var(--mes-ui-bg) !important;
+  --planning-v2-surface: var(--mes-ui-surface-raised) !important;
+  --planning-v2-subtle: var(--mes-ui-surface-soft) !important;
+  --planning-v2-hover: var(--mes-ui-hover) !important;
+  --planning-v2-selected: var(--mes-ui-selected) !important;
+  --planning-v2-selected-border: var(--mes-ui-primary) !important;
+  --planning-v2-line: var(--mes-ui-line) !important;
+  --planning-v2-line-strong: var(--mes-ui-line-strong) !important;
+  --planning-v2-text: var(--mes-ui-text) !important;
+  --planning-v2-muted: var(--mes-ui-muted) !important;
+  --planning-v2-link: var(--mes-ui-primary) !important;
+  --planning-v2-radius-sm: var(--mes-ui-radius-sm) !important;
+  --planning-v2-radius: var(--mes-ui-radius-lg) !important;
+  --planning-v2-radius-lg: var(--mes-ui-radius-xl) !important;
+  --planning-v2-shadow: var(--mes-ui-shadow-sm) !important;
+  --planning-v2-shadow-soft: var(--mes-ui-shadow-sm) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench {
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
+  gap: var(--mes-ui-density-gap) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  grid-template-rows: minmax(100%, max-content) !important;
+  align-items: stretch !important;
+  gap: var(--mes-ui-density-gap) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure > .planning-v2-queue,
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure > .planning-v2-main {
+  align-self: stretch !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure > .planning-v2-main {
+  align-self: flex-start !important;
+  flex: 1 1 auto !important;
+  grid-template-rows: auto max-content !important;
+  height: auto !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-header {
+  align-items: center !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  height: auto !important;
+  min-height: max-content !important;
+  overflow: visible !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-actions {
+  align-self: center !important;
+  justify-self: end !important;
+  width: auto !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure > .planning-v2-queue {
+  flex: 0 0 var(--mes-ui-work-sidebar-width) !important;
+  height: auto !important;
+  min-height: 100% !important;
+  width: var(--mes-ui-work-sidebar-width) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-v2-workspace {
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure {
+    flex-direction: column !important;
+  }
+
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure > .planning-v2-queue {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+  }
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-page .planning-v2-queue {
+  padding: 8px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-queue .planning-v2-route-list {
+  padding: 8px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-queue .planning-v2-route-item,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-page.is-heroui .planning-v2-queue .planning-v2-route-item,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-queue .planning-v2-route-item {
+  min-height: var(--mes-ui-sidebar-row-height) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  padding: var(--mes-ui-sidebar-row-pad-y) var(--mes-ui-sidebar-row-pad-x) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-queue .planning-v2-route-item.is-active,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-page.is-heroui .planning-v2-queue .planning-v2-route-item.is-active,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-queue .planning-v2-route-item.is-active {
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background: var(--mes-ui-selected) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.06) inset !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-page .module-data-sidebar,
+  .planning-v2-page .planning-v2-queue,
+  .directories-page .directory-sidebar
+) {
+  gap: var(--mes-ui-sidebar-row-gap) !important;
+  min-width: 0 !important;
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-xl) !important;
+  background: var(--mes-ui-surface-raised) !important;
+  color: var(--mes-ui-text) !important;
+  box-shadow: var(--mes-ui-shadow-sm) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .directory-sidebar-head,
+  .planning-v2-queue .directory-sidebar-head,
+  .directories-page .directory-sidebar-head
+) {
+  display: grid !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+  border-bottom: 1px solid var(--mes-ui-line) !important;
+  padding: 0 0 8px !important;
+  color: var(--mes-ui-muted) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .directory-sidebar-head .eyebrow,
+  .planning-v2-queue .directory-sidebar-head .eyebrow,
+  .directories-page .directory-sidebar-head .eyebrow
+) {
+  color: var(--mes-ui-muted) !important;
+  font-size: var(--mes-ui-type-caption) !important;
+  font-weight: var(--mes-ui-weight-semibold) !important;
+  line-height: var(--mes-ui-line-caption) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .directory-sidebar-head h1,
+  .planning-v2-queue .directory-sidebar-head h1,
+  .directories-page .directory-sidebar-head h1
+) {
+  margin: 0 !important;
+  overflow: hidden !important;
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-type-section-title) !important;
+  font-weight: var(--mes-ui-weight-bold) !important;
+  line-height: var(--mes-ui-line-section-title) !important;
+  letter-spacing: 0 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-list,
+  .planning-v2-queue .planning-v2-route-list,
+  .directories-page .directory-nav,
+  .directories-page .directory-nav-group-items,
+  .rkd-page .rkd-tab-list,
+  .shift-master-login-list,
+  .shift-master-section-list,
+  .dispatch-section-list,
+  .supply-route-list
+) {
+  display: grid !important;
+  align-content: start !important;
+  gap: var(--mes-ui-sidebar-row-gap) !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item,
+  .planning-v2-queue .planning-v2-route-item,
+  .directories-page .directory-nav-item,
+  .module-data-sidebar .nomenclature-type-filter button,
+  .rkd-page .rkd-tab,
+  .shift-master-login,
+  .shift-master-section-card,
+  .dispatch-section-card,
+  .supply-route-card
+) {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--mes-ui-sidebar-row-height) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: transparent !important;
+  color: var(--mes-ui-text) !important;
+  box-shadow: none !important;
+  padding: var(--mes-ui-sidebar-row-pad-y) var(--mes-ui-sidebar-row-pad-x) !important;
+  font-size: var(--mes-ui-type-body) !important;
+  line-height: var(--mes-ui-line-body) !important;
+  text-align: left !important;
+  cursor: pointer;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item:hover,
+  .planning-v2-queue .planning-v2-route-item:hover,
+  .directories-page .directory-nav-item:hover,
+  .module-data-sidebar .nomenclature-type-filter button:hover,
+  .rkd-page .rkd-tab:hover,
+  .shift-master-login:hover,
+  .shift-master-section-card:hover,
+  .dispatch-section-card:hover,
+  .supply-route-card:hover
+) {
+  border-color: var(--mes-ui-line-strong) !important;
+  background: var(--mes-ui-hover) !important;
+  color: var(--mes-ui-text) !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item.is-active,
+  .planning-v2-queue .planning-v2-route-item.is-active,
+  .directories-page .directory-nav-item.is-active,
+  .module-data-sidebar .nomenclature-type-filter button.is-active,
+  .rkd-page .rkd-tab.is-active,
+  .shift-master-login.is-active,
+  .shift-master-section-card.is-active,
+  .dispatch-section-card.is-active,
+  .supply-route-card.is-active
+) {
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background: var(--mes-ui-selected) !important;
+  color: var(--mes-ui-primary) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.06) inset !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item span,
+  .module-data-sidebar .module-entity-item strong,
+  .module-data-sidebar .module-entity-item small,
+  .planning-v2-queue .planning-v2-route-item span,
+  .planning-v2-queue .planning-v2-route-item strong,
+  .planning-v2-queue .planning-v2-route-item small,
+  .directories-page .directory-nav-item span,
+  .directories-page .directory-nav-item strong,
+  .directories-page .directory-nav-item small,
+  .rkd-page .rkd-tab span,
+  .rkd-page .rkd-tab strong,
+  .rkd-page .rkd-tab small,
+  .shift-master-login strong,
+  .shift-master-login small,
+  .shift-master-section-card strong,
+  .shift-master-section-card small,
+  .dispatch-section-card strong,
+  .dispatch-section-card small,
+  .supply-route-card strong,
+  .supply-route-card small
+) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item span,
+  .planning-v2-queue .planning-v2-route-item span,
+  .directories-page .directory-nav-item span,
+  .rkd-page .rkd-tab span
+) {
+  display: grid !important;
+  gap: 2px !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item strong,
+  .planning-v2-queue .planning-v2-route-item strong,
+  .directories-page .directory-nav-item strong,
+  .module-data-sidebar .nomenclature-type-filter button span,
+  .rkd-page .rkd-tab strong,
+  .shift-master-login strong,
+  .shift-master-section-card strong,
+  .dispatch-section-card strong,
+  .supply-route-card strong
+) {
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-type-nav) !important;
+  font-weight: var(--mes-ui-weight-semibold) !important;
+  line-height: var(--mes-ui-line-nav) !important;
+  letter-spacing: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item small,
+  .planning-v2-queue .planning-v2-route-item small,
+  .directories-page .directory-nav-item small,
+  .rkd-page .rkd-tab small,
+  .shift-master-login small,
+  .shift-master-section-card small,
+  .dispatch-section-card small,
+  .supply-route-card small
+) {
+  color: var(--mes-ui-muted) !important;
+  font-size: var(--mes-ui-type-caption) !important;
+  font-weight: var(--mes-ui-weight-medium) !important;
+  line-height: var(--mes-ui-line-caption) !important;
+  letter-spacing: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item.is-active strong,
+  .planning-v2-queue .planning-v2-route-item.is-active strong,
+  .directories-page .directory-nav-item.is-active strong,
+  .module-data-sidebar .nomenclature-type-filter button.is-active span,
+  .rkd-page .rkd-tab.is-active strong,
+  .shift-master-login.is-active strong,
+  .shift-master-section-card.is-active strong,
+  .dispatch-section-card.is-active strong,
+  .supply-route-card.is-active strong
+) {
+  color: var(--mes-ui-primary) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item em,
+  .planning-v2-queue .planning-v2-route-item > em,
+  .directories-page .directory-nav-item em,
+  .rkd-page .rkd-tab em,
+  .shift-master-section-card em,
+  .dispatch-section-card em,
+  .supply-route-card em
+) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: var(--mes-ui-sidebar-badge-width) !important;
+  max-width: 72px !important;
+  min-height: var(--mes-ui-sidebar-badge-height) !important;
+  border: 1px solid var(--mes-ui-line) !important;
+  border-radius: 999px !important;
+  background: var(--mes-ui-surface-soft) !important;
+  color: var(--mes-ui-muted) !important;
+  padding: 1px 7px !important;
+  overflow: hidden !important;
+  font-size: var(--mes-ui-type-caption) !important;
+  font-style: normal !important;
+  font-weight: var(--mes-ui-weight-semibold) !important;
+  line-height: var(--mes-ui-line-caption) !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item em.is-ok,
+  .planning-v2-queue .planning-v2-route-item > em.is-ok,
+  .supply-route-card em.is-ok
+) {
+  border-color: var(--mes-ui-success-border) !important;
+  background: var(--mes-ui-success-soft) !important;
+  color: var(--mes-ui-success) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item em.is-warning,
+  .planning-v2-queue .planning-v2-route-item > em.is-warning,
+  .supply-route-card em.is-warning
+) {
+  border-color: var(--mes-ui-warning-border) !important;
+  background: var(--mes-ui-warning-soft) !important;
+  color: var(--mes-ui-warning) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  .module-data-sidebar .module-entity-item em.is-critical,
+  .module-data-sidebar .module-entity-item em.is-danger,
+  .planning-v2-queue .planning-v2-route-item > em.is-critical,
+  .supply-route-card em.is-critical
+) {
+  border-color: var(--mes-ui-danger-border) !important;
+  background: var(--mes-ui-danger-soft) !important;
+  color: var(--mes-ui-danger) !important;
+}
+
+main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item :is(strong, small, i),
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench .planning-v2-route-item :is(strong, small) {
+  overflow: hidden !important;
+  overflow-wrap: normal !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-flat-workbench {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="shiftMaster"] .shift-master-sidebar .shift-master-login {
+  grid-template-columns: 24px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  align-items: center !important;
+  min-height: 38px !important;
+  gap: 1px 7px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="shiftMaster"] .shift-master-sidebar .shift-master-login span {
+  grid-row: 1 / span 2 !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  border: 1px solid var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface-soft) !important;
+  color: var(--mes-ui-primary) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="shiftMaster"] .shift-master-sidebar .shift-master-login svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(.shift-master-section-card, .module-data-sidebar article.module-entity-item) {
+  cursor: default !important;
+}
+
+/* MES Stabilization Pass v1: keep compact controls usable without changing data density. */
+main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-demo-labor-field input {
+  min-height: 28px !important;
+}
+
+@media (max-width: 768px) {
+  main.app-shell[data-layout="app-shell"] :is(
+    .module-data-sidebar .module-entity-item,
+    .planning-v2-queue .planning-v2-route-item,
+    .module-data-sidebar .nomenclature-type-filter button,
+    .supply-route-card,
+    .planning-v2-phase
+  ) {
+    min-height: 36px !important;
+  }
+
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-checkpoints .planning-v2-phase {
+    min-height: 36px !important;
   }
 }

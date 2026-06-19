@@ -6,13 +6,13 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultUrl = "http://localhost:4174/";
-const defaultOutDir = join(projectRoot, "tmp", `mobile-qa-${Date.now()}`);
+const defaultOutDir = join(projectRoot, "tmp", `scroll-dropdown-qa-${Date.now()}`);
 const viewports = [
-  { name: "390", width: 390, height: 844 },
-  { name: "430", width: 430, height: 932 },
-  { name: "768", width: 768, height: 1024 },
+  { name: "desktop-1556", width: 1556, height: 1006, mobile: false },
+  { name: "mobile-390", width: 390, height: 844, mobile: true },
+  { name: "mobile-430", width: 430, height: 932, mobile: true },
+  { name: "tablet-768", width: 768, height: 1024, mobile: true },
 ];
-const screenshotModules = new Set(["gantt", "planning", "supply", "dispatch", "routes", "products", "directories"]);
 
 function getArg(name, fallback) {
   const prefix = `${name}=`;
@@ -149,7 +149,7 @@ class CdpClient {
 async function launchChrome() {
   const chromePath = await findChrome();
   const port = await getFreePort();
-  const profileDir = await mkdtemp(join(tmpdir(), "mes-mobile-qa-"));
+  const profileDir = await mkdtemp(join(tmpdir(), "mes-scroll-dropdown-qa-"));
   const args = [
     "--headless=new",
     `--remote-debugging-port=${port}`,
@@ -172,23 +172,6 @@ async function launchChrome() {
   }
 }
 
-async function navigate(client, url) {
-  const loaded = client.waitForEvent("Page.loadEventFired", 15000).catch(() => null);
-  await client.send("Page.navigate", { url });
-  await loaded;
-  await waitForApp(client);
-}
-
-async function waitForApp(client) {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < 12000) {
-    const result = await evaluate(client, "() => Boolean(document.querySelector('main.app-shell'))");
-    if (result) return;
-    await delay(120);
-  }
-  throw new Error("App shell did not render.");
-}
-
 async function evaluate(client, pageFunction, arg) {
   const source = typeof pageFunction === "function" ? pageFunction.toString() : pageFunction;
   const expression = arg === undefined ? `(${source})()` : `(${source})(${JSON.stringify(arg)})`;
@@ -208,140 +191,156 @@ async function setViewport(client, viewport) {
     width: viewport.width,
     height: viewport.height,
     deviceScaleFactor: 1,
-    mobile: true,
+    mobile: viewport.mobile,
   });
 }
 
-async function getModules(client) {
-  return evaluate(client, () => Array.from(document.querySelectorAll(".mobile-module-tab[data-module]"))
-    .map((el) => ({ id: el.dataset.module, label: el.textContent.trim().replace(/\s+/g, " ") }))
-    .filter((item, index, list) => item.id && list.findIndex((next) => next.id === item.id) === index));
+async function waitForApp(client) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 12000) {
+    const ready = await evaluate(client, () => Boolean(document.querySelector("main.app-shell")));
+    if (ready) return;
+    await delay(120);
+  }
+  throw new Error("App shell did not render.");
 }
 
-async function switchModule(client, moduleId) {
-  const ok = await evaluate(client, (id) => {
+async function navigate(client, url) {
+  const loaded = client.waitForEvent("Page.loadEventFired", 15000).catch(() => null);
+  await client.send("Page.navigate", { url });
+  await loaded;
+  await waitForApp(client);
+}
+
+async function getModules(client, viewport) {
+  return evaluate(client, (isMobile) => {
+    const selector = isMobile ? ".mobile-module-tab[data-module]" : ".module-tab[data-module]";
+    return Array.from(document.querySelectorAll(selector))
+      .map((el) => ({ id: el.dataset.module, label: el.textContent.trim().replace(/\s+/g, " ") }))
+      .filter((item, index, list) => item.id && list.findIndex((next) => next.id === item.id) === index);
+  }, viewport.mobile);
+}
+
+async function switchModule(client, moduleId, viewport) {
+  const ok = await evaluate(client, ({ moduleId, isMobile }) => {
     const current = document.querySelector("main.app-shell")?.dataset.layoutPage || "";
-    if (current === id) return true;
-    document.querySelector(".mobile-module-switcher > summary")?.click();
-    const button = document.querySelector(`.mobile-module-sheet .mobile-module-tab[data-module="${id}"]`)
-      || document.querySelector(`.module-tab[data-module="${id}"]`);
+    if (current === moduleId) return true;
+    if (isMobile) document.querySelector(".mobile-module-switcher > summary")?.click();
+    const button = document.querySelector(`${isMobile ? ".mobile-module-sheet " : ""}.module-tab[data-module="${moduleId}"]`)
+      || document.querySelector(`${isMobile ? ".mobile-module-sheet " : ""}.mobile-module-tab[data-module="${moduleId}"]`)
+      || document.querySelector(`.module-tab[data-module="${moduleId}"]`);
     if (!button) return false;
     button.click();
     return true;
-  }, moduleId);
+  }, { moduleId, isMobile: viewport.mobile });
   if (!ok) throw new Error(`Cannot switch to module ${moduleId}`);
-  await delay(250);
+  await delay(300);
 }
 
-async function auditLayout(client, moduleId) {
-  const expression = (id) => {
-    const ignoredRootSelector = [
-      ".gantt-shell",
-      ".supply-gantt-shell",
-      ".supply-table-wrap",
-      ".dispatch-table-wrap",
-      ".warehouse-table-wrap",
-      ".directory-table-wrap",
-      ".nomenclature-table-wrap",
-      ".shop-map-resource-table",
-      ".production-flow-lane",
-      ".route-table-scroll",
-      ".speki-structure-table-wrap",
-      ".visual-table-wrap",
-      ".data-table-wrap",
-      ".toolbar-actions",
-      ".mobile-module-sheet",
-      ".dense-inline-options",
-    ].join(",");
+async function auditModule(client, moduleId, viewport) {
+  return evaluate(client, async ({ moduleId, isMobile }) => {
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const visible = (el) => {
       const rect = el.getBoundingClientRect();
-      if (rect.width <= 0.5 || rect.height <= 0.5) return false;
       const style = getComputedStyle(el);
-      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0;
+      return rect.width > 1 && rect.height > 1 && style.display !== "none" && style.visibility !== "hidden";
     };
-    const scrollIsland = (el) => {
-      let node = el;
-      while (node && node !== document.body) {
-        const style = getComputedStyle(node);
-        if ((style.overflowX === "auto" || style.overflowX === "scroll") && node.scrollWidth > node.clientWidth + 2) {
-          const rect = node.getBoundingClientRect();
-          return {
-            cls: String(node.className || node.tagName).slice(0, 80),
-            x: Math.round(rect.x),
-            w: Math.round(rect.width),
-            scrollWidth: node.scrollWidth,
-            clientWidth: node.clientWidth,
-          };
+    const shellSelectors = [
+      'main.app-shell > [data-layout="main-content"]',
+      ".module-data-page",
+      ".module-data-workspace",
+      ".directory-workspace",
+      ".module-data-content",
+      ".modal",
+      ".modal-body",
+      ".form-modal",
+    ];
+    const hiddenClips = [];
+    for (const selector of shellSelectors) {
+      for (const el of document.querySelectorAll(selector)) {
+        if (!visible(el)) continue;
+        if (el.closest(".gantt-shell, .supply-gantt-shell")) continue;
+        const style = getComputedStyle(el);
+        const clippedY = ["hidden", "clip"].includes(style.overflowY) && el.scrollHeight > el.clientHeight + 8;
+        if (clippedY) {
+          hiddenClips.push({
+            selector,
+            cls: String(el.className || el.tagName).slice(0, 100),
+            overflowY: style.overflowY,
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight,
+          });
         }
-        node = node.parentElement;
-      }
-      return null;
-    };
-    const outsides = [];
-    const tiny = [];
-    const scrollIslands = new Map();
-
-    for (const el of document.querySelectorAll("main.app-shell *")) {
-      if (!visible(el)) continue;
-      const rect = el.getBoundingClientRect();
-      const island = el.closest(ignoredRootSelector) ? scrollIsland(el) : null;
-      if (island) scrollIslands.set(`${island.cls}:${island.x}:${island.scrollWidth}`, island);
-      if (!island && (rect.left < -1 || rect.right > innerWidth + 1 || rect.width > innerWidth + 1)) {
-        outsides.push({
-          cls: String(el.className || el.tagName).slice(0, 80),
-          text: el.textContent.trim().replace(/\s+/g, " ").slice(0, 80),
-          x: Math.round(rect.x),
-          right: Math.round(rect.right),
-          width: Math.round(rect.width),
-        });
       }
     }
 
-    for (const el of document.querySelectorAll('main.app-shell :is(button, input, select, textarea, summary, a, [role="button"])')) {
-      if (!visible(el)) continue;
-      if (el.closest(ignoredRootSelector) && scrollIsland(el)) continue;
-      const rect = el.getBoundingClientRect();
-      const type = String(el.type || el.getAttribute("type") || "").toLowerCase();
-      if ((type === "checkbox" || type === "radio") && rect.width >= 16 && rect.height >= 16 && el.closest("label")?.getBoundingClientRect().height >= 36) continue;
-      if (el.closest("label") && el.closest("label").getBoundingClientRect().height >= 36) continue;
-      if (rect.width < 28 || rect.height < 28) {
-        const style = getComputedStyle(el);
-        const chain = [];
-        let node = el;
-        while (node && node !== document.body && chain.length < 6) {
-          chain.push({
-            tag: node.tagName,
-            cls: String(node.className || node.tagName).slice(0, 80),
-          });
-          node = node.parentElement;
-        }
-        tiny.push({
-          cls: String(el.className || el.tagName).slice(0, 80),
-          text: el.textContent.trim().replace(/\s+/g, " ").slice(0, 70),
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-          cssHeight: style.height,
-          cssMinHeight: style.minHeight,
-          chain,
+    const main = document.querySelector('main.app-shell > [data-layout="main-content"]');
+    let mainCanScroll = false;
+    if (main) {
+      const before = main.scrollTop;
+      main.scrollTop = 100;
+      mainCanScroll = main.scrollTop > before;
+      main.scrollTop = before;
+    }
+
+    const dropdownFailures = [];
+    const dropdowns = Array.from(document.querySelectorAll(".dense-inline-select"))
+      .filter((select) => visible(select) && !select.classList.contains("is-disabled") && select.getAttribute("aria-disabled") !== "true")
+      .filter((select) => visible(select.querySelector("summary")))
+      .slice(0, isMobile ? 14 : 24);
+    for (const select of dropdowns) {
+      const summary = select.querySelector("summary");
+      if (!summary) continue;
+      summary.scrollIntoView({ block: "center", inline: "nearest" });
+      await delay(40);
+      summary.click();
+      await delay(110);
+      const options = select.querySelector(".dense-inline-options");
+      if (!options) continue;
+      const rect = options.getBoundingClientRect();
+      const style = getComputedStyle(options);
+      const hasVisibleOption = Array.from(options.querySelectorAll("button")).some(visible);
+      if (!select.open && !hasVisibleOption) continue;
+      if (rect.width <= 1 && rect.height <= 1 && !hasVisibleOption) continue;
+      const outOfViewport = rect.left < -1 || rect.top < -1 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1;
+      if (outOfViewport || style.position !== "fixed" || !options.classList.contains("is-viewport-popover")) {
+        dropdownFailures.push({
+          label: summary.textContent.trim().replace(/\s+/g, " ").slice(0, 80),
+          position: style.position,
+          hasViewportClass: options.classList.contains("is-viewport-popover"),
+          rect: {
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            right: Math.round(rect.right),
+            bottom: Math.round(rect.bottom),
+          },
         });
       }
+      select.open = false;
+      await delay(15);
     }
 
     return {
-      id,
+      moduleId,
       page: document.querySelector("main.app-shell")?.dataset.layoutPage || "",
-      viewport: { width: innerWidth, height: innerHeight },
-      docWidth: document.documentElement.scrollWidth,
+      viewport: { width: innerWidth, height: innerHeight, mobile: isMobile },
+      documentWidth: document.documentElement.scrollWidth,
       bodyWidth: document.body.scrollWidth,
-      outsideCount: outsides.length,
-      tinyCount: tiny.length,
-      hasTechnicalModText: document.body.innerText.includes("MOD ·"),
-      outsides: outsides.slice(0, 12),
-      tiny: tiny.slice(0, 12),
-      scrollIslands: Array.from(scrollIslands.values()).slice(0, 12),
+      main: main ? {
+        overflowY: getComputedStyle(main).overflowY,
+        scrollHeight: main.scrollHeight,
+        clientHeight: main.clientHeight,
+        canScroll: mainCanScroll,
+      } : null,
+      hiddenClips: hiddenClips.slice(0, 10),
+      hiddenClipCount: hiddenClips.length,
+      dropdownCount: dropdowns.length,
+      dropdownFailures: dropdownFailures.slice(0, 10),
+      dropdownFailureCount: dropdownFailures.length,
     };
-  };
-  return evaluate(client, expression, moduleId);
+  }, { moduleId, isMobile: viewport.mobile });
 }
 
 async function saveScreenshot(client, outDir, viewportName, moduleId) {
@@ -374,18 +373,7 @@ async function cleanupChrome(chrome) {
       resolve();
     });
   });
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    try {
-      await rm(chrome.profileDir, { recursive: true, force: true });
-      return;
-    } catch (error) {
-      if (attempt === 4) {
-        console.warn(`Could not remove temporary Chrome profile: ${error.message}`);
-        return;
-      }
-      await delay(200);
-    }
-  }
+  await rm(chrome.profileDir, { recursive: true, force: true });
 }
 
 async function main() {
@@ -404,25 +392,25 @@ async function main() {
     for (const viewport of viewports) {
       await setViewport(client, viewport);
       await navigate(client, url);
-      const modules = await getModules(client);
+      const modules = await getModules(client, viewport);
       const viewportReport = { viewport, modules: [] };
 
       for (const moduleItem of modules) {
-        await switchModule(client, moduleItem.id);
-        const audit = await auditLayout(client, moduleItem.id);
-        if (screenshotModules.has(moduleItem.id)) {
+        await switchModule(client, moduleItem.id, viewport);
+        const audit = await auditModule(client, moduleItem.id, viewport);
+        audit.label = moduleItem.label;
+        audit.failed = audit.page !== moduleItem.id
+          || audit.hiddenClipCount > 0
+          || audit.dropdownFailureCount > 0
+          || (!viewport.mobile && audit.documentWidth > viewport.width + 1);
+        if (audit.failed) {
+          hasFailure = true;
           try {
             audit.screenshot = await saveScreenshot(client, outDir, viewport.name, moduleItem.id);
           } catch (error) {
             audit.screenshotError = error.message;
           }
         }
-        audit.failed = audit.docWidth > viewport.width + 1
-          || audit.bodyWidth > viewport.width + 1
-          || audit.outsideCount > 0
-          || audit.tinyCount > 0
-          || audit.hasTechnicalModText;
-        if (audit.failed) hasFailure = true;
         viewportReport.modules.push(audit);
       }
 
@@ -434,12 +422,12 @@ async function main() {
 
   const reportPath = join(outDir, "report.json");
   await writeFile(reportPath, JSON.stringify(report, null, 2));
-  console.log(`Mobile QA report: ${reportPath}`);
+  console.log(`Scroll/dropdown QA report: ${reportPath}`);
   for (const viewport of report.viewports) {
     const failures = viewport.modules.filter((moduleItem) => moduleItem.failed);
     console.log(`${viewport.viewport.name}: ${viewport.modules.length - failures.length}/${viewport.modules.length} modules passed`);
     for (const failure of failures) {
-      console.log(`  FAIL ${failure.id}: doc=${failure.docWidth}, outside=${failure.outsideCount}, tiny=${failure.tinyCount}, mod=${failure.hasTechnicalModText}`);
+      console.log(`  FAIL ${failure.moduleId}: clips=${failure.hiddenClipCount}, dropdown=${failure.dropdownFailureCount}, page=${failure.page}`);
     }
   }
   if (hasFailure) process.exitCode = 1;

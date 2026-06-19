@@ -12,7 +12,11 @@ export function createDefaultPlanningState() {
     routes: [],
     routeSteps: [],
     slots: [],
-    warehouseMovements: [],
-    warehouseReservations: [],
+    // Layer contract: slots store the plan, assignments store the issued shift
+    // work snapshot, dispatchFacts store actuals, planningCorrections request
+    // future replanning without overwriting the plan.
+    shiftMasterAssignments: {},
+    dispatchFacts: {},
+    planningCorrections: {},
   };
 }
