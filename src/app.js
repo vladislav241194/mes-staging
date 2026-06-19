@@ -335,6 +335,7 @@ var denseInlineViewportListenersBound = false;
 var visualQaRefreshFrame = 0;
 var visualQaLastReport = null;
 var visualQaInspectorActive = false;
+var visualQaInspectorManuallyDisabled = false;
 var visualQaSelectedElementReport = null;
 var visualQaHoveredElementReport = null;
 var visualQaProblemDescription = "";
@@ -3297,16 +3298,42 @@ function getMesSignalMeta(signalType = "neutral") {
   return MES_SIGNAL_TYPES[signalType] || MES_SIGNAL_TYPES.neutral;
 }
 
+function resetVisualQaInspectorState() {
+  visualQaInspectorActive = false;
+  visualQaInspectorManuallyDisabled = false;
+  visualQaSelectedElementReport = null;
+  visualQaHoveredElementReport = null;
+  visualQaProblemDescription = "";
+  document.body.classList.remove("is-mes-visual-qa-inspecting");
+}
+
+function setVisualQaEnabled(enabled) {
+  const nextEnabled = Boolean(enabled);
+  const wasEnabled = Boolean(ui.visualQaEnabled);
+  ui.visualQaEnabled = nextEnabled;
+  if (!nextEnabled) {
+    resetVisualQaInspectorState();
+    return;
+  }
+  if (!wasEnabled) {
+    visualQaInspectorActive = true;
+    visualQaInspectorManuallyDisabled = false;
+    visualQaSelectedElementReport = null;
+    visualQaHoveredElementReport = null;
+    visualQaProblemDescription = "";
+  }
+}
+
 function mountGlobalVisualSystem() {
   const shell = app.querySelector(".app-shell");
+  if (ui.visualQaEnabled && !visualQaInspectorManuallyDisabled && !visualQaSelectedElementReport) {
+    visualQaInspectorActive = true;
+  }
   document.body.classList.toggle("is-mes-focus-mode", Boolean(ui.focusMode));
   document.body.classList.toggle("is-mes-visual-qa-enabled", Boolean(ui.visualQaEnabled));
   document.body.classList.toggle("is-mes-visual-qa-inspecting", Boolean(ui.visualQaEnabled && visualQaInspectorActive));
   if (!ui.visualQaEnabled) {
-    visualQaInspectorActive = false;
-    visualQaSelectedElementReport = null;
-    visualQaHoveredElementReport = null;
-    visualQaProblemDescription = "";
+    resetVisualQaInspectorState();
   }
   if (shell) {
     shell.classList.toggle("is-focus-mode", Boolean(ui.focusMode));
@@ -3351,10 +3378,10 @@ function mountVisualDebugOverlay() {
   document.querySelectorAll(".visual-debug-overlay-root, .visual-debug-marker-layer").forEach((element) => element.remove());
   if (!ui.visualQaEnabled) {
     visualQaLastReport = null;
-    visualQaInspectorActive = false;
-    visualQaHoveredElementReport = null;
+    resetVisualQaInspectorState();
     return;
   }
+  const inspectTitle = visualQaInspectorActive ? "Выключить выбор элемента" : "Включить выбор элемента";
 
   const overlay = document.createElement("aside");
   overlay.className = "visual-debug-overlay-root";
@@ -3365,7 +3392,7 @@ function mountVisualDebugOverlay() {
       <span>${icon("bug")}<strong>Visual QA</strong></span>
       <div class="visual-debug-actions">
         <button type="button" data-visual-qa-refresh title="Обновить проверку">${icon("refresh")}</button>
-        <button class="${visualQaInspectorActive ? "is-active" : ""}" type="button" data-visual-qa-inspect title="Выбрать проблемный элемент">${icon("target")}</button>
+        <button class="${visualQaInspectorActive ? "is-active" : ""}" type="button" data-visual-qa-inspect aria-pressed="${visualQaInspectorActive ? "true" : "false"}" title="${inspectTitle}">${icon("target")}</button>
         <button type="button" data-visual-qa-copy title="Скопировать отчет для Codex">${icon("copy")}</button>
         <button type="button" data-visual-qa-close title="Выключить QA">${icon("close")}</button>
       </div>
@@ -3824,7 +3851,7 @@ function renderVisualQaInspectorPanel(report = visualQaSelectedElementReport) {
     return `
       <div class="visual-debug-inspector-idle">
         ${icon("target")}
-        <span>Авто-скан активен. Для точного отчета нажми прицел и кликни проблемный элемент.</span>
+        <span>Выбор элемента выключен. Нажми прицел, чтобы снова выбрать проблемный элемент.</span>
       </div>
     `;
   }
@@ -3832,7 +3859,7 @@ function renderVisualQaInspectorPanel(report = visualQaSelectedElementReport) {
     return `
       <div class="visual-debug-inspector-selecting">
         ${icon("target")}
-        <span>Кликни проблемный элемент на экране. Esc отменяет выбор.</span>
+        <span>Выбор элемента активен. Кликни проблемный элемент на экране. Esc выключает выбор.</span>
       </div>
     `;
   }
@@ -3875,6 +3902,12 @@ function updateVisualDebugOverlay() {
   const summary = overlay.querySelector("[data-visual-qa-summary]");
   const inspector = overlay.querySelector("[data-visual-qa-inspector-panel]");
   const list = overlay.querySelector("[data-visual-qa-list]");
+  const inspectButton = overlay.querySelector("[data-visual-qa-inspect]");
+  if (inspectButton) {
+    inspectButton.classList.toggle("is-active", Boolean(visualQaInspectorActive));
+    inspectButton.setAttribute("aria-pressed", visualQaInspectorActive ? "true" : "false");
+    inspectButton.setAttribute("title", visualQaInspectorActive ? "Выключить выбор элемента" : "Включить выбор элемента");
+  }
   if (summary) {
     summary.innerHTML = `
       <span><strong>${report.issues.length}</strong> замечаний</span>
@@ -33980,13 +34013,7 @@ window.addEventListener("keydown", (event) => {
 
   if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "q") {
     event.preventDefault();
-    ui.visualQaEnabled = !ui.visualQaEnabled;
-    if (!ui.visualQaEnabled) {
-      visualQaInspectorActive = false;
-      visualQaSelectedElementReport = null;
-      visualQaHoveredElementReport = null;
-      visualQaProblemDescription = "";
-    }
+    setVisualQaEnabled(!ui.visualQaEnabled);
     persistUiState();
     notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
     render();
@@ -33997,6 +34024,7 @@ window.addEventListener("keydown", (event) => {
     if (visualQaInspectorActive) {
       event.preventDefault();
       visualQaInspectorActive = false;
+      visualQaInspectorManuallyDisabled = true;
       visualQaHoveredElementReport = null;
       document.body.classList.remove("is-mes-visual-qa-inspecting");
       updateVisualDebugOverlay();
@@ -34030,6 +34058,7 @@ window.addEventListener("click", (event) => {
   visualQaHoveredElementReport = null;
   visualQaProblemDescription = "";
   visualQaInspectorActive = false;
+  visualQaInspectorManuallyDisabled = false;
   document.body.classList.remove("is-mes-visual-qa-inspecting");
   updateVisualDebugOverlay();
   notifySaveSuccess("Элемент выбран для Visual QA");
@@ -34053,6 +34082,7 @@ window.addEventListener("click", (event) => {
   if (visualQaInspectButton) {
     event.preventDefault();
     visualQaInspectorActive = !visualQaInspectorActive;
+    visualQaInspectorManuallyDisabled = !visualQaInspectorActive;
     visualQaHoveredElementReport = null;
     document.body.classList.toggle("is-mes-visual-qa-inspecting", visualQaInspectorActive);
     updateVisualDebugOverlay();
@@ -34077,11 +34107,7 @@ window.addEventListener("click", (event) => {
   const visualQaCloseButton = event.target.closest?.("[data-visual-qa-close]");
   if (visualQaCloseButton) {
     event.preventDefault();
-    ui.visualQaEnabled = false;
-    visualQaInspectorActive = false;
-    visualQaSelectedElementReport = null;
-    visualQaHoveredElementReport = null;
-    visualQaProblemDescription = "";
+    setVisualQaEnabled(false);
     persistUiState();
     notifySaveSuccess("Visual QA выключен");
     render();
@@ -34125,13 +34151,7 @@ window.addEventListener("click", (event) => {
   const visualQaToggleButton = event.target.closest?.("[data-toggle-visual-qa]");
   if (visualQaToggleButton && (app.contains(visualQaToggleButton) || visualQaToggleButton.closest(".mes-visual-mode-tray"))) {
     event.preventDefault();
-    ui.visualQaEnabled = !ui.visualQaEnabled;
-    if (!ui.visualQaEnabled) {
-      visualQaInspectorActive = false;
-      visualQaSelectedElementReport = null;
-      visualQaHoveredElementReport = null;
-      visualQaProblemDescription = "";
-    }
+    setVisualQaEnabled(!ui.visualQaEnabled);
     persistUiState();
     notifySaveSuccess(ui.visualQaEnabled ? "Visual QA включен" : "Visual QA выключен");
     render();
