@@ -3529,15 +3529,17 @@ function collectVisualQaElementReport(element) {
   const text = String(element.textContent || element.value || "").replace(/\s+/g, " ").trim();
   const xOverflow = element.scrollWidth > element.clientWidth + 2;
   const yOverflow = element.scrollHeight > element.clientHeight + 2;
+  const isFloatingLayer = element.matches?.(".modal, .slot-drawer, .dense-inline-options, .supply-detail-popover, [popover]");
+  const isViewportAnchored = isFloatingLayer || ["fixed", "sticky"].includes(style.position);
 
   if (rect.right > viewportWidth + 1 || rect.left < -1) flags.push("element-outside-viewport-x");
-  if (rect.bottom > viewportHeight + 1 || rect.top < -1) flags.push("element-outside-viewport-y");
+  if (rect.top < -1 || (rect.bottom > viewportHeight + 1 && isViewportAnchored)) flags.push("element-outside-viewport-y");
   if (xOverflow || yOverflow) flags.push(`self-overflow-${xOverflow ? "x" : ""}${yOverflow ? "y" : ""}`);
   if (!element.disabled && (rect.width < touchMin || rect.height < touchMin) && controlType !== "hidden") flags.push("small-touch-target");
   if (style.whiteSpace === "nowrap" && xOverflow) flags.push("nowrap-text-overflow");
   if (parentRect && parentStyle && ["hidden", "clip"].includes(parentStyle.overflowX) && rect.right > parentRect.right + 1) flags.push("clipped-by-parent-x");
   if (parentRect && parentStyle && ["hidden", "clip"].includes(parentStyle.overflowY) && rect.bottom > parentRect.bottom + 1) flags.push("clipped-by-parent-y");
-  if (element.matches?.(".modal, .slot-drawer, .dense-inline-options, .supply-detail-popover, [popover]")) flags.push("floating-layer");
+  if (isFloatingLayer) flags.push("floating-layer");
 
   const report = {
     generatedAt: new Date().toISOString(),

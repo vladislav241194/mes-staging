@@ -45743,11 +45743,12 @@ main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure
   max-width: 100% !important;
   border-color: rgba(148, 163, 184, 0.24) !important;
   border-radius: var(--mes-ui-radius-md) !important;
-  overflow-x: auto !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
   overflow-y: visible !important;
-  overscroll-behavior-x: contain;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto !important;
+  scrollbar-gutter: auto !important;
+  -webkit-overflow-scrolling: auto;
 }
 
 main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table {
@@ -45755,6 +45756,16 @@ main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure
   min-width: 1080px !important;
   max-width: none !important;
   table-layout: fixed !important;
+}
+
+@media (max-width: 768px) {
+  main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table-wrap {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-gutter: stable !important;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 main.app-shell[data-layout-page="planning"] .planning-v2-page.is-route-structure .planning-order-table th:nth-child(1),
