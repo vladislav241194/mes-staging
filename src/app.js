@@ -17797,14 +17797,21 @@ function renderVisualSystemPage() {
         <article class="visual-system-panel">
           <div class="visual-system-panel-title">
             ${icon("gantt")}
-            <div><h3>Gantt Design System</h3><p>Скругление = начало/конец, прямой угол = перенос через нерабочее время.</p></div>
+            <div><h3>Gantt Design System</h3><p>Без заливки: колбаски и зависимости рисуются пунктирной обводкой, переносы через нерабочее время - прямым углом.</p></div>
           </div>
           <div class="visual-gantt-demo" aria-label="Пример Gantt-состояний">
-            <div class="visual-gantt-row"><span>План</span><i class="visual-gantt-bar is-plan"></i></div>
-            <div class="visual-gantt-row"><span>Разрыв</span><i class="visual-gantt-bar is-split"><b></b></i></div>
-            <div class="visual-gantt-row"><span>Передача</span><i class="visual-gantt-bar is-transfer"><em></em></i></div>
-            <div class="visual-gantt-row"><span>Риск</span><i class="visual-gantt-bar is-risk"></i></div>
-            <div class="visual-gantt-row"><span>Выбрано</span><i class="visual-gantt-bar is-selected"></i></div>
+            <div class="visual-gantt-row"><span>План</span><i class="visual-gantt-bar is-plan"><b class="visual-gantt-quantity">1000</b></i></div>
+            <div class="visual-gantt-row">
+              <span>Разрыв</span>
+              <i class="visual-gantt-segmented" aria-hidden="true">
+                <b class="visual-gantt-segment is-start"><span class="visual-gantt-quantity">775</span></b>
+                <b class="visual-gantt-segment is-break"></b>
+                <b class="visual-gantt-segment is-end"></b>
+              </i>
+            </div>
+            <div class="visual-gantt-row"><span>Передача</span><i class="visual-gantt-bar is-transfer"><b class="visual-gantt-quantity">225</b><em></em></i></div>
+            <div class="visual-gantt-row"><span>Зависимость</span><svg class="visual-gantt-dependency" viewBox="0 0 220 34" aria-hidden="true"><path d="M 10 17 H 74 V 8 H 132 V 24 H 200" /><path class="visual-gantt-arrow" d="M 199 20 L 209 24 L 199 28" /></svg></div>
+            <div class="visual-gantt-row"><span>Выбрано</span><i class="visual-gantt-bar is-selected"><b class="visual-gantt-quantity">435</b></i></div>
           </div>
         </article>
 

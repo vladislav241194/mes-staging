@@ -44112,45 +44112,116 @@ main.app-shell[data-layout-page="visualSystem"] {
 
 .visual-gantt-bar {
   position: relative;
-  display: block;
+  display: grid;
+  align-items: center;
+  justify-items: center;
   height: 24px;
-  border: 1px solid var(--mes-gantt-plan-border);
-  border-radius: 999px;
-  background: var(--mes-gantt-plan-fill);
-  overflow: hidden;
+  border: 1px dashed var(--mes-gantt-plan-border);
+  border-radius: var(--geometry-gantt-corner-radius, 8px);
+  background: transparent;
+  color: var(--mes-ui-text-secondary, #334155);
+  overflow: visible;
 }
 
-.visual-gantt-bar.is-split {
-  border-radius: 999px 0 0 999px;
+.visual-gantt-segmented {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38% 18% minmax(0, 1fr);
+  align-items: stretch;
+  height: 24px;
+  overflow: visible;
 }
 
-.visual-gantt-bar.is-split b {
-  position: absolute;
-  left: 45%;
-  top: -1px;
-  width: 18%;
-  height: calc(100% + 2px);
-  border-block: 1px dashed var(--mes-gantt-break-border);
-  background: rgba(248, 250, 252, 0.84);
+.visual-gantt-segmented .visual-gantt-segment {
+  position: relative;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  min-width: 0;
+  border: 1px dashed var(--mes-gantt-plan-border);
+  background: transparent;
+}
+
+.visual-gantt-segmented .visual-gantt-segment.is-start {
+  border-right-width: 0;
+  border-radius: var(--geometry-gantt-corner-radius, 8px) 0 0 var(--geometry-gantt-corner-radius, 8px);
+}
+
+.visual-gantt-segmented .visual-gantt-segment.is-break {
+  border-color: var(--mes-gantt-break-border);
+  border-inline-width: 1px;
+  border-radius: 0;
+}
+
+.visual-gantt-segmented .visual-gantt-segment.is-end {
+  border-left-width: 0;
+  border-radius: 0 var(--geometry-gantt-corner-radius, 8px) var(--geometry-gantt-corner-radius, 8px) 0;
 }
 
 .visual-gantt-bar.is-transfer em {
   position: absolute;
-  left: 12%;
-  right: 42%;
-  bottom: 3px;
-  height: 4px;
+  left: 50%;
+  top: calc(100% + 4px);
+  width: 46%;
+  max-width: calc(100% - 2px);
+  height: 6px;
+  border: 1px solid rgba(37, 99, 235, 0.36);
   border-radius: 999px;
-  background: #38bdf8;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.92), rgba(96, 165, 250, 0.74));
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.18);
+  transform: translateX(-50%);
 }
 
 .visual-gantt-bar.is-risk {
   border-color: var(--mes-signal-risk-border);
-  background: var(--mes-gantt-risk-fill);
+  background: transparent;
 }
 
 .visual-gantt-bar.is-selected {
-  box-shadow: 0 0 0 4px var(--mes-gantt-selected-ring);
+  outline: 2px solid var(--mes-accent, #2563eb);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.visual-gantt-quantity {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: var(--mes-radius-xs, 4px);
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 16px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+
+.visual-gantt-dependency {
+  width: 100%;
+  height: 34px;
+  overflow: visible;
+}
+
+.visual-gantt-dependency path {
+  fill: none;
+  stroke: #475569;
+  stroke-width: 1px;
+  stroke-dasharray: 4 4;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.visual-gantt-dependency .visual-gantt-arrow {
+  stroke-dasharray: none;
 }
 
 .visual-loading-line,
