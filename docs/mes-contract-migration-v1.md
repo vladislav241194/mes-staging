@@ -1,6 +1,6 @@
 # MES Contract Migration v1
 
-Дата: 2026-06-20  
+Дата: 2026-06-20
 Цель: разорвать смешение маршрутной карты, заказ-наряда, сменного заказ-наряда, слота планирования и факта диспетчерской без разрушения текущего localStorage.
 
 ## Главный принцип
@@ -109,9 +109,41 @@ src/mes_contracts.js
 
 - Добавлять новый статус как просто строку в UI.
 - Выбирать цвет статуса внутри конкретного компонента без `getMesStatusView()`.
+- Рендерить CSS-класс напрямую через `status-${slot.status}`.
+- Сравнивать `slot.status` или `route.planningStatus` в UI/модульной логике без contract-helper.
 - Называть слот Ганта заказ-нарядом без `shiftWorkOrder`/`workOrder` контекста.
 - Использовать `batchId` как новую бизнес-сущность.
 - Добавлять новый переход между модулями без записи в `MES_FLOW_TRANSITIONS`.
+
+## MES Flow Hardening Pass v1
+
+Дата: 2026-06-20
+Цель: закрепить "рельсы" после миграции, чтобы новые модули не возвращали старые трактовки статусов и документов.
+
+Что добавлено:
+
+- `getMesFlowTransitionsForStatus(scope, value)` в `src/mes_contracts.js`;
+- helper-слой в `src/app.js` для `ganttSlot` и `workOrderPlanning`;
+- справочник статусов показывает `Контракт`, `Переход` и `Следующий документ`;
+- `scripts/flow-contract-qa.mjs`;
+- npm-команда `npm run qa:flow`.
+
+`npm run qa:flow` проверяет:
+
+- все базовые документы существуют в `MES_DOCUMENT_KINDS`;
+- все базовые переходы существуют в `MES_FLOW_TRANSITIONS`;
+- каждый переход имеет `from`, `to`, `statusScope`, `nextStatus`, `dataPolicy`;
+- каждый `statusScope + nextStatus` из перехода существует в `MES_STATUS_CONTRACTS`;
+- в UI нет прямого `status-${slot.status}`;
+- в UI нет прямого `GANTT_SLOT_STATUS_LABELS[slot.status]`;
+- в UI нет прямых сравнений `slot.status === ...` или `route.planningStatus === ...`;
+- `SLOT_STATUSES` не используется как источник UI-списка вместо contract options.
+
+Допустимые исключения:
+
+- запись `slot.status = ...`, если значение берется из `GANTT_SLOT_STATUS_VALUES`;
+- `projectId` и `batchId` в legacy compatibility / migration / helper-зонах;
+- `batchId` как технический alias `routeId`/`planningOrderId`, но не как новая бизнес-сущность.
 
 ## Что уже переведено в v1
 
@@ -126,6 +158,7 @@ src/mes_contracts.js
 - Факт диспетчерской получил `flowIn` из сменного наряда и `flowToCorrection` для будущей корректировки планирования.
 - Справочник статусов получил `contractScope` и `contractKind` для ключевых статусов.
 - Справочник статусов проверяет точную пару `scope:value`, чтобы одинаковые значения вроде `partial` не смешивались между контурами.
+- Справочник статусов показывает, каким `MES_FLOW_TRANSITIONS` выставляется статус и в какой следующий документ он ведет.
 - Карта влияния статусов сначала читает контракт, а уже потом использует старые эвристики.
 
 ## Следующие безопасные шаги

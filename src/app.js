@@ -4,6 +4,7 @@ import {
   buildMesFlowEvent,
   buildMesDocumentContract,
   getMesFlowTransitionView,
+  getMesFlowTransitionsForStatus,
   getMesDocumentKind,
   getMesStatusOptions,
   getMesStatusView,
@@ -440,6 +441,7 @@ const GANTT_SLOT_STATUS_LABELS = {
   ...Object.fromEntries(GANTT_SLOT_STATUS_OPTIONS.map((status) => [status.value, status.label])),
 };
 const MES_STATUS_CONTRACT_KEYS = new Set(MES_STATUS_CONTRACTS.map((status) => `${status.scope}:${status.value}`));
+const WORK_ORDER_PLANNING_STATUS_VALUES = new Set(getMesStatusOptions("workOrderPlanning").map((status) => status.value));
 const DISPATCH_FACT_CONTRACT_OPTIONS = getMesStatusOptions("dispatchFact");
 const DISPATCH_FACT_STATUS_OPTIONS = (DISPATCH_FACT_CONTRACT_OPTIONS.length ? DISPATCH_FACT_CONTRACT_OPTIONS : [
   { value: "not_reported", label: "Факт не внесен", tone: "neutral" },
@@ -4886,11 +4888,12 @@ function normalizeSlotOrderLink(slot = {}, state = {}, legacyBatchRouteIdById = 
 }
 
 function getRouteStepSlotDeduplicationScore(slot = {}) {
-  const statusScore = slot.status === "completed"
+  const status = getGanttSlotStatusView(slot).value;
+  const statusScore = status === "completed"
     ? 50
-    : slot.status === "in_progress"
+    : status === "in_progress"
       ? 40
-      : ["problem", "overdue", "paused"].includes(slot.status)
+      : ["problem", "overdue", "paused"].includes(status)
         ? 30
         : 0;
   const factScore = slot.actualStart || slot.actualEnd ? 20 : 0;
@@ -5050,7 +5053,7 @@ function normalizeWarehouseQuantity(value) {
 
 function removeCanceledRouteGanttSlots(state) {
   const canceledRouteIds = new Set((state.routes || [])
-    .filter((route) => route.planningStatus === "canceled")
+    .filter((route) => isWorkOrderPlanningCanceled(route))
     .map((route) => route.id));
   if (!canceledRouteIds.size) return;
 
@@ -5514,7 +5517,7 @@ function rescheduleSlotsForWorkCenterCalendarChange(workCenterId) {
   const affectedSlots = planningState.slots
     .filter((slot) => (
       getCalendarWorkCenterId(slot.workCenterId) === calendarWorkCenterId
-      && slot.status !== "completed"
+      && !isGanttSlotCompleted(slot)
       && !slot.locked
     ))
     .sort((left, right) => (
@@ -5685,7 +5688,7 @@ function getSlotProducedQuantityAt(slot = null, at = ui.now) {
   const start = toDate(slot.actualStart || slot.plannedStart);
   const end = toDate(slot.actualEnd || slot.plannedEnd);
   const reference = toDate(at);
-  if (slot.status === "completed" || reference >= end) return quantity;
+  if (isGanttSlotCompleted(slot) || reference >= end) return quantity;
   if (reference <= start) return 0;
 
   const totalMs = Math.max(1, getWorkingDurationBetween(slot.workCenterId, start, end, planningState));
@@ -5791,7 +5794,7 @@ function alignMainRouteSlotsAfterBranches(routeId = "", projectId = "", batchId 
   const changedSlotIds = [];
   let readyAt = dependencyReadyAt;
   mainSlots.forEach((slot) => {
-    if (slot.locked || slot.status === "completed") {
+    if (slot.locked || isGanttSlotCompleted(slot)) {
       readyAt = addMs(new Date(Math.max(toDate(readyAt).getTime(), toDate(slot.plannedEnd).getTime())), getRouteBufferMs());
       return;
     }
@@ -7641,7 +7644,7 @@ function getWarehouseProductionReceiptRows() {
         unit: item?.unit || task?.unit || "шт.",
         quantity,
         producedQuantity,
-        status: slot.status || "planned",
+        status: getGanttSlotStatusView(slot).value || "planned",
         plannedStart: slot.plannedStart || "",
         plannedEnd: slot.plannedEnd || "",
         outputLabel: operationOutput,
@@ -7768,10 +7771,59 @@ function getDispatchFact(slotId = "") {
   return planningState.dispatchFacts?.[slotId] || null;
 }
 
-function getGanttSlotViewModel(slot = {}, step = null, route = null) {
-  const status = getMesStatusView("ganttSlot", slot.status || "planned", {
-    label: GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "запланирован",
+function getRawGanttSlotStatusValue(slot = {}) {
+  const rawStatus = String(slot?.status || "").trim();
+  return GANTT_SLOT_STATUS_VALUES.includes(rawStatus) ? rawStatus : "planned";
+}
+
+function getGanttSlotStatusView(slot = {}) {
+  const statusValue = getRawGanttSlotStatusValue(slot);
+  return getMesStatusView("ganttSlot", statusValue, {
+    label: GANTT_SLOT_STATUS_LABELS[statusValue] || statusValue || "запланирован",
   });
+}
+
+function getGanttSlotStatusClass(slot = {}) {
+  return `status-${getGanttSlotStatusView(slot).value || "planned"}`;
+}
+
+function isGanttSlotStatus(slot = {}, statusValue = "") {
+  return getGanttSlotStatusView(slot).value === statusValue;
+}
+
+function isGanttSlotCompleted(slot = {}) {
+  return isGanttSlotStatus(slot, "completed");
+}
+
+function isGanttSlotActive(slot = {}) {
+  return isGanttSlotStatus(slot, "in_progress");
+}
+
+function isGanttSlotRiskStatus(slot = {}) {
+  return ["problem", "overdue", "paused"].includes(getGanttSlotStatusView(slot).value);
+}
+
+function isGanttSlotProblemStatus(slot = {}) {
+  return ["problem", "overdue"].includes(getGanttSlotStatusView(slot).value);
+}
+
+function getWorkOrderPlanningStatusValue(route = {}) {
+  const rawStatus = String(route?.planningStatus || "").trim();
+  if (WORK_ORDER_PLANNING_STATUS_VALUES.has(rawStatus)) return rawStatus;
+  if (rawStatus === "planned") return "queued";
+  return "queued";
+}
+
+function getWorkOrderPlanningStatus(route = {}) {
+  return getMesStatusView("workOrderPlanning", getWorkOrderPlanningStatusValue(route));
+}
+
+function isWorkOrderPlanningCanceled(route = {}) {
+  return getWorkOrderPlanningStatusValue(route) === "canceled";
+}
+
+function getGanttSlotViewModel(slot = {}, step = null, route = null) {
+  const status = getGanttSlotStatusView(slot);
   return {
     document: buildMesDocumentContract("ganttSlot", {
       id: slot.id,
@@ -8037,7 +8089,7 @@ function getShiftWorkOrderRows(options = {}) {
         factStatus,
         factStatusView,
         unit: slot.unit || task?.unit || "шт.",
-        rawStatus: slot.status || "planned",
+        rawStatus: slotView.status.value || "planned",
         slotStatus: slotView.status,
         timeLabel: getPlanningShiftSlotTimeLabel(slot),
         startsAt: toDate(slot.plannedStart),
@@ -8349,10 +8401,10 @@ function isSlotInsideDispatchWindow(slot, window) {
 }
 
 function getDispatchSlotTone(slot = {}) {
-  if (slot.status === "completed") return "ok";
-  if (slot.status === "problem" || slot.status === "overdue") return "critical";
-  if (slot.status === "in_progress") return "active";
-  if (slot.status === "paused") return "warning";
+  if (isGanttSlotCompleted(slot)) return "ok";
+  if (isGanttSlotProblemStatus(slot)) return "critical";
+  if (isGanttSlotActive(slot)) return "active";
+  if (isGanttSlotStatus(slot, "paused")) return "warning";
   return "neutral";
 }
 
@@ -8379,8 +8431,8 @@ function buildDispatchWorkCenterRows(window, slotWarningMap) {
       })
       .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart));
     const activeSlots = slots.filter((slot) => (
-      ["in_progress", "problem", "overdue"].includes(slot.status)
-      || (toDate(slot.plannedStart) <= now && toDate(slot.plannedEnd) >= now && slot.status !== "completed")
+      ["in_progress", "problem", "overdue"].includes(getGanttSlotStatusView(slot).value)
+      || (toDate(slot.plannedStart) <= now && toDate(slot.plannedEnd) >= now && !isGanttSlotCompleted(slot))
     ));
     const warnings = slots.reduce((sum, slot) => sum + (slotWarningMap[slot.id]?.length || 0), 0);
     const hours = slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
@@ -8408,7 +8460,7 @@ function buildDispatchWorkCenterRows(window, slotWarningMap) {
 
 function buildDispatchRouteRows(warnings, window) {
   return (planningState.routes || [])
-    .filter((route) => route.planningStatus !== "canceled")
+    .filter((route) => !isWorkOrderPlanningCanceled(route))
     .map((route) => {
       const project = getRoutePlanningContext(route);
       const slots = getRouteSlots(route.id);
@@ -8420,7 +8472,7 @@ function buildDispatchRouteRows(warnings, window) {
       const critical = routeWarnings.filter((warning) => warning.severity === "critical").length;
       const progress = project
         ? calculateProjectProgress(project, planningState)
-        : slots.length ? Math.round(slots.filter((slot) => slot.status === "completed").length / slots.length * 100) : 0;
+        : slots.length ? Math.round(slots.filter((slot) => isGanttSlotCompleted(slot)).length / slots.length * 100) : 0;
       const dueState = project ? getProjectDeadlineState(project) : { tone: "neutral", label: "срок не задан", slackMs: null };
       const nextSlot = slots
         .filter((slot) => toDate(slot.plannedEnd) >= window.start)
@@ -8449,7 +8501,7 @@ function buildDispatchRouteRows(warnings, window) {
         dueState,
         nextSlot,
         tone,
-        statusLabel: route.planningStatus === "scheduled" ? "На Ганте" : "В плане",
+        statusLabel: getWorkOrderPlanningStatusValue(route) === "scheduled" ? "На Ганте" : "В плане",
       };
     })
     .sort((left, right) => (
@@ -8484,7 +8536,7 @@ function buildDispatchSignals(warnings, backlog, window) {
     .sort((left, right) => toDate(left.plannedEnd) - toDate(right.plannedEnd))
     .slice(0, 4)
     .map((slot) => ({
-      tone: slot.status === "completed" ? "ok" : "active",
+      tone: isGanttSlotCompleted(slot) ? "ok" : "active",
       title: "Выпуск",
       meta: formatDateTimeShort(slot.plannedEnd),
       text: `${slot.operationName || "Поступление из производства"} · ${Number(slot.quantity || 0).toLocaleString("ru-RU")} шт.`,
@@ -8498,7 +8550,7 @@ function getDispatchCheckpointReferenceTime(window, shiftSlots = []) {
   if (now >= window.start && now <= window.end) return now;
 
   const nextPlannedStart = [...shiftSlots]
-    .filter((slot) => slot.status !== "completed")
+    .filter((slot) => !isGanttSlotCompleted(slot))
     .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))[0]?.plannedStart;
 
   return nextPlannedStart ? toDate(nextPlannedStart) : addMs(window.start, 8 * 60 * 60 * 1000);
@@ -8517,20 +8569,20 @@ function buildDispatchCheckpoints(data) {
     const start = toDate(slot.plannedStart);
     return start >= shiftStart && start < addMs(shiftStart, 2 * hourMs);
   });
-  const startedSlots = startSlots.filter((slot) => startedStatuses.has(slot.status));
+  const startedSlots = startSlots.filter((slot) => startedStatuses.has(getGanttSlotStatusView(slot).value));
   const flowSlots = data.shiftSlots.filter((slot) => (
     toDate(slot.plannedStart) <= shiftMiddle
     && toDate(slot.plannedEnd) >= shiftMiddle
-    && slot.status !== "completed"
+    && !isGanttSlotCompleted(slot)
   ));
   const endRiskSlots = data.shiftSlots.filter((slot) => (
     toDate(slot.plannedEnd) >= riskTime
     && toDate(slot.plannedEnd) <= addMs(data.window.start, 20 * hourMs)
-    && slot.status !== "completed"
+    && !isGanttSlotCompleted(slot)
   ));
-  const openSlots = data.shiftSlots.filter((slot) => slot.status !== "completed");
+  const openSlots = data.shiftSlots.filter((slot) => !isGanttSlotCompleted(slot));
   const outputSlotsInWindow = data.outputReceiptSlots.filter((slot) => isSlotInsideDispatchWindow(slot, data.window));
-  const completedOutputSlots = outputSlotsInWindow.filter((slot) => slot.status === "completed");
+  const completedOutputSlots = outputSlotsInWindow.filter((slot) => isGanttSlotCompleted(slot));
   const checkpoints = [
     {
       id: "prepare",
@@ -8624,7 +8676,7 @@ function buildDispatchBoardData() {
   const routeRows = buildDispatchRouteRows(warnings, window);
   const workCenterRows = buildDispatchWorkCenterRows(window, warningsContext.slotWarningMap || {});
   const outputReceiptSlots = (planningState.slots || []).filter((slot) => isManufacturingOutputReceiptSlot(slot));
-  const completedOutputReceipt = outputReceiptSlots.filter((slot) => slot.status === "completed").length;
+  const completedOutputReceipt = outputReceiptSlots.filter((slot) => isGanttSlotCompleted(slot)).length;
   const plannedHours = shiftSlots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
 
   const data = {
@@ -12601,7 +12653,7 @@ function renderBatchObjectTree(batch, slots) {
             .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))
             .map((slot) => renderObjectTreeLeaf(
               slot.operationName || "Операция",
-              `${formatDateTimeShort(slot.plannedStart)} → ${formatDateTimeShort(slot.plannedEnd)} · ${GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "статус"}`,
+              `${formatDateTimeShort(slot.plannedStart)} → ${formatDateTimeShort(slot.plannedEnd)} · ${getGanttSlotStatusView(slot).label}`,
               "slot",
             ))
             .join("")],
@@ -16906,20 +16958,20 @@ function getProductionFlowStages() {
       .filter((slot) => productionFlowSlotMatchesStage(slot, stageIds, stepById.get(slot.routeStepId)))
       .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart));
     const riskSlots = stageSlots.filter((slot) => (
-      ["problem", "overdue", "paused"].includes(slot.status)
-      || (slot.status !== "completed" && slot.plannedEnd && toDate(slot.plannedEnd) < now)
+      isGanttSlotRiskStatus(slot)
+      || (!isGanttSlotCompleted(slot) && slot.plannedEnd && toDate(slot.plannedEnd) < now)
     ));
     const activeSlots = stageSlots.filter((slot) => (
-      ["in_progress", "problem", "overdue"].includes(slot.status)
-      || (slot.status !== "completed" && toDate(slot.plannedStart) <= now && toDate(slot.plannedEnd) >= now)
+      ["in_progress", "problem", "overdue"].includes(getGanttSlotStatusView(slot).value)
+      || (!isGanttSlotCompleted(slot) && toDate(slot.plannedStart) <= now && toDate(slot.plannedEnd) >= now)
     ));
     const queuedSlots = stageSlots.filter((slot) => (
-      slot.status !== "completed"
+      !isGanttSlotCompleted(slot)
       && !activeSlots.includes(slot)
       && !riskSlots.includes(slot)
     ));
-    const completedSlots = stageSlots.filter((slot) => slot.status === "completed");
-    const openSlots = stageSlots.filter((slot) => slot.status !== "completed");
+    const completedSlots = stageSlots.filter((slot) => isGanttSlotCompleted(slot));
+    const openSlots = stageSlots.filter((slot) => !isGanttSlotCompleted(slot));
     const stageResources = resources.filter((resource) => stageIds.has(getProductionResourceWorkCenterId(resource)));
     const stageOperations = operations.filter((operation) => stageIds.has(getOperationRouteWorkCenterId(operation) || operation.workCenterId));
     const stageCenters = [...stageIds].map((id) => getWorkCenter(id)).filter(Boolean);
@@ -21030,9 +21082,7 @@ function getRoutePlanningOrder(route, production = null) {
   if (!route?.id) return null;
   const context = production || getRoutePlanningContext(route);
   const productionId = context?.id || getRouteProductionId(route);
-  const storedStatus = ["queued", "partial", "scheduled", "canceled"].includes(route.planningStatus)
-    ? route.planningStatus
-    : route.planningStatus === "planned" ? "queued" : "queued";
+  const storedStatus = getWorkOrderPlanningStatusValue(route);
   const statusView = getMesStatusView("workOrderPlanning", storedStatus);
   return {
     id: route.id,
@@ -21047,7 +21097,7 @@ function getRoutePlanningOrder(route, production = null) {
     projectId: productionId || route.projectId || route.specificationId || "",
     batchNumber: "",
     quantity: getPlanningRouteQuantity(route),
-    status: statusView.value || route.planningStatus || context?.status || "queued",
+    status: statusView.value || context?.status || "queued",
     statusLabel: statusView.label,
     statusTone: statusView.tone,
     createdAt: route.createdAt || "",
@@ -21086,7 +21136,7 @@ function getPlanningRouteOrderState(route, summary = null) {
     const status = getMesStatusView("workOrderPlanning", value, fallback);
     return { id: value, label: status.label, tone: status.tone, signal: status.signal, status };
   };
-  if (route.planningStatus === "canceled" && !transferSummary.planned) {
+  if (isWorkOrderPlanningCanceled(route) && !transferSummary.planned) {
     return makeState("canceled", { label: "Отменен", tone: "critical" });
   }
   if (transferSummary.expected && transferSummary.planned >= transferSummary.expected) {
@@ -21138,7 +21188,7 @@ function getRouteCardViewModel(route = null) {
 function getWorkOrderPlanningStatusView(route = null, summary = null) {
   if (!route) return getMesStatusView("workOrderPlanning", "queued", { label: "Не выбран", tone: "neutral" });
   return getPlanningRouteOrderState(route, summary).status
-    || getMesStatusView("workOrderPlanning", route.planningStatus || "queued");
+    || getWorkOrderPlanningStatus(route);
 }
 
 function getWorkOrderViewModel(route = null, options = {}) {
@@ -21274,9 +21324,7 @@ function getPlanningShiftOrdersForRoute(route = null, routeSteps = null) {
       workCenter?.name || slot.workCenterId || "Участок не задан",
       resource?.name || slot.resourceId || "",
     ].filter(Boolean).join(" · ");
-    const statusView = getMesStatusView("ganttSlot", slot.status || "planned", {
-      label: GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "запланирован",
-    });
+    const statusView = getGanttSlotStatusView(slot);
 
     groups.get(dateKey).push({
       id: slot.id,
@@ -21291,7 +21339,7 @@ function getPlanningShiftOrdersForRoute(route = null, routeSteps = null) {
       resourceLabel,
       quantity: normalizeQuantity(slot.quantity || 0),
       unit: "шт.",
-      rawStatus: slot.status || "planned",
+      rawStatus: statusView.value || "planned",
       statusView,
       statusLabel: statusView.label,
       timeLabel: getPlanningShiftSlotTimeLabel(slot),
@@ -21395,7 +21443,7 @@ function syncPlanningRouteQuantity(routeId, value, options = {}) {
     const routeOrder = getRoutePlanningOrder(nextRoute, production);
     planningState.slots = planningState.slots.map((slot) => {
       const step = stepById[slot.routeStepId];
-      if ((slot.routeId && slot.routeId !== nextRoute.id) || !step || slot.locked || slot.status === "completed") return slot;
+      if ((slot.routeId && slot.routeId !== nextRoute.id) || !step || slot.locked || isGanttSlotCompleted(slot)) return slot;
       const nextQuantity = getRouteStepQuantityForBatch(step, routeOrder);
       return recalculateSlotEndByQuantity({
         ...slot,
@@ -21434,7 +21482,7 @@ function recalculatePlanningBatchSlots(batchId, routeId, stamp = new Date().toIS
   const stepById = byId(getSchedulableRouteSteps(route.id));
   planningState.slots = (planningState.slots || []).map((slot) => {
     const step = stepById[slot.routeStepId];
-    if ((slot.routeId !== route.id && slot.batchId !== route.id && slot.planningOrderId !== route.id) || !step || slot.locked || slot.status === "completed") return slot;
+    if ((slot.routeId !== route.id && slot.batchId !== route.id && slot.planningOrderId !== route.id) || !step || slot.locked || isGanttSlotCompleted(slot)) return slot;
     return recalculateSlotEndByQuantity({
       ...slot,
       routeId: route.id,
@@ -21536,7 +21584,7 @@ function syncPlanningBoardsPerPanel(routeId, sourceId, value, options = {}) {
 
   if (affectedStepIds.size) {
     planningState.slots = (planningState.slots || []).map((slot) => {
-      if (!affectedStepIds.has(slot.routeStepId) || slot.locked || slot.status === "completed") return slot;
+      if (!affectedStepIds.has(slot.routeStepId) || slot.locked || isGanttSlotCompleted(slot)) return slot;
       return recalculateSlotEndByQuantity({
         ...slot,
         boardsPerPanel,
@@ -24092,7 +24140,7 @@ function buildDeadlineRows() {
 function buildSlotStatusItems(slots) {
   const counts = GANTT_SLOT_STATUS_VALUES.map((status) => ({
     label: GANTT_SLOT_STATUS_LABELS[status],
-    value: slots.filter((slot) => slot.status === status).length,
+    value: slots.filter((slot) => getGanttSlotStatusView(slot).value === status).length,
     color: statusReportColors[status],
   })).filter((item) => item.value > 0);
   return counts.length ? counts : [{ label: "Нет данных", value: 1, color: "#cbd5e1" }];
@@ -24649,6 +24697,8 @@ function renderDirectoryDetail(activeSection, directoryData) {
 function renderStatusImpactMap(row = {}) {
   const impact = getStatusImpactMap(row);
   const lifecycle = getStatusLifecycleModules(row);
+  const transitionText = getStatusTransitionView(row);
+  const nextDocumentText = getStatusNextDocumentView(row);
   return `
     <section class="status-impact-map" aria-label="Карта влияния статуса">
       <div class="status-impact-head">
@@ -24664,6 +24714,14 @@ function renderStatusImpactMap(row = {}) {
         <article>
           <span>Где меняется</span>
           <strong>${escapeHtml(row.changeModule || lifecycle.changeModule)}</strong>
+        </article>
+        <article>
+          <span>Переход</span>
+          <strong>${escapeHtml(transitionText)}</strong>
+        </article>
+        <article>
+          <span>Следующий документ</span>
+          <strong>${escapeHtml(nextDocumentText)}</strong>
         </article>
         <article>
           <span>Где используется</span>
@@ -24685,6 +24743,43 @@ function renderStatusImpactMap(row = {}) {
       <p>${escapeHtml(impact.note)}</p>
     </section>
   `;
+}
+
+function getStatusContractKey(row = {}) {
+  const scope = String(row.contractScope || "").trim();
+  const code = String(row.code || "").trim();
+  return scope && code ? `${scope}:${code}` : "";
+}
+
+function getStatusContractView(row = {}) {
+  const key = getStatusContractKey(row);
+  if (!key || !MES_STATUS_CONTRACT_KEYS.has(key)) return "вне contract-ядра";
+  const contract = getMesStatusView(row.contractScope, row.code);
+  return `${key} · ${contract.kind}`;
+}
+
+function getStatusFlowTransitions(row = {}) {
+  const scope = String(row.contractScope || "").trim();
+  const code = String(row.code || "").trim();
+  if (!scope || !code) return [];
+  return getMesFlowTransitionsForStatus(scope, code);
+}
+
+function getStatusTransitionView(row = {}) {
+  const transitions = getStatusFlowTransitions(row);
+  if (!transitions.length) {
+    return getStatusContractKey(row) ? "не задается переходом" : "нет contract-перехода";
+  }
+  return transitions
+    .map((transition) => `${transition.sourceModule} → ${transition.targetModule}: ${transition.actionLabel}`)
+    .join(" · ");
+}
+
+function getStatusNextDocumentView(row = {}) {
+  const transitions = getStatusFlowTransitions(row);
+  if (!transitions.length) return "не задан";
+  return [...new Set(transitions.map((transition) => getMesDocumentKind(transition.to).label))]
+    .join(" · ");
 }
 
 function getStatusImpactMap(row = {}) {
@@ -24973,10 +25068,10 @@ function getDirectoryData(sectionId) {
   if (sectionId === "statuses") {
     return makeDirectoryData(sectionId, {
       caption: "Единые статусы, режимы и системные сигналы MES. Область показывает контур применения, стартовый модуль показывает где статус появляется впервые, а поле изменения показывает где его меняют или пересчитывают.",
-      columns: ["Область применения", "Стартовый модуль", "Где меняется", "Где используется", "Статус", "Влияние"],
-      keys: ["group", "originModule", "changeModule", "usedIn", "name", "impactView"],
-      readerColumns: ["Область применения", "Стартовый модуль", "Где меняется", "Где используется", "Категория", "Статус", "Ревизия", "Объект", "Код", "Аннотация", "Влияние"],
-      readerKeys: ["group", "originModule", "changeModule", "usedIn", "registryKind", "name", "audit", "type", "code", "annotation", "impactView"],
+      columns: ["Область применения", "Стартовый модуль", "Где меняется", "Контракт", "Переход", "Статус", "Влияние"],
+      keys: ["group", "originModule", "changeModule", "contractView", "transitionView", "name", "impactView"],
+      readerColumns: ["Область применения", "Стартовый модуль", "Где меняется", "Где используется", "Контракт", "Переход", "Следующий документ", "Категория", "Статус", "Ревизия", "Объект", "Код", "Аннотация", "Влияние"],
+      readerKeys: ["group", "originModule", "changeModule", "usedIn", "contractView", "transitionView", "nextDocumentView", "registryKind", "name", "audit", "type", "code", "annotation", "impactView"],
       rows: (directoryState.statuses || []).map((row) => {
         const lifecycle = getStatusLifecycleModules(row);
         const normalizedRow = {
@@ -24987,6 +25082,9 @@ function getDirectoryData(sectionId) {
         return {
           ...normalizedRow,
           usedIn: getStatusUsedInText(normalizedRow),
+          contractView: getStatusContractView(normalizedRow),
+          transitionView: getStatusTransitionView(normalizedRow),
+          nextDocumentView: getStatusNextDocumentView(normalizedRow),
           impactView: getStatusImpactView(normalizedRow),
           registryKind: getStatusRegistryKindLabel(normalizedRow.registryKind),
           audit: getStatusAuditInfo(normalizedRow).label,
@@ -25195,7 +25293,7 @@ function isDirectoryFieldReadonly(sectionId, key) {
   if (sectionId === "statuses" && key === "audit") return true;
   if (sectionId === "statuses" && key === "registryKind") return true;
   if (sectionId === "statuses" && (key === "originModule" || key === "changeModule")) return true;
-  if (sectionId === "statuses" && (key === "usedIn" || key === "impactView")) return true;
+  if (sectionId === "statuses" && (key === "usedIn" || key === "impactView" || key === "contractView" || key === "transitionView" || key === "nextDocumentView")) return true;
   return false;
 }
 
@@ -26637,7 +26735,7 @@ function applyOperationMapChangesToRoutes(operation) {
     .map((step) => [step.id, step]));
   planningState.slots = (planningState.slots || []).map((slot) => {
     const step = linkedStepById.get(slot.routeStepId);
-    if (!step || slot.locked || slot.status === "completed") return slot;
+    if (!step || slot.locked || isGanttSlotCompleted(slot)) return slot;
     const keepSlotWorkCenter = isPlanningWorkCenterCompatibleWithRouteStep(step, slot.workCenterId, planningState);
     const assignment = keepSlotWorkCenter ? null : getManualPlanningAssignmentForRouteStep(step, slot.quantity || 1, slot.plannedStart || fromDateInput(ui.windowStart), {
       state: planningState,
@@ -27092,7 +27190,7 @@ function updateRouteStepField(stepId, field, rawValue) {
 		  if (["operationId", "workCenterId", "planningWorkCenterId", "unitsPerHour", "secondsPerPanel", "setupMin", "calculationType", "resourceId", "bomListId", "boardsPerPanel", "machineSplit", "machineCoefficients", "efficiency", "specTaskId", "operationInputs", "operationOutputs"].includes(field)) {
 		    const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
 		    planningState.slots = planningState.slots.map((slot) => {
-	      if (slot.routeStepId !== stepId || slot.locked || slot.status === "completed" || !updatedStep) return slot;
+	      if (slot.routeStepId !== stepId || slot.locked || isGanttSlotCompleted(slot) || !updatedStep) return slot;
         const selectedPlanningWorkCenterId = getRouteStepSelectedPlanningWorkCenterId(updatedStep, planningState);
         const shouldForceSelectedLine = field === "planningWorkCenterId" && selectedPlanningWorkCenterId;
         const keepSlotWorkCenter = !shouldForceSelectedLine && isPlanningWorkCenterCompatibleWithRouteStep(updatedStep, slot.workCenterId, planningState);
@@ -27183,7 +27281,7 @@ function setRouteStepSmtPackageCoefficient(stepId = "", machineId = "", packageK
   ));
   const updatedStep = planningState.routeSteps.find((item) => item.id === stepId);
   planningState.slots = planningState.slots.map((slot) => {
-    if (slot.routeStepId !== stepId || slot.locked || slot.status === "completed" || !updatedStep) return slot;
+    if (slot.routeStepId !== stepId || slot.locked || isGanttSlotCompleted(slot) || !updatedStep) return slot;
     return recalculateSlotEndByQuantity({
       ...slot,
       machineCoefficients,
@@ -29619,7 +29717,7 @@ function applyCalculatorToProjectSlots() {
   const targetSlots = planningState.slots.filter((slot) => (
     (slot.specificationId === calc.project.id || slot.projectId === calc.project.id)
     && slot.workCenterId === calc.workCenter.id
-    && slot.status !== "completed"
+    && !isGanttSlotCompleted(slot)
     && !slot.locked
   ));
 
@@ -30148,8 +30246,8 @@ function renderPlanningDirectorCommand(warningsContext, stats, scaleInfo) {
       || right.backlog - left.backlog
     ));
   const outputReceiptSlots = planningState.slots.filter((slot) => isManufacturingOutputReceiptSlot(slot));
-  const completedOutputReceipt = outputReceiptSlots.filter((slot) => slot.status === "completed").length;
-  const activeSlots = planningState.slots.filter((slot) => ["in_progress", "problem", "overdue"].includes(slot.status)).length;
+  const completedOutputReceipt = outputReceiptSlots.filter((slot) => isGanttSlotCompleted(slot)).length;
+  const activeSlots = planningState.slots.filter((slot) => ["in_progress", "problem", "overdue"].includes(getGanttSlotStatusView(slot).value)).length;
   const plannedHours = planningState.slots.reduce((sum, slot) => sum + getSlotDurationHours(slot), 0);
   const flowSteps = [
     {
@@ -30860,8 +30958,8 @@ function renderRouteTaskMini(route, slotWarningMap = {}) {
       ${steps.map((step) => {
         const stepSlots = slots.filter((slot) => slot.routeStepId === step.id);
         const hasIssue = stepSlots.some((slot) => (slotWarningMap[slot.id] || []).length);
-        const isCompleted = stepSlots.length && stepSlots.every((slot) => slot.status === "completed");
-        const isActive = stepSlots.some((slot) => slot.status === "in_progress");
+        const isCompleted = stepSlots.length && stepSlots.every((slot) => isGanttSlotCompleted(slot));
+        const isActive = stepSlots.some((slot) => isGanttSlotActive(slot));
         const isPlanned = stepSlots.length > 0;
         const className = [
           isCompleted ? "is-done" : "",
@@ -30887,8 +30985,8 @@ function renderProjectRouteMini(project, slotWarningMap = {}) {
       ${steps.map((step) => {
         const stepSlots = slots.filter((slot) => slot.routeStepId === step.id);
         const hasIssue = stepSlots.some((slot) => (slotWarningMap[slot.id] || []).length);
-        const isCompleted = stepSlots.length && stepSlots.every((slot) => slot.status === "completed");
-        const isActive = stepSlots.some((slot) => slot.status === "in_progress");
+        const isCompleted = stepSlots.length && stepSlots.every((slot) => isGanttSlotCompleted(slot));
+        const isActive = stepSlots.some((slot) => isGanttSlotActive(slot));
         const isPlanned = stepSlots.length > 0;
         const className = [
           isCompleted ? "is-done" : "",
@@ -31008,6 +31106,7 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
   const tinyClass = visualRect.width < (isWeekSlot ? 36 : 58) ? "is-tiny" : "";
   const segmentedClass = workingSegments.length > 1 || nonWorkingSegments.length ? "is-segmented" : "";
   const slotRadius = getGanttSlotGeometryRadius(height);
+  const statusClass = getGanttSlotStatusClass(slot);
 
   if (workingSegments.length > 1 || nonWorkingSegments.length) {
     const contentSegments = workingSegments.length ? workingSegments : nonWorkingSegments;
@@ -31055,7 +31154,7 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
 
     return `
       <article
-        class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass} ${segmentedClass}"
+        class="operation-slot ${statusClass} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass} ${segmentedClass}"
         data-slot-id="${slot.id}"
         style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;"
         title="${escapeAttribute(`${routeMeta.routeName || project?.name || "Заказ-наряд"} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
@@ -31070,7 +31169,7 @@ function renderSlot(slot, row, scaleInfo, slotWarningMap, placement) {
 
   return `
     <article
-      class="operation-slot status-${slot.status} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass}"
+      class="operation-slot ${statusClass} ${warehouseClass} ${lockedClass} ${isAggregate ? "aggregate-slot" : ""} ${isWeekSlot ? "week-slot" : ""} ${compactClass} ${tinyClass} ${selectedClass} ${warningClass} ${dragClass}"
       data-slot-id="${slot.id}"
       style="left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;"
       title="${escapeAttribute(`${routeMeta.routeName || project?.name || "Заказ-наряд"} · ${operationLabel} · ${quantity} шт. · ${durationTitle}`)}"
@@ -32741,6 +32840,8 @@ function renderSlotDrawer(slotWarningMap) {
 	  const warnings = slotWarningMap[slot.id] || [];
 	  const slotRoute = getSlotRoute(slot);
 	  const operationFlow = getSlotOperationFlow(slot, slotRoute, currentStep);
+  const slotStatusView = getGanttSlotStatusView(slot);
+  const slotStatusClass = getGanttSlotStatusClass(slot);
 
   return `
     <aside class="slot-drawer detail-drawer" aria-label="Карточка операции">
@@ -32751,12 +32852,12 @@ function renderSlotDrawer(slotWarningMap) {
         <button class="icon-button" data-close-drawer type="button" title="Закрыть">${icon("close")}</button>
       </div>
 
-      <div class="drawer-summary status-${slot.status}">
+      <div class="drawer-summary ${slotStatusClass}">
         <div>
           <strong>Заказ-наряд</strong>
           <span>${Number(slot.quantity || 0).toLocaleString("ru-RU")} шт.</span>
         </div>
-        <span>${GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "статус"}</span>
+        <span>${escapeHtml(slotStatusView.label || "статус")}</span>
       </div>
 
       <div class="drawer-signal-grid">
@@ -32829,8 +32930,8 @@ function renderDrawerRouteSequence(routeSteps, orderedSlots, currentSlot) {
           const className = [
             stepSlot ? "is-planned" : "is-empty",
             stepSlot?.id === currentSlot.id ? "is-current" : "",
-            stepSlot?.status === "completed" ? "is-done" : "",
-            stepSlot?.status === "in_progress" ? "is-active" : "",
+            stepSlot && isGanttSlotCompleted(stepSlot) ? "is-done" : "",
+            stepSlot && isGanttSlotActive(stepSlot) ? "is-active" : "",
             isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : "",
           ].filter(Boolean).join(" ");
           return `
@@ -32952,7 +33053,7 @@ function renderEditorModal() {
             <label class="form-field command-field">
               <span>Статус</span>
               <select name="status" required>
-                ${GANTT_SLOT_STATUS_VALUES.map((status) => `<option value="${status}" ${selected(slot.status || "planned", status)}>${GANTT_SLOT_STATUS_LABELS[status] || status}</option>`).join("")}
+                ${GANTT_SLOT_STATUS_VALUES.map((status) => `<option value="${status}" ${selected(getGanttSlotStatusView(slot).value || "planned", status)}>${GANTT_SLOT_STATUS_LABELS[status] || status}</option>`).join("")}
               </select>
             </label>
 
@@ -33601,7 +33702,7 @@ function setGanttDependencyDraftOffset(routeKey, pointIndex, offset) {
 function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!slot) return;
-  if (slot.locked || slot.status === "completed") {
+  if (slot.locked || isGanttSlotCompleted(slot)) {
     return;
   }
 
@@ -33718,7 +33819,7 @@ function rowFromPointer(event, rows, rowLayout) {
 }
 
 function placeSlotInNearestWindow(slot, earliestOverride = null) {
-  if (!slot || slot.locked || slot.status === "completed") return;
+  if (!slot || slot.locked || isGanttSlotCompleted(slot)) return;
 
   const previous = getRouteNeighbor(slot, -1);
   const routeEarliest = previous ? addMs(previous.plannedEnd, getRouteBufferMs()) : toDate(slot.plannedStart);
@@ -33806,7 +33907,7 @@ function applyWarningFixInPlace(warning) {
 
   if (warning.type === "route" && warning.id.startsWith("wrong-workcenter-") && slots[0]) {
     const slot = slots[0];
-    if (slot.locked || slot.status === "completed") return false;
+    if (slot.locked || isGanttSlotCompleted(slot)) return false;
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return false;
     const assignment = getRouteStepPlanningAssignmentForSlot(step, slot, {
@@ -33826,7 +33927,7 @@ function applyWarningFixInPlace(warning) {
 
   if (warning.type === "quantity" && slots[0]) {
     const slot = slots[0];
-    if (slot.locked || slot.status === "completed") return false;
+    if (slot.locked || isGanttSlotCompleted(slot)) return false;
 	    const previous = getRouteNeighbor(slot, -1);
 	    if (!previous) return false;
 	    slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
@@ -33838,7 +33939,7 @@ function applyWarningFixInPlace(warning) {
 
 	  if (warning.type === "duration" && slots[0]) {
 	    const slot = slots[0];
-	    if (slot.locked || slot.status === "completed") return false;
+	    if (slot.locked || isGanttSlotCompleted(slot)) return false;
 		    applyRecalculatedSlotTiming(slot, planningState);
 	    slot.updatedAt = stamp;
 	    cascadeIfEnabled(slot.id);
@@ -33966,7 +34067,7 @@ function updateSlotQuantity(slotId, value) {
 function cycleSlotStatus(slotId) {
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!slot) return;
-  const index = GANTT_SLOT_STATUS_VALUES.indexOf(slot.status);
+  const index = GANTT_SLOT_STATUS_VALUES.indexOf(getGanttSlotStatusView(slot).value);
   slot.status = GANTT_SLOT_STATUS_VALUES[(index + 1) % GANTT_SLOT_STATUS_VALUES.length];
   slot.updatedAt = new Date().toISOString();
   persistState();
@@ -34388,7 +34489,7 @@ function projectMatchesFilters(project) {
 function routeMatchesGanttFilters(route) {
   const project = getRoutePlanningContext(route);
   if (!route || !project) return false;
-  if (route.planningStatus === "canceled") return false;
+  if (isWorkOrderPlanningCanceled(route)) return false;
   if (!getRouteSlots(route.id).length) return false;
 
   const specification = getRouteSpecification(route);

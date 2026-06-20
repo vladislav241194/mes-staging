@@ -421,6 +421,15 @@ export function getMesFlowTransitionsForDocument(kind = "") {
   return MES_FLOW_TRANSITIONS.filter((transition) => transition.from === id || transition.to === id);
 }
 
+export function getMesFlowTransitionsForStatus(scope = "", value = "") {
+  const normalizedScope = String(scope || "").trim();
+  const normalizedValue = String(value || "").trim();
+  return MES_FLOW_TRANSITIONS.filter((transition) => (
+    transition.statusScope === normalizedScope
+    && transition.nextStatus === normalizedValue
+  ));
+}
+
 export function getMesFlowTransitionView(transitionId = "", fallback = {}) {
   const transition = getMesFlowTransition(transitionId);
   if (!transition) {

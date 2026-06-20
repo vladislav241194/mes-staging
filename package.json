@@ -8,6 +8,7 @@
     "build": "node scripts/build.mjs",
     "qa:mobile": "node scripts/mobile-qa.mjs",
     "qa:visual": "node scripts/design-qa-snapshots.mjs",
+    "qa:flow": "node scripts/flow-contract-qa.mjs",
     "preview": "node scripts/preview-dist.mjs"
   }
 }
