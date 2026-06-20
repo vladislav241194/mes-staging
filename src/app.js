@@ -1,6 +1,15 @@
 import { createDefaultPlanningState } from "./data.js";
 import { SLOT_STATUSES, STATUS_LABELS } from "./types.js";
 import {
+  buildMesFlowEvent,
+  buildMesDocumentContract,
+  getMesFlowTransitionView,
+  getMesDocumentKind,
+  getMesStatusOptions,
+  getMesStatusView,
+  MES_STATUS_CONTRACTS,
+} from "./mes_contracts.js";
+import {
   addMs,
   buildTimeScale,
   dateToX,
@@ -422,12 +431,26 @@ const DEFAULT_EMPLOYEES = [
   })),
 ];
 
-const DISPATCH_FACT_STATUS_OPTIONS = [
-  { value: "not_reported", label: "Не внесен", tone: "neutral" },
-  { value: "accepted", label: "Принят", tone: "ok" },
+const GANTT_SLOT_STATUS_OPTIONS = getMesStatusOptions("ganttSlot");
+const GANTT_SLOT_STATUS_VALUES = GANTT_SLOT_STATUS_OPTIONS.length
+  ? GANTT_SLOT_STATUS_OPTIONS.map((status) => status.value)
+  : SLOT_STATUSES;
+const GANTT_SLOT_STATUS_LABELS = {
+  ...STATUS_LABELS,
+  ...Object.fromEntries(GANTT_SLOT_STATUS_OPTIONS.map((status) => [status.value, status.label])),
+};
+const MES_STATUS_CONTRACT_KEYS = new Set(MES_STATUS_CONTRACTS.map((status) => `${status.scope}:${status.value}`));
+const DISPATCH_FACT_CONTRACT_OPTIONS = getMesStatusOptions("dispatchFact");
+const DISPATCH_FACT_STATUS_OPTIONS = (DISPATCH_FACT_CONTRACT_OPTIONS.length ? DISPATCH_FACT_CONTRACT_OPTIONS : [
+  { value: "not_reported", label: "Факт не внесен", tone: "neutral" },
+  { value: "accepted", label: "Принято", tone: "ok" },
   { value: "partial", label: "Частично", tone: "warning" },
   { value: "problem", label: "Проблема", tone: "critical" },
-];
+]).map((status) => ({
+  value: status.value,
+  label: status.label,
+  tone: status.tone,
+}));
 
 const SHIFT_WORKBENCH_WINDOW_DAYS = 7;
 const GANTT_DEPENDENCY_ROUTE_VERSION = 2;
@@ -655,6 +678,8 @@ function makeStatusDirectoryRow(row) {
     name: row.name,
     type: row.type || "Статус",
     code: row.code,
+    contractScope: String(row.contractScope || row.scope || "").trim(),
+    contractKind: String(row.contractKind || row.kind || "").trim(),
     usage: row.usage || annotation,
     annotation,
     impact: row.impact || "",
@@ -778,13 +803,15 @@ function getStatusLifecycleModules(row = {}) {
 }
 
 const DEFAULT_STATUSES = [
-  ...SLOT_STATUSES.map((status) => makeStatusDirectoryRow({
-    id: `slot-${status}`,
+  ...GANTT_SLOT_STATUS_OPTIONS.map((status) => makeStatusDirectoryRow({
+    id: `slot-${status.value}`,
     group: "Планирование нагрузки / Планирование",
-    name: STATUS_LABELS[status],
+    name: status.label,
     type: "Операция Gantt",
-    code: status,
-    annotation: `Статус запланированной операции на диаграмме планирования: ${STATUS_LABELS[status]}.`,
+    code: status.value,
+    contractScope: "ganttSlot",
+    contractKind: status.kind || "executionStatus",
+    annotation: `Статус запланированной операции на диаграмме планирования: ${status.label}.`,
     impact: "Влияет на Gantt, прогресс маршрутной карты, предупреждения, мастерскую, диспетчерскую и ожидаемые складские поступления.",
   })),
   ...[
@@ -827,6 +854,8 @@ const DEFAULT_STATUSES = [
     ...row,
     group: "Планирование нагрузки / Заказ-наряды",
     type: "Маршрут / заказ-наряд",
+    contractScope: "workOrderPlanning",
+    contractKind: row.code === "canceled" ? "lifecycleStatus" : "planningStatus",
   })),
   ...[
     {
@@ -847,6 +876,8 @@ const DEFAULT_STATUSES = [
     ...row,
     group: "Оперативное управление / Мастерская",
     type: "Сменный заказ-наряд",
+    contractScope: "shiftAssignment",
+    contractKind: "shiftStatus",
   })),
   ...DISPATCH_FACT_STATUS_OPTIONS.map((status) => makeStatusDirectoryRow({
     id: `dispatch-${status.value}`,
@@ -854,6 +885,8 @@ const DEFAULT_STATUSES = [
     name: status.label,
     type: "Факт смены",
     code: status.value,
+    contractScope: "dispatchFact",
+    contractKind: "factStatus",
     annotation: `Статус внесения факта по сменному заказ-наряду: ${status.label}.`,
     impact: "Влияет на показатели план/факт, отклонения диспетчерской и оперативный контроль смены; производственный Gantt пока не пересчитывает.",
   })),
@@ -6747,8 +6780,10 @@ function renderPlanningWorkbenchV2Page() {
   const routeSteps = stats.steps || getRouteStepsForModule(activeRoute?.id || "");
   const tasks = getPlanningTasksForRoute(activeRoute, routeSteps);
   const selectedItem = activeRoute ? getPlanningActiveWorkItem(activeRoute, tasks, routeSteps) : "";
-  const orderTitle = activeRoute ? getPlanningWorkOrderTitle(activeRoute) : "Заказ-наряд не выбран";
-  const orderSubtitle = activeRoute ? getPlanningWorkOrderSubtitle(activeRoute, transferSummary, routeSteps) : "";
+  const workOrderView = getWorkOrderViewModel(activeRoute, { summary: transferSummary, routeSteps });
+  const orderTitle = activeRoute ? workOrderView.title : "Заказ-наряд не выбран";
+  const orderSubtitle = activeRoute ? workOrderView.subtitle : "";
+  const planningTransition = workOrderView.transitionToPlanning || getMesFlowTransitionView("workOrderToGanttSlot");
 
   if (!routes.length) {
     return `
@@ -6779,8 +6814,8 @@ function renderPlanningWorkbenchV2Page() {
             <button class="secondary-button danger" data-planning-route-cancel="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.planned ? "" : "disabled"}>
               ${icon("close")}<span>Отменить заказ</span>
             </button>
-            <button class="primary-button" data-planning-route-to-gantt="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.steps.length ? "" : "disabled"}>
-              ${icon("gantt")}<span>Передать в Гант</span>
+            <button class="primary-button" data-planning-route-to-gantt="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute && transferSummary.steps.length ? "" : "disabled"} title="${escapeAttribute(planningTransition.description || "")}">
+              ${icon("gantt")}<span>${escapeHtml(planningTransition.actionLabel || "Передать в планирование")}</span>
             </button>
           </div>
         </header>
@@ -6815,12 +6850,13 @@ function renderPlanningWorkbenchV2Queue(routes, activeRoute) {
       </div>
       <div class="module-entity-list planning-v2-route-list">
         ${routes.map((route) => {
-          const state = getPlanningRouteOrderState(route);
-          const quantity = getPlanningRouteQuantity(route);
+          const workOrderView = getWorkOrderViewModel(route);
+          const state = workOrderView.status;
+          const quantity = workOrderView.quantity || getPlanningRouteQuantity(route);
           return `
             <button class="module-entity-item planning-v2-route-item ${route.id === activeRoute?.id ? "is-active" : ""}" data-planning-route-open="${escapeAttribute(route.id)}" type="button">
               <span>
-                <strong>${escapeHtml(getPlanningWorkOrderQueueTitle(route))}</strong>
+                <strong>${escapeHtml(workOrderView.queueTitle)}</strong>
                 <small>${escapeHtml(getRouteDocumentKindShortLabel(route))} · ${quantity.toLocaleString("ru-RU")} шт.</small>
               </span>
               <em class="is-${escapeAttribute(state.tone)}">${escapeHtml(state.label)}</em>
@@ -7732,6 +7768,122 @@ function getDispatchFact(slotId = "") {
   return planningState.dispatchFacts?.[slotId] || null;
 }
 
+function getGanttSlotViewModel(slot = {}, step = null, route = null) {
+  const status = getMesStatusView("ganttSlot", slot.status || "planned", {
+    label: GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "запланирован",
+  });
+  return {
+    document: buildMesDocumentContract("ganttSlot", {
+      id: slot.id,
+      routeId: route?.id || slot.routeId || "",
+      planningOrderId: slot.planningOrderId || slot.batchId || slot.routeId || "",
+      sourceId: slot.routeStepId || "",
+    }),
+    transitionIn: getMesFlowTransitionView("workOrderToGanttSlot"),
+    transitionToShift: getMesFlowTransitionView("ganttSlotToShiftWorkOrder"),
+    slot,
+    step,
+    route,
+    status,
+    title: slot.operationName || step?.operationName || "Операция",
+    quantity: normalizeQuantity(slot.quantity || 0),
+    unit: slot.unit || "шт.",
+  };
+}
+
+function getShiftWorkOrderViewModel(row = {}) {
+  const status = getMesStatusView("shiftAssignment", row.assignment?.status || "draft", {
+    label: row.assignment?.status === "issued" ? "Выпущен" : "План смены",
+    tone: row.assignment?.status === "issued" ? "ok" : "neutral",
+  });
+  const document = row.documentContract || buildMesDocumentContract("shiftWorkOrder", {
+    id: row.id,
+    routeId: row.route?.id || row.slot?.routeId || "",
+    planningOrderId: row.slot?.planningOrderId || row.slot?.batchId || row.slot?.routeId || "",
+    sourceId: row.slot?.id || row.id,
+  });
+  const sourceSlotDocument = row.slotDocumentContract || buildMesDocumentContract("ganttSlot", {
+    id: row.slot?.id || row.id,
+    routeId: row.route?.id || row.slot?.routeId || "",
+    planningOrderId: row.slot?.planningOrderId || row.slot?.batchId || row.slot?.routeId || "",
+    sourceId: row.slot?.routeStepId || "",
+  });
+  const factDocument = row.factDocumentContract || buildMesDocumentContract("dispatchFact", {
+    id: row.id,
+    routeId: row.route?.id || row.slot?.routeId || "",
+    planningOrderId: row.slot?.planningOrderId || row.slot?.batchId || row.slot?.routeId || "",
+    sourceId: row.slot?.id || row.id,
+  });
+  return {
+    document,
+    transitionIn: row.transitionFromPlanning || getMesFlowTransitionView("ganttSlotToShiftWorkOrder"),
+    transitionIssue: row.transitionIssue || getMesFlowTransitionView("shiftWorkOrderIssue"),
+    transitionToFact: row.transitionToFact || getMesFlowTransitionView("shiftWorkOrderToDispatchFact"),
+    flowIn: buildMesFlowEvent("ganttSlotToShiftWorkOrder", sourceSlotDocument, document, {
+      plannedQuantity: normalizeQuantity(row.plannedQuantity || 0),
+      unit: row.unit || "шт.",
+    }),
+    flowToFact: buildMesFlowEvent("shiftWorkOrderToDispatchFact", document, factDocument, {
+      plannedQuantity: normalizeQuantity(row.plannedQuantity || 0),
+      unit: row.unit || "шт.",
+    }),
+    status,
+    title: row.documentNumber || "Сменный заказ-наряд",
+    plannedQuantity: normalizeQuantity(row.plannedQuantity || 0),
+    unit: row.unit || "шт.",
+    row,
+  };
+}
+
+function getDispatchFactViewModel(row = {}) {
+  const factStatusValue = row.factStatus?.value || row.fact?.status || "not_reported";
+  const status = getMesStatusView("dispatchFact", factStatusValue, {
+    label: row.factStatus?.label || factStatusValue,
+    tone: row.factStatus?.tone || "neutral",
+  });
+  const document = row.factDocumentContract || buildMesDocumentContract("dispatchFact", {
+    id: row.id,
+    routeId: row.route?.id || row.slot?.routeId || "",
+    planningOrderId: row.slot?.planningOrderId || row.slot?.batchId || row.slot?.routeId || "",
+    sourceId: row.slot?.id || row.id,
+  });
+  const shiftDocument = row.documentContract || buildMesDocumentContract("shiftWorkOrder", {
+    id: row.id,
+    routeId: row.route?.id || row.slot?.routeId || "",
+    planningOrderId: row.slot?.planningOrderId || row.slot?.batchId || row.slot?.routeId || "",
+    sourceId: row.slot?.id || row.id,
+  });
+  const slotDocument = row.slotDocumentContract || buildMesDocumentContract("ganttSlot", {
+    id: row.slot?.id || row.id,
+    routeId: row.route?.id || row.slot?.routeId || "",
+    planningOrderId: row.slot?.planningOrderId || row.slot?.batchId || row.slot?.routeId || "",
+    sourceId: row.slot?.routeStepId || "",
+  });
+  return {
+    document,
+    transitionIn: row.transitionToFact || getMesFlowTransitionView("shiftWorkOrderToDispatchFact"),
+    transitionToCorrection: getMesFlowTransitionView("dispatchFactToPlanningCorrection"),
+    flowIn: buildMesFlowEvent("shiftWorkOrderToDispatchFact", shiftDocument, document, {
+      plannedQuantity: normalizeQuantity(row.plannedQuantity || 0),
+      actualQuantity: normalizeQuantity(row.actualQuantity || 0),
+      defectQuantity: normalizeQuantity(row.defectQuantity || 0),
+      unit: row.unit || "шт.",
+    }),
+    flowToCorrection: buildMesFlowEvent("dispatchFactToPlanningCorrection", document, slotDocument, {
+      plannedQuantity: normalizeQuantity(row.plannedQuantity || 0),
+      actualQuantity: normalizeQuantity(row.actualQuantity || 0),
+      defectQuantity: normalizeQuantity(row.defectQuantity || 0),
+      unit: row.unit || "шт.",
+    }),
+    status,
+    plannedQuantity: normalizeQuantity(row.plannedQuantity || 0),
+    actualQuantity: normalizeQuantity(row.actualQuantity || 0),
+    defectQuantity: normalizeQuantity(row.defectQuantity || 0),
+    unit: row.unit || "шт.",
+    row,
+  };
+}
+
 function getDispatchFactStatusConfig(status = "") {
   return DISPATCH_FACT_STATUS_OPTIONS.find((option) => option.value === status) || DISPATCH_FACT_STATUS_OPTIONS[0];
 }
@@ -7816,6 +7968,15 @@ function getShiftWorkOrderRows(options = {}) {
       const defectQuantity = normalizeQuantity(fact?.defectQuantity || 0);
       const deltaQuantity = actualQuantity - plannedQuantity;
       const factStatus = getDispatchFactStatusConfig(fact?.status || (actualQuantity > 0 ? "partial" : "not_reported"));
+      const shiftStatusView = getMesStatusView("shiftAssignment", assignment?.status || "draft", {
+        label: assignment?.status === "issued" ? "Выпущен" : "План смены",
+        tone: assignment?.status === "issued" ? "ok" : "neutral",
+      });
+      const factStatusView = getMesStatusView("dispatchFact", factStatus.value, {
+        label: factStatus.label,
+        tone: factStatus.tone,
+      });
+      const slotView = getGanttSlotViewModel(slot, step, route);
       const dateKey = toDateInput(slot.plannedStart || slot.plannedEnd || window.start);
       const documentNumber = [
         "СЗН",
@@ -7826,6 +7987,22 @@ function getShiftWorkOrderRows(options = {}) {
 
       return {
         id: slot.id,
+        slotDocumentContract: slotView.document,
+        documentContract: buildMesDocumentContract("shiftWorkOrder", {
+          id: slot.id,
+          routeId: route?.id || slot.routeId || "",
+          planningOrderId: slot.planningOrderId || slot.batchId || slot.routeId || "",
+          sourceId: slot.id,
+        }),
+        factDocumentContract: buildMesDocumentContract("dispatchFact", {
+          id: slot.id,
+          routeId: route?.id || slot.routeId || "",
+          planningOrderId: slot.planningOrderId || slot.batchId || slot.routeId || "",
+          sourceId: slot.id,
+        }),
+        transitionFromPlanning: getMesFlowTransitionView("ganttSlotToShiftWorkOrder"),
+        transitionIssue: getMesFlowTransitionView("shiftWorkOrderIssue"),
+        transitionToFact: getMesFlowTransitionView("shiftWorkOrderToDispatchFact"),
         slot,
         step,
         route,
@@ -7847,6 +8024,7 @@ function getShiftWorkOrderRows(options = {}) {
         employeeLabel: defaultEmployee ? defaultEmployee.name : "Исполнитель не назначен",
         masterProfile: ownerProfile,
         assignment,
+        assignmentStatus: shiftStatusView,
         isIssued: assignment?.status === "issued",
         issuedAt: assignment?.issuedAt || "",
         note: assignment?.note || "",
@@ -7857,8 +8035,10 @@ function getShiftWorkOrderRows(options = {}) {
         completion: plannedQuantity > 0 ? Math.max(0, Math.min(140, Math.round(actualQuantity / plannedQuantity * 100))) : 0,
         fact,
         factStatus,
+        factStatusView,
         unit: slot.unit || task?.unit || "шт.",
         rawStatus: slot.status || "planned",
+        slotStatus: slotView.status,
         timeLabel: getPlanningShiftSlotTimeLabel(slot),
         startsAt: toDate(slot.plannedStart),
         endsAt: toDate(slot.plannedEnd),
@@ -8591,6 +8771,7 @@ function renderShiftMasterPage() {
 }
 
 function renderShiftMasterRow(row, selectedSlotId = "") {
+  const shiftOrderView = getShiftWorkOrderViewModel(row);
   const statusTone = row.isIssued ? "ok" : row.resourceId && row.employeeId ? "warning" : "neutral";
   return `
     <article class="shift-master-row is-${escapeAttribute(statusTone)} ${row.id === selectedSlotId ? "is-active" : ""}" data-shift-master-row="${escapeAttribute(row.id)}">
@@ -8604,7 +8785,7 @@ function renderShiftMasterRow(row, selectedSlotId = "") {
       <div class="shift-master-row-meta">
         <span>${escapeHtml(row.workCenterLabel)}</span>
         <span>${escapeHtml(row.timeLabel)}</span>
-        <span>${row.isIssued ? `выпущен ${escapeHtml(formatDateTimeShort(row.issuedAt))}` : "план смены"}</span>
+        <span>${row.isIssued ? `выпущен ${escapeHtml(formatDateTimeShort(row.issuedAt))}` : escapeHtml(shiftOrderView.status.label)}</span>
       </div>
       <div class="shift-master-controls">
         <label>
@@ -8629,7 +8810,7 @@ function renderShiftMasterRow(row, selectedSlotId = "") {
         </label>
         <div class="shift-master-row-actions">
           <button class="secondary-button" data-shift-master-select="${escapeAttribute(row.id)}" type="button">${icon("document")}<span>Лист</span></button>
-          <button class="primary-button" data-shift-master-issue="${escapeAttribute(row.id)}" type="button">${icon("check")}<span>${row.isIssued ? "Обновить" : "Выпустить"}</span></button>
+          <button class="primary-button" data-shift-master-issue="${escapeAttribute(row.id)}" type="button" title="${escapeAttribute(shiftOrderView.transitionIssue?.description || "")}">${icon("check")}<span>${row.isIssued ? "Обновить" : "Выпустить"}</span></button>
         </div>
       </div>
     </article>
@@ -8867,8 +9048,9 @@ function renderDispatchFactBar(row, window, selectedSlotId = "") {
 }
 
 function renderDispatchFactRow(row, selectedSlotId = "") {
+  const factView = getDispatchFactViewModel(row);
   return `
-    <article class="dispatch-fact-row is-${escapeAttribute(row.factStatus.tone)} ${row.id === selectedSlotId ? "is-active" : ""}">
+    <article class="dispatch-fact-row is-${escapeAttribute(factView.status.tone)} ${row.id === selectedSlotId ? "is-active" : ""}" title="${escapeAttribute(factView.transitionToCorrection?.description || "")}">
       <button class="dispatch-fact-row-title" data-dispatch-select-slot="${escapeAttribute(row.id)}" type="button">
         <span>
           <strong>${escapeHtml(row.documentNumber)}</strong>
@@ -8890,7 +9072,7 @@ function renderDispatchFactRow(row, selectedSlotId = "") {
         <span>Статус</span>
         <select data-dispatch-fact-status="${escapeAttribute(row.id)}">
           ${DISPATCH_FACT_STATUS_OPTIONS.map((option) => `
-            <option value="${escapeAttribute(option.value)}" ${selected(row.factStatus.value, option.value)}>${escapeHtml(option.label)}</option>
+            <option value="${escapeAttribute(option.value)}" ${selected(factView.status.value, option.value)}>${escapeHtml(option.label)}</option>
           `).join("")}
         </select>
       </label>
@@ -12419,7 +12601,7 @@ function renderBatchObjectTree(batch, slots) {
             .sort((left, right) => toDate(left.plannedStart) - toDate(right.plannedStart))
             .map((slot) => renderObjectTreeLeaf(
               slot.operationName || "Операция",
-              `${formatDateTimeShort(slot.plannedStart)} → ${formatDateTimeShort(slot.plannedEnd)} · ${STATUS_LABELS[slot.status] || slot.status || "статус"}`,
+              `${formatDateTimeShort(slot.plannedStart)} → ${formatDateTimeShort(slot.plannedEnd)} · ${GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "статус"}`,
               "slot",
             ))
             .join("")],
@@ -20848,15 +21030,26 @@ function getRoutePlanningOrder(route, production = null) {
   if (!route?.id) return null;
   const context = production || getRoutePlanningContext(route);
   const productionId = context?.id || getRouteProductionId(route);
+  const storedStatus = ["queued", "partial", "scheduled", "canceled"].includes(route.planningStatus)
+    ? route.planningStatus
+    : route.planningStatus === "planned" ? "queued" : "queued";
+  const statusView = getMesStatusView("workOrderPlanning", storedStatus);
   return {
     id: route.id,
     routeId: route.id,
     planningOrderId: route.id,
+    documentContract: buildMesDocumentContract("workOrder", {
+      ...route,
+      sourceId: route.id,
+      specificationId: productionId || route.specificationId || route.projectId || "",
+    }),
     specificationId: productionId || route.specificationId || route.projectId || "",
     projectId: productionId || route.projectId || route.specificationId || "",
     batchNumber: "",
     quantity: getPlanningRouteQuantity(route),
-    status: route.planningStatus || context?.status || "planned",
+    status: statusView.value || route.planningStatus || context?.status || "queued",
+    statusLabel: statusView.label,
+    statusTone: statusView.tone,
     createdAt: route.createdAt || "",
     updatedAt: route.updatedAt || "",
     isRouteOrder: true,
@@ -20889,16 +21082,101 @@ function getPlanningRouteSlots(route) {
 function getPlanningRouteOrderState(route, summary = null) {
   if (!route) return { id: "empty", label: "Не выбран", tone: "neutral" };
   const transferSummary = summary || getPlanningRouteTransferSummary(route);
+  const makeState = (value, fallback) => {
+    const status = getMesStatusView("workOrderPlanning", value, fallback);
+    return { id: value, label: status.label, tone: status.tone, signal: status.signal, status };
+  };
   if (route.planningStatus === "canceled" && !transferSummary.planned) {
-    return { id: "canceled", label: "Отменен", tone: "critical" };
+    return makeState("canceled", { label: "Отменен", tone: "critical" });
   }
   if (transferSummary.expected && transferSummary.planned >= transferSummary.expected) {
-    return { id: "scheduled", label: "В Ганте", tone: "ok" };
+    return makeState("scheduled", { label: "В планировании", tone: "ok" });
   }
   if (transferSummary.planned > 0) {
-    return { id: "partial", label: "Частично", tone: "warning" };
+    return makeState("partial", { label: "Частично", tone: "warning" });
   }
-  return { id: "queued", label: "В очереди", tone: "neutral" };
+  return makeState("queued", { label: "В очереди", tone: "neutral" });
+}
+
+function getRouteCardViewModel(route = null) {
+  if (!route) {
+    const document = buildMesDocumentContract("routeCard", {});
+    const workOrderDocument = buildMesDocumentContract("workOrder", {});
+    return {
+      document,
+      title: "Маршрутная карта",
+      objectLabel: "Объект не выбран",
+      status: getMesStatusView("workOrderPlanning", "queued", { label: "Не выбрана", tone: "neutral" }),
+      transitionToWorkOrder: getMesFlowTransitionView("routeCardToWorkOrder"),
+      flowToWorkOrder: buildMesFlowEvent("routeCardToWorkOrder", document, workOrderDocument),
+    };
+  }
+  const document = buildMesDocumentContract("routeCard", {
+    ...route,
+    sourceId: route.specificationId || route.projectId || "",
+  });
+  const workOrderDocument = buildMesDocumentContract("workOrder", {
+    ...route,
+    sourceId: route.id || "",
+    parentId: route.id || "",
+  });
+  return {
+    document,
+    title: route.name || getMesDocumentKind("routeCard").label,
+    objectLabel: getPlanningOrderObjectLabel(route),
+    sourceLabel: getPlanningOrderSourceLabel(route),
+    documentKind: getRouteDocumentKind(route),
+    transitionToWorkOrder: getMesFlowTransitionView("routeCardToWorkOrder"),
+    flowToWorkOrder: buildMesFlowEvent("routeCardToWorkOrder", document, workOrderDocument, {
+      routeId: route.id,
+      quantity: normalizeQuantity(getPlanningRouteQuantity(route)),
+    }),
+    route,
+  };
+}
+
+function getWorkOrderPlanningStatusView(route = null, summary = null) {
+  if (!route) return getMesStatusView("workOrderPlanning", "queued", { label: "Не выбран", tone: "neutral" });
+  return getPlanningRouteOrderState(route, summary).status
+    || getMesStatusView("workOrderPlanning", route.planningStatus || "queued");
+}
+
+function getWorkOrderViewModel(route = null, options = {}) {
+  const summary = options.summary || (route ? getPlanningRouteTransferSummary(route) : null);
+  const routeSteps = options.routeSteps || (route ? getRouteStepsForModule(route.id) : []);
+  const routeCard = getRouteCardViewModel(route);
+  const status = getWorkOrderPlanningStatusView(route, summary);
+  const quantity = route ? normalizeQuantity(summary?.planningQuantity || getPlanningRouteQuantity(route)) : 0;
+  const document = buildMesDocumentContract("workOrder", {
+    ...(route || {}),
+    sourceId: route?.id || "",
+    parentId: route?.id || "",
+  });
+  const ganttSlotDocument = buildMesDocumentContract("ganttSlot", {
+    routeId: route?.id || "",
+    planningOrderId: document.entityId || route?.id || "",
+    sourceId: route?.id || "",
+  });
+  return {
+    document,
+    routeCard,
+    route,
+    status,
+    transitionIn: getMesFlowTransitionView("routeCardToWorkOrder"),
+    transitionToPlanning: getMesFlowTransitionView("workOrderToGanttSlot"),
+    flowToPlanning: buildMesFlowEvent("workOrderToGanttSlot", document, ganttSlotDocument, {
+      quantity,
+      operationCount: routeSteps.length,
+    }),
+    title: getPlanningWorkOrderTitle(route),
+    queueTitle: getPlanningWorkOrderQueueTitle(route),
+    objectLabel: getPlanningOrderObjectLabel(route),
+    subtitle: route
+      ? `${getPlanningOrderObjectLabel(route)} · ${quantity.toLocaleString("ru-RU")} шт. · ${routeSteps.length.toLocaleString("ru-RU")} операций · основание: ${getRouteDocumentKindLabel(route)}`
+      : "",
+    quantity,
+    operationCount: routeSteps.length,
+  };
 }
 
 function getPlanningOrderSourceLabel(route = null) {
@@ -20996,16 +21274,26 @@ function getPlanningShiftOrdersForRoute(route = null, routeSteps = null) {
       workCenter?.name || slot.workCenterId || "Участок не задан",
       resource?.name || slot.resourceId || "",
     ].filter(Boolean).join(" · ");
+    const statusView = getMesStatusView("ganttSlot", slot.status || "planned", {
+      label: GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "запланирован",
+    });
 
     groups.get(dateKey).push({
       id: slot.id,
+      documentContract: buildMesDocumentContract("shiftWorkOrder", {
+        id: slot.id,
+        routeId: route?.id || slot.routeId || "",
+        planningOrderId: slot.planningOrderId || slot.batchId || slot.routeId || "",
+        sourceId: slot.id,
+      }),
       operationName: slot.operationName || step?.operationName || "Операция",
       taskLabel,
       resourceLabel,
       quantity: normalizeQuantity(slot.quantity || 0),
       unit: "шт.",
       rawStatus: slot.status || "planned",
-      statusLabel: STATUS_LABELS[slot.status] || slot.status || "запланирован",
+      statusView,
+      statusLabel: statusView.label,
       timeLabel: getPlanningShiftSlotTimeLabel(slot),
     });
   });
@@ -21804,6 +22092,7 @@ function renderRoutesPage() {
   const routeBom = hasPreviewRoute ? routeBinding.bom || getRouteBomList(route) : null;
   const project = hasPreviewRoute ? getProject(routeSelectionValue || getRouteProductionId(route)) : null;
   const rkdContext = hasPreviewRoute ? getRouteRkdContext(route) : null;
+  const routeView = getRouteCardViewModel(hasPreviewRoute ? route : null);
   const routeTargetName = hasPreviewRoute
     ? routeBom?.name || routeSpecification?.name || getProjectDisplayName(project) || (rkdContext ? `${rkdContext.rkd.number || rkdContext.rkd.name || "РКД"} · ${getRkdBoardLabel(rkdContext.board)}` : "") || "выберите связь"
     : "выберите карту слева";
@@ -21811,7 +22100,7 @@ function renderRoutesPage() {
   const stats = getRouteModuleStats(activeRoute);
   const routeBindingOptions = getRouteBindingOptions();
   const hasRouteBindingOptions = routeBindingOptions.length > 1;
-  const routeKindLabel = hasPreviewRoute ? getRouteDocumentKindLabel(route) : "Маршрутная карта";
+  const routeKindLabel = hasPreviewRoute ? getRouteDocumentKindLabel(route) : routeView.document.label;
   const routeGenerationRoot = activeRoute ? getRouteGenerationRoot(activeRoute) : null;
   const canGenerateChildRoutes = Boolean(activeRoute && getRouteSpecification(routeGenerationRoot));
   const routeHeaderDescription = hasPreviewRoute
@@ -21876,7 +22165,7 @@ function renderRoutesPage() {
           </div>
           <div class="directory-actions">
             <button class="secondary-button" data-route-print-preview="${escapeAttribute(activeRoute?.id || "")}" type="button" ${activeRoute ? "" : "disabled"}>${icon("document")}<span>Печатная форма</span></button>
-            <button class="primary-button" data-route-to-planning type="button" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>Собрать заказ-наряд</span></button>
+            <button class="primary-button" data-route-to-planning type="button" title="${escapeAttribute(routeView.transitionToWorkOrder?.description || "")}" ${canOpenRouteTarget ? "" : "disabled"}>${icon("calendar")}<span>Собрать заказ-наряд</span></button>
           </div>
         </header>
 
@@ -23801,8 +24090,8 @@ function buildDeadlineRows() {
 }
 
 function buildSlotStatusItems(slots) {
-  const counts = SLOT_STATUSES.map((status) => ({
-    label: STATUS_LABELS[status],
+  const counts = GANTT_SLOT_STATUS_VALUES.map((status) => ({
+    label: GANTT_SLOT_STATUS_LABELS[status],
     value: slots.filter((slot) => slot.status === status).length,
     color: statusReportColors[status],
   })).filter((item) => item.value > 0);
@@ -24251,7 +24540,7 @@ function renderDirectoryCellContent(sectionId, key, value, row = {}) {
     return `<span class="status-audit-token is-${escapeAttribute(audit.tone)}" title="${escapeAttribute(audit.meta)}">${escapeHtml(audit.label)}</span>`;
   }
   if (sectionId === "statuses" && key === "impactView") {
-    return `<span class="status-impact-cell">${escapeHtml(formatDirectoryCell(sectionId, key, value))}</span>`;
+    return renderStatusImpactCell(row);
   }
   return escapeHtml(formatDirectoryCell(sectionId, key, value));
 }
@@ -24261,10 +24550,62 @@ function getStatusUsedInText(row = {}) {
 }
 
 function getStatusImpactView(row = {}) {
+  return getStatusImpactParts(row)
+    .map((part) => `${part.label}: ${part.value}`)
+    .join(" | ");
+}
+
+function renderStatusImpactCell(row = {}) {
+  return `
+    <div class="status-impact-cell">
+      ${getStatusImpactParts(row).map((part) => `
+        <span>
+          <b>${escapeHtml(part.label)}</b>
+          <em>${escapeHtml(part.value)}</em>
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function getStatusImpactRoleDescription(decision = "") {
+  return {
+    "Ядро": "хранится как состояние объекта и участвует в жизненном цикле",
+    "Расчетный": "вычисляется из данных, вручную хранить нежелательно",
+    "Флаг": "работает как настройка/boolean, а не как производственный статус",
+    "UI-индикатор": "показывает расчетную подпись интерфейса без отдельного бизнес-состояния",
+    "Без влияния": "задает визуальный язык и не меняет данные или расчеты",
+    "Проверить": "требует ручной ревизии перед удалением или переносом",
+  }[decision] || "требует ручной ревизии перед удалением или переносом";
+}
+
+function getStatusImpactParts(row = {}) {
   const impact = getStatusImpactMap(row);
-  const changes = String(row.impact || impact.changes || row.annotation || "").trim();
+  const changes = String(row.impact || impact.changes || row.annotation || "визуальное состояние строки").trim();
   const blocks = String(impact.blocks || "не блокирует напрямую").trim();
-  return `${changes || "Влияние не описано."} Блокирует: ${blocks}.`;
+  const deleteRule = String(impact.deleteRule || "можно удалить после проверки связей").trim();
+  return [
+    {
+      label: "Роль",
+      value: `${impact.decision}: ${getStatusImpactRoleDescription(impact.decision)}`,
+    },
+    {
+      label: "Где применяется",
+      value: impact.modules.join(" · "),
+    },
+    {
+      label: "Что меняет",
+      value: changes,
+    },
+    {
+      label: "Что блокирует",
+      value: blocks,
+    },
+    {
+      label: "Удаление/перенос",
+      value: deleteRule,
+    },
+  ];
 }
 
 function renderDirectoryDetail(activeSection, directoryData) {
@@ -24349,6 +24690,7 @@ function renderStatusImpactMap(row = {}) {
 function getStatusImpactMap(row = {}) {
   const id = String(row.id || "").trim();
   const code = String(row.code || "").trim();
+  const contractScope = String(row.contractScope || "").trim();
   const group = normalizeLookupText(row.group || "");
   const type = normalizeLookupText(row.type || "");
   const name = normalizeLookupText(row.name || "");
@@ -24362,6 +24704,21 @@ function getStatusImpactMap(row = {}) {
     decisionTone: config.decisionTone || "warning",
     note: config.note || "Это предварительная карта влияния: она помогает понять, является ли статус бизнес-состоянием, сигналом или кандидатом на удаление.",
   });
+
+  if (contractScope && code && MES_STATUS_CONTRACT_KEYS.has(`${contractScope}:${code}`)) {
+    const contract = getMesStatusView(contractScope, code);
+    if (contract?.modules?.length) {
+      return makeImpact({
+        modules: contract.modules,
+        blocks: contract.blocks,
+        changes: contract.changes,
+        deleteRule: contract.deleteRule,
+        decision: ["executionStatus", "planningStatus", "shiftStatus", "factStatus", "lifecycleStatus"].includes(contract.kind) ? "Ядро" : "Проверить",
+        decisionTone: ["executionStatus", "planningStatus", "shiftStatus", "factStatus", "lifecycleStatus"].includes(contract.kind) ? "critical" : "warning",
+        note: `Контракт ${contract.scope || contractScope}: ${contract.kind}. Это значение должно меняться через общий слой статусов, а не локально в UI.`,
+      });
+    }
+  }
 
   if (id.startsWith("signal-")) {
     return makeImpact({
@@ -32399,7 +32756,7 @@ function renderSlotDrawer(slotWarningMap) {
           <strong>Заказ-наряд</strong>
           <span>${Number(slot.quantity || 0).toLocaleString("ru-RU")} шт.</span>
         </div>
-        <span>${STATUS_LABELS[slot.status]}</span>
+        <span>${GANTT_SLOT_STATUS_LABELS[slot.status] || slot.status || "статус"}</span>
       </div>
 
       <div class="drawer-signal-grid">
@@ -32595,7 +32952,7 @@ function renderEditorModal() {
             <label class="form-field command-field">
               <span>Статус</span>
               <select name="status" required>
-                ${SLOT_STATUSES.map((status) => `<option value="${status}" ${selected(slot.status || "planned", status)}>${STATUS_LABELS[status]}</option>`).join("")}
+                ${GANTT_SLOT_STATUS_VALUES.map((status) => `<option value="${status}" ${selected(slot.status || "planned", status)}>${GANTT_SLOT_STATUS_LABELS[status] || status}</option>`).join("")}
               </select>
             </label>
 
@@ -33609,8 +33966,8 @@ function updateSlotQuantity(slotId, value) {
 function cycleSlotStatus(slotId) {
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!slot) return;
-  const index = SLOT_STATUSES.indexOf(slot.status);
-  slot.status = SLOT_STATUSES[(index + 1) % SLOT_STATUSES.length];
+  const index = GANTT_SLOT_STATUS_VALUES.indexOf(slot.status);
+  slot.status = GANTT_SLOT_STATUS_VALUES[(index + 1) % GANTT_SLOT_STATUS_VALUES.length];
   slot.updatedAt = new Date().toISOString();
   persistState();
   notifySaveSuccess("Статус операции сохранен");

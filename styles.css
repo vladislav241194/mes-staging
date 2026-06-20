@@ -47131,12 +47131,38 @@ main.app-shell[data-layout-page="directories"] .directory-status-table .actions-
 }
 
 main.app-shell[data-layout-page="directories"] .status-impact-cell {
-  display: block;
+  display: grid;
+  gap: 3px;
   max-width: 100%;
   color: var(--mes-ui-text-secondary);
   font-size: 10px;
   font-weight: var(--mes-ui-weight-regular, 600);
   line-height: 14px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-cell span {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 5px;
+  align-items: start;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-cell b {
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="directories"] .status-impact-cell em {
+  min-width: 0;
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 13px;
+  overflow-wrap: anywhere;
 }
 
 main.app-shell[data-layout-page="directories"] .directory-header {
