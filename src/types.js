@@ -15,7 +15,7 @@
  * active planning model is route/order-centered and has no Batch entity.
  *
  * Main fields:
- * Specification ("Состав изделия"): id, name, structureItems, productionQuantity, dueDate, orderNumber, customer, productionStatus
+ * Specification ("Состав изделия"): id, name, structureItems, productionQuantity, dueDate, orderNumber, customer
  * Specification.structureItems: source refs plus fulfillmentMode ("not_selected", "produce", "from_stock", "purchase", "external")
  * BOMList ("Плата"): id, name, boardCode, resultItem, importHeaders, importRows
  * Route: id, specificationId, projectId, name, planningQuantity, planningStatus, flowLaunchMode,
@@ -35,27 +35,11 @@ export const SLOT_STATUSES = [
   "problem",
 ];
 
-export const PROJECT_STATUSES = [
-  "planned",
-  "in_progress",
-  "paused",
-  "completed",
-  "problem",
-];
-
 export const STATUS_LABELS = {
   planned: "Запланировано",
   in_progress: "В работе",
   paused: "Пауза",
   completed: "Завершено",
   overdue: "Просрочено",
-  problem: "Проблема",
-};
-
-export const PROJECT_STATUS_LABELS = {
-  planned: "Запланирован",
-  in_progress: "В работе",
-  paused: "Пауза",
-  completed: "Завершен",
   problem: "Проблема",
 };

@@ -7,6 +7,7 @@ import { saveWorkflowPreset } from "./workflow-preset-endpoint.mjs";
 
 const projectRoot = join(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = join(projectRoot, "dist");
+const host = process.env.HOST || "localhost";
 const port = Number(process.env.PORT || 4174);
 
 const mimeTypes = {
@@ -28,7 +29,7 @@ function responseHeaders(contentType) {
 }
 
 function getSafePath(requestUrl) {
-  const url = new URL(requestUrl || "/", `http://localhost:${port}`);
+  const url = new URL(requestUrl || "/", `http://${host}:${port}`);
   const decodedPath = decodeURIComponent(url.pathname);
   const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
   const fullPath = normalize(join(distDir, requestedPath));
@@ -37,7 +38,7 @@ function getSafePath(requestUrl) {
 }
 
 function shouldFallbackToIndex(requestUrl) {
-  const url = new URL(requestUrl || "/", `http://localhost:${port}`);
+  const url = new URL(requestUrl || "/", `http://${host}:${port}`);
   const extension = extname(url.pathname);
   return url.pathname === "/" || extension === "" || extension === ".html";
 }
@@ -57,7 +58,7 @@ if (!(await ensureDistExists())) {
 }
 
 createServer(async (req, res) => {
-  const url = new URL(req.url || "/", `http://localhost:${port}`);
+  const url = new URL(req.url || "/", `http://${host}:${port}`);
   if (req.method === "POST" && url.pathname === "/api/workflow-preset") {
     await saveWorkflowPreset(req, res, {
       targetPaths: [
@@ -94,6 +95,6 @@ createServer(async (req, res) => {
     res.writeHead(200, responseHeaders(mimeTypes[".html"]));
     res.end(body);
   }
-}).listen(port, () => {
-  console.log(`Static dist preview: http://localhost:${port}`);
+}).listen(port, host, () => {
+  console.log(`Static dist preview: http://${host}:${port}`);
 });

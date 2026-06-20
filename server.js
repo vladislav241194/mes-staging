@@ -5,7 +5,8 @@ import { handleSharedStateRequest } from "./scripts/shared-state-endpoint.mjs";
 import { saveWorkflowPreset } from "./scripts/workflow-preset-endpoint.mjs";
 
 const root = new URL(".", import.meta.url).pathname;
-const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || "localhost";
+const port = Number(process.env.PORT || 4174);
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -23,7 +24,7 @@ function safePath(urlPath) {
 }
 
 function shouldFallbackToIndex(requestUrl) {
-  const url = new URL(requestUrl || "/", `http://localhost:${port}`);
+  const url = new URL(requestUrl || "/", `http://${host}:${port}`);
   const extension = extname(url.pathname);
   return url.pathname === "/" || extension === "" || extension === ".html";
 }
@@ -61,7 +62,7 @@ async function renderIndexHtml() {
 }
 
 createServer(async (req, res) => {
-  const url = new URL(req.url || "/", `http://localhost:${port}`);
+  const url = new URL(req.url || "/", `http://${host}:${port}`);
   if (req.method === "POST" && url.pathname === "/api/workflow-preset") {
     await saveWorkflowPreset(req, res, {
       targetPaths: [join(root, "workflow-preset.json")],
@@ -96,6 +97,6 @@ createServer(async (req, res) => {
     res.writeHead(200, noCacheHeaders(mimeTypes[".html"], true));
     res.end(body);
   }
-}).listen(port, () => {
-  console.log(`MES planning prototype: http://localhost:${port}`);
+}).listen(port, host, () => {
+  console.log(`MES planning prototype: http://${host}:${port}`);
 });

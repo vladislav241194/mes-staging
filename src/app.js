@@ -1,5 +1,5 @@
 import { createDefaultPlanningState } from "./data.js";
-import { PROJECT_STATUS_LABELS, PROJECT_STATUSES, SLOT_STATUSES, STATUS_LABELS } from "./types.js";
+import { SLOT_STATUSES, STATUS_LABELS } from "./types.js";
 import {
   addMs,
   buildTimeScale,
@@ -469,12 +469,12 @@ const defaultUiState = {
   calculatorStep: "inputs",
   confirmDialog: null,
   directoryEditor: null,
+  directoryReader: null,
   selectedDirectoryRows: {},
   directoryColumnFilters: {},
   scale: "days",
   windowStart: "2026-06-01",
   search: "",
-  statusFilter: "all",
   workCenterFilter: "all",
   rowMode: "route",
   autoCascade: true,
@@ -622,11 +622,35 @@ const STRUCTURE_FULFILLMENT_META = {
   external: "подрядчик / вне MES",
 };
 const STRUCTURE_SCHEDULABLE_FULFILLMENT_MODES = new Set(["produce", "from_stock"]);
+
+function normalizeStatusApplicationArea(value = "") {
+  const source = String(value || "").trim();
+  if (!source) return "Система / Справочники";
+  const legacyAreas = new Map([
+    [`Производство / ${PRODUCT_COMPOSITION_LIST_TERM}`, `Технологии / ${PRODUCT_COMPOSITION_LIST_TERM}`],
+    ["Производство / Планирование", "Планирование нагрузки / Планирование"],
+    ["Производство / Мастерская", "Оперативное управление / Мастерская"],
+    ["Производство / Диспетчерская", "Оперативное управление / Диспетчерская"],
+    ["Производство / Отделы", "Система / Справочники"],
+    ["Производство / Отделы и ресурсы", "Система / Справочники"],
+    ["Производство / Ресурсы", "Система / Справочники"],
+    ["Производство / Оборудование", "Система / Справочники"],
+    ["Планирование / Заказ-наряды", "Планирование нагрузки / Заказ-наряды"],
+    ["Планирование / Готовность состава", "Планирование нагрузки / Заказ-наряды"],
+    ["Планирование / Структура работ", "Планирование нагрузки / Заказ-наряды"],
+    ["Планирование / Сменный срез", "Оперативное управление / Мастерская и диспетчерская"],
+    ["Планирование / Паспорт заказ-наряда", "Планирование нагрузки / Заказ-наряды"],
+    ["Планирование / Расчетные индикаторы UI", "Планирование нагрузки / Заказ-наряды"],
+    ["Справочники", "Система / Справочники"],
+  ]);
+  return legacyAreas.get(source) || source;
+}
+
 function makeStatusDirectoryRow(row) {
   const annotation = String(row.annotation || row.usage || "").trim();
-  return {
+  const baseRow = {
     id: row.id,
-    group: row.group || "Система",
+    group: normalizeStatusApplicationArea(row.group || "Система / Справочники"),
     registryKind: row.registryKind || getDefaultStatusRegistryKind(row),
     name: row.name,
     type: row.type || "Статус",
@@ -634,6 +658,12 @@ function makeStatusDirectoryRow(row) {
     usage: row.usage || annotation,
     annotation,
     impact: row.impact || "",
+  };
+  const lifecycle = getStatusLifecycleModules({ ...baseRow, ...row });
+  return {
+    ...baseRow,
+    originModule: row.originModule || lifecycle.originModule,
+    changeModule: row.changeModule || lifecycle.changeModule,
   };
 }
 
@@ -655,19 +685,102 @@ function getStatusRegistryKindLabel(kind = "") {
   }[kind] || "Статус объекта";
 }
 
+function normalizeStatusImpactText(row = {}, impact = "") {
+  const source = String(impact || "").trim();
+  return source;
+}
+
+function getStatusLifecycleModules(row = {}) {
+  const id = String(row.id || "").trim();
+  const code = String(row.code || "").trim();
+  const group = normalizeLookupText(normalizeStatusApplicationArea(row.group || ""));
+  const type = normalizeLookupText(row.type || "");
+  const name = normalizeLookupText(row.name || "");
+
+  const makeLifecycle = (originModule, changeModule) => ({
+    originModule,
+    changeModule,
+  });
+
+  if (id.startsWith("signal-")) {
+    return makeLifecycle("UI-состояния", "UI-kit / визуальные правила");
+  }
+
+  if (type.includes("изделие") || group.includes("специфика")) {
+    return makeLifecycle("Спецификации", "Спецификации");
+  }
+
+  if (id.startsWith("slot-") || type.includes("операция gantt")) {
+    return makeLifecycle("Планирование", "Планирование / Gantt");
+  }
+
+  if (id.startsWith("route-") || type.includes("заказ") || type.includes("маршрут")) {
+    return makeLifecycle("Заказ-наряды", "Заказ-наряды / Планирование");
+  }
+
+  if (id.startsWith("shift-master-")) {
+    return makeLifecycle("Мастерская", "Мастерская");
+  }
+
+  if (id.startsWith("dispatch-")) {
+    return makeLifecycle("Диспетчерская", "Диспетчерская");
+  }
+
+  if (id.startsWith("fulfillment-") || ["not_selected", "produce", "from_stock", "purchase", "external"].includes(code)) {
+    return makeLifecycle("Спецификации", "Спецификации / Маршрутная карта / Заказ-наряды");
+  }
+
+  if (id.startsWith("planning-supply-") || id.startsWith("planning-task-")) {
+    return makeLifecycle("Заказ-наряды", "Расчет из спецификации и маршрутной карты");
+  }
+
+  if (id.startsWith("planning-passport-") || id.startsWith("planning-flow-")) {
+    return makeLifecycle("Заказ-наряды", "Расчет из заказ-наряда и планирования");
+  }
+
+  if (id.startsWith("planning-shift-")) {
+    return makeLifecycle("Планирование", "Мастерская / Диспетчерская");
+  }
+
+  if (
+    id.startsWith("directory-")
+    || id.startsWith("work-center-")
+    || id.startsWith("participation-")
+    || id.startsWith("resource-")
+    || id.startsWith("equipment-")
+    || code === "active"
+    || code === "inactive"
+    || code === "Активен"
+    || code === "Отключен"
+    || name === "да"
+    || name === "нет"
+  ) {
+    return makeLifecycle("Справочники", "Справочники");
+  }
+
+  if (id.startsWith("document-") || type.includes("технолог")) {
+    return makeLifecycle("Технологии", "Спецификации / Номенклатура / Маршрутная карта");
+  }
+
+  if (group.includes("планирование")) {
+    return makeLifecycle("Планирование нагрузки", "Планирование / Заказ-наряды");
+  }
+
+  if (group.includes("оперативное")) {
+    return makeLifecycle("Оперативное управление", "Мастерская / Диспетчерская");
+  }
+
+  if (group.includes("технолог")) {
+    return makeLifecycle("Технологии", "Технологические модули");
+  }
+
+  return makeLifecycle("Справочники", "Справочники");
+}
+
 const DEFAULT_STATUSES = [
-  ...PROJECT_STATUSES.map((status) => makeStatusDirectoryRow({
-    id: `project-${status}`,
-    group: `Производство / ${PRODUCT_COMPOSITION_LIST_TERM}`,
-    name: PROJECT_STATUS_LABELS[status],
-    type: PRODUCT_COMPOSITION_TERM,
-    code: status,
-    annotation: `Производственный статус карточки ${PRODUCT_COMPOSITION_TERM_LOWER}: ${PROJECT_STATUS_LABELS[status]}.`,
-    impact: "Влияет на сегменты статуса в спецификации, портфель производства, отчеты готовности и фильтрацию производственных объектов.",
-  })),
   ...SLOT_STATUSES.map((status) => makeStatusDirectoryRow({
     id: `slot-${status}`,
-    group: "Производство / Планирование",
+    group: "Планирование нагрузки / Планирование",
     name: STATUS_LABELS[status],
     type: "Операция Gantt",
     code: status,
@@ -712,7 +825,7 @@ const DEFAULT_STATUSES = [
     },
   ].map((row) => makeStatusDirectoryRow({
     ...row,
-    group: "Планирование / Заказ-наряды",
+    group: "Планирование нагрузки / Заказ-наряды",
     type: "Маршрут / заказ-наряд",
   })),
   ...[
@@ -732,12 +845,12 @@ const DEFAULT_STATUSES = [
     },
   ].map((row) => makeStatusDirectoryRow({
     ...row,
-    group: "Производство / Мастерская",
+    group: "Оперативное управление / Мастерская",
     type: "Сменный заказ-наряд",
   })),
   ...DISPATCH_FACT_STATUS_OPTIONS.map((status) => makeStatusDirectoryRow({
     id: `dispatch-${status.value}`,
-    group: "Производство / Диспетчерская",
+    group: "Оперативное управление / Диспетчерская",
     name: status.label,
     type: "Факт смены",
     code: status.value,
@@ -765,7 +878,7 @@ const DEFAULT_STATUSES = [
     ["planning-supply-external", "Внешнее обеспечение", "external_fulfillment", "Строка состава выполняется вне MES или подрядчиком.", "Оставляет ветку вне производственного планирования и требует внешнего контроля."],
   ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
     id,
-    group: "Планирование / Готовность состава",
+    group: "Планирование нагрузки / Заказ-наряды",
     name,
     type: "Расчетный статус готовности",
     code,
@@ -783,7 +896,7 @@ const DEFAULT_STATUSES = [
     ["planning-task-ready", "Готово к плану", "ready_for_plan", "Ветка состава изделия имеет достаточные данные для постановки в план.", "Позволяет переходить к размещению операций в планировании."],
   ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
     id,
-    group: "Планирование / Структура работ",
+    group: "Планирование нагрузки / Заказ-наряды",
     name,
     type: "Расчетный статус ветки",
     code,
@@ -799,7 +912,7 @@ const DEFAULT_STATUSES = [
     ["planning-shift-problem", "Проблема", "problem", "В сменном срезе есть проблемные или просроченные операции.", "Поднимает критичный сигнал для диспетчерской и контроля смены."],
   ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
     id,
-    group: "Планирование / Сменный срез",
+    group: "Оперативное управление / Мастерская и диспетчерская",
     name,
     type: "Агрегированный статус смены",
     code,
@@ -809,7 +922,7 @@ const DEFAULT_STATUSES = [
   ...[
     {
       id: "directory-active-ru",
-      group: "Справочники",
+      group: "Система / Справочники",
       name: "Активен",
       type: "Строка справочника",
       code: "Активен",
@@ -818,7 +931,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "directory-disabled-ru",
-      group: "Справочники",
+      group: "Система / Справочники",
       name: "Отключен",
       type: "Строка справочника",
       code: "Отключен",
@@ -827,7 +940,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "work-center-active",
-      group: "Производство / Отделы",
+      group: "Система / Справочники",
       name: "Активен",
       type: "Отдел",
       code: "active",
@@ -836,7 +949,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "work-center-inactive",
-      group: "Производство / Отделы",
+      group: "Система / Справочники",
       name: "Отключен",
       type: "Отдел",
       code: "inactive",
@@ -845,7 +958,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "participation-yes",
-      group: "Производство / Отделы и ресурсы",
+      group: "Система / Справочники",
       name: "Да",
       type: "Признак участия",
       code: "yes",
@@ -854,7 +967,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "participation-no",
-      group: "Производство / Отделы и ресурсы",
+      group: "Система / Справочники",
       name: "Нет",
       type: "Признак участия",
       code: "no",
@@ -863,7 +976,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "resource-available",
-      group: "Производство / Ресурсы",
+      group: "Система / Справочники",
       name: "Доступен",
       type: "Производственный ресурс",
       code: "Доступен",
@@ -872,7 +985,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "resource-loaded",
-      group: "Производство / Ресурсы",
+      group: "Система / Справочники",
       name: "Загружен",
       type: "Производственный ресурс",
       code: "Загружен",
@@ -881,7 +994,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "resource-normative",
-      group: "Производство / Ресурсы",
+      group: "Система / Справочники",
       name: "Норматив",
       type: "Производственный ресурс",
       code: "Норматив",
@@ -890,7 +1003,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "equipment-working",
-      group: "Производство / Оборудование",
+      group: "Система / Справочники",
       name: "Работает",
       type: "Оборудование",
       code: "Работает",
@@ -899,7 +1012,7 @@ const DEFAULT_STATUSES = [
     },
     {
       id: "equipment-check",
-      group: "Производство / Оборудование",
+      group: "Система / Справочники",
       name: "Проверка",
       type: "Оборудование",
       code: "Проверка",
@@ -939,7 +1052,7 @@ const DEFAULT_STATUSES = [
     ["planning-passport-backlog", "В очереди", "backlog", "Есть операции или ветки, ожидающие размещения.", "Показывает неполную постановку документа в планирование."],
   ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
     id,
-    group: "Планирование / Паспорт заказ-наряда",
+    group: "Планирование нагрузки / Заказ-наряды",
     name,
     type: "Расчетный индикатор",
     code,
@@ -959,7 +1072,7 @@ const DEFAULT_STATUSES = [
     ["planning-flow-final-operation-needed", "нужна финальная операция", "final_operation_required", "Финальная часть маршрута не содержит завершающей операции.", "Предупреждает, что выпуск изделия не описан до конца."],
   ].map(([id, name, code, annotation, impact]) => makeStatusDirectoryRow({
     id,
-    group: "Планирование / Расчетные индикаторы UI",
+    group: "Планирование нагрузки / Заказ-наряды",
     name,
     type: "Расчетный индикатор",
     code,
@@ -976,7 +1089,7 @@ const DEFAULT_STATUSES = [
     impact: "Влияет на цвет, подсветку и восприятие состояния в разных модулях; бизнес-данные напрямую не изменяет.",
   })),
 ];
-const REMOVED_DIRECTORY_STATUS_ID_PREFIXES = ["supply-ui-", "warehouse-movement-"];
+const REMOVED_DIRECTORY_STATUS_ID_PREFIXES = ["project-", "supply-ui-", "warehouse-movement-"];
 const NOMENCLATURE_REA_COMPONENT_TYPE = "РЭА компоненты";
 const DEFAULT_NOMENCLATURE_TYPES = [
   { id: "nom-type-rea", name: NOMENCLATURE_REA_COMPONENT_TYPE, code: "REA", description: "Резисторы, конденсаторы, микросхемы", status: "Активен" },
@@ -1077,7 +1190,7 @@ const directorySections = [
   { id: "operations", label: "Операции", description: "Операции с привязкой к отделам", count: () => getOperationMapRows().length },
   { id: "componentTypes", label: "Типы компонентов", description: "Корпуса, коэффициенты и скорости установки", count: () => directoryState.componentTypes.length },
   { id: "nomenclatureTypes", label: "Типы номенклатуры", description: "Разделы, которые используются в модуле номенклатуры", count: () => directoryState.nomenclatureTypes.length },
-  { id: "statuses", label: "Статусы", description: "Единый перечень статусов планирования, ресурсов, оборудования и справочников", count: () => directoryState.statuses.length },
+  { id: "statuses", label: "Статусы", description: "Единый реестр статусов, сигналов и точек изменения.", count: () => directoryState.statuses.length },
   { id: "norms", label: "Нормативы", description: "Смены, длительности и ограничения", count: () => directoryState.norms.length },
 ];
 
@@ -2729,7 +2842,7 @@ function normalizeDirectoryOrganizationTerminology() {
   };
 
   directoryState.norms = (directoryState.norms || []).map((row) => normalizeRowFields(row, ["name", "value", "scope", "status"]));
-  directoryState.statuses = (directoryState.statuses || []).map((row) => normalizeRowFields(row, ["group", "name", "type", "usage", "annotation", "impact"]));
+  directoryState.statuses = (directoryState.statuses || []).map((row) => normalizeRowFields(row, ["group", "name", "type", "usage", "annotation", "impact", "originModule", "changeModule"]));
   return changed;
 }
 
@@ -3161,9 +3274,6 @@ function migrateProjectEntityToSpecifications() {
       dueDate: specification.dueDate || legacyProject?.dueDate || "",
       orderNumber: specification.orderNumber || legacyProject?.orderNumber || "",
       customer: specification.customer || legacyProject?.customer || "",
-      productionStatus: PROJECT_STATUSES.includes(specification.productionStatus || legacyProject?.status)
-        ? specification.productionStatus || legacyProject?.status
-        : "planned",
       updatedAt: specification.updatedAt || legacyProject?.updatedAt || stamp,
     };
     if (specification.projectId || legacyProject) changed = true;
@@ -3448,6 +3558,29 @@ function isVisualQaUiElement(element) {
   return Boolean(element?.closest?.(".visual-debug-overlay-root, .visual-debug-marker-layer"));
 }
 
+function isVisualQaNavigationElement(element) {
+  return Boolean(element?.closest?.([
+    ".module-menu",
+    ".mobile-module-switcher",
+    ".mes-visual-mode-tray",
+    "[data-module]",
+    "[data-role-switch]",
+    "[data-save-workflow-preset]",
+    "[data-restore-workflow-preset]",
+    "[data-toggle-focus-mode]",
+    "[data-toggle-visual-qa]",
+  ].join(",")));
+}
+
+function suspendVisualQaInspectorSelection({ manuallyDisabled = true, updateOverlay = true } = {}) {
+  if (!visualQaInspectorActive) return;
+  visualQaInspectorActive = false;
+  visualQaInspectorManuallyDisabled = manuallyDisabled;
+  visualQaHoveredElementReport = null;
+  document.body.classList.remove("is-mes-visual-qa-inspecting");
+  if (updateOverlay) updateVisualDebugOverlay();
+}
+
 function getVisualQaModuleLabel(moduleId = ui.activeModule) {
   return getModuleDefinitions().find((moduleItem) => moduleItem.id === moduleId)?.label || moduleId || "unknown";
 }
@@ -3493,7 +3626,12 @@ function getVisualQaClosestScrollContainer(element) {
 }
 
 function getInspectableVisualQaElement(target) {
-  if (!target || target.nodeType !== Node.ELEMENT_NODE || isVisualQaUiElement(target)) return null;
+  if (
+    !target
+    || target.nodeType !== Node.ELEMENT_NODE
+    || isVisualQaUiElement(target)
+    || isVisualQaNavigationElement(target)
+  ) return null;
   const element = target.closest([
     "button",
     "input",
@@ -3525,7 +3663,7 @@ function getInspectableVisualQaElement(target) {
     "[data-layout='sidebar']",
     "[data-layout='main-content']",
   ].join(","));
-  return element && !isVisualQaUiElement(element) ? element : target;
+  return element && !isVisualQaUiElement(element) && !isVisualQaNavigationElement(element) ? element : target;
 }
 
 function getVisualQaRectSummary(element) {
@@ -4228,16 +4366,71 @@ function normalizePlanningDemoLaborByRow(value = {}) {
   }));
 }
 
+function isDeepLinkDirectorySectionId(sectionId = "") {
+  return [
+    "workCenters",
+    "productionResources",
+    "operations",
+    "componentTypes",
+    "nomenclatureTypes",
+    "statuses",
+    "norms",
+  ].includes(String(sectionId || "").trim());
+}
+
+function normalizeDeepLinkModuleId(moduleId = "") {
+  const candidate = String(moduleId || "").trim();
+  const aliases = {
+    bomLists: "nomenclature",
+    specifications: "products",
+    speki: "products",
+    planning2: "planning",
+    planningWorkbench: "planning",
+    calculator: "planning",
+    warehouse: "gantt",
+  };
+  const normalized = aliases[candidate] || candidate;
+  return getModuleDefinitions().some((moduleItem) => moduleItem.id === normalized) ? normalized : "";
+}
+
+function getUrlUiOverrides() {
+  if (typeof window === "undefined") return {};
+  const params = new URLSearchParams(window.location.search || "");
+  const overrides = {};
+  const moduleId = normalizeDeepLinkModuleId(params.get("module") || params.get("m") || "");
+  const directoryId = String(params.get("directory") || params.get("dir") || "").trim();
+  if (moduleId) overrides.activeModule = moduleId;
+  if (directoryId && isDeepLinkDirectorySectionId(directoryId)) {
+    overrides.activeDirectory = directoryId;
+    if (!overrides.activeModule) overrides.activeModule = "directories";
+  }
+  return overrides;
+}
+
+function applyUrlUiOverrides(state = {}) {
+  return {
+    ...state,
+    ...getUrlUiOverrides(),
+  };
+}
+
+function syncUiWithUrlParams() {
+  const overrides = getUrlUiOverrides();
+  if (overrides.activeModule) ui.activeModule = overrides.activeModule;
+  if (overrides.activeDirectory) ui.activeDirectory = overrides.activeDirectory;
+}
+
 function loadUiState() {
   try {
     const raw = localStorage.getItem(UI_STORAGE_KEY);
-    if (!raw) return { ...defaultUiState, expandedProjects: new Set(defaultUiState.expandedProjects) };
+    if (!raw) return applyUrlUiOverrides({ ...defaultUiState, expandedProjects: new Set(defaultUiState.expandedProjects) });
     const parsed = JSON.parse(raw);
-    return {
+    const storedModule = parsed.activeModule === "bomLists" ? "nomenclature" : parsed.activeModule || defaultUiState.activeModule;
+    return applyUrlUiOverrides({
       ...defaultUiState,
       ...parsed,
       activeRole: normalizeInterfaceRoleId(parsed.activeRole),
-      activeModule: parsed.activeModule === "bomLists" ? "nomenclature" : parsed.activeModule || defaultUiState.activeModule,
+      activeModule: storedModule,
       scale: parsed.scale === "weeks" ? "days" : scaleConfig[parsed.scale] ? parsed.scale : defaultUiState.scale,
       expandedProjects: new Set(parsed.expandedProjects || defaultUiState.expandedProjects),
       selectedDirectoryRows: parsed.selectedDirectoryRows || {},
@@ -4258,6 +4451,7 @@ function loadUiState() {
       ganttDependencyRouteDrafts: null,
       ganttDependencyDrag: null,
       directoryEditor: null,
+      directoryReader: null,
       confirmDialog: null,
       selectedSlotId: null,
       editor: null,
@@ -4276,9 +4470,9 @@ function loadUiState() {
       focusMode: Boolean(parsed.focusMode),
       visualQaEnabled: Boolean(parsed.visualQaEnabled),
       now: new Date(),
-    };
+    });
   } catch {
-    return { ...defaultUiState, expandedProjects: new Set(defaultUiState.expandedProjects) };
+    return applyUrlUiOverrides({ ...defaultUiState, expandedProjects: new Set(defaultUiState.expandedProjects) });
   }
 }
 
@@ -4321,8 +4515,7 @@ function persistUiState(options = {}) {
       directoryColumnFilters: normalizeDirectoryColumnFilters(ui.directoryColumnFilters),
     scale: ui.scale,
     windowStart: ui.windowStart,
-    search: ui.search,
-    statusFilter: ui.statusFilter,
+      search: ui.search,
     workCenterFilter: ui.workCenterFilter,
     rowMode: ui.rowMode,
     autoCascade: ui.autoCascade,
@@ -4463,9 +4656,10 @@ function normalizeDirectoryRow(sectionId, row) {
   if (sectionId === "statuses") {
     const annotation = String(row.annotation || row.usage || "").trim();
     const { audit: _audit, ...statusRow } = row || {};
-    return {
+    const impact = normalizeStatusImpactText(row, row.impact || "");
+    const baseRow = {
       ...statusRow,
-      group: String(row.group || row.department || "Система").trim(),
+      group: normalizeStatusApplicationArea(row.group || row.department || "Система / Справочники"),
       registryKind: ["status", "signal", "mode", "flag"].includes(row.registryKind)
         ? row.registryKind
         : getDefaultStatusRegistryKind(row),
@@ -4474,16 +4668,22 @@ function normalizeDirectoryRow(sectionId, row) {
       code: String(row.code || "").trim(),
       usage: String(row.usage || annotation).trim(),
       annotation,
-      impact: String(row.impact || "").trim(),
+      impact,
+    };
+    const lifecycle = getStatusLifecycleModules(baseRow);
+    return {
+      ...baseRow,
+      originModule: String(row.originModule || row.sourceModule || lifecycle.originModule).trim(),
+      changeModule: String(row.changeModule || row.updateModule || lifecycle.changeModule).trim(),
     };
   }
 
   if (sectionId === "specifications") {
-    const { revision, ...rowWithoutRevision } = row || {};
+    const { revision, productionStatus, status, ...rowWithoutStatus } = row || {};
     const linkedProject = planningState?.projects?.find((project) => project.id === row.projectId);
     const productionQuantity = normalizeOptionalPositiveInteger(row.productionQuantity || row.totalQuantity || linkedProject?.totalQuantity);
     return {
-      ...rowWithoutRevision,
+      ...rowWithoutStatus,
       projectId: row.projectId || "",
       bomQtyA: Math.max(0, Number(row.bomQtyA || 0)),
       bomQtyB: Math.max(0, Number(row.bomQtyB || 0)),
@@ -4491,9 +4691,6 @@ function normalizeDirectoryRow(sectionId, row) {
       dueDate: row.dueDate || linkedProject?.dueDate || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000)),
       orderNumber: row.orderNumber || linkedProject?.orderNumber || "",
       customer: row.customer || linkedProject?.customer || "",
-      productionStatus: PROJECT_STATUSES.includes(row.productionStatus || linkedProject?.status)
-        ? row.productionStatus || linkedProject?.status
-        : "planned",
       structureManaged: Boolean(row.structureManaged || (Array.isArray(row.structureItems) && row.structureItems.length)),
       structureItems: Array.isArray(row.structureItems)
         ? row.structureItems.map((item, index) => normalizeSpecificationStructureItem(item, index))
@@ -5973,7 +6170,6 @@ function getProjectDeadlineState(project) {
 }
 
 function resetRemovedGanttFilters() {
-  ui.statusFilter = "all";
   ui.workCenterFilter = "all";
   ui.rowMode = "route";
   ui.hideSharedNonWorkingZones = false;
@@ -5981,6 +6177,7 @@ function resetRemovedGanttFilters() {
 
 function render(options = {}) {
   if (!options.skipRememberScroll) rememberScroll();
+  syncUiWithUrlParams();
   ensureAuthorizedModule();
   resetRemovedGanttFilters();
   persistUiState({ skipRememberScroll: options.skipRememberScroll });
@@ -11976,7 +12173,7 @@ function renderProductionProjectTree(project) {
 
   return renderObjectTreeNode({
     title: getProjectDisplayName(project) || project.name || "Состав изделия в производстве",
-    meta: `${PROJECT_STATUS_LABELS[project.status] || project.status || "статус не задан"} · ${Number(project.totalQuantity || 0).toLocaleString("ru-RU")} шт.`,
+    meta: `${Number(project.totalQuantity || 0).toLocaleString("ru-RU")} шт.`,
     badge: project.orderNumber || "заказ",
     tone: "project",
     open: true,
@@ -12051,7 +12248,7 @@ function renderSpecificationObjectTree(specification, options = {}) {
   const productionQuantity = getSpecificationProductionQuantity(specification);
   return renderObjectTreeNode({
     title: specification.name || "Состав изделия без названия",
-    meta: `${specification.outputItem || "выход не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(specification)] || "статус не задан"} · ${Number(productionQuantity || 0).toLocaleString("ru-RU")} шт.`,
+    meta: `${specification.outputItem || "выход не задан"} · ${Number(productionQuantity || 0).toLocaleString("ru-RU")} шт.`,
     badge: structureItems.length,
     tone: "specification",
     open: Boolean(options.open),
@@ -13149,7 +13346,7 @@ function renderCalculatorProjectBindings(calc, visibilityAttr = "") {
           <article class="project-list-row ${row.isActive ? "is-active" : ""}" role="listitem">
             <div class="project-list-main">
               <strong>${escapeHtml(row.specification.name)}</strong>
-              <small>${escapeHtml(getSpecificationProductionOrder(row.specification) || "заказ не задан")} · ${escapeHtml(PROJECT_STATUS_LABELS[getSpecificationProductionStatus(row.specification)] || "Статус")} · срок ${formatDate(getSpecificationProductionDueDate(row.specification))}</small>
+              <small>${escapeHtml(getSpecificationProductionOrder(row.specification) || "заказ не задан")} · срок ${formatDate(getSpecificationProductionDueDate(row.specification))}</small>
             </div>
             <div class="project-list-meta">
               <span><b>Изделие</b>${escapeHtml(row.specification.outputItem || "-")}</span>
@@ -16325,12 +16522,6 @@ function getSpecificationProductionQuantity(specification) {
   return normalizeOptionalPositiveInteger(specification?.productionQuantity || project?.totalQuantity) || "";
 }
 
-function getSpecificationProductionStatus(specification) {
-  const project = getSpecificationProductionProject(specification);
-  const status = specification?.productionStatus || project?.status || "planned";
-  return PROJECT_STATUSES.includes(status) ? status : "planned";
-}
-
 function getSpecificationProductionDueDate(specification) {
   const project = getSpecificationProductionProject(specification);
   return specification?.dueDate || project?.dueDate || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000));
@@ -16353,7 +16544,6 @@ function getSpecificationProductionCustomer(specification) {
 function ensureSpecificationPlanningUnit(specification) {
   const stamp = new Date().toISOString();
   const quantity = normalizeOptionalPositiveInteger(specification.productionQuantity) || 1;
-  const status = PROJECT_STATUSES.includes(specification.productionStatus) ? specification.productionStatus : "planned";
   const name = getSpecificationProductionName(specification);
   const specificationId = specification.id || makeId("spec");
   const existingRoute = (planningState.routes || []).find((route) => route.specificationId === specificationId || route.projectId === specificationId);
@@ -16366,7 +16556,6 @@ function ensureSpecificationPlanningUnit(specification) {
     specificationName: specification.name || name,
     projectId: specificationId,
     planningQuantity: quantity,
-    planningStatus: status,
     updatedAt: stamp,
   } : route);
   planningState.projects = [];
@@ -17933,17 +18122,14 @@ function renderSpecificationsPage() {
     dueDate: toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000)),
     orderNumber: "",
     customer: "",
-    productionStatus: "planned",
     bomListA: "",
     bomQtyA: 1,
     bomListB: "",
     bomQtyB: 0,
     extraItems: "",
-    status: "Черновик",
   };
   const activeProject = getSpecificationProductionProject(specification);
   const productionQuantity = getSpecificationProductionQuantity(specification);
-  const productionStatus = getSpecificationProductionStatus(specification);
   const dueDate = getSpecificationProductionDueDate(specification);
   const structureItems = getSpecificationStructureItems(specification);
   const specificationBomOptions = getSpecificationBomCandidates(specification, structureItems);
@@ -17966,7 +18152,6 @@ function renderSpecificationsPage() {
           ${(directoryState.specifications || []).map((item) => `
             <button class="module-entity-item ${item.id === activeSpecification?.id ? "is-active" : ""}" data-specification-open="${item.id}" type="button">
               <span><strong>${escapeHtml(item.name)}</strong><small>${Number(getSpecificationProductionQuantity(item) || 0).toLocaleString("ru-RU")} шт. · срок ${formatDate(getSpecificationProductionDueDate(item))}</small></span>
-              <em>${escapeHtml(PROJECT_STATUS_LABELS[getSpecificationProductionStatus(item)] || item.status || "-")}</em>
             </button>
           `).join("")}
         </div>
@@ -18007,16 +18192,6 @@ function renderSpecificationsPage() {
               <label class="form-field"><span>Плата B</span><select name="bomListB"><option value="">Не выбрана</option>${specificationBomOptions.map((item) => `<option value="${item.id}" ${selected(specification.bomListB, item.id)}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
               <label class="form-field"><span>Кол-во B</span><input name="bomQtyB" type="number" min="0" step="1" value="${Number(specification.bomQtyB || 0)}" /></label>
               <label class="form-field full"><span>Дополнительный состав</span><input name="extraItems" value="${escapeAttribute(specification.extraItems)}" placeholder="Корпус; кабель; крепеж; маркировка" /></label>
-              <label class="form-field"><span>Статус</span><input name="status" value="${escapeAttribute(specification.status)}" /></label>
-              <div class="module-status-field full">
-                <span>Статус производства</span>
-                <input type="hidden" name="productionStatus" data-spec-production-status-input value="${escapeAttribute(productionStatus)}" />
-                <div class="module-status-segments" data-spec-production-status-group>
-                  ${PROJECT_STATUSES.map((status) => `
-                    <button class="${status === productionStatus ? "is-active" : ""}" data-spec-production-status-option="${status}" type="button">${escapeHtml(PROJECT_STATUS_LABELS[status] || status)}</button>
-                  `).join("")}
-                </div>
-              </div>
               <div class="module-form-actions full">
                 <button class="primary-button" type="submit">${icon("save")}<span>${isNewSpecification ? "Создать состав" : "Сохранить состав"}</span></button>
               </div>
@@ -18551,13 +18726,11 @@ function createSpekiSpecification() {
     dueDate: toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000)),
     orderNumber: "",
     customer: "",
-    productionStatus: "planned",
     bomListA: "",
     bomQtyA: 0,
     bomListB: "",
     bomQtyB: 0,
     extraItems: "",
-    status: "Черновик",
     structureManaged: true,
     structureItems: [],
     createdAt: stamp,
@@ -19285,7 +19458,7 @@ function getRouteBindingOptions() {
   const productOptions = (directoryState.specifications || []).map((item) => ({
     value: `spec:${item.id}`,
     label: item.name || "Изделие без названия",
-    meta: `${PRODUCT_COMPOSITION_TERM} · ${getSpecificationProductionOrder(item) || "заказ не задан"} · ${PROJECT_STATUS_LABELS[getSpecificationProductionStatus(item)] || "статус"}`,
+    meta: `${PRODUCT_COMPOSITION_TERM} · ${getSpecificationProductionOrder(item) || "заказ не задан"}`,
   }));
   const bomOptions = (directoryState.bomLists || []).map((item) => ({
     value: `bom:${item.id}`,
@@ -23203,9 +23376,22 @@ function renderDirectoryPage() {
   const activeSection = visibleSections.find((section) => section.id === ui.activeDirectory) || visibleSections[0];
   if (activeSection && activeSection.id !== ui.activeDirectory) ui.activeDirectory = activeSection.id;
   const directoryData = getDirectoryData(activeSection.id);
+  const isStatusDirectory = activeSection.id === "statuses";
+  const pageClass = isStatusDirectory
+    ? "directories-page directories-status-page"
+    : "directories-page";
+  const workspaceClass = isStatusDirectory
+    ? "directory-workspace directory-status-workspace"
+    : "directory-workspace";
+  const contentClass = isStatusDirectory
+    ? "directory-content directory-status-content"
+    : "directory-content";
+  const tableCardClass = isStatusDirectory
+    ? "directory-table-card directory-status-table-card"
+    : "directory-table-card";
 
   return `
-    <section class="directories-page" data-layout="main-content" aria-label="Справочники MES">
+    <section class="${pageClass}" data-layout="main-content" aria-label="Справочники MES">
       <aside class="directory-sidebar">
         <div class="directory-sidebar-head">
           <span class="eyebrow">Мастер-данные</span>
@@ -23232,7 +23418,7 @@ function renderDirectoryPage() {
         </div>
       </aside>
 
-      <div class="directory-workspace" data-layout="page-workspace">
+      <div class="${workspaceClass}" data-layout="page-workspace">
         <header class="directory-header">
           <div>
             <span class="eyebrow">Справочник</span>
@@ -23251,16 +23437,14 @@ function renderDirectoryPage() {
           </div>
         </header>
 
-        <div class="directory-content">
-          <section class="directory-table-card">
+        <div class="${contentClass}">
+          <section class="${tableCardClass}">
             ${renderDirectoryTable(directoryData)}
           </section>
-          <aside class="directory-detail-card">
-            ${renderDirectoryDetail(activeSection, directoryData)}
-          </aside>
         </div>
       </div>
       ${renderDirectoryEditorModal(activeSection, directoryData)}
+      ${renderDirectoryReaderModal(activeSection, directoryData)}
     </section>
   `;
 }
@@ -23610,7 +23794,6 @@ function buildDeadlineRows() {
         order: getSpecificationProductionOrder(getSpecificationByProjectId(project.id)) || project.orderNumber,
         quantity: `${Number(project.totalQuantity || 0).toLocaleString("ru-RU")} шт.`,
         due: formatDate(project.dueDate),
-        status: PROJECT_STATUS_LABELS[project.status],
         progress,
         color: progress >= 70 ? "#16a34a" : progress >= 35 ? "#2563eb" : chartColors[index % chartColors.length],
       };
@@ -23624,15 +23807,6 @@ function buildSlotStatusItems(slots) {
     color: statusReportColors[status],
   })).filter((item) => item.value > 0);
   return counts.length ? counts : [{ label: "Нет данных", value: 1, color: "#cbd5e1" }];
-}
-
-function buildProjectStatusItems() {
-  const productionContexts = getProductionContexts();
-  return PROJECT_STATUSES.map((status) => ({
-    label: PROJECT_STATUS_LABELS[status],
-    value: productionContexts.filter((project) => project.status === status).length,
-    color: statusReportColors[status] || "#64748b",
-  })).filter((item) => item.value > 0);
 }
 
 function buildWarningTypeItems(warnings) {
@@ -23683,7 +23857,7 @@ function buildWorkloadInsights(workload, warnings) {
 }
 
 function buildDeadlineInsights(deadlineRows) {
-  const risky = deadlineRows.filter((row) => !row.status.includes("Заверш") && row.progress < 40);
+  const risky = deadlineRows.filter((row) => row.progress < 40);
   return [
     { icon: risky.length ? "alert" : "check", tone: risky.length ? "warning" : "ok", text: risky.length ? `${risky.length} состава изделия имеют низкую готовность.` : "Состав изделия выглядит устойчиво по готовности." },
     { icon: "info", text: deadlineRows[0] ? `Ближайший срок: ${deadlineRows[0].project}, ${deadlineRows[0].due}.` : "Нет состава изделия со сроками." },
@@ -23797,9 +23971,9 @@ function renderDirectoryColumnFilter(directoryData, key, column) {
   return `
     <details class="directory-column-filter ${isActive ? "is-active" : ""}" data-directory-filter="${escapeAttribute(fieldId)}">
       <summary title="Фильтр по колонке ${escapeAttribute(column)}">
+        ${icon("filter")}
         <span>${escapeHtml(column)}</span>
         <em>${isActive ? `${selectedCount}/${options.length}` : ""}</em>
-        ${icon("filter")}
       </summary>
       <div class="directory-filter-menu" role="group" aria-label="Фильтр по колонке ${escapeAttribute(column)}">
         <label class="directory-filter-search">
@@ -24023,6 +24197,9 @@ function renderDirectoryTable(directoryData) {
   const tableClass = directoryData.sectionId === "statuses"
     ? "directory-table directory-status-table"
     : "directory-table";
+  const wrapClass = directoryData.sectionId === "statuses"
+    ? "directory-table-wrap directory-status-table-wrap"
+    : "directory-table-wrap";
   const visibleCount = directoryData.visibleRows.length;
   const countLabel = directoryData.activeFilterCount
     ? `${visibleCount} из ${directoryData.rows.length} записей · ${directoryData.activeFilterCount} фильтр.`
@@ -24033,7 +24210,7 @@ function renderDirectoryTable(directoryData) {
       <strong>${countLabel}</strong>
       <span>${escapeHtml(directoryData.caption)}</span>
     </div>
-    <div class="directory-table-wrap" data-layout="table">
+    <div class="${wrapClass}" data-layout="table">
       <table class="${tableClass}">
         ${renderDirectoryTableHead(directoryData)}
         <tbody>
@@ -24073,7 +24250,21 @@ function renderDirectoryCellContent(sectionId, key, value, row = {}) {
     const audit = getStatusAuditInfo(row);
     return `<span class="status-audit-token is-${escapeAttribute(audit.tone)}" title="${escapeAttribute(audit.meta)}">${escapeHtml(audit.label)}</span>`;
   }
+  if (sectionId === "statuses" && key === "impactView") {
+    return `<span class="status-impact-cell">${escapeHtml(formatDirectoryCell(sectionId, key, value))}</span>`;
+  }
   return escapeHtml(formatDirectoryCell(sectionId, key, value));
+}
+
+function getStatusUsedInText(row = {}) {
+  return getStatusImpactMap(row).modules.join(" · ");
+}
+
+function getStatusImpactView(row = {}) {
+  const impact = getStatusImpactMap(row);
+  const changes = String(row.impact || impact.changes || row.annotation || "").trim();
+  const blocks = String(impact.blocks || "не блокирует напрямую").trim();
+  return `${changes || "Влияние не описано."} Блокирует: ${blocks}.`;
 }
 
 function renderDirectoryDetail(activeSection, directoryData) {
@@ -24116,6 +24307,7 @@ function renderDirectoryDetail(activeSection, directoryData) {
 
 function renderStatusImpactMap(row = {}) {
   const impact = getStatusImpactMap(row);
+  const lifecycle = getStatusLifecycleModules(row);
   return `
     <section class="status-impact-map" aria-label="Карта влияния статуса">
       <div class="status-impact-head">
@@ -24124,6 +24316,14 @@ function renderStatusImpactMap(row = {}) {
         <em class="is-${escapeAttribute(impact.decisionTone)}">${escapeHtml(impact.decision)}</em>
       </div>
       <div class="status-impact-grid">
+        <article>
+          <span>Стартовый модуль</span>
+          <strong>${escapeHtml(row.originModule || lifecycle.originModule)}</strong>
+        </article>
+        <article>
+          <span>Где меняется</span>
+          <strong>${escapeHtml(row.changeModule || lifecycle.changeModule)}</strong>
+        </article>
         <article>
           <span>Где используется</span>
           <strong>${escapeHtml(impact.modules.join(" · "))}</strong>
@@ -24202,18 +24402,6 @@ function getStatusImpactMap(row = {}) {
       decision: "Ядро",
       decisionTone: "critical",
       note: "Это состояние операции на Ганте. Его удаление меняет не только подпись, но и поведение слота.",
-    });
-  }
-
-  if (id.startsWith("project-") || type.includes("изделие") || group.includes("специфика")) {
-    return makeImpact({
-      modules: ["Спецификации", "Заказ-наряды", "Планирование", "Отчеты"],
-      blocks: code === "completed" ? "дальнейшую трактовку изделия как незавершенного" : "не блокирует напрямую",
-      changes: "портфель изделий, фильтры, готовность производственного объекта и верхнеуровневый прогресс",
-      deleteRule: "оставить минимальный набор жизненного цикла изделия",
-      decision: "Ядро",
-      decisionTone: "critical",
-      note: "Это состояние производственного объекта. Его можно сократить, но нужно заменить понятной моделью жизненного цикла.",
     });
   }
 
@@ -24427,14 +24615,26 @@ function getDirectoryData(sectionId) {
 
   if (sectionId === "statuses") {
     return makeDirectoryData(sectionId, {
-      caption: "Единые статусы, режимы и системные сигналы по отделам и модулям MES. Аннотация объясняет смысл, а влияние показывает, какую часть системы меняет статус.",
-      columns: ["Группа / отдел", "Категория", "Статус", "Ревизия", "Объект", "Код", "Аннотация", "Влияние"],
-      keys: ["group", "registryKind", "name", "audit", "type", "code", "annotation", "impact"],
-      rows: (directoryState.statuses || []).map((row) => ({
-        ...row,
-        registryKind: getStatusRegistryKindLabel(row.registryKind),
-        audit: getStatusAuditInfo(row).label,
-      })),
+      caption: "Единые статусы, режимы и системные сигналы MES. Область показывает контур применения, стартовый модуль показывает где статус появляется впервые, а поле изменения показывает где его меняют или пересчитывают.",
+      columns: ["Область применения", "Стартовый модуль", "Где меняется", "Где используется", "Статус", "Влияние"],
+      keys: ["group", "originModule", "changeModule", "usedIn", "name", "impactView"],
+      readerColumns: ["Область применения", "Стартовый модуль", "Где меняется", "Где используется", "Категория", "Статус", "Ревизия", "Объект", "Код", "Аннотация", "Влияние"],
+      readerKeys: ["group", "originModule", "changeModule", "usedIn", "registryKind", "name", "audit", "type", "code", "annotation", "impactView"],
+      rows: (directoryState.statuses || []).map((row) => {
+        const lifecycle = getStatusLifecycleModules(row);
+        const normalizedRow = {
+          ...row,
+          originModule: row.originModule || lifecycle.originModule,
+          changeModule: row.changeModule || lifecycle.changeModule,
+        };
+        return {
+          ...normalizedRow,
+          usedIn: getStatusUsedInText(normalizedRow),
+          impactView: getStatusImpactView(normalizedRow),
+          registryKind: getStatusRegistryKindLabel(normalizedRow.registryKind),
+          audit: getStatusAuditInfo(normalizedRow).label,
+        };
+      }),
     });
   }
 
@@ -24637,6 +24837,8 @@ function getDirectoryFieldType(sectionId, key) {
 function isDirectoryFieldReadonly(sectionId, key) {
   if (sectionId === "statuses" && key === "audit") return true;
   if (sectionId === "statuses" && key === "registryKind") return true;
+  if (sectionId === "statuses" && (key === "originModule" || key === "changeModule")) return true;
+  if (sectionId === "statuses" && (key === "usedIn" || key === "impactView")) return true;
   return false;
 }
 
@@ -24684,6 +24886,7 @@ function getDirectorySectionLabel(sectionId) {
 
 function getDirectoryRowLabel(sectionId, row) {
   if (!row) return "";
+  if (sectionId === "statuses") return String(row.name || row.code || row.group || "").trim();
   const data = getDirectoryData(sectionId);
   const primaryKey = data.keys?.[0] || "name";
   return String(row[primaryKey] || row.name || row.operationName || row.code || row.id || "").trim();
@@ -24721,6 +24924,41 @@ function renderDirectoryEditorModal(activeSection, directoryData) {
             <button class="primary-button" type="submit">${icon("save")}<span>Сохранить</span></button>
           </div>
         </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderDirectoryReaderModal(activeSection, directoryData) {
+  if (!ui.directoryReader || ui.directoryReader.sectionId !== activeSection.id) return "";
+  const rowIndex = Number(ui.directoryReader.rowIndex);
+  const row = Number.isFinite(rowIndex) ? directoryData.rows[rowIndex] : null;
+  if (!row) return "";
+  const title = getDirectoryRowLabel(activeSection.id, row) || activeSection.label;
+  const readerKeys = directoryData.readerKeys || directoryData.keys;
+  const readerColumns = directoryData.readerColumns || directoryData.columns;
+
+  return `
+    <div class="modal-backdrop" data-modal-backdrop>
+      <section class="modal large-modal directory-reader-modal" role="dialog" aria-modal="true" aria-label="Просмотр записи справочника">
+        <div class="modal-header">
+          <div>
+            <span class="eyebrow">Запись справочника</span>
+            <h2>${escapeHtml(title)}</h2>
+          </div>
+          <button class="icon-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
+        </div>
+        <div class="directory-reader-list">
+          ${readerKeys.map((key, index) => `
+            <article>
+              <span>${escapeHtml(readerColumns[index] || key)}</span>
+              <strong>${escapeHtml(formatDirectoryCell(activeSection.id, key, row[key]))}</strong>
+            </article>
+          `).join("")}
+        </div>
+        <div class="modal-footer">
+          <button class="secondary-button" data-close-modal type="button">Закрыть</button>
+        </div>
       </section>
     </div>
   `;
@@ -24992,9 +25230,47 @@ function bindDenseInlineSelectViewportEvents() {
 }
 
 function bindGlobalNavigation() {
+  bindModuleMenuNavigation();
   bindDenseInlineSelectViewportEvents();
   exposeVisualQaRuntimeApi();
   mountGlobalVisualSystem();
+}
+
+function isElementVisibleForInteraction(element) {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+  return rect.width > 0
+    && rect.height > 0
+    && style.display !== "none"
+    && style.visibility !== "hidden"
+    && Number(style.opacity || 1) !== 0
+    && style.pointerEvents !== "none";
+}
+
+function getModuleMenuButtonFromEventTarget(target) {
+  const button = target?.closest?.(".module-tabs .module-tab[data-module], .mobile-module-switcher .mobile-module-tab[data-module]");
+  if (!button || !app.contains(button) || !isElementVisibleForInteraction(button)) return null;
+  return button;
+}
+
+function openModuleFromMenuButton(button) {
+  const moduleId = button?.dataset?.module || "";
+  if (!moduleId) return false;
+  suspendVisualQaInspectorSelection({ manuallyDisabled: true, updateOverlay: false });
+  navigateToModule(moduleId);
+  return true;
+}
+
+function bindModuleMenuNavigation() {
+  app.querySelectorAll(".module-tabs .module-tab[data-module], .mobile-module-switcher .mobile-module-tab[data-module]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      if (!isElementVisibleForInteraction(button)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openModuleFromMenuButton(button);
+    });
+  });
 }
 
 function exposeVisualQaRuntimeApi() {
@@ -25387,6 +25663,7 @@ function bindDirectoryEvents() {
     button.addEventListener("click", () => {
       ui.activeDirectory = button.dataset.directoryId;
       ui.directoryEditor = null;
+      ui.directoryReader = null;
       persistUiState();
       render();
     });
@@ -25397,12 +25674,25 @@ function bindDirectoryEvents() {
       if (event.target.closest("[data-edit-directory-row], [data-delete-directory-row]")) return;
       ui.selectedDirectoryRows[ui.activeDirectory] = Number(row.dataset.directoryRow);
       persistUiState();
+      row.closest("tbody")?.querySelectorAll("[data-directory-row].is-selected").forEach((selectedRow) => {
+        selectedRow.classList.remove("is-selected");
+      });
+      row.classList.add("is-selected");
+    });
+    row.addEventListener("dblclick", (event) => {
+      if (event.target.closest("[data-edit-directory-row], [data-delete-directory-row]")) return;
+      const rowIndex = Number(row.dataset.directoryRow);
+      ui.selectedDirectoryRows[ui.activeDirectory] = rowIndex;
+      ui.directoryReader = { sectionId: ui.activeDirectory, rowIndex };
+      ui.directoryEditor = null;
+      persistUiState();
       render();
     });
   });
 
   app.querySelector("[data-add-directory]")?.addEventListener("click", () => {
     ui.directoryEditor = { mode: "create", sectionId: ui.activeDirectory };
+    ui.directoryReader = null;
     render();
   });
 
@@ -25412,6 +25702,7 @@ function bindDirectoryEvents() {
       const rowIndex = Number(button.dataset.editDirectoryRow);
       ui.selectedDirectoryRows[ui.activeDirectory] = rowIndex;
       ui.directoryEditor = { mode: "edit", sectionId: ui.activeDirectory, rowIndex };
+      ui.directoryReader = null;
       persistUiState();
       render();
     });
@@ -25500,6 +25791,7 @@ function bindDirectoryEvents() {
     element.addEventListener("click", (event) => {
       if (event.target !== element && !element.matches("[data-close-modal]")) return;
       ui.directoryEditor = null;
+      ui.directoryReader = null;
       render();
     });
   });
@@ -27359,18 +27651,6 @@ function bindSpecificationsEvents() {
     saveSpecificationModuleForm(event.currentTarget);
   });
 
-  app.querySelectorAll("[data-spec-production-status-option]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const input = app.querySelector("[data-spec-production-status-input]");
-      if (!input) return;
-      input.value = button.dataset.specProductionStatusOption || "planned";
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      app.querySelectorAll("[data-spec-production-status-option]").forEach((item) => {
-        item.classList.toggle("is-active", item === button);
-      });
-    });
-  });
-
   app.querySelector("[data-specification-to-planning]")?.addEventListener("click", () => {
     const specification = getActiveSpecificationForModule();
     if (!specification) return;
@@ -28118,13 +28398,11 @@ function saveSpecificationModuleForm(form) {
     dueDate: String(data.get("dueDate") || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000))),
     orderNumber: String(data.get("orderNumber") || "").trim(),
     customer: String(data.get("customer") || "").trim(),
-    productionStatus: PROJECT_STATUSES.includes(data.get("productionStatus")) ? String(data.get("productionStatus")) : "planned",
     bomListA: String(data.get("bomListA") || ""),
     bomQtyA: Math.max(0, Number(data.get("bomQtyA") || 0)),
     bomListB: String(data.get("bomListB") || ""),
     bomQtyB: Math.max(0, Number(data.get("bomQtyB") || 0)),
     extraItems: String(data.get("extraItems") || "").trim(),
-    status: String(data.get("status") || "Черновик").trim(),
     structureManaged: Boolean(previousSpecification?.structureManaged),
     structureItems: previousSpecification?.structureManaged ? getSpecificationStructureItems(previousSpecification) : [],
     updatedAt: new Date().toISOString(),
@@ -30096,6 +30374,7 @@ function renderRowLabel(row, slotWarningMap = {}) {
       (warning.slotIds || []).some((slotId) => routeSlotIds.has(slotId))
     )).length;
     const dueState = project ? getProjectDeadlineState(project) : { tone: "neutral", label: "срок не задан" };
+    const orderState = getPlanningRouteOrderState(route);
 
     return `
       <div class="row-label project-label route-label">
@@ -30111,7 +30390,7 @@ function renderRowLabel(row, slotWarningMap = {}) {
         </div>
         <div class="project-side">
           <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
-          <span class="project-status status-${project?.status || "planned"}">${PROJECT_STATUS_LABELS[project?.status] || "В плане"}</span>
+          <span class="project-status">${escapeHtml(orderState.label)}</span>
           <strong class="project-progress-value">${progress}%</strong>
           <div class="progress" title="Прогресс маршрутной карты"><span style="width:${progress}%"></span></div>
         </div>
@@ -30142,7 +30421,6 @@ function renderRowLabel(row, slotWarningMap = {}) {
         </div>
         <div class="project-side">
           <span class="deadline-badge ${dueState.tone}" title="Запас до срока">${escapeHtml(dueState.label)}</span>
-          <span class="project-status status-${project.status}">${PROJECT_STATUS_LABELS[project.status]}</span>
           <strong class="project-progress-value">${progress}%</strong>
           <div class="progress" title="Прогресс заказ-наряда"><span style="width:${progress}%"></span></div>
         </div>
@@ -33727,8 +34005,6 @@ function getRouteSummarySlots(routeId) {
 }
 
 function projectMatchesFilters(project) {
-  if (ui.statusFilter !== "all" && project.status !== ui.statusFilter) return false;
-
   if (ui.search.trim()) {
     const specification = getSpecificationByProjectId(project.id);
     const haystack = `${getProjectDisplayName(project)} ${getProjectDisplayOutput(project)} ${project.orderNumber} ${project.customer || ""} ${specification?.orderNumber || ""} ${specification?.customer || ""}`.toLowerCase();
@@ -33757,7 +34033,6 @@ function routeMatchesGanttFilters(route) {
   if (!route || !project) return false;
   if (route.planningStatus === "canceled") return false;
   if (!getRouteSlots(route.id).length) return false;
-  if (ui.statusFilter !== "all" && project.status !== ui.statusFilter) return false;
 
   const specification = getRouteSpecification(route);
   const bom = getRouteBomList(route);
@@ -33873,7 +34148,6 @@ function getProductionContextForSpecification(specification) {
     customer: specification.customer || "",
     totalQuantity: normalizeOptionalPositiveInteger(specification.productionQuantity) || 1,
     dueDate: specification.dueDate || toDateInput(addMs(new Date(), 21 * 24 * 60 * 60 * 1000)),
-    status: PROJECT_STATUSES.includes(specification.productionStatus) ? specification.productionStatus : "planned",
     createdAt: specification.createdAt || "",
     updatedAt: specification.updatedAt || "",
     specificationId: specification.id,
@@ -34023,11 +34297,7 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (visualQaInspectorActive) {
       event.preventDefault();
-      visualQaInspectorActive = false;
-      visualQaInspectorManuallyDisabled = true;
-      visualQaHoveredElementReport = null;
-      document.body.classList.remove("is-mes-visual-qa-inspecting");
-      updateVisualDebugOverlay();
+      suspendVisualQaInspectorSelection({ manuallyDisabled: true });
       notifySaveSuccess("Выбор элемента отменен");
       return;
     }
@@ -34048,8 +34318,16 @@ window.addEventListener("pointermove", (event) => {
 }, { passive: true });
 
 window.addEventListener("click", (event) => {
+  const moduleButton = getModuleMenuButtonFromEventTarget(event.target);
+  if (!moduleButton) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  openModuleFromMenuButton(moduleButton);
+}, true);
+
+window.addEventListener("click", (event) => {
   if (!ui.visualQaEnabled || !visualQaInspectorActive) return;
-  if (isVisualQaUiElement(event.target)) return;
+  if (isVisualQaUiElement(event.target) || isVisualQaNavigationElement(event.target)) return;
   const element = getInspectableVisualQaElement(event.target);
   if (!element) return;
   event.preventDefault();
@@ -34185,6 +34463,7 @@ window.addEventListener("click", (event) => {
 
   const moduleButton = event.target.closest?.("[data-module]");
   if (!moduleButton || !app.contains(moduleButton)) return;
+  suspendVisualQaInspectorSelection({ manuallyDisabled: true });
   navigateToModule(moduleButton.dataset.module);
 });
 
