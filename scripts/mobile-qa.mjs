@@ -5,15 +5,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const defaultUrl = "http://localhost:4174/";
+const defaultUrl = new URL("/", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const defaultOutDir = join(projectRoot, "tmp", `mobile-qa-${Date.now()}`);
 const viewports = [
   { name: "390", width: 390, height: 844 },
   { name: "430", width: 430, height: 932 },
   { name: "768", width: 768, height: 1024 },
 ];
-const screenshotModules = new Set(["gantt", "planning", "supply", "dispatch", "routes", "products", "directories"]);
-
 function getArg(name, fallback) {
   const prefix = `${name}=`;
   const match = process.argv.find((arg) => arg.startsWith(prefix));
@@ -155,6 +153,10 @@ async function launchChrome() {
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profileDir}`,
     "--disable-gpu",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-sync",
+    "--metrics-recording-only",
     "--no-first-run",
     "--no-default-browser-check",
     "about:blank",
@@ -239,8 +241,9 @@ async function auditLayout(client, moduleId) {
       ".gantt-shell",
       ".supply-gantt-shell",
       ".supply-table-wrap",
-      ".dispatch-table-wrap",
-      ".warehouse-table-wrap",
+      ".planning-table-matrix-wrap",
+      ".planning-table-register-wrap",
+      ".planning-table-compact-wrap",
       ".directory-table-wrap",
       ".nomenclature-table-wrap",
       ".shop-map-resource-table",
@@ -410,12 +413,10 @@ async function main() {
       for (const moduleItem of modules) {
         await switchModule(client, moduleItem.id);
         const audit = await auditLayout(client, moduleItem.id);
-        if (screenshotModules.has(moduleItem.id)) {
-          try {
-            audit.screenshot = await saveScreenshot(client, outDir, viewport.name, moduleItem.id);
-          } catch (error) {
-            audit.screenshotError = error.message;
-          }
+        try {
+          audit.screenshot = await saveScreenshot(client, outDir, viewport.name, moduleItem.id);
+        } catch (error) {
+          audit.screenshotError = error.message;
         }
         audit.failed = audit.docWidth > viewport.width + 1
           || audit.bodyWidth > viewport.width + 1

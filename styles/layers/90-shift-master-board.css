@@ -1,0 +1,3671 @@
+/* MES CSS layer: current workshop board and late operational overrides.
+   Cascade order is controlled by root styles.css; do not import this file directly. */
+.visual-state-card{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 58px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--mes-ui-text, #0f172a);
+  padding: 9px;
+  text-align: left;
+  white-space: normal;
+}.visual-state-card strong{
+  display: block;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 14px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}.visual-state-card span{
+  display: block;
+  min-width: 0;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 560;
+  line-height: 13px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+}.visual-state-card.is-hover,
+.visual-state-card:hover{
+  border-color: var(--mes-ui-primary-border, #bfdbfe);
+  background: var(--mes-state-hover);
+}.visual-state-card.is-active{
+  transform: translateY(1px);
+  background: var(--mes-state-active);
+}.visual-state-card.is-focus{
+  outline: 2px solid var(--mes-state-focus);
+  outline-offset: 2px;
+}.visual-state-card.is-loading{
+  overflow: hidden;
+  contain: paint;
+}.visual-state-card.is-dirty,
+.visual-state-dirty{
+  border-color: var(--mes-signal-warning-border) !important;
+  background: var(--mes-signal-warning-soft) !important;
+}.visual-state-card.is-saved,
+.visual-state-saved{
+  border-color: var(--mes-signal-ready-border) !important;
+  background: var(--mes-signal-ready-soft) !important;
+}.visual-state-card.is-error,
+.visual-state-error{
+  border-color: var(--mes-signal-blocked-border) !important;
+  background: var(--mes-signal-blocked-soft) !important;
+}.visual-state-card.is-selected{
+  border-color: var(--mes-ui-primary, #2563eb);
+  background: var(--mes-state-selected);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}.visual-form-grid .form-field{
+  min-width: 0;
+  gap: 4px;
+  min-height: 58px;
+  align-content: start;
+  border-radius: 12px;
+  padding: 7px 9px;
+}.visual-form-grid .form-field > span{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-form-grid .form-field :is(input, select){
+  width: 100% !important;
+  min-width: 0;
+  height: 30px !important;
+  min-height: 30px !important;
+  border-radius: 9px !important;
+  font-size: 11px !important;
+  font-weight: 560 !important;
+  line-height: 15px !important;
+}.visual-form-grid .form-field select{
+  overflow: hidden !important;
+  padding-right: 26px !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}.visual-form-grid .form-field small{
+  min-width: 0;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-checkbox-row{
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 58px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px 9px;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 14px;
+}.visual-checkbox-row input[type="checkbox"]{
+  appearance: none;
+  box-sizing: border-box !important;
+  display: block;
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.74);
+  border-radius: 5px;
+  background: #fff;
+  accent-color: var(--mes-ui-primary, #2563eb);
+}.visual-checkbox-row input[type="checkbox"]:checked{
+  border-color: var(--mes-ui-primary, #2563eb);
+  background-color: var(--mes-ui-primary, #2563eb);
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 7.1L5.6 9.7L11 4.3' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+}.visual-checkbox-row input[type="checkbox"]:focus-visible{
+  outline: 2px solid var(--mes-state-focus, rgba(37, 99, 235, 0.32));
+  outline-offset: 2px;
+}.visual-checkbox-row span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-table-wrap{
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 12px;
+}.visual-system-table{
+  width: 100%;
+  min-width: 720px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+}.visual-system-table :is(th, td){
+  border-bottom: 1px solid rgba(226, 232, 240, 0.72);
+  padding: 7px 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}.visual-system-table th{
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f8fafc;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 760;
+  text-align: left;
+}.visual-system-table tr.is-selected td{
+  background: var(--mes-state-selected);
+}.visual-tree-cell{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: calc(var(--level, 0) * 18px);
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 11px;
+  font-weight: 680;
+}.visual-tree-cell svg{
+  width: 15px;
+  height: 15px;
+  color: var(--mes-icon-tone, #64748b);
+}.visual-state-stack,
+.visual-keyboard-list,
+.visual-qa-steps{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}.visual-gantt-system-panel{
+  align-content: start;
+  order: -1;
+}.visual-gantt-mode-grid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}.visual-gantt-mode-column{
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(226, 232, 240, 0.86);
+  border-radius: var(--mes-radius-md, 8px);
+  background: rgba(248, 250, 252, 0.72);
+  padding: 10px;
+}.visual-gantt-mode-head{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  min-height: 34px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.72);
+  padding-bottom: 7px;
+}.visual-gantt-mode-head strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 16px;
+}.visual-gantt-mode-head span{
+  overflow: hidden;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 520;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-gantt-mode-column .visual-gantt-row{
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 6px;
+  font-size: 9px;
+}.visual-gantt-mode-column .visual-gantt-row + .visual-gantt-row{
+  border-top: 1px solid rgba(226, 232, 240, 0.78);
+  padding-top: 7px;
+}.visual-gantt-mode-column .visual-gantt-bar,
+.visual-gantt-mode-column .visual-gantt-segmented,
+.visual-gantt-mode-column .visual-gantt-transfer-stack{
+  justify-self: stretch;
+  width: min(var(--bar-width, 100%), 100%);
+  margin-left: 0;
+}.visual-gantt-mode-column .visual-gantt-row.is-tall{
+  min-height: 58px;
+}.visual-gantt-mode-column .visual-gantt-transfer-flow{
+  grid-template-columns: minmax(58px, 1fr) 24px minmax(58px, 1fr);
+  gap: 3px;
+  min-height: 54px;
+}.visual-gantt-mode-column .visual-gantt-transfer-arrow{
+  height: 46px;
+}.visual-gantt-mode-column.is-hours .visual-gantt-resource-fill{
+  background: rgba(37, 99, 235, 0.38);
+}.visual-gantt-mode-column.is-hours .visual-gantt-fact-fill{
+  background: rgba(22, 163, 74, 0.30);
+}.visual-gantt-mode-column.is-hours .visual-gantt-bar.is-fact-capacity .visual-gantt-fact-fill{
+  background: rgba(22, 163, 74, 0.34);
+}.visual-gantt-mode-column.is-hours .visual-gantt-resource-rest-fill{
+  background: rgba(191, 219, 254, 0.82);
+}.visual-gantt-mode-column.is-hours .visual-gantt-transfer-batches em{
+  background: rgba(37, 99, 235, 0.84);
+}.visual-gantt-row{
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 720;
+}.visual-gantt-row.is-tall{
+  align-items: start;
+}.visual-gantt-row.is-stacked{
+  align-items: start;
+}.visual-gantt-row.is-scenarios{
+  align-items: start;
+}.visual-gantt-bar-stack{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}.visual-gantt-scenario-stack{
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}.visual-gantt-scenario-stack .visual-gantt-bar-stack{
+  gap: 2px;
+}.visual-gantt-scenario-stack.is-fact-scenarios{
+  gap: 7px;
+}.visual-gantt-scenario-group{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.66);
+  padding-top: 5px;
+}.visual-gantt-scenario-group:first-child{
+  border-top: 0;
+  padding-top: 0;
+}.visual-gantt-scenario-group > strong{
+  overflow: hidden;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 8px;
+  font-weight: 780;
+  line-height: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-gantt-bar-meta{
+  display: block;
+  overflow: hidden;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  line-height: 10px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-gantt-mode-column.is-hours .visual-gantt-row.is-scenarios .visual-gantt-bar-meta{
+  min-height: 18px;
+  overflow: visible;
+  font-size: 7px;
+  line-height: 9px;
+  text-align: left;
+  text-overflow: clip;
+  white-space: normal;
+}.visual-gantt-bar{
+  position: relative;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  height: 24px;
+  border: 1px dashed var(--mes-gantt-plan-border);
+  border-radius: var(--geometry-gantt-corner-radius, 8px);
+  background: transparent;
+  color: var(--mes-ui-text-secondary, #334155);
+  overflow: visible;
+}.visual-gantt-segmented{
+  position: relative;
+  display: grid;
+  grid-template-columns: 38% 18% minmax(0, 1fr);
+  align-items: stretch;
+  height: 24px;
+  overflow: visible;
+}.visual-gantt-segmented .visual-gantt-segment{
+  position: relative;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  min-width: 0;
+  border: 1px dashed var(--mes-gantt-plan-border);
+  background: transparent;
+}.visual-gantt-segmented .visual-gantt-segment.is-start{
+  border-right-width: 0;
+  border-radius: var(--geometry-gantt-corner-radius, 8px) 0 0 var(--geometry-gantt-corner-radius, 8px);
+}.visual-gantt-segmented .visual-gantt-segment.is-break{
+  border-color: var(--mes-gantt-break-border);
+  border-inline-width: 1px;
+  border-radius: 0;
+}.visual-gantt-segmented .visual-gantt-segment.is-end{
+  border-left-width: 0;
+  border-radius: 0 var(--geometry-gantt-corner-radius, 8px) var(--geometry-gantt-corner-radius, 8px) 0;
+}.visual-gantt-transfer-stack{
+  position: relative;
+  display: grid;
+  grid-template-rows: 22px 8px;
+  gap: 2px;
+  min-width: 0;
+  height: 32px;
+  overflow: visible;
+}.visual-gantt-bar.is-transfer-main{
+  height: 22px;
+  border-color: var(--mes-gantt-plan-border);
+  background: transparent;
+}.visual-gantt-transfer-total{
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(51, 65, 85, 0.82);
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  line-height: 13px;
+  white-space: nowrap;
+}.visual-gantt-transfer-batches{
+  position: relative;
+  display: block;
+  height: 8px;
+  min-width: 0;
+  overflow: visible;
+}.visual-gantt-transfer-batches em{
+  position: absolute;
+  top: 0;
+  left: var(--batch-left, 0%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max(18px, var(--batch-width, 18%));
+  height: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.42);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.92), rgba(96, 165, 250, 0.74));
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.12);
+  color: #ffffff;
+  font-size: 0;
+  font-style: normal;
+  font-weight: 820;
+  line-height: 8px;
+  white-space: nowrap;
+}.visual-gantt-transfer-batches em + em{
+  margin-left: 1px;
+}.visual-gantt-transfer-batches em span{
+  display: none;
+}.visual-gantt-transfer-flow{
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(66px, 1fr) 30px minmax(66px, 1fr);
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 58px;
+  overflow: hidden;
+}.visual-gantt-flow-source,
+.visual-gantt-flow-target{
+  position: relative;
+  display: grid;
+  grid-template-rows: 22px 8px;
+  gap: 2px;
+  min-width: 0;
+  overflow: visible;
+}.visual-gantt-flow-source .visual-gantt-bar,
+.visual-gantt-flow-target .visual-gantt-bar{
+  height: 22px;
+}.visual-gantt-flow-source .visual-gantt-bar em,
+.visual-gantt-flow-target .visual-gantt-bar em{
+  display: block;
+  max-width: calc(100% - 6px);
+  overflow: hidden;
+  color: rgba(51, 65, 85, 0.82);
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 820;
+  line-height: 12px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-gantt-bar.is-transfer-target{
+  border-color: rgba(22, 163, 74, 0.46);
+  background: rgba(240, 253, 244, 0.72);
+}.visual-gantt-incoming-batches{
+  position: relative;
+  display: block;
+  height: 8px;
+  min-width: 0;
+  overflow: visible;
+}.visual-gantt-incoming-batches em{
+  position: absolute;
+  top: 0;
+  left: var(--batch-left, 0%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max(18px, var(--batch-width, 18%));
+  height: 8px;
+  border: 1px solid rgba(22, 163, 74, 0.46);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.88), rgba(74, 222, 128, 0.70));
+  box-shadow: 0 1px 2px rgba(22, 163, 74, 0.12);
+  color: #ffffff;
+  font-size: 0;
+  font-style: normal;
+  line-height: 8px;
+}.visual-gantt-transfer-batches em.is-active,
+.visual-gantt-incoming-batches em.is-active{
+  outline: 2px solid rgba(245, 158, 11, 0.32);
+  outline-offset: 1px;
+}.visual-gantt-transfer-arrow{
+  width: 100%;
+  min-width: 0;
+  height: 54px;
+  overflow: visible;
+}.visual-gantt-transfer-arrow path{
+  fill: none;
+  stroke: rgba(37, 99, 235, 0.76);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}.visual-gantt-transfer-arrow .visual-gantt-arrow{
+  fill: none;
+  stroke-dasharray: none;
+}.visual-gantt-bar.is-risk{
+  border-color: var(--mes-signal-risk-border);
+  background: transparent;
+}.visual-gantt-bar.is-validated{
+  border-color: rgba(37, 99, 235, 0.72);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.10) 0 5px,
+      rgba(37, 99, 235, 0.02) 5px 10px
+    );
+}.visual-gantt-bar.is-resource-capacity{
+  justify-items: start;
+  border-color: transparent;
+  background: rgba(219, 234, 254, 0.58);
+  overflow: hidden;
+}.visual-gantt-bar.is-resource-positive{
+  background: rgba(219, 234, 254, 0.58);
+  overflow: hidden;
+}.visual-gantt-bar.is-resource-negative,
+.visual-gantt-bar.is-resource-zero{
+  border-color: transparent;
+}.visual-gantt-resource-rest-fill{
+  position: absolute;
+  inset: 0 auto 0 var(--resource-rest-left, 70%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--resource-rest-width, 30%);
+  border-radius: 0 calc(var(--geometry-gantt-corner-radius, 8px) - 1px) calc(var(--geometry-gantt-corner-radius, 8px) - 1px) 0;
+  background: rgba(191, 219, 254, 0.82);
+  color: rgba(30, 64, 175, 0.72);
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 16px;
+  pointer-events: none;
+}.visual-gantt-resource-rest-fill.is-full{
+  border-radius: calc(var(--geometry-gantt-corner-radius, 8px) - 1px);
+}.visual-gantt-resource-rest-fill span,
+.visual-gantt-resource-overfill span,
+.visual-gantt-resource-fill span,
+.visual-gantt-fact-fill span{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 14px;
+  box-sizing: border-box;
+  padding: 0 3px;
+  border-radius: var(--mes-radius-xs, 4px);
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 14px;
+  white-space: nowrap;
+}.visual-gantt-resource-rest-fill span{
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  background: rgba(255, 255, 255, 0.70);
+  color: #1d4ed8;
+}.visual-gantt-resource-overfill{
+  position: absolute;
+  inset: 0 auto 0 var(--resource-over-left, 100%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--resource-over-width, 20%);
+  border: 0;
+  border-radius: 0 calc(var(--geometry-gantt-corner-radius, 8px) - 1px) calc(var(--geometry-gantt-corner-radius, 8px) - 1px) 0;
+  background: rgba(59, 130, 246, 0.26);
+  color: #1d4ed8;
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 16px;
+  white-space: nowrap;
+}.visual-gantt-resource-overfill span{
+  border: 0;
+  background: rgba(255, 255, 255, 0.72);
+}.visual-gantt-resource-fill{
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(var(--resource-progress, 0%), 100%);
+  border-radius: calc(var(--geometry-gantt-corner-radius, 8px) - 1px) 0 0 calc(var(--geometry-gantt-corner-radius, 8px) - 1px);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.24) 0 5px,
+      rgba(37, 99, 235, 0.12) 5px 10px
+    );
+}.visual-gantt-resource-fill span,
+.visual-gantt-fact-fill span{
+  background: rgba(255, 255, 255, 0.70);
+}.visual-gantt-resource-fill span{
+  border: 1px solid rgba(37, 99, 235, 0.24);
+  color: #1d4ed8;
+}.visual-gantt-fact-fill span{
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  color: #166534;
+}.visual-gantt-resource-label{
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 70px;
+  margin-left: 0;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: var(--mes-radius-xs, 4px);
+  background: rgba(255, 255, 255, 0.94);
+  color: #1d4ed8;
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 16px;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}.visual-gantt-validation{
+  position: absolute;
+  left: 7px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  height: 14px;
+  max-width: calc(50% - 8px);
+  overflow: hidden;
+  color: #1d4ed8;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-gantt-bar.is-fact{
+  justify-items: start;
+  border-color: rgba(22, 163, 74, 0.62);
+  overflow: hidden;
+}.visual-gantt-bar.is-fact-capacity{
+  justify-items: start;
+  border-style: solid;
+  border-color: rgba(22, 163, 74, 0.42);
+  background: rgba(240, 253, 244, 0.38);
+  overflow: hidden;
+}.visual-gantt-bar.is-fact-scenario{
+  border-color: transparent;
+  background: rgba(226, 232, 240, 0.72);
+}.visual-gantt-fact-slice{
+  position: absolute;
+  inset: 0 auto 0 var(--slice-left, 0%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--slice-width, 100%);
+  overflow: hidden;
+  color: #166534;
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 16px;
+  pointer-events: none;
+}.visual-gantt-fact-slice.is-done{
+  background: rgba(22, 163, 74, 0.30);
+  color: #166534;
+}.visual-gantt-fact-slice.is-positive{
+  background: rgba(22, 163, 74, 0.42);
+  color: #166534;
+}.visual-gantt-fact-slice.is-positive-strong{
+  background: rgba(21, 128, 61, 0.50);
+  color: #14532d;
+}.visual-gantt-fact-slice.is-negative{
+  background: rgba(244, 63, 94, 0.34);
+  color: rgba(159, 18, 57, 0.86);
+}.visual-gantt-fact-slice.is-plan-rest{
+  background: rgba(251, 113, 133, 0.16);
+  color: rgba(159, 18, 57, 0.58);
+}.visual-gantt-fact-slice.is-full{
+  border-radius: calc(var(--geometry-gantt-corner-radius, 8px) - 1px);
+}.visual-gantt-fact-slice span{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 14px;
+  box-sizing: border-box;
+  padding: 0 3px;
+  border: 0;
+  border-radius: var(--mes-radius-xs, 4px);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 14px;
+  white-space: nowrap;
+}.visual-gantt-bar.is-combined{
+  justify-items: start;
+  border-color: var(--mes-gantt-plan-border);
+  background: transparent;
+  overflow: hidden;
+}.visual-gantt-validation-fill{
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  z-index: 1;
+  width: min(var(--validation-progress, 100%), calc(100% - 6px));
+  border-radius: calc(var(--geometry-gantt-corner-radius, 8px) - 3px);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.16) 0 5px,
+      rgba(37, 99, 235, 0.04) 5px 10px
+    );
+}.visual-gantt-fact-fill{
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  z-index: 2;
+  width: min(var(--fact-progress, 0%), calc(100% - 6px));
+  border-radius: calc(var(--geometry-gantt-corner-radius, 8px) - 3px);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(22, 163, 74, 0.24) 0 6px,
+      rgba(22, 163, 74, 0.12) 6px 12px
+    );
+}.visual-gantt-bar.is-fact-capacity .visual-gantt-fact-fill{
+  inset: 0 auto 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(var(--fact-progress, 0%), 100%);
+  border-radius: calc(var(--geometry-gantt-corner-radius, 8px) - 1px) 0 0 calc(var(--geometry-gantt-corner-radius, 8px) - 1px);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(29, 78, 216, 0.46) 0 5px,
+      rgba(37, 99, 235, 0.26) 5px 10px
+    );
+}.visual-gantt-bar.is-validation-mismatch{
+  border-color: rgba(245, 158, 11, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.30);
+}.visual-gantt-bar.is-fact-mismatch{
+  border-color: rgba(220, 38, 38, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.24);
+}.visual-gantt-mismatch-marker{
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: min(var(--validation-progress, 100%), calc(100% - 6px));
+  z-index: 4;
+  width: 0;
+  border-left: 2px solid rgba(245, 158, 11, 0.92);
+  transform: translateX(-1px);
+}.visual-gantt-mismatch-label{
+  position: relative;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 0;
+  margin-left: 7px;
+  border: 1px solid rgba(245, 158, 11, 0.36);
+  border-radius: var(--mes-radius-xs, 4px);
+  background: rgba(255, 251, 235, 0.96);
+  color: #92400e;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.12);
+  font-size: 8px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 16px;
+  padding: 0 5px;
+  white-space: nowrap;
+}.visual-gantt-bar.is-fact-mismatch .visual-gantt-mismatch-label{
+  border-color: rgba(220, 38, 38, 0.34);
+  background: rgba(254, 242, 242, 0.96);
+  color: #b91c1c;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.12);
+}.visual-gantt-bar.is-selected{
+  outline: 2px solid var(--mes-accent, #2563eb);
+  outline-offset: 2px;
+  box-shadow: none;
+}.visual-gantt-quantity{
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: var(--mes-radius-xs, 4px);
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 16px;
+  padding: 0 5px;
+  white-space: nowrap;
+}.visual-gantt-dependency{
+  width: 100%;
+  height: 34px;
+  overflow: visible;
+}.visual-gantt-dependency path{
+  fill: none;
+  stroke: #475569;
+  stroke-width: 1px;
+  stroke-dasharray: 4 4;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}.visual-gantt-dependency .visual-gantt-arrow{
+  stroke-dasharray: none;
+}@media (max-width: 1180px) {.visual-gantt-mode-grid{
+    grid-template-columns: 1fr;
+  }
+}.visual-loading-line,
+.visual-error-line{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}.visual-loading-line{
+  border: 1px solid var(--mes-signal-calc-border);
+  background: var(--mes-signal-calc-soft);
+  color: var(--mes-signal-calc);
+  overflow: hidden;
+}.visual-error-line{
+  border: 1px solid var(--mes-signal-blocked-border);
+  background: var(--mes-signal-blocked-soft);
+  color: var(--mes-signal-blocked);
+}.visual-keyboard-list span{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 11px;
+  font-weight: 650;
+}.visual-keyboard-list kbd{
+  min-width: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.12);
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 18px;
+  padding: 0 5px;
+  text-align: center;
+}.visual-snapshot-table{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}.visual-snapshot-table div{
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  background: #fff;
+  padding: 9px;
+}.visual-snapshot-table :is(strong, span, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.visual-snapshot-table strong{
+  font-size: 11px;
+  font-weight: 760;
+}.visual-snapshot-table span,
+.visual-snapshot-table small,
+.visual-system-panel code,
+.visual-qa-steps{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 14px;
+}.visual-system-panel code{
+  display: block;
+  overflow: auto;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 8px;
+}.visual-qa-steps{
+  margin: 0;
+  padding-left: 18px;
+}.visual-debug-marker-layer{
+  position: fixed;
+  inset: 0;
+  z-index: 8990;
+  pointer-events: none;
+}.visual-debug-marker{
+  position: fixed;
+  border: 2px solid rgba(251, 191, 36, 0.92);
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.08);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 9999px rgba(15, 23, 42, 0.00);
+  pointer-events: none;
+}.visual-debug-marker.is-critical{
+  border-color: rgba(248, 113, 113, 0.96);
+  background: rgba(248, 113, 113, 0.10);
+}.visual-debug-marker.is-inspector{
+  border-color: rgba(34, 211, 238, 0.98);
+  border-radius: 8px;
+  background: rgba(34, 211, 238, 0.10);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.22), 0 0 0 5px rgba(34, 211, 238, 0.18);
+}.visual-debug-marker.is-inspector.is-hover{
+  border-style: dashed;
+}.visual-debug-marker.is-inspector.is-selected{
+  border-width: 3px;
+}.visual-debug-marker.is-pulsing{
+  animation: mes-qa-pulse 850ms var(--mes-motion-ease) 2;
+}@keyframes mes-loading-sweep {from{ transform: translateX(-100%); }to{ transform: translateX(100%); }
+}@keyframes mes-qa-pulse {0%,
+100%{ box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 0 rgba(251, 191, 36, 0.0); }50%{ box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 8px rgba(251, 191, 36, 0.28); }
+}@media (prefers-reduced-motion: reduce) {main.app-shell[data-layout="app-shell"] *,
+.visual-debug-marker{
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] .app-topbar{
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }main.app-shell[data-layout="app-shell"] .app-topbar-actions{
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }main.app-shell[data-layout="app-shell"] .app-topbar-action{
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+  }main.app-shell[data-layout="app-shell"] .app-topbar-action span{
+    display: none !important;
+  }main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(button, .primary-button, .secondary-button, .icon-button, .table-icon-button, .dense-inline-select > summary){
+    min-height: 36px !important;
+  }main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(.primary-button, .secondary-button, .route-object-add-button){
+    height: auto !important;
+  }main.app-shell[data-layout="app-shell"] [data-layout="main-content"] :is(.icon-button, .table-icon-button, .route-step-labor-toggle, .route-step-flow-toggle, .route-step-delete-button){
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }main.app-shell[data-layout-page="routes"] .module-form-actions :is(.primary-button, .secondary-button){
+    min-height: 36px !important;
+    height: 36px !important;
+  }main.app-shell[data-layout-page="directories"] .directory-table-wrap .directory-table .table-icon-button{
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    max-height: none;
+  }main.app-shell[data-layout-page="gantt"] .gantt-shell .chevron{
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar :is(button, input, .segment, .gantt-zoom-value, .gantt-zoom-control .icon-button, .toggle-switch-button){
+    min-height: 36px !important;
+    height: 36px !important;
+    max-height: none !important;
+  }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control{
+    grid-template-columns: 36px minmax(64px, 1fr) 36px !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    max-height: none !important;
+  }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control :is(.icon-button, .gantt-zoom-value){
+    width: 100% !important;
+    min-width: 36px !important;
+  }main.app-shell[data-layout-page="supply"] .supply-gantt-group-label{
+    grid-template-columns: 36px 42px minmax(0, 1fr) !important;
+  }main.app-shell[data-layout-page="supply"] .supply-group-toggle{
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }main.app-shell[data-layout-page="supply"] .supply-demand-bar{
+    height: 36px !important;
+    min-height: 36px !important;
+  }.visual-system-page{
+    padding: 8px;
+  }.visual-system-hero,
+.visual-system-grid,
+.visual-system-panel{
+    gap: 8px;
+  }.visual-system-hero{
+    grid-template-columns: minmax(0, 1fr);
+  }.visual-system-hero-actions{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }.visual-system-panel.is-wide{
+    grid-column: auto;
+  }.visual-signal-grid,
+.visual-state-grid,
+.visual-form-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }.visual-gantt-row{
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+}.route-print-backdrop{
+  z-index: 10060;
+  padding: 18px;
+}.route-print-modal{
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(1280px, calc(100vw - 36px));
+  max-height: min(94dvh, 980px);
+  overflow: hidden;
+}.route-print-scroll{
+  min-height: 0;
+  overflow: auto;
+  background:
+    linear-gradient(135deg, rgba(148, 163, 184, 0.11), rgba(226, 232, 240, 0.4)),
+    #eef2f7;
+  padding: 18px;
+}.route-print-sheet{
+  display: grid;
+  gap: 12px;
+  width: 297mm;
+  min-height: 210mm;
+  margin: 0 auto;
+  border: 1px solid #d8dee8;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+  padding: 6mm;
+}.route-print-sheet,
+.route-print-sheet *{
+  box-sizing: border-box;
+}.route-print-title-block,
+.route-print-section-head > div{
+  display: grid;
+  gap: 3px;
+}.route-print-sheet span,
+.route-print-section-head span,
+.route-print-table th,
+.route-print-signatures span{
+  color: #64748b;
+  font-size: 8.4px;
+  font-weight: 750;
+  letter-spacing: 0;
+}.route-print-sheet strong,
+.route-print-sheet h1,
+.route-print-sheet h2{
+  color: #0f172a;
+}.route-print-title-block{
+  gap: 4px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+}.route-print-title-row{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: baseline;
+}.route-print-title-block h1{
+  margin: 0;
+  font-size: 17px;
+  font-weight: 760;
+  line-height: 1.16;
+}.route-print-title-date{
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.16;
+  white-space: nowrap;
+}.route-print-title-block p{
+  margin: 0;
+  color: #334155;
+  font-size: 11px;
+  line-height: 1.35;
+}.route-print-section{
+  display: grid;
+  gap: 7px;
+}.route-print-section-head{
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 5px;
+}.route-print-section-head h2{
+  margin: 0;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.15;
+}.route-print-section-head > strong{
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 760;
+  white-space: nowrap;
+}.route-print-table{
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8.4px;
+  line-height: 1.16;
+}.route-print-table th,
+.route-print-table td{
+  vertical-align: top;
+  border: 1px solid #cbd5e1;
+  padding: 3px 4px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}.route-print-table th{
+  background: #f1f5f9;
+  color: #334155;
+}.route-print-composition-table th:nth-child(1),
+.route-print-composition-table td:nth-child(1){
+  width: 38px;
+  text-align: center;
+}.route-print-composition-table th:nth-child(3),
+.route-print-composition-table td:nth-child(3){
+  width: 64px;
+  text-align: center;
+}.route-print-composition-table th:nth-child(4),
+.route-print-composition-table td:nth-child(4){
+  width: 76px;
+  text-align: center;
+}.route-print-composition-table th:nth-child(5),
+.route-print-composition-table td:nth-child(5){
+  width: 76px;
+  text-align: center;
+}.route-print-composition-table th:nth-child(6),
+.route-print-composition-table td:nth-child(6){
+  width: 132px;
+  text-align: center;
+}.route-print-composition-table td:nth-child(2){
+  padding-bottom: 0;
+  padding-top: 0;
+}.route-print-qr-head{
+  background: #f1f5f9;
+}.route-print-qr-cell{
+  position: relative;
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+  background: #f8fafc;
+}.route-print-qr-box{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}.route-print-qr-placeholder{
+  display: block;
+  width: 116px;
+  height: 116px;
+  margin: 0 auto;
+  shape-rendering: crispEdges;
+}.route-print-tree-name{
+  --tree-step: 14px;
+  --tree-line-color: #cbd5e1;
+  position: relative;
+  min-height: 21px;
+  padding: 3px 0 3px calc(var(--level) * var(--tree-step) + 8px);
+}.route-print-tree-guide,
+.route-print-tree-branch{
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--tree-line) * var(--tree-step) + 5px);
+  width: 0;
+  pointer-events: none;
+}.route-print-tree-guide::before,
+.route-print-tree-branch::before{
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--tree-line-color);
+}.route-print-tree-branch.is-last::before{
+  bottom: 50%;
+}.route-print-tree-branch::after{
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 9px;
+  height: 1px;
+  background: var(--tree-line-color);
+}.route-print-operations-table th:nth-child(1),
+.route-print-operations-table td:nth-child(1){
+  width: 43px;
+  text-align: center;
+}.route-print-operations-table th:nth-child(2),
+.route-print-operations-table td:nth-child(2){
+  width: 36%;
+}.route-print-operations-table th:nth-child(3),
+.route-print-operations-table td:nth-child(3){
+  width: 24%;
+}.route-print-operations-table th:nth-child(4),
+.route-print-operations-table td:nth-child(4){
+  width: 22%;
+}.route-print-operations-table th:nth-child(5),
+.route-print-operations-table td:nth-child(5){
+  width: 48px;
+  text-align: center;
+}.route-print-operations-table th:nth-child(6),
+.route-print-operations-table td:nth-child(6){
+  width: 58px;
+  text-align: center;
+}.route-print-table strong{
+  display: block;
+  font-size: 8.6px;
+  font-weight: 650;
+  line-height: 1.16;
+}.route-print-table td span{
+  display: block;
+  margin-top: 1px;
+  color: #64748b;
+  font-size: 7.6px;
+  font-weight: 520;
+  text-transform: none;
+}.route-print-task-row td{
+  background: #f8fbff;
+  color: #1d4ed8;
+  font-weight: 720;
+}.route-print-task-row td:first-child{
+  color: #1e3a8a;
+  text-align: center;
+}.route-print-task-row td:nth-child(2){
+  color: #1e3a8a;
+  text-align: left;
+}.route-print-operation-main,
+.route-print-resource-main,
+.route-print-operation-extra{
+  display: block;
+  margin: 0;
+  color: #334155;
+  font-size: 8.4px;
+  font-weight: 520;
+  line-height: 1.16;
+}.route-print-operation-extra{
+  color: #64748b;
+}.route-print-muted-row td,
+.route-print-empty{
+  color: #64748b;
+  font-size: 10px;
+}.route-print-empty{
+  display: grid;
+  gap: 4px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  padding: 12px;
+}.route-print-notes > div{
+  min-height: 38px;
+  border: 1px solid #cbd5e1;
+  padding: 7px;
+}.route-print-signatures{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+}.route-print-signatures article{
+  display: grid;
+  gap: 13px;
+}.route-print-signatures i{
+  display: block;
+  border-bottom: 1px solid #111827;
+  min-height: 16px;
+}@media (max-width: 760px) {.route-print-backdrop{
+    padding: 8px;
+  }.route-print-modal{
+    display: grid !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    overflow: hidden !important;
+  }.route-print-scroll{
+    overflow: auto !important;
+    padding: 8px;
+  }.route-print-sheet{
+    min-height: 0;
+    padding: 6mm;
+  }.route-print-signatures{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}@media print {@page {
+    size: A4 landscape;
+    margin: 0;
+  }html,
+body{
+    width: 297mm !important;
+    min-width: 297mm !important;
+    min-height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }body *{
+    visibility: hidden !important;
+  }.route-print-backdrop,
+.route-print-backdrop *,
+.route-print-modal,
+.route-print-modal *{
+    visibility: visible !important;
+  }.route-print-ui{
+    display: none !important;
+  }.route-print-backdrop{
+    position: static !important;
+    display: block !important;
+    width: 297mm !important;
+    min-width: 297mm !important;
+    height: auto !important;
+    min-height: 210mm !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }.route-print-modal{
+    position: static !important;
+    display: block !important;
+    width: 297mm !important;
+    min-width: 297mm !important;
+    max-width: 297mm !important;
+    max-height: none !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }.route-print-scroll{
+    display: block !important;
+    width: 297mm !important;
+    min-width: 297mm !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+  }.route-print-sheet{
+    width: 297mm !important;
+    max-width: 297mm !important;
+    min-height: 210mm !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 6mm !important;
+  }.route-print-table tr,
+.route-print-signatures article{
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}/* Planning workbench flattening: keep existing behavior,
+give the order area the full width. */
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
+  grid-template-columns: minmax(184px, 220px) minmax(0, 1fr) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-main{
+  min-height: 0;
+  overflow: auto;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-header{
+  min-height: 0;
+  padding: 10px 12px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-header h2{
+  font-size: 17px !important;
+  line-height: 1.16 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-workspace{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  align-items: stretch;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-item{
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  align-items: center;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-item :is(strong, small){
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-item > em.is-ok{
+  background: var(--planning-order-green-bg) !important;
+  color: var(--planning-order-green-text) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-item > em.is-warning{
+  background: var(--planning-order-yellow-bg) !important;
+  color: var(--planning-order-yellow-text) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-item > em.is-critical{
+  background: var(--planning-order-red-bg) !important;
+  color: var(--planning-order-red-text) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-map{
+  padding: 10px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-flow{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-phase{
+  min-height: 38px !important;
+  padding: 7px 9px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-lane{
+  gap: 6px;
+  padding: 7px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-flow-step-row{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-step-pill{
+  min-height: 34px !important;
+  padding: 6px 8px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-detail{
+  display: block;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-record{
+  gap: 9px !important;
+  padding: 10px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-record-head{
+  min-height: 0;
+  padding-bottom: 8px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-record-head h3{
+  font-size: 15px !important;
+  line-height: 1.18 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-record-section{
+  gap: 7px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-record-section + .planning-order-record-section{
+  border-top: 1px solid rgba(226, 232, 240, 0.9) !important;
+  padding-top: 9px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-row{
+  padding: 7px 8px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-operations .planning-order-register-row{
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, 0.55fr) minmax(70px, max-content) minmax(78px, max-content) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-wip .planning-order-register-row{
+  grid-template-columns: minmax(220px, 1fr) minmax(90px, max-content) minmax(90px, max-content) minmax(110px, max-content) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-supply .planning-order-register-row{
+  grid-template-areas: "item qty actions route status" !important;
+  grid-template-columns: minmax(220px, 1fr) minmax(88px, max-content) minmax(340px, 0.95fr) minmax(150px, 0.5fr) minmax(84px, max-content) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-segmented-actions{
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-list{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius);
+  background: var(--planning-order-surface);
+  padding: 8px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card header div,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card header span,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card header strong{
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card header strong{
+  display: block;
+  color: var(--planning-order-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card header span{
+  display: block;
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card header em{
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  padding: 2px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 16px;
+  text-transform: none;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card.is-ok header em{
+  background: var(--planning-order-green-bg);
+  color: var(--planning-order-green-text);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card.is-warning header em{
+  background: var(--planning-order-yellow-bg);
+  color: var(--planning-order-yellow-text);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-card.is-critical header em{
+  background: var(--planning-order-red-bg);
+  color: var(--planning-order-red-text);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-rows{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row{
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, 0.7fr) minmax(78px, max-content) minmax(120px, max-content);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  padding: 6px 8px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row span{
+  min-width: 0;
+  color: var(--planning-order-text);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row strong,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row small{
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row strong{
+  font-size: 11px;
+  font-weight: 700;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row small{
+  color: var(--planning-order-muted);
+  font-size: 9px;
+  font-weight: 500;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-workspace{
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-structure-panel{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head > div{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head strong,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head strong{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-module-font-md);
+  font-weight: 600;
+  line-height: 1.18;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head span{
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+  line-height: 1.2;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-strip{
+  display: grid;
+  grid-template-columns: minmax(210px, 0.62fr) minmax(0, 1.38fr);
+  gap: 0;
+  align-items: stretch;
+  min-width: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.26);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.26);
+  border-left: 3px solid rgba(148, 163, 184, 0.38);
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-strip.is-ok{
+  border-left-color: #16a34a;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-strip.is-warning{
+  border-left-color: #d97706;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary{
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 12px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary span,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary strong,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary small{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary strong{
+  color: var(--mes-ui-text);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.16;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary small{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: 540;
+  line-height: 1.2;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metrics{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  min-width: 0;
+  border-left: 1px solid rgba(148, 163, 184, 0.20);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric{
+  appearance: none;
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  min-width: 0;
+  min-height: 42px;
+  border: 0;
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0;
+  background: transparent;
+  color: var(--mes-ui-text);
+  padding: 0 10px;
+  text-align: left;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric:is(button){
+  cursor: pointer;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric:is(button):hover,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-active{
+  background: rgba(37, 99, 235, 0.055);
+  box-shadow: inset 0 -2px 0 rgba(37, 99, 235, 0.42);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric span,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric strong,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric small{
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: 660;
+  text-transform: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: 720;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric small{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: 520;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-ok strong{
+  color: #15803d;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-warning strong{
+  color: #b45309;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-neutral strong{
+  color: var(--mes-ui-muted);
+}main.app-shell[data-layout-page="planning"] .planning-order-page :is(.planning-order-phase, .planning-order-lane-head, .planning-order-step-pill, .planning-order-record-section > header, .planning-order-map-head) strong{
+  font-weight: var(--mes-ui-weight-semibold, 600) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table-wrap{
+  width: 100% !important;
+  max-width: 100% !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  overscroll-behavior: auto !important;
+  scrollbar-gutter: auto !important;
+  -webkit-overflow-scrolling: auto;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table{
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-name{
+  width: 31% !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-labor{
+  width: 42% !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-context{
+  width: 10% !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-quantity{
+  width: 8% !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-state{
+  width: 9% !important;
+}@media (max-width: 768px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table-wrap{
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-gutter: stable !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(1),
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(1){
+  width: 31% !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(2),
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(2){
+  width: 42% !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  padding-right: 6px !important;
+  padding-left: 6px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(3),
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(3){
+  width: 10% !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(4),
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(4){
+  width: 8% !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(5),
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(5){
+  width: 9% !important;
+  padding-right: 8px !important;
+  padding-left: 8px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th{
+  font-weight: 600 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(th, td){
+  min-width: 0 !important;
+  vertical-align: middle !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table [data-planning-order-row]{
+  cursor: pointer;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:first-child{
+  height: auto;
+  overflow: visible;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row td{
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row td:first-child{
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-object-row.is-selected td,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-selected td{
+  background: var(--mes-ui-selected) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-warning td{
+  background: #fffbeb;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-output td,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-warehouse td{
+  background: color-mix(in srgb, var(--mes-success-soft, #ecfdf5), #ffffff 58%);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-type-icon-badge{
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #f8fafc;
+  color: #475569;
+  vertical-align: middle;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-type-icon-badge svg{
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-tree-cell{
+  --speki-tree-line-bleed-top: 8px;
+  --speki-tree-line-bleed-bottom: 8px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 100%;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .route-tree-cell{
+  --speki-tree-line-bleed-top: 4px;
+  --speki-tree-line-bleed-bottom: 4px;
+  height: auto;
+  min-height: 36px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-tree-cell .speki-tree-object{
+  display: grid;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-name-cell strong{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-module-font-sm) !important;
+  font-weight: 600 !important;
+  line-height: 1.2;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-name-cell small{
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-module-font-xs) !important;
+  font-weight: 500 !important;
+  line-height: 1.2;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-name-cell{
+  gap: 1px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-name-cell strong{
+  font-size: 11px !important;
+  line-height: 13px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-name-cell small{
+  font-size: 9px !important;
+  line-height: 11px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-quantity{
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  font-weight: 400 !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-quantity strong,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-quantity small{
+  overflow: hidden;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 400 !important;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell{
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #ffffff;
+  padding: 5px 7px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-context-cell{
+  min-height: 28px;
+  padding: 3px 6px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell strong,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell small{
+  overflow: hidden;
+  max-width: 100%;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell strong{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: 620;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell small{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  font-weight: 500;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-smt{
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(239, 246, 255, 0.86);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-tht{
+  border-color: rgba(15, 118, 110, 0.24);
+  background: rgba(240, 253, 250, 0.86);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-manual{
+  border-color: rgba(180, 83, 9, 0.24);
+  background: rgba(255, 251, 235, 0.90);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-machine{
+  border-color: rgba(71, 85, 105, 0.22);
+  background: rgba(248, 250, 252, 0.92);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-output{
+  border-color: rgba(22, 163, 74, 0.24);
+  background: rgba(240, 253, 244, 0.86);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field{
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(248, 250, 252, 0.92);
+  color: var(--mes-ui-text, #10233c);
+  padding: 3px 6px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field span{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background: rgba(239, 246, 255, 0.92);
+  color: #1d4ed8;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  text-transform: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field input{
+  min-width: 0;
+  width: 100%;
+  height: 20px;
+  min-height: 20px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--mes-ui-text, #10233c) !important;
+  padding: 0 !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  line-height: 14px !important;
+  outline: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field input::placeholder{
+  color: var(--mes-ui-muted, #667085);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field:focus-within{
+  border-color: rgba(37, 99, 235, 0.42);
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-labor{
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(92px, 0.18fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--mes-ui-text, #10233c);
+  padding: 0;
+  text-align: left;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head span,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head strong{
+  overflow: hidden;
+  min-width: 0;
+  color: var(--mes-ui-text, #10233c);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head span{
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--mes-ui-muted, #667085);
+  padding: 0;
+  font-size: 8px;
+  font-weight: 640;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head strong{
+  flex: 1 1 auto;
+  color: var(--mes-ui-text, #10233c);
+  font-size: 12px;
+  font-weight: 700;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 90px);
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-fields{
+  display: grid;
+  grid-template-columns: minmax(76px, 0.68fr) minmax(86px, 0.76fr) minmax(104px, 0.92fr);
+  gap: 4px;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #ffffff;
+  padding: 0 4px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result span,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result strong{
+  overflow: hidden;
+  color: var(--mes-ui-text, #10233c);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result span{
+  color: var(--mes-ui-muted, #667085);
+  font-size: 8px;
+  font-weight: 540;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result strong{
+  font-size: 9px;
+  font-weight: 620;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field{
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-mode{
+  display: block;
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-mode select{
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  border-radius: var(--mes-ui-radius-xs);
+  background: #ffffff !important;
+  color: var(--mes-ui-text, #10233c) !important;
+  padding: 0 18px 0 7px !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  line-height: 16px !important;
+  outline: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-mode select:focus{
+  border-color: rgba(37, 99, 235, 0.42) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference{
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #ffffff;
+  padding: 0 5px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field span,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference span{
+  overflow: hidden;
+  min-width: 0;
+  color: var(--mes-ui-muted, #667085);
+  font-size: 8.5px;
+  font-weight: 620;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference span{
+  display: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference strong{
+  overflow: hidden;
+  color: var(--mes-ui-text, #10233c);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context{
+  padding: 0 3px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context strong{
+  font-size: 10px;
+  letter-spacing: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable{
+  display: grid;
+  grid-template-columns: minmax(44px, 0.50fr) minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  padding: 0 4px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input{
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  min-height: 26px !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  border-radius: 4px;
+  background: rgba(248, 250, 252, 0.92) !important;
+  color: var(--mes-ui-text, #10233c) !important;
+  padding: 0 5px !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  line-height: 14px !important;
+  text-align: center;
+  outline: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input::-webkit-outer-spin-button,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input::-webkit-inner-spin-button{
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input[type="number"]{
+  appearance: textfield;
+  -moz-appearance: textfield;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input:focus{
+  border-color: rgba(37, 99, 235, 0.42) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference:not(.is-editable){
+  justify-content: flex-start;
+  gap: 3px;
+  border-color: transparent;
+  background: transparent;
+  padding: 0 2px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference:not(.is-editable) span{
+  display: inline;
+  flex: 0 0 auto;
+  color: var(--mes-ui-muted, #667085);
+  font-size: 8px;
+  font-weight: 620;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference:not(.is-editable) strong{
+  color: var(--mes-ui-muted, #667085);
+  font-size: 9px;
+  font-weight: 620;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input{
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  border-radius: var(--mes-ui-radius-xs);
+  background: #ffffff !important;
+  color: var(--mes-ui-text, #10233c) !important;
+  padding: 0 8px !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  line-height: 16px !important;
+  outline: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input::-webkit-outer-spin-button,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input::-webkit-inner-spin-button{
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input[type="number"]{
+  appearance: textfield;
+  -moz-appearance: textfield;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input:focus{
+  border-color: rgba(37, 99, 235, 0.42) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-labor:focus-within{
+  outline: none;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-labor.is-calculator-mode{
+  background: transparent;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-calculator{
+  border-color: rgba(37, 99, 235, 0.18);
+  background: rgba(239, 246, 255, 0.92);
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell{
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  height: 28px;
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(248, 250, 252, 0.94);
+  color: var(--mes-ui-text, #10233c);
+  padding: 2px 7px;
+  text-align: left;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell span,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell strong,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell small{
+  overflow: hidden;
+  min-width: 0;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell span{
+  flex: 0 1 auto;
+  color: var(--mes-ui-muted, #667085);
+  font-size: 8px;
+  font-weight: 620;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell strong{
+  flex: 0 0 auto;
+  color: var(--mes-ui-text, #10233c);
+  font-size: 10px;
+  font-weight: 650;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell small{
+  flex: 1 1 auto;
+  text-align: right;
+  color: var(--mes-ui-muted, #667085);
+  font-size: 8px;
+  font-weight: 520;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-state-cell{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-state-cell .planning-order-state-token{
+  min-width: 0;
+  max-width: 110px;
+  overflow: hidden;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item :is(strong, small, i),
+main.app-shell[data-layout-page="routes"] .routes-page .route-lineage-panel :is(strong, em),
+main.app-shell[data-layout-page="routes"] .routes-page .route-card-kind-pill{
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item small{
+  display: block;
+}main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item small i{
+  display: inline;
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-supply .planning-order-register-row,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-wip .planning-order-register-row,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-operations .planning-order-register-row{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-supply .planning-order-register-row{
+    grid-template-areas:
+      "item status"
+      "qty route"
+      "actions actions" !important;
+  }
+}/* Planning Gantt: outlined sausages without fill for every slot variant. */
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot{
+  background: transparent !important;
+  border-color: var(--slot-border, var(--mes-gantt-plan-border)) !important;
+  border-style: dashed !important;
+  color: var(--slot-text, var(--mes-primary)) !important;
+  box-shadow: none !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:not(.is-segmented){
+  border-width: 1px !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-completed,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.material-transfer-slot{
+  background: transparent !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-in_progress,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-problem,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.status-overdue,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.has-warning.warning,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.has-warning.critical{
+  background: transparent !important;
+  border-style: dashed !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented{
+  border-color: transparent !important;
+  background: transparent !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.slot-working-segment, .slot-non-working-segment){
+  background: transparent !important;
+  border-style: dashed !important;
+  box-shadow: none !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-working-segment{
+  border-color: var(--slot-border, var(--mes-gantt-plan-border)) !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-non-working-segment{
+  border-color: var(--slot-break-border, var(--mes-gantt-break-border)) !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented :is(.slot-working-segment, .slot-non-working-segment).is-continuation-start{
+  border-left-width: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented :is(.slot-working-segment, .slot-non-working-segment).is-continuation-end{
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path-underlay{
+  display: none !important;
+  opacity: 0 !important;
+  stroke: transparent !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path.dependency-path-muted{
+  display: none !important;
+  opacity: 0 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path{
+  stroke-width: 1px !important;
+  stroke-dasharray: 4 4 !important;
+  stroke-linecap: butt !important;
+  filter: none !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path.is-transfer{
+  stroke-width: 1px !important;
+  stroke-dasharray: 4 4 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .week-dependencies .dependency-path{
+  stroke-dasharray: 4 4 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow{
+  fill: none !important;
+  stroke: #475569 !important;
+  stroke-width: 1px !important;
+  stroke-linecap: butt !important;
+  stroke-linejoin: round !important;
+  filter: none !important;
+  paint-order: normal !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow.has-issue{
+  filter: none !important;
+  paint-order: normal !important;
+  stroke: #475569 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-arrow.is-transfer{
+  fill: none !important;
+  stroke: #2563eb !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.slot-accent, .slot-working-segment .slot-accent, .slot-non-working-segment .slot-accent){
+  background: transparent !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.operation-slot .slot-content, .slot-working-segment .slot-content, .slot-non-working-segment .slot-content){
+  background: transparent !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-transfer-batch-indicator{
+  background: transparent !important;
+  border-color: var(--slot-border, var(--mes-gantt-plan-border)) !important;
+  border-style: dashed !important;
+  box-shadow: none !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-transfer-batch-indicator::after{
+  display: none !important;
+}/* Planning Gantt: compact row plan/fact cells in the frozen resource column. */
+main.app-shell[data-layout-page="gantt"] .gantt-shell{
+  --gantt-row-metric-width: 48px;
+  --gantt-row-metrics-width: calc(var(--gantt-row-metric-width) * 2);
+}main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.timeline-corner, .row-label){
+  position: sticky !important;
+  padding-right: calc(var(--gantt-row-metrics-width) + 8px) !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-row.workCenter-row .department-label .workcenter-name{
+  font-weight: var(--mes-ui-weight-regular, 500) !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric-head,
+main.app-shell[data-layout-page="gantt"] .gantt-row-metrics{
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  display: grid;
+  grid-template-columns: repeat(2, var(--gantt-row-metric-width));
+  width: var(--gantt-row-metrics-width);
+  border-left: 1px solid var(--mes-border);
+  background: color-mix(in srgb, var(--mes-ui-surface-soft) 90%, white);
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metrics{
+  background: color-mix(in srgb, var(--mes-ui-surface) 94%, var(--mes-ui-surface-soft));
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric-head b,
+main.app-shell[data-layout-page="gantt"] .gantt-row-metric{
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  border-left: 1px solid rgba(148, 163, 184, 0.28);
+  color: var(--mes-text-muted);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric-head b:first-child,
+main.app-shell[data-layout-page="gantt"] .gantt-row-metric:first-child{
+  border-left: 0;
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric.is-plan{
+  color: var(--mes-text);
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric.is-fact{
+  font-weight: 760;
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric.is-empty{
+  color: #94a3b8;
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric.is-ok{
+  color: #047857;
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric.is-behind{
+  color: #b45309;
+}main.app-shell[data-layout-page="gantt"] .gantt-row-metric.is-over{
+  color: #0f766e;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .production-side{
+  margin-right: 2px;
+}/* Planning Gantt UI scenarios: the live slot now mirrors Gantt Design System states. */
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-layer{
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 22 !important;
+  display: grid !important;
+  grid-template-rows: 1fr !important;
+  gap: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-meta{
+  position: absolute;
+  inset: auto 0 calc(100% + 2px);
+  z-index: 6;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 7px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  line-height: 9px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-track{
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 0;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-layer.has-single-level .slot-operational-track{
+  grid-row: 1 / -1;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment{
+  position: absolute;
+  inset: 0 auto 0 var(--segment-left, 0%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--segment-width, 0%);
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 1;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment span{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  max-width: calc(100% - 2px);
+  height: 12px;
+  padding: 0 3px;
+  overflow: hidden;
+  border-radius: var(--mes-radius-xs, 4px);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 7px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-assigned{
+  background: rgba(37, 99, 235, 0.36);
+  color: #1d4ed8;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-assignment-over{
+  background: rgba(37, 99, 235, 0.56);
+  color: #1e3a8a;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-assignment-rest{
+  background: rgba(191, 219, 254, 0.82);
+  color: #1d4ed8;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-done{
+  background: rgba(22, 163, 74, 0.36);
+  color: #166534;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-over{
+  background: rgba(21, 128, 61, 0.54);
+  color: #14532d;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-negative{
+  background: rgba(244, 63, 94, 0.34);
+  color: #9f1239;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-plan-rest{
+  background: rgba(251, 113, 133, 0.16);
+  color: rgba(159, 18, 57, 0.68);
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-full{
+  left: 0 !important;
+  width: 100% !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-assigned span,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-assignment-over span,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-assignment-rest span{
+  color: #1d4ed8;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-done span,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-over span{
+  color: #166534;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-negative span,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.is-fact-plan-rest span{
+  color: #9f1239;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-label{
+  right: 2px !important;
+  z-index: 8 !important;
+  height: 13px !important;
+  max-width: calc(100% - 4px) !important;
+  border: 0 !important;
+  border-radius: var(--mes-radius-xs, 4px) !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+  box-shadow: none !important;
+  font-size: 7px !important;
+  line-height: 13px !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.operation-slot.is-compact, .operation-slot.is-tiny) .slot-operational-segment span{
+  display: none !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.operation-slot.is-compact, .operation-slot.is-tiny) .slot-operational-meta{
+  display: none !important;
+}@media (max-width: 1360px) {main.app-shell[data-layout-page="gantt"] .gantt-shell{
+    --gantt-row-metric-width: 40px;
+  }main.app-shell[data-layout-page="gantt"] .gantt-row-metric-head b,
+main.app-shell[data-layout-page="gantt"] .gantt-row-metric{
+    font-size: 8px;
+  }
+}@media (max-width: 860px) {main.app-shell[data-layout-page="gantt"] .gantt-shell{
+    --gantt-row-metrics-width: 0px;
+  }main.app-shell[data-layout-page="gantt"] .gantt-row-metric-head,
+main.app-shell[data-layout-page="gantt"] .gantt-row-metrics{
+    display: none !important;
+  }main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.timeline-corner, .row-label){
+    padding-right: 7px !important;
+  }
+}/* Status directory: keep annotation and impact readable in the default desktop view. */
+main.app-shell[data-layout-page="directories"] .directory-status-table{
+  table-layout: fixed !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="directories"] .directory-status-table-card{
+  max-height: none !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="directories"] .directories-status-page{
+  align-items: start !important;
+}main.app-shell[data-layout-page="directories"] .directory-status-workspace{
+  grid-template-rows: auto auto !important;
+  height: auto !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="directories"] .directory-status-content{
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="directories"] .directory-status-table-wrap{
+  max-height: none !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="directories"] .directory-status-table th,
+main.app-shell[data-layout-page="directories"] .directory-status-table td{
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-group{
+  width: 12%;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-origin-module{
+  width: 10%;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-change-module{
+  width: 12%;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-used-in{
+  width: 18%;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-registry-kind{
+  width: 110px;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-name{
+  width: 10%;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-audit{
+  width: 76px;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-type{
+  width: 105px;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-code{
+  width: 90px;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-annotation{
+  width: 255px;
+}main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-impact-view{
+  width: 32%;
+}main.app-shell[data-layout-page="directories"] .directory-status-table .actions-cell{
+  width: 6%;
+  min-width: 64px !important;
+  max-width: 86px !important;
+  position: static !important;
+  right: auto !important;
+  z-index: auto !important;
+  background: inherit !important;
+}main.app-shell[data-layout-page="directories"] .status-impact-cell{
+  display: grid;
+  gap: 3px;
+  max-width: 100%;
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 14px;
+}main.app-shell[data-layout-page="directories"] .status-impact-cell span{
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 5px;
+  align-items: start;
+  min-width: 0;
+}main.app-shell[data-layout-page="directories"] .status-impact-cell b{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}main.app-shell[data-layout-page="directories"] .status-impact-cell em{
+  min-width: 0;
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 13px;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="directories"] .directory-header{
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start !important;
+}main.app-shell[data-layout-page="directories"] .directory-header p{
+  max-width: 72ch;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}main.app-shell[data-layout-page="directories"] .directory-actions{
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+}main.app-shell[data-layout-page="directories"] .status-audit-token{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 20px;
+  border: 1px solid var(--status-audit-border, var(--mes-ui-line));
+  border-radius: var(--mes-ui-pill);
+  background: var(--status-audit-bg, var(--mes-ui-surface-soft));
+  padding: 2px 7px;
+  color: var(--status-audit-color, var(--mes-ui-text-secondary));
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="directories"] .status-audit-token.is-visual{
+  --status-audit-bg: #f8fafc;
+  --status-audit-border: #dbe3ef;
+  --status-audit-color: #64748b;
+}main.app-shell[data-layout-page="directories"] .status-audit-token.is-computed{
+  --status-audit-bg: #f0fdf4;
+  --status-audit-border: #bbf7d0;
+  --status-audit-color: #15803d;
+}main.app-shell[data-layout-page="directories"] .status-audit-token.is-flag{
+  --status-audit-bg: #eff6ff;
+  --status-audit-border: #bfdbfe;
+  --status-audit-color: #1d4ed8;
+}main.app-shell[data-layout-page="directories"] .status-audit-token.is-core{
+  --status-audit-bg: #fef2f2;
+  --status-audit-border: #fecaca;
+  --status-audit-color: #b91c1c;
+}main.app-shell[data-layout-page="directories"] .status-audit-token.is-review{
+  --status-audit-bg: #fefce8;
+  --status-audit-border: #fde68a;
+  --status-audit-color: #854d0e;
+}main.app-shell[data-layout-page="directories"] .directory-status-table tr.is-status-audit-visual td{
+  background: color-mix(in srgb, #f8fafc 66%, transparent);
+}main.app-shell[data-layout-page="directories"] .status-impact-map{
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-soft);
+  padding: 10px;
+}main.app-shell[data-layout-page="directories"] .status-impact-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  align-items: center;
+}main.app-shell[data-layout-page="directories"] .status-impact-head span{
+  grid-column: 1 / -1;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+  text-transform: none;
+}main.app-shell[data-layout-page="directories"] .status-impact-head strong{
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 16px;
+}main.app-shell[data-layout-page="directories"] .status-impact-head em{
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-surface);
+  padding: 2px 8px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="directories"] .status-impact-head em.is-critical{
+  border-color: color-mix(in srgb, var(--mes-signal-danger, #ef4444) 32%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-signal-danger, #ef4444) 9%, var(--mes-ui-surface));
+  color: var(--mes-signal-danger, #b91c1c);
+}main.app-shell[data-layout-page="directories"] .status-impact-head em.is-warning{
+  border-color: color-mix(in srgb, var(--mes-signal-warning, #f59e0b) 36%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-signal-warning, #f59e0b) 11%, var(--mes-ui-surface));
+  color: #92400e;
+}main.app-shell[data-layout-page="directories"] .status-impact-head em.is-ok{
+  border-color: color-mix(in srgb, var(--mes-signal-ready, #16a34a) 32%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-signal-ready, #16a34a) 9%, var(--mes-ui-surface));
+  color: var(--mes-signal-ready, #15803d);
+}main.app-shell[data-layout-page="directories"] .status-impact-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}main.app-shell[data-layout-page="directories"] .status-impact-grid article{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--mes-ui-line) 86%, transparent);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: 7px;
+}main.app-shell[data-layout-page="directories"] .status-impact-grid span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}main.app-shell[data-layout-page="directories"] .status-impact-grid strong{
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 14px;
+}main.app-shell[data-layout-page="directories"] .status-impact-map p{
+  margin: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 14px;
+}main.app-shell[data-layout-page="directories"] .directory-reader-modal{
+  max-width: min(920px, calc(100vw - 32px));
+}main.app-shell[data-layout-page="directories"] .directory-reader-list{
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}main.app-shell[data-layout-page="directories"] .directory-reader-list article{
+  display: grid;
+  grid-template-columns: minmax(150px, 210px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--mes-ui-line) 88%, transparent);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: 8px 10px;
+}main.app-shell[data-layout-page="directories"] .directory-reader-list span{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 14px;
+}main.app-shell[data-layout-page="directories"] .directory-reader-list strong{
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 15px;
+  overflow-wrap: anywhere;
+}@media (max-width: 720px) {main.app-shell[data-layout-page="directories"] .directory-reader-list article{
+    grid-template-columns: minmax(0, 1fr);
+  }
+}/* Employees module: org diagrams should expand inside the page,
+not create nested scroll areas. */
+main.app-shell[data-layout-page="employees"] .employees-content{
+  display: block !important;
+}main.app-shell[data-layout-page="employees"] .employees-content > .module-panel + .module-panel{
+  margin-top: 8px;
+}main.app-shell[data-layout-page="employees"] .employees-content .module-panel,
+main.app-shell[data-layout-page="employees"] .employees-org-panel{
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  grid-template-rows: auto auto;
+}main.app-shell[data-layout-page="employees"] .employees-org-chart{
+  position: relative;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}/* Employees module: compact horizontal role levels inside each department. */
+main.app-shell[data-layout-page="employees"] .employee-root-card{
+  position: relative;
+  width: min(520px, 100%) !important;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 8px 9px;
+}main.app-shell[data-layout-page="employees"] .employee-root-card strong,
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head strong{
+  font-size: 11px;
+  font-weight: 860;
+}main.app-shell[data-layout-page="employees"] .employee-root-card small,
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head small,
+main.app-shell[data-layout-page="employees"] .employee-person-card small,
+main.app-shell[data-layout-page="employees"] .employee-resource-card small,
+main.app-shell[data-layout-page="employees"] .employee-empty-card small{
+  font-size: 9px;
+  font-weight: 700;
+}main.app-shell[data-layout-page="employees"] .employee-root-card em,
+main.app-shell[data-layout-page="employees"] .employee-org-unit-head em,
+main.app-shell[data-layout-page="employees"] .employee-person-card em,
+main.app-shell[data-layout-page="employees"] .employee-resource-card em{
+  min-height: 18px;
+  padding: 0 6px;
+  font-size: 9px;
+}main.app-shell[data-layout-page="employees"] .employee-node-icon,
+main.app-shell[data-layout-page="employees"] .employee-avatar{
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: 9px;
+}main.app-shell[data-layout-page="employees"] .employee-node-icon svg{
+  width: 13px;
+  height: 13px;
+}main.app-shell[data-layout-page="employees"] .employee-org-unit{
+  gap: 7px;
+  padding: 7px 8px;
+}main.app-shell[data-layout-page="employees"] .employee-org-unit-head{
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 7px;
+}main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding-left: 0;
+}main.app-shell[data-layout-page="employees"] .employee-org-unit-flow::before{
+  display: none;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage{
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--employee-tone, #64748b) 18%, #e3e9f0);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--employee-tone, #64748b) 3%, #ffffff);
+  padding: 6px;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage::before{
+  display: none;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage:not(:last-child)::after{
+  content: "→";
+  position: absolute;
+  top: 10px;
+  right: -13px;
+  z-index: 2;
+  width: 12px;
+  color: color-mix(in srgb, var(--employee-tone, #64748b) 60%, #94a3b8);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}main.app-shell[data-layout-page="employees"] .employee-stage-label{
+  justify-content: start;
+  min-height: 22px;
+  border-radius: 6px;
+  padding: 0 7px;
+  font-size: 9px;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage-items{
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+}main.app-shell[data-layout-page="employees"] .employee-person-card,
+main.app-shell[data-layout-page="employees"] .employee-resource-card,
+main.app-shell[data-layout-page="employees"] .employee-empty-card{
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 6px;
+}main.app-shell[data-layout-page="employees"] .employee-person-card em,
+main.app-shell[data-layout-page="employees"] .employee-resource-card em{
+  justify-self: start;
+  grid-column: 2;
+  min-height: 16px;
+  margin-top: -2px;
+}@media (max-width: 1280px) {main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }main.app-shell[data-layout-page="employees"] .employee-org-stage:nth-child(2n)::after{
+    display: none;
+  }
+}@media (max-width: 760px) {main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell[data-layout-page="employees"] .employee-org-stage::after{
+    display: none !important;
+  }
+}main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage:not(:last-child)::after{
+  display: block !important;
+}main.app-shell[data-layout-page="employees"] .employee-person-card strong,
+main.app-shell[data-layout-page="employees"] .employee-resource-card strong,
+main.app-shell[data-layout-page="employees"] .employee-empty-card strong{
+  font-size: 10px;
+  font-weight: 820;
+}main.app-shell[data-layout-page="employees"] .employee-person-card,
+main.app-shell[data-layout-page="employees"] .employee-resource-card,
+main.app-shell[data-layout-page="employees"] .employee-empty-card{
+  min-height: 30px;
+  padding: 4px 5px;
+}/* Employees module: align the org chart with the MES UI kit visual language. */
+main.app-shell[data-layout-page="employees"]{
+  --employee-role-root: var(--mes-ui-primary);
+  --employee-role-owner: #7c3aed;
+  --employee-role-master: var(--mes-ui-warning);
+  --employee-role-employee: var(--mes-ui-success);
+  --employee-role-resource: var(--mes-ui-muted);
+}main.app-shell[data-layout-page="employees"] .employees-page{
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+}main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only{
+  grid-template-columns: minmax(0, 1fr) !important;
+}main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only .employees-workspace{
+  display: block !important;
+  min-width: 0 !important;
+  overflow: auto !important;
+}main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only .employees-content{
+  margin: 0 !important;
+  padding: 8px !important;
+}main.app-shell[data-layout-page="employees"] .employees-page.is-diagram-only .employees-org-panel{
+  margin: 0 !important;
+}main.app-shell[data-layout-page="employees"] .ui-panel-head{
+  border-bottom-color: var(--mes-ui-line) !important;
+  background: transparent !important;
+  min-height: 38px !important;
+}main.app-shell[data-layout-page="employees"] .ui-panel-head strong{
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-type-card-title, 12px) !important;
+  font-weight: var(--mes-ui-weight-bold, 760) !important;
+  line-height: var(--mes-ui-line-card-title, 16px) !important;
+}main.app-shell[data-layout-page="employees"] :is(.employee-root-card, .employee-org-unit, .employee-person-card, .employee-resource-card, .employee-empty-card){
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface) !important;
+  box-shadow: none !important;
+}main.app-shell[data-layout-page="employees"] .employee-root-card{
+  border-color: var(--mes-ui-primary-border) !important;
+  background: var(--mes-ui-primary-soft) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset !important;
+}main.app-shell[data-layout-page="employees"] .employee-root-card::after{
+  display: none !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-unit{
+  border-color: var(--mes-ui-line) !important;
+  background: var(--mes-ui-surface) !important;
+  box-shadow: inset 2px 0 0 var(--employee-tone, var(--mes-ui-primary)) !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-unit-head{
+  min-height: 30px !important;
+}main.app-shell[data-layout-page="employees"] :is(.employee-root-card strong, .employee-org-unit-head strong, .employee-person-card strong, .employee-resource-card strong, .employee-empty-card strong){
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-type-body, 11px) !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+  line-height: var(--mes-ui-line-body, 15px) !important;
+}main.app-shell[data-layout-page="employees"] :is(.employee-root-card small, .employee-org-unit-head small, .employee-person-card small, .employee-resource-card small, .employee-empty-card small){
+  color: var(--mes-ui-muted) !important;
+  font-size: var(--mes-ui-type-caption, 10px) !important;
+  font-weight: var(--mes-ui-weight-regular, 600) !important;
+  line-height: var(--mes-ui-line-caption, 13px) !important;
+}main.app-shell[data-layout-page="employees"] :is(.employee-node-icon, .employee-avatar){
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  background: var(--mes-ui-surface-soft) !important;
+  color: var(--employee-tone, var(--mes-ui-primary)) !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage{
+  border-color: var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface-soft) !important;
+}main.app-shell[data-layout-page="employees"] .employee-stage-label,
+main.app-shell[data-layout-page="employees"] :is(.employee-root-card em, .employee-org-unit-head em, .employee-person-card em, .employee-resource-card em){
+  border: 1px solid var(--mes-ui-line) !important;
+  border-radius: var(--mes-ui-pill) !important;
+  background: var(--mes-ui-surface) !important;
+  color: var(--employee-tone, var(--mes-ui-text-secondary)) !important;
+  font-size: var(--mes-ui-type-caption, 10px) !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage.is-owner,
+main.app-shell[data-layout-page="employees"] .employee-person-card.is-owner{
+  --employee-tone: var(--employee-role-owner);
+}main.app-shell[data-layout-page="employees"] .employee-org-stage.is-master,
+main.app-shell[data-layout-page="employees"] .employee-person-card.is-master{
+  --employee-tone: var(--employee-role-master);
+}main.app-shell[data-layout-page="employees"] .employee-org-stage.is-employee,
+main.app-shell[data-layout-page="employees"] .employee-person-card.is-employee{
+  --employee-tone: var(--employee-role-employee);
+}main.app-shell[data-layout-page="employees"] .employee-org-stage.is-resource,
+main.app-shell[data-layout-page="employees"] .employee-resource-card{
+  --employee-tone: var(--employee-role-resource);
+}main.app-shell[data-layout-page="employees"] .employee-org-stage:not(:last-child)::after{
+  color: var(--mes-ui-muted-soft) !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-avatar, .employee-node-icon, .employee-person-card em, .employee-resource-card em){
+  display: none !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-person-card, .employee-resource-card, .employee-empty-card){
+  display: block !important;
+  min-height: 36px !important;
+  padding: 6px 7px !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-person-card strong, .employee-resource-card strong, .employee-empty-card strong){
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}main.app-shell[data-layout-page="employees"] .employee-org-stage :is(.employee-person-card small, .employee-resource-card small, .employee-empty-card small){
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}main.app-shell[data-layout-page="employees"] .employee-stage-label{
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map{
+  position: relative;
+  display: grid;
+  gap: 34px;
+  min-width: 0;
+  padding: 38px 0 12px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors{
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}body.is-mes-visual-qa-inspecting main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors{
+  z-index: 4;
+  pointer-events: none;
+}body.is-mes-visual-qa-inspecting main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector{
+  pointer-events: stroke;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker path{
+  fill: color-mix(in srgb, var(--mes-ui-primary) 52%, var(--mes-ui-line-strong));
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker#employeeHierarchyArrowResource path{
+  fill: color-mix(in srgb, var(--employee-role-resource) 68%, var(--mes-ui-line-strong));
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker#employeeHierarchyArrowPerson path{
+  fill: color-mix(in srgb, #16a34a 60%, var(--mes-ui-line-strong));
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker#employeeHierarchyArrowCapacity path{
+  fill: color-mix(in srgb, #6366f1 56%, var(--mes-ui-line-strong));
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector{
+  fill: none;
+  stroke: color-mix(in srgb, var(--mes-ui-primary) 46%, var(--mes-ui-line-strong));
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.76;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-trunk,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-bus{
+  stroke-width: 1.2;
+  opacity: 0.68;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-drop{
+  opacity: 0.84;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-resource{
+  stroke: color-mix(in srgb, var(--mes-ui-primary) 46%, var(--mes-ui-line-strong));
+  stroke-dasharray: none;
+  opacity: 0.84;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-person{
+  stroke: color-mix(in srgb, #16a34a 48%, var(--mes-ui-line-strong));
+  opacity: 0.84;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-capacity{
+  stroke: color-mix(in srgb, #6366f1 48%, var(--mes-ui-line-strong));
+  opacity: 0.82;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map::before{
+  display: none;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer{
+  position: relative;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+  min-width: 0;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer:not(:first-child)::before{
+  display: none;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label{
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  padding: 4px 5px;
+  text-align: center;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label small{
+  max-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label strong{
+  display: block;
+  color: var(--mes-ui-text-secondary);
+  font-size: 6.6px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 7.6px;
+  overflow-wrap: normal;
+  white-space: normal;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer-label small{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 13px;
+  min-height: 10px;
+  border: 1px solid color-mix(in srgb, var(--mes-ui-line) 84%, transparent);
+  border-radius: 999px;
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-muted);
+  font-size: 6px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 8px;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-row{
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--employee-grid-columns), minmax(32px, 1fr));
+  gap: 2px;
+  align-items: stretch;
+  min-width: 0;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-row::before{
+  display: none;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer:first-child .employee-hierarchy-row::before{
+  top: 0;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node{
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 1px 3px;
+  align-content: center;
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-xs);
+  background: var(--mes-ui-surface);
+  box-shadow: inset 0 2px 0 var(--employee-tone, var(--mes-ui-primary));
+  padding: 4px 3px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node::before{
+  display: none;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node span{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  grid-row: 1 / span 2;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--mes-ui-radius-xs);
+  background: var(--mes-ui-surface-soft);
+  color: var(--employee-tone, var(--mes-ui-primary));
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node svg{
+  width: 10px;
+  height: 10px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node small{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node strong{
+  color: var(--mes-ui-text);
+  font-size: 8px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 10px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node small{
+  color: var(--mes-ui-muted);
+  font-size: 7px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 9px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource{
+  min-height: 25px;
+  grid-template-columns: 12px minmax(0, 1fr);
+  padding: 3px;
+  box-shadow: inset 0 2px 0 var(--employee-role-resource);
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node span,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource span{
+  width: 12px;
+  height: 12px;
+  background: transparent;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node small,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource small{
+  display: none;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource strong{
+  font-size: 7px;
+  line-height: 9px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-production,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-section{
+  --employee-tone: #0891b2;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-master{
+  --employee-tone: #d97706;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-employee{
+  --employee-tone: #16a34a;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-capacity{
+  --employee-tone: #6366f1;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource{
+  --employee-tone: var(--employee-role-resource);
+}main.app-shell[data-layout-page="employees"] .employee-root-card{
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-items: center !important;
+  width: min(360px, 100%) !important;
+  min-height: 34px !important;
+  border-color: #bfdbfe !important;
+  background: #edf5ff !important;
+  box-shadow: none !important;
+  padding: 7px 12px !important;
+  text-align: center !important;
+}main.app-shell[data-layout-page="employees"] .employee-root-card :is(.employee-node-icon, small, em, svg){
+  display: none !important;
+}main.app-shell[data-layout-page="employees"] .employee-root-card strong{
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--mes-ui-text) !important;
+  font-size: 9px !important;
+  line-height: 12px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-row{
+  gap: 1px !important;
+  grid-template-columns: repeat(var(--employee-grid-columns), minmax(12px, 1fr)) !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource{
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto !important;
+  gap: 0 !important;
+  align-content: center !important;
+  justify-items: center !important;
+  min-height: 32px !important;
+  border-color: var(--employee-node-border, var(--mes-ui-line)) !important;
+  background: var(--employee-node-bg, #f8fafc) !important;
+  box-shadow: none !important;
+  padding: 3px 4px !important;
+  text-align: center !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node :is(span, svg){
+  display: none !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer.is-resources .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource strong{
+  display: block !important;
+  max-width: 100%;
+  overflow: visible !important;
+  color: var(--mes-ui-text) !important;
+  font-size: 6px !important;
+  font-weight: var(--mes-ui-weight-semibold, 700) !important;
+  hyphens: auto;
+  line-height: 7px !important;
+  overflow-wrap: anywhere !important;
+  text-align: center !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node small{
+  display: block !important;
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: visible !important;
+  color: var(--mes-ui-muted);
+  font-size: 5.4px !important;
+  font-weight: var(--mes-ui-weight-regular, 500) !important;
+  line-height: 6.4px !important;
+  overflow-wrap: anywhere !important;
+  text-align: center;
+  white-space: normal !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource small{
+  display: none !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-production,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-section{
+  --employee-node-bg: #e9f9fb;
+  --employee-node-border: #bae6fd;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-master{
+  --employee-node-bg: #fff7ed;
+  --employee-node-border: #fed7aa;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-employee{
+  --employee-node-bg: #f0fdf4;
+  --employee-node-border: #bbf7d0;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-capacity{
+  --employee-node-bg: #eef2ff;
+  --employee-node-border: #c7d2fe;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-node.is-resource{
+  --employee-node-bg: #f6f7fb;
+  --employee-node-border: #d9dee8;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-forest{
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+  padding: 24px 8px 12px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch{
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: color-mix(in srgb, var(--mes-ui-surface) 92%, var(--mes-ui-surface-soft));
+  overflow: visible;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch.is-wide{
+  grid-column: 1 / -1;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 36px;
+  border-bottom: 1px solid var(--mes-ui-line);
+  padding: 7px 10px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head div{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head :is(span, small){
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 10px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head small{
+  justify-self: end;
+  max-width: 260px;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch{
+  gap: 24px;
+  padding: 12px 10px 14px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-layer{
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 7px;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-row{
+  grid-template-columns: repeat(var(--employee-grid-columns), minmax(28px, 1fr)) !important;
+  gap: 3px !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch.is-wide .employee-hierarchy-row{
+  grid-template-columns: repeat(var(--employee-grid-columns), minmax(32px, 1fr)) !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-layer.is-resources .employee-hierarchy-node,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-node.is-resource{
+  min-height: 36px !important;
+  padding: 4px 5px !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-node strong,
+main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-node.is-resource strong{
+  font-size: 6.8px !important;
+  line-height: 8px !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .employee-hierarchy-node small{
+  font-size: 5.8px !important;
+  line-height: 7px !important;
+}main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector.is-root-drop{
+  stroke: color-mix(in srgb, var(--mes-ui-primary) 42%, var(--mes-ui-line-strong));
+  stroke-width: 1;
+  opacity: 0.48;
+}@media (min-width: 2200px) {main.app-shell[data-layout-page="employees"] .employee-hierarchy-forest{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch.is-medium{
+    grid-column: span 2;
+  }
+}@media (max-width: 1280px) {main.app-shell[data-layout-page="employees"] .employee-hierarchy-forest{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head small{
+    justify-self: start;
+    max-width: 100%;
+    text-align: left;
+  }
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  min-height: 30px;
+  border-top: 1px solid var(--mes-ui-line);
+  padding: 7px 10px 8px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 9px;
+  line-height: 12px;
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation strong{
+  color: var(--mes-ui-text);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 12px;
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation span{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  white-space: nowrap;
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation i{
+  flex: 0 0 auto;
+  width: 12px;
+  height: 8px;
+  border: 1px solid var(--employee-annotation-border, var(--mes-ui-line));
+  border-radius: 3px;
+  background: var(--employee-annotation-bg, var(--mes-ui-surface-soft));
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-production{
+  --employee-annotation-bg: #e9f9fb;
+  --employee-annotation-border: #bae6fd;
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-person{
+  --employee-annotation-bg: #f0fdf4;
+  --employee-annotation-border: #bbf7d0;
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-capacity{
+  --employee-annotation-bg: #eef2ff;
+  --employee-annotation-border: #c7d2fe;
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation i.is-resource{
+  --employee-annotation-bg: #f6f7fb;
+  --employee-annotation-border: #d9dee8;
+}main.app-shell[data-layout-page="employees"] .employees-org-annotation em{
+  flex: 1 1 260px;
+  min-width: 220px;
+  color: var(--mes-ui-muted);
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-regular, 600);
+}@media (min-width: 1680px) {
+}@media (max-width: 980px) {
+}/* MES UI Kit generation guard.
+   New operational modules must use this contract:
+   .module-data-sidebar + .ui-sidebar-list + .ui-sidebar-item.
+   Module-specific legacy queue/list styles are normalized here so new objects do
+   not revive the old left-stripe active state or mismatched sidebar rhythm. */
+:root{
+  --mes-ui-sidebar-row-height: 34px;
+  --mes-ui-sidebar-row-gap: 6px;
+  --mes-ui-sidebar-row-pad-y: 7px;
+  --mes-ui-sidebar-row-pad-x: 8px;
+  --mes-ui-sidebar-badge-height: 20px;
+  --mes-ui-sidebar-badge-width: 28px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
+  --planning-order-bg: var(--mes-ui-bg) !important;
+  --planning-order-surface: var(--mes-ui-surface-raised) !important;
+  --planning-order-subtle: var(--mes-ui-surface-soft) !important;
+  --planning-order-hover: var(--mes-ui-hover) !important;
+  --planning-order-selected: var(--mes-ui-selected) !important;
+  --planning-order-selected-border: var(--mes-ui-primary) !important;
+  --planning-order-line: var(--mes-ui-line) !important;
+  --planning-order-line-strong: var(--mes-ui-line-strong) !important;
+  --planning-order-text: var(--mes-ui-text) !important;
+  --planning-order-muted: var(--mes-ui-muted) !important;
+  --planning-order-link: var(--mes-ui-primary) !important;
+  --planning-order-radius-sm: var(--mes-ui-radius-sm) !important;
+  --planning-order-radius: var(--mes-ui-radius-lg) !important;
+  --planning-order-radius-lg: var(--mes-ui-radius-xl) !important;
+  --planning-order-shadow: var(--mes-ui-shadow-sm) !important;
+  --planning-order-shadow-soft: var(--mes-ui-shadow-sm) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
+  gap: var(--mes-ui-density-gap) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure{
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  grid-template-rows: minmax(100%, max-content) !important;
+  align-items: stretch !important;
+  gap: var(--mes-ui-density-gap) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-queue,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-main{
+  align-self: stretch !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-main{
+  align-self: flex-start !important;
+  flex: 1 1 auto !important;
+  grid-template-rows: auto max-content !important;
+  height: auto !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-header{
+  align-items: center !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  height: auto !important;
+  min-height: max-content !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-actions{
+  align-self: center !important;
+  justify-self: end !important;
+  width: auto !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-start-date-control{
+  display: grid;
+  grid-template-columns: max-content 132px;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--mes-ui-radius-sm, 8px);
+  background: var(--mes-ui-surface, #fff);
+  padding: 3px 7px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-start-date-control span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-medium, 600);
+  line-height: 12px;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-start-date-control input{
+  box-sizing: border-box;
+  width: 132px;
+  min-width: 0;
+  height: 24px;
+  border: 0;
+  border-radius: var(--mes-ui-radius-xs, 6px);
+  background: rgba(241, 245, 249, 0.92);
+  color: var(--mes-ui-text, #0f172a);
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold, 650);
+  line-height: 14px;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-queue{
+  flex: 0 0 var(--mes-ui-work-sidebar-width) !important;
+  height: auto !important;
+  min-height: 100% !important;
+  width: var(--mes-ui-work-sidebar-width) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-workspace{
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure{
+    flex-direction: column !important;
+  }main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-queue{
+    flex: 0 0 auto !important;
+    width: 100% !important;
+  }
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .planning-order-queue{
+  padding: 8px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-queue .planning-order-route-list{
+  padding: 8px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-queue .planning-order-route-item,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .planning-order-route-item,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-queue .planning-order-route-item{
+  min-height: var(--mes-ui-sidebar-row-height) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  padding: var(--mes-ui-sidebar-row-pad-y) var(--mes-ui-sidebar-row-pad-x) !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-queue .planning-order-route-item.is-active,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .planning-order-route-item.is-active,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-queue .planning-order-route-item.is-active{
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background: var(--mes-ui-selected) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.06) inset !important;
+}main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item :is(strong, small, i),
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-item :is(strong, small){
+  overflow: hidden !important;
+  overflow-wrap: normal !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}/* MES Stabilization Pass v1: keep compact controls usable without changing data density. */
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field input{
+  min-height: 28px !important;
+}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item, .planning-order-queue .planning-order-route-item, .module-data-sidebar .nomenclature-type-filter button, .supply-route-card, .planning-order-phase){
+    min-height: 36px;
+  }
+}/* Status registry: long meaning text must wrap inside the optimized table,
+not hide as a single line. */
+main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-impact-view,
+main.app-shell[data-layout-page="directories"] .directory-status-table .status-impact-cell{
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: normal !important;
+}main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] :is(
+  .directory-header,
+.ui-panel-head,
+.directory-table-toolbar,
+.detail-card-head
+){
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  padding: 8px 10px !important;
+}main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] :is(
+  .directory-header,
+.ui-panel-head,
+.directory-table-toolbar,
+.detail-card-head
+) > *{
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="shiftMasterBoard"]{
+  --shift-board-gap: 8px;
+  --shift-board-radius: var(--mes-ui-radius-xl);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-page{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--shift-board-gap);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--mes-ui-density-page);
+  overflow: hidden;
+  background: var(--mes-ui-bg-gradient), var(--mes-ui-bg);
+}main.app-shell[data-layout-page="shiftMasterBoard"] :is(.shift-master-board-workspace, .shift-master-board-panel){
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--shift-board-radius);
+  background: var(--mes-ui-surface-raised);
+  box-shadow: var(--mes-ui-shadow-sm);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-kpis{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  padding: 0 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-kpis article{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  padding: 6px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-kpis :is(span, small){
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 11px;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-kpis strong{
+  color: var(--mes-ui-text);
+  font-size: 13px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 16px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-control{
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px 28px;
+  gap: 5px;
+  align-items: end;
+  min-width: 0;
+  padding: 0 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-field{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-field span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 12px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-field input{
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 15px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-step,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-open{
+  width: 28px;
+  min-width: 28px;
+  min-height: 30px;
+  padding: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-today{
+  grid-column: 1 / 3;
+  justify-content: center;
+  min-height: 30px;
+  padding-inline: 8px;
+  font-size: 10px;
+  line-height: 13px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-calendar-range{
+  grid-column: 3 / 5;
+  display: grid;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(248, 250, 252, 0.86);
+  color: var(--mes-ui-muted);
+  padding: 0 8px;
+  font-size: 9px;
+  line-height: 12px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-workspace{
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  overflow: hidden;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-header{
+  align-items: center;
+  overflow: hidden;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-header p{
+  max-width: 860px;
+}

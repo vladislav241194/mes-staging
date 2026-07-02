@@ -1,6 +1,6 @@
-import { MES_WORK_CENTERS } from "./mes_org_model.js";
+import { getProductionStructureWorkCenters } from "./production_structure_service.js";
 
-export const workCenters = MES_WORK_CENTERS;
+export const workCenters = getProductionStructureWorkCenters();
 
 export function createDefaultPlanningState() {
   return {

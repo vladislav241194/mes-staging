@@ -1,0 +1,3951 @@
+/* MES CSS layer: planning table{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--planning-sheet-muted, #64748b);
+  font-style: normal;
+  font-weight: 900;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .smt-result-kpi-row{
+  flex-wrap: wrap !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .smt-result-kpi-row article{
+  flex: 1 1 calc(20% - 2px) !important;
+  min-width: 76px !important;
+}
+.app-shell[data-layout-page="planning"] .planning-work-detail > .module-panel{
+  overflow: visible;
+}
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-section-head,
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-head,
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-panel-head{
+  align-items: center !important;
+  min-height: 38px;
+}
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-section-head > div,
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-head > div,
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-panel-head > div{
+  min-width: 0;
+}
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-detail-disclosure > summary > em{
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: center;
+  justify-self: end;
+  min-width: 0;
+  min-height: 22px !important;
+  max-width: 100%;
+  padding: 3px 8px !important;
+  border-radius: 5px !important;
+  line-height: 1 !important;
+  text-align: center;
+  white-space: nowrap;
+}
+.app-shell[data-layout-page="planning"] .planning-work-detail .icon-button{
+  align-self: center;
+  justify-self: center;
+}
+.app-shell[data-layout-page="planning"] .planning-order-placement-summary,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary{
+  gap: 8px !important;
+}
+.app-shell[data-layout-page="planning"] .planning-order-placement-summary article,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis article,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary article{
+  align-content: center;
+  min-width: 0;
+  border-radius: 7px;
+}
+.app-shell[data-layout-page="planning"] .planning-order-placement-summary article,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis article,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary article{
+  padding: 7px 8px !important;
+}
+.app-shell[data-layout-page="planning"] .planning-order-placement-summary span,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis span,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis small,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary span,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary small{
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.app-shell[data-layout-page="planning"] .planning-order-placement-summary strong,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis strong,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary strong{
+  min-width: 0;
+  overflow-wrap: anywhere;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-card.is-operation-embedded{
+  display: grid;
+  gap: 8px !important;
+  padding: 8px !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-card.is-operation-embedded > .route-smt-grid,
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-smt-work-grid{
+  gap: 8px !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .planning-editable-panel,
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-result-panel,
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure{
+  border-radius: 7px !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .planning-editable-panel,
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-result-panel{
+  display: grid;
+  gap: 8px;
+  padding: 9px !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-panel .ui-panel-head,
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure > summary{
+  min-height: 34px;
+  padding-bottom: 7px !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .dense-inline-select > summary{
+  height: auto !important;
+  min-height: 40px !important;
+  align-items: center;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .dense-inline-select > summary strong,
+.app-shell[data-layout-page="planning"] .planning-work-detail .dense-inline-select > summary small,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis span,
+.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis small,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary span,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary small{
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .smt-result-kpi-row article{
+  min-height: 50px;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .field input,
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary{
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 5px 8px !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary > span{
+  gap: 1px;
+  overflow: hidden;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary strong,
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary small{
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure > summary{
+  align-items: center;
+  padding: 8px 10px !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure > summary > div{
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table{
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th,
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td{
+  padding: 5px 4px !important;
+  font-size: 10px;
+  line-height: 1.15;
+  vertical-align: middle;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(1),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(1){
+  width: 24% !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(2),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(2){
+  width: 12% !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(3),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3){
+  width: 10% !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(4),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(4){
+  width: 8% !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(5),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(5){
+  width: 24% !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(6),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(6),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(7),
+.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(7){
+  width: 11% !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .readonly-token{
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 18px;
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 10px;
+  line-height: 1.1;
+  white-space: normal;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice{
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 3px;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice label{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border-radius: 5px;
+  padding: 3px 4px;
+  text-align: center;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice span{
+  overflow: visible !important;
+  font-size: 10px;
+  line-height: 1;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice small{
+  display: none;
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-popup-actions,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-actions{
+  display: flex !important;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--order-line);
+}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-popup-actions .secondary-button,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-actions .secondary-button,
+.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-actions .primary-button{
+  flex: 0 1 260px;
+  min-height: 32px;
+  justify-content: center;
+}@container (max-width: 860px) {
+.app-shell[data-layout-page="planning"] .planning-work-detail .planning-detail-disclosure > summary > em{
+    justify-self: start;
+  }}.gantt-shell .today-marker{
+  background: var(--mes-danger, #dc2626) !important;
+  box-shadow: none !important;
+}.gantt-shell .slot-quantity-badge,
+.gantt-shell .slot-quantity-badge.is-compact,
+.gantt-shell .slot-quantity-badge.is-tiny,
+.gantt-shell .operation-slot.week-slot .slot-quantity-badge.is-compact,
+.gantt-shell .operation-slot.week-slot .slot-quantity-badge.is-tiny{
+  height: 16px !important;
+  min-width: 0 !important;
+  padding: 0 5px !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10) !important;
+  color: #334155 !important;
+  line-height: 16px !important;
+  text-shadow: none;
+}/* Geometry system v1: shared macOS-like shape contract without palette changes. */
+:root{
+  --mes-radius-xs: 4px;
+  --mes-radius-sm: 6px;
+  --mes-radius-md: 10px;
+  --mes-radius-lg: 14px;
+  --mes-radius-xl: 18px;
+  --mes-radius-pill: 999px;
+  --mes-radius-control: var(--mes-radius-md);
+  --mes-radius-card: var(--mes-radius-lg);
+  --mes-radius-panel: var(--mes-radius-xl);
+  --layout-card-radius: var(--mes-radius-lg);
+  --layout-control-height: 36px;
+  --geometry-control-height-sm: 32px;
+  --geometry-icon-button-size: 36px;
+  --geometry-table-cell-padding-y: 8px;
+  --geometry-table-cell-padding-x: 10px;
+  --geometry-panel-padding: 12px;
+  --geometry-card-padding: 10px;
+  --geometry-gantt-corner-radius: 8px;
+}.primary-button,
+.secondary-button,
+.bom-file-import-button,
+.module-form-actions button,
+.director-command-actions button,
+.calculator-panel-actions button,
+.directory-actions button,
+.toolbar-actions button:not(.toggle-switch-button),
+.gantt-zoom-value,
+.segment,
+.module-tab,
+.dense-inline-select > summary,
+.smt-machine-choice button{
+  min-height: var(--layout-control-height);
+  border-radius: var(--mes-radius-control) !important;
+}.icon-button,
+.table-icon-button,
+.toolbar-actions .icon-button,
+.directory-actions .icon-button,
+.gantt-zoom-control .icon-button{
+  width: var(--geometry-icon-button-size);
+  min-width: var(--geometry-icon-button-size);
+  height: var(--geometry-icon-button-size);
+  min-height: var(--geometry-icon-button-size);
+  border-radius: var(--mes-radius-control) !important;
+}.field input,
+.field select,
+.field textarea,
+.form-field input,
+.form-field select,
+.form-field textarea,
+.command-field select,
+.dense-inline-select{
+  border-radius: var(--mes-radius-control) !important;
+}.field input,
+.field select,
+.form-field input,
+.form-field select,
+.command-field select{
+  min-height: var(--layout-control-height);
+}.form-field textarea,
+.field textarea{
+  min-height: calc(var(--layout-control-height) * 1.6);
+}input[type="checkbox"],
+input[type="radio"]{
+  border-radius: var(--mes-radius-xs);
+}.directory-table-card,
+.module-panel,
+.calculator-panel,
+.route-step-editor-row,
+.route-step-flow-editor,
+.smt-line-card,
+.assistant-panel,
+.director-command,
+.topbar,
+.planner-frame,
+.ui-sidebar-item,
+.directory-nav-item,
+.specification-list-row,
+.bom-import-preview-note,
+.module-preview-empty,
+.empty-state,
+.drawer-summary,
+.drawer-warnings div,
+.toast,
+.confirm-body{
+  border-radius: var(--mes-radius-card);
+}.app-shell[data-layout-page] .module-panel,
+.module-data-content .module-panel,
+.route-module-content .module-panel,
+.bom-module-content .module-panel,
+.nomenclature-module-content .module-panel{
+  border-radius: var(--mes-radius-card);
+}.directory-sidebar,
+.module-data-sidebar,
+.module-data-workspace,
+.directory-workspace,
+.calculator-workspace,
+.modal,
+.large-modal,
+.confirm-modal,
+.slot-drawer,
+.dense-inline-options,
+.route-smt-modal,
+.shop-map-widget-modal{
+  border-radius: var(--mes-radius-panel);
+}.slot-drawer{
+  border-radius: var(--mes-radius-panel) 0 0 var(--mes-radius-panel) !important;
+}.module-menu-brand::before{
+  border-radius: var(--mes-radius-control) !important;
+}.status-pill,
+.production-status,
+.deadline-badge,
+.clock,
+.route-sequence-mini span,
+.route-module-sequence b,
+.toggle-switch-button,
+.toggle-switch-knob{
+  border-radius: var(--mes-radius-pill) !important;
+}.directory-table-wrap,
+.bom-import-table-wrap,
+.specification-list-table,
+.route-module-sequence,
+.bar-track,
+.progress{
+  border-radius: var(--mes-radius-sm) !important;
+}.directory-table th,
+.directory-table td,
+.bom-import-table th,
+.bom-import-table td{
+  padding: var(--geometry-table-cell-padding-y) var(--geometry-table-cell-padding-x);
+}.directory-table tr.is-selected td:first-child{
+  border-top-left-radius: var(--mes-radius-sm);
+  border-bottom-left-radius: var(--mes-radius-sm);
+}.directory-table tr.is-selected td:last-child{
+  border-top-right-radius: var(--mes-radius-sm);
+  border-bottom-right-radius: var(--mes-radius-sm);
+}.modal-header,
+.drawer-header,
+.ui-panel-head,
+.directory-sidebar-head,
+.module-panel > .ui-panel-head{
+  border-radius: var(--mes-radius-card) var(--mes-radius-card) 0 0;
+}.gantt-shell .operation-slot,
+.gantt-shell .slot-working-segment,
+.gantt-shell .slot-non-working-segment,
+.gantt-shell .gantt-drag-ghost{
+  border-radius: var(--slot-radius, var(--geometry-gantt-corner-radius)) !important;
+}.gantt-shell .operation-slot.is-segmented{
+  border-radius: var(--slot-radius, var(--geometry-gantt-corner-radius)) !important;
+}.gantt-shell .operation-slot.is-dragging,
+.gantt-shell .operation-slot.is-dragging:hover,
+.gantt-shell .operation-slot.is-dragging .slot-working-segment,
+.gantt-shell .operation-slot.is-dragging .slot-non-working-segment{
+  border-radius: var(--slot-radius, var(--geometry-gantt-corner-radius)) !important;
+  outline-offset: 0 !important;
+  transform: none !important;
+}.gantt-shell .slot-quantity-badge,
+.gantt-shell .slot-quantity-badge.is-compact,
+.gantt-shell .slot-quantity-badge.is-tiny,
+.gantt-shell .operation-slot.week-slot .slot-quantity-badge.is-compact,
+.gantt-shell .operation-slot.week-slot .slot-quantity-badge.is-tiny{
+  border-radius: var(--mes-radius-xs) !important;
+}.gantt-shell .slot-working-segment,
+.gantt-shell .slot-non-working-segment{
+  grid-template-columns: 4px minmax(0, 1fr) 7px;
+}.gantt-shell .dependencies-layer path,
+.gantt-shell .dependency-path,
+.gantt-shell .dependency-path-underlay{
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}.gantt-shell .resize-handle{
+  border-radius: 0 var(--slot-radius, var(--geometry-gantt-corner-radius)) var(--slot-radius, var(--geometry-gantt-corner-radius)) 0 !important;
+}/* Overflow containment audit v1: keep text and nested panels inside their own frames. */
+.module-menu-footer,
+.module-menu-meta,
+.access-menu-meta,
+.module-menu-preset-main,
+.module-menu-preset-main span,
+.module-menu-preset-main strong,
+.module-menu-preset-main small,
+.module-menu-brand,
+.module-menu-brand strong,
+.module-menu-brand span{
+  min-width: 0;
+  max-width: 100%;
+}.module-menu-brand{
+  align-items: center;
+}.module-menu-brand span{
+  overflow: hidden;
+  line-height: 14px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.module-menu .access-menu-meta{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 5px !important;
+  width: 100% !important;
+  justify-self: stretch !important;
+}.directory-table .actions-cell,
+.bom-import-table .actions-cell,
+.bom-import-table .bom-row-action-cell{
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+  padding-right: 8px;
+  padding-left: 8px;
+  text-align: right;
+  white-space: nowrap;
+}.bom-import-table .bom-row-action-cell{
+  width: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
+  text-align: center;
+}.directory-table .actions-cell .table-icon-button,
+.bom-import-table .actions-cell .table-icon-button,
+.bom-import-table .bom-row-action-cell .table-icon-button{
+  flex: 0 0 var(--geometry-icon-button-size);
+}@media (max-width: 1360px) {.directories-page .directory-content{
+    align-content: start;
+    align-self: start;
+    grid-auto-rows: max-content;
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
+  }.directories-page .directory-table-card{
+    display: block;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible;
+  }.directories-page .directory-table-wrap{
+    height: auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }.directories-page .directory-table{
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+  }.directories-page .directory-table th,
+.directories-page .directory-table td{
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }.directories-page .directory-detail-list{
+    overflow: visible;
+  }.nomenclature-table-wrap{
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }.nomenclature-table-wrap .nomenclature-table{
+    width: max-content !important;
+    min-width: 100% !important;
+    table-layout: auto !important;
+  }.nomenclature-table-wrap .nomenclature-table th,
+.nomenclature-table-wrap .nomenclature-table td{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }}/* Deep overflow audit v2: prefer readable containment over hidden clipping. */
+.planner-frame{
+  min-height: calc(520px + 24px);
+  overflow: visible !important;
+  padding-bottom: 12px !important;
+}main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .planner-frame{
+  height: auto !important;
+  min-height: calc(520px + 24px) !important;
+  overflow: visible !important;
+  padding-bottom: 12px !important;
+}.app-shell[data-layout-page="planning"] .planning-flow-rule-body{
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+}.app-shell[data-layout-page="planning"] .planning-flow-live{
+  grid-column: 1 / -1;
+}.app-shell[data-layout-page="planning"] .planning-supply-route strong,
+.route-task-sequence-card header strong,
+.route-task-sequence-card header small,
+.route-task-sequence-steps small,
+.route-step-editor-row .dense-inline-select > summary strong,
+.route-step-editor-row .dense-inline-select > summary small,
+.route-step-editor-row .dense-inline-options button strong,
+.route-step-editor-row .dense-inline-options button small,
+.operation-flow-point strong{
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}.route-step-editor-row .dense-inline-select > summary{
+  height: auto;
+  align-items: center;
+}/* Planning 2.0: Jira/Confluence-inspired workbench over the same planning data. */
+.app-shell[data-layout-page="planning"] .planning-order-page{
+  --planning-order-bg: #f7f8f9;
+  --planning-order-surface: #ffffff;
+  --planning-order-subtle: #f1f2f4;
+  --planning-order-hover: #f4f5f7;
+  --planning-order-selected: #e9f2ff;
+  --planning-order-selected-border: #0c66e4;
+  --planning-order-line: #dfe1e6;
+  --planning-order-line-strong: #b3b9c4;
+  --planning-order-text: #172b4d;
+  --planning-order-muted: #626f86;
+  --planning-order-link: #0c66e4;
+  --planning-order-green-bg: #dcfff1;
+  --planning-order-green-text: #216e4e;
+  --planning-order-yellow-bg: #fff7d6;
+  --planning-order-yellow-text: #a54800;
+  --planning-order-red-bg: #ffeceb;
+  --planning-order-red-text: #ae2e24;
+  --planning-order-radius: 6px;
+  --planning-order-radius-sm: 4px;
+  --planning-order-shadow: 0 1px 1px rgba(9, 30, 66, 0.12), 0 0 0 1px rgba(9, 30, 66, 0.02);
+  display: grid;
+  grid-template-columns: minmax(270px, 320px) minmax(0, 1fr) !important;
+  gap: 12px;
+  align-items: stretch;
+  min-width: 0;
+  overflow: visible;
+  background: var(--planning-order-bg);
+}.app-shell[data-layout-page="planning"] .planning-order-queue,
+.app-shell[data-layout-page="planning"] .planning-order-main,
+.app-shell[data-layout-page="planning"] .planning-order-workspace,
+.app-shell[data-layout-page="planning"] .planning-order-route-map,
+.app-shell[data-layout-page="planning"] .planning-order-detail{
+  min-width: 0;
+  overflow: visible;
+}.app-shell[data-layout-page="planning"] .planning-order-queue{
+  gap: 12px;
+  border-color: var(--planning-order-line) !important;
+  border-radius: var(--planning-order-radius) !important;
+  background: var(--planning-order-surface) !important;
+  box-shadow: var(--planning-order-shadow);
+  padding: 12px;
+}.app-shell[data-layout-page="planning"] .planning-order-queue .directory-sidebar-head p{
+  margin: 2px 0 0;
+  color: var(--planning-order-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+}.app-shell[data-layout-page="planning"] .planning-order-route-list{
+  gap: 4px;
+}.app-shell[data-layout-page="planning"] .planning-order-route-item{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-height: 48px;
+  border: 1px solid transparent !important;
+  border-radius: var(--planning-order-radius-sm) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 8px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-route-item span{
+  gap: 2px;
+}.app-shell[data-layout-page="planning"] .planning-order-route-item strong{
+  color: var(--planning-order-text);
+}.app-shell[data-layout-page="planning"] .planning-order-route-item small{
+  color: var(--planning-order-muted);
+  font-weight: 600;
+  white-space: normal;
+}.app-shell[data-layout-page="planning"] .planning-order-route-item:hover{
+  background: var(--planning-order-hover) !important;
+}.app-shell[data-layout-page="planning"] .planning-order-route-item.is-active{
+  border-color: #85b8ff !important;
+  background: var(--planning-order-selected) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset !important;
+}.app-shell[data-layout-page="planning"] .planning-order-route-item > em{
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  min-width: 24px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}.app-shell[data-layout-page="planning"] .planning-order-main{
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}.app-shell[data-layout-page="planning"] .planning-order-header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius);
+  background: var(--planning-order-surface);
+  box-shadow: var(--planning-order-shadow);
+  padding: 16px 18px;
+}.app-shell[data-layout-page="planning"] .planning-order-header h2,
+.app-shell[data-layout-page="planning"] .planning-order-header p{
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}.app-shell[data-layout-page="planning"] .planning-order-header h2{
+  color: var(--planning-order-text);
+  font-size: 24px;
+  line-height: 1.1;
+}.app-shell[data-layout-page="planning"] .planning-order-header p{
+  margin-top: 4px;
+  color: var(--planning-order-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}.app-shell[data-layout-page="planning"] .planning-order-actions{
+  align-items: center;
+  justify-content: end;
+}.app-shell[data-layout-page="planning"] .planning-order-workspace{
+  display: grid;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+  align-items: start;
+}.app-shell[data-layout-page="planning"] .planning-order-route-map{
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  border: 1px solid var(--planning-order-line) !important;
+  border-radius: var(--planning-order-radius) !important;
+  background: var(--planning-order-subtle) !important;
+  box-shadow: none !important;
+  padding: 10px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-map-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  border-bottom: 1px solid var(--planning-order-line);
+  padding: 4px 2px 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-map-head strong{
+  display: block;
+  min-width: 0;
+  color: var(--planning-order-text);
+  font-size: 13px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}.app-shell[data-layout-page="planning"] .planning-order-map-head em{
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: #dbeafe;
+  color: #0c66e4;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-flow{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-flow{
+  position: relative;
+}.app-shell[data-layout-page="planning"] .planning-order-phase,
+.app-shell[data-layout-page="planning"] .planning-order-lane,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill{
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-phase,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill{
+  border: 1px solid var(--planning-order-line);
+  background: var(--planning-order-surface);
+  color: var(--planning-order-text);
+  cursor: pointer;
+  text-align: left;
+}.app-shell[data-layout-page="planning"] .planning-order-phase{
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  min-height: 52px;
+  border-radius: var(--planning-order-radius-sm);
+  box-shadow: var(--planning-order-shadow);
+  padding: 8px 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-phase:hover,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head:hover,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill:hover{
+  border-color: var(--planning-order-line-strong);
+  background: var(--planning-order-hover);
+}.app-shell[data-layout-page="planning"] .planning-order-phase.is-active,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head.is-active,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill.is-active{
+  border-color: #85b8ff;
+  background: var(--planning-order-selected);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset, var(--planning-order-shadow);
+}.app-shell[data-layout-page="planning"] .planning-order-phase b,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill b{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}.app-shell[data-layout-page="planning"] .planning-order-phase b{
+  width: auto;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+}.app-shell[data-layout-page="planning"] .planning-order-phase span,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head span,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill span{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-phase strong,
+.app-shell[data-layout-page="planning"] .planning-order-phase small,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head strong,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head small,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head em,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill strong,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill small{
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+  text-overflow: clip;
+  white-space: normal;
+}.app-shell[data-layout-page="planning"] .planning-order-phase strong,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head strong,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill strong{
+  font-size: 12px;
+  font-weight: 800;
+}.app-shell[data-layout-page="planning"] .planning-order-phase small,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head small,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head em,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill small{
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+}.app-shell[data-layout-page="planning"] .planning-order-phase > em{
+  max-width: 118px;
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  padding: 2px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}.app-shell[data-layout-page="planning"] .planning-order-phase.is-ok b,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill.is-output{
+  background: var(--planning-order-green-bg);
+  color: var(--planning-order-green-text);
+}.app-shell[data-layout-page="planning"] .planning-order-lane.is-ok .planning-order-lane-head,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill.is-ok,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill.is-regular{
+  border-color: var(--planning-order-line);
+  background: var(--planning-order-surface);
+}.app-shell[data-layout-page="planning"] .planning-order-phase.is-warning b,
+.app-shell[data-layout-page="planning"] .planning-order-lane.is-warning .planning-order-lane-head,
+.app-shell[data-layout-page="planning"] .planning-order-step-pill.is-warning{
+  border-color: #f5cd47;
+  background: #fff7d6;
+}.app-shell[data-layout-page="planning"] .planning-order-step-pill.is-smt{
+  border-color: #85b8ff;
+  background: #e9f2ff;
+}.app-shell[data-layout-page="planning"] .planning-order-lane{
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius);
+  background: var(--planning-order-subtle);
+  padding: 6px;
+}.app-shell[data-layout-page="planning"] .planning-order-lane-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  gap: 8px;
+  align-items: center;
+  border-radius: var(--planning-order-radius-sm);
+  box-shadow: var(--planning-order-shadow);
+  padding: 8px;
+}.app-shell[data-layout-page="planning"] .planning-order-lane-head > b,
+.app-shell[data-layout-page="planning"] .planning-order-lane-head > i{
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  padding: 2px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: none;
+  white-space: nowrap;
+}.app-shell[data-layout-page="planning"] .planning-order-flow-step-row{
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-step-pill{
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) max-content;
+  gap: 7px;
+  align-items: center;
+  min-height: 38px;
+  border-radius: var(--planning-order-radius-sm);
+  box-shadow: var(--planning-order-shadow);
+  padding: 6px 8px;
+}.app-shell[data-layout-page="planning"] .planning-order-step-pill b{
+  width: 22px;
+  height: 22px;
+}.app-shell[data-layout-page="planning"] .planning-order-step-pill em{
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  padding: 2px 6px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-lane-empty{
+  border: 1px dashed var(--planning-order-line-strong);
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-surface);
+  color: var(--planning-order-muted);
+  padding: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}.app-shell[data-layout-page="planning"] .planning-order-detail > .module-panel{
+  border-radius: var(--planning-order-radius);
+}.app-shell[data-layout-page="planning"] .planning-order-record{
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+  border: 1px solid var(--planning-order-line) !important;
+  border-radius: var(--planning-order-radius) !important;
+  background: var(--planning-order-surface) !important;
+  box-shadow: var(--planning-order-shadow);
+  padding: 14px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-record-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  border-bottom: 1px solid var(--planning-order-line);
+  padding-bottom: 12px;
+}.app-shell[data-layout-page="planning"] .planning-order-record-head h3,
+.app-shell[data-layout-page="planning"] .planning-order-record-head p{
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}.app-shell[data-layout-page="planning"] .planning-order-record-head h3{
+  color: var(--planning-order-text);
+  font-size: 20px;
+  line-height: 1.12;
+}.app-shell[data-layout-page="planning"] .planning-order-record-head p{
+  margin-top: 4px;
+  color: var(--planning-order-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}.app-shell[data-layout-page="planning"] .planning-order-record-status,
+.app-shell[data-layout-page="planning"] .planning-order-state-token{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  padding: 2px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-record.is-ok .planning-order-record-status,
+.app-shell[data-layout-page="planning"] .planning-order-state-token.is-ok,
+.app-shell[data-layout-page="planning"] .planning-order-state-token.is-output{
+  background: var(--planning-order-green-bg);
+  color: var(--planning-order-green-text);
+}.app-shell[data-layout-page="planning"] .planning-order-record.is-warning .planning-order-record-status,
+.app-shell[data-layout-page="planning"] .planning-order-state-token.is-warning{
+  background: var(--planning-order-yellow-bg);
+  color: var(--planning-order-yellow-text);
+}.app-shell[data-layout-page="planning"] .planning-order-record.is-critical .planning-order-record-status,
+.app-shell[data-layout-page="planning"] .planning-order-state-token.is-critical{
+  background: var(--planning-order-red-bg);
+  color: var(--planning-order-red-text);
+}.app-shell[data-layout-page="planning"] .planning-order-record-section{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius);
+  background: var(--planning-order-surface);
+  padding: 10px 12px;
+}.app-shell[data-layout-page="planning"] .planning-order-record-section > header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-record-section > header strong,
+.app-shell[data-layout-page="planning"] .planning-order-record-section > header span{
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.18;
+}.app-shell[data-layout-page="planning"] .planning-order-record-section > header strong{
+  color: var(--planning-order-text);
+  font-size: 13px;
+  font-weight: 800;
+}.app-shell[data-layout-page="planning"] .planning-order-record-section > header span{
+  display: block;
+  margin-top: 2px;
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-weight: 600;
+}.app-shell[data-layout-page="planning"] .planning-order-record-section > header em{
+  border: 0;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-subtle);
+  color: var(--planning-order-muted);
+  padding: 2px 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row{
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-surface);
+  color: var(--planning-order-text);
+  padding: 8px;
+  text-align: left;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row{
+  grid-template-areas:
+    "item status"
+    "qty route"
+    "actions actions";
+  grid-template-columns: minmax(0, 1fr) minmax(96px, max-content);
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-wip .planning-order-register-row{
+  grid-template-columns: minmax(150px, 1fr) minmax(70px, 0.42fr) minmax(70px, 0.42fr) max-content;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-operations .planning-order-register-row{
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, 0.8fr) minmax(62px, max-content) max-content;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row.is-head{
+  min-height: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--planning-order-muted);
+  padding: 0 7px 2px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row.is-head{
+  display: none;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row > :nth-child(1){
+  grid-area: item;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row > :nth-child(2){
+  grid-area: qty;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row > :nth-child(3){
+  grid-area: actions;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row > :nth-child(4){
+  grid-area: route;
+  justify-self: end;
+  text-align: right;
+}.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row > :nth-child(5){
+  grid-area: status;
+  justify-self: end;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row.is-clickable{
+  width: 100%;
+  cursor: pointer;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row.is-clickable:hover{
+  border-color: var(--planning-order-line-strong);
+  background: var(--planning-order-hover);
+}.app-shell[data-layout-page="planning"] .planning-order-register-row > div,
+.app-shell[data-layout-page="planning"] .planning-order-register-row > span,
+.app-shell[data-layout-page="planning"] .planning-order-register-row > strong{
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row div{
+  display: grid;
+  gap: 2px;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row small,
+.app-shell[data-layout-page="planning"] .planning-order-register-row em,
+.app-shell[data-layout-page="planning"] .planning-order-register-row span,
+.app-shell[data-layout-page="planning"] .planning-order-register-row strong{
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+  text-overflow: clip;
+  white-space: normal;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row small,
+.app-shell[data-layout-page="planning"] .planning-order-register-row em{
+  color: var(--planning-order-muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 600;
+}.app-shell[data-layout-page="planning"] .planning-order-register-row strong{
+  color: var(--planning-order-text);
+  font-size: 11px;
+  font-weight: 800;
+}.app-shell[data-layout-page="planning"] .planning-order-segmented-actions{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-segmented-actions button{
+  min-width: 0;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-surface);
+  color: var(--planning-order-muted);
+  padding: 5px 7px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  cursor: pointer;
+}.app-shell[data-layout-page="planning"] .planning-order-segmented-actions button.is-active{
+  border-color: #85b8ff;
+  background: var(--planning-order-selected);
+  color: var(--planning-order-link);
+}.app-shell[data-layout-page="planning"] .planning-order-segmented-actions button:disabled{
+  opacity: 0.55;
+  cursor: not-allowed;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.45fr);
+  gap: 8px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer{
+  grid-template-columns: repeat(2, minmax(0, 1fr)) max-content;
+  align-items: stretch;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer article{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--planning-order-radius-sm);
+  background: #ffffff;
+  padding: 8px 9px;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer strong,
+.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer span,
+.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer em{
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer strong{
+  color: var(--planning-order-text);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.15;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer span{
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-weight: 520;
+  line-height: 1.25;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer em{
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  max-width: 210px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--planning-order-radius-sm);
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 7px 9px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 1.2;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor label{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor label span{
+  color: var(--planning-sheet-muted, #64748b);
+  font-size: 9px;
+  font-weight: 850;
+}.app-shell[data-layout-page="planning"] .planning-order-rule-editor input{
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--planning-order-surface);
+  color: var(--planning-order-text);
+  padding: 7px 8px;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-step-card,
+.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-grid,
+.app-shell[data-layout-page="planning"] .planning-order-detail .planning-detail-disclosure,
+.app-shell[data-layout-page="planning"] .planning-order-detail .planning-detail-body,
+.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-balance-block{
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .planning-detail-body{
+  padding: 8px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-popup-actions{
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-popup-actions .secondary-button{
+  width: 100%;
+  min-width: 0;
+  flex: none !important;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button{
+  height: auto;
+  min-height: 34px;
+  align-items: center;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button strong,
+.app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button small{
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary{
+  height: auto !important;
+  min-height: 40px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary > span{
+  overflow: visible !important;
+}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary strong,
+.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary small{
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}.app-shell[data-layout-page="planning"] .planning-order-batch-editor{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow: visible;
+}@container (max-width: 760px) {.app-shell[data-layout-page="planning"] .planning-order-rule-editor,
+.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer,
+.app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row,
+.app-shell[data-layout-page="planning"] .planning-order-register-table.is-wip .planning-order-register-row,
+.app-shell[data-layout-page="planning"] .planning-order-register-table.is-operations .planning-order-register-row{
+    grid-template-columns: minmax(0, 1fr);
+  }.app-shell[data-layout-page="planning"] .planning-order-segmented-actions{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }}@media (max-width: 1280px) {.app-shell[data-layout-page="planning"] .planning-order-page,
+.app-shell[data-layout-page="planning"] .planning-order-workspace{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }.app-shell[data-layout-page="planning"] .planning-order-header{
+    grid-template-columns: minmax(0, 1fr);
+  }}/* Planning 2.0 HeroUI-inspired skin: clean surfaces over the same planning data. */
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
+  --planning-order-bg: #f8fafc;
+  --planning-order-surface: #ffffff;
+  --planning-order-subtle: #f4f7fb;
+  --planning-order-hover: #f1f6ff;
+  --planning-order-selected: #eef6ff;
+  --planning-order-selected-border: #2563eb;
+  --planning-order-line: #e2e8f0;
+  --planning-order-line-strong: #bfd0e7;
+  --planning-order-text: #0f172a;
+  --planning-order-muted: #64748b;
+  --planning-order-link: #2563eb;
+  --planning-order-green-bg: #ecfdf3;
+  --planning-order-green-text: #15803d;
+  --planning-order-yellow-bg: #fff8e6;
+  --planning-order-yellow-text: #a15c07;
+  --planning-order-red-bg: #fff1f2;
+  --planning-order-red-text: #be123c;
+  --planning-order-radius-xs: 8px;
+  --planning-order-radius-sm: 10px;
+  --planning-order-radius: 16px;
+  --planning-order-radius-lg: 20px;
+  --planning-order-pill: 999px;
+  --planning-order-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px rgba(15, 23, 42, 0.06);
+  --planning-order-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.045);
+  grid-template-columns: minmax(248px, 292px) minmax(0, 1fr) !important;
+  gap: 14px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0) 220px),
+    var(--planning-order-bg);
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-header,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-map,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record{
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  border-radius: var(--planning-order-radius-lg) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: var(--planning-order-shadow);
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue{
+  gap: 14px;
+  padding: 14px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .directory-sidebar-head{
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+  padding-bottom: 12px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .directory-sidebar-head h1{
+  color: var(--planning-order-text);
+  font-size: 18px;
+  line-height: 1.15;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-list{
+  gap: 6px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item{
+  min-height: 44px;
+  border-radius: 14px !important;
+  padding: 10px 12px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item strong{
+  font-size: 12px;
+  line-height: 1.25;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item.is-active{
+  border-color: rgba(37, 99, 235, 0.32) !important;
+  background: var(--planning-order-selected) !important;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08), var(--planning-order-shadow-soft) !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-main{
+  gap: 14px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-header{
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 14px 16px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-header h2{
+  font-size: 21px;
+  line-height: 1.18;
+  letter-spacing: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions{
+  gap: 8px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions .primary-button,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions .secondary-button{
+  border-radius: 12px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-workspace{
+  grid-template-columns: minmax(360px, 0.82fr) minmax(460px, 1.18fr);
+  gap: 14px;
+  align-items: start;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-map{
+  gap: 10px;
+  padding: 12px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-map-head{
+  border-bottom-color: rgba(226, 232, 240, 0.88);
+  padding: 2px 2px 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-map-head strong{
+  font-size: 12px;
+  font-weight: 850;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-flow{
+  gap: 8px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row{
+  border-color: rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.035);
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase{
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 48px;
+  padding: 9px 10px 9px 12px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase > b{
+  display: none;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase > em,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-status,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-state-token,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill em{
+  border-radius: var(--planning-order-pill);
+  padding: 3px 8px;
+  line-height: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase strong,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head strong,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill strong{
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold, 600);
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase:hover,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head:hover,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill:hover,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row.is-clickable:hover{
+  border-color: rgba(37, 99, 235, 0.28);
+  background: var(--planning-order-hover);
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase.is-active,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head.is-active,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill.is-active{
+  border-color: rgba(37, 99, 235, 0.42);
+  background: var(--planning-order-selected);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10), var(--planning-order-shadow-soft);
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane{
+  gap: 7px;
+  border-color: rgba(148, 163, 184, 0.20);
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 8px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head{
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 9px 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head > b{
+  border-radius: var(--planning-order-pill);
+  background: #eef2ff;
+  color: #1d4ed8;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-flow-step-row{
+  gap: 6px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill{
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  min-height: 40px;
+  padding: 7px 9px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill b{
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill.is-smt{
+  border-color: rgba(37, 99, 235, 0.32);
+  background: #eff6ff;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-empty,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-muted-state{
+  border-radius: 14px;
+  background: #ffffff;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record{
+  gap: 12px;
+  padding: 14px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-head{
+  align-items: center;
+  border-bottom-color: rgba(226, 232, 240, 0.88);
+  padding-bottom: 12px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-head h3{
+  font-size: 18px;
+  line-height: 1.18;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-section{
+  gap: 9px;
+  border-color: rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: #fbfdff;
+  padding: 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-section > header{
+  align-items: center;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-section > header strong{
+  font-size: 12px;
+  font-weight: 850;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table{
+  gap: 6px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row{
+  padding: 8px 9px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table.is-operations .planning-order-register-row{
+  grid-template-columns: minmax(118px, 1fr) minmax(88px, 0.62fr) minmax(48px, max-content) minmax(58px, max-content);
+  gap: 4px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table.is-wip .planning-order-register-row{
+  grid-template-columns: minmax(118px, 1fr) minmax(54px, max-content) minmax(54px, max-content) minmax(70px, max-content);
+  gap: 4px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row.is-head{
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row strong{
+  font-size: 11px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-segmented-actions{
+  gap: 4px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-segmented-actions button,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor input{
+  border-color: rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: #ffffff;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-segmented-actions button.is-active{
+  border-color: rgba(37, 99, 235, 0.36);
+  background: #eff6ff;
+  color: var(--planning-order-link);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor{
+  grid-template-columns: minmax(0, 1fr) minmax(128px, 0.38fr);
+  gap: 8px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor.is-system-transfer{
+  grid-template-columns: repeat(2, minmax(0, 1fr)) max-content;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-card,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-grid,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .planning-detail-disclosure,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .planning-detail-body,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-block{
+  border-radius: 14px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-card.is-operation-embedded{
+  display: grid;
+  gap: 10px !important;
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: #fbfdff;
+  padding: 8px 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head > div{
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head span,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head strong{
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head span{
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-weight: 760;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head strong{
+  color: var(--planning-order-text);
+  font-size: 13px;
+  font-weight: 850;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head em{
+  justify-self: end;
+  border: 0;
+  border-radius: var(--planning-order-pill);
+  background: var(--planning-order-green-bg);
+  color: var(--planning-order-green-text);
+  padding: 3px 8px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 16px;
+  white-space: nowrap;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  width: 100%;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block{
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-radius: 16px !important;
+  background: #fbfdff !important;
+  box-shadow: none !important;
+  padding: 10px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .ui-panel-head,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .ui-panel-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.88);
+  padding: 0 8px 8px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .ui-panel-head strong,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .ui-panel-head strong{
+  color: var(--planning-order-text);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.15;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .ui-panel-head span,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .ui-panel-head span{
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.2;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .planning-section-tag,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .planning-section-tag,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary > em{
+  border: 0 !important;
+  border-radius: var(--planning-order-pill) !important;
+  background: #eef6ff;
+  color: var(--planning-order-link);
+  padding: 3px 8px !important;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 16px !important;
+  text-transform: none;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .calculator-input-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field > span{
+  color: var(--planning-order-muted);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.1;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field input,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary{
+  width: 100%;
+  height: auto !important;
+  min-height: 34px !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  color: var(--planning-order-text) !important;
+  padding: 6px 8px !important;
+  font-size: 11px !important;
+  font-weight: 780 !important;
+  line-height: 1.15 !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field.readonly input{
+  background: #f8fafc !important;
+  color: var(--planning-order-muted) !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary > span,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary strong,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary small{
+  min-width: 0;
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row{
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  padding: 0 !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row article{
+  display: grid !important;
+  align-content: start !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+  min-height: 56px !important;
+  border: 1px solid rgba(148, 163, 184, 0.20) !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  padding: 7px 6px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row .smt-panel-kpi{
+  background: #f8fafc !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row .smt-machine-kpi{
+  border-color: rgba(37, 99, 235, 0.18) !important;
+  background: #eff6ff !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row span,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row strong,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row small{
+  min-width: 0;
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  line-height: 1.08 !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row span,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row small{
+  color: var(--planning-order-muted);
+  font-size: 7.5px !important;
+  font-weight: 700;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row strong{
+  margin: 1px 0 !important;
+  color: var(--planning-order-text);
+  font-size: 11px !important;
+  font-weight: 900;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure{
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-radius: 16px !important;
+  background: #fbfdff !important;
+  box-shadow: none !important;
+  overflow: visible;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  border-radius: 16px;
+  padding: 9px 10px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary strong{
+  color: var(--planning-order-text);
+  font-size: 12px;
+  font-weight: 850;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary span{
+  color: var(--planning-order-muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.2;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure .planning-detail-body{
+  border-top: 1px solid rgba(226, 232, 240, 0.88);
+  padding: 10px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-block{
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-balance-summary{
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-balance-summary article{
+  min-width: 0;
+  min-height: 46px !important;
+  border: 1px solid rgba(148, 163, 184, 0.20) !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  padding: 7px !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions{
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  max-width: 100%;
+  gap: 6px !important;
+  align-items: stretch;
+  margin: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions .secondary-button,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .secondary-button,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .primary-button{
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  border-radius: 12px !important;
+  justify-content: center;
+  padding: 6px 8px;
+  font-size: 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions .secondary-button span,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .secondary-button span,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .primary-button span{
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
+}@container (max-width: 720px) {.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .calculator-input-grid,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-balance-summary,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }}@container (max-width: 760px) {.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor.is-system-transfer,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table.is-supply .planning-order-register-row,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table.is-wip .planning-order-register-row,
+.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table.is-operations .planning-order-register-row{
+    grid-template-columns: minmax(0, 1fr);
+  }}@media (max-width: 1360px) {.directories-page .directory-table-wrap,
+.nomenclature-table-wrap{
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }.directories-page .directory-table,
+.nomenclature-table-wrap .nomenclature-table{
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+  }}/* Visual QA pass: prevent compact production screens from hiding meaningful UI text. */
+.directories-page .directory-content{
+  grid-template-columns: minmax(0, 1fr) !important;
+}.directories-page .directory-table-card{
+  min-width: 0;
+  max-width: 100%;
+}.directories-page .directory-table-card{
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}.directories-page .directory-table-wrap{
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  max-height: none !important;
+}.directories-page .directory-table{
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}.directories-page .directory-table th,
+.directories-page .directory-table td{
+  height: auto;
+  min-height: 40px;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.directories-page .directory-table td{
+  vertical-align: middle;
+}.directories-page .directory-detail-list{
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+  gap: 8px !important;
+}.products-app-shell .dense-inline-select > summary strong,
+.products-app-shell .dense-inline-select > summary small{
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}.products-app-shell .speki-structure-table .dense-inline-select > summary strong,
+.products-app-shell .speki-structure-table .dense-inline-select > summary small{
+  overflow: hidden !important;
+  overflow-wrap: normal !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}.products-app-shell .speki-structure-table .dense-inline-select > summary{
+  min-height: 32px !important;
+  height: 32px !important;
+}.products-app-shell .speki-structure-table th:nth-child(6),
+.products-app-shell .speki-structure-table td:nth-child(6){
+  width: 150px !important;
+}.products-app-shell .speki-structure-table .dense-inline-options{
+  width: min(440px, calc(100vw - 32px)) !important;
+  max-width: min(440px, calc(100vw - 32px)) !important;
+}.products-app-shell .speki-table-row-actions{
+  gap: 2px !important;
+  justify-content: flex-start;
+  overflow: visible;
+}.products-app-shell .speki-table-row-actions .icon-button{
+  flex-basis: 20px !important;
+  width: 20px !important;
+  min-width: 20px !important;
+}.app-shell[data-layout-page="planning"] .planning-supply-route{
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-supply-route{
+  grid-column: 1;
+}/* Directory typography pass v1: tune master-data screens from the compact sidebar scale. */
+.app-shell[data-layout-page="directories"] .directories-page{
+  font-size: 10.5px;
+  line-height: 14px;
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head h1{
+  font-size: 14px !important;
+  line-height: 17px !important;
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head .eyebrow,
+.app-shell[data-layout-page="directories"] .directory-header .eyebrow,
+.app-shell[data-layout-page="directories"] .detail-card-head .eyebrow{
+  font-size: 9px !important;
+  line-height: 11px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-group-head{
+  font-size: 9px !important;
+  line-height: 11px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item strong{
+  font-size: 10.5px !important;
+  line-height: 13px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item em{
+  min-height: 20px !important;
+  min-width: 24px !important;
+  padding: 1px 6px !important;
+  font-size: 9.5px !important;
+  line-height: 11px !important;
+}.app-shell[data-layout-page="directories"] .directory-header h2{
+  font-size: 15px !important;
+  line-height: 18px !important;
+}.app-shell[data-layout-page="directories"] .directory-header p{
+  font-size: 9.75px !important;
+  line-height: 13px !important;
+}.app-shell[data-layout-page="directories"] .directory-actions button{
+  font-size: 10.5px !important;
+  line-height: 14px !important;
+}.app-shell[data-layout-page="directories"] .directory-actions button{
+  gap: 6px !important;
+  padding-right: 12px !important;
+  padding-left: 12px !important;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar strong{
+  font-size: 10.25px !important;
+  line-height: 14px !important;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar span{
+  font-size: 9.5px !important;
+  line-height: 12px !important;
+}.app-shell[data-layout-page="directories"] .directory-table{
+  font-size: 10px;
+  line-height: 13px;
+}.app-shell[data-layout-page="directories"] .directory-table th{
+  font-size: 9.5px;
+  line-height: 12px;
+}.app-shell[data-layout-page="directories"] .directory-table td{
+  font-size: 10px;
+  line-height: 13px;
+}.app-shell[data-layout-page="directories"] .directory-table .primary-cell{
+  font-weight: 650;
+}.app-shell[data-layout-page="directories"] .detail-card-head h3{
+  font-size: 10.25px !important;
+  line-height: 14px !important;
+}.app-shell[data-layout-page="directories"] .directory-detail-list dt{
+  font-size: 8.5px !important;
+  line-height: 10px !important;
+}.app-shell[data-layout-page="directories"] .directory-detail-list dd{
+  font-size: 9.5px !important;
+  line-height: 12px !important;
+}.app-shell[data-layout-page="directories"] .directory-health strong{
+  font-size: 15px !important;
+  line-height: 18px !important;
+}.app-shell[data-layout-page="directories"] .directory-health span{
+  font-size: 8.5px !important;
+  line-height: 10px !important;
+}/* Directories HeroUI-inspired skin: shared visual language with Planning 2.0. */
+.app-shell[data-layout-page="directories"] .directories-page{
+  --directory-ui-bg: #f8fafc;
+  --directory-ui-surface: #ffffff;
+  --directory-ui-subtle: #f4f7fb;
+  --directory-ui-hover: #f1f6ff;
+  --directory-ui-selected: #eef6ff;
+  --directory-ui-selected-border: #2563eb;
+  --directory-ui-line: #e2e8f0;
+  --directory-ui-line-strong: #bfd0e7;
+  --directory-ui-text: #0f172a;
+  --directory-ui-muted: #64748b;
+  --directory-ui-radius-sm: 10px;
+  --directory-ui-radius: 16px;
+  --directory-ui-radius-lg: 20px;
+  --directory-ui-pill: 999px;
+  --directory-ui-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px rgba(15, 23, 42, 0.06);
+  --directory-ui-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.045);
+  --directory-ui-sidebar-width: 228px;
+  grid-template-columns: var(--directory-ui-sidebar-width) minmax(0, 1fr) !important;
+  gap: 14px !important;
+  padding: 14px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0) 220px),
+    var(--directory-ui-bg) !important;
+}.app-shell[data-layout-page="directories"] .directory-sidebar,
+.app-shell[data-layout-page="directories"] .directory-header,
+.app-shell[data-layout-page="directories"] .directory-table-card{
+  border-color: rgba(148, 163, 184, 0.28);
+  border-radius: var(--directory-ui-radius-lg);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--directory-ui-shadow);
+}.app-shell[data-layout-page="directories"] .directory-workspace{
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px !important;
+  min-width: 0;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}.app-shell[data-layout-page="directories"] .directory-sidebar{
+  gap: 10px;
+  overflow: hidden;
+  padding: 10px;
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head{
+  min-height: 0 !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85) !important;
+  padding: 2px 2px 10px !important;
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head h1{
+  color: var(--directory-ui-text) !important;
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head .eyebrow{
+  color: var(--directory-ui-muted) !important;
+}.app-shell[data-layout-page="directories"] .directory-nav{
+  gap: 10px !important;
+  padding: 0 !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-group{
+  gap: 4px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-group-head{
+  color: var(--directory-ui-muted) !important;
+  padding: 0 6px 2px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item{
+  gap: 5px !important;
+  min-height: 32px !important;
+  border-radius: 12px !important;
+  padding: 7px 7px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item span,
+.app-shell[data-layout-page="directories"] .directory-nav-item strong,
+.app-shell[data-layout-page="directories"] .directory-nav-group-head span{
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item:hover{
+  border-color: transparent !important;
+  background: var(--directory-ui-hover) !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item.is-active{
+  border-color: rgba(37, 99, 235, 0.32) !important;
+  background: var(--directory-ui-selected) !important;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08), var(--directory-ui-shadow-soft) !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item em{
+  min-width: 20px !important;
+  min-height: 18px !important;
+  border: 0 !important;
+  border-radius: var(--directory-ui-pill) !important;
+  background: #f1f5f9 !important;
+  color: var(--directory-ui-muted) !important;
+  padding: 1px 5px !important;
+}.app-shell[data-layout-page="directories"] .directory-header{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center !important;
+  gap: 16px !important;
+  min-height: 0 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28) !important;
+  padding: 14px 16px !important;
+}.app-shell[data-layout-page="directories"] .directory-header > div:first-child,
+.app-shell[data-layout-page="directories"] .directory-header h2,
+.app-shell[data-layout-page="directories"] .directory-header p{
+  min-width: 0;
+}.app-shell[data-layout-page="directories"] .directory-header h2{
+  color: var(--directory-ui-text) !important;
+  letter-spacing: 0 !important;
+}.app-shell[data-layout-page="directories"] .directory-header p{
+  color: var(--directory-ui-muted) !important;
+}.app-shell[data-layout-page="directories"] .directory-actions{
+  gap: 8px !important;
+}.app-shell[data-layout-page="directories"] .directory-actions button{
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.035) !important;
+}.app-shell[data-layout-page="directories"] .directory-actions .primary-button{
+  border-color: var(--directory-ui-selected-border) !important;
+  background: var(--directory-ui-selected-border) !important;
+}.app-shell[data-layout-page="directories"] .directory-content{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 14px !important;
+  min-width: 0;
+  align-content: start;
+}.app-shell[data-layout-page="directories"] .directory-table-card{
+  padding: 12px !important;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar,
+.app-shell[data-layout-page="directories"] .detail-card-head{
+  border-bottom-color: rgba(226, 232, 240, 0.88) !important;
+  padding: 2px 2px 10px !important;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar strong,
+.app-shell[data-layout-page="directories"] .detail-card-head h3{
+  color: var(--directory-ui-text) !important;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar span,
+.app-shell[data-layout-page="directories"] .detail-card-head .eyebrow{
+  color: var(--directory-ui-muted) !important;
+}.app-shell[data-layout-page="directories"] .directory-table-wrap{
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--directory-ui-radius) !important;
+  background: #ffffff !important;
+}.app-shell[data-layout-page="directories"] .directory-table th{
+  background: var(--directory-ui-subtle);
+  color: var(--directory-ui-muted);
+}.app-shell[data-layout-page="directories"] .directory-table th,
+.app-shell[data-layout-page="directories"] .directory-table td{
+  border-bottom-color: rgba(226, 232, 240, 0.86);
+}.app-shell[data-layout-page="directories"] .directory-table tr:hover td{
+  background: var(--directory-ui-hover);
+}.app-shell[data-layout-page="directories"] .directory-table tr.is-selected td{
+  background: #dceafe;
+}.app-shell[data-layout-page="directories"] .directory-table .actions-cell .table-icon-button{
+  border-color: rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: #ffffff;
+}.app-shell[data-layout-page="directories"] .directory-detail-list{
+  gap: 8px !important;
+}.app-shell[data-layout-page="directories"] .directory-detail-list div,
+.app-shell[data-layout-page="directories"] .directory-health div{
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.035);
+}/* Directories density pass: reduce vertical air while keeping the Planning 2.0 skin. */
+.app-shell[data-layout-page="directories"] .directories-page{
+  gap: 8px !important;
+  padding: 8px !important;
+}.app-shell[data-layout-page="directories"] .directory-workspace{
+  gap: 8px !important;
+}.app-shell[data-layout-page="directories"] .directory-sidebar{
+  gap: 7px;
+  padding: 8px;
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head{
+  padding-bottom: 7px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav{
+  gap: 7px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-group{
+  gap: 3px !important;
+}.app-shell[data-layout-page="directories"] .directory-nav-item{
+  min-height: 28px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}.app-shell[data-layout-page="directories"] .directory-header{
+  gap: 10px !important;
+  padding: 8px 12px !important;
+}.app-shell[data-layout-page="directories"] .directory-actions{
+  gap: 6px !important;
+}.app-shell[data-layout-page="directories"] .directory-actions button{
+  min-height: 32px !important;
+}.app-shell[data-layout-page="directories"] .directory-content{
+  gap: 8px !important;
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+}.app-shell[data-layout-page="directories"] .directory-table-card{
+  padding: 8px !important;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar,
+.app-shell[data-layout-page="directories"] .detail-card-head{
+  min-height: 30px !important;
+  padding: 0 6px 5px !important;
+}.app-shell[data-layout-page="directories"] .directory-table-wrap{
+  border-radius: 14px !important;
+}.app-shell[data-layout-page="directories"] .directory-table th,
+.app-shell[data-layout-page="directories"] .directory-table td{
+  min-height: 32px;
+  padding: 4px 7px;
+}.app-shell[data-layout-page="directories"] .directory-table .actions-cell .table-icon-button{
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+}.app-shell[data-layout-page="directories"] .directory-detail-list{
+  gap: 5px !important;
+}.app-shell[data-layout-page="directories"] .directory-detail-list div{
+  padding: 5px 8px !important;
+}.app-shell[data-layout-page="directories"] .directory-health{
+  gap: 5px !important;
+}.app-shell[data-layout-page="directories"] .directory-health div{
+  min-height: 36px !important;
+  padding: 5px 8px !important;
+}/* MES UI Kit v1: canonical HeroUI-inspired tokens and shared base surfaces. */
+:root{
+  --mes-ui-bg: #eef3f8;
+  --mes-ui-bg-gradient: linear-gradient(180deg, rgba(15, 35, 60, 0.055), rgba(238, 243, 248, 0) 220px);
+  --mes-ui-surface: #ffffff;
+  --mes-ui-surface-raised: rgba(255, 255, 255, 0.94);
+  --mes-ui-surface-subtle: #f4f7fb;
+  --mes-ui-surface-soft: #fbfdff;
+  --mes-ui-hover: #f1f6ff;
+  --mes-ui-selected: #eef6ff;
+  --mes-ui-line: #e2e8f0;
+  --mes-ui-line-strong: #cbd5e1;
+  --mes-ui-line-focus: rgba(37, 99, 235, 0.36);
+  --mes-ui-text: #0f172a;
+  --mes-ui-text-secondary: #475569;
+  --mes-ui-muted: #64748b;
+  --mes-ui-muted-soft: #94a3b8;
+  --mes-ui-primary: #2563eb;
+  --mes-ui-primary-hover: #1d4ed8;
+  --mes-ui-primary-soft: #eff6ff;
+  --mes-ui-primary-border: #bfdbfe;
+  --mes-ui-success: #16a34a;
+  --mes-ui-success-soft: #ecfdf3;
+  --mes-ui-success-border: #bbf7d0;
+  --mes-ui-warning: #d97706;
+  --mes-ui-warning-soft: #fff8e6;
+  --mes-ui-warning-border: #fde68a;
+  --mes-ui-danger: #dc2626;
+  --mes-ui-danger-soft: #fff1f2;
+  --mes-ui-danger-border: #fecaca;
+  --mes-ui-radius-xs: 8px;
+  --mes-ui-radius-sm: 10px;
+  --mes-ui-radius-md: 14px;
+  --mes-ui-radius-lg: 18px;
+  --mes-ui-radius-xl: 20px;
+  --mes-ui-pill: 999px;
+  --mes-ui-shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.035);
+  --mes-ui-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --mes-ui-shadow-md: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px rgba(15, 23, 42, 0.06);
+  --mes-ui-shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.10);
+  --mes-ui-density-page: 8px;
+  --mes-ui-density-gap: 8px;
+  --mes-ui-density-card: 8px;
+  --mes-ui-control-height: 32px;
+  --mes-ui-table-row-height: 37px;
+  --mes-ui-table-header-height: 30px;
+  --mes-ui-sidebar-bg: #10233c;
+  --mes-ui-sidebar-surface: rgba(255, 255, 255, 0.07);
+  --mes-ui-sidebar-hover: rgba(255, 255, 255, 0.10);
+  --mes-ui-sidebar-active: #2563eb;
+  --mes-ui-sidebar-text: #e2e8f0;
+  --mes-ui-sidebar-muted: #9aa9bc;
+  --mes-ui-sidebar-line: rgba(255, 255, 255, 0.11);
+  --mes-bg: var(--mes-ui-bg);
+  --mes-surface: var(--mes-ui-surface);
+  --mes-surface-muted: var(--mes-ui-surface-subtle);
+  --mes-surface-subtle: var(--mes-ui-surface-soft);
+  --mes-border: var(--mes-ui-line);
+  --mes-border-strong: var(--mes-ui-line-strong);
+  --mes-text-primary: var(--mes-ui-text);
+  --mes-text-secondary: var(--mes-ui-text-secondary);
+  --mes-text-muted: var(--mes-ui-muted-soft);
+  --mes-text: var(--mes-ui-text);
+  --mes-muted: var(--mes-ui-muted);
+  --mes-primary: var(--mes-ui-primary);
+  --mes-primary-hover: var(--mes-ui-primary-hover);
+  --mes-primary-soft: var(--mes-ui-primary-soft);
+  --mes-primary-border: var(--mes-ui-primary-border);
+  --mes-accent: var(--mes-ui-primary);
+  --mes-accent-hover: var(--mes-ui-primary-hover);
+  --mes-accent-soft: var(--mes-ui-primary-soft);
+  --mes-accent-border: var(--mes-ui-primary-border);
+  --mes-success: var(--mes-ui-success);
+  --mes-success-soft: var(--mes-ui-success-soft);
+  --mes-success-border: var(--mes-ui-success-border);
+  --mes-warning: var(--mes-ui-warning);
+  --mes-warning-soft: var(--mes-ui-warning-soft);
+  --mes-warning-border: var(--mes-ui-warning-border);
+  --mes-danger: var(--mes-ui-danger);
+  --mes-danger-soft: var(--mes-ui-danger-soft);
+  --mes-danger-border: var(--mes-ui-danger-border);
+  --mes-sidebar-bg: var(--mes-ui-sidebar-bg);
+  --mes-sidebar-surface: var(--mes-ui-sidebar-surface);
+  --mes-sidebar-hover: var(--mes-ui-sidebar-hover);
+  --mes-sidebar-active: var(--mes-ui-sidebar-active);
+  --mes-sidebar-text: var(--mes-ui-sidebar-text);
+  --mes-sidebar-muted: var(--mes-ui-sidebar-muted);
+  --mes-sidebar-border: var(--mes-ui-sidebar-line);
+  --mes-radius-sm: var(--mes-ui-radius-xs);
+  --mes-radius-control: var(--mes-ui-radius-xs);
+  --mes-radius-md: var(--mes-ui-radius-sm);
+  --mes-radius-card: var(--mes-ui-radius-sm);
+  --mes-radius-lg: var(--mes-ui-radius-md);
+  --mes-radius-panel: var(--mes-ui-radius-md);
+  --mes-control-height: var(--mes-ui-control-height);
+  --mes-table-row-height: var(--mes-ui-table-row-height);
+  --mes-table-header-height: var(--mes-ui-table-header-height);
+  --mes-shadow-sm: var(--mes-ui-shadow-sm);
+  --mes-shadow-md: var(--mes-ui-shadow-md);
+}main[data-layout="app-shell"]:not([data-layout-page="authPrototype"]){
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+}.module-menu{
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 180px),
+    var(--mes-ui-sidebar-bg) !important;
+}.module-menu-brand::before,
+.module-menu-preset-main,
+.module-menu-preset-save{
+  border-color: var(--mes-ui-sidebar-line) !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  background: var(--mes-ui-sidebar-surface) !important;
+}.module-tab{
+  border-radius: var(--mes-ui-radius-xs) !important;
+}.module-tab:hover{
+  background: var(--mes-ui-sidebar-hover) !important;
+}.module-tab.is-active{
+  background: linear-gradient(135deg, var(--mes-ui-primary), var(--mes-ui-primary-hover)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important;
+}.app-topbar{
+  border-bottom-color: rgba(148, 163, 184, 0.28) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: var(--mes-ui-shadow-xs) !important;
+}.app-shell :is(input, select, textarea),
+.app-shell .dense-inline-select > summary{
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface-soft) !important;
+  color: var(--mes-ui-text) !important;
+}.app-shell :is(input, select, textarea):focus,
+.app-shell .dense-inline-select[open] > summary{
+  border-color: var(--mes-ui-line-focus) !important;
+  box-shadow: var(--mes-ui-shadow-focus) !important;
+  outline: 0 !important;
+}.app-shell :is(.secondary-button, .icon-button, .table-icon-button){
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: var(--mes-ui-surface) !important;
+  box-shadow: var(--mes-ui-shadow-xs) !important;
+}.app-shell .primary-button{
+  border-color: var(--mes-ui-primary) !important;
+  background: var(--mes-ui-primary) !important;
+}.app-shell .primary-button:hover{
+  background: var(--mes-ui-primary-hover) !important;
+}.app-shell :is(.directory-table-wrap, [data-layout="table"]){
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  background: var(--mes-ui-surface) !important;
+}main.app-shell[data-layout="app-shell"] :is(.directory-table-wrap, [data-layout="table"]){
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  background: var(--mes-ui-surface) !important;
+}.app-shell :is(.directory-table, .calculator-table) th{
+  background: var(--mes-ui-surface-subtle);
+  color: var(--mes-ui-muted);
+}.app-shell :is(.directory-table, .calculator-table) th,
+.app-shell :is(.directory-table, .calculator-table) td{
+  border-bottom-color: rgba(226, 232, 240, 0.86);
+}.app-shell :is(.directory-table, .calculator-table) tr:hover td{
+  background: var(--mes-ui-hover);
+}.app-shell :is(.directory-table, .calculator-table) tr.is-selected td{
+  background: #dceafe;
+}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
+  --planning-order-bg: var(--mes-ui-bg);
+  --planning-order-surface: var(--mes-ui-surface);
+  --planning-order-subtle: var(--mes-ui-surface-subtle);
+  --planning-order-hover: var(--mes-ui-hover);
+  --planning-order-selected: var(--mes-ui-selected);
+  --planning-order-selected-border: var(--mes-ui-primary);
+  --planning-order-line: var(--mes-ui-line);
+  --planning-order-line-strong: var(--mes-ui-line-strong);
+  --planning-order-text: var(--mes-ui-text);
+  --planning-order-muted: var(--mes-ui-muted);
+  --planning-order-link: var(--mes-ui-primary);
+  --planning-order-green-bg: var(--mes-ui-success-soft);
+  --planning-order-green-text: #15803d;
+  --planning-order-yellow-bg: var(--mes-ui-warning-soft);
+  --planning-order-yellow-text: #a15c07;
+  --planning-order-red-bg: var(--mes-ui-danger-soft);
+  --planning-order-red-text: #be123c;
+  --planning-order-radius-xs: var(--mes-ui-radius-xs);
+  --planning-order-radius-sm: var(--mes-ui-radius-sm);
+  --planning-order-radius: var(--mes-ui-radius-md);
+  --planning-order-radius-lg: var(--mes-ui-radius-xl);
+  --planning-order-pill: var(--mes-ui-pill);
+  --planning-order-shadow: var(--mes-ui-shadow-md);
+  --planning-order-shadow-soft: var(--mes-ui-shadow-sm);
+}.app-shell[data-layout-page="directories"] .directories-page{
+  --directory-ui-bg: var(--mes-ui-bg);
+  --directory-ui-surface: var(--mes-ui-surface);
+  --directory-ui-subtle: var(--mes-ui-surface-subtle);
+  --directory-ui-hover: var(--mes-ui-hover);
+  --directory-ui-selected: var(--mes-ui-selected);
+  --directory-ui-selected-border: var(--mes-ui-primary);
+  --directory-ui-line: var(--mes-ui-line);
+  --directory-ui-line-strong: var(--mes-ui-line-strong);
+  --directory-ui-text: var(--mes-ui-text);
+  --directory-ui-muted: var(--mes-ui-muted);
+  --directory-ui-radius-sm: var(--mes-ui-radius-sm);
+  --directory-ui-radius: var(--mes-ui-radius-md);
+  --directory-ui-radius-lg: var(--mes-ui-radius-xl);
+  --directory-ui-pill: var(--mes-ui-pill);
+  --directory-ui-shadow: var(--mes-ui-shadow-md);
+  --directory-ui-shadow-soft: var(--mes-ui-shadow-sm);
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter{
+  gap: 5px !important;
+  padding: 8px !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter button{
+  min-height: 38px !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  padding: 7px 8px !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter span{
+  font-size: var(--mes-ui-module-font-sm) !important;
+  line-height: 14px !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter span{
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table :is(th, td){
+  vertical-align: middle !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table td{
+  height: 40px !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .speki-table-row-actions{
+  align-items: center !important;
+}main.app-shell[data-layout-page="products"] .speki-page.module-data-page{
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+}main.app-shell[data-layout-page="products"] .speki-page .module-data-workspace,
+main.app-shell[data-layout-page="products"] .speki-page .speki-module-content,
+main.app-shell[data-layout-page="products"] .speki-page .speki-spec-table-panel{
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="products"] .speki-page .module-data-workspace{
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="products"] .speki-page .speki-module-content{
+  display: grid !important;
+  gap: var(--mes-ui-density-gap) !important;
+  padding: var(--mes-ui-density-card) !important;
+  overflow: auto !important;
+}main.app-shell[data-layout-page="products"] .speki-page .speki-spec-table-panel{
+  height: auto !important;
+  padding: 8px !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="products"] .speki-page .ui-panel-head{
+  margin-bottom: 8px !important;
+}main.app-shell[data-layout-page="products"] .speki-spec-mini-card{
+  grid-template-columns: minmax(280px, 1fr) auto !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  background: var(--mes-ui-surface-soft) !important;
+  padding: 8px !important;
+}main.app-shell[data-layout-page="products"] .speki-spec-name-field{
+  gap: 4px !important;
+}main.app-shell[data-layout-page="products"] .speki-spec-name-field span{
+  font-size: var(--mes-ui-module-font-xs) !important;
+  line-height: 13px !important;
+}main.app-shell[data-layout-page="products"] .speki-spec-name-field input{
+  height: var(--mes-ui-module-control-height) !important;
+  font-size: var(--mes-ui-module-font-sm) !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table-wrap{
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table{
+  min-width: 760px !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table th:nth-child(2),
+main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2){
+  width: 68px !important;
+  text-align: center !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table tr:has(.dense-inline-select[open]){
+  position: relative;
+  z-index: 30;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-inline-select[open]{
+  z-index: 40;
+}main.app-shell[data-layout-page="products"] .speki-structure-table :is(input, .dense-inline-select > summary, .speki-static-cell, .speki-section-chip, .speki-section-icon-badge){
+  min-height: 26px !important;
+  font-size: var(--mes-ui-module-font-sm) !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .speki-section-icon-badge{
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2) .dense-select-spekiStructureNomenclatureType{
+  width: 40px !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureNomenclatureType > summary{
+  min-width: 40px !important;
+  min-height: 26px !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary{
+  border-color: #cbd5e1 !important;
+  background: #f8fafc !important;
+  color: #334155 !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-bom > summary{
+  border-color: #bfdbfe !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-specification > summary{
+  border-color: #fde68a !important;
+  background: #fffbeb !important;
+  color: #92400e !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary{
+  border-color: #bbf7d0 !important;
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureNomenclatureType .dense-inline-options{
+  width: min(360px, calc(100vw - 32px)) !important;
+  min-width: min(260px, calc(100vw - 32px)) !important;
+  max-width: min(420px, calc(100vw - 32px)) !important;
+  max-height: min(480px, calc(100vh - 340px)) !important;
+  z-index: 90 !important;
+}main.app-shell[data-layout-page="products"] .speki-table-row-actions .icon-button,
+main.app-shell[data-layout-page="products"] .speki-bom-toggle{
+  flex-basis: 23px !important;
+  width: 23px !important;
+  min-width: 23px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-module-content,
+main.app-shell[data-layout-page="routes"] .route-module-content{
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: var(--mes-ui-density-gap) !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table-wrap{
+  min-height: 220px !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table{
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th,
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td{
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(1),
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(1){
+  width: 30% !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(2),
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(2){
+  width: 16% !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(3),
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(3){
+  width: 15% !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(4),
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(4){
+  width: 11% !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(5),
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(5){
+  width: 6% !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(6),
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(6){
+  width: 14% !important;
+}main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(7),
+main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(7){
+  width: 8% !important;
+}main.app-shell[data-layout-page="routes"] .route-editor-panel,
+main.app-shell[data-layout-page="routes"] .route-steps-panel{
+  overflow: visible !important;
+}main.app-shell[data-layout-page="routes"] .route-module-content,
+main.app-shell[data-layout-page="routes"] .route-steps-panel,
+main.app-shell[data-layout-page="routes"] .route-step-editor-shell,
+main.app-shell[data-layout-page="routes"] .route-object-editor-shell,
+main.app-shell[data-layout-page="routes"] .route-object-table-wrap{
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  overscroll-behavior: auto !important;
+  -webkit-overflow-scrolling: auto;
+}main.app-shell[data-layout-page="routes"] .route-module-form{
+  grid-template-columns: minmax(220px, 0.78fr) minmax(300px, 1fr) minmax(128px, 0.32fr) minmax(210px, auto) !important;
+  align-items: end !important;
+  gap: 6px 8px !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field{
+  display: grid !important;
+  grid-template-rows: 13px 32px !important;
+  align-content: end !important;
+  gap: 4px !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full{
+  grid-column: 1 !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full{
+  grid-column: 2 !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field{
+  grid-column: 3 !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full{
+  grid-column: 4 !important;
+  grid-row: 1 !important;
+  align-self: end !important;
+  justify-content: flex-end !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form .command-field::after{
+  top: auto !important;
+  bottom: 10px !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form :is(input, select){
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form .command-field select{
+  line-height: 1.2 !important;
+  padding-right: 42px !important;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full button{
+  min-height: 28px !important;
+}main.app-shell[data-layout-page="routes"] .route-module-sequence,
+main.app-shell[data-layout-page="routes"] .route-task-sequence,
+main.app-shell[data-layout-page="routes"] .route-step-editor-list{
+  gap: 7px !important;
+  padding: 8px !important;
+}main.app-shell[data-layout-page="routes"] .route-module-sequence article,
+main.app-shell[data-layout-page="routes"] .route-task-sequence-card,
+main.app-shell[data-layout-page="routes"] .route-step-editor-row{
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  background: var(--mes-ui-surface) !important;
+}main.app-shell[data-layout-page="routes"] .route-step-editor-row{
+  grid-template-columns: 76px minmax(170px, 0.9fr) minmax(230px, 1.35fr) 32px !important;
+  gap: 8px !important;
+  padding: 6px !important;
+}main.app-shell[data-layout-page="routes"] .route-step-editor-row.has-task-target{
+  grid-template-columns: 76px minmax(150px, 1fr) minmax(150px, 0.85fr) minmax(220px, 1.2fr) 32px !important;
+}main.app-shell[data-layout-page="routes"] .route-step-index{
+  grid-template-columns: 22px minmax(24px, 1fr) 22px !important;
+  gap: 4px !important;
+}main.app-shell[data-layout-page="routes"] .route-step-index > .icon-button{
+  width: 22px !important;
+  min-width: 22px !important;
+  height: var(--mes-ui-module-control-height) !important;
+  min-height: var(--mes-ui-module-control-height) !important;
+}main.app-shell[data-layout-page="routes"] .route-step-order-badge{
+  min-width: 24px !important;
+  height: var(--mes-ui-module-control-height) !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  font-size: var(--mes-ui-module-font-sm) !important;
+}main.app-shell[data-layout-page="routes"] .route-step-editor-row .icon-button.danger-soft{
+  width: 30px !important;
+  min-width: 30px !important;
+  height: var(--mes-ui-module-control-height) !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+}main.app-shell[data-layout-page="routes"] .route-step-editor-row .icon-button.danger-soft:hover{
+  border-color: rgba(239, 68, 68, 0.22) !important;
+  background: #fff1f2 !important;
+  color: #dc2626 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-editor{
+  gap: 6px !important;
+  padding-top: 6px !important;
+}main.app-shell[data-layout-page="routes"] .operation-flow-map{
+  gap: 5px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  padding: 5px !important;
+}main.app-shell[data-layout-page="routes"] .operation-flow-point{
+  gap: 4px !important;
+  padding: 4px 5px !important;
+}main.app-shell[data-layout-page="routes"] .operation-flow-point strong{
+  font-size: var(--mes-ui-module-font-xs) !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-override > summary{
+  min-height: 26px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  font-size: var(--mes-ui-module-font-xs) !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table-wrap{
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table{
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}main.app-shell[data-layout-page="routes"] .route-object-col-index{
+  width: 58px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-col-name{
+  width: auto !important;
+}main.app-shell[data-layout-page="routes"] .route-object-col-ratio{
+  width: 58px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-col-physical{
+  width: 96px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-col-unit{
+  width: 78px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-col-actions{
+  width: 220px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(1),
+main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(1){
+  width: 58px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(2),
+main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(2){
+  width: auto !important;
+  overflow: visible !important;
+  text-align: left !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(3),
+main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(3){
+  width: 58px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(4),
+main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(4){
+  width: 96px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(5),
+main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(5){
+  width: 78px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(6),
+main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(6){
+  width: 220px !important;
+  padding-right: 8px !important;
+  padding-left: 8px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th,
+main.app-shell[data-layout-page="routes"] .route-object-table td{
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="routes"] .route-object-table th{
+  font-weight: 600 !important;
+}main.app-shell[data-layout-page="routes"] .route-card-list-item small{
+  display: block !important;
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="routes"] .route-card-list-item small i{
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 650;
+  line-height: 1.2;
+  vertical-align: 1px;
+}main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-main small i,
+main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-main{
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #eff6ff;
+  color: #1d4ed8;
+}main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-child small i,
+main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-child{
+  border-color: rgba(245, 158, 11, 0.28);
+  background: #fffbeb;
+  color: #92400e;
+}main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-shift small i,
+main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-shift{
+  border-color: rgba(16, 185, 129, 0.24);
+  background: #ecfdf5;
+  color: #047857;
+}main.app-shell[data-layout-page="routes"] .route-lineage-panel{
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: var(--mes-ui-radius-md);
+  background: #f8fafc;
+  padding: 8px;
+}main.app-shell[data-layout-page="routes"] .route-lineage-title{
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}main.app-shell[data-layout-page="routes"] .route-card-kind-pill{
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 0 6px;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="routes"] .route-lineage-title strong{
+  min-width: 0;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: var(--mes-ui-module-font-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="routes"] .route-lineage-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}main.app-shell[data-layout-page="routes"] .route-lineage-grid span{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #ffffff;
+  padding: 6px 7px;
+}main.app-shell[data-layout-page="routes"] .route-lineage-grid b,
+main.app-shell[data-layout-page="routes"] .route-lineage-grid em{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="routes"] .route-lineage-grid b{
+  color: #64748b;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+}main.app-shell[data-layout-page="routes"] .route-lineage-grid em{
+  color: #0f172a;
+  font-size: var(--mes-ui-module-font-sm);
+  font-style: normal;
+  font-weight: 500;
+}main.app-shell[data-layout-page="routes"] .route-linked-cards{
+  display: grid;
+  gap: 5px;
+}main.app-shell[data-layout-page="routes"] .route-linked-cards > b{
+  color: #64748b;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 600;
+}main.app-shell[data-layout-page="routes"] .route-linked-card-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}main.app-shell[data-layout-page="routes"] .route-linked-card{
+  appearance: none;
+  display: inline-grid;
+  gap: 1px;
+  max-width: 260px;
+  min-height: 34px;
+  min-width: 0;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fffbeb;
+  color: #78350f;
+  padding: 5px 8px;
+  text-align: left;
+}main.app-shell[data-layout-page="routes"] button.route-linked-card{
+  cursor: pointer;
+}main.app-shell[data-layout-page="routes"] button.route-linked-card:hover{
+  border-color: rgba(245, 158, 11, 0.44);
+  background: #fef3c7;
+}main.app-shell[data-layout-page="routes"] .route-linked-card span,
+main.app-shell[data-layout-page="routes"] .route-linked-card small{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="routes"] .route-linked-card span{
+  font-size: var(--mes-ui-module-font-sm);
+  font-weight: 600;
+}main.app-shell[data-layout-page="routes"] .route-linked-card small{
+  color: #92400e;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+}main.app-shell[data-layout-page="routes"] .route-linked-card.is-missing{
+  border-color: rgba(148, 163, 184, 0.24);
+  background: #ffffff;
+  color: #64748b;
+}main.app-shell[data-layout-page="routes"] .route-linked-card.is-missing small{
+  color: #94a3b8;
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="routes"] .route-lineage-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }}main.app-shell[data-layout-page="routes"] .route-type-icon-badge{
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #f8fafc;
+  color: #475569;
+  vertical-align: middle;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge svg{
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-operation{
+  border-color: rgba(37, 99, 235, 0.22);
+  background: #eff6ff;
+  color: #2563eb;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-warehouse{
+  border-color: rgba(16, 185, 129, 0.24);
+  background: #ecfdf5;
+  color: #059669;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-bom{
+  border-color: rgba(124, 58, 237, 0.2);
+  background: #f5f3ff;
+  color: #6d28d9;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-spec,
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-assembly{
+  border-color: rgba(14, 165, 233, 0.22);
+  background: #f0f9ff;
+  color: #0284c7;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-part{
+  border-color: rgba(100, 116, 139, 0.22);
+  background: #f8fafc;
+  color: #334155;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-warning{
+  border-color: rgba(245, 158, 11, 0.28);
+  background: #fffbeb;
+  color: #b45309;
+}main.app-shell[data-layout-page="routes"] .route-tree-cell{
+  min-height: 29px;
+}main.app-shell[data-layout-page="routes"] .route-tree-cell.is-route-step{
+  align-items: center;
+}main.app-shell[data-layout-page="routes"] .route-tree-cell .speki-tree-object{
+  display: grid;
+  min-width: 0;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge::after{
+  display: none !important;
+  position: absolute;
+  z-index: 120;
+  top: 50%;
+  left: calc(100% + 8px);
+  max-width: 260px;
+  width: max-content;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #0f172a;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.2);
+  color: #ffffff;
+  content: attr(data-tooltip);
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
+  line-height: 1.25;
+  opacity: 0;
+  padding: 6px 8px;
+  pointer-events: none;
+  text-align: left;
+  transform: translateY(-50%) translateX(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  white-space: normal;
+}main.app-shell[data-layout-page="routes"] .route-type-icon-badge:hover::after,
+main.app-shell[data-layout-page="routes"] .route-type-icon-badge:focus-visible::after{
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}main.app-shell[data-layout-page="routes"] .route-object-name-cell strong{
+  font-size: var(--mes-ui-module-font-sm) !important;
+  font-weight: 600 !important;
+}main.app-shell[data-layout-page="routes"] .route-object-name-cell small{
+  font-size: var(--mes-ui-module-font-xs) !important;
+  font-weight: 500 !important;
+}main.app-shell[data-layout-page="routes"] .route-object-add-button{
+  min-height: 24px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  font-size: var(--mes-ui-module-font-xs) !important;
+  font-weight: 400 !important;
+  padding-right: 7px !important;
+  padding-left: 7px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-add-button span{
+  font-weight: 400 !important;
+}main.app-shell[data-layout-page="routes"] .route-object-actions{
+  flex-wrap: nowrap !important;
+  gap: 4px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-add-button{
+  gap: 4px !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}main.app-shell[data-layout-page="routes"] .route-object-add-button svg{
+  width: 12px !important;
+  height: 12px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-row td,
+main.app-shell[data-layout-page="routes"] .route-step-compact-row td{
+  height: auto !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  vertical-align: middle !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-fields{
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr) !important;
+  gap: 6px !important;
+  align-items: center !important;
+  width: min(100%, 392px) !important;
+  max-width: 392px !important;
+}main.app-shell[data-layout-page="routes"] .route-steps-panel > .ui-panel-head strong{
+  font-weight: 650 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-fields .form-field,
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary,
+main.app-shell[data-layout-page="routes"] .route-step-compact-actions,
+main.app-shell[data-layout-page="routes"] .route-object-actions{
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions{
+  justify-content: flex-start !important;
+  gap: 2px !important;
+  padding-right: 4px !important;
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="routes"] .route-module-form{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field,
+main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full{
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }}main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary{
+  min-height: 27px !important;
+  height: 27px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-fields .form-field > span,
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary strong,
+main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary small,
+main.app-shell[data-layout-page="routes"] .route-step-ratio-cell,
+main.app-shell[data-layout-page="routes"] .route-step-physical-cell,
+main.app-shell[data-layout-page="routes"] .route-step-unit-cell,
+main.app-shell[data-layout-page="routes"] .route-step-order-badge,
+main.app-shell[data-layout-page="routes"] .route-object-table .speki-static-cell{
+  font-weight: 400 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-order > .icon-button,
+main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button{
+  width: 22px !important;
+  min-width: 22px !important;
+  height: 23px !important;
+  min-height: 23px !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button{
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button:hover{
+  border-color: rgba(239, 68, 68, 0.22) !important;
+  background: #fff1f2 !important;
+  color: #dc2626 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button svg{
+  width: 13px !important;
+  height: 13px !important;
+  stroke-width: 1.8 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-toggle.is-active{
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-panel-row > td{
+  padding: 0 8px 8px calc(8px + (var(--speki-level, 0) * 10px)) !important;
+  background: #ffffff !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-panel{
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) !important;
+  gap: 7px !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: #f8fafc !important;
+  padding: 7px !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-panel .form-field input{
+  height: 28px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  font-size: var(--mes-ui-module-font-xs) !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-order .route-step-order-badge{
+  min-width: 24px !important;
+  height: 23px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  font-size: var(--mes-ui-module-font-xs) !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-order .route-step-order-plain{
+  display: inline;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mes-ui-text);
+  padding: 0;
+  font-size: var(--mes-ui-module-font-sm);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-body);
+}main.app-shell[data-layout-page="routes"] .route-step-flow-summary{
+  min-height: 38px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-summary > *{
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-summary b,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary strong,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary i{
+  font-weight: 400 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-summary b,
+main.app-shell[data-layout-page="routes"] .route-step-flow-summary strong{
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}main.app-shell[data-layout-page="routes"] .route-step-flow-override-compact > summary{
+  min-height: 23px !important;
+  height: 23px !important;
+  border-radius: var(--mes-ui-radius-xs) !important;
+  font-weight: 400 !important;
+}main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-step-editor-list{
+  gap: 6px !important;
+  padding: 6px 0 2px !important;
+}main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-step-editor-row{
+  border-radius: var(--mes-ui-radius-sm) !important;
+}main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-task-empty{
+  min-height: 40px !important;
+  padding: 8px 10px !important;
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="products"] .speki-spec-mini-card,
+main.app-shell[data-layout-page="routes"] .route-step-editor-row,
+main.app-shell[data-layout-page="routes"] .route-step-editor-row.has-task-target{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }}/* MES UI Kit rollout batch 2: operational modules. */
+main.app-shell:is([data-layout-page="planning"], [data-layout-page="shopMap"]){
+  --mes-ui-ops-sidebar-width: 248px;
+  --mes-ui-ops-control-height: 30px;
+  --mes-ui-ops-row-height: 34px;
+  --mes-ui-ops-font-xs: 10px;
+  --mes-ui-ops-font-sm: 11px;
+  --mes-ui-ops-font-md: 12px;
+  --mes-ui-ops-font-lg: 14px;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page){
+  grid-template-columns: minmax(var(--mes-ui-ops-sidebar-width), var(--mes-ui-ops-sidebar-width)) minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: var(--mes-ui-density-gap) !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: var(--mes-ui-density-page) !important;
+  overflow: hidden !important;
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+}main.app-shell[data-layout-page="shopMap"] .shop-map-page{
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--mes-ui-density-gap);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: var(--mes-ui-density-page);
+  overflow: hidden;
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg);
+}main.app-shell[data-layout-page="planning"] .planning-empty-page{
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+  padding: var(--mes-ui-density-page) !important;
+}main.app-shell[data-layout-page="planning"] .planning-empty-panel{
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  border-radius: var(--mes-ui-radius-xl) !important;
+  background: var(--mes-ui-surface-raised) !important;
+  box-shadow: var(--mes-ui-shadow-md) !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.module-data-sidebar, .module-data-workspace),
+main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(.module-data-sidebar, .module-data-workspace){
+  min-width: 0;
+  min-height: 0;
+  border-color: rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xl);
+  background: var(--mes-ui-surface-raised);
+  box-shadow: var(--mes-ui-shadow-md);
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-data-sidebar{
+  align-self: stretch;
+  max-height: none;
+  overflow: hidden;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-sidebar-head,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-sidebar-head{
+  min-height: 58px !important;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.84) !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-sidebar-head .eyebrow,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-sidebar-head .eyebrow{
+  color: var(--mes-ui-muted) !important;
+  font-size: var(--mes-ui-ops-font-xs) !important;
+  font-weight: 720 !important;
+  line-height: 12px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-sidebar-head h1,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-sidebar-head h1{
+  margin: 0 !important;
+  color: var(--mes-ui-text) !important;
+  font-size: 15px !important;
+  font-weight: 760 !important;
+  line-height: 18px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-sidebar-list{
+  gap: 5px !important;
+  padding: 8px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-data-workspace,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .module-data-workspace{
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-header,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-header{
+  min-height: 62px !important;
+  border-bottom-color: rgba(226, 232, 240, 0.84) !important;
+  background: linear-gradient(180deg, #ffffff, var(--mes-ui-surface-soft)) !important;
+  padding: 10px 12px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-header h2,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-header h2{
+  font-size: 18px !important;
+  line-height: 22px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-header p,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-header p{
+  margin-top: 3px !important;
+  font-size: var(--mes-ui-ops-font-sm) !important;
+  line-height: 15px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-data-content,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .module-data-content{
+  gap: var(--mes-ui-density-gap) !important;
+  padding: var(--mes-ui-density-card) !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-panel,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .module-panel,
+main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-panel-head,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .ui-panel-head{
+  min-height: 42px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.84);
+  background: var(--mes-ui-surface-soft);
+  padding: 8px 10px;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-panel-head strong,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .ui-panel-head strong{
+  color: var(--mes-ui-text) !important;
+  font-size: var(--mes-ui-ops-font-lg) !important;
+  font-weight: 760 !important;
+  line-height: 18px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-panel-head span,
+main.app-shell[data-layout-page="shopMap"] .shop-map-page .ui-panel-head span{
+  color: var(--mes-ui-muted) !important;
+  font-size: var(--mes-ui-ops-font-sm) !important;
+  line-height: 15px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(input, select, textarea, .dense-inline-select > summary),
+main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(input, select, textarea, .dense-inline-select > summary){
+  min-height: var(--mes-ui-ops-control-height) !important;
+  font-size: var(--mes-ui-ops-font-sm) !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.primary-button, .secondary-button, .icon-button, .table-icon-button),
+main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(.primary-button, .secondary-button, .icon-button, .table-icon-button){
+  min-height: var(--mes-ui-ops-control-height) !important;
+  font-size: var(--mes-ui-ops-font-sm) !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.planning-smt-calculator-panel){
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-lg) !important;
+  background: var(--mes-ui-surface-raised) !important;
+  padding: 8px !important;
+}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.planning-order-placement-summary){
+  gap: 6px !important;
+}main.app-shell[data-layout-page="shopMap"] .shop-map-page.module-data-page{
+  grid-template-columns: minmax(0, 1fr);
+}/* MES UI Kit rollout batch 3: Gantt workspace shell. */
+main.app-shell[data-layout-page="gantt"]{
+  --gantt-ui-surface: var(--mes-ui-surface-raised);
+  --gantt-ui-line: rgba(148, 163, 184, 0.26);
+  --gantt-ui-subtle: var(--mes-ui-surface-soft);
+  --gantt-ui-text: var(--mes-ui-text);
+  --gantt-ui-muted: var(--mes-ui-muted);
+  --gantt-ui-radius: var(--mes-ui-radius-xl);
+  --gantt-ui-radius-inner: var(--mes-ui-radius-md);
+  --gantt-ui-shadow: var(--mes-ui-shadow-md);
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only{
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: var(--mes-ui-density-gap) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: var(--mes-ui-density-page) !important;
+  overflow: hidden !important;
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
+  display: grid !important;
+  grid-template-columns: minmax(190px, 0.62fr) minmax(420px, 1.6fr) minmax(220px, auto) !important;
+  gap: 8px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  border: 1px solid var(--gantt-ui-line) !important;
+  border-radius: var(--gantt-ui-radius) !important;
+  background: var(--gantt-ui-surface) !important;
+  box-shadow: var(--gantt-ui-shadow) !important;
+  padding: 8px 10px !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar :is(.brand-block, .toolbar-grid, .toolbar-actions, .status-strip){
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="gantt"] .brand-title{
+  color: var(--gantt-ui-text) !important;
+  font-size: 15px !important;
+  font-weight: 760 !important;
+  line-height: 18px !important;
+}main.app-shell[data-layout-page="gantt"] .brand-subtitle{
+  color: var(--gantt-ui-muted) !important;
+  font-size: 11px !important;
+  line-height: 15px !important;
+}main.app-shell[data-layout-page="gantt"] .toolbar-grid{
+  grid-template-columns: minmax(132px, 0.55fr) minmax(168px, 0.72fr) minmax(132px, 0.52fr) minmax(220px, 1fr) !important;
+  gap: 6px !important;
+}main.app-shell[data-layout-page="gantt"] .toolbar-grid :is(.field, .segmented, .gantt-zoom-control){
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="gantt"] .toolbar-grid .field span{
+  font-size: 10px !important;
+  line-height: 12px !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-zoom-control{
+  height: 30px !important;
+  grid-template-columns: 28px minmax(42px, 1fr) 28px !important;
+  border-color: var(--gantt-ui-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--gantt-ui-subtle) !important;
+  padding: 2px !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-zoom-control .icon-button{
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+}main.app-shell[data-layout-page="gantt"] .toolbar-actions{
+  gap: 6px !important;
+  justify-content: flex-end !important;
+}main.app-shell[data-layout-page="gantt"] .status-strip{
+  grid-column: 1 / -1 !important;
+  gap: 6px !important;
+}main.app-shell[data-layout-page="gantt"] .status-pill,
+main.app-shell[data-layout-page="gantt"] .clock{
+  min-height: 22px !important;
+  padding: 2px 8px !important;
+  font-size: 10px !important;
+  line-height: 13px !important;
+}main.app-shell[data-layout-page="gantt"] .planner-frame{
+  min-height: 0 !important;
+  height: 100% !important;
+  border: 1px solid var(--gantt-ui-line) !important;
+  border-radius: var(--gantt-ui-radius) !important;
+  background: var(--gantt-ui-surface) !important;
+  box-shadow: var(--gantt-ui-shadow) !important;
+  padding: 8px !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell{
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-radius: var(--gantt-ui-radius-inner) !important;
+  background: var(--mes-ui-surface) !important;
+  overflow: auto !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-canvas{
+  background: var(--mes-ui-surface) !important;
+}main.app-shell[data-layout-page="gantt"] .timeline-corner,
+main.app-shell[data-layout-page="gantt"] .timeline-cell,
+main.app-shell[data-layout-page="gantt"] .row-label{
+  background: var(--mes-ui-surface-soft) !important;
+  color: var(--gantt-ui-muted) !important;
+}main.app-shell[data-layout-page="gantt"] .timeline-cell strong,
+main.app-shell[data-layout-page="gantt"] .row-label strong{
+  color: var(--gantt-ui-text) !important;
+}main.app-shell[data-layout-page="gantt"] .route-sequence-mini span,
+main.app-shell[data-layout-page="gantt"] .production-status,
+main.app-shell[data-layout-page="gantt"] .deadline-badge{
+  border-radius: var(--mes-ui-radius-xs) !important;
+}@media (max-width: 1360px) {main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page){
+    grid-template-columns: minmax(0, 1fr) !important;
+    overflow: auto !important;
+  }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }main.app-shell[data-layout-page="gantt"] .toolbar-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }}@media (max-width: 1180px) {main.app-shell[data-layout-page="shopMap"] .shop-map-page{
+    grid-template-columns: minmax(0, 1fr) !important;
+    overflow: auto !important;
+  }main.app-shell[data-layout-page="planning"] .module-data-sidebar{
+    max-height: 320px;
+  }}/* MES UI Kit stability pass: one sidebar and typography contract across modules. */
+:root{
+  --mes-ui-app-sidebar-width: 154px;
+  --mes-ui-work-sidebar-width: 248px;
+  --mes-ui-work-font: 12px;
+  --mes-ui-work-line: 16px;
+  --mes-ui-work-font-sm: 11px;
+  --mes-ui-work-font-xs: 10px;
+  --mes-ui-work-title: 15px;
+  --mes-sidebar-width: var(--mes-ui-app-sidebar-width);
+}main.app-shell[data-layout="app-shell"]{
+  grid-template-columns: var(--mes-ui-app-sidebar-width) minmax(0, 1fr) !important;
+}main.app-shell[data-layout="app-shell"] .module-menu{
+  width: var(--mes-ui-app-sidebar-width) !important;
+  min-width: var(--mes-ui-app-sidebar-width) !important;
+  max-width: var(--mes-ui-app-sidebar-width) !important;
+}main.app-shell[data-layout="app-shell"] .app-topbar{
+  min-width: 0 !important;
+}main.app-shell[data-layout-page="directories"] .directories-page{
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
+  gap: var(--mes-ui-density-gap) !important;
+  padding: var(--mes-ui-density-page) !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page{
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
+  gap: var(--mes-ui-density-gap) !important;
+  padding: var(--mes-ui-density-page) !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-workspace{
+  grid-template-columns: minmax(420px, 0.94fr) minmax(420px, 1.06fr) !important;
+  gap: 8px !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-queue{
+  height: 100% !important;
+}main.app-shell[data-layout-page="directories"] .directories-page{
+  --directory-ui-sidebar-width: var(--mes-ui-work-sidebar-width);
+  font-size: var(--mes-ui-work-font) !important;
+  line-height: var(--mes-ui-work-line) !important;
+}main.app-shell[data-layout-page="directories"] :is(.directory-table, .directory-table th, .directory-table td){
+  font-size: var(--mes-ui-work-font-sm);
+  line-height: 15px;
+}main.app-shell[data-layout-page="directories"] .directory-table-wrap{
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}main.app-shell[data-layout-page="directories"] .directory-table{
+  width: max-content;
+  min-width: max(100%, 1120px);
+  table-layout: auto;
+}main.app-shell[data-layout-page="directories"] .directory-table th{
+  position: relative;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  line-height: 13px;
+}main.app-shell[data-layout-page="directories"] .directory-column-filter{
+  position: relative;
+  display: block;
+  min-width: 0;
+}main.app-shell[data-layout-page="directories"] .directory-column-filter > summary{
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 2px;
+  border-radius: var(--mes-ui-radius-xs, 5px);
+  cursor: pointer;
+  list-style: none;
+}main.app-shell[data-layout-page="directories"] .directory-column-filter > summary::-webkit-details-marker{
+  display: none;
+}main.app-shell[data-layout-page="directories"] .directory-column-filter > summary span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}main.app-shell[data-layout-page="directories"] .directory-column-filter > summary em{
+  min-width: 0;
+  color: var(--mes-ui-primary);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-bold, 760);
+  line-height: 10px;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="directories"] .directory-column-filter > summary svg{
+  width: 12px;
+  height: 12px;
+  color: var(--mes-ui-muted);
+  stroke-width: 2;
+}main.app-shell[data-layout-page="directories"] .directory-column-filter.is-active > summary{
+  color: var(--mes-ui-primary);
+}main.app-shell[data-layout-page="directories"] .directory-column-filter.is-active > summary svg{
+  color: var(--mes-ui-primary);
+}main.app-shell[data-layout-page="directories"] .directory-filter-menu{
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 80;
+  display: grid;
+  gap: 7px;
+  width: min(260px, calc(100vw - 28px));
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-md, 8px);
+  background: var(--mes-ui-surface, #fff);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  padding: 9px;
+  color: var(--mes-ui-text);
+  text-align: left;
+}main.app-shell[data-layout-page="directories"] .directory-filter-options{
+  display: grid;
+  gap: 3px;
+  max-height: 210px;
+  overflow: auto;
+  padding-right: 2px;
+}main.app-shell[data-layout-page="directories"] .directory-filter-option{
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 25px;
+  border-radius: var(--mes-ui-radius-xs, 5px);
+  padding: 3px 5px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+  line-height: 13px;
+}main.app-shell[data-layout-page="directories"] .directory-filter-option:hover{
+  background: var(--mes-ui-surface-soft, #f8fafc);
+}main.app-shell[data-layout-page="directories"] .directory-filter-option input{
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--mes-ui-primary);
+}main.app-shell[data-layout-page="directories"] .directory-filter-option span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="directories"] .directory-filter-option em{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 11px;
+}main.app-shell[data-layout-page="directories"] .directory-filter-option.is-all{
+  border-bottom: 1px solid var(--mes-ui-line);
+  border-radius: 0;
+  padding-bottom: 7px;
+}main.app-shell[data-layout-page="directories"] .directory-filter-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid var(--mes-ui-line);
+  padding-top: 8px;
+}main.app-shell[data-layout-page="directories"] .directory-filter-actions button{
+  min-height: 26px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm, 6px);
+  background: var(--mes-ui-surface);
+  padding: 3px 8px;
+  color: var(--mes-ui-text-secondary);
+  font-size: 9.5px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}main.app-shell[data-layout-page="directories"] .directory-filter-actions button:last-child{
+  border-color: color-mix(in srgb, var(--mes-ui-primary) 34%, var(--mes-ui-line));
+  background: color-mix(in srgb, var(--mes-ui-primary) 8%, var(--mes-ui-surface));
+  color: var(--mes-ui-primary);
+}main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell{
+  padding: 20px !important;
+  text-align: center;
+}main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell strong,
+main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell span{
+  display: block;
+}main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell span{
+  margin-top: 4px;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-regular, 600);
+}main.app-shell[data-layout-page="directories"] .directory-table td:not(.actions-cell){
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}main.app-shell[data-layout-page="directories"] .directory-table :is(.is-key-description, .is-key-owner, .is-key-work-mode){
+  min-width: 140px;
+  max-width: 260px;
+}main.app-shell[data-layout-page="directories"] .directory-table :is(.is-key-code, .is-key-status, .is-key-planning-status, .is-key-participates-in-planning, .is-key-participates-in-calculation){
+  min-width: 72px;
+  max-width: 112px;
+}main.app-shell[data-layout-page="gantt"]{
+  font-size: var(--mes-ui-work-font) !important;
+  line-height: var(--mes-ui-work-line) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
+}main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-workspace{
+  grid-template-columns: minmax(420px, 0.94fr) minmax(420px, 1.06fr) !important;
+  gap: 8px !important;
+}/* MES UI Kit typography contract: one scale for all production modules. */
+:root{
+  --mes-ui-type-micro: 9px;
+  --mes-ui-type-caption: 9.5px;
+  --mes-ui-type-nav: 10.5px;
+  --mes-ui-type-body: 11px;
+  --mes-ui-type-card-title: 13px;
+  --mes-ui-type-section-title: 15px;
+  --mes-ui-type-app-title: 17px;
+  --mes-ui-line-micro: 11px;
+  --mes-ui-line-caption: 12px;
+  --mes-ui-line-nav: 13px;
+  --mes-ui-line-body: 15px;
+  --mes-ui-line-card-title: 16px;
+  --mes-ui-line-section-title: 18px;
+  --mes-ui-line-app-title: 22px;
+  --mes-ui-weight-regular: 400;
+  --mes-ui-weight-medium: 500;
+  --mes-ui-weight-semibold: 600;
+  --mes-ui-weight-bold: 700;
+}main.app-shell[data-layout="app-shell"] :is(.app-topbar-title h1, .app-topbar-title strong){
+  font-size: var(--mes-ui-type-app-title) !important;
+  font-weight: var(--mes-ui-weight-bold) !important;
+  line-height: var(--mes-ui-line-app-title) !important;
+  letter-spacing: 0 !important;
+}main.app-shell[data-layout="app-shell"] .app-topbar-title span{
+  font-size: var(--mes-ui-type-body) !important;
+  font-weight: var(--mes-ui-weight-regular) !important;
+  line-height: var(--mes-ui-line-body) !important;
+  letter-spacing: 0 !important;
+}/* MES verification fix: Gantt topbar must have non-overlapping grid areas. */
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
+  grid-template-areas:
+    "brand controls actions"
+    "status status status" !important;
+  grid-template-columns: minmax(240px, 0.42fr) minmax(680px, 1fr) minmax(380px, max-content) !important;
+  grid-template-rows: auto auto !important;
+  align-items: start !important;
+  gap: 8px !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .brand-block{
+  grid-area: brand !important;
+  align-self: center !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid{
+  grid-area: controls !important;
+  align-self: start !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-actions{
+  grid-area: actions !important;
+  align-self: start !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .status-strip{
+  grid-area: status !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  align-self: start !important;
+}/* MES verification fix: Gantt layers should read as lanes first,
+dependencies second. */
+main.app-shell[data-layout-page="gantt"] .gantt-shell .dependencies-layer{
+  z-index: 8 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot{
+  z-index: 16 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-working-segment,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-non-working-segment{
+  z-index: 17 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.slot-line.slot-content-quantity-only, .week-slot-line.slot-content-quantity-only){
+  z-index: 24 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path{
+  stroke-opacity: 0.46 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path-underlay{
+  stroke-opacity: 0.52 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path.dependency-path-muted{
+  opacity: 0.26 !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path-underlay.dependency-path-muted{
+  opacity: 0.18 !important;
+}/* MES verification fix: zoom controls must fit inside their own 30px frame. */
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control{
+  box-sizing: border-box !important;
+  grid-template-columns: 24px minmax(48px, 1fr) 24px !important;
+  align-items: center !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  overflow: hidden !important;
+  padding: 2px !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control .icon-button,
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control .gantt-zoom-value{
+  box-sizing: border-box !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  padding: 0 !important;
+  line-height: 24px !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control .gantt-zoom-value{
+  width: auto !important;
+  min-width: 48px !important;
+  line-height: 24px !important;
+}/* MES verification fix: first-row Gantt toolbar containers share one rhythm. */
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
+  --gantt-toolbar-container-height: 40px;
+  --gantt-toolbar-inner-height: 30px;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid{
+  align-items: center !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid > :is(.field, .segmented, .gantt-zoom-control),
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-actions{
+  box-sizing: border-box !important;
+  height: var(--gantt-toolbar-container-height) !important;
+  min-height: var(--gantt-toolbar-container-height) !important;
+  max-height: var(--gantt-toolbar-container-height) !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact{
+  align-content: center !important;
+  grid-template-rows: 10px var(--gantt-toolbar-inner-height) !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact > span{
+  line-height: 10px !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact > input,
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .segmented .segment,
+main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-actions :is(.primary-button, .secondary-button, .icon-button, .toggle-switch-button){
+  height: var(--gantt-toolbar-inner-height) !important;
+  min-height: var(--gantt-toolbar-inner-height) !important;
+  max-height: var(--gantt-toolbar-inner-height) !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control{
+  height: var(--gantt-toolbar-container-height) !important;
+  min-height: var(--gantt-toolbar-container-height) !important;
+  max-height: var(--gantt-toolbar-container-height) !important;
+}
+/* Production structure matrix: full-width editable contract for org/resources behavior. */
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-page{
+  display: grid;
+  min-height: 100%;
+  background: var(--mes-ui-page-bg, #f4f7fb);
+  overflow: hidden auto;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-workspace{
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding: 10px 12px 14px;
+  overflow: visible;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-content{
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  overflow: visible;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis article{
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--mes-ui-border, #d8e0eb);
+  border-radius: var(--mes-ui-radius-md, 8px);
+  background: #ffffff;
+  padding: 7px 9px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis strong{
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 700;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 16px;
+  font-weight: 700;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-panel{
+  min-width: 0;
+  overflow: visible;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-panel{
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin-bottom: 10px;
+  border: 1px solid var(--mes-ui-border, #d8e0eb);
+  border-radius: var(--mes-ui-radius-md, 8px);
+  background: #f8fbff;
+  padding: 9px 10px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro span{
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 12px;
+  font-weight: 700;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 11px;
+  font-weight: 560;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card{
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-border, #d8e0eb);
+  border-radius: var(--mes-ui-radius-md, 8px);
+  background: #ffffff;
+  padding: 10px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card > header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card p,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card span,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card strong,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card small{
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div{
+  display: grid;
+  gap: 2px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 1.15;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.18;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header small,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card p{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  line-height: 1.25;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label > span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: 760;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls select{
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--mes-ui-border, #d8e0eb);
+  border-radius: var(--mes-ui-radius-sm, 6px);
+  background: #ffffff;
+  color: var(--mes-ui-text, #0f172a);
+  padding: 5px 28px 5px 8px;
+  font: 700 11px/16px var(--mes-ui-font, Arial, sans-serif);
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats article{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border-radius: var(--mes-ui-radius-sm, 6px);
+  background: #f8fafc;
+  padding: 6px 7px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 9px;
+  font-weight: 760;
+  line-height: 1.1;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip{
+  display: grid;
+  gap: 1px;
+  max-width: 180px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #eff6ff;
+  padding: 4px 8px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong{
+  color: #1e3a8a;
+  font-size: 10px;
+  font-weight: 760;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
+  color: #64748b;
+  font-size: 8px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview em{
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 760;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-manual-list{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 6px;
+  min-width: 0;
+  overflow: visible;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check{
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid var(--mes-ui-border, #d8e0eb);
+  border-radius: var(--mes-ui-radius-sm, 6px);
+  background: #ffffff;
+  padding: 5px 7px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check input{
+  inline-size: 14px;
+  block-size: 14px;
+  margin: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check > span{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong,
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check small{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 10px;
+  font-weight: 720;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check small{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 9px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table-wrap{
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table{
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table td{
+  box-sizing: border-box;
+  min-width: 96px;
+  max-width: 230px;
+  border-right: 1px solid var(--mes-ui-border, #d8e0eb);
+  border-bottom: 1px solid var(--mes-ui-border, #d8e0eb);
+  background: #ffffff;
+  padding: 5px;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 10px;
+  line-height: 1.15;
+  vertical-align: middle;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-wide-column{
+  min-width: 260px;
+  max-width: 360px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-code-column{
+  min-width: 180px;
+  max-width: 260px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th{
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #eef4fb;
+  color: #334155;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: left;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th:first-child{
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  min-width: 260px;
+  max-width: 300px;
+  border-left: 1px solid var(--mes-ui-border, #d8e0eb);
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th:first-child{
+  z-index: 5;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.has-override td,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.has-override th{
+  background: #f8fbff;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell{
+  padding-left: calc(8px + var(--structure-level, 0) * 16px) !important;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > strong,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > small{
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.12;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 9px;
+  font-weight: 760;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell .production-structure-row-type{
+  margin-bottom: 3px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > strong{
+  margin-top: 2px;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 11px;
+  font-weight: 700;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > small{
+  margin-top: 2px;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 9px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell{
+  display: block;
+  min-width: 0;
+  min-height: 28px;
+  color: var(--mes-ui-text, #0f172a);
+  padding: 5px 0;
+  font: 620 10px/16px var(--mes-ui-font, Arial, sans-serif);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-structure-name{
+  min-height: 30px;
+  padding-left: 0;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 11px;
+  font-weight: 760;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-code,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-row-type{
+  color: var(--mes-ui-text-secondary, #334155);
+  font-weight: 680;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-control{
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  border: 1px solid var(--mes-ui-border, #d8e0eb);
+  border-radius: var(--mes-ui-radius-sm, 6px);
+  background: #ffffff;
+  color: var(--mes-ui-text, #0f172a);
+  padding: 4px 6px;
+  font: 650 10px/16px var(--mes-ui-font, Arial, sans-serif);
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-control{
+  min-height: 30px;
+  border-color: transparent;
+  background: #f8fafc;
+  font-size: 11px;
+  font-weight: 760;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] select.production-structure-control{
+  padding-right: 22px;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.is-demo-user th,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.is-demo-user td{
+  background: #fbfdff;
+}
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-muted{
+  color: var(--mes-ui-muted, #64748b);
+}
+
+main.app-shell[data-layout-page="roles"] :is(.access-role-permission-table, .access-role-assignment-table) .primary-cell strong{
+  font-weight: 700;
+}

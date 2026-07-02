@@ -9,11 +9,22 @@ const ALLOWED_VALUE_KEYS = new Set([
   "mes-planning-prototype-directories-v2",
   "mes-planning-prototype-directories-defaults-restored-v1",
   "mes-planning-prototype-directories-deleted-entities-v1",
+  "mes-planning-prototype-supply-control-v1",
   "mes-planning-prototype-work-center-operations-seeded-v2",
 ]);
 const ALLOWED_SHARED_UI_KEYS = new Set([
   "shopMapWidgetLayouts",
   "ganttDependencyRoutes",
+  "productionStructureMatrixOverrides",
+  "timesheetCellOverrides",
+  "timesheetScheduleOverrides",
+  "shiftMasterBoardLaneBySlot",
+  "shiftMasterBoardAssignments",
+  "shiftMasterBoardFacts",
+  "shiftMasterBoardCarryovers",
+  "shiftMasterAssignmentMatrix",
+  "accessRoleProfiles",
+  "accessRoleAssignments",
 ]);
 
 function normalizeHeaders(headers, contentType = JSON_CONTENT_TYPE) {
@@ -114,18 +125,38 @@ function parseSnapshot(raw) {
   }
 }
 
-function sanitizeValues(values) {
+function sanitizeValues(values, currentValues = {}) {
   if (!values || typeof values !== "object" || Array.isArray(values)) return null;
   const entries = Object.entries(values)
     .filter(([key, value]) => ALLOWED_VALUE_KEYS.has(key) && (typeof value === "string" || value === null));
-  return Object.fromEntries(entries);
+  const sanitized = Object.fromEntries(entries);
+  ALLOWED_VALUE_KEYS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(sanitized, key)) return;
+    const currentValue = currentValues?.[key];
+    if (typeof currentValue === "string" || currentValue === null) sanitized[key] = currentValue;
+  });
+  return sanitized;
 }
 
-function sanitizeSharedUi(sharedUi) {
-  if (!sharedUi || typeof sharedUi !== "object" || Array.isArray(sharedUi)) return {};
+function isAllowedSharedUiValue(key, value) {
+  if (!ALLOWED_SHARED_UI_KEYS.has(key) || !value || typeof value !== "object") return false;
+  if (key === "accessRoleProfiles") return Array.isArray(value);
+  return !Array.isArray(value);
+}
+
+function sanitizeSharedUi(sharedUi, currentSharedUi = {}) {
+  if (!sharedUi || typeof sharedUi !== "object" || Array.isArray(sharedUi)) {
+    sharedUi = {};
+  }
   const entries = Object.entries(sharedUi)
-    .filter(([key, value]) => ALLOWED_SHARED_UI_KEYS.has(key) && value && typeof value === "object" && !Array.isArray(value));
-  return Object.fromEntries(entries);
+    .filter(([key, value]) => isAllowedSharedUiValue(key, value));
+  const sanitized = Object.fromEntries(entries);
+  ALLOWED_SHARED_UI_KEYS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(sanitized, key)) return;
+    const currentValue = currentSharedUi?.[key];
+    if (isAllowedSharedUiValue(key, currentValue)) sanitized[key] = currentValue;
+  });
+  return sanitized;
 }
 
 function createEmptySnapshot() {
@@ -192,7 +223,7 @@ function normalizeAction(value) {
 }
 
 function buildClientSnapshot(current, payload) {
-  const values = sanitizeValues(payload.values);
+  const values = sanitizeValues(payload.values, current.values);
   if (!values || !values["mes-planning-prototype-state-v2"] || !values["mes-planning-prototype-directories-v2"]) {
     throw new Error("Invalid shared state payload");
   }
@@ -216,7 +247,7 @@ function buildClientSnapshot(current, payload) {
     updatedAt,
     updatedBy,
     values,
-    sharedUi: sanitizeSharedUi(payload.sharedUi),
+    sharedUi: sanitizeSharedUi(payload.sharedUi, current.sharedUi),
     events: [event, ...(current.events || [])].slice(0, 50),
   };
 }

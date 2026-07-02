@@ -8,7 +8,7 @@
  * Route: route card and production order for product composition in planningState.routes.
  * RouteStep: operation in a route card, linked to a work center and optionally OperationMapItem.
  * OperationSlot: scheduled Gantt operation in planningState.slots.
- * WorkCenter: planning/resource row in planningState.workCenters with separate workSchedule and workMode fields.
+ * WorkCenter: matrix-derived planning/resource row in planningState.workCenters with separate workSchedule and workMode fields.
  *
  * Compatibility note: projectId still appears in routes and slots as an alias
  * for specificationId. Legacy batchId may exist in older saved slots, but the

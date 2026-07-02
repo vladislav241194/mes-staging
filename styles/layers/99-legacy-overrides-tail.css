@@ -1,0 +1,4406 @@
+/* MES CSS layer: remaining late cascade overrides awaiting dedicated cleanup.
+   Cascade order is controlled by root styles.css; do not import this file directly. */
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-content{
+  display: flex;
+  flex-direction: column;
+  gap: var(--shift-board-gap);
+  align-items: start;
+  min-width: 0;
+  padding: var(--mes-ui-density-card);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-main-grid{
+  display: grid;
+  grid-template-columns: minmax(560px, 1.35fr) minmax(390px, 0.65fr);
+  gap: var(--shift-board-gap);
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls{
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--shift-board-radius);
+  background: var(--mes-ui-surface-raised);
+  box-shadow: var(--mes-ui-shadow-sm);
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-row{
+  display: grid;
+  grid-template-columns: minmax(360px, 0.75fr) minmax(280px, 0.48fr) minmax(360px, 1fr);
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-calendar-control{
+  grid-template-columns: 28px minmax(160px, 1fr) 28px 28px minmax(82px, auto) minmax(104px, auto);
+  align-items: end;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(248, 250, 252, 0.72);
+  padding: 7px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-calendar-today,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-calendar-range{
+  grid-column: auto;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-master-board-kpis{
+  height: 100%;
+  padding: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-context,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-switch{
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(248, 250, 252, 0.72);
+  padding: 7px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-context strong,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-switch > strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-context span{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-switch > div{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 5px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-switch button{
+  appearance: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  color: inherit;
+  padding: 4px 6px;
+  font: inherit;
+  cursor: pointer;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-switch button.is-active{
+  border-color: rgba(37, 99, 235, 0.36);
+  background: var(--mes-ui-selected);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-switch button span{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-switch button em{
+  color: var(--mes-ui-primary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-bottom-stack{
+  display: grid;
+  gap: var(--shift-board-gap);
+  width: 100%;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-panel{
+  display: block;
+  width: 100%;
+  height: max-content;
+  min-height: max-content;
+  overflow: visible;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-panel .ui-panel-head{
+  min-height: 42px;
+  border-bottom: 1px solid var(--mes-ui-line);
+  background: rgba(248, 250, 252, 0.82);
+  padding: 8px 10px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-panel .ui-panel-head strong{
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-panel .ui-panel-head span{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis{
+  grid-column: auto;
+  grid-row: auto;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-panel{
+  grid-column: auto;
+  grid-row: auto;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-segmented{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-segmented .segmented-button{
+  min-height: 28px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-muted);
+  padding: 0 8px;
+  font-size: 10px;
+  line-height: 13px;
+  cursor: pointer;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-segmented .segmented-button.is-active{
+  border-color: rgba(37, 99, 235, 0.32);
+  background: var(--mes-ui-selected);
+  color: var(--mes-ui-text);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article{
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 2px 8px;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article span{
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--mes-ui-radius-xs);
+  background: var(--mes-ui-primary-soft);
+  color: var(--mes-ui-primary);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-bold);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  line-height: 14px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article small{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article{
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) max-content;
+  gap: 2px 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article span{
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--mes-ui-radius-xs);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article strong{
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  line-height: 14px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article em{
+  justify-self: end;
+  color: var(--mes-ui-primary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 13px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article small{
+  grid-column: 2 / -1;
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+  padding: 0 8px 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention article{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 7px 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention article.is-warning{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention article.is-primary{
+  border-color: rgba(37, 99, 235, 0.24);
+  background: var(--mes-ui-primary-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention span{
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  text-overflow: clip;
+  white-space: normal;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention strong{
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-panel{
+  grid-column: auto;
+  grid-row: auto;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates{
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button{
+  appearance: none;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) max-content;
+  gap: 2px 7px;
+  align-items: center;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: inherit;
+  padding: 7px 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button:disabled{
+  cursor: default;
+  opacity: 0.7;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button:not(:disabled):hover,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button:not(:disabled):focus-visible{
+  border-color: rgba(37, 99, 235, 0.42);
+  background: var(--mes-ui-selected);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+  outline: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button.is-warning{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button.is-primary{
+  border-color: rgba(37, 99, 235, 0.24);
+  background: var(--mes-ui-primary-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button.is-ok{
+  border-color: var(--mes-ui-success-border);
+  background: var(--mes-ui-success-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates span{
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates strong,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates small{
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates strong{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 13px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates em{
+  justify-self: end;
+  color: var(--mes-ui-primary);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates small{
+  grid-column: 2 / -1;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes-panel{
+  grid-column: 2;
+  grid-row: auto;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  align-items: start;
+  min-width: 0;
+  padding: 5px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane{
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 5px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane.is-warning{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane.is-lane-intake{
+  border-color: rgba(148, 163, 184, 0.42);
+  border-style: dashed;
+  background: rgba(248, 250, 252, 0.74);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane.is-lane-intake header strong{
+  color: var(--mes-ui-text);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane.is-primary{
+  border-color: rgba(37, 99, 235, 0.22);
+  background: var(--mes-ui-primary-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane.is-ok{
+  border-color: var(--mes-ui-success-border);
+  background: var(--mes-ui-success-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane.is-drop-target{
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(239, 246, 255, 0.76);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08) inset;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane header{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane header strong{
+  color: var(--mes-ui-text);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane header :is(span, small){
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 7.5px;
+  line-height: 9px;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane-limit{
+  display: none;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane-limit.is-warning{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+  color: var(--mes-ui-warning-text);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane-body,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-group{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow: visible;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-group > span,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane-empty{
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 7.5px;
+  line-height: 9px;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card{
+  appearance: none;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  padding: 4px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card.is-lane-intake{
+  border-color: rgba(148, 163, 184, 0.34);
+  border-style: dashed;
+  background: #fff;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card.is-lane-intake:hover,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card.is-lane-intake.is-active{
+  border-color: rgba(37, 99, 235, 0.42);
+  background: var(--mes-ui-selected);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card:hover,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card.is-active{
+  border-color: rgba(37, 99, 235, 0.5);
+  background: var(--mes-ui-selected);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1) inset;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card.is-dragging{
+  opacity: 0.72;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-title,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-meta,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-footer{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-title strong{
+  color: var(--mes-ui-text);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-title small,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-footer em,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-meta i{
+  display: none;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-footer em{
+  display: block;
+  color: var(--mes-ui-muted);
+  font-size: 7.5px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 9px;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card.is-lane-intake .shift-master-board-card-footer em{
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: var(--mes-ui-muted);
+  padding: 0;
+  line-height: 9px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card :is(small, em, i){
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 7.5px;
+  font-style: normal;
+  line-height: 9px;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-flow{
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-height: 12px;
+  overflow: hidden;
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(226, 232, 240, 0.74);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-flow b{
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--board-allocation, 0%);
+  background: rgba(37, 99, 235, 0.22);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-flow small{
+  position: relative;
+  z-index: 1;
+  padding: 0 3px;
+  color: var(--mes-ui-text);
+  font-size: 7px;
+  line-height: 10px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-detail-panel{
+  grid-column: 1;
+  grid-row: auto;
+}
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  padding: 8px;
+}
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header div{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header strong{
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header span{
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-task-context{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 8px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-task-context + .shift-master-board-section{
+  margin-top: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-inline-summary{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  align-items: stretch;
+  min-width: 0;
+  margin: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-task-context .shift-master-board-inline-summary{
+  margin: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell{
+  display: grid;
+  grid-template-rows: auto minmax(14px, 1fr);
+  gap: 2px;
+  align-items: start;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 5px 6px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell > :is(span:not(.ui-status-token),
+strong,
+small){
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell > span:not(.ui-status-token){
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 9px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell strong{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: 12px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell.is-operation strong{
+  font-weight: var(--mes-ui-weight-semibold);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage{
+  display: contents;
+  min-width: 0;
+  padding: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage article{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+  align-items: stretch;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 5px 6px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage article.is-ok{
+  border-color: var(--mes-ui-success-border);
+  background: var(--mes-ui-success-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage article.is-warning{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage article > div{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage :is(span, small){
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 9px;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage i{
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.86);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage b{
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(37, 99, 235, 0.55);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage article.is-ok b{
+  background: rgba(22, 163, 74, 0.56);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage article.is-warning b{
+  background: rgba(245, 158, 11, 0.62);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 8px 8px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(239, 246, 255, 0.38);
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-task-context .shift-master-board-route-chain{
+  margin: 0;
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 0 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain header{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px 4px 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-task-context .shift-master-board-route-chain header{
+  padding: 4px 4px 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain header strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain header span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 12px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain > div{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  padding: 6px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article.is-current{
+  border-color: rgba(37, 99, 235, 0.34);
+  background: var(--mes-ui-selected);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article :is(span, strong, small){
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article span{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 10px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article strong{
+  color: var(--mes-ui-text);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article small{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 10px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 8px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.78);
+  overflow: visible;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+  padding: 0 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid.is-fact{
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid label{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid label.is-wide{
+  grid-column: 1 / -1;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid span{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 12px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-loadbar{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.74);
+  padding: 7px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-loadbar > header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  padding: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-loadbar > header div{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-loadbar > header span,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-loadbar > header small{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-loadbar > header strong{
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-list{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+  gap: 6px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person{
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 6px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person div,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person footer{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person strong,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person span,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person small{
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person strong{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person small{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 10px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-quantity{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-quantity span{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-quantity input{
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+  text-align: right;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-quantity input::-webkit-outer-spin-button,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-quantity input::-webkit-inner-spin-button{
+  margin: 0;
+  -webkit-appearance: none;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person i{
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(226, 232, 240, 0.9);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person i b{
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: block;
+  height: auto;
+  transition: left 140ms ease, width 140ms ease, background-color 140ms ease;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person i b.is-base{
+  left: 0;
+  width: var(--employee-base-load, 0%);
+  background: rgba(100, 116, 139, 0.42);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person i b.is-reserve{
+  left: var(--employee-reserve-left, 0%);
+  width: var(--employee-reserve-load, 0%);
+  background: rgba(37, 99, 235, 0.76);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person.is-ok i b.is-reserve{
+  background: rgba(34, 197, 94, 0.72);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person.is-warning i b.is-reserve{
+  background: rgba(245, 158, 11, 0.82);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid :is(input, select){
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: 15px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-actions{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 8px 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-actions button{
+  min-height: 30px;
+  font-size: 11px;
+  line-height: 15px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-actions button span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-document{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin: 0 8px;
+  border: 1px dashed rgba(37, 99, 235, 0.24);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(239, 246, 255, 0.46);
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-document :is(span, small){
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-document strong{
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary{
+  display: grid;
+  grid-template-columns: 1fr 1fr minmax(76px, 0.65fr);
+  gap: 6px;
+  min-width: 0;
+  margin: 0 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary article{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 6px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary.is-warning article{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary.is-ok article{
+  border-color: var(--mes-ui-success-border);
+  background: var(--mes-ui-success-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary span{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-modal{
+  width: min(820px, calc(100vw - 48px));
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet section{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet section.is-wide{
+  grid-column: 1 / -1;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet span,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet small{
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  text-overflow: clip;
+  white-space: normal;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet strong{
+  min-width: 0;
+  overflow: visible;
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 16px;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-metrics,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-signatures,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-transfer{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-metrics article,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-signatures i,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-transfer article{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  padding: 7px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-transfer article{
+  min-height: 58px;
+  align-content: start;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-signatures i{
+  min-height: 46px;
+  align-content: end;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 13px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history > div{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+  padding: 0 8px 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article{
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 1px 6px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 6px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article.is-ok{
+  border-color: var(--mes-ui-success-border);
+  background: var(--mes-ui-success-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article.is-warning{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article span{
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article strong{
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 13px;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article small{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-panel{
+  grid-column: auto;
+  grid-row: auto;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid{
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+  padding: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button){
+  appearance: none;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 7px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button):hover,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button):focus-visible{
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+  outline: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button).is-current{
+  border-color: rgba(37, 99, 235, 0.36);
+  background: var(--mes-ui-selected);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(.shop-map-widget, .shop-map-next-grid, .shop-map-modal-summary, .shop-map-modal-list) :is(strong,
+b){
+  font-weight: var(--mes-ui-weight-semibold, 600) !important;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header span,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid small{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars span{
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) max-content;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars b{
+  display: block;
+  width: var(--bar-width, 0%);
+  min-width: 2px;
+  height: 5px;
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(37, 99, 235, 0.28);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars span:nth-child(2) b{
+  background: rgba(14, 165, 233, 0.38);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars span:nth-child(3) b{
+  background: rgba(34, 197, 94, 0.44);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+  padding: 0 8px 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights article{
+  display: grid;
+  grid-template-columns: minmax(0, 0.45fr) minmax(0, 0.55fr);
+  gap: 2px 7px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 7px 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights article.is-ok{
+  border-color: var(--mes-ui-success-border);
+  background: var(--mes-ui-success-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights article.is-warning{
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights :is(span, strong, small){
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights small{
+  grid-column: 1 / -1;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}@media (max-width: 1500px) {main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-main-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-row{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-detail-panel{
+    grid-column: 1;
+    grid-row: auto;
+  }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes-panel{
+    grid-column: 1;
+    grid-row: auto;
+  }
+}/* Planning table demo: alternative read-only Gantt interpretation.
+   Scroll rule: panels and table wrappers must not own vertical scrolling.
+   The workspace scrolls by Y; dense tables may scroll only by X on narrow screens. */
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-page{
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-sidebar{
+  align-self: stretch;
+  grid-template-rows: auto auto auto !important;
+  align-content: start;
+  overflow: auto !important;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-sidebar-stack,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-list{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  align-content: start;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-muted{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-row{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: var(--mes-ui-radius-sm);
+  padding: 5px 6px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-row strong{
+  font-size: 11px;
+  line-height: 14px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-row small{
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 9px;
+  line-height: 12px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-item .ui-sidebar-item-body small{
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 9px;
+  line-height: 12px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-workspace{
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-content{
+  min-width: 0;
+  min-height: 0;
+  overflow: visible !important;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-content{
+  display: grid;
+  grid-auto-rows: max-content;
+  grid-template-rows: none !important;
+  align-items: start;
+  gap: 8px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-header{
+  align-items: center;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-panel{
+  grid-template-rows: auto auto !important;
+  min-height: max-content;
+  overflow: visible !important;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-content > .module-panel,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix-panel,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register-panel,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-panel{
+  overflow: visible;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix-wrap,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register-wrap,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-wrap{
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register{
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register th,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td{
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  border-right: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 6px 7px;
+  color: var(--mes-ui-text);
+  font-size: 10.5px;
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: 13px;
+  text-align: left;
+  vertical-align: top;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix thead th,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register thead th{
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th:first-child,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register th:first-child{
+  position: static;
+  z-index: 4;
+  width: 176px;
+  min-width: 0;
+  max-width: none;
+  background: var(--mes-ui-surface);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix tbody th{
+  background: var(--mes-ui-surface-raised);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th span,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td span{
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td strong{
+  overflow-wrap: anywhere;
+  font-weight: var(--mes-ui-weight-semibold);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th span,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td span{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 12px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix thead th:not(:first-child){
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  text-align: center;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td{
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  height: 42px;
+  background: #fff;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix :is(th,
+td).is-weekend{
+  background: rgba(248, 250, 252, 0.86);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td.has-slots{
+  background: rgba(239, 246, 255, 0.64);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  margin: 0 0 3px;
+  border: 1px dashed rgba(37, 99, 235, 0.34);
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(255, 255, 255, 0.84);
+  padding: 3px 4px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-warning,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-risk,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-blocked,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-critical{
+  border-color: rgba(245, 158, 11, 0.46);
+  background: rgba(255, 251, 235, 0.86);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot small{
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot strong{
+  color: var(--mes-ui-text);
+  font-size: 9px;
+  font-weight: 560;
+  line-height: 11px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot small,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td em{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  font-style: normal;
+  line-height: 11px;
+}main.app-shell.planning-app-shell.planning-gantt-shell[data-layout-page="gantt"] > .planner-workspace.planner-workspace-gantt-only{
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: 8px !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}main.app-shell.planning-app-shell.planning-gantt-shell[data-layout-page="gantt"] > .planner-workspace.planner-workspace-gantt-only > .topbar{
+  grid-row: 1 !important;
+  margin-bottom: 0 !important;
+}main.app-shell.planning-app-shell.planning-gantt-shell[data-layout-page="gantt"] > .planner-workspace.planner-workspace-gantt-only > .planner-frame{
+  grid-row: 2 !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  margin-bottom: 0 !important;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 6px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card{
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  padding: 8px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card header,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card footer{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card header > div{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card span,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dd{
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card span,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dt{
+  color: var(--mes-ui-muted);
+  font-size: 9.5px;
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: 12px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dl{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dl div{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 5px 6px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dt,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dd{
+  margin: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dd{
+  color: var(--mes-ui-text);
+  font-size: 10.5px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 13px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-panel{
+  grid-template-rows: auto auto !important;
+  min-height: max-content;
+  overflow: visible !important;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-wrap{
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table{
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table th,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td{
+  min-width: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  padding: 6px 7px;
+  color: var(--mes-ui-text);
+  font-size: 10.5px;
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: 13px;
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table th{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+  background: var(--mes-ui-surface);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td span{
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td strong{
+  font-weight: var(--mes-ui-weight-semibold);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td span{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 12px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty{
+  display: grid;
+  grid-template-columns: auto minmax(0, 0.42fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 10px 2px 2px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty svg{
+  width: 16px;
+  height: 16px;
+  color: var(--mes-ui-success);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty span{
+  min-width: 0;
+  overflow-wrap: anywhere;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  line-height: 14px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty span{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 6px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  padding: 7px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card.is-weekend,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day.is-neutral{
+  background: rgba(248, 250, 252, 0.86);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card header,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card footer,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day header,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day footer{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card span,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dd,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day span{
+  min-width: 0;
+  overflow-wrap: anywhere;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card strong,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day strong{
+  color: var(--mes-ui-text);
+  font-size: 10.5px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 13px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card span,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dt,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border-radius: var(--mes-ui-radius-xs);
+  background: rgba(255, 255, 255, 0.68);
+  padding: 4px 5px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(1){
+  grid-column: 1;
+  grid-row: 1;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(2){
+  grid-column: 1 / -1;
+  grid-row: 2;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 6px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(3){
+  grid-column: 2;
+  grid-row: 1;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dt,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dd{
+  margin: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dd{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(2) dd{
+  justify-self: end;
+  white-space: nowrap;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day > div{
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day > div span{
+  display: block;
+  width: var(--planning-table-density, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(37, 99, 235, 0.44);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day.is-warning > div span{
+  background: rgba(245, 158, 11, 0.58);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day.is-risk > div span{
+  background: rgba(239, 68, 68, 0.58);
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td{
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(1){
+  width: 120px;
+  min-width: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(2){
+  width: 17%;
+  min-width: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(3),
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(4),
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(5){
+  width: 15%;
+  min-width: 0;
+}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(n + 6){
+  width: 8%;
+  min-width: 0;
+  white-space: normal;
+}@media (max-width: 900px) {main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-page{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-sidebar{
+    position: static;
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix{
+    width: 980px;
+    min-width: 980px;
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register{
+    width: 780px;
+    min-width: 780px;
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table{
+    width: 720px;
+    min-width: 720px;
+  }
+}@media (max-width: 600px) {main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th:first-child,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register th:first-child{
+    width: 148px;
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-grid,
+main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty{
+    grid-template-columns: auto minmax(0, 1fr);
+  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty span{
+    grid-column: 2;
+  }
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button{
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions{
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 4px 0 0 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button{
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button:hover:not(:disabled){
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-labor-toggle.is-active{
+  border-color: rgba(245, 158, 11, 0.34) !important;
+  background: #fffbeb !important;
+  color: #b45309 !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-flow-toggle.is-active{
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button{
+  border-color: rgba(148, 163, 184, 0.20) !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button:hover:not(:disabled){
+  border-color: rgba(239, 68, 68, 0.22) !important;
+  background: #fff1f2 !important;
+  color: #dc2626 !important;
+}/* Gantt vertical layout contract.
+   The Gantt block owns horizontal scrolling only; vertical scrolling belongs to the page/workspace
+   so every operation row remains reachable and visible. */
+main.app-shell[data-layout-page="gantt"]{
+  grid-template-rows: var(--mes-header-height, 60px) minmax(0, 1fr) !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="gantt"] > .planner-workspace.planner-workspace-gantt-only{
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: 8px !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .planner-frame{
+  grid-row: 2 !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell{
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}/* Timesheet demo: production calendar is a wide dense form,
+not a nested card stack. */
+html:has(main.app-shell[data-layout-page="timesheet"]),
+body:has(main.app-shell[data-layout-page="timesheet"]),
+body:has(main.app-shell[data-layout-page="timesheet"]) #app{
+  height: auto !important;
+  min-height: 100dvh !important;
+  overflow-x: hidden !important;
+}
+body:has(main.app-shell[data-layout-page="timesheet"]){
+  overflow-y: auto !important;
+}
+main.app-shell[data-layout-page="timesheet"]{
+  grid-template-rows: var(--layout-header-height) auto;
+  min-height: 100dvh;
+  height: auto !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-page{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-auto-rows: auto;
+  align-items: stretch;
+  min-width: 0;
+  min-height: calc(100dvh - 64px);
+  height: auto;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  padding: 10px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-workspace,
+main.app-shell[data-layout-page="timesheet"] .timesheet-content{
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 8px;
+  min-width: 0;
+  min-height: auto;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-hero-panel{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px 10px !important;
+  overflow: visible;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-title{
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-title h2,
+main.app-shell[data-layout-page="timesheet"] .timesheet-title p{
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-title h2{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 16px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 20px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-title p{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 11px;
+  line-height: 14px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-controls{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 7px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-view-switch{
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: var(--mes-ui-radius-sm, 8px);
+  background: rgba(248, 250, 252, 0.86);
+  padding: 2px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-view-switch button{
+  min-width: 58px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+  cursor: pointer;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-view-switch button.is-active{
+  background: var(--mes-ui-sidebar-bg, #10233c);
+  color: #ffffff;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-period-nav{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-period-nav .icon-button{
+  width: 28px;
+  height: 28px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-period-nav strong{
+  min-width: 156px;
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-kpis{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(74px, 1fr));
+  gap: 6px;
+  min-width: 0;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-kpis article{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm, 8px);
+  background: rgba(248, 250, 252, 0.78);
+  padding: 6px 7px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-kpis span,
+main.app-shell[data-layout-page="timesheet"] .timesheet-kpis strong{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-kpis span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 9px;
+  line-height: 11px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-kpis strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 16px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-board-panel{
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 6px;
+  min-width: 0;
+  min-height: auto;
+  padding: 8px !important;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-board-head{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-board-head strong,
+main.app-shell[data-layout-page="timesheet"] .timesheet-board-head span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-board-head strong{
+  display: block;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 15px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-board-head span{
+  display: block;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  line-height: 13px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-legend{
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 4px;
+  min-width: 0;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-legend span{
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-xs, 5px);
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-legend .is-work{
+  background: rgba(239, 246, 255, 0.78);
+  color: #1d4ed8;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-legend .is-overtime{
+  background: rgba(255, 247, 237, 0.88);
+  color: #c2410c;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-legend .is-vacation{
+  background: rgba(240, 253, 244, 0.88);
+  color: #15803d;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-legend .is-sick{
+  background: rgba(254, 242, 242, 0.88);
+  color: #b91c1c;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-legend .is-off{
+  background: rgba(241, 245, 249, 0.92);
+  color: #64748b;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-table-wrap{
+  min-width: 0;
+  min-height: auto;
+  overflow: visible !important;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-table{
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  box-sizing: border-box;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm, 8px);
+  background: #ffffff;
+  overflow: hidden;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-col-person{
+  width: 120px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-col-role{
+  width: 130px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-col-schedule{
+  width: 54px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-col-day{
+  width: 36px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-page.is-week .timesheet-col-day{
+  width: 92px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-col-total,
+main.app-shell[data-layout-page="timesheet"] .timesheet-col-overtime{
+  width: 36px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-table th,
+main.app-shell[data-layout-page="timesheet"] .timesheet-table td{
+  min-width: 0;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  padding: 2px 3px;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-regular, 400);
+  line-height: 11px;
+  text-align: center;
+  vertical-align: middle;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-table thead th{
+  height: 24px;
+  background: #f8fafc;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 8px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 10px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-table thead th b,
+main.app-shell[data-layout-page="timesheet"] .timesheet-table thead th span{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-table thead th.is-weekend{
+  background: #f1f5f9;
+  color: #94a3b8;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-department-row th{
+  height: 15px;
+  background: #f8fafc;
+  color: var(--mes-ui-muted, #64748b);
+  padding: 1px 8px;
+  text-align: left;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-department-row span,
+main.app-shell[data-layout-page="timesheet"] .timesheet-department-row small{
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-department-row span{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+}main.app-shell[data-layout-page="timesheet"] .timesheet-department-row small{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-regular, 400);
+}main.app-shell[data-layout-page="timesheet"] .timesheet-employee-row{
+  height: 36px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-person-cell,
+main.app-shell[data-layout-page="timesheet"] .timesheet-role-cell,
+main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell{
+  text-align: left !important;
+  vertical-align: middle;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-person-cell strong,
+main.app-shell[data-layout-page="timesheet"] .timesheet-person-cell small,
+main.app-shell[data-layout-page="timesheet"] .timesheet-role-cell span,
+main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell strong,
+main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell small{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-role-cell span{
+  display: block;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-person-cell strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-person-cell small,
+main.app-shell[data-layout-page="timesheet"] .timesheet-role-cell span,
+main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell small{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 7px;
+  line-height: 10px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell strong{
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 12px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell button{
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid rgba(37, 99, 235, 0.10);
+  border-radius: 5px;
+  background: rgba(239, 246, 255, 0.64);
+  padding: 3px 4px;
+  text-align: left;
+  cursor: pointer;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell button:hover{
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(239, 246, 255, 0.90);
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-cell{
+  position: relative;
+  height: 36px;
+  padding: 3px 2px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-button{
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  height: 30px !important;
+  min-height: 30px !important;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 4px;
+  background: rgba(239, 246, 255, 0.72);
+  color: #1d4ed8;
+  padding: 0 1px;
+  font-size: 7.5px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 10px;
+  text-align: center;
+  letter-spacing: 0;
+  outline: 0;
+  cursor: pointer;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-button span{
+  display: block;
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  justify-self: stretch;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-button .ui-demo-corner-marker.is-interactive{
+  top: 2px;
+  right: 2px;
+  z-index: 4;
+  width: 10px;
+  height: 10px;
+  border: 0;
+  background: var(--mes-ui-sidebar-bg, #10233c);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.86);
+  font-size: 6px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-cell.is-work-overtime .timesheet-day-button{
+  border-color: rgba(249, 115, 22, 0.22);
+  background: rgba(255, 247, 237, 0.92);
+  color: #c2410c;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-cell.is-vacation .timesheet-day-button{
+  border-color: rgba(22, 163, 74, 0.18);
+  background: rgba(240, 253, 244, 0.90);
+  color: #15803d;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-cell.is-sick .timesheet-day-button{
+  border-color: rgba(239, 68, 68, 0.20);
+  background: rgba(254, 242, 242, 0.94);
+  color: #b91c1c;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-cell.is-leave .timesheet-day-button{
+  border-color: rgba(168, 85, 247, 0.20);
+  background: rgba(250, 245, 255, 0.94);
+  color: #7e22ce;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-day-cell.is-off .timesheet-day-button{
+  border-color: rgba(148, 163, 184, 0.12);
+  background: rgba(241, 245, 249, 0.90);
+  color: #94a3b8;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-overtime-layer{
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 12px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f97316;
+  color: #ffffff;
+  font-size: 6px;
+  font-weight: 800;
+  line-height: 8px;
+  pointer-events: none;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-total-cell{
+  background: #f8fafc;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-total-cell strong,
+main.app-shell[data-layout-page="timesheet"] .timesheet-total-cell small{
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-total-cell strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+}main.app-shell[data-layout-page="timesheet"] .timesheet-total-cell small{
+  margin-left: 1px;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 7px;
+}main.app-shell[data-layout-page="timesheet"] .timesheet-total-cell.is-overtime strong{
+  color: #c2410c;
+}.timesheet-editor-modal{
+  width: min(780px, calc(100vw - 32px));
+}.timesheet-editor-modal .modal-header{
+  align-items: center;
+}.timesheet-editor-summary{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 16px 0;
+}.timesheet-editor-summary article{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm, 8px);
+  background: #f8fafc;
+  padding: 8px;
+}.timesheet-editor-summary span,
+.timesheet-editor-summary strong{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.timesheet-editor-summary span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  line-height: 12px;
+}.timesheet-editor-summary strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 15px;
+}.timesheet-editor-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+}.timesheet-editor-grid .form-field{
+  min-width: 0;
+}.timesheet-editor-grid .form-field span{
+  display: block;
+  min-width: 0;
+  margin-bottom: 5px;
+  overflow: hidden;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.timesheet-editor-grid :is(input, select, textarea){
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.30);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 13px;
+  line-height: 18px;
+}.timesheet-editor-grid :is(input, select){
+  height: 36px;
+  padding: 0 9px;
+}.timesheet-editor-grid textarea{
+  resize: vertical;
+  min-height: 58px;
+  padding: 8px 9px;
+}.timesheet-editor-grid .form-field.full{
+  grid-column: 1 / -1;
+}.timesheet-editor-section{
+  display: grid;
+  gap: 0;
+  margin: 0 16px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm, 8px);
+  background: rgba(248, 250, 252, 0.72);
+}.timesheet-editor-section header{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px 0;
+}.timesheet-editor-section header strong,
+.timesheet-editor-section header span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.timesheet-editor-section header strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold, 700);
+  line-height: 15px;
+}.timesheet-editor-section header span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  line-height: 13px;
+}.timesheet-editor-grid.is-schedule{
+  padding: 12px;
+}.timesheet-editor-modal .modal-footer{
+  flex-wrap: wrap;
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .non-working-segment{
+  --gantt-non-working-stripe-a: rgba(100, 116, 139, 0.040);
+  --gantt-non-working-stripe-b: rgba(100, 116, 139, 0.070);
+  --gantt-non-working-fill: rgba(148, 163, 184, 0.070);
+}main.app-shell[data-layout-page="gantt"] .gantt-shell .production-lane .non-working-segment,
+main.app-shell[data-layout-page="gantt"] .gantt-shell .route-lane .non-working-segment{
+  opacity: 0.58;
+}main.app-shell[data-layout-page="gantt"] .gantt-row.resource-row .resource-label .workcenter-name small,
+main.app-shell[data-layout-page="gantt"] .gantt-row.operation-row .operation-label .workcenter-name small{
+  font-size: 9px;
+  font-weight: 560;
+  line-height: 11px;
+}main.app-shell[data-layout-page="gantt"] .gantt-row.resource-row .resource-label{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  padding-right: 8px;
+}main.app-shell[data-layout-page="gantt"] .gantt-row.resource-row .resource-label .workcenter-name{
+  width: 100%;
+  min-width: 0;
+}main.app-shell[data-layout-page="gantt"] .gantt-row.resource-row .resource-label .workcenter-name strong,
+main.app-shell[data-layout-page="gantt"] .gantt-row.resource-row .resource-label .workcenter-name small{
+  display: block;
+  min-width: 0;
+}
+
+/* Stabilization guard: late UI-kit typography wins over legacy heavy <strong> defaults. */
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header strong,
+main.app-shell[data-layout-page="shopMap"] .shop-map-widget strong{
+  font-weight: var(--mes-ui-weight-semibold, 600) !important;
+}
+
+/* Focus-mode contracts that replace broad layout !important overrides. */
+main.app-shell[data-layout-page="shopMap"] .shop-map-panel-head.ui-panel-head{
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-page,
+main.app-shell.is-focus-mode[data-layout-page="shopMap"] .shop-map-page{
+  grid-template-columns: minmax(0, 1fr);
+}
+
+main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-sidebar{
+  display: none;
+}
+
+main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-workspace,
+main.app-shell.is-focus-mode[data-layout-page="shopMap"] .shop-map-page .module-data-workspace{
+  grid-column: 1;
+  width: 100%;
+}
+
+main.app-shell.is-focus-mode[data-layout-page="shopMap"] .shop-map-page .shop-map-content{
+  overflow: visible;
+}
+
+/* Production structure matrix is a separate full-width module without an inner sidebar. */
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-page{
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start;
+}
+
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-workspace{
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-content,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-panel,
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table-wrap{
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Roles module: working RBAC editor. */
+main.app-shell[data-layout-page="roles"] .access-roles-page{
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  overflow: hidden;
+}
+
+main.app-shell.is-focus-mode[data-layout-page="roles"] .access-roles-page{
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+
+main.app-shell[data-layout-page="roles"] .access-roles-workspace,
+main.app-shell[data-layout-page="roles"] .access-roles-content{
+  min-width: 0;
+  min-height: 0;
+}
+
+main.app-shell[data-layout-page="roles"] .access-roles-content{
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+  padding: 12px;
+}
+
+main.app-shell[data-layout-page="roles"] .access-roles-sidebar .ui-sidebar-item small{
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-profile-grid :is(input, select),
+main.app-shell[data-layout-page="roles"] .access-role-assignment-table select{
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--mes-ui-line, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-permission-table-wrap,
+main.app-shell[data-layout-page="roles"] .access-role-assignment-table-wrap{
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-permission-table,
+main.app-shell[data-layout-page="roles"] .access-role-assignment-table{
+  min-width: 980px;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-permission-table th,
+main.app-shell[data-layout-page="roles"] .access-role-permission-table td,
+main.app-shell[data-layout-page="roles"] .access-role-assignment-table th,
+main.app-shell[data-layout-page="roles"] .access-role-assignment-table td{
+  vertical-align: middle;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-check-cell{
+  width: 74px;
+  text-align: center;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-check-cell label{
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border-radius: 8px;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-check-cell input{
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  accent-color: var(--mes-ui-primary, #2563eb);
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-assignment-table td:last-child{
+  min-width: 220px;
+}
+
+main.app-shell[data-layout-page="roles"] .access-role-assignment-table td:last-child small{
+  display: block;
+  margin-top: 4px;
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout="app-shell"] .module-tab span{
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 12px;
+}
+
+main.app-shell[data-layout="app-shell"] :is(.module-tab, .mobile-module-tab):has(.module-menu-badge){
+  position: relative !important;
+}
+
+main.app-shell[data-layout="app-shell"] .module-menu-badge{
+  position: absolute;
+  top: -6px;
+  right: -5px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #ff3b30;
+  color: #ffffff;
+  box-shadow:
+    0 1px 1px rgba(15, 23, 42, 0.22),
+    0 2px 5px rgba(15, 23, 42, 0.18);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 14px;
+  letter-spacing: 0;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"] .module-tab.is-active .module-menu-badge{
+  border-color: #ffffff;
+  background: #ff3b30;
+  color: #ffffff;
+}
+
+main.app-shell[data-layout="app-shell"] .mobile-module-tab .module-menu-badge{
+  top: -5px;
+  right: -4px;
+}
+
+main.app-shell[data-layout-page="products"] .speki-static-cell{
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="authPrototype"] .auth-prototype-qa-floating{
+  width: auto !important;
+  min-width: 54px !important;
+  max-width: none !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+}
+
+main.app-shell[data-layout-page="authPrototype"] .auth-prototype-qa-floating span{
+  display: inline !important;
+  font-size: 11px !important;
+  font-weight: 760 !important;
+  line-height: 1 !important;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  main.app-shell[data-layout-page="roles"] .access-roles-page{
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  main.app-shell[data-layout-page="roles"] .access-roles-sidebar,
+main.app-shell[data-layout-page="roles"] .access-roles-workspace{
+    width: 100%;
+    max-width: none;
+  }
+
+  main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Main sidebar footer: UI presets,
+active role and authenticated person. */
+main.app-shell[data-layout="app-shell"] .module-menu-footer{
+  align-content: end;
+  gap: 6px !important;
+}
+
+main.app-shell[data-layout="app-shell"] .module-menu-section{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+main.app-shell[data-layout="app-shell"] .module-menu-section-title{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 8.5px;
+  font-weight: 780;
+  line-height: 11px;
+  text-transform: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"] .module-menu-ui-presets .module-menu-preset{
+  width: 100% !important;
+}
+
+main.app-shell[data-layout="app-shell"] .module-menu-auth-session{
+  gap: 5px;
+  padding-top: 2px;
+}
+
+main.app-shell[data-layout="app-shell"] .access-role-card,
+main.app-shell[data-layout="app-shell"] .access-session-card{
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--mes-sidebar-border, rgba(148, 163, 184, 0.22));
+  border-radius: var(--mes-radius-card, 8px);
+  background: var(--mes-sidebar-surface, rgba(15, 23, 42, 0.72));
+  color: var(--mes-sidebar-text, #e5e7eb);
+  padding: 5px 6px;
+}
+
+main.app-shell[data-layout="app-shell"] .access-role-card{
+  min-height: 40px;
+}
+
+main.app-shell[data-layout="app-shell"] .access-role-card svg,
+main.app-shell[data-layout="app-shell"] .access-session-card svg{
+  width: 14px;
+  height: 14px;
+  color: var(--mes-sidebar-muted, #94a3b8);
+}
+
+main.app-shell[data-layout="app-shell"] .access-role-card span,
+main.app-shell[data-layout="app-shell"] .access-session-card span{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"] .access-role-card strong,
+main.app-shell[data-layout="app-shell"] .access-role-card small,
+main.app-shell[data-layout="app-shell"] .access-session-card strong,
+main.app-shell[data-layout="app-shell"] .access-session-card small{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"] .access-role-card strong,
+main.app-shell[data-layout="app-shell"] .access-session-card strong{
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 680;
+  line-height: 12px;
+}
+
+main.app-shell[data-layout="app-shell"] .access-role-card small,
+main.app-shell[data-layout="app-shell"] .access-session-card small{
+  color: var(--mes-sidebar-muted, #94a3b8);
+  font-size: 8.5px;
+  font-weight: 560;
+  line-height: 10px;
+}
+
+main.app-shell[data-layout="app-shell"] .access-logout-button{
+  display: grid !important;
+  grid-template-columns: 12px minmax(0, auto);
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid var(--mes-sidebar-border, rgba(148, 163, 184, 0.22));
+  border-radius: var(--mes-radius-control, 7px);
+  background: transparent;
+  color: var(--mes-sidebar-muted, #94a3b8);
+  padding: 0 7px;
+  font-size: 9px;
+  font-weight: 720;
+  line-height: 11px;
+  box-shadow: none;
+}
+
+main.app-shell[data-layout="app-shell"] .access-logout-button:hover{
+  background: var(--mes-sidebar-hover, rgba(255, 255, 255, 0.08));
+  color: #ffffff;
+}
+
+main.app-shell[data-layout="app-shell"] .access-logout-button svg{
+  width: 12px;
+  height: 12px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-page{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  background: var(--mes-ui-page-bg);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-workspace{
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-content{
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  overflow: auto;
+  padding: 10px 12px 16px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-header{
+  min-height: 66px;
+  padding: 10px 12px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-kpi-grid,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-quantity-strip,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-status-strip{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-quantity-strip{
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-status-strip{
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-kpi-grid article,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-quantity-strip article,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-status-strip article{
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 8px 10px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-kpi-grid span,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-quantity-strip span,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-kpi-grid small,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-quantity-strip small,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-status-strip .mes-signal{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-kpi-grid strong,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-quantity-strip strong,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-status-strip strong{
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 16px;
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: 19px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-overview-panel .ui-panel-body{
+  display: grid;
+  gap: 8px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-main-grid{
+  display: grid;
+  grid-template-columns: minmax(680px, 1.35fr) minmax(420px, 0.85fr);
+  gap: 10px;
+  min-width: 0;
+  align-items: start;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel{
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table-wrap{
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: var(--mes-ui-radius-sm);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table{
+  min-width: 1100px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td){
+  padding: 7px 8px;
+  font-size: 11px;
+  line-height: 15px;
+  vertical-align: middle;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th{
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td:nth-child(n + 3):nth-child(-n + 6){
+  text-align: right;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .actions-cell{
+  text-align: center;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-print-actions{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-print-actions .table-icon-button{
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-row]{
+  cursor: pointer;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-row]:hover td,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active td{
+  background: rgba(37, 99, 235, 0.06);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td strong,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td small{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td small{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(248, 250, 252, 0.9);
+  padding: 8px 9px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary span,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer span,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header span,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary small,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer small,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors small{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+  overflow-wrap: anywhere;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary strong,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer strong,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors strong{
+  min-width: 0;
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel .ui-panel-body{
+  display: grid;
+  gap: 8px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors{
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header{
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors p{
+  margin: 0;
+  color: var(--mes-ui-muted);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.shift-work-order-print-sheet .route-print-section{
+  min-width: 0;
+}
+
+.shift-work-order-print-backdrop.route-print-backdrop{
+  padding: 4px;
+}
+
+.shift-work-order-print-modal.route-print-modal{
+  width: min(1800px, calc(100vw - 8px));
+  max-height: calc(100dvh - 8px);
+}
+
+.shift-work-order-print-modal .route-print-ui{
+  min-height: 0;
+  padding: 7px 10px;
+}
+
+.shift-work-order-print-modal .route-print-ui h2{
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.shift-work-order-print-modal .route-print-scroll{
+  padding: 6px;
+}
+
+.shift-work-order-print-info-table th{
+  width: 34mm;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.shift-work-order-print-info-table td{
+  color: #0f172a;
+  font-weight: 560;
+}
+
+.shift-work-order-print-quantity-table th,
+.shift-work-order-print-quantity-table td{
+  text-align: center;
+}
+
+.shift-work-order-print-executors-table th:nth-child(1),
+.shift-work-order-print-executors-table td:nth-child(1){
+  width: 12mm;
+  text-align: center;
+}
+
+.shift-work-order-print-executors-table th:nth-child(3),
+.shift-work-order-print-executors-table td:nth-child(3){
+  width: 30mm;
+  text-align: center;
+}
+
+.shift-work-order-print-executors-table th:nth-child(4),
+.shift-work-order-print-executors-table td:nth-child(4){
+  width: 55mm;
+}
+
+.work-order-print-backdrop.route-print-backdrop{
+  padding: 4px;
+}
+
+.work-order-print-modal.route-print-modal{
+  width: min(1880px, calc(100vw - 8px));
+  max-height: calc(100dvh - 8px);
+}
+
+.work-order-print-modal .route-print-ui{
+  min-height: 0;
+  padding: 7px 10px;
+}
+
+.work-order-print-modal .route-print-ui h2{
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.work-order-print-modal .route-print-scroll{
+  padding: 6px;
+}
+
+.work-order-print-sheet .route-print-section{
+  min-width: 0;
+}
+
+.work-order-print-passport-table th{
+  width: 40mm;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.work-order-print-passport-table td{
+  color: #0f172a;
+  font-weight: 560;
+}
+
+.work-order-print-operations-table th,
+.work-order-print-operations-table td,
+.work-order-print-registry-table th,
+.work-order-print-registry-table td,
+.work-order-print-executors-table th,
+.work-order-print-executors-table td,
+.work-order-print-transfer-table th,
+.work-order-print-transfer-table td{
+  font-size: 8.5px;
+  line-height: 12px;
+  vertical-align: top;
+}
+
+.work-order-print-operations-table th:nth-child(1),
+.work-order-print-operations-table td:nth-child(1){
+  width: 10mm;
+  text-align: center;
+}
+
+.work-order-print-operations-table th:nth-child(4),
+.work-order-print-operations-table td:nth-child(4),
+.work-order-print-operations-table th:nth-child(6),
+.work-order-print-operations-table td:nth-child(6),
+.work-order-print-operations-table th:nth-child(7),
+.work-order-print-operations-table td:nth-child(7),
+.work-order-print-operations-table th:nth-child(8),
+.work-order-print-operations-table td:nth-child(8){
+  width: 20mm;
+  text-align: center;
+}
+
+.work-order-print-operations-table th:nth-child(5),
+.work-order-print-operations-table td:nth-child(5),
+.work-order-print-operations-table th:nth-child(9),
+.work-order-print-operations-table td:nth-child(9),
+.work-order-print-operations-table th:nth-child(10),
+.work-order-print-operations-table td:nth-child(10){
+  width: 17mm;
+  text-align: center;
+}
+
+.work-order-print-registry-table th:nth-child(1),
+.work-order-print-registry-table td:nth-child(1){
+  width: 29mm;
+}
+
+.work-order-print-registry-table th:nth-child(2),
+.work-order-print-registry-table td:nth-child(2){
+  width: 22mm;
+}
+
+.work-order-print-registry-table th:nth-child(6),
+.work-order-print-registry-table td:nth-child(6),
+.work-order-print-registry-table th:nth-child(7),
+.work-order-print-registry-table td:nth-child(7),
+.work-order-print-registry-table th:nth-child(8),
+.work-order-print-registry-table td:nth-child(8),
+.work-order-print-registry-table th:nth-child(9),
+.work-order-print-registry-table td:nth-child(9){
+  width: 18mm;
+  text-align: center;
+}
+
+.work-order-print-registry-table th:nth-child(10),
+.work-order-print-registry-table td:nth-child(10){
+  width: 18mm;
+  text-align: center;
+}
+
+.work-order-print-executors-table th:nth-child(2),
+.work-order-print-executors-table td:nth-child(2),
+.work-order-print-executors-table th:nth-child(3),
+.work-order-print-executors-table td:nth-child(3),
+.work-order-print-executors-table th:nth-child(4),
+.work-order-print-executors-table td:nth-child(4){
+  width: 24mm;
+  text-align: center;
+}
+
+@media (max-width: 1500px) {
+  main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-main-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-kpi-grid,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-status-strip,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-quantity-strip{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Gantt scroll contract: the chart itself owns both axes.
+   Earlier compact layout passes accidentally hid vertical scrolling,
+so rows
+   below the viewport became unreachable. */
+main.app-shell[data-layout-page="gantt"] .gantt-shell[data-gantt-shell]{
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+/* Interaction stability contract: clickable controls must not move under the
+   pointer on hover/active. Even a 1px translate can create hover flicker and
+   make the first click miss on dense MES screens. */
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  a[href],
+  summary,
+  .module-tab,
+  .mobile-module-tab,
+  .module-menu-preset-main,
+  .module-menu-preset-save,
+  .ui-sidebar-item,
+  .directory-nav-item,
+  .planning-order-route-item,
+  .primary-button,
+  .secondary-button,
+  .icon-button,
+  .table-icon-button,
+  .app-topbar-action,
+  .dense-inline-select > summary
+){
+  transform: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  a[href],
+  summary,
+  .module-tab,
+  .mobile-module-tab,
+  .module-menu-preset-main,
+  .module-menu-preset-save,
+  .ui-sidebar-item,
+  .directory-nav-item,
+  .planning-order-route-item,
+  .primary-button,
+  .secondary-button,
+  .icon-button,
+  .table-icon-button,
+  .app-topbar-action,
+  .dense-inline-select > summary
+):is(:hover, :active, :focus, :focus-visible){
+  transform: none !important;
+}
+
+main.app-shell[data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-grid button,
+  .auth-prototype-unit-grid button,
+  .auth-prototype-people-grid button,
+  .auth-prototype-keypad button
+),
+main.app-shell[data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-grid button,
+  .auth-prototype-unit-grid button,
+  .auth-prototype-people-grid button,
+  .auth-prototype-keypad button
+):is(:hover, :active, :focus, :focus-visible){
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  transform: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel),
+main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel):hover{
+  transform: none !important;
+}
+
+/* Interaction flicker contract: controls in MES must react instantly and keep a
+   stable paint state. Old CSS layers still attach color/shadow transitions to
+   buttons and menu items; under load this looks like blinking and can make a
+   click land during a transient hover state. */
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  button:not(.shop-map-widget) *,
+  a[href],
+  a[href] *,
+  summary,
+  summary *,
+  [role="button"],
+  [role="button"] *,
+  .module-tab,
+  .module-tab *,
+  .mobile-module-tab,
+  .mobile-module-tab *,
+  .module-menu-preset-main,
+  .module-menu-preset-main *,
+  .module-menu-preset-save,
+  .module-menu-preset-save *,
+  .ui-sidebar-item,
+  .ui-sidebar-item *,
+  .directory-nav-item,
+  .directory-nav-item *,
+  .planning-order-route-item,
+  .planning-order-route-item *,
+  .primary-button,
+  .primary-button *,
+  .secondary-button,
+  .secondary-button *,
+  .icon-button,
+  .icon-button *,
+  .table-icon-button,
+  .table-icon-button *,
+  .app-topbar-action,
+  .app-topbar-action *,
+  .dense-inline-select > summary,
+  .dense-inline-select > summary *,
+  .operation-slot,
+  .operation-slot *
+){
+  animation: none !important;
+  transition: none !important;
+  transition-delay: 0s !important;
+  transition-duration: 0s !important;
+  will-change: auto !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  a[href],
+  summary,
+  [role="button"],
+  .module-tab,
+  .mobile-module-tab,
+  .module-menu-preset-main,
+  .module-menu-preset-save,
+  .ui-sidebar-item,
+  .directory-nav-item,
+  .planning-order-route-item,
+  .primary-button,
+  .secondary-button,
+  .icon-button,
+  .table-icon-button,
+  .app-topbar-action,
+  .dense-inline-select > summary,
+  .operation-slot
+):is(:hover, :active, :focus, :focus-visible){
+  animation: none !important;
+  transition: none !important;
+  transition-delay: 0s !important;
+  transition-duration: 0s !important;
+}
+
+/* Gantt bar shape contract: operation bars are rectangular so split,
+   validation and fact overlays stay aligned. */
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot{
+  border-radius: 0 !important;
+}
+
+/* The live Gantt has highly specific segmented-state rules. Keep every visible
+   piece of a bar square. */
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot :is(.slot-working-segment.is-slot-start, .slot-working-segment.is-slot-end, .slot-non-working-segment.is-slot-start, .slot-non-working-segment.is-slot-end, .slot-working-segment.is-continuation-start, .slot-working-segment.is-continuation-end, .slot-non-working-segment.is-continuation-start, .slot-non-working-segment.is-continuation-end, .slot-accent, .resize-handle){
+  border-radius: 0 !important;
+}
+
+/* Auth session prototype: workshop-like post-login workspace. */
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-content{
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  overflow: visible;
+  padding: 12px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-header{
+  margin: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-top-controls{
+  display: grid;
+  grid-template-columns: minmax(260px, 0.86fr) minmax(360px, 1.35fr) auto;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-actions{
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context{
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context svg{
+  width: 18px;
+  height: 18px;
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context span{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context :is(strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context strong{
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context small{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  padding: 6px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis article{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  padding: 5px 6px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis :is(span, small){
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+  display: grid;
+  grid-template-columns: minmax(520px, 1.08fr) minmax(420px, 0.92fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel{
+  min-width: 0;
+  overflow: visible;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-body{
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-context{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 5px 6px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell :is(span, strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell span{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 9px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell strong{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell.is-role strong{
+  font-weight: var(--mes-ui-weight-semibold);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell small{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 10px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding-top: 8px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header{
+  grid-template-columns: minmax(0, 1fr);
+  padding: 4px 4px 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header :is(strong, span),
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header :is(strong, span),
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header :is(strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header strong{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header small{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list > div,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  padding: 6px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article.is-current{
+  border-color: rgba(37, 99, 235, 0.34);
+  background: var(--mes-ui-selected);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article :is(span, strong, small),
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article :is(span, strong, small),
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article :is(span, strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article span{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 10px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article strong{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 12px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article small,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article small{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 10px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 8px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-quick-actions > div{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-board{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(248, 250, 252, 0.72);
+  padding: 7px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane > div{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card{
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 7px;
+  text-align: left;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card.is-current{
+  border-color: rgba(37, 99, 235, 0.34);
+  background: var(--mes-ui-selected);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card svg{
+  width: 18px;
+  height: 18px;
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card span{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card :is(strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card strong{
+  color: var(--mes-ui-text);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card small{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  line-height: 10px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario-panel > .ui-panel-body{
+  padding: 10px;
+}
+
+@media (max-width: 1500px) {
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-top-controls,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane > div{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+  grid-template-columns: minmax(680px, 1.18fr) minmax(360px, 0.82fr);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-actions{
+  gap: 8px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select{
+  display: grid;
+  gap: 3px;
+  min-width: 220px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select span{
+  color: var(--mes-ui-muted);
+  font-size: 9px;
+  line-height: 11px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select select{
+  min-height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  padding: 0 28px 0 9px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions > div{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions .ui-action-button{
+  min-height: 54px;
+  justify-content: center;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(260px, 0.28fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-values{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint{
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  min-height: 96px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 12px;
+  text-align: left;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value.is-active{
+  border-color: rgba(37, 99, 235, 0.42);
+  background: var(--mes-ui-selected);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint span{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: 22px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 26px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 8px;
+  justify-content: end;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad span{
+  width: 64px;
+  height: 64px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button{
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--mes-ui-text);
+  font-size: 22px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 1;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button:active{
+  transform: translateY(1px);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete{
+  background: rgba(241, 245, 249, 0.92) !important;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
+  width: 25px;
+  height: 25px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-panel .ui-panel-footer{
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-note{
+  min-width: 0;
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-board{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 68px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  padding: 10px;
+  text-align: left;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card.is-current{
+  border-color: rgba(37, 99, 235, 0.4);
+  background: var(--mes-ui-selected);
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card span{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card :is(strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card strong{
+  color: var(--mes-ui-text);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card small,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card em{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 13px;
+  white-space: nowrap;
+}
+
+.auth-session-modal{
+  width: min(760px, calc(100vw - 48px));
+}
+
+.auth-session-modal .ui-modal-body{
+  max-height: min(680px, calc(100vh - 180px));
+  overflow: auto;
+}
+
+.auth-session-modal-structure,
+.auth-session-modal-route,
+.auth-session-pdf-preview{
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.auth-session-modal-structure section{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.auth-session-modal-structure article{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 10px;
+}
+
+.auth-session-modal-structure :is(span, p),
+.auth-session-pdf-toolbar small,
+.auth-session-pdf-page p,
+.auth-session-pdf-page span{
+  color: var(--mes-ui-muted);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.auth-session-modal-structure strong{
+  color: var(--mes-ui-text);
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.auth-session-pdf-toolbar{
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 10px;
+}
+
+.auth-session-pdf-toolbar svg{
+  width: 28px;
+  height: 28px;
+  color: var(--mes-ui-primary);
+}
+
+.auth-session-pdf-toolbar span,
+.auth-session-pdf-page{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.auth-session-pdf-toolbar strong,
+.auth-session-pdf-page strong{
+  color: var(--mes-ui-text);
+  font-size: 14px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 18px;
+}
+
+.auth-session-pdf-page{
+  min-height: 420px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--mes-ui-radius-sm);
+  background: linear-gradient(#fff, #fff) padding-box, linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(148, 163, 184, 0.12)) border-box;
+  padding: 34px;
+}
+
+/* Auth v1.355: every login step uses the same tablet-card geometry. */
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"]{
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-page{
+  grid-column: 1 / -1 !important;
+  grid-row: 1 / -1 !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  min-width: 0 !important;
+  min-height: 100dvh !important;
+  height: 100dvh !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-workspace{
+  display: grid !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-content{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  justify-items: stretch !important;
+  align-content: stretch !important;
+  gap: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-header{
+  justify-self: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 14px 16px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step{
+  display: grid !important;
+  justify-self: stretch !important;
+  justify-items: center !important;
+  align-items: start !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: clamp(12px, 1.2vw, 22px) !important;
+  box-sizing: border-box !important;
+  overflow: auto !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-panel{
+  display: grid !important;
+  grid-template-rows: auto auto !important;
+  justify-self: center !important;
+  width: min(1320px, calc(100vw - 44px)) !important;
+  max-width: calc(100vw - 44px) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-panel{
+  width: min(1320px, calc(100vw - 44px)) !important;
+  max-width: calc(100vw - 44px) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head{
+  align-items: start !important;
+  min-height: auto !important;
+  padding: 14px 18px 16px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-body{
+  display: grid !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 16px !important;
+  overflow: visible !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-toolbar{
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-toolbar .ui-status-token{
+  margin-left: auto !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-grid,
+  .auth-prototype-unit-grid,
+  .auth-prototype-people-grid
+){
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-grid button,
+  .auth-prototype-unit-grid button,
+  .auth-prototype-people-grid button
+){
+  display: grid !important;
+  align-content: center !important;
+  min-width: 0 !important;
+  min-height: 116px !important;
+  height: auto !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: #fff !important;
+  color: var(--mes-ui-text) !important;
+  padding: 12px !important;
+  text-align: left !important;
+  transform: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-grid button,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-grid button{
+  grid-template-columns: 42px minmax(0, 1fr) !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+  .auth-prototype-unit-grid button,
+  .auth-prototype-people-grid button
+){
+  gap: 6px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-copy,
+  .auth-prototype-unit-copy,
+  .auth-prototype-people-grid button,
+  .auth-prototype-unit-grid button
+){
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-copy strong,
+  .auth-prototype-unit-grid strong,
+  .auth-prototype-people-grid strong
+){
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  color: var(--mes-ui-text) !important;
+  font-size: 12px !important;
+  font-weight: 560 !important;
+  line-height: 15px !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  -webkit-box-orient: vertical !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-copy strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-grid strong{
+  -webkit-line-clamp: 3 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid strong{
+  -webkit-line-clamp: 2 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-copy span,
+  .auth-prototype-unit-copy span,
+  .auth-prototype-unit-grid span,
+  .auth-prototype-people-grid span,
+  .auth-prototype-people-grid small
+){
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  color: var(--mes-ui-muted) !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  line-height: 13px !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-copy{
+  display: grid !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon{
+  display: grid !important;
+  place-items: center !important;
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  overflow: visible !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon svg,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon svg{
+  display: block !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon{
+  color: var(--mes-ui-sidebar-bg, #10233c) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid button.is-auth-master{
+  position: relative !important;
+  padding-right: 72px !important;
+  border-color: var(--mes-ui-line, #e2e8f0) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-role-marker{
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  min-width: 48px !important;
+  height: 20px !important;
+  padding: 0 8px !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  border-radius: 999px !important;
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: rgba(15, 23, 42, 0.72) !important;
+  font-size: 9px !important;
+  font-style: normal !important;
+  font-weight: 760 !important;
+  line-height: 12px !important;
+  text-transform: uppercase !important;
+  pointer-events: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry{
+  display: grid !important;
+  justify-self: center !important;
+  gap: 14px !important;
+  width: min(100%, 380px) !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry .auth-prototype-selected-person{
+  grid-template-columns: 28px minmax(0, 1fr) !important;
+  min-height: 58px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-display{
+  grid-template-columns: repeat(5, 14px) !important;
+  gap: 7px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-display span{
+  width: 14px !important;
+  height: 14px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad{
+  display: grid !important;
+  grid-template-columns: repeat(3, 92px) !important;
+  gap: 12px !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad :is(button, .auth-prototype-keypad-clear){
+  display: grid !important;
+  place-items: center !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  height: 92px !important;
+  min-height: 92px !important;
+  aspect-ratio: 1 !important;
+  padding: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad button{
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: #fff !important;
+  font-size: 28px !important;
+  font-weight: 800 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-clear{
+  border: 1px solid #fff !important;
+  background: #fff !important;
+  color: #fff !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-delete{
+  border-color: rgba(37, 99, 235, 0.2) !important;
+  background: rgba(239, 246, 255, 0.96) !important;
+  color: #1d4ed8 !important;
+}
+
+@media (max-width: 1320px) {
+  main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+    .auth-prototype-department-grid,
+    .auth-prototype-unit-grid,
+    .auth-prototype-people-grid
+  ){
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Gantt v1.373: department/resource names in the frozen column should not read as bold headings. */
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name,
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name,
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.workcenter-row .row-label.department-label .workcenter-name,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.workcenter-row .row-label.department-label .workcenter-name{
+  font-weight: 400 !important;
+}
+
+/* Gantt v1.375: slot edit modal keeps QA accessible while backdrop covers the topbar. */
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .slot-form-modal .modal-header-actions,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .slot-form-modal .modal-header-actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .slot-form-modal .slot-form-qa-button.is-qa-active,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .slot-form-modal .slot-form-qa-button.is-qa-active{
+  border-color: var(--mes-signal-test-border);
+  background: var(--mes-signal-test-soft);
+  color: var(--mes-signal-test);
+}

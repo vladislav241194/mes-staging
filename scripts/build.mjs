@@ -116,6 +116,26 @@ async function versionLocalJsImports(rootDir) {
   return hashes;
 }
 
+async function versionCssImports(stylesheetPath) {
+  const source = await readFile(stylesheetPath, "utf-8");
+  const matches = [...source.matchAll(/(@import\s+(?:url\()?["'])(\.{1,2}\/[^"')]+?\.css)(?:\?[^"')]+)?(["']\)?\s*;)/g)];
+  if (!matches.length) return source;
+
+  let versioned = source;
+  for (const match of matches) {
+    const [fullMatch, prefix, specifier, suffix] = match;
+    const targetPath = join(dirname(stylesheetPath), specifier);
+    if (!(await pathExists(targetPath))) continue;
+    const version = await fileHash(targetPath);
+    versioned = versioned.replace(fullMatch, `${prefix}${specifier}?v=${version}${suffix}`);
+  }
+
+  if (versioned !== source) {
+    await writeFile(stylesheetPath, versioned);
+  }
+  return versioned;
+}
+
 function replaceRequired(html, pattern, replacement, label) {
   if (!pattern.test(html)) {
     throw new Error(`Cannot find ${label} in staging index.html`);
@@ -130,6 +150,10 @@ await mkdir(stagingDistDir, { recursive: true });
 
 await copyFile(join(projectRoot, "index.html"), join(stagingDistDir, "index.html"));
 await copyFile(join(projectRoot, "styles.css"), join(stagingDistDir, "styles.css"));
+const stylesDirPath = join(projectRoot, "styles");
+if (await pathExists(stylesDirPath)) {
+  await copyDirectory(stylesDirPath, join(stagingDistDir, "styles"));
+}
 await copyDirectory(join(projectRoot, "src"), join(stagingDistDir, "src"));
 
 const assetsPath = join(projectRoot, "assets");
@@ -153,8 +177,12 @@ if (await pathExists(workflowPresetPath)) {
 }
 
 const jsModuleHashes = await versionLocalJsImports(join(stagingDistDir, "src"));
-const [stylesVersion, faviconVersion] = await Promise.all([
+await versionCssImports(join(stagingDistDir, "styles.css"));
+const [stylesVersion, uiCoreStylesVersion, faviconVersion] = await Promise.all([
   fileHash(join(stagingDistDir, "styles.css")),
+  pathExists(join(stagingDistDir, "styles", "mes-ui-core.css")).then((exists) => (
+    exists ? fileHash(join(stagingDistDir, "styles", "mes-ui-core.css")) : ""
+  )),
   pathExists(join(stagingDistDir, "favicon.svg")).then((exists) => exists ? fileHash(join(stagingDistDir, "favicon.svg")) : ""),
 ]);
 const appVersion = jsModuleHashes.get("app.js") || await fileHash(join(stagingDistDir, "src", "app.js"));
@@ -166,6 +194,14 @@ html = replaceRequired(
   `href="./styles.css?v=${stylesVersion}"`,
   "styles.css link",
 );
+if (uiCoreStylesVersion) {
+  html = replaceRequired(
+    html,
+    /href="\.\/styles\/mes-ui-core\.css(?:\?[^"]*)?"/,
+    `href="./styles/mes-ui-core.css?v=${uiCoreStylesVersion}"`,
+    "styles/mes-ui-core.css link",
+  );
+}
 html = replaceRequired(
   html,
   /src="\.\/src\/app\.js(?:\?[^"]*)?"/,
@@ -200,5 +236,6 @@ try {
 console.log("Static staging build created:");
 console.log(`- ${distDir}`);
 console.log(`- styles.css?v=${stylesVersion}`);
+if (uiCoreStylesVersion) console.log(`- styles/mes-ui-core.css?v=${uiCoreStylesVersion}`);
 console.log(`- src/app.js?v=${appVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}`);

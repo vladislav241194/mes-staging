@@ -40,7 +40,7 @@
 - `workOrder` - заказ-наряд, отвечает на вопрос "что, сколько и к какому сроку произвести";
 - `ganttSlot` - слот планирования, отвечает за размещение операции во времени;
 - `shiftWorkOrder` - сменный заказ-наряд, отвечает за работу мастера, ресурс и исполнителя;
-- `dispatchFact` - факт диспетчерской, отвечает за план/факт, брак и будущую корректировку.
+- `dispatchFact` - архив факта смены, который сейчас наполняется Мастерской и не включает placeholder-модуль Диспетчерская в рабочий контур.
 
 Ключевые переходы:
 
@@ -51,7 +51,7 @@
 - `shiftWorkOrderToDispatchFact`;
 - `dispatchFactToPlanningCorrection`.
 
-Legacy-поля `projectId`, `batchId`, `planningStatus` и `status` пока остаются ради совместимости с текущими сохранениями, но новые UI-участки должны читать их через view-model и `getMesStatusView(scope, value)`.
+Legacy-поля `projectId`, `batchId`, `planningStatus` и `status` остаются только ради совместимости с текущими сохранениями. Новые UI-участки должны читать их через view-model и `getMesStatusView(scope, value)`, а новые слоты не должны записывать `batchId`.
 
 После MES Flow Hardening Pass v1 прямые сравнения `slot.status` и `route.planningStatus` в UI/модульной логике считаются регрессией. Для проверки добавлен `npm run qa:flow`: он контролирует contract-переходы, scope статусов и запрет прямого рендера статуса слота.
 
@@ -82,7 +82,14 @@ flowchart TB
   LS --> UI["uiState<br/>mes-planning-prototype-ui-v1"]
   LS --> AUTH["authState<br/>mes-planning-prototype-auth-v1"]
   LS --> BACKUP["directory backups / deleted tombstones"]
+  LS --> SHARED["shared-state<br/>api/shared-state"]
 
+  UI --> PSM["productionStructureMatrixOverrides"]
+  UI --> TSO["timesheet overrides"]
+  UI --> SMB["shift master board assignments/facts"]
+  SHARED --> PSM
+  SHARED --> TSO
+  SHARED --> SMB
   PS --> WC["workCenters"]
   PS --> R["routes"]
   PS --> RS["routeSteps"]
@@ -93,7 +100,8 @@ flowchart TB
   DS --> BOM["bomLists"]
   DS --> NOM["nomenclature"]
   DS --> NT["nomenclatureTypes"]
-  DS --> DIR["departments / roles / employees / resources / equipment / norms / statuses / componentTypes"]
+  DS --> DIR["operations / statuses / componentTypes / nomenclatureTypes"]
+  PSM --> ORG["departments / sections / roles / employees / resources / schedules"]
 ```
 
 ## 3. Ключевые сущности
@@ -106,8 +114,13 @@ flowchart TB
 | Маршрутная карта | `planningState.routes` | Производственное задание/маршрут для спецификации | Ссылается на спецификацию, имеет операции |
 | Операция маршрута | `planningState.routeSteps` | Технологический шаг | Участок, операция, задача спецификации, BOM, платы в мультиплате |
 | Заказ-наряд | `planningState.routes` | Единица планирования для спецификации | Маршрут хранит количество, статус и правила запуска |
-| Операция в Ганте | `planningState.slots` | Конкретный запланированный слот | Ссылается на маршрут, шаг маршрута, участок; `batchId` остается legacy-алиасом routeId |
-| Участок | `planningState.workCenters` | Производственная мощность для Ганта | Частично пересекается со справочниками |
+| Операция в Ганте | `planningState.slots` | Конкретный запланированный слот | Ссылается на маршрут/заказ-наряд через `routeId` / `planningOrderId`, шаг маршрута и участок; `batchId` читается только как legacy-алиас при нормализации |
+| Участок / отдел / ресурс | Матрица структуры → `production_structure_service` → `planningState.workCenters` | Организационная структура, доступные исполнители, линии, посты и ресурсы | Источник правды — матрица структуры; старые справочники отделов/ресурсов не используются |
+| Legacy-id участка | `MES_LEGACY_WORK_CENTER_ID_MAP` → матричный `workCenterId` | Совместимость старых слотов/маршрутов | Не создает новый центр; `D3_MANUAL_CC` нормализуется в `D3_CC` |
+| Правки матрицы структуры | `ui.productionStructureMatrixOverrides` + `shared-state.sharedUi.productionStructureMatrixOverrides` | Рабочие корректировки структуры без правки базового файла матрицы | Синхронизируются между клиентами; после применения пересобирают `planningState.workCenters` |
+| Матрица распределения мастеров | `ui.shiftMasterAssignmentMatrix` + shared-state | Настройка, кого мастер может назначать в смене | Ограничивает список исполнителей в Мастерской; Табель после этого фильтрует доступность на конкретную дату |
+| Табельные правки | `ui.timesheetCellOverrides` / `ui.timesheetScheduleOverrides` + shared-state | Уточнение графиков, отсутствий и сверхурочных | Ограничивает доступных исполнителей в Мастерской |
+| Назначения, сменные листы и факт Мастерской | `ui.shiftMasterBoardAssignments` / `Facts` / `Carryovers` + `sheetContract` / `transferContract` + shared-state | Оперативный слой распределения, печати сменного листа, факта, передачи и остатков | Отражается на колбасках Ганта как визуальный слой, не двигая даты |
 | Калькулятор | `calculatorState` | Расчет SMT/операций | Может создавать/перезаписывать маршрутные операции |
 
 ## 4. Текущая фактическая модель данных
@@ -191,7 +204,6 @@ erDiagram
     string routeId
     string specificationId
     string projectId
-    string batchId
     string routeStepId
     string workCenterId
     number quantity
@@ -334,8 +346,8 @@ flowchart LR
 Скрытая логика:
 
 - Слоты создаются из операций маршрута выбранного заказ-наряда.
-- Расписание ищет ближайшее свободное окно с учетом мощности участка.
-- Длительность операции считается из количества, скорости участка и мультиплаты.
+- Расписание ищет ближайшее свободное окно по текущим слотам и календарю.
+- Длительность операции должна считаться из трудозатрат заказ-наряда, количества, мультиплаты и длительности смены из матрицы/календаря участка; старой таблицы скоростей участков больше нет, а нейтральный fallback допустим только для неполных legacy-слотов.
 - Складская операция добавляется автоматически.
 - Гант делит SMT на производственные линии через виртуальные workCenter-строки.
 - Стрелки зависимостей строятся из порядка routeSteps внутри заказ-наряда и задачи спецификации.
@@ -344,7 +356,7 @@ flowchart LR
 
 - `normalizePlanningState()` может автоматически менять `routeSteps` и `slots` при обычной загрузке.
 - Складской шаг и складской слот могут появиться без прямого действия пользователя.
-- Слоты используют `projectId`, `specificationId`, `routeId`, `batchId` одновременно.
+- Активные слоты используют `specificationId`, `routeId`, `planningOrderId`; `batchId` допустим только в старых сохранениях до нормализации.
 
 ### 6.7 Калькулятор
 
@@ -358,8 +370,8 @@ flowchart LR
 
 - Калькулятор до сих пор хранит `routeOperations`.
 - Он может сохранять расчет в маршрутную карту.
-- Он читает ресурсы/компоненты/нормы из справочников.
-- Удаление BOM/ресурса сбрасывает связанные поля калькулятора.
+- Он читает компоненты из BOM/номенклатуры, а производственные ресурсы и графики - из матрицы структуры.
+- Удаление BOM или изменение строки матрицы должно сбрасывать/перепроверять связанные расчетные поля калькулятора.
 
 Риск легаси:
 
@@ -382,7 +394,7 @@ flowchart LR
   GP["getProject(id)"] --> PC["virtual production context<br/>из specification"]
   PC --> Q["quantity / dueDate / status / customer"]
   R["route.projectId"] --> NEW
-  S["slot.projectId"] --> NEW
+  S["getSlotProductionContextId(slot)"] --> NEW
 ```
 
 Это не обязательно ломает систему, но сильно усложняет понимание и повышает риск ошибок при доработках.

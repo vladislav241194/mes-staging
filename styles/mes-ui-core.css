@@ -1,0 +1,853 @@
+/* MES UI Core v1: reusable primitives and shell contracts for new prototypes. */
+.ui-panel{
+  min-width: 0;
+  overflow: visible !important;
+}
+
+/* Hard-runtime panel contract: a panel may contain tables,
+cards and nested
+   strips,
+but its body must never collapse and leak into the next block. */
+.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="Panel"].ui-panel{
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  height: auto !important;
+  min-height: max-content !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"]{
+  height: auto !important;
+  min-height: max-content !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"]{
+  min-height: 0 !important;
+}
+
+/* Runtime markers are a safe compatibility bridge for live legacy fragments.
+   They should not redesign old blocks; they only keep primitives measurable and bounded. */
+[data-ui-component="Panel"],
+[data-ui-component="PanelHead"],
+[data-ui-component="PanelBody"],
+[data-ui-component="PanelFooter"],
+[data-ui-component="ModulePage"],
+[data-ui-component="ModuleSidebar"],
+[data-ui-component="ModuleWorkspace"],
+[data-ui-component="ModuleContent"],
+[data-ui-component="ModuleHeader"],
+[data-ui-component="FormField"],
+[data-ui-component="ActionButton"],
+[data-ui-component="ActionBar"],
+[data-ui-component="TableWrap"],
+[data-ui-component="Dropdown"],
+[data-ui-component="Modal"],
+[data-ui-component="Drawer"],
+[data-ui-component="GanttBar"]{
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+[data-ui-component="FormField"] :is(input, select, textarea){
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+[data-ui-component="ActionButton"] :is(span, strong, small){
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-ui-component="TableWrap"]{
+  max-width: 100%;
+}
+
+[data-ui-component="Modal"]{
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+}
+
+[data-ui-component="Drawer"]{
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+}
+
+.ui-panel-body{
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ui-panel-footer{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  box-sizing: border-box;
+  border-top: 1px solid var(--line, rgba(148, 163, 184, 0.28));
+  padding: 10px 12px;
+}
+
+.ui-module-header{
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ui-module-page{
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.ui-module-page.is-full-width{
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.ui-module-page.has-sidebar{
+  grid-template-columns: var(--mes-ui-module-sidebar-width, 260px) minmax(0, 1fr);
+}
+
+.ui-module-workspace{
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-module-content{
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="ModuleContent"].ui-module-content{
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="ModuleContent"].ui-module-content > *{
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.ui-module-sidebar{
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.ui-module-header > div{
+  min-width: 0;
+}
+
+.ui-module-header :is(h1, h2, p, strong, span){
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ui-module-header :is(h1, h2, p){
+  overflow-wrap: anywhere;
+}
+
+.ui-module-header-actions{
+  justify-self: end;
+}
+
+.ui-panel-head{
+  min-width: 0;
+  align-items: center;
+}
+
+.ui-panel-head-copy{
+  min-width: 0;
+}
+
+.ui-panel-head-copy > div{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-panel-head-copy :is(strong, span),
+.ui-panel-head > :is(strong, span){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-panel-head-actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ui-action-bar{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ui-action-button{
+  min-width: 0;
+}
+
+.ui-action-button span{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-form-field{
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ui-form-field > span{
+  min-width: 0;
+  color: var(--muted, #64748b);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold, 680);
+  line-height: 1.25;
+}
+
+.ui-form-field > :is(input, select, textarea){
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ui-form-field > small{
+  min-width: 0;
+  color: var(--muted, #64748b);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.ui-table-wrap{
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Scroll contract: new dense panels grow by content. Only the module workspace
+   owns vertical scrolling; table wrappers may scroll horizontally,
+never by Y. */
+.ui-table-wrap[data-scroll-contract="horizontal-only"],
+[data-ui-component="TableWrap"][data-scroll-contract="horizontal-only"]{
+  display: block !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-empty-state{
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ui-empty-state > :is(strong, span){
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ui-status-token,
+.ui-demo-badge{
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ui-sidebar-list{
+  min-width: 0;
+  min-height: 0;
+}
+
+.ui-sidebar-label{
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.ui-sidebar-item{
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ui-sidebar-item-body{
+  min-width: 0;
+}
+
+.ui-sidebar-item :is(strong, small, em){
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ui-sidebar-item :is(strong, small){
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-sidebar-item-badge{
+  flex: 0 0 auto;
+}
+
+.ui-demo-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ui-demo-badge strong,
+.ui-demo-badge small{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-demo-badge strong{
+  font-weight: var(--mes-ui-weight-semibold, 680);
+}
+
+.ui-demo-badge small{
+  font-weight: var(--mes-ui-weight-regular, 400);
+  opacity: 0.82;
+}
+
+.ui-demo-marker-host{
+  position: relative;
+}
+
+.ui-demo-corner-marker{
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 3;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(15, 35, 60, 0.24);
+  border-radius: 999px;
+  background: var(--mes-ui-sidebar-bg, #10233c);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 820;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ui-demo-corner-marker.is-interactive{
+  top: 2px;
+  right: 2px;
+  z-index: 8;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(15, 35, 60, 0.28);
+  font-size: 8px;
+  font-weight: 820;
+}
+
+.ui-demo-inline-marker{
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: var(--mes-ui-sidebar-bg, #10233c);
+  color: #ffffff !important;
+  font-size: 8px !important;
+  font-style: normal !important;
+  font-weight: 820 !important;
+  line-height: 1 !important;
+  vertical-align: -1px;
+  pointer-events: none;
+}
+
+button.ui-demo-marker-host,
+label.ui-demo-marker-host{
+  position: relative;
+  overflow: visible;
+}
+
+button.ui-demo-marker-host{
+  padding-inline-end: 24px;
+}
+
+.ui-dropdown{
+  position: relative;
+  min-width: 0;
+}
+
+.ui-dropdown-trigger{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--mes-ui-touch-min, 32px);
+  box-sizing: border-box;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ui-dropdown-trigger::-webkit-details-marker{
+  display: none;
+}
+
+.ui-dropdown-menu{
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--mes-ui-z-dropdown, 120);
+  display: grid;
+  gap: 4px;
+  min-width: min(260px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: min(360px, calc(100vh - 96px));
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid var(--line, rgba(148, 163, 184, 0.28));
+  border-radius: 8px;
+  background: var(--panel, #ffffff);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+
+.ui-modal,
+.ui-drawer{
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--panel, #ffffff);
+}
+
+.ui-modal{
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.ui-drawer{
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+}
+
+.ui-modal.is-sample,
+.ui-drawer.is-sample{
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  box-shadow: none;
+}
+
+.ui-modal-body,
+.ui-drawer-body{
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.ui-gantt-bar{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ui-gantt-bar-meta{
+  min-width: 0;
+  color: var(--muted, #64748b);
+  font-size: 10px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-gantt-bar-track{
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  height: 26px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.78);
+}
+
+.ui-gantt-bar-segment{
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--segment-width, 100%);
+  min-width: 0;
+  color: #0f233c;
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold, 680);
+  line-height: 1;
+}
+
+.ui-gantt-bar-segment.is-plan{
+  background: rgba(96, 165, 250, 0.42);
+}
+
+.ui-gantt-bar-segment.is-assigned{
+  background: rgba(59, 130, 246, 0.58);
+}
+
+.ui-gantt-bar-segment.is-fact{
+  background: rgba(34, 197, 94, 0.58);
+}
+
+.ui-gantt-bar-segment.is-gap{
+  background: rgba(244, 114, 182, 0.42);
+}
+
+.ui-gantt-bar-segment b,
+.ui-gantt-bar-value{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-gantt-bar-value{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #0f233c;
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold, 680);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Shell annotation contract: the former search slot now explains the active module. */
+main.app-shell[data-layout="app-shell"] > .app-topbar{
+  grid-template-columns: minmax(180px, 0.54fr) minmax(280px, 1fr) auto !important;
+}
+
+main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
+  grid-column: 2 !important;
+}
+
+main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
+  grid-column: 3 !important;
+}
+
+@media (max-width: 900px) {
+  main.app-shell[data-layout="app-shell"] > .app-topbar{
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
+    display: none !important;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
+    grid-column: 2 !important;
+  }
+}
+
+/* Shared module sidebar contract: keep this in UI Core,
+not in module-specific layers. */
+main.app-shell[data-layout="app-shell"] :is(.module-data-page .module-data-sidebar, .planning-order-page .planning-order-queue, .directories-page .directory-sidebar){
+  gap: var(--mes-ui-sidebar-row-gap);
+  min-width: 0;
+  border-color: var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-xl);
+  background: var(--mes-ui-surface-raised);
+  color: var(--mes-ui-text);
+  box-shadow: var(--mes-ui-shadow-sm);
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .directory-sidebar-head, .planning-order-queue .directory-sidebar-head, .directories-page .directory-sidebar-head){
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-bottom: 1px solid var(--mes-ui-line);
+  padding: 0 8px 8px;
+  color: var(--mes-ui-muted);
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .directory-sidebar-head .eyebrow, .planning-order-queue .directory-sidebar-head .eyebrow, .directories-page .directory-sidebar-head .eyebrow){
+  color: var(--mes-ui-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+  text-transform: none;
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .directory-sidebar-head h1, .planning-order-queue .directory-sidebar-head h1, .directories-page .directory-sidebar-head h1){
+  margin: 0;
+  overflow: hidden;
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-section-title);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-section-title);
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item span, .planning-order-queue .planning-order-route-item span, .directories-page .directory-nav-item span){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-ok, .planning-order-queue .planning-order-route-item > em.is-ok, .supply-route-card em.is-ok){
+  border-color: var(--mes-ui-success-border);
+  background: var(--mes-ui-success-soft);
+  color: var(--mes-ui-success);
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-warning, .planning-order-queue .planning-order-route-item > em.is-warning, .supply-route-card em.is-warning){
+  border-color: var(--mes-ui-warning-border);
+  background: var(--mes-ui-warning-soft);
+  color: var(--mes-ui-warning);
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-critical, .module-data-sidebar .ui-sidebar-item em.is-danger, .planning-order-queue .planning-order-route-item > em.is-critical, .supply-route-card em.is-critical){
+  border-color: var(--mes-ui-danger-border);
+  background: var(--mes-ui-danger-soft);
+  color: var(--mes-ui-danger);
+}
+
+/* Auth prototype is tablet-first: employee and PIN selection targets must be comfortable for finger input. */
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone{
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  background: var(--mes-ui-sidebar-bg, #10233c) !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"].auth-prototype-page{
+  grid-column: 1 / -1 !important;
+  grid-row: 1 / -1 !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  background: var(--mes-ui-sidebar-bg, #10233c) !important;
+  min-height: 100dvh !important;
+  height: 100dvh !important;
+  align-content: stretch !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-workspace{
+  display: grid !important;
+  grid-row: 1 / -1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-content{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  justify-items: stretch !important;
+  align-content: stretch !important;
+  background: transparent !important;
+  min-height: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step{
+  justify-self: stretch !important;
+  justify-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: clamp(12px, 1.2vw, 22px) !important;
+  box-sizing: border-box !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-panel{
+  justify-self: center !important;
+  width: min(1320px, calc(100vw - 44px)) !important;
+  max-width: calc(100vw - 44px) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-panel{
+  width: min(1320px, calc(100vw - 44px)) !important;
+  max-width: calc(100vw - 44px) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-people-grid button[data-ui-component="ActionButton"]{
+  min-height: 112px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-department-grid button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-unit-grid button[data-ui-component="ActionButton"]{
+  min-height: 112px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-keypad button[data-ui-component="ActionButton"]{
+  width: 96px !important;
+  min-width: 96px !important;
+  height: 96px !important;
+  min-height: 96px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head{
+  align-items: start !important;
+  min-height: 64px !important;
+  padding: 14px 18px 16px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head .ui-panel-head-copy > div{
+  gap: 5px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head strong{
+  font-size: 14px !important;
+  line-height: 18px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head span{
+  overflow: visible !important;
+  line-height: 16px !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-body{
+  padding-top: 14px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-header{
+  justify-self: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  border-color: var(--mes-ui-line, #e2e8f0) !important;
+  border-bottom: 1px solid var(--mes-ui-line, #e2e8f0) !important;
+  background: #ffffff !important;
+  color: var(--mes-ui-text, #0f172a) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-header :is(.eyebrow, h1, p, span, strong, small){
+  color: inherit !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-grid button{
+  grid-template-columns: 42px minmax(0, 1fr) !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon{
+  display: grid !important;
+  place-items: center !important;
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  overflow: visible !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon svg{
+  display: block !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon{
+  color: var(--mes-ui-sidebar-bg, #10233c) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-copy{
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid button.is-auth-master{
+  position: relative !important;
+  padding-right: 72px !important;
+  border-color: var(--mes-ui-line, #e2e8f0) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid button.is-auth-master strong{
+  color: var(--mes-ui-text, #0f172a) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-role-marker{
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  min-width: 48px !important;
+  height: 20px !important;
+  padding: 0 8px !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  border-radius: 999px !important;
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: rgba(15, 23, 42, 0.72) !important;
+  font-size: 9px !important;
+  font-style: normal !important;
+  font-weight: 760 !important;
+  line-height: 12px !important;
+  text-transform: uppercase !important;
+  pointer-events: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people{
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  border-top: 1px solid var(--mes-ui-line, #e2e8f0);
+  padding-top: 12px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head span{
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  line-height: 16px;
+  white-space: normal;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head strong{
+  color: var(--mes-ui-text, #0f172a);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head span{
+  color: var(--mes-ui-muted, #64748b);
+  font-size: 11px;
+  font-weight: 600;
+}

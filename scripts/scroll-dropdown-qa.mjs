@@ -5,13 +5,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const defaultUrl = "http://localhost:4174/";
+const defaultUrl = new URL("/", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const defaultOutDir = join(projectRoot, "tmp", `scroll-dropdown-qa-${Date.now()}`);
 const viewports = [
-  { name: "desktop-1556", width: 1556, height: 1006, mobile: false },
-  { name: "mobile-390", width: 390, height: 844, mobile: true },
-  { name: "mobile-430", width: 430, height: 932, mobile: true },
-  { name: "tablet-768", width: 768, height: 1024, mobile: true },
+  { name: "macbook-air-15", width: 1710, height: 1112, mobile: false },
 ];
 
 function getArg(name, fallback) {
@@ -155,6 +152,10 @@ async function launchChrome() {
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profileDir}`,
     "--disable-gpu",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-sync",
+    "--metrics-recording-only",
     "--no-first-run",
     "--no-default-browser-check",
     "about:blank",

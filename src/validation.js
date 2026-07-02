@@ -8,19 +8,44 @@ export function byId(items) {
   return Object.fromEntries(asArray(items).map((item) => [item.id, item]));
 }
 
+function getValidationProductionId(entity = {}) {
+  return entity?.specificationId || entity?.projectId || "";
+}
+
+function validationEntityMatchesProduction(entity = {}, productionId = "") {
+  return Boolean(productionId) && (entity?.specificationId === productionId || entity?.projectId === productionId);
+}
+
+function getValidationPlanningOrderId(slot = {}) {
+  return slot?.planningOrderId || slot?.routeId || slot?.batchId || "";
+}
+
+function getValidationSlotStatusValue(slot = {}) {
+  return String(slot?.status || "planned").trim() || "planned";
+}
+
+function validationSlotHasStatus(slot = {}, status = "") {
+  return getValidationSlotStatusValue(slot) === status;
+}
+
+function getValidationSlotRouteId(slot = {}, state = {}, stepById = byId(state?.routeSteps || [])) {
+  const step = stepById?.[slot?.routeStepId];
+  return slot?.routeId || step?.routeId || getValidationPlanningOrderId(slot) || getValidationProductionId(slot) || "";
+}
+
 // These names are retained for older Gantt callers. "Project" now means the
 // product-centered production context, with projectId as the legacy alias.
 export function getProjectRoute(project, state) {
   const routes = asArray(state?.routes);
-  return routes.find((route) => (route.specificationId === project.id || route.projectId === project.id) && route.isDefault)
-    || routes.find((route) => route.specificationId === project.id || route.projectId === project.id);
+  return routes.find((route) => validationEntityMatchesProduction(route, project.id) && route.isDefault)
+    || routes.find((route) => validationEntityMatchesProduction(route, project.id));
 }
 
-export function getProjectRouteSteps(projectId, state) {
+export function getProjectRouteSteps(productionId, state) {
   const routes = asArray(state?.routes);
   const routeSteps = asArray(state?.routeSteps);
-  const route = routes.find((item) => (item.specificationId === projectId || item.projectId === projectId) && item.isDefault)
-    || routes.find((item) => item.specificationId === projectId || item.projectId === projectId);
+  const route = routes.find((item) => validationEntityMatchesProduction(item, productionId) && item.isDefault)
+    || routes.find((item) => validationEntityMatchesProduction(item, productionId));
   if (!route) return [];
   return routeSteps
     .filter((step) => step.routeId === route.id)
@@ -39,8 +64,9 @@ function getValidationRouteTaskId(step) {
 function getValidationProductionMap(state) {
   const map = byId(state?.projects || []);
   for (const route of asArray(state?.routes)) {
+    const productionId = getValidationProductionId(route);
     const production = {
-      id: route.specificationId || route.projectId,
+      id: productionId,
       name: route.specificationName || route.name || "Изделие",
       totalQuantity: route.planningQuantity || 1,
     };
@@ -50,10 +76,10 @@ function getValidationProductionMap(state) {
 }
 
 function getValidationRouteForSlot(slot, state, stepById = byId(state?.routeSteps || [])) {
-  const step = stepById[slot.routeStepId];
   const routes = asArray(state?.routes);
-  return routes.find((route) => route.id === (slot.routeId || step?.routeId))
-    || routes.find((route) => route.specificationId === slot.specificationId || route.projectId === slot.projectId)
+  const slotRouteId = getValidationSlotRouteId(slot, state, stepById);
+  return routes.find((route) => route.id === slotRouteId)
+    || routes.find((route) => validationEntityMatchesProduction(route, getValidationProductionId(slot)))
     || null;
 }
 
@@ -153,9 +179,9 @@ export function detectWorkCenterConflicts(state) {
           type: "capacity",
           severity: "critical",
           slotIds: [left.id, right.id],
-          projectId: left.projectId,
+          productionId: getValidationProductionId(left),
           workCenterId: left.workCenterId,
-          message: `${workCenterById[left.workCenterId]?.name || "Отдел"} перегружен: ${overlappingSlots.length} операций при емкости ${capacity}. ${projectById[left.specificationId || left.projectId]?.name || "Задание"} пересекается с ${projectById[right.specificationId || right.projectId]?.name || "заданием"}.`,
+          message: `${workCenterById[left.workCenterId]?.name || "Отдел"} перегружен: ${overlappingSlots.length} операций при емкости ${capacity}. ${projectById[getValidationProductionId(left)]?.name || "Задание"} пересекается с ${projectById[getValidationProductionId(right)]?.name || "заданием"}.`,
         });
       }
     }
@@ -183,8 +209,8 @@ export function detectRouteWarnings(state) {
         type: "duration",
         severity: "critical",
         slotIds: [slot.id],
-        projectId: slot.projectId,
-        batchId: slot.batchId,
+        productionId: getValidationProductionId(slot),
+        planningOrderId: getValidationPlanningOrderId(slot),
         message: `${slot.operationName}: окончание должно быть позже начала.`,
       });
     }
@@ -195,8 +221,8 @@ export function detectRouteWarnings(state) {
         type: "route",
         severity: "warning",
         slotIds: [slot.id],
-        projectId: slot.projectId,
-        batchId: slot.batchId,
+        productionId: getValidationProductionId(slot),
+        planningOrderId: getValidationPlanningOrderId(slot),
         message: `${slot.operationName}: шаг маршрута не найден.`,
       });
       continue;
@@ -214,8 +240,8 @@ export function detectRouteWarnings(state) {
         type: "route",
         severity: "critical",
         slotIds: [slot.id],
-        projectId: slot.projectId,
-        batchId: slot.batchId,
+        productionId: getValidationProductionId(slot),
+        planningOrderId: getValidationPlanningOrderId(slot),
         message: `${slot.operationName}: операция маршрута ожидает отдел ${workCenterById[step.workCenterId]?.name || step.workCenterId}, а слот стоит в отделе ${workCenterById[slot.workCenterId]?.name || slot.workCenterId}.`,
       });
     }
@@ -224,13 +250,13 @@ export function detectRouteWarnings(state) {
   const slotsByProjectBatch = groupBy(slots, (slot) => {
     const step = stepById[slot.routeStepId];
     const route = getValidationRouteForSlot(slot, state, stepById);
-    return `${route?.id || slot.routeId || slot.specificationId || slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(step)}`;
+    return `${route?.id || getValidationSlotRouteId(slot, state, stepById)}:${getValidationPlanningOrderId(slot)}:${getValidationRouteTaskId(step)}`;
   });
 
   for (const slots of Object.values(slotsByProjectBatch)) {
     if (!slots.length) continue;
 
-    const productionId = slots[0].specificationId || slots[0].projectId;
+    const productionId = getValidationProductionId(slots[0]);
     const project = projectById[productionId];
     const taskId = getValidationRouteTaskId(stepById[slots[0].routeStepId]);
     const route = getValidationRouteForSlot(slots[0], state, stepById);
@@ -259,8 +285,8 @@ export function detectRouteWarnings(state) {
           type: "route",
           severity: "critical",
           slotIds: [previous.id, current.id],
-          projectId: current.projectId,
-          batchId: current.batchId,
+          productionId: getValidationProductionId(current),
+          planningOrderId: getValidationPlanningOrderId(current),
           message: `Заказ-наряд: ${currentStep.operationName} начинается раньше завершения ${previousStep.operationName}.`,
         });
       }
@@ -271,8 +297,8 @@ export function detectRouteWarnings(state) {
           type: "quantity",
           severity: "warning",
           slotIds: [current.id],
-          projectId: current.projectId,
-          batchId: current.batchId,
+          productionId: getValidationProductionId(current),
+          planningOrderId: getValidationPlanningOrderId(current),
           message: `Заказ-наряд: на шаге ${currentStep.operationName} запланировано больше изделий, чем на предыдущем шаге.`,
         });
       }
@@ -285,13 +311,15 @@ export function detectRouteWarnings(state) {
         ));
 
         for (const step of missing) {
+          const currentProductionId = getValidationProductionId(current);
+          const currentPlanningOrderId = getValidationPlanningOrderId(current);
           warnings.push({
-            id: `missing-${current.projectId}-${current.batchId}-${step.id}`,
+            id: `missing-${currentProductionId}-${currentPlanningOrderId}-${step.id}`,
             type: "route",
             severity: "warning",
             slotIds: [previous.id, current.id],
-            projectId: current.projectId,
-            batchId: current.batchId,
+            productionId: currentProductionId,
+            planningOrderId: currentPlanningOrderId,
             message: `${project?.name || "Задание"}: между операциями пропущен обязательный шаг ${step.operationName}.`,
           });
         }
@@ -303,13 +331,15 @@ export function detectRouteWarnings(state) {
       const maxOrder = Math.max(...sorted.map((slot) => stepById[slot.routeStepId].stepOrder));
       for (const step of routeSteps) {
         if (step.isRequired && step.stepOrder >= minOrder && step.stepOrder <= maxOrder && !plannedByOrder.has(step.stepOrder)) {
+          const firstProductionId = getValidationProductionId(slots[0]);
+          const firstPlanningOrderId = getValidationPlanningOrderId(slots[0]);
           warnings.push({
-            id: `required-${slots[0].projectId}-${slots[0].batchId}-${step.id}`,
+            id: `required-${firstProductionId}-${firstPlanningOrderId}-${step.id}`,
             type: "route",
             severity: "warning",
             slotIds: sorted.map((slot) => slot.id),
-            projectId: slots[0].projectId,
-            batchId: slots[0].batchId,
+            productionId: firstProductionId,
+            planningOrderId: firstPlanningOrderId,
             message: `${project?.name || "Задание"}: отсутствует обязательный шаг ${step.operationName}.`,
           });
         }
@@ -318,9 +348,8 @@ export function detectRouteWarnings(state) {
   }
 
   const slotsByRouteBatch = groupBy(slots, (slot) => {
-    const step = stepById[slot.routeStepId];
     const route = getValidationRouteForSlot(slot, state, stepById);
-    return `${route?.id || slot.routeId || slot.specificationId || slot.projectId}:${slot.batchId}`;
+    return `${route?.id || getValidationSlotRouteId(slot, state, stepById)}:${getValidationPlanningOrderId(slot)}`;
   });
 
   for (const slots of Object.values(slotsByRouteBatch)) {
@@ -339,7 +368,6 @@ export function detectRouteWarnings(state) {
     if (!latestTaskSlot || !earliestMainSlot) continue;
     if (dependencyReadyAt && toDate(earliestMainSlot.plannedStart) >= toDate(dependencyReadyAt)) continue;
 
-    const productionId = earliestMainSlot.specificationId || earliestMainSlot.projectId;
     const taskStep = stepById[latestTaskSlot.routeStepId];
     const mainStep = stepById[earliestMainSlot.routeStepId];
     warnings.push({
@@ -347,8 +375,8 @@ export function detectRouteWarnings(state) {
       type: "route",
       severity: "critical",
       slotIds: [latestTaskSlot.id, earliestMainSlot.id],
-      projectId: earliestMainSlot.projectId,
-      batchId: earliestMainSlot.batchId,
+      productionId: getValidationProductionId(earliestMainSlot),
+      planningOrderId: getValidationPlanningOrderId(earliestMainSlot),
       message: `Заказ-наряд: ${mainStep?.operationName || earliestMainSlot.operationName} начинается раньше завершения ${taskStep?.operationName || latestTaskSlot.operationName}.`,
     });
   }
@@ -360,7 +388,7 @@ export function getDependencyPairs(state) {
   const slots = asArray(state?.slots);
   const stepById = byId(state?.routeSteps);
   const grouped = groupBy(slots, (slot) => (
-    `${slot.routeId || stepById[slot.routeStepId]?.routeId || slot.specificationId || slot.projectId}:${slot.batchId}:${getValidationRouteTaskId(stepById[slot.routeStepId])}`
+    `${getValidationSlotRouteId(slot, state, stepById)}:${getValidationPlanningOrderId(slot)}:${getValidationRouteTaskId(stepById[slot.routeStepId])}`
   ));
   const pairs = [];
 
@@ -379,8 +407,7 @@ export function getDependencyPairs(state) {
   }
 
   const byRouteBatch = groupBy(slots, (slot) => {
-    const step = stepById[slot.routeStepId];
-    return `${slot.routeId || step?.routeId || slot.specificationId || slot.projectId}:${slot.batchId}`;
+    return `${getValidationSlotRouteId(slot, state, stepById)}:${getValidationPlanningOrderId(slot)}`;
   });
 
   for (const slots of Object.values(byRouteBatch)) {
@@ -414,15 +441,15 @@ export function calculateProjectProgress(project, state) {
 
   const requiredStepIds = new Set(routeSteps.map((step) => step.id));
   const completedQuantity = asArray(state?.slots)
-    .filter((slot) => (slot.specificationId === project.id || slot.projectId === project.id) && slot.status === "completed" && requiredStepIds.has(slot.routeStepId))
+    .filter((slot) => validationEntityMatchesProduction(slot, project.id) && validationSlotHasStatus(slot, "completed") && requiredStepIds.has(slot.routeStepId))
     .reduce((sum, slot) => sum + Number(slot.quantity || 0), 0);
 
   return Math.min(100, Math.round((completedQuantity / (project.totalQuantity * routeSteps.length)) * 100));
 }
 
-export function getBatchTotalPlanned(batchId, state, excludeSlotId = null) {
+export function getPlanningOrderTotalPlanned(planningOrderId, state, excludeSlotId = null) {
   return asArray(state?.slots)
-    .filter((slot) => slot.batchId === batchId && slot.id !== excludeSlotId)
+    .filter((slot) => getValidationPlanningOrderId(slot) === planningOrderId && slot.id !== excludeSlotId)
     .reduce((sum, slot) => sum + Number(slot.quantity || 0), 0);
 }
 
