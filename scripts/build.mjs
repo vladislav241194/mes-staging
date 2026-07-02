@@ -69,15 +69,15 @@ async function getJsModuleHashes(rootDir, filePaths) {
   return hashes;
 }
 
-function withVersionedLocalJsImport(rootDir, importerPath, hashes, prefix, specifier, suffix) {
+function withVersionedLocalJsImport(rootDir, importerPath, hashes, deployCacheSuffix, prefix, specifier, suffix) {
   const targetPath = join(dirname(importerPath), specifier);
   const targetKey = toPosixPath(relative(rootDir, targetPath));
   const version = hashes.get(targetKey);
   if (!version) return `${prefix}${specifier}${suffix}`;
-  return `${prefix}${specifier}?v=${version}${suffix}`;
+  return `${prefix}${specifier}?v=${version}${deployCacheSuffix}${suffix}`;
 }
 
-async function versionLocalJsImports(rootDir) {
+async function versionLocalJsImports(rootDir, deployCacheSuffix = "") {
   const filePaths = await collectJsFiles(rootDir);
   let hashes = await getJsModuleHashes(rootDir, filePaths);
 
@@ -88,13 +88,13 @@ async function versionLocalJsImports(rootDir) {
       const source = await readFile(filePath, "utf-8");
       const versioned = source
         .replace(/(from\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
-          withVersionedLocalJsImport(rootDir, filePath, hashes, prefix, specifier, suffix)
+          withVersionedLocalJsImport(rootDir, filePath, hashes, deployCacheSuffix, prefix, specifier, suffix)
         ))
         .replace(/(\bimport\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
-          withVersionedLocalJsImport(rootDir, filePath, hashes, prefix, specifier, suffix)
+          withVersionedLocalJsImport(rootDir, filePath, hashes, deployCacheSuffix, prefix, specifier, suffix)
         ))
         .replace(/(\bimport\s*\(\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["']\s*\))/g, (match, prefix, specifier, suffix) => (
-          withVersionedLocalJsImport(rootDir, filePath, hashes, prefix, specifier, suffix)
+          withVersionedLocalJsImport(rootDir, filePath, hashes, deployCacheSuffix, prefix, specifier, suffix)
         ));
 
       if (versioned !== source) {
@@ -116,7 +116,7 @@ async function versionLocalJsImports(rootDir) {
   return hashes;
 }
 
-async function versionCssImports(stylesheetPath) {
+async function versionCssImports(stylesheetPath, deployCacheSuffix = "") {
   const source = await readFile(stylesheetPath, "utf-8");
   const matches = [...source.matchAll(/(@import\s+(?:url\()?["'])(\.{1,2}\/[^"')]+?\.css)(?:\?[^"')]+)?(["']\)?\s*;)/g)];
   if (!matches.length) return source;
@@ -127,13 +127,20 @@ async function versionCssImports(stylesheetPath) {
     const targetPath = join(dirname(stylesheetPath), specifier);
     if (!(await pathExists(targetPath))) continue;
     const version = await fileHash(targetPath);
-    versioned = versioned.replace(fullMatch, `${prefix}${specifier}?v=${version}${suffix}`);
+    versioned = versioned.replace(fullMatch, `${prefix}${specifier}?v=${version}${deployCacheSuffix}${suffix}`);
   }
 
   if (versioned !== source) {
     await writeFile(stylesheetPath, versioned);
   }
   return versioned;
+}
+
+function getDeployCacheSuffix(html = "") {
+  const match = html.match(/__MES_DEPLOY_VERSION__\s*=\s*["']([^"']+)["']/);
+  const rawVersion = String(match?.[1] || "").trim();
+  const normalized = rawVersion.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized ? `-${normalized}` : "";
 }
 
 function replaceRequired(html, pattern, replacement, label) {
@@ -176,8 +183,11 @@ if (await pathExists(workflowPresetPath)) {
   await copyFile(workflowPresetPath, join(stagingDistDir, "workflow-preset.json"));
 }
 
-const jsModuleHashes = await versionLocalJsImports(join(stagingDistDir, "src"));
-await versionCssImports(join(stagingDistDir, "styles.css"));
+let html = await readFile(join(stagingDistDir, "index.html"), "utf-8");
+const deployCacheSuffix = getDeployCacheSuffix(html);
+
+const jsModuleHashes = await versionLocalJsImports(join(stagingDistDir, "src"), deployCacheSuffix);
+await versionCssImports(join(stagingDistDir, "styles.css"), deployCacheSuffix);
 const [stylesVersion, uiCoreStylesVersion, faviconVersion] = await Promise.all([
   fileHash(join(stagingDistDir, "styles.css")),
   pathExists(join(stagingDistDir, "styles", "mes-ui-core.css")).then((exists) => (
@@ -187,32 +197,31 @@ const [stylesVersion, uiCoreStylesVersion, faviconVersion] = await Promise.all([
 ]);
 const appVersion = jsModuleHashes.get("app.js") || await fileHash(join(stagingDistDir, "src", "app.js"));
 
-let html = await readFile(join(stagingDistDir, "index.html"), "utf-8");
 html = replaceRequired(
   html,
   /href="\.\/styles\.css(?:\?[^"]*)?"/,
-  `href="./styles.css?v=${stylesVersion}"`,
+  `href="./styles.css?v=${stylesVersion}${deployCacheSuffix}"`,
   "styles.css link",
 );
 if (uiCoreStylesVersion) {
   html = replaceRequired(
     html,
     /href="\.\/styles\/mes-ui-core\.css(?:\?[^"]*)?"/,
-    `href="./styles/mes-ui-core.css?v=${uiCoreStylesVersion}"`,
+    `href="./styles/mes-ui-core.css?v=${uiCoreStylesVersion}${deployCacheSuffix}"`,
     "styles/mes-ui-core.css link",
   );
 }
 html = replaceRequired(
   html,
   /src="\.\/src\/app\.js(?:\?[^"]*)?"/,
-  `src="./src/app.js?v=${appVersion}"`,
+  `src="./src/app.js?v=${appVersion}${deployCacheSuffix}"`,
   "src/app.js script",
 );
 if (faviconVersion) {
   html = replaceRequired(
     html,
     /href="\.\/favicon\.svg(?:\?[^"]*)?"/,
-    `href="./favicon.svg?v=${faviconVersion}"`,
+    `href="./favicon.svg?v=${faviconVersion}${deployCacheSuffix}"`,
     "favicon.svg link",
   );
 }
@@ -235,7 +244,7 @@ try {
 
 console.log("Static staging build created:");
 console.log(`- ${distDir}`);
-console.log(`- styles.css?v=${stylesVersion}`);
-if (uiCoreStylesVersion) console.log(`- styles/mes-ui-core.css?v=${uiCoreStylesVersion}`);
-console.log(`- src/app.js?v=${appVersion}`);
-if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}`);
+console.log(`- styles.css?v=${stylesVersion}${deployCacheSuffix}`);
+if (uiCoreStylesVersion) console.log(`- styles/mes-ui-core.css?v=${uiCoreStylesVersion}${deployCacheSuffix}`);
+console.log(`- src/app.js?v=${appVersion}${deployCacheSuffix}`);
+if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
