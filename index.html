@@ -8,14 +8,27 @@
     <meta http-equiv="Expires" content="0" />
     <title>MES Planning Module Prototype</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=1.346" />
-    <link rel="stylesheet" href="./styles.css?v=1.380" />
-    <link rel="stylesheet" href="./styles/mes-ui-core.css?v=1.380" />
+    <link rel="stylesheet" href="./styles.css?v=1.381" />
+    <link rel="stylesheet" href="./styles/mes-ui-core.css?v=1.381" />
   </head>
   <body>
     <div id="app"></div>
     <script>
       window.__MES_BOOT_HTML_START__ = performance.now();
+      window.__MES_DEPLOY_VERSION__ = "v.1.381";
+      try {
+        const key = "mes-staging-cache-refresh-version";
+        if (localStorage.getItem(key) !== window.__MES_DEPLOY_VERSION__) {
+          localStorage.setItem(key, window.__MES_DEPLOY_VERSION__);
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.getRegistrations().then((items) => items.forEach((item) => item.unregister())).catch(() => {});
+          }
+          if ("caches" in window) {
+            caches.keys().then((keys) => keys.forEach((item) => caches.delete(item))).catch(() => {});
+          }
+        }
+      } catch {}
     </script>
-    <script type="module" src="./src/app.js?v=1.380"></script>
+    <script type="module" src="./src/app.js?v=1.381"></script>
   </body>
 </html>
