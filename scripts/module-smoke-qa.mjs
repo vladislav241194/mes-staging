@@ -1162,6 +1162,45 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         `shiftMasterBoard: sidebar badge should look like a macOS notification badge: ${JSON.stringify(badgeReport)}`
       );
     }
+    const calendarReport = await evaluate(client, () => {
+      const control = document.querySelector('[data-visual-qa-target="shift-master-board-top-controls"] [data-shift-calendar-control]');
+      const dateInput = control?.querySelector("[data-shift-calendar-date]");
+      const inputRect = dateInput?.getBoundingClientRect();
+      const inputCenterY = inputRect ? inputRect.top + inputRect.height / 2 : 0;
+      const items = [...(control?.querySelectorAll(".shift-calendar-step, .shift-calendar-open, .shift-calendar-today, .shift-calendar-range") || [])]
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          const svg = element.querySelector("svg");
+          const svgRect = svg?.getBoundingClientRect();
+          return {
+            className: String(element.className || ""),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            centerDelta: Math.round(Math.abs((rect.top + rect.height / 2) - inputCenterY) * 10) / 10,
+            svgCenterDelta: svgRect ? Math.round(Math.abs((svgRect.top + svgRect.height / 2) - (rect.top + rect.height / 2)) * 10) / 10 : 0,
+            svgWidth: svgRect ? Math.round(svgRect.width) : 0,
+            svgHeight: svgRect ? Math.round(svgRect.height) : 0,
+          };
+        });
+      return {
+        hasControl: Boolean(control),
+        inputHeight: inputRect ? Math.round(inputRect.height) : 0,
+        items,
+      };
+    });
+    assert(calendarReport.hasControl, `shiftMasterBoard: top calendar control is missing: ${JSON.stringify(calendarReport)}`);
+    assert(calendarReport.inputHeight === 30, `shiftMasterBoard: top calendar date input must be 30px high: ${JSON.stringify(calendarReport)}`);
+    assert(
+      calendarReport.items.length >= 5
+        && calendarReport.items.every((item) => item.height === 30 && item.centerDelta <= 1),
+      `shiftMasterBoard: calendar controls must align with the date input: ${JSON.stringify(calendarReport)}`
+    );
+    assert(
+      calendarReport.items
+        .filter((item) => /shift-calendar-step|shift-calendar-open/.test(item.className))
+        .every((item) => item.width === 28 && item.svgWidth === 14 && item.svgHeight === 14 && item.svgCenterDelta <= 1),
+      `shiftMasterBoard: calendar icon buttons must have centered 14px icons: ${JSON.stringify(calendarReport)}`
+    );
   }
   if (moduleId === "planning") {
     const workOrderUxReport = await evaluate(client, () => {
@@ -1762,6 +1801,9 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     ));
     const tableWrap = document.querySelector(".shift-work-orders-table-wrap");
     const content = document.querySelector(".shift-work-orders-content");
+    const treeParents = [...document.querySelectorAll("[data-shift-work-order-package-row]")];
+    const treeOperations = [...document.querySelectorAll("[data-shift-work-order-operation-row]")];
+    const treeChildren = [...document.querySelectorAll("[data-shift-work-order-row]")];
     const pageStyle = page ? window.getComputedStyle(page) : null;
     return {
       hasPage: Boolean(page),
@@ -1772,16 +1814,30 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       tableScrollContract: tableWrap?.dataset.scrollContract || "",
       contentOverflowY: content ? window.getComputedStyle(content).overflowY : "",
       pageOverflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+      treeParentCount: treeParents.length,
+      treeOperationCount: treeOperations.length,
+      treeChildCount: treeChildren.length,
+      parentPackageButtons: treeParents.filter((row) => row.querySelector("[data-work-order-print-preview]")).length,
+      operationPrintButtons: treeOperations.filter((row) => row.querySelector("[data-work-order-print-preview], [data-shift-work-order-print-preview]")).length,
+      childSznButtons: treeChildren.filter((row) => row.querySelector("[data-shift-work-order-print-preview]")).length,
+      childPackageButtons: treeChildren.filter((row) => row.querySelector("[data-work-order-print-preview]")).length,
     };
   });
   assert(report.hasPage, "shiftWorkOrders: page root is missing");
   assert(report.internalSidebarCount === 0, `shiftWorkOrders: should not render an internal sidebar, got ${report.internalSidebarCount}`);
   assert(!/\s/.test(report.gridTemplateColumns.trim()), `shiftWorkOrders: page must use one workspace column, got "${report.gridTemplateColumns}"`);
-  assert(report.panelCount >= 3, `shiftWorkOrders: expected overview, table and detail panels, got ${report.panelCount}`);
+  assert(report.panelCount >= 2, `shiftWorkOrders: expected table and detail panels, got ${report.panelCount}`);
   assert(report.panelWithoutBodyCount === 0, `shiftWorkOrders: panels without direct PanelBody: ${report.panelWithoutBodyCount}`);
   assert(report.tableScrollContract === "horizontal-only", `shiftWorkOrders: table wrap must use horizontal-only contract, got "${report.tableScrollContract}"`);
   assert(["auto", "visible"].includes(report.contentOverflowY), `shiftWorkOrders: unexpected content overflow-y "${report.contentOverflowY}"`);
   assert(report.pageOverflowX <= 2, `shiftWorkOrders: page horizontal overflow ${report.pageOverflowX}px`);
+  assert(report.treeParentCount > 0, `shiftWorkOrders: document tree parent rows are missing: ${JSON.stringify(report)}`);
+  assert(report.treeOperationCount > 0, `shiftWorkOrders: document tree operation aggregation rows are missing: ${JSON.stringify(report)}`);
+  assert(report.treeChildCount > 0, `shiftWorkOrders: document tree child rows are missing: ${JSON.stringify(report)}`);
+  assert(report.parentPackageButtons === report.treeParentCount, `shiftWorkOrders: work-order package print must live on parent rows: ${JSON.stringify(report)}`);
+  assert(report.operationPrintButtons === 0, `shiftWorkOrders: operation aggregation rows must not duplicate document print actions: ${JSON.stringify(report)}`);
+  assert(report.childSznButtons === report.treeChildCount, `shiftWorkOrders: SZN print must live on child rows: ${JSON.stringify(report)}`);
+  assert(report.childPackageButtons === 0, `shiftWorkOrders: child SZN rows must not duplicate package print actions: ${JSON.stringify(report)}`);
 
   const rowClickScrollReport = await evaluate(client, async () => {
     const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

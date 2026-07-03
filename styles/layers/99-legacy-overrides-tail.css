@@ -41,6 +41,29 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-content{
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(248, 250, 252, 0.72);
   padding: 7px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-calendar-field input,
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls :is(.shift-calendar-step, .shift-calendar-open, .shift-calendar-today, .shift-calendar-range){
+  align-self: end;
+  box-sizing: border-box;
+  height: 30px !important;
+  min-height: 30px !important;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls :is(.shift-calendar-step, .shift-calendar-open){
+  display: grid;
+  place-items: center;
+  width: 28px !important;
+  min-width: 28px !important;
+  padding: 0 !important;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-calendar-today{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding-inline: 8px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls :is(.shift-calendar-step, .shift-calendar-open, .shift-calendar-today) svg{
+  display: block;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-calendar-today,
 main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls .shift-calendar-range{
   grid-column: auto;
@@ -2376,6 +2399,102 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th{
   white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-parent td{
+  background: rgba(241, 245, 249, 0.82);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation td{
+  background: rgba(248, 250, 252, 0.78);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation td:first-child{
+  padding-left: 18px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-child td:first-child{
+  padding-left: 38px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-document{
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-document.is-parent{
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-node,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation-node,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-branch{
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-node::before{
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 2px;
+  background: rgba(37, 99, 235, 0.82);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation-node::before,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation-node::after{
+  content: "";
+  position: absolute;
+  background: rgba(71, 85, 105, 0.46);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation-node::before{
+  left: 8px;
+  top: -8px;
+  width: 1px;
+  height: 18px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation-node::after{
+  left: 8px;
+  top: 9px;
+  width: 10px;
+  height: 1px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-branch::before,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-branch::after{
+  content: "";
+  position: absolute;
+  background: rgba(100, 116, 139, 0.42);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-branch::before{
+  left: 8px;
+  top: -10px;
+  width: 1px;
+  height: 20px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-branch::after{
+  left: 8px;
+  top: 9px;
+  width: 10px;
+  height: 1px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-muted-action{
+  color: var(--mes-ui-muted);
+  font-size: 11px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td:nth-child(n + 3):nth-child(-n + 6){

@@ -80,7 +80,7 @@ const SHARED_STATE_POLL_INTERVAL_MS = 4000;
 const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
 const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
 const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
-const APP_VERSION = "v.1.417";
+const APP_VERSION = "v.1.423";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -1312,6 +1312,7 @@ let authPrototypePinDraft = "";
 let authPrototypePinFeedbackTimer = null;
 let authPrototypePinFeedbackSequence = 0;
 let authPrototypeKeypadDigits = [];
+let focusFullscreenRestoreAttempted = false;
 let bundledWorkflowPreset = null;
 let workflowPresetBootstrapStarted = false;
 let workflowPresetBootstrapPromise = null;
@@ -3758,7 +3759,7 @@ function mountVisualModeTray() {
   tray.className = "mes-visual-mode-tray";
   tray.setAttribute("aria-label", "Режимы интерфейса");
   tray.innerHTML = `
-    <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса">
+    <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса: скрыть вторичные панели и открыть браузер во весь экран">
       ${icon("focus")}
       <span>Фокус</span>
     </button>
@@ -12444,6 +12445,7 @@ function getShiftWorkOrderJournalViewModel() {
   }, { planned: 0, assigned: 0, fact: 0, remaining: 0 });
   return {
     rows: sortedRows,
+    documentTree: buildShiftWorkOrderDocumentTree(sortedRows),
     selectedRow,
     byStatus,
     totals,
@@ -12465,45 +12467,11 @@ function renderShiftWorkOrdersPage() {
       className: "directory-header shift-work-orders-header",
     }),
     content: `
-      ${renderShiftWorkOrdersOverview(model)}
       <section class="shift-work-orders-main-grid">
         ${renderShiftWorkOrdersTable(model)}
         ${renderShiftWorkOrdersDetail(model.selectedRow)}
       </section>
     `,
-  });
-}
-
-function renderShiftWorkOrdersOverview(model) {
-  const statusItems = [
-    ["planned", "план", "neutral"],
-    ["assigned", "распределен", "active"],
-    ["issued", "СЗН готов", "primary"],
-    ["closed", "закрыт", "ok"],
-    ["carryover", "остаток", "warning"],
-  ];
-  return renderUiPanel({
-    title: "Сводка журнала",
-    meta: `${model.rows.length.toLocaleString("ru-RU")} сменных строк · окно ${model.sourceWindow.label}`,
-    className: "shift-work-orders-panel shift-work-orders-overview-panel",
-    body: renderUiPanelBody({
-      body: `
-        <section class="shift-work-orders-kpi-grid" data-visual-qa-target="shift-work-orders-kpis">
-          ${renderShiftWorkOrdersKpi("План", model.totals.planned, "шт.")}
-          ${renderShiftWorkOrdersKpi("Распределено", model.totals.assigned, "шт.")}
-          ${renderShiftWorkOrdersKpi("Факт", model.totals.fact, "шт.")}
-          ${renderShiftWorkOrdersKpi("Остаток", model.totals.remaining, "шт.")}
-        </section>
-        <section class="shift-work-orders-status-strip" data-visual-qa-target="shift-work-orders-status-strip">
-          ${statusItems.map(([statusId, label, tone]) => `
-            <article>
-              ${renderUiStatusToken(label, tone)}
-              <strong>${Number(model.byStatus[statusId] || 0).toLocaleString("ru-RU")}</strong>
-            </article>
-          `).join("")}
-        </section>
-      `,
-    }),
   });
 }
 
@@ -12517,8 +12485,109 @@ function renderShiftWorkOrdersKpi(label, value, unit = "") {
   `;
 }
 
+function buildShiftWorkOrderDocumentTree(rows = []) {
+  const groups = new Map();
+  (rows || []).forEach((row) => {
+    const key = String(row.planningOrderId || row.routeId || row.orderLabel || "work-order").trim() || "work-order";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: key,
+        routeId: row.planningOrderId || row.routeId || "",
+        label: row.orderLabel || "Заказ-наряд",
+        meta: row.routePartLabel || row.operationName || "",
+        plannedQuantity: 0,
+        assignedQuantity: 0,
+        factQuantity: 0,
+        remainingQuantity: 0,
+        unit: row.unit || "шт.",
+        rows: [],
+        operationMap: new Map(),
+        latestTime: 0,
+        latestLabel: "дата не задана",
+      });
+    }
+    const group = groups.get(key);
+    group.rows.push(row);
+    const operationKey = String(row.routeStepId || row.stepId || row.sheetContract?.stepId || [
+      row.routePartLabel,
+      row.operationName,
+      row.workCenterLabel,
+    ].filter(Boolean).join("|") || "operation").trim();
+    if (!group.operationMap.has(operationKey)) {
+      group.operationMap.set(operationKey, {
+        id: operationKey,
+        operationName: row.operationName || "Операция",
+        workCenterLabel: row.workCenterLabel || "Участок не задан",
+        routePartLabel: row.routePartLabel || "",
+        plannedQuantity: 0,
+        assignedQuantity: 0,
+        factQuantity: 0,
+        remainingQuantity: 0,
+        unit: row.unit || "шт.",
+        rows: [],
+        latestTime: 0,
+        latestLabel: "дата не задана",
+      });
+    }
+    const operationGroup = group.operationMap.get(operationKey);
+    operationGroup.rows.push(row);
+    operationGroup.plannedQuantity = Math.max(
+      operationGroup.plannedQuantity,
+      normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0),
+    );
+    operationGroup.assignedQuantity += normalizeShiftMasterBoardQuantity(row.assignedQuantity || 0);
+    operationGroup.factQuantity += normalizeShiftMasterBoardQuantity(row.factQuantity || 0);
+    operationGroup.remainingQuantity = Math.max(0, operationGroup.plannedQuantity - operationGroup.factQuantity);
+    if (!group.routeId && (row.planningOrderId || row.routeId)) group.routeId = row.planningOrderId || row.routeId;
+    if (!group.meta && row.routePartLabel) group.meta = row.routePartLabel;
+    const rowTime = toDate(row.updatedAt || row.issuedAt || row.shiftDateKey || 0);
+    if (rowTime > group.latestTime) {
+      group.latestTime = rowTime;
+      group.latestLabel = row.dateLabel || (row.updatedAt ? formatDateTimeShort(row.updatedAt) : "дата не задана");
+    }
+    if (rowTime > operationGroup.latestTime) {
+      operationGroup.latestTime = rowTime;
+      operationGroup.latestLabel = row.dateLabel || (row.updatedAt ? formatDateTimeShort(row.updatedAt) : "дата не задана");
+    }
+  });
+  return [...groups.values()].map((group) => {
+    const operationGroups = [...group.operationMap.values()].sort((left, right) => (
+      right.latestTime - left.latestTime
+      || String(left.operationName).localeCompare(String(right.operationName), "ru")
+      || String(left.id).localeCompare(String(right.id), "ru")
+    ));
+    operationGroups.forEach((operationGroup) => {
+      operationGroup.rows.sort((left, right) => (
+        toDate(right.updatedAt || right.issuedAt || right.shiftDateKey || 0) - toDate(left.updatedAt || left.issuedAt || left.shiftDateKey || 0)
+        || String(left.documentNumber).localeCompare(String(right.documentNumber), "ru")
+      ));
+    });
+    group.operationGroups = operationGroups;
+    group.operationMap = undefined;
+    group.plannedQuantity = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.plannedQuantity, 0);
+    group.assignedQuantity = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.assignedQuantity, 0);
+    group.factQuantity = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.factQuantity, 0);
+    group.remainingQuantity = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.remainingQuantity, 0);
+    return group;
+  }).sort((left, right) => (
+    right.latestTime - left.latestTime
+    || String(left.label).localeCompare(String(right.label), "ru")
+    || String(left.id).localeCompare(String(right.id), "ru")
+  ));
+}
+
 function formatShiftWorkOrderPrintQuantity(value, unit = "шт.") {
   return `${normalizeShiftMasterBoardQuantity(value || 0).toLocaleString("ru-RU")} ${unit || "шт."}`;
+}
+
+function getShiftWorkOrderOperationTreeStatus(operationGroup = {}) {
+  const plannedQuantity = normalizeShiftMasterBoardQuantity(operationGroup.plannedQuantity || 0);
+  const assignedQuantity = normalizeShiftMasterBoardQuantity(operationGroup.assignedQuantity || 0);
+  const factQuantity = normalizeShiftMasterBoardQuantity(operationGroup.factQuantity || 0);
+  if (plannedQuantity > 0 && factQuantity >= plannedQuantity) return { label: "закрыта", tone: "ok" };
+  if (plannedQuantity > 0 && assignedQuantity >= plannedQuantity) return { label: "распределена", tone: "active" };
+  if (assignedQuantity > 0) return { label: "частично", tone: "warning" };
+  return { label: "план", tone: "neutral" };
 }
 
 function renderShiftWorkOrderPrintInfoTable(rows = [], className = "") {
@@ -12746,9 +12815,11 @@ function renderShiftWorkOrdersTable(model) {
       }),
     });
   }
+  const documentTree = model.documentTree || buildShiftWorkOrderDocumentTree(model.rows);
+  const operationCount = documentTree.reduce((sum, group) => sum + (group.operationGroups || []).length, 0);
   return renderUiPanel({
-    title: "Реестр СЗН",
-    meta: `${model.rows.length.toLocaleString("ru-RU")} строк · окно ${model.sourceWindow.label}`,
+    title: "Дерево документов",
+    meta: `${documentTree.length.toLocaleString("ru-RU")} заказ-нарядов · ${operationCount.toLocaleString("ru-RU")} операций · ${model.rows.length.toLocaleString("ru-RU")} СЗН · окно ${model.sourceWindow.label}`,
     className: "shift-work-orders-panel shift-work-orders-table-panel",
     body: renderUiPanelBody({
       body: renderUiTableWrap({
@@ -12757,35 +12828,93 @@ function renderShiftWorkOrdersTable(model) {
           <table class="directory-table shift-work-orders-table">
             <thead>
               <tr>
-                <th>СЗН</th>
-                <th>Операция / участок</th>
+                <th>Документы</th>
+                <th>Состав</th>
                 <th>План</th>
                 <th>Распр.</th>
                 <th>Факт</th>
                 <th>Ост.</th>
                 <th>Статус</th>
                 <th>Обновлено</th>
-                <th>Печать</th>
+                <th>Форма</th>
               </tr>
             </thead>
             <tbody>
-              ${model.rows.map((row) => `
-                <tr class="${row.id === model.selectedRow?.id ? "is-active" : ""}" data-shift-work-order-row="${escapeAttribute(row.id)}" tabindex="0">
-                  <td><strong>${escapeHtml(row.documentNumber)}</strong><small>${escapeHtml(row.orderLabel)}</small></td>
-                  <td><strong>${escapeHtml(row.operationName)}</strong><small>${escapeHtml(row.workCenterLabel)}</small></td>
-                  <td>${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</td>
-                  <td>${row.assignedQuantity.toLocaleString("ru-RU")}</td>
-                  <td>${row.factQuantity.toLocaleString("ru-RU")}</td>
-                  <td>${row.remainingQuantity.toLocaleString("ru-RU")}</td>
-                  <td>${renderUiStatusToken(row.status.label, row.status.tone)}</td>
-                  <td>${escapeHtml(row.dateLabel)}</td>
+              ${documentTree.map((group) => `
+                <tr class="shift-work-orders-tree-parent" data-shift-work-order-package-row="${escapeAttribute(group.id)}">
+                  <td>
+                    <div class="shift-work-orders-tree-document is-parent">
+                      <span class="shift-work-orders-tree-node" aria-hidden="true"></span>
+                      <div>
+                        <strong>${escapeHtml(group.label)}</strong>
+                        <small>печатный пакет заказ-наряда</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td><strong>${(group.operationGroups || []).length.toLocaleString("ru-RU")} операций</strong><small>${group.rows.length.toLocaleString("ru-RU")} СЗН · ${escapeHtml(group.meta || "маршрут")}</small></td>
+                  <td>${group.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(group.unit)}</td>
+                  <td>${group.assignedQuantity.toLocaleString("ru-RU")}</td>
+                  <td>${group.factQuantity.toLocaleString("ru-RU")}</td>
+                  <td>${group.remainingQuantity.toLocaleString("ru-RU")}</td>
+                  <td>${renderUiStatusToken("заказ-наряд", "primary")}</td>
+                  <td>${escapeHtml(group.latestLabel)}</td>
                   <td class="actions-cell">
-                    <div class="shift-work-orders-print-actions" aria-label="Печатные формы">
-                      <button class="table-icon-button ui-action-button" data-shift-work-order-print-preview="${escapeAttribute(row.id)}" type="button" title="Печатная форма СЗН" aria-label="${escapeAttribute(`Печатная форма ${row.documentNumber}`)}">${icon("document")}</button>
-                      <button class="table-icon-button ui-action-button" data-work-order-print-preview="${escapeAttribute(row.planningOrderId || row.routeId || "")}" type="button" ${(row.planningOrderId || row.routeId) ? "" : "disabled"} title="Пакет заказ-наряда" aria-label="${escapeAttribute(`Печатный пакет заказ-наряда ${row.orderLabel || ""}`)}">${icon("package")}</button>
+                    <div class="shift-work-orders-print-actions" aria-label="Печатный пакет заказ-наряда">
+                      <button class="table-icon-button ui-action-button" data-work-order-print-preview="${escapeAttribute(group.routeId || "")}" type="button" ${group.routeId ? "" : "disabled"} title="Пакет заказ-наряда" aria-label="${escapeAttribute(`Печатный пакет заказ-наряда ${group.label || ""}`)}">${icon("package")}</button>
                     </div>
                   </td>
                 </tr>
+                ${(group.operationGroups || []).map((operationGroup) => {
+                  const operationStatus = getShiftWorkOrderOperationTreeStatus(operationGroup);
+                  return `
+                  <tr class="shift-work-orders-tree-operation" data-shift-work-order-operation-row="${escapeAttribute(operationGroup.id)}">
+                    <td>
+                      <div class="shift-work-orders-tree-document is-operation">
+                        <span class="shift-work-orders-tree-operation-node" aria-hidden="true"></span>
+                        <div>
+                          <strong>${escapeHtml(operationGroup.operationName)}</strong>
+                          <small>операция · ${operationGroup.rows.length.toLocaleString("ru-RU")} СЗН</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td><strong>${escapeHtml(operationGroup.workCenterLabel)}</strong><small>${escapeHtml(operationGroup.routePartLabel || "маршрут")}</small></td>
+                    <td>${operationGroup.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(operationGroup.unit)}</td>
+                    <td>${operationGroup.assignedQuantity.toLocaleString("ru-RU")}</td>
+                    <td>${operationGroup.factQuantity.toLocaleString("ru-RU")}</td>
+                    <td>${operationGroup.remainingQuantity.toLocaleString("ru-RU")}</td>
+                    <td>${renderUiStatusToken(operationStatus.label, operationStatus.tone)}</td>
+                    <td>${escapeHtml(operationGroup.latestLabel)}</td>
+                    <td class="actions-cell">
+                      <span class="shift-work-orders-tree-muted-action">—</span>
+                    </td>
+                  </tr>
+                  ${operationGroup.rows.map((row) => `
+                    <tr class="shift-work-orders-tree-child ${row.id === model.selectedRow?.id ? "is-active" : ""}" data-shift-work-order-row="${escapeAttribute(row.id)}" tabindex="0">
+                      <td>
+                        <div class="shift-work-orders-tree-document is-child">
+                          <span class="shift-work-orders-tree-branch" aria-hidden="true"></span>
+                          <div>
+                            <strong>${escapeHtml(row.documentNumber)}</strong>
+                            <small>сменный заказ-наряд</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td><strong>${escapeHtml(row.executorLabel || row.masterName || row.workCenterLabel)}</strong><small>${escapeHtml(row.shiftDateKey || row.dateLabel)}</small></td>
+                      <td>${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</td>
+                      <td>${row.assignedQuantity.toLocaleString("ru-RU")}</td>
+                      <td>${row.factQuantity.toLocaleString("ru-RU")}</td>
+                      <td>${row.remainingQuantity.toLocaleString("ru-RU")}</td>
+                      <td>${renderUiStatusToken(row.status.label, row.status.tone)}</td>
+                      <td>${escapeHtml(row.dateLabel)}</td>
+                      <td class="actions-cell">
+                        <div class="shift-work-orders-print-actions" aria-label="Печатная форма СЗН">
+                          <button class="table-icon-button ui-action-button" data-shift-work-order-print-preview="${escapeAttribute(row.id)}" type="button" title="Печатная форма СЗН" aria-label="${escapeAttribute(`Печатная форма ${row.documentNumber}`)}">${icon("document")}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `).join("")}
+                `;
+                }).join("")}
               `).join("")}
             </tbody>
           </table>
@@ -16843,7 +16972,7 @@ function renderAppTopbar() {
         <span>${escapeHtml(getModuleAnnotation(activeModule.id))}</span>
       </div>
       <div class="app-topbar-actions" aria-label="Режимы интерфейса">
-        <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса: скрыть вторичные панели">
+        <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса: скрыть вторичные панели и открыть браузер во весь экран">
           ${icon("focus")}
           <span>Фокус</span>
         </button>
@@ -42385,13 +42514,81 @@ function icon(name) {
   return svg.replace("<svg ", `<svg class="mes-icon mes-icon-${safeName}" data-icon="${safeName}" `);
 }
 
+function getMesFullscreenElement() {
+  return document.fullscreenElement
+    || document.webkitFullscreenElement
+    || document.mozFullScreenElement
+    || document.msFullscreenElement
+    || null;
+}
+
+function requestMesBrowserFullscreen() {
+  const root = document.documentElement;
+  const request = root.requestFullscreen
+    || root.webkitRequestFullscreen
+    || root.mozRequestFullScreen
+    || root.msRequestFullscreen;
+  if (!request) return Promise.resolve(false);
+  return Promise.resolve(request.call(root, { navigationUI: "hide" })).then(() => true);
+}
+
+function exitMesBrowserFullscreen() {
+  const exit = document.exitFullscreen
+    || document.webkitExitFullscreen
+    || document.mozCancelFullScreen
+    || document.msExitFullscreen;
+  if (!exit || !getMesFullscreenElement()) return Promise.resolve(false);
+  return Promise.resolve(exit.call(document)).then(() => true);
+}
+
+async function syncMesBrowserFullscreenForFocus(nextFocusMode) {
+  try {
+    if (nextFocusMode) {
+      if (getMesFullscreenElement()) return true;
+      return await requestMesBrowserFullscreen();
+    }
+    if (!getMesFullscreenElement()) return false;
+    await exitMesBrowserFullscreen();
+    return true;
+  } catch (error) {
+    console.warn("[MES focus] Browser fullscreen request was rejected", error);
+    return false;
+  }
+}
+
+async function setMesFocusMode(nextFocusMode, options = {}) {
+  const enabled = Boolean(nextFocusMode);
+  const shouldSyncFullscreen = Boolean(options.syncFullscreen);
+  const fullscreenApplied = shouldSyncFullscreen
+    ? await syncMesBrowserFullscreenForFocus(enabled)
+    : false;
+  ui.focusMode = enabled;
+  persistUiState();
+  if (!enabled || fullscreenApplied) focusFullscreenRestoreAttempted = false;
+  const fullscreenNote = shouldSyncFullscreen && enabled && !fullscreenApplied
+    ? " · полноэкранный режим недоступен"
+    : "";
+  notifySaveSuccess(`${enabled ? "Режим фокуса включен" : "Режим фокуса выключен"}${fullscreenNote}`);
+  render();
+  return enabled;
+}
+
+async function toggleMesFocusMode(options = {}) {
+  const shouldRestoreFullscreen = Boolean(options.syncFullscreen)
+    && Boolean(ui.focusMode)
+    && !getMesFullscreenElement()
+    && !focusFullscreenRestoreAttempted;
+  const enabled = await setMesFocusMode(shouldRestoreFullscreen ? true : !ui.focusMode, options);
+  if (shouldRestoreFullscreen && !getMesFullscreenElement()) {
+    focusFullscreenRestoreAttempted = true;
+  }
+  return enabled;
+}
+
 window.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "f") {
     event.preventDefault();
-    ui.focusMode = !ui.focusMode;
-    persistUiState();
-    notifySaveSuccess(ui.focusMode ? "Режим фокуса включен" : "Режим фокуса выключен");
-    render();
+    void toggleMesFocusMode({ syncFullscreen: true });
     return;
   }
 
@@ -42457,10 +42654,7 @@ window.addEventListener("click", (event) => {
   const focusModeButton = event.target.closest?.("[data-toggle-focus-mode]");
   if (focusModeButton && (app.contains(focusModeButton) || focusModeButton.closest(".mes-visual-mode-tray"))) {
     event.preventDefault();
-    ui.focusMode = !ui.focusMode;
-    persistUiState();
-    notifySaveSuccess(ui.focusMode ? "Режим фокуса включен" : "Режим фокуса выключен");
-    render();
+    void toggleMesFocusMode({ syncFullscreen: true });
     return;
   }
 
