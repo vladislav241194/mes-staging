@@ -529,20 +529,19 @@ async function main() {
 
       click("[data-shift-board-reset]");
       await wait(80);
-      let carryoverExpectedText = "";
       const runtimeIsolationBefore = readRuntimeIsolation();
-      const controlGateButtons = [...document.querySelectorAll("[data-shift-board-gate]")];
-      const controlGateTexts = controlGateButtons.map((button) => button.innerText.trim().replace(/\s+/g, " "));
-      const assignGate = document.querySelector("[data-shift-board-gate=\"assign\"]:not(:disabled)")
-        || document.querySelector("[data-shift-board-gate]:not(:disabled)");
-      let controlGateSelectsCard = false;
-      if (assignGate) {
-        assignGate.click();
-        await wait(80);
-        controlGateSelectsCard = Boolean(document.querySelector(".shift-master-board-card.is-active"));
-        click("[data-shift-board-reset]");
-        await wait(80);
-      }
+      const removedPanelSelectors = [
+        ".shift-master-board-retro-panel",
+        ".shift-master-board-hypothesis",
+        ".shift-master-board-rhythm-panel",
+        ".shift-master-board-control-panel",
+        ".shift-master-board-bottom-stack",
+        "[data-shift-board-gate]",
+        "[data-shift-board-swimlane]",
+        "[data-shift-board-focus]",
+      ];
+      const removedPanelsVisible = removedPanelSelectors
+        .filter((selector) => Boolean(document.querySelector(selector)));
       let boardLaneStructureValid = false;
       let invalidDragTargetsBlocked = false;
       const laneIdsAtStart = [...document.querySelectorAll("[data-shift-board-lane]")]
@@ -578,21 +577,10 @@ async function main() {
       const masterWithRows = [...document.querySelectorAll("[data-shift-board-master]")]
         .find((button) => getMasterTaskCount(button) > 0)
         || document.querySelector("[data-shift-board-master]");
+      let masterSelectorKeepsBoardVisible = false;
       masterWithRows?.click();
       await wait(80);
-      const masterClickActivatesMine = document.querySelector("[data-shift-board-focus=\"mine\"]")?.classList.contains("is-active") || false;
-      clickIfExists("[data-shift-board-focus=\"all\"]");
-      await wait(80);
-      click("[data-shift-board-swimlane=\"workCenter\"]");
-      await wait(80);
-      const workCenterSwimlaneActive = document.querySelector("[data-shift-board-swimlane=\"workCenter\"]")?.classList.contains("is-active") || false;
-      click("[data-shift-board-focus=\"mine\"]");
-      await wait(80);
-      const mineFocusActive = document.querySelector("[data-shift-board-focus=\"mine\"]")?.classList.contains("is-active") || false;
-      clickIfExists("[data-shift-board-focus=\"all\"]");
-      await wait(80);
-      click("[data-shift-board-swimlane=\"order\"]");
-      await wait(80);
+      masterSelectorKeepsBoardVisible = Boolean(document.querySelector("[data-shift-board-lane]"));
       const kuzminaButton = [...document.querySelectorAll("[data-shift-board-master]")]
         .find((button) => /Кузьмина/.test(button.innerText) || /Кузьмина/.test(button.title || ""));
       let kuzminaTaskCount = -1;
@@ -775,48 +763,12 @@ async function main() {
       })) : [];
       click(".shift-master-board-sheet-modal [data-close-modal]");
       await wait(80);
-      const selectedPlanQuantity = Math.max(1, readCoveragePlanQuantity());
-      const qaActualQuantity = Math.max(0, selectedPlanQuantity - Math.max(1, Math.ceil(selectedPlanQuantity * 0.35)));
-      carryoverExpectedText = Math.max(0, selectedPlanQuantity - qaActualQuantity).toLocaleString("ru-RU");
-      setValue("[data-shift-board-fact-actual]", String(qaActualQuantity));
-      setValue("[data-shift-board-fact-defect]", "0");
-      setValue("[data-shift-board-fact-labor]", "420");
-      setValue("[data-shift-board-fact-executors]", "1");
-      setValue("[data-shift-board-fact-comment]", "qa fact");
-      click("[data-shift-board-save-fact]");
-      await wait(120);
-      const storedUiAfterFact = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
-      const assignmentAfterFact = storedUiAfterFact.shiftMasterBoardAssignments?.[activeAssignmentCardId] || null;
-      const factAfterFact = storedUiAfterFact.shiftMasterBoardFacts?.[activeAssignmentCardId] || null;
-      const carryoverContracts = Object.values(storedUiAfterFact.shiftMasterBoardCarryovers || {})
-        .filter((item) => item?.sourceRowId === activeAssignmentCardId)
-        .map((item) => ({
-          id: item.id || "",
-          sourceSlotId: item.sourceSlotId || "",
-          dateKey: item.dateKey || "",
-          remainingQuantity: Number(item.remainingQuantity || item.plannedQuantity || 0),
-          transferStatus: item.transferContract?.status || "",
-          transferToKind: item.transferContract?.toKind || "",
-        }));
-      const carryoverCreated = carryoverContracts.length > 0;
-      const carryoverDate = carryoverContracts.find((item) => item.dateKey)?.dateKey || "";
-      const carryoverCardId = carryoverContracts.find((item) => item.id)?.id || "";
-      if (carryoverDate) {
-        setValue("[data-shift-calendar-date]", carryoverDate);
-      }
-      await wait(120);
-      const carryoverCard = carryoverCardId
-        ? [...document.querySelectorAll("[data-shift-board-card]")].find((card) => card.getAttribute("data-shift-board-card") === carryoverCardId)
-        : null;
-      carryoverCard?.click();
-      await wait(80);
 
       const laneCounts = [...document.querySelectorAll("[data-shift-board-lane]")].map((lane) => ({
         id: lane.getAttribute("data-shift-board-lane"),
         cards: lane.querySelectorAll("[data-shift-board-card]").length,
         text: lane.querySelector("header")?.innerText.trim().replace(/\s+/g, " ") || "",
       }));
-      const focusButtons = [...document.querySelectorAll("[data-shift-board-focus]")].map((button) => button.innerText.trim());
       const coverageText = document.querySelector(".shift-master-board-coverage")?.innerText.trim().replace(/\s+/g, " ") || "";
       const taskContext = document.querySelector("[data-visual-qa-target=\"shift-master-board-task-context\"]");
       const taskContextNextBlock = taskContext?.nextElementSibling || null;
@@ -826,13 +778,15 @@ async function main() {
       const taskContextText = document.querySelector("[data-visual-qa-target=\"shift-master-board-task-context\"]")?.innerText.trim().replace(/\s+/g, " ") || "";
       const inlineSummaryText = document.querySelector("[data-visual-qa-target=\"shift-master-board-inline-summary\"]")?.innerText.trim().replace(/\s+/g, " ") || "";
       const routeChainText = document.querySelector(".shift-master-board-route-chain")?.innerText.trim().replace(/\s+/g, " ") || "";
+      const documentPanelText = document.querySelector("[data-visual-qa-target=\"shift-master-board-document-panel\"]")?.innerText.trim().replace(/\s+/g, " ") || "";
+      const documentTransferCards = document.querySelectorAll("[data-visual-qa-target=\"shift-master-board-document-panel\"] [data-visual-qa-target=\"shift-master-board-transfer-card\"]").length;
+      const factPanelVisible = Boolean(document.querySelector("[data-visual-qa-target=\"shift-master-board-fact-panel\"], [data-shift-board-fact-panel]"));
+      const factSaveVisible = Boolean(document.querySelector("[data-shift-board-save-fact]"));
       const detailQaTargets = [...document.querySelectorAll(".shift-master-board-detail-panel [data-visual-qa-target]")]
         .map((element) => element.getAttribute("data-visual-qa-target") || "")
         .filter(Boolean);
       const carryoverPanelVisible = Boolean(document.querySelector(".shift-master-board-carryover, [data-visual-qa-target=\"shift-master-board-carryover-panel\"]"));
       const recommendationsPanelVisible = Boolean(document.querySelector(".shift-master-board-recommendations, [data-visual-qa-target=\"shift-master-board-recommendations-panel\"]"));
-      const retrospectiveInsights = [...document.querySelectorAll(".shift-master-board-retro-insights article")].map((element) => element.innerText.trim().replace(/\s+/g, " "));
-      const selectedCardText = document.querySelector(".shift-master-board-card.is-active")?.innerText.trim().replace(/\s+/g, " ") || "";
       const viewportOverflowX = Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth, document.body.scrollWidth - document.body.clientWidth);
       const tinyTargets = [...document.querySelectorAll("button, input, select, textarea, a")].filter((element) => {
         const rect = element.getBoundingClientRect();
@@ -842,7 +796,6 @@ async function main() {
       const overflowBlocks = [...document.querySelectorAll([
         ".shift-master-board-sidebar",
         ".shift-master-board-panel",
-        ".shift-master-board-control-gates",
         ".shift-master-board-section",
         ".shift-master-board-task-context",
         ".shift-master-board-inline-summary",
@@ -854,8 +807,6 @@ async function main() {
         ".shift-master-board-available-person",
         ".shift-master-board-lane",
         ".shift-master-board-card",
-        ".shift-master-board-retro-grid > button",
-        ".shift-master-board-retro-insights article",
       ].join(","))].filter((element) => {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
@@ -888,7 +839,7 @@ async function main() {
       const runtimeIsolationAfter = readRuntimeIsolation();
       const runtimeChangedKeys = Object.keys(runtimeIsolationAfter).filter((key) => runtimeIsolationAfter[key] !== runtimeIsolationBefore[key]);
 
-      return { laneCounts, focusButtons, controlGateTexts, controlGateSelectsCard, boardLaneStructureValid, invalidDragTargetsBlocked, masterClickActivatesMine, workCenterSwimlaneActive, mineFocusActive, kuzminaTaskCount, kuzminaMatrixScopeCount, kuzminaAvailableCount, qaAssignmentQuantity, availableQuantityAutoSaved, directIssueSavedUnsavedExecutor, directIssueAssignmentSummary, unauthorizedExecutorFiltered, oldExecutorGridVisible, storedAssignmentRisks, coverageText, taskContextGap, taskContextText, inlineSummaryText, routeChainText, detailQaTargets, carryoverPanelVisible, recommendationsPanelVisible, modalOpened, modalText, sheetContract, transferContract, assignmentAfterFact, factAfterFact, carryoverContracts, modalOverflowBlocks, riskCardText, availableLoadbarText, availableLoadbarCards, availableQuantityInputVisible, availableQuantityAssignmentSaved, otherTaskLoadChecked, otherTaskLoadText, otherTaskBaseLoad, quantityPreviewText, quantityPreviewLoad, retrospectiveInsights, carryoverCreated, carryoverDate, carryoverCardFound: Boolean(carryoverCard), carryoverExpectedText, selectedCardText, tinyTargets, viewportOverflowX, overflowBlocks, insetIssues, runtimeChangedKeys };
+      return { laneCounts, removedPanelsVisible, boardLaneStructureValid, invalidDragTargetsBlocked, masterSelectorKeepsBoardVisible, kuzminaTaskCount, kuzminaMatrixScopeCount, kuzminaAvailableCount, qaAssignmentQuantity, availableQuantityAutoSaved, directIssueSavedUnsavedExecutor, directIssueAssignmentSummary, unauthorizedExecutorFiltered, oldExecutorGridVisible, storedAssignmentRisks, coverageText, taskContextGap, taskContextText, inlineSummaryText, routeChainText, documentPanelText, documentTransferCards, factPanelVisible, factSaveVisible, detailQaTargets, carryoverPanelVisible, recommendationsPanelVisible, modalOpened, modalText, sheetContract, transferContract, modalOverflowBlocks, riskCardText, availableLoadbarText, availableLoadbarCards, availableQuantityInputVisible, availableQuantityAssignmentSaved, otherTaskLoadChecked, otherTaskLoadText, otherTaskBaseLoad, quantityPreviewText, quantityPreviewLoad, tinyTargets, viewportOverflowX, overflowBlocks, insetIssues, runtimeChangedKeys };
     });
 
     assert(result.modalOpened, "Shift board sheet modal did not open.");
@@ -900,15 +851,10 @@ async function main() {
     assert(result.directIssueSavedUnsavedExecutor, `Print/issue must persist unsaved quantity assignment before opening the shift sheet: ${JSON.stringify(result.directIssueAssignmentSummary)}`);
     assert(Number(result.transferContract.assignedQuantity || 0) === result.qaAssignmentQuantity, `Shift transfer contract has wrong assigned quantity: ${JSON.stringify({ transfer: result.transferContract, expected: result.qaAssignmentQuantity, directIssue: result.directIssueAssignmentSummary })}`);
     assert(result.modalOverflowBlocks.length === 0, `Shift board sheet modal has horizontal overflow: ${JSON.stringify(result.modalOverflowBlocks, null, 2)}`);
-    assert(result.focusButtons.includes("Мои"), "Quick focus mode 'Мои' is missing.");
-    assert(result.controlGateTexts.length === 6, `Shift board control gates are missing or incomplete: ${JSON.stringify(result.controlGateTexts)}`);
-    assert(result.controlGateTexts.some((item) => item.includes("Распределить")), "Shift board control gates do not include assignment gate.");
-    assert(result.controlGateSelectsCard, "Shift board control gate did not select a working card.");
+    assert(result.removedPanelsVisible.length === 0, `Removed shift board panels/controls are still visible: ${JSON.stringify(result.removedPanelsVisible)}`);
     assert(result.boardLaneStructureValid, `Shift board lanes must be План / В работе / Закрытие смены: ${JSON.stringify(result.laneCounts)}`);
     assert(result.invalidDragTargetsBlocked, "Drag/drop allowed moving a card to a guarded lane without required data.");
-    assert(result.masterClickActivatesMine, "Selecting a master did not activate 'Мои' focus.");
-    assert(result.workCenterSwimlaneActive, "Work center swimlane toggle did not become active.");
-    assert(result.mineFocusActive, "Quick focus 'Мои' did not become active.");
+    assert(result.masterSelectorKeepsBoardVisible, "Selecting a master broke the shift board layout.");
     assert(result.kuzminaTaskCount >= 0, "Kuzmina master profile was not available in the shift board.");
     if (result.kuzminaTaskCount > 0) {
       assert(result.kuzminaMatrixScopeCount >= 10, `Kuzmina should receive expanded department branch employees from assignment matrix, got ${result.kuzminaMatrixScopeCount}.`);
@@ -929,14 +875,6 @@ async function main() {
     if (result.otherTaskLoadChecked) {
       assert(result.otherTaskLoadText.includes("другие") && !result.otherTaskBaseLoad.startsWith("0%"), `Other task does not show existing employee load: ${JSON.stringify({ text: result.otherTaskLoadText, base: result.otherTaskBaseLoad })}`);
     }
-    assert(result.carryoverCreated, "Fact save did not automatically create a next-shift queue entry.");
-    assert(result.assignmentAfterFact?.transferContract?.status === "partial_carryover_required", `Assignment transfer contract was not updated after fact/carryover: ${JSON.stringify(result.assignmentAfterFact?.transferContract)}`);
-    assert(result.factAfterFact?.transferContract?.remainingQuantity > 0, `Fact transfer contract does not contain remaining quantity: ${JSON.stringify(result.factAfterFact?.transferContract)}`);
-    assert(result.carryoverContracts.some((item) => item.remainingQuantity > 0 && item.sourceSlotId), `Carryover did not keep source slot/remaining contract: ${JSON.stringify(result.carryoverContracts)}`);
-    assert(result.carryoverDate, "Carryover did not expose a target date.");
-    assert(result.carryoverCardFound, `Carryover card did not appear after opening target date: ${JSON.stringify(result.carryoverContracts)}`);
-    assert(result.laneCounts.some((lane) => lane.id === "intake" && lane.cards >= 1), "Carryover card did not appear in plan lane.");
-    assert(result.coverageText.includes(result.carryoverExpectedText), "Carryover planned quantity was not opened in coverage on next shift.");
     assert(result.coverageText.includes("Покрытие плана"), "Shift board coverage indicator is missing.");
     assert(result.coverageText.includes("Факт к распределению"), "Shift board fact coverage indicator is missing.");
     assert(result.taskContextText.includes("Маршрут передачи"), `Shift board task context does not contain route transfer context: ${result.taskContextText}`);
@@ -951,15 +889,18 @@ async function main() {
       "shift-master-board-available-person",
       "shift-master-board-available-quantity",
       "shift-master-board-document-card",
-      "shift-master-board-transfer-card",
-      "shift-master-board-history-event",
-      "shift-master-board-fact-field",
     ].forEach((targetName) => {
       assert(
         result.detailQaTargets.includes(targetName),
         `Shift board detail card is missing inner Visual QA target: ${targetName}. Existing: ${result.detailQaTargets.join(", ")}`,
       );
     });
+    assert(!result.factPanelVisible, "Shift board still renders duplicate end-of-shift fact panel. Fact entry must be in Рабочий стол.");
+    assert(!result.factSaveVisible, "Shift board still renders duplicate fact save action. Fact entry must be in Рабочий стол.");
+    assert(result.documentPanelText.includes("Сменный лист"), `Shift board document panel is missing compact document row: ${result.documentPanelText}`);
+    assert(!result.documentPanelText.includes("Собрать лист"), `Shift board still renders obsolete collect-sheet action: ${result.documentPanelText}`);
+    assert(result.documentPanelText.includes("Печать"), `Shift board document print action is missing: ${result.documentPanelText}`);
+    assert(result.documentTransferCards === 0, `Shift board document panel still duplicates transfer cards: ${result.documentTransferCards}`);
     assert(!result.carryoverPanelVisible, "Shift board still renders duplicate carryover panel.");
     assert(!result.recommendationsPanelVisible, "Shift board still renders duplicate recommendations panel.");
     assert(result.inlineSummaryText.includes("Покрытие плана"), `Shift board inline summary does not contain coverage: ${result.inlineSummaryText}`);
@@ -968,9 +909,6 @@ async function main() {
     assert(!/\bФакт\s+\d/.test(result.inlineSummaryText), `Shift board inline summary still contains duplicate fact metric: ${result.inlineSummaryText}`);
     assert(!result.inlineSummaryText.includes("Состояние"), `Shift board inline summary still contains duplicate state cell: ${result.inlineSummaryText}`);
     assert(result.routeChainText.includes("Маршрут передачи"), "Shift board route transfer context is missing.");
-    assert(result.retrospectiveInsights.length === 3, `Shift board retrospective insights are missing: ${JSON.stringify(result.retrospectiveInsights)}`);
-    assert(result.retrospectiveInsights.some((item) => item.includes("Решение на смену")), "Shift board retrospective insights do not include shift decision.");
-    assert(result.selectedCardText.includes("остаток смены"), "Carryover card is not visually marked as a residual task.");
     assert(result.runtimeChangedKeys.length === 0, `Shift board changed runtime data outside UI state: ${result.runtimeChangedKeys.join(", ")}`);
     assert(result.viewportOverflowX === 0, `Unexpected page horizontal overflow: ${result.viewportOverflowX}`);
     assert(result.tinyTargets === 0, `Unexpected tiny controls in shift board: ${result.tinyTargets}`);

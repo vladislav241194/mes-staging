@@ -53,6 +53,11 @@ const sharedApplyEnd = appSource.indexOf("function syncExternalStorageState", sh
 const sharedApplySource = sharedApplyStart >= 0 && sharedApplyEnd > sharedApplyStart
   ? appSource.slice(sharedApplyStart, sharedApplyEnd)
   : "";
+const sharedUiApplyStart = appSource.indexOf("function applySharedUiSnapshot(");
+const sharedUiApplyEnd = appSource.indexOf("function applySharedStateSnapshot(", sharedUiApplyStart);
+const sharedUiApplySource = sharedUiApplyStart >= 0 && sharedUiApplyEnd > sharedUiApplyStart
+  ? appSource.slice(sharedUiApplyStart, sharedUiApplyEnd)
+  : "";
 const operationalSharedUiKeys = [
   "productionStructureMatrixOverrides",
   "timesheetCellOverrides",
@@ -269,7 +274,7 @@ assert(!workflowSlotsUsingLegacyLabor.length, `workflow-preset содержит 
 });
 operationalSharedUiKeys.forEach((key) => {
   assert(sharedSnapshotSource.includes(key), `getSharedUiSnapshot() не отправляет рабочий ключ: ${key}`);
-  assert(sharedApplySource.includes(key), `applySharedStateSnapshot() не принимает рабочий ключ: ${key}`);
+  assert(sharedUiApplySource.includes(key) || sharedApplySource.includes(key), `applySharedStateSnapshot() не принимает рабочий ключ: ${key}`);
 });
 assert(
   matrixEventSource.includes("syncProductionStructureMatrixToPlanningState({ persist: true })"),

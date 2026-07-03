@@ -83,7 +83,7 @@
 
 Для special-runtime модулей действуют отдельные DOM-gates:
 
-- `gantt-v1`: `GanttRuntime`, `GanttCanvas`, `GanttTimeline`, `GanttRowsLayer`, `GanttSlot`, `GanttDependencyLayer`, `GanttDependencySlotMask`, `GanttDependencySlotMaskRect`, `GanttNonWorkingLayer`, `GanttNonWorkingZone`, `GanttSnapOverlay`, `GanttDragGhost`, `GanttResizeHandle`, operational layer/segments, arrow markers/path masks, opened-state `Drawer`, drag/resize-state и базовая геометрия колбаски;
+- `gantt-v1`: `GanttRuntime`, `GanttCanvas`, `GanttTimeline`, `GanttRowsLayer`, `GanttSlot`, `GanttDependencyLayer`, `GanttDependencySlotMask`, `GanttDependencySlotMaskRect`, `GanttNonWorkingLayer`, `GanttNonWorkingZone`, `GanttSnapOverlay`, `GanttDragGhost`, `GanttResizeHandle`, operational layer/segments, arrow markers/path masks, opened-state edit surface (`Modal` или `Drawer`), drag/resize-state и базовая геометрия колбаски;
 - `visual-system-v1`: `VisualSystemRuntime`, стендовые панели, `Gantt Design System`, три масштаба Gantt, fact-сценарии и transfer samples.
 
 `ui-contract-qa.mjs` проверяет наличие helper-ов, CSS-контрактов и smoke-защиты.

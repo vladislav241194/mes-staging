@@ -229,7 +229,7 @@ async function clickByText(client, selector, expectedText) {
   assert(ok, `Element was not found for click: ${selector} / ${expectedText}`);
 }
 
-async function clickCenterNative(client, selector) {
+async function clickCenterNative(client, selector, options = {}) {
   const rect = await evaluate(client, (cssSelector) => {
     const element = document.querySelector(cssSelector);
     if (!element) return null;
@@ -242,9 +242,10 @@ async function clickCenterNative(client, selector) {
     };
   }, selector);
   assert(rect && rect.width > 0 && rect.height > 0, `Element was not visible for native click: ${selector}`);
+  const modifiers = options.shiftKey ? 8 : 0;
   await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: rect.x, y: rect.y });
-  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
-  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1, modifiers });
+  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1, modifiers });
 }
 
 async function clickPinDigit(client, digit) {
@@ -315,6 +316,8 @@ async function verifyAuthVisualQaPicker(client) {
       activeStep,
       bodyClassName: document.body.className,
       smartText,
+      detailLevel: smartReport?.detailLevel || "",
+      reportText: smartReport?.text || "",
       module: smartReport?.module || "",
       selector: smartReport?.selector || "",
       signature: smartReport?.signature || "",
@@ -325,9 +328,30 @@ async function verifyAuthVisualQaPicker(client) {
   assert(!report.bodyClassName.includes("is-mes-visual-qa-enabled"), "Auth Visual QA must turn off after one inspected click.");
   assert(report.module === "authPrototype", "Auth Visual QA report must be produced for authPrototype.");
   assert(report.smartText.startsWith("Visual QA Inspector report"), "Auth Visual QA must create a copyable inspector report.");
+  assert(report.detailLevel === "compact", `Auth Visual QA default report must be compact: ${report.smartText}`);
+  assert(report.reportText.length <= 120, `Auth Visual QA compact element text is too long: ${report.reportText}`);
+  assert(!report.smartText.includes("Что проверить"), "Auth Visual QA compact report must not contain the full checklist.");
   assert(report.signature.includes('data-visual-qa-target="auth-prototype-header"'), "Auth Visual QA must select the auth header target.");
   assert(report.rect?.x === 0 && report.rect?.y === 0, "Auth Visual QA header report must start at the viewport top-left edge.");
-  return report;
+
+  await clickCenterNative(client, "[data-toggle-visual-qa]");
+  await waitForCondition(client, () => document.body.classList.contains("is-mes-visual-qa-enabled"));
+  await clickCenterNative(client, "[data-visual-qa-target='auth-prototype-header']", { shiftKey: true });
+  await delay(250);
+  const fullReport = await evaluate(client, () => {
+    const smartText = window.__mesVisualQaSmartReport?.text || "";
+    const smartReport = window.__mesVisualQaSmartReport?.report || null;
+    return {
+      smartText,
+      detailLevel: smartReport?.detailLevel || "",
+      reportText: smartReport?.text || "",
+      parentChainLength: smartReport?.parentChain?.length || 0,
+    };
+  });
+  assert(fullReport.detailLevel === "full", `Auth Visual QA Shift+click must create a full report: ${fullReport.smartText}`);
+  assert(fullReport.smartText.includes("Что проверить"), "Auth Visual QA full report must contain the diagnostic checklist.");
+  assert(fullReport.reportText.length <= 260, `Auth Visual QA full element text exceeds limit: ${fullReport.reportText}`);
+  return { ...report, fullReport };
 }
 
 async function submitPin(client, digits = []) {

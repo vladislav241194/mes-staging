@@ -65,6 +65,8 @@ Smoke QA использует тот же эталонный viewport, что и
 
 `scripts/ui-contract-qa.mjs` дополнительно защищает сами проверки, чтобы hard-gates не исчезли при будущих рефакторах.
 
+`scripts/ui-hardening-plan-qa.mjs` закрепляет исходный 11-шаговый план стабилизации UI как исполняемый gate. Это отдельный контроль от преждевременного закрытия больших UI-задач: каждый этап плана обязан иметь конкретные проверяемые признаки в runtime, CSS, smoke/browser QA или package scripts.
+
 `scripts/ui-runtime-class-audit.mjs` сверяет CSS-классы ключевых hard-runtime префиксов с `src/app.js`. Сейчас под контролем auth/session, мастерская, журнал СЗН, табель, роли, права, план-таблица, матрица, заказ-наряды, технологии, справочники, снабжение/цех и живые planning/gantt/ui-shell префиксы. Если CSS-класс из этого списка остается без runtime-источника, `qa:ui` падает.
 
 Тот же аудит проверяет весь CSS-граф на неожиданные CSS-only классы. Комментарии и строковые литералы CSS перед поиском маскируются, поэтому URL/import/SVG-строки не попадают в whitelist как ложные классы. Разрешены только динамические состояния `is-*`, `status-*`, `dense-select-*` и динамические row-классы `production-row`/`resource-row`/`workCenter-row`. Текущий глобальный CSS-only счетчик: 101 разрешенный класс, 0 неожиданных.
@@ -88,7 +90,7 @@ Smoke QA использует тот же эталонный viewport, что и
 - Module smoke усилен для alias-страниц: `bomLists`, `speki`, `specifications` и другие alias теперь проходят hard-runtime проверки по целевому модулю.
 - Module smoke получил отдельный `gantt-v1` gate: живой Гант проверяется как `GanttRuntime`/`GanttCanvas`/`GanttTimeline`/`GanttRowsLayer`/`GanttSlot`/`GanttDependencyLayer`, а не как обычная панельная страница.
 - `gantt-v1` gate дополнительно проверяет drift slot-маркеров, базовую геометрию первой колбаски и наличие `GanttOperationalLayer`/`GanttOperationalSegment` для распределенных или фактических слотов.
-- `gantt-v1` gate открывает первый слот двойным кликом и проверяет `Drawer` выбранной операции как opened-state.
+- `gantt-v1` gate открывает первый слот двойным кликом и проверяет opened-state edit surface выбранной операции: актуальная модалка редактирования `Modal` или совместимый `Drawer`.
 - `gantt-v1` gate проверяет `GanttNonWorkingLayer`/`GanttNonWorkingZone` и отсекает зоны с нулевой геометрией.
 - `gantt-v1` gate выполняет короткий pointer-drag по живой колбаске и проверяет `GanttSnapOverlay`/`GanttDragGhost`/`GanttSnapGuide`.
 - `gantt-v1` gate выполняет pointer-resize через `GanttResizeHandle` и проверяет resize-mode snap guide.

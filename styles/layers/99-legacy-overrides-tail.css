@@ -113,11 +113,6 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-s
   font-style: normal;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 12px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-bottom-stack{
-  display: grid;
-  gap: var(--shift-board-gap);
-  width: 100%;
-  min-width: 0;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-panel{
   display: block;
   width: 100%;
@@ -138,225 +133,6 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-master-s
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 13px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis{
-  grid-column: auto;
-  grid-row: auto;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-panel{
-  grid-column: auto;
-  grid-row: auto;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-segmented{
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px;
-  min-width: 0;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-segmented .segmented-button{
-  min-height: 28px;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  color: var(--mes-ui-muted);
-  padding: 0 8px;
-  font-size: 10px;
-  line-height: 13px;
-  cursor: pointer;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-segmented .segmented-button.is-active{
-  border-color: rgba(37, 99, 235, 0.32);
-  background: var(--mes-ui-selected);
-  color: var(--mes-ui-text);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid{
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article{
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  gap: 2px 8px;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article span{
-  grid-row: span 2;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--mes-ui-radius-xs);
-  background: var(--mes-ui-primary-soft);
-  color: var(--mes-ui-primary);
-  font-size: 11px;
-  font-weight: var(--mes-ui-weight-bold);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article strong{
-  color: var(--mes-ui-text);
-  font-size: 11px;
-  line-height: 14px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-hypothesis-grid article small{
-  min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid{
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article{
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) max-content;
-  gap: 2px 8px;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article span{
-  grid-row: span 2;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--mes-ui-radius-xs);
-  background: var(--mes-ui-surface-soft);
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  font-weight: var(--mes-ui-weight-semibold);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article strong{
-  min-width: 0;
-  color: var(--mes-ui-text);
-  font-size: 11px;
-  line-height: 14px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article em{
-  justify-self: end;
-  color: var(--mes-ui-primary);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 13px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-rhythm-grid article small{
-  grid-column: 2 / -1;
-  min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
-  overflow-wrap: anywhere;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention{
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 7px;
-  min-width: 0;
-  padding: 0 8px 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention article{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 6px;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 7px 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention article.is-warning{
-  border-color: var(--mes-ui-warning-border);
-  background: var(--mes-ui-warning-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention article.is-primary{
-  border-color: rgba(37, 99, 235, 0.24);
-  background: var(--mes-ui-primary-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention span{
-  min-width: 0;
-  overflow: visible;
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
-  text-overflow: clip;
-  white-space: normal;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-attention strong{
-  color: var(--mes-ui-text);
-  font-size: 12px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 15px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-panel{
-  grid-column: auto;
-  grid-row: auto;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates{
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 7px;
-  min-width: 0;
-  padding: 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button{
-  appearance: none;
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) max-content;
-  gap: 2px 7px;
-  align-items: center;
-  min-width: 0;
-  min-height: 48px;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  color: inherit;
-  padding: 7px 8px;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button:disabled{
-  cursor: default;
-  opacity: 0.7;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button:not(:disabled):hover,
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button:not(:disabled):focus-visible{
-  border-color: rgba(37, 99, 235, 0.42);
-  background: var(--mes-ui-selected);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
-  outline: 0;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button.is-warning{
-  border-color: var(--mes-ui-warning-border);
-  background: var(--mes-ui-warning-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button.is-primary{
-  border-color: rgba(37, 99, 235, 0.24);
-  background: var(--mes-ui-primary-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates button.is-ok{
-  border-color: var(--mes-ui-success-border);
-  background: var(--mes-ui-success-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates span{
-  grid-row: span 2;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--mes-ui-radius-xs);
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 11px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates strong,
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates small{
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates strong{
-  color: var(--mes-ui-text);
-  font-size: 10px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 13px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates em{
-  justify-self: end;
-  color: var(--mes-ui-primary);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 15px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates small{
-  grid-column: 2 / -1;
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  line-height: 11px;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes-panel{
   grid-column: 2;
   grid-row: auto;
@@ -741,24 +517,6 @@ small){
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(255, 255, 255, 0.78);
   overflow: visible;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  min-width: 0;
-  padding: 0 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid.is-fact{
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid label{
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid label.is-wide{
-  grid-column: 1 / -1;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid span{
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 12px;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-loadbar{
   display: grid;
   gap: 6px;
@@ -889,18 +647,6 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-availabl
   background: rgba(34, 197, 94, 0.72);
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-available-person.is-warning i b.is-reserve{
   background: rgba(245, 158, 11, 0.82);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-form-grid :is(input, select){
-  width: 100%;
-  min-width: 0;
-  min-height: 30px;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  color: var(--mes-ui-text);
-  padding: 0 8px;
-  font-size: 11px;
-  font-weight: var(--mes-ui-weight-regular);
-  line-height: 15px;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-actions{
   display: flex;
   flex-wrap: wrap;
@@ -919,13 +665,19 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-availabl
   white-space: nowrap;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-document{
   display: grid;
-  gap: 2px;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
   min-width: 0;
   margin: 0 8px;
   border: 1px dashed rgba(37, 99, 235, 0.24);
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(239, 246, 255, 0.46);
-  padding: 8px;
+  padding: 8px 10px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-document > div:first-child{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-document :is(span, small){
   color: var(--mes-ui-muted);
   font-size: 10px;
@@ -935,40 +687,8 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-availabl
   font-size: 12px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 15px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary{
-  display: grid;
-  grid-template-columns: 1fr 1fr minmax(76px, 0.65fr);
-  gap: 6px;
-  min-width: 0;
-  margin: 0 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary article{
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 6px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary.is-warning article{
-  border-color: var(--mes-ui-warning-border);
-  background: var(--mes-ui-warning-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary.is-ok article{
-  border-color: var(--mes-ui-success-border);
-  background: var(--mes-ui-success-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary span{
-  min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  line-height: 11px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-transfer-summary strong{
-  min-width: 0;
-  overflow: hidden;
-  color: var(--mes-ui-text);
-  font-size: 11px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-document .shift-master-board-actions{
+  padding: 0;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-modal{
   width: min(820px, calc(100vw - 48px));
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet{
@@ -1033,174 +753,12 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-tr
   font-size: 10px;
   font-style: normal;
   line-height: 13px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history > div{
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  min-width: 0;
-  padding: 0 8px 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article{
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: 1px 6px;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 6px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article.is-ok{
-  border-color: var(--mes-ui-success-border);
-  background: var(--mes-ui-success-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article.is-warning{
-  border-color: var(--mes-ui-warning-border);
-  background: var(--mes-ui-warning-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article span{
-  grid-row: span 2;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--mes-ui-radius-xs);
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 11px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article strong{
-  min-width: 0;
-  color: var(--mes-ui-text);
-  font-size: 10px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 13px;
-  overflow-wrap: anywhere;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-history article small{
-  min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  line-height: 11px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-panel{
-  grid-column: auto;
-  grid-row: auto;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid{
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 7px;
-  min-width: 0;
-  padding: 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button){
-  appearance: none;
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 7px;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button):hover,
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button):focus-visible{
-  border-color: rgba(37, 99, 235, 0.42);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
-  outline: 0;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid :is(article, button).is-current{
-  border-color: rgba(37, 99, 235, 0.36);
-  background: var(--mes-ui-selected);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 4px;
-  align-items: center;
-  min-width: 0;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header strong{
-  color: var(--mes-ui-text);
-  font-size: 11px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 14px;
 }main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(.shop-map-widget, .shop-map-next-grid, .shop-map-modal-summary, .shop-map-modal-list) :is(strong,
 b){
   font-weight: var(--mes-ui-weight-semibold, 600) !important;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header span,
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid small{
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  line-height: 11px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars{
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars span{
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) max-content;
-  gap: 4px;
-  align-items: center;
-  min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  line-height: 11px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars b{
-  display: block;
-  width: var(--bar-width, 0%);
-  min-width: 2px;
-  height: 5px;
-  border-radius: var(--mes-ui-radius-xs);
-  background: rgba(37, 99, 235, 0.28);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars span:nth-child(2) b{
-  background: rgba(14, 165, 233, 0.38);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-bars span:nth-child(3) b{
-  background: rgba(34, 197, 94, 0.44);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights{
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-  min-width: 0;
-  padding: 0 8px 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights article{
-  display: grid;
-  grid-template-columns: minmax(0, 0.45fr) minmax(0, 0.55fr);
-  gap: 2px 7px;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 7px 8px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights article.is-ok{
-  border-color: var(--mes-ui-success-border);
-  background: var(--mes-ui-success-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights article.is-warning{
-  border-color: var(--mes-ui-warning-border);
-  background: var(--mes-ui-warning-soft);
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights :is(span, strong, small){
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights span{
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  line-height: 11px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights strong{
-  color: var(--mes-ui-text);
-  font-size: 11px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 14px;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights small{
-  grid-column: 1 / -1;
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  line-height: 11px;
 }@media (max-width: 1500px) {main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-main-grid{
     grid-template-columns: minmax(0, 1fr);
   }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-row{
-    grid-template-columns: minmax(0, 1fr);
-  }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-control-gates{
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-insights{
     grid-template-columns: minmax(0, 1fr);
   }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-detail-panel{
     grid-column: 1;
@@ -2351,7 +1909,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-row.resource-row .resource-label
 }
 
 /* Stabilization guard: late UI-kit typography wins over legacy heavy <strong> defaults. */
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-retro-grid header strong,
 main.app-shell[data-layout-page="shopMap"] .shop-map-widget strong{
   font-weight: var(--mes-ui-weight-semibold, 600) !important;
 }
@@ -3229,7 +2786,7 @@ main.app-shell[data-layout-page="authPrototype"] :is(
 
 main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel),
 main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel):hover{
-  transform: none !important;
+  transform: none;
 }
 
 /* Interaction flicker contract: controls in MES must react instantly and keep a
@@ -3521,8 +3078,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chai
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -3536,8 +3092,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chai
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header :is(strong, span),
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header :is(strong, span),
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header :is(strong, small){
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header :is(strong, span){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3545,8 +3100,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header strong,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header strong,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header strong{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header strong{
   color: var(--mes-ui-text);
   font-size: 11px;
   font-weight: var(--mes-ui-weight-semibold);
@@ -3554,25 +3108,20 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header span,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header span,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane header small{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header span{
   color: var(--mes-ui-muted);
   font-size: 9px;
   line-height: 12px;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list > div,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   min-width: 0;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article{
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -3587,35 +3136,27 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chai
   background: var(--mes-ui-selected);
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article :is(span, strong, small),
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article :is(span, strong, small),
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article :is(span, strong, small){
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article :is(span, strong, small){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article span,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article span{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span{
   color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 10px;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article strong,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article strong{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong{
   color: var(--mes-ui-text);
   font-size: 10px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 12px;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-list article small,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario article small{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small{
   color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 10px;
@@ -3631,93 +3172,6 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
   padding: 8px;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-quick-actions > div{
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-  min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-board{
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane{
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: var(--mes-ui-radius-sm);
-  background: rgba(248, 250, 252, 0.72);
-  padding: 7px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane > div{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card{
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: 7px;
-  align-items: center;
-  min-width: 0;
-  min-height: 48px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  color: var(--mes-ui-text);
-  padding: 7px;
-  text-align: left;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card.is-current{
-  border-color: rgba(37, 99, 235, 0.34);
-  background: var(--mes-ui-selected);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card svg{
-  width: 18px;
-  height: 18px;
-  color: var(--mes-ui-primary);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card span{
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card :is(strong, small){
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card strong{
-  color: var(--mes-ui-text);
-  font-size: 10px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 13px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-module-card small{
-  color: var(--mes-ui-muted);
-  font-size: 8px;
-  line-height: 10px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario-panel > .ui-panel-body{
-  padding: 10px;
-}
-
 @media (max-width: 1500px) {
   main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-top-controls,
   main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
@@ -3728,9 +3182,6 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-scenario-p
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-workspace-lane > div{
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
@@ -3924,6 +3375,12 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card 
   min-width: 0;
 }
 
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-main{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card :is(strong, small){
   min-width: 0;
   overflow: hidden;
@@ -3945,6 +3402,12 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card 
   font-style: normal;
   line-height: 13px;
   white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route{
+  color: #64748b;
+  font-size: 9px;
+  line-height: 11px;
 }
 
 .auth-session-modal{
@@ -4115,11 +3578,6 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   overflow: visible !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-panel{
-  width: min(1320px, calc(100vw - 44px)) !important;
-  max-width: calc(100vw - 44px) !important;
-}
-
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head{
   align-items: start !important;
   min-height: auto !important;
@@ -4271,39 +3729,6 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   height: 22px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon{
-  color: var(--mes-ui-sidebar-bg, #10233c) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid button.is-auth-master{
-  position: relative !important;
-  padding-right: 72px !important;
-  border-color: var(--mes-ui-line, #e2e8f0) !important;
-  background: #fff !important;
-  box-shadow: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-role-marker{
-  position: absolute !important;
-  top: 10px !important;
-  right: 10px !important;
-  display: inline-grid !important;
-  place-items: center !important;
-  min-width: 48px !important;
-  height: 20px !important;
-  padding: 0 8px !important;
-  border: 1px solid rgba(15, 23, 42, 0.14) !important;
-  border-radius: 999px !important;
-  background: rgba(15, 23, 42, 0.06) !important;
-  color: rgba(15, 23, 42, 0.72) !important;
-  font-size: 9px !important;
-  font-style: normal !important;
-  font-weight: 760 !important;
-  line-height: 12px !important;
-  text-transform: uppercase !important;
-  pointer-events: none !important;
-}
-
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry{
   display: grid !important;
   justify-self: center !important;
@@ -4380,11 +3805,9 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name,
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong,
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name,
-main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.workcenter-row .row-label.department-label .workcenter-name,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.workcenter-row .row-label.department-label .workcenter-name{
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name{
   font-weight: 400 !important;
 }
 

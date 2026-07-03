@@ -1,6 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  UI_HARDENING_PLAN_STAGES,
+  UI_RUNTIME_COMPONENT_CONTRACTS,
+  UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
+  UI_RUNTIME_QA_CLASS_CONTRACTS,
+  UI_RUNTIME_STYLE_TOKENS,
+  UI_RUNTIME_TABLE_SCROLL_SELECTORS,
+} from "../src/ui_runtime_contracts.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -22,6 +30,7 @@ const paths = {
   workflowPreset: path.join(rootDir, "workflow-preset.json"),
   uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.js"),
   uiRuntimeCoverageQa: path.join(rootDir, "scripts", "ui-runtime-coverage-qa.mjs"),
+  uiHardeningPlanQa: path.join(rootDir, "scripts", "ui-hardening-plan-qa.mjs"),
 };
 
 async function collectCssFiles(relativeDir = "styles") {
@@ -57,7 +66,7 @@ const browserQaScriptFiles = [
   "scripts/shift-master-board-functional-qa.mjs",
 ];
 
-const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource, localServerWrapperSource, visualQaSource, packageSource, visualDocsSource, speedDocsSource, componentMapDocsSource, hardRuntimeCoverageDocsSource, hardRuntimeLegacyRoadmapDocsSource, workflowPresetSource, uiRuntimeContractsSource, uiRuntimeCoverageQaSource] = await Promise.all([
+const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource, localServerWrapperSource, visualQaSource, packageSource, visualDocsSource, speedDocsSource, componentMapDocsSource, hardRuntimeCoverageDocsSource, hardRuntimeLegacyRoadmapDocsSource, workflowPresetSource, uiRuntimeContractsSource, uiRuntimeCoverageQaSource, uiHardeningPlanQaSource] = await Promise.all([
   fs.readFile(paths.app, "utf8"),
   fs.readFile(paths.index, "utf8"),
   fs.readFile(paths.styles, "utf8"),
@@ -74,6 +83,7 @@ const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource,
   fs.readFile(paths.workflowPreset, "utf8"),
   fs.readFile(paths.uiRuntimeContracts, "utf8"),
   fs.readFile(paths.uiRuntimeCoverageQa, "utf8"),
+  fs.readFile(paths.uiHardeningPlanQa, "utf8"),
 ]);
 const stylesSource = [
   rawStylesSource,
@@ -233,11 +243,32 @@ const requiredUiComponentMarkers = [
 ];
 
 requiredUiComponentMarkers.forEach((marker) => checkIncludes(`Нет UI runtime marker ${marker}`, appSource, marker));
-checkClassContract("form-field должен идти вместе с ui-form-field", appSource, "form-field", "ui-form-field");
-checkClassContract("directory-table-wrap должен идти вместе с ui-table-wrap", appSource, "directory-table-wrap", "ui-table-wrap");
-checkClassContract("speki-structure-table-wrap должен идти вместе с ui-table-wrap", appSource, "speki-structure-table-wrap", "ui-table-wrap");
-["primary-button", "secondary-button", "icon-button", "table-icon-button"].forEach((buttonClass) => {
-  checkClassContract(`${buttonClass} должен идти вместе с ui-action-button`, appSource, buttonClass, "ui-action-button");
+UI_RUNTIME_COMPONENT_CONTRACTS.forEach((contract) => {
+  checkIncludes(`Нет UI component contract ${contract.component} в ui_runtime_contracts`, uiRuntimeContractsSource, `component: "${contract.component}"`);
+  (contract.helperNames || []).forEach((helperName) => {
+    checkIncludes(`Контракт ${contract.component} ссылается на отсутствующий helper ${helperName}`, appSource, `function ${helperName}`);
+  });
+  (contract.cssSelectors || []).forEach((selector) => {
+    if (!selector.startsWith(".")) return;
+    checkIncludes(`Контракт ${contract.component} ссылается на отсутствующий CSS selector ${selector}`, uiCoreStylesSource, selector);
+  });
+});
+UI_RUNTIME_STYLE_TOKENS.forEach((token) => {
+  checkIncludes(`Нет UI control token ${token}`, uiCoreStylesSource, token);
+});
+if (UI_HARDENING_PLAN_STAGES.length !== 11) {
+  fail(`UI_HARDENING_PLAN_STAGES должен фиксировать 11 пунктов исходного UI-плана, сейчас ${UI_HARDENING_PLAN_STAGES.length}`);
+}
+UI_HARDENING_PLAN_STAGES.forEach((stage, index) => {
+  if (stage.order !== index + 1 || !stage.id || !stage.title || stage.status !== "closed" || !Array.isArray(stage.requiredEvidence) || stage.requiredEvidence.length < 3) {
+    fail(`Некорректный этап UI_HARDENING_PLAN_STAGES: ${JSON.stringify(stage)}`);
+  }
+});
+checkIncludes("Нет исполняемого QA для 11 пунктов UI-плана", uiHardeningPlanQaSource, "all 11 UI hardening plan stages have executable coverage");
+checkIncludes("UI hardening plan QA должен печатать статус ЗАКРЫТО по каждому этапу", uiHardeningPlanQaSource, "ЗАКРЫТО");
+checkIncludes("UI hardening plan QA не подключен к qa:ui", packageSource, "ui-hardening-plan-qa.mjs");
+UI_RUNTIME_QA_CLASS_CONTRACTS.forEach(({ label, requiredClass, companionClass }) => {
+  checkClassContract(label, appSource, requiredClass, companionClass);
 });
 
 checkIncludes("Нет getModuleAnnotation() для topbar-аннотации модуля", appSource, "function getModuleAnnotation");
@@ -293,13 +324,14 @@ checkIncludes("UI Core не фиксирует защиту hard-runtime Panel �
 checkIncludes("UI Core не фиксирует hard-runtime PanelBody height:auto", uiCoreStylesSource, "[data-ui-component=\"Panel\"] > [data-ui-component=\"PanelBody\"]");
 checkMatchCount("Hard runtime marker должен выпускаться только renderUiModulePage", appSource, /data-ui-runtime="hard-v1"/g, 1);
 checkMatchCount("ModulePage marker должен выпускаться только renderUiModulePage", appSource, /data-ui-component="ModulePage"/g, 1);
-checkIncludes("Runtime normalizer не маркирует live form fields", appSource, "markUiComponent(\"label:has(input), label:has(select), label:has(textarea), .form-field, .ui-form-field\", \"FormField\")");
-checkIncludes("Runtime normalizer не маркирует live buttons", appSource, "markUiComponent(\"button, :is(label).primary-button, :is(label).secondary-button, .ui-action-button\", \"ActionButton\")");
-checkIncludes("Runtime normalizer не маркирует live table wrappers", appSource, "markUiComponent(\"[data-layout='table'], .ui-table-wrap\", \"TableWrap\")");
-checkIncludes("Runtime normalizer не маркирует live module pages", appSource, "markUiComponent(\".module-data-page, .ui-module-page\", \"ModulePage\")");
-checkIncludes("Runtime normalizer не маркирует live module workspaces", appSource, "markUiComponent(\".module-data-workspace, .ui-module-workspace\", \"ModuleWorkspace\")");
-checkIncludes("Runtime normalizer не маркирует live module content", appSource, "markUiComponent(\".module-data-content, .ui-module-content\", \"ModuleContent\")");
-checkIncludes("Runtime normalizer не проставляет horizontal-only scroll contract live table wrappers", appSource, "applyUiTableScrollContract(\"[data-layout='table'], .ui-table-wrap\")");
+checkIncludes("Runtime normalizer не подключает общий UI_RUNTIME_DOM_NORMALIZER_CONTRACTS", appSource, "UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach");
+checkIncludes("Runtime normalizer не подключает общий UI_RUNTIME_TABLE_SCROLL_SELECTORS", appSource, "UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach");
+UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach(({ component, selector }) => {
+  checkIncludes(`Runtime normalizer contract missing ${component}: ${selector}`, uiRuntimeContractsSource, `component: "${component}", selector: "${selector}"`);
+});
+UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach((selector) => {
+  checkIncludes(`Runtime table scroll contract missing ${selector}`, uiRuntimeContractsSource, `"${selector}"`);
+});
 checkIncludes("module-smoke не содержит список hard-runtime модулей", browserQaSources.join("\n"), "HARD_UI_RUNTIME_MODULES");
 checkIncludes("module-smoke не импортирует общий список hard-runtime модулей", browserQaSources.join("\n"), "HARD_UI_RUNTIME_MODULE_IDS");
 checkIncludes("module-smoke не проверяет data-ui-runtime=hard-v1", browserQaSources.join("\n"), "expected data-ui-runtime=hard-v1");
@@ -336,7 +368,7 @@ checkIncludes("module-smoke не проверяет GanttOperationalLayer", brow
 checkIncludes("module-smoke не проверяет GanttDependencyLayer", browserQaSources.join("\n"), "GanttDependencyLayer contract is missing");
 checkIncludes("module-smoke не проверяет GanttDependencySlotMask", browserQaSources.join("\n"), "GanttDependencySlotMask contract is missing");
 checkIncludes("module-smoke не проверяет dependency path mask", browserQaSources.join("\n"), "dependency paths without slot readability mask");
-checkIncludes("module-smoke не проверяет opened-state Drawer Ганта", browserQaSources.join("\n"), "selected slot Drawer contract is missing after opening slot");
+checkIncludes("module-smoke не проверяет opened-state edit surface Ганта", browserQaSources.join("\n"), "selected slot edit surface contract is missing after opening slot");
 checkIncludes("module-smoke не проверяет GanttNonWorkingLayer", browserQaSources.join("\n"), "GanttNonWorkingLayer contract is missing");
 checkIncludes("module-smoke не проверяет GanttNonWorkingZone geometry", browserQaSources.join("\n"), "non-working zones with zero geometry");
 checkIncludes("module-smoke не проверяет drag overlay Ганта", browserQaSources.join("\n"), "drag overlay contract is missing");

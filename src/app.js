@@ -58,6 +58,10 @@ import {
   MES_ORG_STRUCTURE_VERSION,
   MES_SMT_WORK_CENTER_IDS,
 } from "./mes_org_model.js";
+import {
+  UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
+  UI_RUNTIME_TABLE_SCROLL_SELECTORS,
+} from "./ui_runtime_contracts.js";
 
 const STORAGE_KEY = "mes-planning-prototype-state-v2";
 const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
@@ -71,10 +75,12 @@ const WORKFLOW_PRESET_API_URL = "./api/workflow-preset";
 const SHARED_STATE_API_URL = "./api/shared-state";
 const SHARED_STATE_CLIENT_ID_KEY = "mes-planning-prototype-shared-client-id-v1";
 const SHARED_STATE_DISABLED_UNTIL_KEY = "mes-planning-prototype-shared-disabled-until-v1";
+const SHARED_UI_LOCAL_DIRTY_KEY = "mes-planning-prototype-shared-ui-dirty-v1";
 const SHARED_STATE_POLL_INTERVAL_MS = 4000;
 const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
 const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
-const APP_VERSION = "v.1.382";
+const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
+const APP_VERSION = "v.1.399";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -1281,6 +1287,7 @@ let ui = null;
 directoryState = measureBootStep("loadDirectoryState", () => loadDirectoryState());
 planningState = measureBootStep("loadState", () => loadState());
 ui = measureBootStep("loadUiState", () => loadUiState());
+rememberSharedUiSignature();
 measureBootStep("applyMesOrgStructureDefaults", () => applyMesOrgStructureDefaults());
 measureBootStep("applySmtComponentTypeCoefficientDefaults", () => applySmtComponentTypeCoefficientDefaults());
 measureBootStep("ensureStatusDirectoryDefaults", () => ensureStatusDirectoryDefaults());
@@ -1463,6 +1470,77 @@ function rememberSharedUiSignature() {
   sharedStateStatus.lastSharedUiSignature = getSharedUiSignature();
 }
 
+function getSharedUiDirtyMarker() {
+  const marker = parseJsonObject(window.localStorage?.getItem(SHARED_UI_LOCAL_DIRTY_KEY));
+  if (!marker?.signature || !marker.updatedAt) return null;
+  const updatedAtMs = Date.parse(marker.updatedAt);
+  if (!Number.isFinite(updatedAtMs) || Date.now() - updatedAtMs > SHARED_UI_LOCAL_DIRTY_TTL_MS) {
+    window.localStorage?.removeItem(SHARED_UI_LOCAL_DIRTY_KEY);
+    return null;
+  }
+  return {
+    signature: String(marker.signature || ""),
+    updatedAt: marker.updatedAt,
+  };
+}
+
+function markSharedUiDirty(signature = getSharedUiSignature()) {
+  if (!signature) return;
+  window.localStorage?.setItem(SHARED_UI_LOCAL_DIRTY_KEY, JSON.stringify({
+    signature,
+    updatedAt: new Date().toISOString(),
+    version: APP_VERSION,
+  }));
+}
+
+function clearSharedUiDirty(signature = getSharedUiSignature()) {
+  const marker = getSharedUiDirtyMarker();
+  if (!marker || marker.signature !== signature) return;
+  window.localStorage?.removeItem(SHARED_UI_LOCAL_DIRTY_KEY);
+}
+
+function shouldPreserveLocalSharedUi() {
+  const marker = getSharedUiDirtyMarker();
+  return Boolean(marker && marker.signature === getSharedUiSignature());
+}
+
+function applySharedUiSnapshot(sharedUi = {}) {
+  const source = sharedUi && typeof sharedUi === "object" && !Array.isArray(sharedUi) ? sharedUi : {};
+  ui.shopMapWidgetLayouts = normalizeShopMapLayoutStore(source.shopMapWidgetLayouts);
+  ui.ganttDependencyRoutes = normalizeGanttDependencyRouteStore(source.ganttDependencyRoutes);
+  if (Object.prototype.hasOwnProperty.call(source, "productionStructureMatrixOverrides")) {
+    ui.productionStructureMatrixOverrides = normalizePlainRecord(source.productionStructureMatrixOverrides);
+    syncProductionStructureMatrixToPlanningState({ persist: true });
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "timesheetCellOverrides")) {
+    ui.timesheetCellOverrides = normalizePlainRecord(source.timesheetCellOverrides);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "timesheetScheduleOverrides")) {
+    ui.timesheetScheduleOverrides = normalizePlainRecord(source.timesheetScheduleOverrides);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "shiftMasterBoardLaneBySlot")) {
+    ui.shiftMasterBoardLaneBySlot = normalizePlainRecord(source.shiftMasterBoardLaneBySlot);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "shiftMasterBoardAssignments")) {
+    ui.shiftMasterBoardAssignments = normalizePlainRecord(source.shiftMasterBoardAssignments);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "shiftMasterBoardFacts")) {
+    ui.shiftMasterBoardFacts = normalizePlainRecord(source.shiftMasterBoardFacts);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "shiftMasterBoardCarryovers")) {
+    ui.shiftMasterBoardCarryovers = normalizePlainRecord(source.shiftMasterBoardCarryovers);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "shiftMasterAssignmentMatrix")) {
+    ui.shiftMasterAssignmentMatrix = normalizeShiftMasterAssignmentMatrix(source.shiftMasterAssignmentMatrix);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "accessRoleProfiles")) {
+    ui.accessRoleProfiles = normalizeAccessRoleProfiles(source.accessRoleProfiles);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, "accessRoleAssignments")) {
+    ui.accessRoleAssignments = normalizeAccessRoleAssignments(source.accessRoleAssignments);
+  }
+}
+
 function isSharedStateTemporarilyDisabled() {
   const disabledUntil = Number(window.sessionStorage?.getItem(SHARED_STATE_DISABLED_UNTIL_KEY) || 0);
   return Number.isFinite(disabledUntil) && disabledUntil > Date.now();
@@ -1500,6 +1578,8 @@ function writeSharedStateValues(values = {}) {
 
 function applySharedStateSnapshot(snapshot, options = {}) {
   if (!snapshot?.values?.[STORAGE_KEY] || !snapshot?.values?.[DIRECTORY_STORAGE_KEY]) return false;
+  const preserveLocalSharedUi = options.preserveLocalSharedUi === true && shouldPreserveLocalSharedUi();
+  const localSharedUi = preserveLocalSharedUi ? getSharedUiSnapshot() : null;
   sharedStateApplyingRemote = true;
   try {
     writeSharedStateValues(snapshot.values);
@@ -1509,40 +1589,7 @@ function applySharedStateSnapshot(snapshot, options = {}) {
     supplyControlState = loadSupplyControlState();
     alignGanttWindowToPlan({ onlyWhenFar: true });
 
-    const sharedUi = snapshot.sharedUi || {};
-    ui.shopMapWidgetLayouts = normalizeShopMapLayoutStore(sharedUi.shopMapWidgetLayouts);
-    ui.ganttDependencyRoutes = normalizeGanttDependencyRouteStore(sharedUi.ganttDependencyRoutes);
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "productionStructureMatrixOverrides")) {
-      ui.productionStructureMatrixOverrides = normalizePlainRecord(sharedUi.productionStructureMatrixOverrides);
-      syncProductionStructureMatrixToPlanningState({ persist: true });
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "timesheetCellOverrides")) {
-      ui.timesheetCellOverrides = normalizePlainRecord(sharedUi.timesheetCellOverrides);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "timesheetScheduleOverrides")) {
-      ui.timesheetScheduleOverrides = normalizePlainRecord(sharedUi.timesheetScheduleOverrides);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "shiftMasterBoardLaneBySlot")) {
-      ui.shiftMasterBoardLaneBySlot = normalizePlainRecord(sharedUi.shiftMasterBoardLaneBySlot);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "shiftMasterBoardAssignments")) {
-      ui.shiftMasterBoardAssignments = normalizePlainRecord(sharedUi.shiftMasterBoardAssignments);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "shiftMasterBoardFacts")) {
-      ui.shiftMasterBoardFacts = normalizePlainRecord(sharedUi.shiftMasterBoardFacts);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "shiftMasterBoardCarryovers")) {
-      ui.shiftMasterBoardCarryovers = normalizePlainRecord(sharedUi.shiftMasterBoardCarryovers);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "shiftMasterAssignmentMatrix")) {
-      ui.shiftMasterAssignmentMatrix = normalizeShiftMasterAssignmentMatrix(sharedUi.shiftMasterAssignmentMatrix);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "accessRoleProfiles")) {
-      ui.accessRoleProfiles = normalizeAccessRoleProfiles(sharedUi.accessRoleProfiles);
-    }
-    if (Object.prototype.hasOwnProperty.call(sharedUi, "accessRoleAssignments")) {
-      ui.accessRoleAssignments = normalizeAccessRoleAssignments(sharedUi.accessRoleAssignments);
-    }
+    applySharedUiSnapshot(localSharedUi || snapshot.sharedUi || {});
     syncActiveRoleWithAuthorization();
     ui.ganttDependencyRouteDrafts = null;
     ui.ganttDependencyDrag = null;
@@ -1665,6 +1712,7 @@ async function pushSharedState(reason = "snapshot", options = {}) {
       sharedStateStatus.configured = true;
       sharedStateStatus.version = Number(response.version || sharedStateStatus.version);
       rememberSharedUiSignature();
+      clearSharedUiDirty();
       return true;
     }
   } catch (error) {
@@ -1690,7 +1738,9 @@ async function pollSharedState() {
     }
     const version = Number(snapshot.version || 0);
     if (version > sharedStateStatus.version) {
-      applySharedStateSnapshot(snapshot, { silent: true });
+      const preserveLocalSharedUi = shouldPreserveLocalSharedUi();
+      applySharedStateSnapshot(snapshot, { silent: true, preserveLocalSharedUi });
+      if (preserveLocalSharedUi) scheduleSharedStatePush("local-shared-ui");
     }
   } catch (error) {
     console.warn("[MES] Shared state poll failed", error);
@@ -1717,7 +1767,9 @@ async function startSharedStateSync() {
     sharedStateStatus.version = Number(snapshot.version || 0);
 
     if (snapshot.version > 0 && snapshot.values) {
-      applySharedStateSnapshot(snapshot, { silent: true });
+      const preserveLocalSharedUi = shouldPreserveLocalSharedUi();
+      applySharedStateSnapshot(snapshot, { silent: true, preserveLocalSharedUi });
+      if (preserveLocalSharedUi) scheduleSharedStatePush("local-shared-ui");
     } else {
       await startWorkflowPresetBootstrap();
       const restoredPreset = restoreWorkflowPresetIfCurrentPlanningEmpty(getWorkflowPreset());
@@ -3710,7 +3762,7 @@ function mountVisualModeTray() {
       ${icon("focus")}
       <span>Фокус</span>
     </button>
-    <button class="app-topbar-action ${ui.visualQaEnabled ? "is-active is-qa-active" : ""}" data-toggle-visual-qa type="button" aria-pressed="${ui.visualQaEnabled ? "true" : "false"}" title="QA: выбрать элемент и скопировать отчет">
+    <button class="app-topbar-action ${ui.visualQaEnabled ? "is-active is-qa-active" : ""}" data-toggle-visual-qa type="button" aria-pressed="${ui.visualQaEnabled ? "true" : "false"}" title="QA: клик - компактный отчет, Shift+клик - полный">
       ${icon("bug")}
       <span>QA</span>
     </button>
@@ -3749,6 +3801,7 @@ function getVisualQaSelector(element) {
   if (element.dataset?.hierarchyRoot !== undefined) return "[data-hierarchy-root]";
   if (element.dataset?.connectorTo) return `[data-connector-to="${element.dataset.connectorTo}"]`;
   if (element.dataset?.connectorKind && element.dataset?.connectorFrom) return `[data-connector-kind="${element.dataset.connectorKind}"][data-connector-from="${element.dataset.connectorFrom}"]`;
+  if (element.dataset?.visualQaTarget) return `[data-visual-qa-target="${element.dataset.visualQaTarget}"]`;
   const classes = [...element.classList || []]
     .filter((className) => !className.startsWith("is-") && !className.startsWith("has-"))
     .slice(0, 3)
@@ -3765,6 +3818,36 @@ function getVisualQaSelector(element) {
 function getVisualQaElementLabel(element) {
   const label = element.getAttribute?.("aria-label") || element.getAttribute?.("title") || element.textContent || "";
   return String(label).replace(/\s+/g, " ").trim().slice(0, 90) || getVisualQaSelector(element);
+}
+
+function getVisualQaElementText(element, options = {}) {
+  if (!element) return "";
+  const detailed = Boolean(options.detailed);
+  const limit = detailed ? 260 : 120;
+  const visibleText = "innerText" in element ? element.innerText : "";
+  const rawText = String(visibleText || element.value || element.textContent || "").replace(/\s+/g, " ").trim();
+  if (detailed || rawText.length <= limit) return rawText.slice(0, limit);
+  const semanticText = [
+    element.getAttribute?.("aria-label") || "",
+    element.getAttribute?.("title") || "",
+    element.querySelector?.([
+      ".ui-panel-head h1",
+      ".ui-panel-head h2",
+      ".ui-panel-head strong",
+      "header h1",
+      "header h2",
+      "header strong",
+      "h1",
+      "h2",
+      "h3",
+      "legend",
+      "label",
+    ].join(","))?.innerText || "",
+  ]
+    .map((value) => String(value || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const compactText = [...new Set(semanticText)].join(" · ");
+  return (compactText || rawText).slice(0, limit);
 }
 
 function isVisualQaUiElement(element) {
@@ -3883,8 +3966,9 @@ function getVisualQaRectSummary(element) {
   };
 }
 
-function collectVisualQaElementReport(element) {
+function collectVisualQaElementReport(element, options = {}) {
   if (!element) return null;
+  const detailed = Boolean(options.detailed);
   const rect = element.getBoundingClientRect();
   const style = window.getComputedStyle(element);
   const viewportWidth = document.documentElement.clientWidth;
@@ -3896,8 +3980,7 @@ function collectVisualQaElementReport(element) {
   const controlType = String(element.type || element.getAttribute?.("type") || "").toLowerCase();
   const touchMin = viewportWidth <= 768 ? 36 : 28;
   const flags = [];
-  const visibleText = "innerText" in element ? element.innerText : "";
-  const text = String(visibleText || element.value || element.textContent || "").replace(/\s+/g, " ").trim();
+  const text = getVisualQaElementText(element, { detailed });
   const xOverflow = element.scrollWidth > element.clientWidth + 2;
   const yOverflow = element.scrollHeight > element.clientHeight + 2;
   const isFloatingLayer = element.matches?.(".modal, .slot-drawer, .dense-inline-options, .supply-detail-popover, [popover]");
@@ -3915,13 +3998,14 @@ function collectVisualQaElementReport(element) {
   const report = {
     generatedAt: new Date().toISOString(),
     type: "visual-qa-inspector",
+    detailLevel: detailed ? "full" : "compact",
     module: ui.activeModule,
     moduleLabel: getVisualQaModuleLabel(),
     viewport: { width: viewportWidth, height: viewportHeight },
     selector: getVisualQaSelector(element),
     signature: getVisualQaNodeSignature(element),
     label: getVisualQaElementLabel(element),
-    text: text.slice(0, 260),
+    text,
     rect: getVisualQaRectSummary(element),
     scroll: {
       scrollWidth: Math.round(element.scrollWidth || 0),
@@ -3941,7 +4025,7 @@ function collectVisualQaElementReport(element) {
       fontWeight: style.fontWeight,
       lineHeight: style.lineHeight,
     },
-    parentChain: getVisualQaParentChain(element),
+    parentChain: getVisualQaParentChain(element, detailed ? 5 : 3),
     scrollContainer: scroller ? {
       selector: getVisualQaSelector(scroller),
       signature: getVisualQaNodeSignature(scroller),
@@ -3961,24 +4045,37 @@ function collectVisualQaElementReport(element) {
 
 function formatVisualQaInspectorReport(report = null) {
   if (!report) return "Visual QA Inspector: элемент не выбран.";
-  return [
+  const detailed = report.detailLevel === "full";
+  const hasSelfOverflow = report.scroll
+    && (report.scroll.scrollWidth > report.scroll.clientWidth + 2 || report.scroll.scrollHeight > report.scroll.clientHeight + 2);
+  const lines = [
     "Visual QA Inspector report",
+    `Режим: ${detailed ? "полный" : "компактный"}`,
     `Модуль: ${report.moduleLabel} (${report.module})`,
     `Viewport: ${report.viewport.width}x${report.viewport.height}`,
     `Элемент: ${report.label}`,
     `Selector: ${report.selector}`,
     `Signature: ${report.signature}`,
     `Rect: x=${report.rect.x}, y=${report.rect.y}, w=${report.rect.width}, h=${report.rect.height}, right=${report.rect.right}, bottom=${report.rect.bottom}`,
-    `Scroll: ${report.scroll.scrollWidth}x${report.scroll.scrollHeight} / client ${report.scroll.clientWidth}x${report.scroll.clientHeight}`,
-    `CSS: display=${report.style.display}; position=${report.style.position}; z-index=${report.style.zIndex}; overflow=${report.style.overflowX}/${report.style.overflowY}; white-space=${report.style.whiteSpace}; text-overflow=${report.style.textOverflow}; font=${report.style.fontWeight} ${report.style.fontSize}/${report.style.lineHeight}`,
-    `Flags: ${report.flags.length ? report.flags.join(", ") : "нет автоматических флагов"}`,
-    report.scrollContainer
-      ? `Scroll container: ${report.scrollContainer.signature} (${report.scrollContainer.clientWidth}x${report.scrollContainer.clientHeight}, scroll ${report.scrollContainer.scrollWidth}x${report.scrollContainer.scrollHeight}, overflow ${report.scrollContainer.overflowX}/${report.scrollContainer.overflowY})`
-      : "Scroll container: не найден",
-    `Parent chain: ${report.parentChain.join(" > ") || "нет"}`,
-    report.text ? `Text: ${report.text}` : "Text: нет",
-    "Что проверить: визуальное положение элемента, переполнение, ближайший scroll-контейнер, z-index/dropdown и размеры touch target.",
-  ].filter(Boolean).join("\n");
+  ];
+  if (detailed || hasSelfOverflow) {
+    lines.push(`Scroll: ${report.scroll.scrollWidth}x${report.scroll.scrollHeight} / client ${report.scroll.clientWidth}x${report.scroll.clientHeight}`);
+  }
+  lines.push(detailed
+    ? `CSS: display=${report.style.display}; position=${report.style.position}; z-index=${report.style.zIndex}; overflow=${report.style.overflowX}/${report.style.overflowY}; white-space=${report.style.whiteSpace}; text-overflow=${report.style.textOverflow}; font=${report.style.fontWeight} ${report.style.fontSize}/${report.style.lineHeight}`
+    : `CSS: position=${report.style.position}; overflow=${report.style.overflowX}/${report.style.overflowY}; white-space=${report.style.whiteSpace}; font=${report.style.fontWeight} ${report.style.fontSize}/${report.style.lineHeight}`);
+  lines.push(`Flags: ${report.flags.length ? report.flags.join(", ") : "нет автоматических флагов"}`);
+  if (report.scrollContainer) {
+    lines.push(`Scroll container: ${report.scrollContainer.signature} (${report.scrollContainer.clientWidth}x${report.scrollContainer.clientHeight}, scroll ${report.scrollContainer.scrollWidth}x${report.scrollContainer.scrollHeight}, overflow ${report.scrollContainer.overflowX}/${report.scrollContainer.overflowY})`);
+  } else if (detailed) {
+    lines.push("Scroll container: не найден");
+  }
+  lines.push(`Parent chain: ${report.parentChain.join(" > ") || "нет"}`);
+  lines.push(report.text ? `Text: ${report.text}` : "Text: нет");
+  if (detailed) {
+    lines.push("Что проверить: визуальное положение элемента, переполнение, ближайший scroll-контейнер, z-index/dropdown и размеры touch target.");
+  }
+  return lines.filter(Boolean).join("\n");
 }
 
 function renderVisualQaMarkers() {
@@ -4091,7 +4188,7 @@ function rememberVisualQaRuntimeDebug(payload = {}) {
   }
 }
 
-function consumeVisualQaFollowupClick(event) {
+function consumeVisualQaFollowupClick(event, options = {}) {
   if (!visualQaSuppressClickUntil) return false;
   if (Date.now() > visualQaSuppressClickUntil) {
     visualQaSuppressClickUntil = 0;
@@ -4099,7 +4196,7 @@ function consumeVisualQaFollowupClick(event) {
     return false;
   }
   const report = visualQaPendingPointerReport;
-  visualQaSuppressClickUntil = 0;
+  visualQaSuppressClickUntil = options.keepSuppressWindow ? Date.now() + 450 : 0;
   visualQaPendingPointerReport = null;
   rememberVisualQaRuntimeDebug({
     eventType: event.type,
@@ -4139,7 +4236,7 @@ function consumeVisualQaInspectorEvent(event) {
 
   event.preventDefault();
   event.stopImmediatePropagation();
-  const report = collectVisualQaElementReport(element);
+  const report = collectVisualQaElementReport(element, { detailed: event.shiftKey });
   if (event.type === "pointerdown") {
     visualQaPendingPointerReport = report;
     visualQaHoveredElementReport = report;
@@ -4150,6 +4247,7 @@ function consumeVisualQaInspectorEvent(event) {
       reason: "pending-pointer-report",
       target: getVisualQaNodeSignature(target),
       selected: getVisualQaNodeSignature(element),
+      detailLevel: report?.detailLevel || "",
       module: report?.module || "",
     });
     return true;
@@ -4159,6 +4257,7 @@ function consumeVisualQaInspectorEvent(event) {
     reason: "report-created",
     target: getVisualQaNodeSignature(target),
     selected: getVisualQaNodeSignature(element),
+    detailLevel: report?.detailLevel || "",
     module: report?.module || "",
   });
   finalizeVisualQaInspection(report);
@@ -4862,11 +4961,12 @@ function persistUiState(options = {}) {
     scrollTop: ui.scrollTop,
   }));
 
-  if (!sharedStateApplyingRemote && sharedStateStatus.enabled) {
+  if (!sharedStateApplyingRemote) {
     const signature = getSharedUiSignature();
     if (signature !== sharedStateStatus.lastSharedUiSignature) {
       sharedStateStatus.lastSharedUiSignature = signature;
-      scheduleSharedStatePush("shared-ui");
+      markSharedUiDirty(signature);
+      if (sharedStateStatus.enabled) scheduleSharedStatePush("shared-ui");
     }
   }
 }
@@ -7140,7 +7240,7 @@ function renderAuthStandaloneQaButton() {
       data-toggle-visual-qa
       type="button"
       aria-pressed="${ui.visualQaEnabled ? "true" : "false"}"
-      title="QA: выбрать элемент и скопировать отчет"
+      title="QA: клик - компактный отчет, Shift+клик - полный"
     >
       ${icon("bug")}
       <span>QA</span>
@@ -7162,24 +7262,12 @@ function applyUiTableScrollContract(selector) {
 
 function applyUiRuntimeContracts() {
   if (!app?.isConnected) return;
-  markUiComponent("label:has(input), label:has(select), label:has(textarea), .form-field, .ui-form-field", "FormField");
-  markUiComponent("button, :is(label).primary-button, :is(label).secondary-button, .ui-action-button", "ActionButton");
-  markUiComponent("[data-layout='table'], .ui-table-wrap", "TableWrap");
-  applyUiTableScrollContract("[data-layout='table'], .ui-table-wrap");
-  markUiComponent(".module-data-page, .ui-module-page", "ModulePage");
-  markUiComponent(".module-data-sidebar, .ui-module-sidebar", "ModuleSidebar");
-  markUiComponent(".module-data-workspace, .ui-module-workspace", "ModuleWorkspace");
-  markUiComponent(".module-data-content, .ui-module-content", "ModuleContent");
-  markUiComponent(".module-panel, .ui-panel", "Panel");
-  markUiComponent(".modal-header, .drawer-header, .ui-panel-head", "PanelHead");
-  markUiComponent(".modal-footer, .drawer-actions, .ui-panel-footer", "PanelFooter");
-  markUiComponent(".module-preview-empty, .ui-empty-state", "EmptyState");
-  markUiComponent(".mes-signal, .ui-status-token", "StatusToken");
-  markUiComponent(".ui-demo-badge", "DemoBadge");
-  markUiComponent(".modal, .ui-modal", "Modal");
-  markUiComponent(".slot-drawer, .detail-drawer, .ui-drawer", "Drawer");
-  markUiComponent(".dense-inline-select, .directory-column-filter, .mobile-module-switcher, .ui-dropdown", "Dropdown");
-  markUiComponent(".operation-slot, .ui-gantt-bar", "GanttBar");
+  UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach(({ selector, component }) => {
+    markUiComponent(selector, component);
+  });
+  UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach((selector) => {
+    applyUiTableScrollContract(selector);
+  });
 }
 
 function render(options = {}) {
@@ -11543,80 +11631,6 @@ function getShiftMasterBoardExecutorLoadMap(rows = []) {
   return map;
 }
 
-function getShiftMasterBoardControlGates(model) {
-  const rows = model?.rows || [];
-  const needsAssignment = rows.filter((row) => row.boardLaneId !== "fact" && normalizeShiftMasterBoardQuantity(row.boardAssignedQuantity || 0) <= 0);
-  const needsCoverage = rows.filter((row) => {
-    const planned = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
-    const assigned = normalizeShiftMasterBoardQuantity(row.boardAssignedQuantity || 0);
-    return row.boardLaneId !== "fact" && ((assigned > 0 && assigned < planned) || Boolean(row.boardAssignment?.riskReason));
-  });
-  const readyForSheet = rows.filter((row) => row.boardLaneId === "assigned" && !row.boardAssignment?.issued);
-  const waitsFact = rows.filter((row) => row.boardLaneId === "assigned" && row.boardAssignment?.issued && !row.boardFact?.updatedAt);
-  const needsCarryover = rows.filter((row) => {
-    const planned = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
-    const fact = normalizeShiftMasterBoardQuantity(row.boardGoodQuantity || 0);
-    return row.boardFact?.updatedAt && fact < planned && !getShiftMasterBoardCarryoverForSource(row.id);
-  });
-  const intakeRows = rows.filter((row) => row.boardLaneId === "intake");
-  return [
-    {
-      id: "intake",
-      label: "План",
-      count: intakeRows.length,
-      text: "сменные строки без распределения",
-      focus: "all",
-      targetRowId: intakeRows[0]?.id || "",
-      tone: intakeRows.length ? "primary" : "ok",
-    },
-    {
-      id: "assign",
-      label: "Распределить",
-      count: needsAssignment.length,
-      text: "нет людей или кол-ва",
-      focus: needsAssignment.length ? "attention" : "all",
-      targetRowId: needsAssignment[0]?.id || "",
-      tone: needsAssignment.length ? "warning" : "ok",
-    },
-    {
-      id: "coverage",
-      label: "Покрытие",
-      count: needsCoverage.length,
-      text: "риски и недопокрытие",
-      focus: needsCoverage.length ? "attention" : "all",
-      targetRowId: needsCoverage[0]?.id || "",
-      tone: needsCoverage.length ? "warning" : "ok",
-    },
-    {
-      id: "sheet",
-      label: "Листы",
-      count: readyForSheet.length,
-      text: "можно печатать",
-      focus: readyForSheet.length ? "open" : "all",
-      targetRowId: readyForSheet[0]?.id || "",
-      tone: readyForSheet.length ? "primary" : "ok",
-    },
-    {
-      id: "fact",
-      label: "Закрытие смены",
-      count: waitsFact.length,
-      text: "ожидает конец смены",
-      focus: waitsFact.length ? "open" : "all",
-      targetRowId: waitsFact[0]?.id || "",
-      tone: waitsFact.length ? "neutral" : "ok",
-    },
-    {
-      id: "carryover",
-      label: "Остатки",
-      count: needsCarryover.length,
-      text: "нужно вернуть в очередь",
-      focus: needsCarryover.length ? "attention" : "all",
-      targetRowId: needsCarryover[0]?.id || "",
-      tone: needsCarryover.length ? "warning" : "ok",
-    },
-  ];
-}
-
 function renderShiftMasterBoardPage() {
   const model = getShiftMasterBoardModel();
   const actions = `
@@ -11634,7 +11648,7 @@ function renderShiftMasterBoardPage() {
     header: renderUiModuleHeader({
       eyebrow: "Оперативное управление",
       title: "Мастерская",
-      description: "Рабочий стол мастера: сменные задачи, распределение исполнителей, выдача сменного листа, закрытие факта и остатки следующей смены.",
+      description: "Рабочий стол мастера: сменные задачи, распределение исполнителей и выдача сменного листа.",
       actions,
       className: "directory-header shift-master-board-header",
     }),
@@ -11644,12 +11658,6 @@ function renderShiftMasterBoardPage() {
         <div class="shift-master-board-main-grid">
           ${renderShiftMasterBoardDetail(model.selectedRow, model)}
           ${renderShiftMasterBoardLanes(model)}
-        </div>
-        ${renderShiftMasterBoardRetrospective(model)}
-        <div class="shift-master-board-bottom-stack">
-          ${renderShiftMasterBoardHypothesis(model)}
-          ${renderShiftMasterBoardRhythm(model)}
-          ${renderShiftMasterBoardControlGates(model)}
         </div>
       ` : renderUiPanel({
         title: "Нет сменных задач в окне",
@@ -11707,39 +11715,6 @@ function renderShiftMasterBoardTopControls(model) {
   `;
 }
 
-function renderShiftMasterBoardControlGates(model) {
-  const gates = getShiftMasterBoardControlGates(model);
-  return renderUiPanel({
-    title: "Контроль смены",
-    meta: "быстрый переход к следующему действию мастера",
-    className: "shift-master-board-panel shift-master-board-control-panel",
-    body: renderUiPanelBody({
-      body: `
-        <div class="shift-master-board-control-gates" data-visual-qa-target="shift-master-board-control-gates">
-          ${gates.map((gate, index) => {
-            const disabled = !gate.count || !gate.targetRowId;
-            return `
-              <button
-                class="is-${escapeAttribute(normalizeUiTone(gate.tone))}"
-                data-shift-board-gate="${escapeAttribute(gate.id)}"
-                data-shift-board-gate-focus="${escapeAttribute(gate.focus)}"
-                data-shift-board-gate-card="${escapeAttribute(gate.targetRowId)}"
-                type="button"
-                ${disabled ? "disabled" : ""}
-              >
-                <span>${String(index + 1).padStart(2, "0")}</span>
-                <strong>${escapeHtml(gate.label)}</strong>
-                <em>${Number(gate.count || 0).toLocaleString("ru-RU")}</em>
-                <small>${escapeHtml(gate.text)}</small>
-              </button>
-            `;
-          }).join("")}
-        </div>
-      `,
-    }),
-  });
-}
-
 function renderShiftMasterBoardKpi(label, value, unit = "") {
   return `
     <article>
@@ -11747,95 +11722,6 @@ function renderShiftMasterBoardKpi(label, value, unit = "") {
       <strong>${normalizeShiftMasterBoardQuantity(value || 0).toLocaleString("ru-RU")}</strong>
       <small>${escapeHtml(unit)}</small>
     </article>
-  `;
-}
-
-function renderShiftMasterBoardHypothesis(model) {
-  const swimlaneOptions = SHIFT_MASTER_BOARD_SWIMLANES.map((item) => `
-    <button class="segmented-button ${item.id === model.swimlane ? "is-active" : ""}" data-shift-board-swimlane="${escapeAttribute(item.id)}" type="button">${escapeHtml(item.label)}</button>
-  `).join("");
-  return renderUiPanel({
-    title: "Рабочий процесс",
-    meta: "от общего потока к конкретному назначению",
-    className: "shift-master-board-panel shift-master-board-hypothesis",
-    actions: `<div class="shift-master-board-segmented">${swimlaneOptions}</div>`,
-    body: renderUiPanelBody({
-      body: `
-        <div class="shift-master-board-hypothesis-grid">
-          <article><span>1</span><strong>Очередь смены</strong><small>мастер видит весь плановый поток и выбирает, что реально можно взять в работу</small></article>
-          <article><span>2</span><strong>Распределение</strong><small>ресурс, несколько исполнителей и кол-во фиксируются в карточке</small></article>
-          <article><span>3</span><strong>Сменный лист</strong><small>бумажный носитель связывает физическое изделие и задачу</small></article>
-          <article><span>4</span><strong>Факт и уроки</strong><small>план/факт за неделю помогает не повторять ошибку распределения</small></article>
-        </div>
-      `,
-    }),
-  });
-}
-
-function renderShiftMasterBoardRhythm(model) {
-  const openCount = model.lanes.find((lane) => lane.id === "intake")?.rows.length || 0;
-  const assignedCount = model.lanes.find((lane) => lane.id === "assigned")?.rows.length || 0;
-  const issuedCount = (model.rows || []).filter((row) => row.boardAssignment?.issued && row.boardLaneId !== "fact").length;
-  const factCount = model.lanes.find((lane) => lane.id === "fact")?.rows.length || 0;
-  const focusButtons = SHIFT_MASTER_BOARD_FOCUS_MODES.map((item) => `
-    <button class="segmented-button ${item.id === model.focus ? "is-active" : ""}" data-shift-board-focus="${escapeAttribute(item.id)}" type="button">${escapeHtml(item.label)}</button>
-  `).join("");
-  const steps = [
-    ["Старт смены", `${openCount.toLocaleString("ru-RU")} входящих`, "проверить, что дошло из планирования"],
-    ["Распределение", `${assignedCount.toLocaleString("ru-RU")} назначено`, "свести план с ресурсами и людьми"],
-    ["Сменные листы", `${issuedCount.toLocaleString("ru-RU")} выдано`, "документы внутри задач в работе"],
-    ["Закрытие", `${factCount.toLocaleString("ru-RU")} факт`, "снять выпуск, брак и трудозатраты"],
-  ];
-  return renderUiPanel({
-    title: "Ритм смены",
-    meta: `${model.rows.length.toLocaleString("ru-RU")} видно из ${model.allRows.length.toLocaleString("ru-RU")} карточек`,
-    className: "shift-master-board-panel shift-master-board-rhythm-panel",
-    actions: `<div class="shift-master-board-segmented">${focusButtons}</div>`,
-    body: renderUiPanelBody({
-      body: `
-        <div class="shift-master-board-rhythm-grid">
-          ${steps.map(([title, value, text], index) => `
-            <article>
-              <span>${String(index + 1).padStart(2, "0")}</span>
-              <strong>${escapeHtml(title)}</strong>
-              <em>${escapeHtml(value)}</em>
-              <small>${escapeHtml(text)}</small>
-            </article>
-          `).join("")}
-        </div>
-        ${renderShiftMasterBoardAttentionStrip(model)}
-      `,
-    }),
-  });
-}
-
-function renderShiftMasterBoardAttentionStrip(model) {
-  const visibleRows = model.rows || [];
-  const noAssignmentRows = visibleRows.filter((row) => row.boardLaneId !== "fact" && normalizeShiftMasterBoardQuantity(row.boardAssignedQuantity || 0) <= 0);
-  const underAllocatedRows = visibleRows.filter((row) => {
-    const planned = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
-    const assigned = normalizeShiftMasterBoardQuantity(row.boardAssignedQuantity || 0);
-    return assigned > 0 && assigned < planned && row.boardLaneId !== "fact";
-  });
-  const readyToIssueRows = visibleRows.filter((row) => row.boardLaneId === "assigned" && !row.boardAssignment.issued);
-  const missingFactRows = visibleRows.filter((row) => row.boardLaneId === "assigned" && row.boardAssignment.issued && !row.boardFact.updatedAt);
-  const riskRows = visibleRows.filter((row) => row.boardLaneId !== "fact" && row.boardAssignment.riskReason);
-  const items = [
-    ["Без распределения", noAssignmentRows.length, "warning"],
-    ["Недораспределено", underAllocatedRows.length, "warning"],
-    ["Ручные риски", riskRows.length, "warning"],
-    ["Нужен лист", readyToIssueRows.length, "primary"],
-    ["Ожидает факт", missingFactRows.length, "neutral"],
-  ];
-  return `
-    <div class="shift-master-board-attention" aria-label="Пульт решений мастера">
-      ${items.map(([label, count, tone]) => `
-        <article class="is-${escapeAttribute(normalizeUiTone(tone))}">
-          <span>${escapeHtml(label)}</span>
-          <strong>${Number(count || 0).toLocaleString("ru-RU")}</strong>
-        </article>
-      `).join("")}
-    </div>
   `;
 }
 
@@ -11940,8 +11826,6 @@ function renderShiftMasterBoardDetail(row, model) {
         ${renderShiftMasterBoardTaskContext(row, model)}
         ${renderShiftMasterBoardAssignment(row, model)}
         ${renderShiftMasterBoardDocument(row)}
-        ${renderShiftMasterBoardHistory(row)}
-        ${renderShiftMasterBoardFact(row)}
       `,
     }),
   });
@@ -12274,54 +12158,26 @@ function renderShiftMasterBoardAssignment(row, model) {
 }
 
 function renderShiftMasterBoardDocument(row) {
-  const transfer = row.boardFact?.transferContract
-    || row.boardAssignment?.transferContract
-    || row.boardAssignment?.sheetContract?.transferContract
-    || buildShiftMasterBoardTransferContract(row);
-  const transferTone = transfer.status === "complete" ? "ok" : transfer.status === "partial_carryover_required" ? "warning" : "neutral";
-  const transferQuantity = transfer.status === "partial_carryover_required"
-    ? `${transfer.remainingQuantity.toLocaleString("ru-RU")} ${transfer.unit}`
-    : `${transfer.assignedQuantity.toLocaleString("ru-RU")} ${transfer.unit}`;
+  const assignedQuantity = normalizeShiftMasterBoardQuantity(
+    row.boardAssignedQuantity || getShiftMasterBoardAssignmentQuantity(row.boardAssignment || {}),
+  );
+  const documentReady = Boolean(row.boardAssignment.issued || assignedQuantity > 0);
   return `
     <section class="shift-master-board-section" data-visual-qa-target="shift-master-board-document-panel">
-      <header data-visual-qa-target="shift-master-board-document-header">
-        <div>
-          <strong>Сменный лист</strong>
-          <span>документ для физической передачи изделия</span>
-        </div>
-        ${renderUiStatusToken(row.boardAssignment.issued ? "лист выдан" : "не выдан", row.boardAssignment.issued ? "ok" : "warning")}
-      </header>
       <div class="shift-master-board-document" data-visual-qa-target="shift-master-board-document-card" aria-label="${escapeAttribute(`Сменный лист ${row.documentNumber}`)}">
-        <span>${escapeHtml(row.documentNumber)}</span>
-        <strong>${escapeHtml(row.operationName)}</strong>
-        <small>${escapeHtml(row.orderLabel)} · ${escapeHtml(getShiftMasterRowRoutePartLabel(row))}</small>
-        <small>${normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0).toLocaleString("ru-RU")} ${escapeHtml(row.unit || "шт.")} · ${escapeHtml(row.workCenterLabel)} · ${escapeHtml(row.resourceLabel)}</small>
-      </div>
-      <div class="shift-master-board-transfer-summary is-${escapeAttribute(normalizeUiTone(transferTone))}" data-visual-qa-target="shift-master-board-transfer-summary">
-        <article data-visual-qa-target="shift-master-board-transfer-card" data-shift-board-transfer-label="Передача">
-          <span>Передача</span>
-          <strong>${escapeHtml(transfer.targetLabel)}</strong>
-        </article>
-        <article data-visual-qa-target="shift-master-board-transfer-card" data-shift-board-transfer-label="Куда">
-          <span>Куда</span>
-          <strong>${escapeHtml(transfer.toWorkCenterLabel)}</strong>
-        </article>
-        <article data-visual-qa-target="shift-master-board-transfer-card" data-shift-board-transfer-label="${transfer.status === "partial_carryover_required" ? "Остаток" : "Кол-во"}">
-          <span>${transfer.status === "partial_carryover_required" ? "Остаток" : "Кол-во"}</span>
-          <strong>${escapeHtml(transferQuantity)}</strong>
-        </article>
-      </div>
-      <div class="shift-master-board-actions">
-        ${renderUiActionButton({
-          label: "Собрать лист",
-          iconName: "document",
-          attributes: `data-shift-board-issue="${escapeAttribute(row.id)}" type="button"`,
-        })}
-        ${renderUiActionButton({
-          label: "Печать",
-          iconName: "download",
-          attributes: `data-shift-board-print="${escapeAttribute(row.id)}" type="button"`,
-        })}
+        <div>
+          <span>Сменный лист</span>
+          <strong>${escapeHtml(row.documentNumber)}</strong>
+          <small>${documentReady ? "сформирован из распределения" : "сначала распределите количество"}</small>
+        </div>
+        ${renderUiStatusToken(documentReady ? "готов к печати" : "ожидает распределение", documentReady ? "ok" : "neutral")}
+        <div class="shift-master-board-actions">
+          ${renderUiActionButton({
+            label: "Печать",
+            iconName: "download",
+            attributes: `data-shift-board-print="${escapeAttribute(row.id)}" type="button"`,
+          })}
+        </div>
       </div>
     </section>
   `;
@@ -12426,185 +12282,13 @@ function renderShiftMasterBoardSheetModal() {
   `;
 }
 
-function renderShiftMasterBoardHistory(row) {
-  const assignedQuantity = normalizeShiftMasterBoardQuantity(row.boardAssignedQuantity || 0);
-  const factQuantity = normalizeShiftMasterBoardQuantity(row.boardGoodQuantity || 0);
-  const items = [
-    {
-      label: "Пришло из планирования",
-      text: `${formatDateTimeShort(row.startsAt)} · ${normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0).toLocaleString("ru-RU")} ${row.unit || "шт."}`,
-      tone: "neutral",
-    },
-    ...(row.boardAssignment.updatedAt ? [{
-      label: "Распределение сохранено",
-      text: `${formatDateTimeShort(new Date(row.boardAssignment.updatedAt))} · ${assignedQuantity.toLocaleString("ru-RU")} ${row.unit || "шт."}`,
-      tone: assignedQuantity > 0 ? "ok" : "warning",
-    }] : []),
-    ...(row.boardAssignment.issued ? [{
-      label: "Сменный лист собран",
-      text: row.documentNumber,
-      tone: "ok",
-    }] : []),
-    ...(row.boardFact.updatedAt ? [{
-      label: "Факт смены внесен",
-      text: `${formatDateTimeShort(new Date(row.boardFact.updatedAt))} · ${factQuantity.toLocaleString("ru-RU")} ${row.unit || "шт."}`,
-      tone: factQuantity >= normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0) ? "ok" : "warning",
-    }] : []),
-  ].slice(-4);
-  return `
-    <section class="shift-master-board-section shift-master-board-history" data-visual-qa-target="shift-master-board-history-panel">
-      <header data-visual-qa-target="shift-master-board-history-header">
-        <div>
-          <strong>Лента событий</strong>
-          <span>что уже произошло с задачей</span>
-        </div>
-      </header>
-      <div>
-        ${items.map((item, index) => `
-          <article
-            class="is-${escapeAttribute(normalizeUiTone(item.tone))}"
-            data-visual-qa-target="shift-master-board-history-event"
-            aria-label="${escapeAttribute(`${item.label}: ${item.text}`)}"
-          >
-            <span>${String(index + 1).padStart(2, "0")}</span>
-            <strong>${escapeHtml(item.label)}</strong>
-            <small>${escapeHtml(item.text)}</small>
-          </article>
-        `).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderShiftMasterBoardFact(row) {
-  const fact = row.boardFact;
-  return `
-    <section class="shift-master-board-section" data-visual-qa-target="shift-master-board-fact-panel" data-shift-board-fact-panel>
-      <header data-visual-qa-target="shift-master-board-fact-header">
-        <div>
-          <strong>Конец смены</strong>
-          <span>факт выпуска и трудозатраты для будущей аналитики</span>
-        </div>
-        ${renderUiStatusToken(fact.updatedAt ? "факт внесен" : "ожидает", fact.updatedAt ? "ok" : "neutral")}
-      </header>
-      <div class="shift-master-board-form-grid is-fact" data-visual-qa-target="shift-master-board-fact-grid">
-        <label data-visual-qa-target="shift-master-board-fact-field" aria-label="Факт выпуска">
-          <span>Факт</span>
-          <input data-shift-board-fact-actual type="number" min="0" step="1" value="${escapeAttribute(fact.actualQuantity || "")}" />
-        </label>
-        <label data-visual-qa-target="shift-master-board-fact-field" aria-label="Брак">
-          <span>Брак</span>
-          <input data-shift-board-fact-defect type="number" min="0" step="1" value="${escapeAttribute(fact.defectQuantity || "")}" />
-        </label>
-        <label data-visual-qa-target="shift-master-board-fact-field" aria-label="Человеко-минуты">
-          <span>Чел·мин</span>
-          <input data-shift-board-fact-labor type="number" min="0" step="1" value="${escapeAttribute(fact.laborMinutes || "")}" />
-        </label>
-        <label data-visual-qa-target="shift-master-board-fact-field" aria-label="Количество исполнителей">
-          <span>Исполнителей</span>
-          <input data-shift-board-fact-executors type="number" min="0" step="1" value="${escapeAttribute(fact.executorCount || "")}" />
-        </label>
-        <label class="is-wide" data-visual-qa-target="shift-master-board-fact-field" aria-label="Комментарий к факту">
-          <span>Комментарий к факту</span>
-          <input data-shift-board-fact-comment value="${escapeAttribute(fact.comment)}" placeholder="почему расходится с планом / что мешало" />
-        </label>
-      </div>
-      <div class="shift-master-board-actions">
-        ${renderUiActionButton({
-          label: "Записать факт",
-          iconName: "check",
-          tone: "primary",
-          attributes: `data-shift-board-save-fact="${escapeAttribute(row.id)}" type="button"`,
-        })}
-      </div>
-    </section>
-  `;
-}
-
-function renderShiftMasterBoardRetrospective(model) {
-  const week = model.week || [];
-  const daysWithPlan = week.filter((day) => day.planned > 0);
-  const bestDay = daysWithPlan
-    .slice()
-    .sort((left, right) => (
-      (right.fact / Math.max(1, right.planned)) - (left.fact / Math.max(1, left.planned))
-      || right.fact - left.fact
-    ))[0] || null;
-  const weakDay = daysWithPlan
-    .slice()
-    .sort((left, right) => left.delta - right.delta || left.fact - right.fact)[0] || null;
-  const openCarryover = (model.rows || []).filter((row) => row.isBoardCarryover).reduce((sum, row) => sum + normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0), 0);
-  const assignedRatio = model.plannedQuantity > 0 ? Math.round(model.assignedQuantity / model.plannedQuantity * 100) : 0;
-  const insightItems = [
-    {
-      label: "Лучший день",
-      value: bestDay ? bestDay.label : "нет данных",
-      text: bestDay ? `${bestDay.fact.toLocaleString("ru-RU")} факт / ${bestDay.planned.toLocaleString("ru-RU")} план` : "пока нет плановых строк",
-      tone: "ok",
-    },
-    {
-      label: "Просадка",
-      value: weakDay ? weakDay.label : "нет данных",
-      text: weakDay ? `${weakDay.delta >= 0 ? "+" : ""}${weakDay.delta.toLocaleString("ru-RU")} к плану` : "расхождений не видно",
-      tone: weakDay && weakDay.delta < 0 ? "warning" : "ok",
-    },
-    {
-      label: "Решение на смену",
-      value: openCarryover > 0 ? "закрыть остатки" : assignedRatio < 100 ? "дораспределить" : "держать ритм",
-      text: openCarryover > 0
-        ? `${openCarryover.toLocaleString("ru-RU")} шт. в очереди остатков`
-        : assignedRatio < 100
-          ? `распределено ${assignedRatio.toLocaleString("ru-RU")}% плана`
-          : "покрытие плана выглядит стабильным",
-      tone: openCarryover > 0 || assignedRatio < 100 ? "warning" : "ok",
-    },
-  ];
-  return renderUiPanel({
-    title: "Ретроспектива недели",
-    meta: "план / распределено / факт по данным сменной доски",
-    className: "shift-master-board-panel shift-master-board-retro-panel",
-    body: renderUiPanelBody({
-      body: `
-        <div class="shift-master-board-retro-grid">
-          ${model.week.map((day) => {
-            const plannedWidth = Math.max(2, Math.min(100, day.planned ? 100 : 0));
-            const assignedWidth = day.planned > 0 ? Math.max(2, Math.min(120, day.assigned / day.planned * 100)) : 0;
-            const factWidth = day.planned > 0 ? Math.max(2, Math.min(120, day.fact / day.planned * 100)) : 0;
-            const taskCount = Number.isFinite(day.taskCount) ? day.taskCount : day.rows.length;
-            return `
-              <button class="is-${escapeAttribute(normalizeUiTone(day.tone))} ${day.isCurrent ? "is-current" : ""}" data-shift-board-date="${escapeAttribute(day.id)}" type="button">
-	                <header><strong>${escapeHtml(day.label)}</strong><span>${taskCount.toLocaleString("ru-RU")} задач</span></header>
-                <div class="shift-master-board-retro-bars">
-                  <span style="--bar-width:${plannedWidth}%;"><i>план</i><b></b><em>${day.planned.toLocaleString("ru-RU")}</em></span>
-                  <span style="--bar-width:${assignedWidth}%;"><i>распр.</i><b></b><em>${day.assigned.toLocaleString("ru-RU")}</em></span>
-                  <span style="--bar-width:${factWidth}%;"><i>факт</i><b></b><em>${day.fact.toLocaleString("ru-RU")}</em></span>
-                </div>
-                <small>${day.delta >= 0 ? "+" : ""}${day.delta.toLocaleString("ru-RU")} к плану</small>
-              </button>
-            `;
-          }).join("")}
-        </div>
-        <div class="shift-master-board-retro-insights">
-          ${insightItems.map((item) => `
-            <article class="is-${escapeAttribute(normalizeUiTone(item.tone))}">
-              <span>${escapeHtml(item.label)}</span>
-              <strong>${escapeHtml(item.value)}</strong>
-              <small>${escapeHtml(item.text)}</small>
-            </article>
-          `).join("")}
-        </div>
-      `,
-    }),
-  });
-}
-
 function getShiftWorkOrderJournalStatus(row = {}, assignment = {}, fact = {}, transfer = {}) {
   const assignedQuantity = normalizeShiftMasterBoardQuantity(row.boardAssignedQuantity || assignment.assignedQuantity || getShiftMasterBoardAssignmentQuantity(assignment));
   const factUpdated = Boolean(fact.updatedAt);
   const remainingQuantity = normalizeShiftMasterBoardQuantity(transfer.remainingQuantity || 0);
   if (factUpdated && remainingQuantity > 0) return { id: "carryover", label: "остаток", tone: "warning" };
   if (factUpdated) return { id: "closed", label: "закрыт", tone: "ok" };
-  if (assignment.issued) return { id: "issued", label: "лист выдан", tone: "primary" };
+  if (assignment.issued) return { id: "issued", label: "СЗН готов", tone: "primary" };
   if (assignedQuantity > 0) return { id: "assigned", label: "распределен", tone: "active" };
   return { id: "planned", label: "план", tone: "neutral" };
 }
@@ -12795,7 +12479,7 @@ function renderShiftWorkOrdersOverview(model) {
   const statusItems = [
     ["planned", "план", "neutral"],
     ["assigned", "распределен", "active"],
-    ["issued", "лист выдан", "primary"],
+    ["issued", "СЗН готов", "primary"],
     ["closed", "закрыт", "ok"],
     ["carryover", "остаток", "warning"],
   ];
@@ -12940,7 +12624,7 @@ function renderShiftWorkOrderPrintSignatureGrid() {
 
 function renderShiftWorkOrderPrintSheet(row) {
   const documentDate = formatDateTimeShort(new Date().toISOString());
-  const issuedLabel = row.issuedAt ? formatDateTimeShort(row.issuedAt) : "не выдан";
+  const formedLabel = row.issuedAt ? formatDateTimeShort(row.issuedAt) : "ожидает распределение";
   return `
     <article class="route-print-sheet shift-work-order-print-sheet" aria-label="Печатная форма сменного заказ-наряда">
       <section class="route-print-title-block">
@@ -12966,7 +12650,7 @@ function renderShiftWorkOrderPrintSheet(row) {
           ["Участок", row.workCenterLabel],
           ["Ресурс", row.resourceLabel || row.workCenterLabel],
           ["Мастер", row.masterName],
-          ["Выдан", issuedLabel],
+          ["Сформирован", formedLabel],
           ["Обновлено", row.dateLabel],
         ], "shift-work-order-print-passport-table")}
       </section>
@@ -17196,7 +16880,7 @@ function renderAppTopbar() {
           ${icon("focus")}
           <span>Фокус</span>
         </button>
-        <button class="app-topbar-action ${ui.visualQaEnabled ? "is-active is-qa-active" : ""}" data-toggle-visual-qa type="button" aria-pressed="${ui.visualQaEnabled ? "true" : "false"}" title="QA: выбрать элемент и скопировать отчет">
+        <button class="app-topbar-action ${ui.visualQaEnabled ? "is-active is-qa-active" : ""}" data-toggle-visual-qa type="button" aria-pressed="${ui.visualQaEnabled ? "true" : "false"}" title="QA: клик - компактный отчет, Shift+клик - полный">
           ${icon("bug")}
           <span>QA</span>
         </button>
@@ -22423,10 +22107,10 @@ function getAuthSessionAllTasks(boardModel = getShiftMasterBoardModel()) {
         const minutesPerUnit = getShiftMasterBoardLaborMinutesPerUnit(row);
         const status = draft.updatedAt
           ? "факт записан"
-          : draft.status === "in_progress"
-            ? "в работе"
+            : draft.status === "in_progress"
+              ? "в работе"
             : assignment.issued
-              ? "лист выдан"
+              ? "СЗН готов"
               : "назначено";
         return {
           id: taskId,
@@ -22628,7 +22312,6 @@ function renderAuthSessionTaskContext(task) {
         ${renderAuthSessionSummaryCell("Участок", task.workCenterLabel)}
         ${renderAuthSessionSummaryCell("Кол-во", `${formatReportNumber(task.assignedQuantity)} ${task.unit}`)}
       </section>
-      ${renderAuthSessionRouteChain(task)}
     </section>
   `;
 }
@@ -22663,10 +22346,6 @@ function renderAuthSessionRouteChain(task) {
   const chain = task.chain || {};
   return `
     <section class="auth-session-route-chain" data-visual-qa-target="auth-session-route-chain" aria-label="Маршрут задания">
-      <header data-visual-qa-target="auth-session-route-chain-header">
-        <strong>Маршрут</strong>
-        <span>что было до этой операции и куда передать после</span>
-      </header>
       <div>
         ${renderAuthSessionRouteCard("До", chain.previous, "предыдущая операция")}
         ${renderAuthSessionRouteCard("Сейчас", chain.current || task.row, "текущая операция", true)}
@@ -22674,6 +22353,17 @@ function renderAuthSessionRouteChain(task) {
       </div>
     </section>
   `;
+}
+
+function getAuthSessionCompactRouteText(task = {}) {
+  const chain = task.chain || {};
+  const trimPart = (value = "", limit = 22) => {
+    const chars = Array.from(String(value || "").trim());
+    return chars.length > limit ? `${chars.slice(0, limit - 3).join("")}...` : chars.join("");
+  };
+  const previous = trimPart(chain.previous?.operationName || "старт");
+  const next = trimPart(chain.next?.operationName || "финиш");
+  return `До: ${previous} -> После: ${next}`;
 }
 
 function renderAuthSessionTaskActions(model) {
@@ -22791,21 +22481,25 @@ function renderAuthSessionTaskBoard(model) {
     body: renderUiPanelBody({
       body: model.tasks.length ? `
         <div class="auth-session-task-board" data-visual-qa-target="auth-session-task-board">
-          ${model.tasks.map((task) => `
+          ${model.tasks.map((task) => {
+            const routeText = getAuthSessionCompactRouteText(task);
+            return `
             <button
               class="auth-session-task-card ${task.id === model.selectedTask?.id ? "is-current" : ""}"
               data-auth-session-task="${escapeAttribute(task.id)}"
               data-visual-qa-target="auth-session-task-card"
               type="button"
             >
-              <span>
+              <div class="auth-session-task-card-main" data-visual-qa-target="auth-session-task-card-main">
                 <strong>${escapeHtml(task.operationName)}</strong>
                 <small>${escapeHtml(`${task.employeeName} · ${task.workCenterLabel}`)}</small>
-              </span>
+                <small class="auth-session-task-card-route" data-visual-qa-target="auth-session-task-card-route" title="${escapeAttribute(routeText)}">${escapeHtml(routeText)}</small>
+              </div>
               <em>${escapeHtml(`${formatReportNumber(task.assignedQuantity)} ${task.unit}`)}</em>
               ${renderUiStatusToken(task.status, task.isDone ? "ok" : task.isStarted ? "primary" : "neutral")}
             </button>
-          `).join("")}
+          `;
+          }).join("")}
         </div>
       ` : renderUiEmptyState({
         iconName: "document",
@@ -26957,14 +26651,18 @@ function getSlotOperationFlow(slot = {}, route = null, step = null) {
 
 function renderOperationFlowMap(flow, options = {}) {
   const className = ["operation-flow-map", options.compact ? "is-compact" : "", options.editable ? "is-editable" : ""].filter(Boolean).join(" ");
+  const qaPrefix = String(options.qaPrefix || "").trim();
+  const rootQa = qaPrefix ? ` data-visual-qa-target="${escapeAttribute(`${qaPrefix}-flow-map`)}"` : "";
+  const inputQa = qaPrefix ? ` data-visual-qa-target="${escapeAttribute(`${qaPrefix}-flow-input`)}"` : "";
+  const outputQa = qaPrefix ? ` data-visual-qa-target="${escapeAttribute(`${qaPrefix}-flow-output`)}"` : "";
   return `
-    <div class="${className}" aria-label="Входы и выходы операции">
-      <span class="operation-flow-point">
+    <div class="${className}"${rootQa} aria-label="Входы и выходы операции">
+      <span class="operation-flow-point"${inputQa}>
         <b>Вход</b>
         <strong>${escapeHtml(flow.inputLabel)}</strong>
       </span>
       <i aria-hidden="true">&rarr;</i>
-      <span class="operation-flow-point">
+      <span class="operation-flow-point"${outputQa}>
         <b>Выход</b>
         <strong>${escapeHtml(flow.outputLabel)}</strong>
       </span>
@@ -33467,17 +33165,6 @@ function persistShiftMasterBoardAssignmentInput(input = null) {
   return saveShiftMasterBoardAssignment(slotId, readShiftMasterBoardAssignmentPanel(panel));
 }
 
-function readShiftMasterBoardFactPanel(panel) {
-  return {
-    actualQuantity: normalizeShiftMasterBoardQuantity(panel?.querySelector("[data-shift-board-fact-actual]")?.value || 0),
-    defectQuantity: normalizeShiftMasterBoardQuantity(panel?.querySelector("[data-shift-board-fact-defect]")?.value || 0),
-    laborMinutes: normalizeDispatchLaborMinutes(panel?.querySelector("[data-shift-board-fact-labor]")?.value || 0),
-    executorCount: normalizeDispatchExecutorCount(panel?.querySelector("[data-shift-board-fact-executors]")?.value || 0),
-    comment: panel?.querySelector("[data-shift-board-fact-comment]")?.value || "",
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 function updateShiftMasterBoardAvailableQuantityPreview(input) {
   const card = input?.closest("[data-shift-board-available-person]");
   if (!card) return;
@@ -33890,8 +33577,14 @@ function bindShiftMasterBoardEvents() {
     button.addEventListener("click", () => {
       const slotId = button.dataset.shiftBoardSaveAssignment || "";
       const panel = button.closest("[data-shift-board-assignment-panel]");
-      saveShiftMasterBoardAssignment(slotId, readShiftMasterBoardAssignmentPanel(panel));
-      notifySaveSuccess("Распределение сохранено. В Ганте обновится визуальный слой без пересчета дат.");
+      const previous = normalizePlainRecord(ui.shiftMasterBoardAssignments)[slotId] || {};
+      const panelPatch = readShiftMasterBoardAssignmentPanel(panel);
+      saveShiftMasterBoardAssignment(slotId, {
+        ...mergeShiftMasterBoardIssueAssignment(previous, panelPatch),
+        issued: true,
+        updatedAt: new Date().toISOString(),
+      });
+      notifySaveSuccess("Распределение сохранено. СЗН сформирован и готов к печати.");
       render();
     });
   });
@@ -33904,21 +33597,6 @@ function bindShiftMasterBoardEvents() {
     input.addEventListener("change", () => {
       updateShiftMasterBoardAvailableQuantityPreview(input);
       persistShiftMasterBoardAssignmentInput(input);
-    });
-  });
-
-  app.querySelectorAll("[data-shift-board-issue]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const slotId = button.dataset.shiftBoardIssue || "";
-      const previous = normalizePlainRecord(ui.shiftMasterBoardAssignments)[slotId] || {};
-      const panelPatch = readShiftMasterBoardCurrentAssignmentPatch(button, slotId);
-      saveShiftMasterBoardAssignment(slotId, {
-        ...mergeShiftMasterBoardIssueAssignment(previous, panelPatch),
-        issued: true,
-        updatedAt: new Date().toISOString(),
-      });
-      notifySaveSuccess("Сменный лист собран.");
-      render();
     });
   });
 
@@ -33936,21 +33614,6 @@ function bindShiftMasterBoardEvents() {
       ui.shiftMasterBoardPrintPreviewId = slotId;
       persistUiState();
       notifySaveSuccess("Открыт предпросмотр сменного листа.");
-      render();
-    });
-  });
-
-  app.querySelectorAll("[data-shift-board-save-fact]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const slotId = button.dataset.shiftBoardSaveFact || "";
-      const panel = button.closest("[data-shift-board-fact-panel]");
-      const result = saveShiftMasterBoardFact(slotId, readShiftMasterBoardFactPanel(panel));
-      const message = result?.carryover
-        ? `Факт сохранен. Остаток добавлен в очередь ${formatDate(fromDateInput(result.carryover.dateKey))}.`
-        : result?.removedCarryover
-          ? "Факт сохранен. Ранее созданный остаток снят."
-          : "Факт смены сохранен. В Ганте обновится визуальный слой без пересчета дат.";
-      notifySaveSuccess(message);
       render();
     });
   });
@@ -33979,14 +33642,12 @@ function bindShiftMasterBoardEvents() {
     });
   });
 
-  app.querySelectorAll("[data-shift-board-fact-panel] input, [data-shift-board-assignment-panel] input, [data-shift-board-assignment-panel] select").forEach((field) => {
+  app.querySelectorAll("[data-shift-board-assignment-panel] input, [data-shift-board-assignment-panel] select").forEach((field) => {
     field.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
       const assignmentPanel = field.closest("[data-shift-board-assignment-panel]");
-      const factPanel = field.closest("[data-shift-board-fact-panel]");
-      const button = assignmentPanel?.querySelector("[data-shift-board-save-assignment]")
-        || factPanel?.querySelector("[data-shift-board-save-fact]");
+      const button = assignmentPanel?.querySelector("[data-shift-board-save-assignment]");
       button?.click();
     });
   });
@@ -40710,7 +40371,7 @@ function renderSlotDrawer(slotWarningMap) {
         <button class="icon-button ui-action-button" data-close-drawer type="button" title="Закрыть">${icon("close")}</button>
       </div>
 
-      <div class="drawer-summary ${slotStatusClass}">
+      <div class="drawer-summary ${slotStatusClass}" data-visual-qa-target="gantt-slot-drawer-summary">
         <div>
           <strong>Заказ-наряд</strong>
           <span>${Number(slot.quantity || 0).toLocaleString("ru-RU")} шт.</span>
@@ -40718,42 +40379,42 @@ function renderSlotDrawer(slotWarningMap) {
         <span>${escapeHtml(slotStatusView.label || "статус")}</span>
       </div>
 
-      <div class="drawer-signal-grid">
-        <article>
+      <div class="drawer-signal-grid" data-visual-qa-target="gantt-slot-drawer-signal-grid">
+        <article data-visual-qa-target="gantt-slot-drawer-working-duration">
           <span>Рабочая длительность</span>
           <strong>${formatDuration(planMs)}</strong>
         </article>
-        <article>
+        <article data-visual-qa-target="gantt-slot-drawer-calendar-duration">
           <span>Календарное окно</span>
           <strong>${formatDuration(calendarMs)}</strong>
         </article>
-        <article>
+        <article data-visual-qa-target="gantt-slot-drawer-resource-code">
           <span>Ресурс</span>
           <strong>${escapeHtml(workCenter?.code || "-")}</strong>
         </article>
-        <article class="${warnings.length ? "warning" : "ok"}">
+        <article class="${warnings.length ? "warning" : "ok"}" data-visual-qa-target="gantt-slot-drawer-signal-count">
           <span>Сигналы</span>
           <strong>${warnings.length}</strong>
         </article>
       </div>
 
-	      <dl class="detail-grid">
-        <div><dt>Состав изделия</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
-        <div><dt>Заказ</dt><dd>${escapeHtml(project?.orderNumber || "")}</dd></div>
-        <div><dt>Отдел</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
-        <div><dt>Шаг маршрута</dt><dd>${currentStep?.stepOrder || "-"} · ${escapeHtml(currentStep?.operationName || "")}</dd></div>
-        <div title="${escapeAttribute(planningLaborView.title)}"><dt>Расчет трудозатрат</dt><dd>${escapeHtml(planningLaborView.label)} · ${escapeHtml(planningLaborView.value)}</dd></div>
-        <div><dt>Календарное окно</dt><dd>${formatDateTime(slot.plannedStart)} - ${formatDateTime(slot.plannedEnd)}</dd></div>
-        <div><dt>График ресурса</dt><dd>${escapeHtml(calendarLabel)}</dd></div>
-        <div><dt>Факт</dt><dd>${slot.actualStart ? formatDateTime(slot.actualStart) : "-"} - ${slot.actualEnd ? formatDateTime(slot.actualEnd) : "-"}</dd></div>
-        <div><dt>Отклонение</dt><dd>${escapeHtml(deviation)}</dd></div>
-        <div><dt>Фиксация</dt><dd>${slot.locked ? "Зафиксировано" : "Можно двигать"}</dd></div>
-        <div><dt>Комментарий</dt><dd>${escapeHtml(slot.comment || "Без комментария")}</dd></div>
+	      <dl class="detail-grid" data-visual-qa-target="gantt-slot-drawer-detail-grid">
+        <div data-visual-qa-target="gantt-slot-drawer-detail-product"><dt>Состав изделия</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-order"><dt>Заказ</dt><dd>${escapeHtml(project?.orderNumber || "")}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-work-center"><dt>Отдел</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-route-step"><dt>Шаг маршрута</dt><dd>${currentStep?.stepOrder || "-"} · ${escapeHtml(currentStep?.operationName || "")}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-labor" title="${escapeAttribute(planningLaborView.title)}"><dt>Расчет трудозатрат</dt><dd>${escapeHtml(planningLaborView.label)} · ${escapeHtml(planningLaborView.value)}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-calendar-window"><dt>Календарное окно</dt><dd>${formatDateTime(slot.plannedStart)} - ${formatDateTime(slot.plannedEnd)}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-calendar"><dt>График ресурса</dt><dd>${escapeHtml(calendarLabel)}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-fact"><dt>Факт</dt><dd>${slot.actualStart ? formatDateTime(slot.actualStart) : "-"} - ${slot.actualEnd ? formatDateTime(slot.actualEnd) : "-"}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-deviation"><dt>Отклонение</dt><dd>${escapeHtml(deviation)}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-lock"><dt>Фиксация</dt><dd>${slot.locked ? "Зафиксировано" : "Можно двигать"}</dd></div>
+        <div data-visual-qa-target="gantt-slot-drawer-detail-comment"><dt>Комментарий</dt><dd>${escapeHtml(slot.comment || "Без комментария")}</dd></div>
 	      </dl>
 
-	      ${renderOperationFlowMap(operationFlow, { compact: true })}
+	      ${renderOperationFlowMap(operationFlow, { compact: true, qaPrefix: "gantt-slot-drawer" })}
 
-	      ${renderDrawerRouteSequence(routeSteps, orderedSlots, slot)}
+	      ${renderDrawerRouteSequence(routeSteps, orderedSlots, slot, { qaPrefix: "gantt-slot-drawer" })}
 
       <div class="route-neighbors">
         <button class="secondary-button route-neighbor-button ui-action-button" data-focus-slot="${previous?.id || ""}" type="button" ${previous ? "" : "disabled"}>${icon("arrowLeft")}<span>${previous ? previous.operationName : "Предыдущей нет"}</span></button>
@@ -40761,12 +40422,12 @@ function renderSlotDrawer(slotWarningMap) {
       </div>
 
       ${warnings.length ? `
-        <div class="drawer-warnings">
-          ${warnings.map((warning) => `<div class="${warning.severity}">${icon(warning.severity === "critical" ? "alert" : "info")}<span>${escapeHtml(warning.message)}</span></div>`).join("")}
+        <div class="drawer-warnings" data-visual-qa-target="gantt-slot-drawer-warnings">
+          ${warnings.map((warning) => `<div class="${warning.severity}" data-visual-qa-target="gantt-slot-drawer-warning">${icon(warning.severity === "critical" ? "alert" : "info")}<span>${escapeHtml(warning.message)}</span></div>`).join("")}
         </div>
       ` : ""}
 
-      <div class="drawer-actions">
+      <div class="drawer-actions" data-visual-qa-target="gantt-slot-drawer-actions">
         <button class="primary-button ui-action-button" data-edit-slot="${slot.id}" type="button">${icon("edit")}<span>Изменить</span></button>
         <button class="secondary-button ui-action-button" data-cycle-status="${slot.id}" type="button">${icon("play")}<span>Статус</span></button>
         <button class="secondary-button ui-action-button" data-find-window-slot="${slot.id}" type="button">${icon("search")}<span>Окно</span></button>
@@ -40781,9 +40442,11 @@ function renderSlotDrawer(slotWarningMap) {
 function renderDrawerRouteSequence(routeSteps, orderedSlots, currentSlot, options = {}) {
   if (!routeSteps.length) return "";
   const actionAttribute = options.action === "edit" ? "data-edit-slot" : "data-focus-slot";
+  const qaPrefix = String(options.qaPrefix || "").trim();
+  const rootQa = qaPrefix ? ` data-visual-qa-target="${escapeAttribute(`${qaPrefix}-route-sequence`)}"` : "";
   return `
-    <div class="drawer-route-sequence" aria-label="Последовательность заказ-наряда">
-      <strong>Последовательность заказ-наряда</strong>
+    <div class="drawer-route-sequence"${rootQa} aria-label="Последовательность заказ-наряда">
+      <strong${qaPrefix ? ` data-visual-qa-target="${escapeAttribute(`${qaPrefix}-route-sequence-title`)}"` : ""}>Последовательность заказ-наряда</strong>
       <div>
         ${routeSteps.map((step) => {
           const stepSlot = orderedSlots.find((item) => item.routeStepId === step.id);
@@ -40795,7 +40458,7 @@ function renderDrawerRouteSequence(routeSteps, orderedSlots, currentSlot, option
             isManufacturingOutputReceiptRouteStep(step) ? "is-warehouse" : "",
           ].filter(Boolean).join(" ");
           return `
-            <button class="${className}" ${actionAttribute}="${stepSlot?.id || ""}" type="button" ${stepSlot ? "" : "disabled"} title="${escapeAttribute(step.operationName)}">
+            <button class="${className}" ${qaPrefix ? `data-visual-qa-target="${escapeAttribute(`${qaPrefix}-route-sequence-step`)}" data-route-step-id="${escapeAttribute(step.id || "")}"` : ""} ${actionAttribute}="${stepSlot?.id || ""}" type="button" ${stepSlot ? "" : "disabled"} title="${escapeAttribute(step.operationName)}">
               <b>${step.stepOrder}</b>
               <span>${escapeHtml(getWorkCenter(step.workCenterId)?.code || step.workCenterId)}</span>
             </button>
@@ -40888,7 +40551,7 @@ function renderEditorModal() {
                 data-toggle-visual-qa
                 type="button"
                 aria-pressed="${ui.visualQaEnabled ? "true" : "false"}"
-                title="QA: выбрать элемент и скопировать отчет"
+                title="QA: клик - компактный отчет, Shift+клик - полный"
               >${icon("bug")}</button>
               <button class="icon-button ui-action-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
             </div>
@@ -40899,7 +40562,7 @@ function renderEditorModal() {
 
           ${isEdit ? `
             <section class="slot-form-context" data-visual-qa-target="gantt-slot-editor-context" aria-label="Контекст операции">
-              <div class="drawer-summary ${slotStatusClass}">
+              <div class="drawer-summary ${slotStatusClass}" data-visual-qa-target="gantt-slot-editor-summary">
                 <div>
                   <strong>Заказ-наряд</strong>
                   <span>${Number(slot.quantity || 0).toLocaleString("ru-RU")} шт.</span>
@@ -40907,42 +40570,42 @@ function renderEditorModal() {
                 <span>${escapeHtml(slotStatusView.label || "статус")}</span>
               </div>
 
-              <div class="drawer-signal-grid">
-                <article>
+              <div class="drawer-signal-grid" data-visual-qa-target="gantt-slot-editor-signal-grid">
+                <article data-visual-qa-target="gantt-slot-editor-working-duration">
                   <span>Рабочая длительность</span>
                   <strong>${formatDuration(planMs)}</strong>
                 </article>
-                <article>
+                <article data-visual-qa-target="gantt-slot-editor-calendar-duration">
                   <span>Календарное окно</span>
                   <strong>${formatDuration(calendarMs)}</strong>
                 </article>
-                <article>
+                <article data-visual-qa-target="gantt-slot-editor-resource-code">
                   <span>Ресурс</span>
                   <strong>${escapeHtml(workCenter?.code || "-")}</strong>
                 </article>
-                <article class="${warnings.length ? "warning" : "ok"}">
+                <article class="${warnings.length ? "warning" : "ok"}" data-visual-qa-target="gantt-slot-editor-signal-count">
                   <span>Сигналы</span>
                   <strong>${warnings.length}</strong>
                 </article>
               </div>
 
-              <dl class="detail-grid">
-                <div><dt>Состав изделия</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
-                <div><dt>Заказ</dt><dd>${escapeHtml(project?.orderNumber || "")}</dd></div>
-                <div><dt>Отдел</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
-                <div><dt>Шаг маршрута</dt><dd>${currentStep?.stepOrder || "-"} · ${escapeHtml(currentStep?.operationName || "")}</dd></div>
-                <div title="${escapeAttribute(planningLaborView.title)}"><dt>Расчет трудозатрат</dt><dd>${escapeHtml(planningLaborView.label)} · ${escapeHtml(planningLaborView.value)}</dd></div>
-                <div><dt>Календарное окно</dt><dd>${formatDateTime(slot.plannedStart)} - ${formatDateTime(slot.plannedEnd)}</dd></div>
-                <div><dt>График ресурса</dt><dd>${escapeHtml(calendarLabel)}</dd></div>
-                <div><dt>Факт</dt><dd>${slot.actualStart ? formatDateTime(slot.actualStart) : "-"} - ${slot.actualEnd ? formatDateTime(slot.actualEnd) : "-"}</dd></div>
-                <div><dt>Отклонение</dt><dd>${escapeHtml(deviation)}</dd></div>
-                <div><dt>Фиксация</dt><dd>${slot.locked ? "Зафиксировано" : "Можно двигать"}</dd></div>
-                <div><dt>Комментарий</dt><dd>${escapeHtml(slot.comment || "Без комментария")}</dd></div>
+              <dl class="detail-grid" data-visual-qa-target="gantt-slot-editor-detail-grid">
+                <div data-visual-qa-target="gantt-slot-editor-detail-product"><dt>Состав изделия</dt><dd>${escapeHtml(getProjectDisplayName(project) || "")}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-order"><dt>Заказ</dt><dd>${escapeHtml(project?.orderNumber || "")}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-work-center"><dt>Отдел</dt><dd>${escapeHtml(workCenter?.name || "")}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-route-step"><dt>Шаг маршрута</dt><dd>${currentStep?.stepOrder || "-"} · ${escapeHtml(currentStep?.operationName || "")}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-labor" title="${escapeAttribute(planningLaborView.title)}"><dt>Расчет трудозатрат</dt><dd>${escapeHtml(planningLaborView.label)} · ${escapeHtml(planningLaborView.value)}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-calendar-window"><dt>Календарное окно</dt><dd>${formatDateTime(slot.plannedStart)} - ${formatDateTime(slot.plannedEnd)}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-calendar"><dt>График ресурса</dt><dd>${escapeHtml(calendarLabel)}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-fact"><dt>Факт</dt><dd>${slot.actualStart ? formatDateTime(slot.actualStart) : "-"} - ${slot.actualEnd ? formatDateTime(slot.actualEnd) : "-"}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-deviation"><dt>Отклонение</dt><dd>${escapeHtml(deviation)}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-lock"><dt>Фиксация</dt><dd>${slot.locked ? "Зафиксировано" : "Можно двигать"}</dd></div>
+                <div data-visual-qa-target="gantt-slot-editor-detail-comment"><dt>Комментарий</dt><dd>${escapeHtml(slot.comment || "Без комментария")}</dd></div>
               </dl>
 
-              ${renderOperationFlowMap(operationFlow, { compact: true })}
+              ${renderOperationFlowMap(operationFlow, { compact: true, qaPrefix: "gantt-slot-editor" })}
 
-              ${renderDrawerRouteSequence(sequenceSteps, orderedSlots, slot, { action: "edit" })}
+              ${renderDrawerRouteSequence(sequenceSteps, orderedSlots, slot, { action: "edit", qaPrefix: "gantt-slot-editor" })}
 
               <div class="route-neighbors">
                 <button class="secondary-button route-neighbor-button ui-action-button" data-edit-slot="${previous?.id || ""}" type="button" ${previous ? "" : "disabled"}>${icon("arrowLeft")}<span>${previous ? previous.operationName : "Предыдущей нет"}</span></button>
@@ -40950,12 +40613,12 @@ function renderEditorModal() {
               </div>
 
               ${warnings.length ? `
-                <div class="drawer-warnings">
-                  ${warnings.map((warning) => `<div class="${warning.severity}">${icon(warning.severity === "critical" ? "alert" : "info")}<span>${escapeHtml(warning.message)}</span></div>`).join("")}
+                <div class="drawer-warnings" data-visual-qa-target="gantt-slot-editor-warnings">
+                  ${warnings.map((warning) => `<div class="${warning.severity}" data-visual-qa-target="gantt-slot-editor-warning">${icon(warning.severity === "critical" ? "alert" : "info")}<span>${escapeHtml(warning.message)}</span></div>`).join("")}
                 </div>
               ` : ""}
 
-              <div class="drawer-actions slot-form-actions">
+              <div class="drawer-actions slot-form-actions" data-visual-qa-target="gantt-slot-editor-actions">
                 <button class="secondary-button ui-action-button" data-cycle-status="${slot.id}" type="button">${icon("play")}<span>Статус</span></button>
                 <button class="secondary-button ui-action-button" data-find-window-slot="${slot.id}" type="button">${icon("search")}<span>Окно</span></button>
                 <button class="secondary-button ui-action-button" data-cascade-slot="${slot.id}" type="button">${icon("refresh")}<span>Цепочка</span></button>
@@ -42755,7 +42418,7 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     setVisualQaEnabled(!ui.visualQaEnabled);
     persistUiState();
-    notifySaveSuccess(ui.visualQaEnabled ? "QA: кликни элемент для копирования отчета" : "Visual QA выключен");
+    notifySaveSuccess(ui.visualQaEnabled ? "QA: клик - компактный отчет, Shift+клик - полный" : "Visual QA выключен");
     render();
     return;
   }
@@ -42787,6 +42450,10 @@ window.addEventListener("pointermove", (event) => {
 
 window.addEventListener("pointerdown", (event) => {
   consumeVisualQaInspectorEvent(event);
+}, true);
+
+window.addEventListener("pointerup", (event) => {
+  consumeVisualQaFollowupClick(event, { keepSuppressWindow: true });
 }, true);
 
 window.addEventListener("click", (event) => {
@@ -42821,7 +42488,7 @@ window.addEventListener("click", (event) => {
     event.preventDefault();
     setVisualQaEnabled(!ui.visualQaEnabled);
     persistUiState();
-    notifySaveSuccess(ui.visualQaEnabled ? "QA: кликни элемент для копирования отчета" : "Visual QA выключен");
+    notifySaveSuccess(ui.visualQaEnabled ? "QA: клик - компактный отчет, Shift+клик - полный" : "Visual QA выключен");
     render();
     return;
   }

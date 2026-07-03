@@ -1,4 +1,68 @@
 /* MES UI Core v1: reusable primitives and shell contracts for new prototypes. */
+html{
+  --mes-ui-bg: #eef3f8;
+  --mes-ui-bg-grid: rgba(37, 99, 235, 0.035);
+  --mes-ui-bg-gradient: linear-gradient(180deg, rgba(15, 35, 60, 0.055), rgba(238, 243, 248, 0) 220px);
+  --mes-ui-module-page-background:
+    var(--mes-ui-bg-gradient),
+    linear-gradient(var(--mes-ui-bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mes-ui-bg-grid) 1px, transparent 1px),
+    var(--mes-ui-bg);
+  --mes-ui-module-page-background-size: auto, 22px 22px, 22px 22px, auto;
+  --mes-ui-module-page-background-repeat: no-repeat, repeat, repeat, repeat;
+  --mes-ui-surface: #ffffff;
+  --mes-ui-surface-soft: #f8fafc;
+  --mes-ui-surface-raised: #ffffff;
+  --mes-ui-line: #d7e0ea;
+  --mes-ui-line-strong: #cbd5e1;
+  --mes-ui-text: #0f172a;
+  --mes-ui-muted: #64748b;
+  --mes-ui-primary: #2563eb;
+  --mes-ui-sidebar-bg: #10233c;
+  --mes-ui-success: #15803d;
+  --mes-ui-success-soft: #f0fdf4;
+  --mes-ui-success-border: #bbf7d0;
+  --mes-ui-warning: #a16207;
+  --mes-ui-warning-soft: #fffbeb;
+  --mes-ui-warning-border: #fde68a;
+  --mes-ui-danger: #b91c1c;
+  --mes-ui-danger-soft: #fff1f2;
+  --mes-ui-danger-border: #fecdd3;
+  --mes-ui-module-sidebar-width: 260px;
+  --mes-ui-work-sidebar-width: 300px;
+  --mes-ui-density-page: 8px;
+  --mes-ui-density-gap: 8px;
+  --mes-ui-panel-gap: 10px;
+  --mes-ui-sidebar-row-gap: 6px;
+  --mes-ui-panel-head-padding: 10px 12px;
+  --mes-ui-panel-body-padding: 12px;
+  --mes-ui-panel-footer-padding: 10px 12px;
+  --mes-ui-control-height: 36px;
+  --mes-ui-icon-button-size: 36px;
+  --mes-ui-table-icon-button-size: 30px;
+  --mes-ui-form-control-height: 34px;
+  --mes-ui-table-row-height: 40px;
+  --mes-ui-touch-min: 32px;
+  --mes-ui-radius-xs: 4px;
+  --mes-ui-radius-sm: 5px;
+  --mes-ui-radius-md: 6px;
+  --mes-ui-radius-lg: 8px;
+  --mes-ui-radius-xl: 8px;
+  --mes-ui-pill: 999px;
+  --mes-ui-type-caption: 11px;
+  --mes-ui-type-body: 13px;
+  --mes-ui-type-section-title: 15px;
+  --mes-ui-line-caption: 15px;
+  --mes-ui-line-body: 18px;
+  --mes-ui-line-section-title: 20px;
+  --mes-ui-weight-regular: 400;
+  --mes-ui-weight-semibold: 680;
+  --mes-ui-weight-bold: 820;
+  --mes-ui-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --mes-ui-shadow-md: 0 12px 32px rgba(15, 23, 42, 0.08);
+  --mes-ui-z-dropdown: 120;
+}
+
 .ui-panel{
   min-width: 0;
   overflow: visible !important;
@@ -163,7 +227,7 @@ but its body must never collapse and leak into the next block. */
   justify-self: end;
 }
 
-.ui-panel-head{
+.ui-panel-head[data-ui-component="PanelHead"]{
   min-width: 0;
   align-items: center;
 }
@@ -275,18 +339,18 @@ never by Y. */
   max-width: 100%;
 }
 
-.ui-sidebar-list{
+main.app-shell[data-layout="app-shell"] .ui-sidebar-list{
   min-width: 0;
   min-height: 0;
 }
 
-.ui-sidebar-label{
+main.app-shell[data-layout="app-shell"] .ui-sidebar-label{
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
 }
 
-.ui-sidebar-item{
+main.app-shell[data-layout="app-shell"] .ui-sidebar-item{
   min-width: 0;
   box-sizing: border-box;
 }
@@ -673,7 +737,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   overflow: hidden !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-step{
   justify-self: stretch !important;
   justify-items: center !important;
   width: 100% !important;
@@ -682,60 +746,60 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   box-sizing: border-box !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-panel{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-step-panel{
   justify-self: center !important;
   width: min(1320px, calc(100vw - 44px)) !important;
   max-width: calc(100vw - 44px) !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-panel{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-pin-panel{
   width: min(1320px, calc(100vw - 44px)) !important;
   max-width: calc(100vw - 44px) !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-people-grid button[data-ui-component="ActionButton"]{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-people-grid button[data-ui-component="ActionButton"]{
   min-height: 112px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-department-grid button[data-ui-component="ActionButton"],
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-unit-grid button[data-ui-component="ActionButton"]{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-department-grid button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-unit-grid button[data-ui-component="ActionButton"]{
   min-height: 112px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] [data-layout="main-content"] .auth-prototype-keypad button[data-ui-component="ActionButton"]{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-keypad button[data-ui-component="ActionButton"]{
   width: 96px !important;
   min-width: 96px !important;
   height: 96px !important;
   min-height: 96px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head{
   align-items: start !important;
   min-height: 64px !important;
   padding: 14px 18px 16px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head .ui-panel-head-copy > div{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head .ui-panel-head-copy > div{
   gap: 5px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head strong{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head strong{
   font-size: 14px !important;
   line-height: 18px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head span{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head span{
   overflow: visible !important;
   line-height: 16px !important;
   text-overflow: clip !important;
   white-space: normal !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-body{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-body{
   padding-top: 14px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-header{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-header{
   justify-self: stretch !important;
   width: 100% !important;
   min-width: 0 !important;
@@ -746,17 +810,17 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   color: var(--mes-ui-text, #0f172a) !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-header :is(.eyebrow, h1, p, span, strong, small){
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-header :is(.eyebrow, h1, p, span, strong, small){
   color: inherit !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-grid button{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-grid button{
   grid-template-columns: 42px minmax(0, 1fr) !important;
   gap: 10px !important;
   align-items: center !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-icon{
   display: grid !important;
   place-items: center !important;
   width: 42px !important;
@@ -766,23 +830,23 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   overflow: visible !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon svg{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-icon svg{
   display: block !important;
   width: 22px !important;
   height: 22px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-department-icon{
   color: var(--mes-ui-sidebar-bg, #10233c) !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-copy{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-copy{
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid button.is-auth-master{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master{
   position: relative !important;
   padding-right: 72px !important;
   border-color: var(--mes-ui-line, #e2e8f0) !important;
@@ -790,11 +854,11 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   box-shadow: none !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid button.is-auth-master strong{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master strong{
   color: var(--mes-ui-text, #0f172a) !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-role-marker{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-role-marker{
   position: absolute !important;
   top: 10px !important;
   right: 10px !important;
@@ -815,13 +879,13 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   pointer-events: none !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people{
   display: grid;
   gap: 10px;
   min-width: 0;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head{
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -831,8 +895,8 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   padding-top: 12px;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head span{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head span{
   min-width: 0;
   overflow: visible;
   overflow-wrap: anywhere;
@@ -840,14 +904,393 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   white-space: normal;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head strong{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head strong{
   color: var(--mes-ui-text, #0f172a);
   font-size: 12px;
   font-weight: 780;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-inline-people-head span{
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 11px;
   font-weight: 600;
+}
+
+/* UI Control Surface v1.
+   This late layer is the single edit point for shared MES primitives. */
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]){
+  background: var(--mes-ui-module-page-background);
+  background-size: var(--mes-ui-module-page-background-size);
+  background-repeat: var(--mes-ui-module-page-background-repeat);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ModulePage"].ui-module-page{
+  gap: var(--mes-ui-density-gap);
+  padding: var(--mes-ui-density-page) calc(var(--mes-ui-density-page) + 2px);
+  background: var(--mes-ui-module-page-background);
+  background-size: var(--mes-ui-module-page-background-size);
+  background-repeat: var(--mes-ui-module-page-background-repeat);
+}
+
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-runtime="hard-v1"][data-ui-component="ModulePage"].ui-module-page,
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .module-data-page,
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .planner-workspace,
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .planning-page{
+  background: var(--mes-ui-module-page-background);
+  background-size: var(--mes-ui-module-page-background-size);
+  background-repeat: var(--mes-ui-module-page-background-repeat);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ModulePage"].ui-module-page.has-sidebar{
+  grid-template-columns: minmax(var(--mes-ui-module-sidebar-width, 260px), var(--mes-ui-module-sidebar-width, 260px)) minmax(0, 1fr);
+  column-gap: var(--mes-ui-density-gap, 8px);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleWorkspace"].ui-module-workspace,
+main.app-shell[data-layout="app-shell"] .module-data-workspace[data-ui-component="ModuleWorkspace"]{
+  border-color: var(--mes-ui-line-strong);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface);
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-component="ModuleWorkspace"].ui-module-workspace,
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .module-data-workspace[data-ui-component="ModuleWorkspace"]{
+  background: var(--mes-ui-surface) !important;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleContent"].ui-module-content,
+main.app-shell[data-layout="app-shell"] .module-data-content[data-ui-component="ModuleContent"]{
+  gap: var(--mes-ui-density-gap);
+  padding: var(--mes-ui-density-page);
+}
+
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-component="ModuleContent"].ui-module-content,
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .module-data-content[data-ui-component="ModuleContent"]{
+  background: transparent !important;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleSidebar"].ui-module-sidebar,
+main.app-shell[data-layout="app-shell"] .module-data-sidebar[data-ui-component="ModuleSidebar"],
+main.app-shell[data-layout="app-shell"] .directory-sidebar[data-ui-component="ModuleSidebar"]{
+  width: var(--mes-ui-module-sidebar-width, 260px);
+  min-width: var(--mes-ui-module-sidebar-width, 260px);
+  max-width: var(--mes-ui-module-sidebar-width, 260px);
+  gap: var(--mes-ui-sidebar-row-gap);
+  border-color: var(--mes-ui-line-strong);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-raised);
+  color: var(--mes-ui-text);
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleHeader"].ui-module-header,
+main.app-shell[data-layout="app-shell"] .directory-header[data-ui-component="ModuleHeader"]{
+  min-width: 0;
+  border-color: var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-raised);
+  padding: var(--mes-ui-panel-head-padding);
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"].ui-panel,
+main.app-shell[data-layout="app-shell"] .module-panel[data-ui-component="Panel"]{
+  gap: var(--mes-ui-panel-gap);
+  min-width: 0;
+  border-color: var(--mes-ui-line-strong);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-raised);
+  color: var(--mes-ui-text);
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"].ui-panel-head,
+main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > .modal-header[data-ui-component="PanelHead"]{
+  min-width: 0;
+  border-bottom: 1px solid var(--mes-ui-line);
+  padding: var(--mes-ui-panel-head-padding);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"].ui-panel-body{
+  min-width: 0;
+  padding: var(--mes-ui-panel-body-padding);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelFooter"].ui-panel-footer,
+main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > .modal-footer[data-ui-component="PanelFooter"]{
+  min-width: 0;
+  padding: var(--mes-ui-panel-footer-padding);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].ui-action-button,
+main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--mes-ui-control-height);
+  border-radius: var(--mes-ui-radius-sm);
+  border-width: 1px;
+  border-style: solid;
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"]{
+  border-color: var(--mes-ui-primary);
+  background: var(--mes-ui-primary);
+  color: #ffffff;
+}
+
+main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"]{
+  border-color: var(--mes-ui-line);
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"]{
+  width: var(--mes-ui-icon-button-size);
+  min-width: var(--mes-ui-icon-button-size);
+  height: var(--mes-ui-icon-button-size);
+  min-height: var(--mes-ui-icon-button-size);
+  padding: 0;
+}
+
+main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
+  width: var(--mes-ui-table-icon-button-size);
+  min-width: var(--mes-ui-table-icon-button-size);
+  height: var(--mes-ui-table-icon-button-size);
+  min-height: var(--mes-ui-table-icon-button-size);
+  padding: 0;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"] > :is(span, strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+main.app-shell[data-layout="app-shell"] .mes-signal[data-ui-component="StatusToken"],
+main.app-shell[data-layout="app-shell"] .ui-status-token[data-ui-component="StatusToken"]{
+  min-width: 0;
+  max-width: 100%;
+}
+
+main.app-shell[data-layout="app-shell"] .module-preview-empty[data-ui-component="EmptyState"],
+main.app-shell[data-layout="app-shell"] .ui-empty-state[data-ui-component="EmptyState"]{
+  min-width: 0;
+  max-width: 100%;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"].ui-form-field,
+main.app-shell[data-layout="app-shell"] .form-field[data-ui-component="FormField"]{
+  min-width: 0;
+  gap: 5px;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select, textarea){
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--mes-ui-form-control-height);
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-body);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select){
+  padding: 0 10px;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] textarea{
+  padding: 8px 10px;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"].ui-table-wrap{
+  max-width: 100%;
+  border-radius: var(--mes-ui-radius-md);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :is(th, td){
+  min-height: var(--mes-ui-table-row-height);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Dropdown"].ui-dropdown,
+main.app-shell[data-layout="app-shell"] .dense-inline-select[data-ui-component="Dropdown"],
+main.app-shell[data-layout="app-shell"] .directory-column-filter[data-ui-component="Dropdown"]{
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Modal"].ui-modal,
+main.app-shell[data-layout="app-shell"] .modal[data-ui-component="Modal"]{
+  border-radius: var(--mes-ui-radius-lg);
+  background: var(--mes-ui-surface-raised);
+  color: var(--mes-ui-text);
+  box-shadow: var(--mes-ui-shadow-md);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Drawer"].ui-drawer,
+main.app-shell[data-layout="app-shell"] .detail-drawer[data-ui-component="Drawer"],
+main.app-shell[data-layout="app-shell"] .slot-drawer[data-ui-component="Drawer"]{
+  border-radius: var(--mes-ui-radius-lg);
+  background: var(--mes-ui-surface-raised);
+  color: var(--mes-ui-text);
+  box-shadow: var(--mes-ui-shadow-md);
+}
+
+main.app-shell[data-layout="app-shell"] .operation-slot[data-ui-component="GanttBar"],
+main.app-shell[data-layout="app-shell"] .ui-gantt-bar[data-ui-component="GanttBar"]{
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Radius normalization contract.
+   Dense MES screens should read as calm rectangles, not soft consumer cards.
+   Keep pills only for explicit badges/tokens; panels, cards and controls stay <= 8px. */
+main.app-shell[data-layout="app-shell"]{
+  --mes-ui-radius-xs: 4px;
+  --mes-ui-radius-sm: 5px;
+  --mes-ui-radius-md: 6px;
+  --mes-ui-radius-lg: 8px;
+  --mes-ui-radius-xl: 8px;
+  --mes-ui-pill: 999px;
+  --mes-radius-xs: var(--mes-ui-radius-xs);
+  --mes-radius-sm: var(--mes-ui-radius-sm);
+  --mes-radius-md: var(--mes-ui-radius-md);
+  --mes-radius-lg: var(--mes-ui-radius-lg);
+  --mes-radius-xl: var(--mes-ui-radius-xl);
+  --mes-radius-control: var(--mes-ui-radius-sm);
+  --mes-radius-card: var(--mes-ui-radius-md);
+  --mes-radius-panel: var(--mes-ui-radius-xl);
+  --layout-card-radius: var(--mes-ui-radius-md);
+}
+
+main.app-shell[data-layout-page="planning"] .planning-order-page,
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
+  --planning-order-radius-xs: var(--mes-ui-radius-xs);
+  --planning-order-radius-sm: var(--mes-ui-radius-sm);
+  --planning-order-radius: var(--mes-ui-radius-md);
+  --planning-order-radius-lg: var(--mes-ui-radius-xl);
+}
+
+main.app-shell[data-layout-page="directories"] .directories-page{
+  --directory-ui-radius-sm: var(--mes-ui-radius-sm);
+  --directory-ui-radius: var(--mes-ui-radius-md);
+  --directory-ui-radius-lg: var(--mes-ui-radius-xl);
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  [data-ui-component="ModuleWorkspace"],
+  [data-ui-component="ModuleSidebar"],
+  [data-ui-component="ModuleHeader"],
+  [data-ui-component="Panel"],
+  [data-ui-component="TableWrap"]
+){
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  [data-ui-component="ActionButton"].ui-action-button,
+  .primary-button[data-ui-component="ActionButton"],
+  .secondary-button[data-ui-component="ActionButton"],
+  .icon-button[data-ui-component="ActionButton"],
+  .table-icon-button[data-ui-component="ActionButton"],
+  [data-ui-component="FormField"] :is(input, select, textarea)
+){
+  border-radius: var(--mes-ui-radius-sm) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui :is(
+  .planning-order-queue,
+  .planning-order-header,
+  .planning-order-route-map,
+  .planning-order-record,
+  .planning-order-record-section,
+  .route-smt-step-card,
+  .route-smt-grid,
+  .planning-detail-disclosure,
+  .planning-detail-body,
+  .route-smt-balance-block,
+  .route-smt-input-block,
+  .route-smt-result-block,
+  .route-smt-balance-disclosure,
+  .smt-result-kpi-row article,
+  .smt-machine-balance-summary article
+),
+main.app-shell[data-layout-page="directories"] .directories-page :is(
+  .directory-header,
+  [class~="directory-table-card"]
+),
+main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(
+  .planning-smt-calculator-panel,
+  .planning-empty-panel
+),
+main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(
+  .shop-map-widget
+),
+main.app-shell[data-layout-page="shiftMasterBoard"] :is(
+  .shift-master-board-panel,
+  .shift-master-board-task-context,
+  .shift-master-board-section,
+  .shift-master-board-card,
+  .shift-master-board-available-person,
+  .shift-master-board-document,
+  .visual-state-card
+){
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui :is(
+  .planning-order-route-item,
+  .planning-order-phase,
+  .planning-order-lane-head,
+  .planning-order-step-pill,
+  .planning-order-register-row,
+  .planning-order-segmented-actions button,
+  .planning-order-rule-editor input,
+  .route-smt-step-head,
+  .route-smt-input-block .field input,
+  .route-smt-input-block .dense-inline-select > summary,
+  .route-smt-result-block .smt-result-kpi-row article,
+  .route-smt-balance-disclosure > summary,
+  .route-smt-popup-actions .secondary-button,
+  .smt-machine-actions .secondary-button,
+  .smt-machine-actions .primary-button
+),
+main.app-shell[data-layout-page="directories"] .directories-page :is(
+  .directory-nav-item,
+  .directory-health div,
+  .directory-detail-list div
+),
+main.app-shell[data-layout-page="shiftMasterBoard"] :is(
+  .shift-master-board-available-quantity input,
+  .shift-master-board-available-capacity,
+  .shift-master-board-summary-cell,
+  .shift-master-board-route-chain-card,
+  .visual-form-grid .form-field
+){
+  border-radius: var(--mes-ui-radius-sm) !important;
+}
+
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions :is(
+  .primary-button,
+  .secondary-button
+),
+main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail :is(
+  .route-smt-popup-actions .secondary-button,
+  .smt-machine-actions .secondary-button,
+  .smt-machine-actions .primary-button
+){
+  border-radius: var(--mes-ui-radius-sm) !important;
 }

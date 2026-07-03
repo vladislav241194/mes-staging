@@ -1,61 +1,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  UI_RUNTIME_CONTROLLED_CLASS_PREFIXES,
+  UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES,
+  UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES,
+} from "../src/ui_runtime_contracts.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 
-const runtimeClassPrefixes = [
-  "auth-prototype-",
-  "auth-session-",
-  "shift-master-board-",
-  "shift-work-orders-",
-  "timesheet-",
-  "roles-",
-  "production-structure-",
-  "planning-table-",
-  "matrix-",
-  "planning-order-",
-  "route-",
-  "routes-",
-  "speki-",
-  "bom-",
-  "nomenclature-",
-  "employee-",
-  "employees-",
-  "directory-",
-  "dispatch-",
-  "supply-",
-  "shop-",
-  "shop-map-",
-  "product-",
-  "products-",
-  "spec-",
-  "specification-",
-  "calculator-",
-  "operation-",
-  "slot-",
-  "planning-",
-  "module-",
-  "auth-",
-  "access-",
-  "smt-",
-  "visual-",
-  "row-",
-  "bar-",
-  "modal-",
-  "app-",
-];
-const dynamicCssOnlyPrefixes = [
-  "is-",
-  "status-",
-  "dense-select-",
-];
-const dynamicCssOnlyClasses = new Set([
-  "production-row",
-  "resource-row",
-  "workCenter-row",
-]);
+const runtimeClassPrefixes = UI_RUNTIME_CONTROLLED_CLASS_PREFIXES;
+const dynamicCssOnlyPrefixes = UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES;
+const dynamicCssOnlyClasses = new Set(UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES);
 
 async function collectCssFiles(relativeDir = "styles") {
   const absoluteDir = path.join(rootDir, relativeDir);

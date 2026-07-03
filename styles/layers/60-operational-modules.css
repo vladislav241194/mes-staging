@@ -3005,13 +3005,6 @@ not the operations block. */
   font-size: 10px;
   line-height: 13px;
 }
-.auth-prototype-app-shell .auth-session-prototype-grid{
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: 10px;
-  align-items: start;
-  min-width: 0;
-}
 .auth-prototype-app-shell .auth-prototype-session-panel .ui-panel-footer,
 .auth-prototype-app-shell .auth-prototype-access-panel .ui-panel-footer{
   flex-wrap: wrap;
@@ -3124,32 +3117,6 @@ not the operations block. */
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.auth-prototype-app-shell .auth-prototype-flow{
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-}
-.auth-prototype-app-shell .auth-prototype-flow article{
-  display: grid;
-  grid-template-columns: minmax(120px, 0.6fr) repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  min-width: 0;
-}
-.auth-prototype-app-shell .auth-prototype-flow strong,
-.auth-prototype-app-shell .auth-prototype-flow span{
-  min-width: 0;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: var(--mes-radius-md, 8px);
-  background: #fff;
-  padding: 7px;
-  font-size: 10px;
-  line-height: 13px;
-}
-.auth-prototype-app-shell .auth-prototype-flow strong{
-  background: rgba(239, 246, 255, 0.76);
-  color: var(--mes-ui-text, #0f172a);
-}
-
 @media (max-width: 920px) {
   .auth-prototype-app-shell .auth-prototype-content{
     padding: 10px;
@@ -3158,10 +3125,6 @@ not the operations block. */
   .auth-prototype-app-shell .auth-prototype-header{
     padding-block: 12px;
   }
-  .auth-prototype-app-shell .auth-session-prototype-grid{
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .auth-prototype-app-shell .auth-prototype-department-grid,
 .auth-prototype-app-shell .auth-prototype-unit-grid,
 .auth-prototype-app-shell .auth-prototype-people-grid{
@@ -3195,6 +3158,4 @@ not the operations block. */
     min-height: 48px;
   }
 
-  .auth-prototype-app-shell .auth-prototype-flow article{
-    grid-template-columns: minmax(0, 1fr);
-  }}
+}

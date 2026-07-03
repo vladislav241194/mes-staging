@@ -17,7 +17,7 @@ function delay(ms) {
 }
 
 function formatRu(value) {
-  return Number(value || 0).toLocaleString("ru-RU");
+  return Number(value || 0).toLocaleString("ru-RU").replace(/\s+/g, " ");
 }
 
 function withQuery(baseUrl, params = {}) {
@@ -408,15 +408,7 @@ async function runShiftMasterScenario(client) {
       assignmentKeys: Object.keys(afterAssignmentStores.ui.shiftMasterBoardAssignments || {}).slice(0, 8),
       storedAssignment: assignment,
     };
-    const storedAssignedQuantity = Number(assignment?.assignedQuantity || 0);
-    const actualQuantity = storedAssignedQuantity > 1 ? Math.max(0, Math.floor(storedAssignedQuantity * 0.6)) : 0;
-    setValue(document.querySelector("[data-shift-board-fact-actual]"), actualQuantity);
-    setValue(document.querySelector("[data-shift-board-fact-defect]"), "0");
-    setValue(document.querySelector("[data-shift-board-fact-labor]"), "240");
-    setValue(document.querySelector("[data-shift-board-fact-executors]"), "1");
-    setValue(document.querySelector("[data-shift-board-fact-comment]"), "qa shift operational flow fact");
-    clickIfExists("[data-shift-board-save-fact]");
-    await wait(180);
+    const factPanelVisible = Boolean(document.querySelector("[data-shift-board-fact-panel], [data-shift-board-save-fact]"));
 
     const { ui, state } = readStores();
     const storedAssignment = ui.shiftMasterBoardAssignments?.[assignmentCardId] || null;
@@ -432,6 +424,7 @@ async function runShiftMasterScenario(client) {
       timesheetAssignedQuantity,
       rowDiagnosticsBeforeSave,
       quantityInputDiagnostics,
+      factPanelVisible,
       assignment: storedAssignment,
       fact: storedFact,
       carryovers,
@@ -461,14 +454,89 @@ async function runShiftMasterScenario(client) {
   assert(result.assignment.assignedQuantity > 0, `Назначение не сохранило распределенное количество: ${JSON.stringify({ assignment: result.assignment, rowDiagnosticsBeforeSave: result.rowDiagnosticsBeforeSave })}`);
   assert(result.assignment.assignedQuantity < result.assignment.plannedQuantity, `Для QA нужен дефицит распределения: ${JSON.stringify(result.assignment)}`);
   assert((result.assignment.executors || []).length === 1, `Назначение должно сохранить одного исполнителя после нормализации: ${JSON.stringify(result.assignment.executors)}`);
-  assert(result.fact?.updatedAt, `Факт смены не сохранился: ${JSON.stringify(result.fact)}`);
-  assert(result.fact?.transferContract?.remainingQuantity > 0, `Факт не сохранил остаток в контракте передачи: ${JSON.stringify(result.fact?.transferContract)}`);
-  assert(Number(result.fact.actualQuantity || 0) < Number(result.assignment.assignedQuantity || 0), `Для QA нужен дефицит факта к распределению: assignment=${JSON.stringify(result.assignment)} fact=${JSON.stringify(result.fact)}`);
+  assert(!result.factPanelVisible, "Мастерская снова показала удаленную форму закрытия факта. Факт должен вводиться через Рабочий стол.");
+  assert(!result.fact?.updatedAt, `Мастерская не должна сохранять факт до Рабочего стола: ${JSON.stringify(result.fact)}`);
   assert(result.sourceSlot?.id, `Не найден исходный слот для назначения: ${JSON.stringify(result)}`);
   assert(!String(result.sourceSlot.id).startsWith("board-fallback-"), `Сценарий выбрал fallback-строку вместо реального слота: ${JSON.stringify({ alignedWindow, sourceSlot: result.sourceSlot })}`);
+  return { ...result, alignedWindow };
+}
+
+async function closeFactFromWorkDesk(client, scenario) {
+  await navigateModule(client, "authSessionPrototype", "shift-operational-flow-workdesk");
+  const result = await evaluate(client, async ({ uiKey, rowId, assignment }) => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const click = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return false;
+      element.click();
+      return true;
+    };
+    const clickByAttribute = (selector, attribute, value) => {
+      const element = [...document.querySelectorAll(selector)]
+        .find((candidate) => candidate.getAttribute(attribute) === value);
+      if (!element) return false;
+      element.click();
+      return true;
+    };
+    const typeNumber = async (field, value) => {
+      click(`[data-auth-session-field="${field}"]`);
+      await wait(60);
+      for (let index = 0; index < 8; index += 1) {
+        click("[data-auth-session-backspace]");
+        await wait(20);
+      }
+      const digits = String(value || 0).replace(/\D/g, "") || "0";
+      for (const digit of digits) {
+        click(`[data-auth-session-digit="${digit}"]`);
+        await wait(45);
+      }
+    };
+    const executor = (assignment.executors || [])[0] || null;
+    const taskId = `${rowId}::${executor?.employeeId || ""}`;
+    const assignedQuantity = Number(executor?.quantity || assignment.assignedQuantity || 0);
+    const actualQuantity = assignedQuantity > 1 ? Math.max(0, Math.floor(assignedQuantity * 0.6)) : 0;
+    const taskSelected = clickByAttribute("[data-auth-session-task]", "data-auth-session-task", taskId);
+    await wait(120);
+    const startClicked = clickByAttribute("[data-auth-session-start-task]", "data-auth-session-start-task", taskId);
+    await wait(120);
+    await typeNumber("actual", actualQuantity);
+    await typeNumber("defect", 0);
+    const saveClicked = clickByAttribute("[data-auth-session-save-fact]", "data-auth-session-save-fact", taskId);
+    await wait(220);
+    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+    const storedFact = ui.shiftMasterBoardFacts?.[rowId] || null;
+    const carryovers = Object.values(ui.shiftMasterBoardCarryovers || {}).filter((item) => item?.sourceRowId === rowId);
+    const draft = ui.authSessionFactDrafts?.[taskId] || null;
+    return {
+      taskId,
+      taskSelected,
+      startClicked,
+      saveClicked,
+      assignedQuantity,
+      actualQuantity,
+      draft,
+      fact: storedFact,
+      carryovers,
+      visibleTaskCount: document.querySelectorAll("[data-auth-session-task]").length,
+      factPanelVisible: Boolean(document.querySelector("[data-visual-qa-target=\"auth-session-fact-panel\"]")),
+    };
+  }, { uiKey: uiStorageKey, rowId: scenario.assignmentCardId, assignment: scenario.assignment });
+
+  assert(result.taskSelected, `Рабочий стол не показал назначенное задание исполнителя: ${JSON.stringify(result)}`);
+  assert(result.factPanelVisible, `Рабочий стол не показал панель ввода факта: ${JSON.stringify(result)}`);
+  assert(result.saveClicked, `Рабочий стол не дал записать факт: ${JSON.stringify(result)}`);
+  assert(result.draft?.updatedAt, `Факт исполнителя не сохранился в рабочем столе: ${JSON.stringify(result)}`);
+  assert(result.fact?.updatedAt, `Факт операции не попал из Рабочего стола в общий слой: ${JSON.stringify(result)}`);
+  assert(result.fact?.transferContract?.remainingQuantity > 0, `Факт не сохранил остаток в контракте передачи: ${JSON.stringify(result.fact?.transferContract)}`);
+  assert(Number(result.fact.actualQuantity || 0) < Number(scenario.assignment.assignedQuantity || 0), `Для QA нужен дефицит факта к распределению: assignment=${JSON.stringify(scenario.assignment)} fact=${JSON.stringify(result.fact)}`);
   assert(result.carryovers.length > 0, `Недовыпуск не создал остаток смены: ${JSON.stringify(result.fact)}`);
   assert(result.carryovers.some((item) => item?.transferContract?.status === "partial_carryover_required" && item?.sourceSlotId), `Остаток не сохранил контракт передачи: ${JSON.stringify(result.carryovers)}`);
-  return { ...result, alignedWindow };
+  return {
+    ...scenario,
+    fact: result.fact,
+    carryovers: result.carryovers,
+    workDeskFact: result,
+  };
 }
 
 async function attachWorkOrderLabor(client, scenario) {
@@ -620,6 +688,7 @@ async function verifyGanttOperationalLayer(client, scenario, laborProbe) {
       storedFactKeys: Object.keys(ui.shiftMasterBoardFacts || {}),
       stateSlot: stateSlot ? {
         id: stateSlot.id || "",
+        quantity: Number(stateSlot.quantity || 0),
         planningLaborSource: stateSlot.planningLaborSource || "",
         planningLaborMode: stateSlot.planningLaborMode || "",
         planningLaborDurationMs: Number(stateSlot.planningLaborDurationMs || 0),
@@ -628,7 +697,7 @@ async function verifyGanttOperationalLayer(client, scenario, laborProbe) {
     };
   }, { slotId: scenario.assignment.slotId, uiKey: uiStorageKey, stateKey: stateStorageKey });
 
-  const planned = Number(scenario.assignment.plannedQuantity || 0);
+  const planned = Number(result.stateSlot?.quantity || scenario.assignment.plannedQuantity || 0);
   const assigned = Number(scenario.assignment.assignedQuantity || 0);
   const fact = Number(scenario.fact.actualQuantity || 0) - Number(scenario.fact.defectQuantity || 0);
   const assignedDelta = assigned - planned;
@@ -646,10 +715,11 @@ async function verifyGanttOperationalLayer(client, scenario, laborProbe) {
     assert(result.metaText.includes(`${formatRu(assignedDelta)} к плану`), `Meta не содержит дельту распределения: ${result.metaText}`);
     assert(result.metaText.includes(`${formatRu(factDelta)} к распределению`), `Meta не содержит дельту факта: ${result.metaText}`);
   } else {
-    const titleText = result.layerTitle || "";
-    assert(titleText.includes("Распределено:"), `Сегментированный слой не содержит распределение в title: ${titleText}`);
-    assert(titleText.includes("Факт:"), `Сегментированный слой не содержит факт в title: ${titleText}`);
-    assert(titleText.includes("Не распределено:"), `Сегментированный слой не содержит остаток распределения в title: ${titleText}`);
+    const titleText = String(result.layerTitle || "").replace(/\s+/g, " ");
+    assert(titleText.includes(`План ${formatRu(planned)} шт.`), `Сегментированный слой не содержит план в title: ${titleText}`);
+    assert(titleText.includes(`Распределено ${formatRu(assigned)} шт.`), `Сегментированный слой не содержит распределение в title: ${titleText}`);
+    assert(titleText.includes(`Факт ${formatRu(fact)} шт.`), `Сегментированный слой не содержит факт в title: ${titleText}`);
+    assert(titleText.includes(`${formatRu(factDelta)} к распределению`), `Сегментированный слой не содержит дельту факта в title: ${titleText}`);
   }
   assert(result.segments.length >= 3, `Operational layer должен разделять факт/дефицит/остаток: ${JSON.stringify(result.segments)}`);
   assert(result.segments.some((segment) => segment.className.includes("is-fact-done")), `Нет сегмента факта: ${JSON.stringify(result.segments)}`);
@@ -693,7 +763,8 @@ async function main() {
       mobile: false,
     });
 
-    const shiftScenario = await runShiftMasterScenario(client);
+    const shiftScenarioDraft = await runShiftMasterScenario(client);
+    const shiftScenario = await closeFactFromWorkDesk(client, shiftScenarioDraft);
     const laborProbe = await attachWorkOrderLabor(client, shiftScenario);
     const ganttProbe = await verifyGanttOperationalLayer(client, shiftScenario, laborProbe);
 

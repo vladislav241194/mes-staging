@@ -1852,9 +1852,9 @@ input[type="radio"]{
   grid-template-columns: var(--directory-ui-sidebar-width) minmax(0, 1fr) !important;
   gap: 14px !important;
   padding: 14px !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0) 220px),
-    var(--directory-ui-bg) !important;
+  background: var(--mes-ui-module-page-background);
+  background-size: var(--mes-ui-module-page-background-size);
+  background-repeat: var(--mes-ui-module-page-background-repeat);
 }.app-shell[data-layout-page="directories"] .directory-sidebar,
 .app-shell[data-layout-page="directories"] .directory-header,
 .app-shell[data-layout-page="directories"] .directory-table-card{

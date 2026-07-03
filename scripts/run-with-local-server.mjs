@@ -32,11 +32,11 @@ async function isServerReachable() {
 }
 
 function normalizeBuiltModuleSource(source = "") {
-  return String(source || "").replace(/\.js\?v=[a-f0-9]+/g, ".js");
+  return String(source || "").replace(/\.js\?v=[a-f0-9]+(?:-v\.[0-9.]+)?/g, ".js");
 }
 
 function normalizeBuiltCssSource(source = "") {
-  return String(source || "").replace(/\.css\?v=[a-f0-9]+/g, ".css");
+  return String(source || "").replace(/\.css\?v=[a-f0-9]+(?:-v\.[0-9.]+)?/g, ".css");
 }
 
 async function collectCssFiles(relativeDir = "styles") {

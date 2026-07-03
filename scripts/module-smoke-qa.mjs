@@ -17,6 +17,7 @@ const STANDALONE_CHROMELESS_MODULES = new Set(["authPrototype"]);
 const HARD_UI_RUNTIME_MODULES = new Set(HARD_UI_RUNTIME_MODULE_IDS);
 const SPECIAL_UI_RUNTIME_MODULES = new Set(SPECIAL_UI_RUNTIME_MODULE_IDS);
 const SMOKE_VIEWPORT = { name: "macbook-air-15", width: 1710, height: 1112 };
+const STANDARD_MODULE_SIDEBAR_WIDTH = 260;
 const verbose = process.env.MES_QA_VERBOSE === "1";
 const LEGACY_MODULE_ALIASES = [
   { source: "bomLists", target: "nomenclature", expectedUi: { activeNomenclaturePane: "boards" } },
@@ -474,6 +475,146 @@ async function runInteractionStabilityChecks(client, moduleId) {
   assert(driftProblems.length === 0, `${moduleId}: hover moves interactive hitboxes: ${JSON.stringify(driftProblems.slice(0, 6))}`);
 }
 
+async function clickVisibleCenter(client, selector, context = "") {
+  const rect = await evaluate(client, (cssSelector) => {
+    const element = [...document.querySelectorAll(cssSelector)].find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return rect.width > 0
+        && rect.height > 0
+        && rect.bottom > 0
+        && rect.right > 0
+        && rect.top < innerHeight
+        && rect.left < innerWidth
+        && style.display !== "none"
+        && style.visibility !== "hidden"
+        && style.pointerEvents !== "none"
+        && !candidate.disabled
+        && candidate.getAttribute("aria-disabled") !== "true";
+    });
+    if (!element) return null;
+    const box = element.getBoundingClientRect();
+    return {
+      x: Math.round(box.left + box.width / 2),
+      y: Math.round(box.top + box.height / 2),
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+      text: (element.textContent || element.getAttribute("aria-label") || element.className || element.tagName)
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120),
+    };
+  }, selector);
+  assert(rect && rect.width > 0 && rect.height > 0, `${context || selector}: visible click target was not found`);
+  await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: rect.x, y: rect.y });
+  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+  return rect;
+}
+
+async function waitForVisualQaState(client, expectedEnabled, moduleId) {
+  const startedAt = Date.now();
+  let lastReport = null;
+  while (Date.now() - startedAt < 6000) {
+    lastReport = await evaluate(client, () => ({
+      bodyQa: document.body.classList.contains("is-mes-visual-qa-enabled"),
+      bodyInspecting: document.body.classList.contains("is-mes-visual-qa-inspecting"),
+      shellQa: Boolean(document.querySelector("main.app-shell")?.classList.contains("is-visual-qa-enabled")),
+      markerLayer: Boolean(document.querySelector(".visual-debug-marker-layer")),
+      debug: sessionStorage.getItem("mes-visual-qa-last-debug") || "",
+    }));
+    if (Boolean(lastReport.bodyQa) === expectedEnabled && Boolean(lastReport.shellQa) === expectedEnabled) return lastReport;
+    await delay(80);
+  }
+  throw new Error(`${moduleId}: Visual QA ${expectedEnabled ? "did not turn on" : "did not turn off"}: ${JSON.stringify(lastReport)}`);
+}
+
+async function runVisualQaPickerSmoke(client, moduleId) {
+  await evaluate(client, () => {
+    window.__mesVisualQaInspectorReport = null;
+    window.__mesVisualQaSmartReport = null;
+    sessionStorage.removeItem("mes-visual-qa-last-report");
+    sessionStorage.removeItem("mes-visual-qa-last-debug");
+  });
+  const toggleRect = await clickVisibleCenter(client, "[data-toggle-visual-qa]", `${moduleId}: Visual QA toggle`);
+  await waitForVisualQaState(client, true, moduleId);
+
+  const targetReport = await evaluate(client, () => {
+    const selector = [
+      "[data-visual-qa-target]:not([data-toggle-visual-qa])",
+      "[data-ui-component='Panel']",
+      "[data-ui-component='ModuleHeader']",
+      "[data-layout='main-content']",
+      ".module-data-page",
+      ".planner-workspace",
+      ".gantt-shell",
+      ".operation-slot",
+      ".row-label",
+      ".module-panel",
+      "main.app-shell",
+    ].join(",");
+    const blocked = ".module-menu, .app-topbar, .mobile-module-switcher, .mes-visual-mode-tray, .visual-debug-marker-layer";
+    const element = [...document.querySelectorAll(selector)].find((candidate) => {
+      if (candidate.closest(blocked)) return false;
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return rect.width >= 16
+        && rect.height >= 16
+        && rect.bottom > 0
+        && rect.right > 0
+        && rect.top < innerHeight
+        && rect.left < innerWidth
+        && style.display !== "none"
+        && style.visibility !== "hidden"
+        && style.pointerEvents !== "none";
+    });
+    if (!element) return null;
+    element.dataset.smokeVisualQaTarget = "yes";
+    const rect = element.getBoundingClientRect();
+    return {
+      selector: "[data-smoke-visual-qa-target='yes']",
+      visualQaTarget: element.dataset.visualQaTarget || "",
+      className: element.className || "",
+      text: (element.textContent || element.getAttribute("aria-label") || element.tagName)
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120),
+      rect: {
+        x: Math.round(rect.left + rect.width / 2),
+        y: Math.round(rect.top + rect.height / 2),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      },
+    };
+  });
+  assert(targetReport?.selector, `${moduleId}: no visible content target for Visual QA picker after toggle ${JSON.stringify({ toggleRect })}`);
+
+  await clickVisibleCenter(client, targetReport.selector, `${moduleId}: Visual QA content target`);
+  await delay(260);
+  const result = await evaluate(client, () => {
+    const smartText = window.__mesVisualQaSmartReport?.text || "";
+    const smartReport = window.__mesVisualQaSmartReport?.report || null;
+    return {
+      bodyQa: document.body.classList.contains("is-mes-visual-qa-enabled"),
+      shellQa: Boolean(document.querySelector("main.app-shell")?.classList.contains("is-visual-qa-enabled")),
+      smartText,
+      detailLevel: smartReport?.detailLevel || "",
+      reportTextLength: String(smartReport?.text || "").length,
+      module: smartReport?.module || "",
+      signature: smartReport?.signature || "",
+      selector: smartReport?.selector || "",
+      debug: sessionStorage.getItem("mes-visual-qa-last-debug") || "",
+    };
+  });
+  assert(!result.bodyQa && !result.shellQa, `${moduleId}: Visual QA did not turn off after inspected click: ${JSON.stringify(result)}`);
+  assert(result.smartText.startsWith("Visual QA Inspector report"), `${moduleId}: Visual QA did not produce a copyable report: ${JSON.stringify({ result, targetReport })}`);
+  assert(result.detailLevel === "compact", `${moduleId}: Visual QA default report must be compact: ${JSON.stringify({ result, targetReport })}`);
+  assert(result.reportTextLength <= 120, `${moduleId}: Visual QA compact text is too long: ${JSON.stringify({ result, targetReport })}`);
+  assert(!result.smartText.includes("Что проверить"), `${moduleId}: Visual QA compact report still contains full checklist: ${JSON.stringify({ result, targetReport })}`);
+  assert(result.module === moduleId, `${moduleId}: Visual QA report has wrong module: ${JSON.stringify({ result, targetReport })}`);
+  assert(result.signature || result.selector, `${moduleId}: Visual QA report has no selected element signature: ${JSON.stringify({ result, targetReport })}`);
+}
+
 async function runModuleSpecificSmokeChecks(client, moduleId) {
   const pageRuntimeStatus = await evaluate(client, () => {
     const page = document.querySelector(".module-data-page");
@@ -513,11 +654,15 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   }
 
   if (HARD_UI_RUNTIME_MODULES.has(moduleId)) {
-    const runtimeReport = await evaluate(client, () => {
+    const runtimeReport = await evaluate(client, (contract) => {
       const page = document.querySelector(".module-data-page");
       const workspace = page?.querySelector(".module-data-workspace");
       const content = page?.querySelector(".module-data-content");
       const pageRect = page?.getBoundingClientRect();
+      const pageStyle = page ? window.getComputedStyle(page) : null;
+      const appSidebar = document.querySelector("main.app-shell > .module-menu");
+      const appSidebarWidth = Math.round(appSidebar?.getBoundingClientRect().width || 0);
+      const isStandaloneAuthModule = contract?.moduleId === "authPrototype";
       const toRect = (element) => {
         const rect = element.getBoundingClientRect();
         return {
@@ -681,6 +826,110 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         })
         .filter(Boolean)
         .slice(0, 8);
+      const radiusContractSelector = [
+        '[data-ui-component="ModuleWorkspace"]',
+        '[data-ui-component="ModuleSidebar"]',
+        '[data-ui-component="ModuleHeader"]',
+        '[data-ui-component="Panel"]',
+        '[data-ui-component="TableWrap"]',
+        '[data-ui-component="ActionButton"]',
+        '[data-ui-component="FormField"] :is(input, select, textarea)',
+        '.planning-order-page.is-heroui :is(.planning-order-queue, .planning-order-header, .planning-order-route-map, .planning-order-record, .planning-order-record-section, .planning-order-route-item, .planning-order-phase, .planning-order-lane-head, .planning-order-step-pill, .planning-order-register-row, .route-smt-step-card, .route-smt-grid, .planning-detail-disclosure, .planning-detail-body, .route-smt-balance-block, .route-smt-input-block, .route-smt-result-block, .route-smt-balance-disclosure, .smt-result-kpi-row article, .smt-machine-balance-summary article)',
+        '.directories-page :is(.directory-sidebar, .directory-header, .directory-table-card, .directory-nav-item, .directory-health div, .directory-detail-list div)',
+        '.shift-master-board-page :is(.shift-master-board-panel, .shift-master-board-task-context, .shift-master-board-section, .shift-master-board-card, .shift-master-board-available-person, .shift-master-board-document, .shift-master-board-summary-cell, .shift-master-board-route-chain-card)',
+      ].join(",");
+      const radiusProblems = [...(page?.querySelectorAll(radiusContractSelector) || [])]
+        .filter(isVisibleBox)
+        .map((element, index) => {
+          const style = window.getComputedStyle(element);
+          const rect = toRect(element);
+          const radius = Number.parseFloat(style.borderTopLeftRadius || style.borderRadius || "0") || 0;
+          const isPill = radius >= 99;
+          if (isPill || radius <= 8.01) return null;
+          return {
+            index,
+            className: element.className || "",
+            component: element.dataset?.uiComponent || "",
+            radius,
+            width: rect.width,
+            height: rect.height,
+            text: (element.textContent || element.getAttribute("aria-label") || element.getAttribute("title") || "").replace(/\s+/g, " ").trim().slice(0, 90),
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 8);
+      const directModuleSidebars = [...(page?.children || [])]
+        .filter((child) => child.dataset?.uiComponent === "ModuleSidebar")
+        .filter(isVisibleBox);
+      const moduleSidebarProblems = directModuleSidebars
+        .map((sidebar, index) => {
+          const rect = toRect(sidebar);
+          const style = window.getComputedStyle(sidebar);
+          const expectedWidth = Number(contract?.standardModuleSidebarWidth || 260);
+          const widthDelta = Math.abs(rect.width - expectedWidth);
+          const collapsedToAppSidebar = appSidebarWidth > 0
+            && appSidebarWidth < 220
+            && Math.abs(rect.width - appSidebarWidth) <= 2;
+          if (widthDelta <= 1 && !collapsedToAppSidebar) return null;
+          return {
+            index,
+            className: sidebar.className || "",
+            width: rect.width,
+            expectedWidth,
+            widthDelta,
+            appSidebarWidth,
+            collapsedToAppSidebar,
+            computedWidth: style.width,
+            minWidth: style.minWidth,
+            maxWidth: style.maxWidth,
+            gridTemplateColumns: pageStyle?.gridTemplateColumns || "",
+            columnGap: pageStyle?.columnGap || "",
+            rect,
+          };
+        })
+        .filter(Boolean);
+      const getPageBackgroundContract = () => {
+        const shell = document.querySelector("main.app-shell");
+        if (!shell) return null;
+        const probe = document.createElement("section");
+        probe.className = "module-data-page ui-module-page";
+        probe.dataset.uiComponent = "ModulePage";
+        probe.dataset.uiRuntime = "hard-v1";
+        probe.style.position = "fixed";
+        probe.style.left = "-10000px";
+        probe.style.top = "-10000px";
+        probe.style.width = "10px";
+        probe.style.height = "10px";
+        probe.style.visibility = "hidden";
+        probe.style.pointerEvents = "none";
+        shell.appendChild(probe);
+        const style = window.getComputedStyle(probe);
+        const result = {
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+          backgroundSize: style.backgroundSize,
+          backgroundRepeat: style.backgroundRepeat,
+        };
+        probe.remove();
+        return result;
+      };
+      const pageBackground = pageStyle ? {
+        backgroundColor: pageStyle.backgroundColor,
+        backgroundImage: pageStyle.backgroundImage,
+        backgroundSize: pageStyle.backgroundSize,
+        backgroundRepeat: pageStyle.backgroundRepeat,
+      } : null;
+      const expectedPageBackground = getPageBackgroundContract();
+      const pageBackgroundProblems = (!isStandaloneAuthModule && pageBackground && expectedPageBackground && (
+        pageBackground.backgroundColor !== expectedPageBackground.backgroundColor
+        || pageBackground.backgroundImage !== expectedPageBackground.backgroundImage
+        || pageBackground.backgroundSize !== expectedPageBackground.backgroundSize
+        || pageBackground.backgroundRepeat !== expectedPageBackground.backgroundRepeat
+      )) ? [{
+        actual: pageBackground,
+        expected: expectedPageBackground,
+        className: page?.className || "",
+      }] : [];
       const findFlowOverlaps = (children, context = "") => {
         const overlaps = [];
         for (let firstIndex = 0; firstIndex < children.length; firstIndex += 1) {
@@ -728,6 +977,14 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         contentComponent: content?.dataset.uiComponent || "",
         pageOverflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
         pageWidth: Math.round(pageRect?.width || 0),
+        hasSidebarLayout: Boolean(page?.classList.contains("has-sidebar")),
+        pageGridTemplateColumns: pageStyle?.gridTemplateColumns || "",
+        pageColumnGap: pageStyle?.columnGap || "",
+        pageBackground,
+        expectedPageBackground,
+        pageBackgroundProblems,
+        moduleSidebarCount: directModuleSidebars.length,
+        moduleSidebarProblems,
         panelEscapes,
         panelWithoutBody,
         unmarkedPanels,
@@ -735,10 +992,11 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         unmarkedFormFields,
         unmarkedTableWraps,
         tableWrapProblems,
+        radiusProblems,
         contentOverlaps: contentOverlaps.slice(0, 6),
         panelBodyOverlaps,
       };
-    });
+    }, { moduleId, standardModuleSidebarWidth: STANDARD_MODULE_SIDEBAR_WIDTH });
     assert(runtimeReport.hasPage, `${moduleId}: hard UI page root is missing`);
     assert(runtimeReport.runtime === "hard-v1", `${moduleId}: expected data-ui-runtime=hard-v1, got "${runtimeReport.runtime}"`);
     assert(runtimeReport.component === "ModulePage", `${moduleId}: expected ModulePage component, got "${runtimeReport.component}"`);
@@ -746,12 +1004,18 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(runtimeReport.hasContent && runtimeReport.contentComponent === "ModuleContent", `${moduleId}: ModuleContent contract is missing`);
     assert(runtimeReport.pageOverflowX <= 2, `${moduleId}: page horizontal overflow ${runtimeReport.pageOverflowX}px`);
     assert(runtimeReport.pageWidth > 320, `${moduleId}: hard UI page width looks broken: ${runtimeReport.pageWidth}px`);
+    assert(runtimeReport.pageBackgroundProblems.length === 0, `${moduleId}: ModulePage background contract drift: ${JSON.stringify(runtimeReport.pageBackgroundProblems)}`);
+    if (runtimeReport.hasSidebarLayout) {
+      assert(runtimeReport.moduleSidebarCount === 1, `${moduleId}: hard UI sidebar layout must have exactly one direct ModuleSidebar, got ${runtimeReport.moduleSidebarCount}`);
+      assert(runtimeReport.moduleSidebarProblems.length === 0, `${moduleId}: ModuleSidebar width contract drift: ${JSON.stringify(runtimeReport.moduleSidebarProblems)}`);
+    }
     assert(runtimeReport.panelWithoutBody.length === 0, `${moduleId}: hard Panel without direct PanelBody: ${JSON.stringify(runtimeReport.panelWithoutBody)}`);
     assert(runtimeReport.unmarkedPanels.length === 0, `${moduleId}: visible panel without Panel marker: ${JSON.stringify(runtimeReport.unmarkedPanels)}`);
     assert(runtimeReport.unmarkedButtons.length === 0, `${moduleId}: visible button without UI component marker: ${JSON.stringify(runtimeReport.unmarkedButtons)}`);
     assert(runtimeReport.unmarkedFormFields.length === 0, `${moduleId}: visible form field without FormField marker: ${JSON.stringify(runtimeReport.unmarkedFormFields)}`);
     assert(runtimeReport.unmarkedTableWraps.length === 0, `${moduleId}: visible table wrapper without TableWrap marker: ${JSON.stringify(runtimeReport.unmarkedTableWraps)}`);
     assert(runtimeReport.tableWrapProblems.length === 0, `${moduleId}: horizontal-only TableWrap has vertical scroll contract drift: ${JSON.stringify(runtimeReport.tableWrapProblems)}`);
+    assert(runtimeReport.radiusProblems.length === 0, `${moduleId}: standard UI radius exceeds 8px contract: ${JSON.stringify(runtimeReport.radiusProblems)}`);
     assert(runtimeReport.panelEscapes.length === 0, `${moduleId}: panel content escapes panel bounds: ${JSON.stringify(runtimeReport.panelEscapes)}`);
     assert(runtimeReport.contentOverlaps.length === 0, `${moduleId}: module content direct blocks overlap: ${JSON.stringify(runtimeReport.contentOverlaps)}`);
     assert(runtimeReport.panelBodyOverlaps.length === 0, `${moduleId}: PanelBody direct blocks overlap: ${JSON.stringify(runtimeReport.panelBodyOverlaps)}`);
@@ -1132,20 +1396,80 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     });
     assert(openedSlotId, "gantt: cannot open selected slot state because no GanttSlot was found");
     await delay(120);
-    const drawerReport = await evaluate(client, () => {
+    const editSurfaceReport = await evaluate(client, () => {
       const drawer = document.querySelector(".slot-drawer[data-ui-component='Drawer'], .detail-drawer[data-ui-component='Drawer']");
-      const modal = document.querySelector(".modal, [role='dialog']");
+      const modal = document.querySelector(".slot-form-modal[data-ui-component='Modal'], .modal[data-ui-component='Modal'], [role='dialog'][data-ui-component='Modal']");
       const drawerRect = drawer?.getBoundingClientRect();
+      const modalRect = modal?.getBoundingClientRect();
+      const surface = drawer || modal;
+      const surfaceRect = surface?.getBoundingClientRect();
       return {
         hasDrawer: Boolean(drawer),
         drawerComponent: drawer?.dataset.uiComponent || "",
         drawerWidth: Math.round(drawerRect?.width || 0),
         drawerHeight: Math.round(drawerRect?.height || 0),
         hasModal: Boolean(modal),
+        modalComponent: modal?.dataset.uiComponent || "",
+        modalWidth: Math.round(modalRect?.width || 0),
+        modalHeight: Math.round(modalRect?.height || 0),
+        surfaceComponent: surface?.dataset.uiComponent || "",
+        surfaceWidth: Math.round(surfaceRect?.width || 0),
+        surfaceHeight: Math.round(surfaceRect?.height || 0),
       };
     });
-    assert(drawerReport.hasDrawer && drawerReport.drawerComponent === "Drawer", "gantt: selected slot Drawer contract is missing after opening slot");
-    assert(drawerReport.drawerWidth > 240 && drawerReport.drawerHeight > 240, `gantt: selected slot Drawer geometry looks broken ${drawerReport.drawerWidth}x${drawerReport.drawerHeight}`);
+    assert(
+      (editSurfaceReport.hasDrawer && editSurfaceReport.drawerComponent === "Drawer")
+        || (editSurfaceReport.hasModal && editSurfaceReport.modalComponent === "Modal"),
+      "gantt: selected slot edit surface contract is missing after opening slot",
+    );
+    assert(editSurfaceReport.surfaceWidth > 240 && editSurfaceReport.surfaceHeight > 240, `gantt: selected slot edit surface geometry looks broken ${editSurfaceReport.surfaceWidth}x${editSurfaceReport.surfaceHeight}`);
+
+    const slotEditorQaReport = await evaluate(client, () => {
+      const context = document.querySelector('[data-visual-qa-target="gantt-slot-editor-context"]');
+      const requiredTargets = [
+        "gantt-slot-editor-summary",
+        "gantt-slot-editor-working-duration",
+        "gantt-slot-editor-calendar-duration",
+        "gantt-slot-editor-resource-code",
+        "gantt-slot-editor-signal-count",
+        "gantt-slot-editor-detail-product",
+        "gantt-slot-editor-detail-route-step",
+        "gantt-slot-editor-detail-labor",
+        "gantt-slot-editor-flow-input",
+        "gantt-slot-editor-flow-output",
+        "gantt-slot-editor-route-sequence-step",
+        "gantt-slot-editor-actions",
+      ];
+      const presentTargets = [...(context?.querySelectorAll("[data-visual-qa-target]") || [])]
+        .map((element) => element.dataset.visualQaTarget || "")
+        .filter(Boolean);
+      const missingTargets = requiredTargets.filter((target) => !presentTargets.includes(target));
+      const hitTestProblems = requiredTargets
+        .map((target) => {
+          const element = context?.querySelector(`[data-visual-qa-target="${CSS.escape(target)}"]`);
+          if (!element) return null;
+          element.scrollIntoView({ block: "center", inline: "nearest" });
+          const rect = element.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return { target, reason: "zero-geometry" };
+          const point = document.elementFromPoint(
+            Math.min(window.innerWidth - 1, Math.max(1, rect.left + rect.width / 2)),
+            Math.min(window.innerHeight - 1, Math.max(1, rect.top + rect.height / 2)),
+          );
+          const selected = point?.closest?.("[data-visual-qa-target]")?.dataset?.visualQaTarget || "";
+          return selected === target ? null : { target, selected, reason: "parent-or-neighbor-selected" };
+        })
+        .filter(Boolean);
+      return {
+        hasContext: Boolean(context),
+        contextTarget: context?.dataset.visualQaTarget || "",
+        presentTargets,
+        missingTargets,
+        hitTestProblems,
+      };
+    });
+    assert(slotEditorQaReport.hasContext, "gantt: slot editor context Visual QA root is missing");
+    assert(slotEditorQaReport.missingTargets.length === 0, `gantt: slot editor context lacks nested Visual QA targets: ${JSON.stringify(slotEditorQaReport)}`);
+    assert(slotEditorQaReport.hitTestProblems.length === 0, `gantt: slot editor nested QA hit-test falls back to parent block: ${JSON.stringify(slotEditorQaReport.hitTestProblems)}`);
   }
   if (moduleId === "visualSystem") {
     const visualSystemReport = await evaluate(client, () => {
@@ -1208,6 +1532,36 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(visualSystemReport.transferFlowCount >= 2, `visualSystem: expected transfer flow samples, got ${visualSystemReport.transferFlowCount}`);
     assert(visualSystemReport.ganttSampleEscapes.length === 0, `visualSystem: Gantt samples escape their mode columns: ${JSON.stringify(visualSystemReport.ganttSampleEscapes)}`);
     assert(visualSystemReport.pageOverflowX <= 2, `visualSystem: page horizontal overflow ${visualSystemReport.pageOverflowX}px`);
+  }
+  if (moduleId === "authSessionPrototype") {
+    const authSessionReport = await evaluate(client, () => {
+      const context = document.querySelector("[data-visual-qa-target='auth-session-task-context']");
+      const taskCards = [...document.querySelectorAll("[data-visual-qa-target='auth-session-task-card']")];
+      const cardRouteProblems = taskCards
+        .map((card, index) => {
+          const route = card.querySelector("[data-visual-qa-target='auth-session-task-card-route']");
+          const rect = route?.getBoundingClientRect();
+          const overflowX = route ? Math.max(0, route.scrollWidth - route.clientWidth) : 0;
+          if (route && rect?.width > 0 && overflowX <= 2) return null;
+          return {
+            index,
+            hasRoute: Boolean(route),
+            overflowX,
+            cardText: (card.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
+          };
+        })
+        .filter(Boolean);
+      return {
+        hasContext: Boolean(context),
+        routeChainInsideContext: Boolean(context?.querySelector("[data-visual-qa-target='auth-session-route-chain'], .auth-session-route-chain")),
+        taskCardCount: taskCards.length,
+        cardRouteProblems,
+      };
+    });
+    assert(!authSessionReport.routeChainInsideContext, `authSessionPrototype: route chain must be moved out of task context: ${JSON.stringify(authSessionReport)}`);
+    if (authSessionReport.taskCardCount > 0) {
+      assert(authSessionReport.cardRouteProblems.length === 0, `authSessionPrototype: task cards must contain compact route transfer text: ${JSON.stringify(authSessionReport.cardRouteProblems)}`);
+    }
   }
   if (moduleId !== "shiftWorkOrders") return;
   const report = await evaluate(client, () => {
@@ -1346,6 +1700,7 @@ async function main() {
       await loaded;
       await delay(250);
       await waitForModule(client, moduleId);
+      await runVisualQaPickerSmoke(client, moduleId);
       await runInteractionStabilityChecks(client, moduleId);
       await runModuleSpecificSmokeChecks(client, moduleId);
       passed.push(moduleId);
@@ -1358,6 +1713,7 @@ async function main() {
       await loaded;
       await delay(250);
       await waitForModule(client, alias.target);
+      await runVisualQaPickerSmoke(client, alias.target);
       await runInteractionStabilityChecks(client, alias.target);
       await runModuleSpecificSmokeChecks(client, alias.target);
       const aliasReport = await evaluate(client, (payload) => {
