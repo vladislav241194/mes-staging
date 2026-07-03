@@ -17,6 +17,7 @@ const STANDALONE_CHROMELESS_MODULES = new Set(["authPrototype"]);
 const HARD_UI_RUNTIME_MODULES = new Set(HARD_UI_RUNTIME_MODULE_IDS);
 const SPECIAL_UI_RUNTIME_MODULES = new Set(SPECIAL_UI_RUNTIME_MODULE_IDS);
 const SMOKE_VIEWPORT = { name: "macbook-air-15", width: 1710, height: 1112 };
+const AUTH_SESSION_TABLET_VIEWPORT = { name: "auth-session-tablet-2880x1920", width: 2880, height: 1920 };
 const STANDARD_MODULE_SIDEBAR_WIDTH = 260;
 const verbose = process.env.MES_QA_VERBOSE === "1";
 const LEGACY_MODULE_ALIASES = [
@@ -299,18 +300,32 @@ async function waitForModule(client, moduleId) {
   const startedAt = Date.now();
   let lastReport = null;
   while (Date.now() - startedAt < 20000) {
-    const report = await evaluate(client, (expected) => {
-      const shell = document.querySelector("main.app-shell");
-      return {
-        hasShell: Boolean(shell),
-        layoutPage: shell?.dataset.layoutPage || "",
-        title: (document.querySelector(".app-topbar-title h1")?.textContent || "").trim(),
-        annotationGroup: (document.querySelector(".app-module-annotation strong")?.textContent || "").trim(),
-        annotation: (document.querySelector(".app-module-annotation span")?.textContent || "").trim(),
-        mainTextLength: (shell?.innerText || "").trim().length,
-        hasStartupError: /Ошибка запуска интерфейса|Cannot initialize|TypeError|ReferenceError/.test(document.body?.innerText || ""),
-      };
-    }, expectedLayout);
+	    const report = await evaluate(client, (expected) => {
+	      const shell = document.querySelector("main.app-shell");
+	      const rectFor = (selector) => {
+	        const element = document.querySelector(selector);
+	        if (!element) return null;
+	        const rect = element.getBoundingClientRect();
+	        return {
+	          left: Math.round(rect.left),
+	          right: Math.round(rect.right),
+	          width: Math.round(rect.width),
+	          height: Math.round(rect.height),
+	        };
+	      };
+	      return {
+	        hasShell: Boolean(shell),
+	        layoutPage: shell?.dataset.layoutPage || "",
+	        title: (document.querySelector(".app-topbar-title h1")?.textContent || "").trim(),
+	        annotationGroup: (document.querySelector(".app-module-annotation strong")?.textContent || "").trim(),
+	        annotation: (document.querySelector(".app-module-annotation span")?.textContent || "").trim(),
+	        qaAction: rectFor("[data-toggle-visual-qa]"),
+	        refreshAction: rectFor("[data-refresh-app]"),
+	        authSummary: rectFor("[data-visual-qa-target='app-auth-session-summary']"),
+	        mainTextLength: (shell?.innerText || "").trim().length,
+	        hasStartupError: /Ошибка запуска интерфейса|Cannot initialize|TypeError|ReferenceError/.test(document.body?.innerText || ""),
+	      };
+	    }, expectedLayout);
     lastReport = report;
     if (report.hasShell && report.layoutPage === expectedLayout) {
       if (!isChromelessModule) {
@@ -323,10 +338,17 @@ async function waitForModule(client, moduleId) {
         if (expectedGroup && moduleId !== "directories") {
           assert(
             report.annotationGroup === expectedGroup,
-            `${moduleId}: topbar annotation group is out of sync with MES_MODULE_FLOW_CONTRACTS.group. Expected "${expectedGroup}", got "${report.annotationGroup}".`
-          );
-        }
-      }
+	            `${moduleId}: topbar annotation group is out of sync with MES_MODULE_FLOW_CONTRACTS.group. Expected "${expectedGroup}", got "${report.annotationGroup}".`
+	          );
+	        }
+	        assert(report.qaAction?.width > 0, `${moduleId}: topbar QA action is missing`);
+	        assert(report.refreshAction?.width > 0, `${moduleId}: topbar refresh action is missing`);
+	        assert(report.authSummary?.width > 0, `${moduleId}: topbar auth summary is missing`);
+	        assert(
+	          report.qaAction.right <= report.refreshAction.left && report.refreshAction.right <= report.authSummary.left,
+	          `${moduleId}: topbar action order must be QA -> refresh -> auth summary: ${JSON.stringify({ qa: report.qaAction, refresh: report.refreshAction, auth: report.authSummary })}`
+	        );
+	      }
       assert(report.mainTextLength > 40, `${moduleId}: rendered shell looks empty`);
       assert(!report.hasStartupError, `${moduleId}: startup error text is visible`);
       return report;
@@ -473,6 +495,82 @@ async function runInteractionStabilityChecks(client, moduleId) {
   }
   await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
   assert(driftProblems.length === 0, `${moduleId}: hover moves interactive hitboxes: ${JSON.stringify(driftProblems.slice(0, 6))}`);
+}
+
+async function runFocusModeTopbarStabilityCheck(client, moduleId) {
+  const measure = async () => evaluate(client, () => {
+    const shell = document.querySelector("main.app-shell");
+    const topbar = document.querySelector("main.app-shell > .app-topbar");
+    const focusButton = document.querySelector("[data-toggle-focus-mode]");
+    const titleMeta = topbar?.querySelector(".app-topbar-title p");
+    if (!shell || !topbar || !focusButton) {
+      return { canCheck: false };
+    }
+    const rect = topbar.getBoundingClientRect();
+    const style = getComputedStyle(topbar);
+    const titleMetaStyle = titleMeta ? getComputedStyle(titleMeta) : null;
+    return {
+      canCheck: true,
+      isFocusMode: shell.classList.contains("is-focus-mode"),
+      height: Math.round(rect.height * 10) / 10,
+      minHeight: style.minHeight,
+      paddingBlockStart: style.paddingBlockStart,
+      paddingBlockEnd: style.paddingBlockEnd,
+      hasTitleMeta: Boolean(titleMeta),
+      titleMetaVisible: titleMeta
+        ? titleMetaStyle.display !== "none" && titleMetaStyle.visibility !== "hidden" && titleMeta.getBoundingClientRect().height > 0
+        : true,
+    };
+  });
+
+  let before = await measure();
+  if (!before.canCheck) return;
+  const resetFocusMode = async () => evaluate(client, () => {
+    try {
+      const key = "mes-planning-prototype-ui-v1";
+      const ui = JSON.parse(localStorage.getItem(key) || "{}");
+      ui.focusMode = false;
+      localStorage.setItem(key, JSON.stringify(ui));
+    } catch {}
+    document.body.classList.remove("is-mes-focus-mode");
+    document.querySelectorAll("main.app-shell").forEach((shell) => {
+      shell.classList.remove("is-focus-mode");
+    });
+  });
+
+  if (before.isFocusMode) {
+    await resetFocusMode();
+    await delay(80);
+    before = await measure();
+  }
+
+  await evaluate(client, () => {
+    try {
+      const key = "mes-planning-prototype-ui-v1";
+      const ui = JSON.parse(localStorage.getItem(key) || "{}");
+      ui.focusMode = true;
+      localStorage.setItem(key, JSON.stringify(ui));
+    } catch {}
+    document.body.classList.add("is-mes-focus-mode");
+    document.querySelectorAll("main.app-shell").forEach((shell) => {
+      shell.classList.add("is-focus-mode");
+    });
+  });
+  await delay(80);
+  const focused = await measure();
+  assert(focused.isFocusMode, `${moduleId}: focus mode did not turn on for topbar stability check: ${JSON.stringify(focused)}`);
+  assert(Math.abs(focused.height - before.height) <= 2, `${moduleId}: focus mode must not shrink topbar height: ${JSON.stringify({ before, focused })}`);
+  assert(focused.minHeight === before.minHeight, `${moduleId}: focus mode changed topbar min-height: ${JSON.stringify({ before, focused })}`);
+  assert(
+    focused.paddingBlockStart === before.paddingBlockStart && focused.paddingBlockEnd === before.paddingBlockEnd,
+    `${moduleId}: focus mode changed topbar vertical padding: ${JSON.stringify({ before, focused })}`
+  );
+  assert(!before.hasTitleMeta || focused.titleMetaVisible, `${moduleId}: focus mode hides topbar subtitle/meta line: ${JSON.stringify({ before, focused })}`);
+
+  await resetFocusMode();
+  await delay(80);
+  const restored = await measure();
+  assert(!restored.isFocusMode, `${moduleId}: focus mode was not restored after topbar stability check: ${JSON.stringify(restored)}`);
 }
 
 async function clickVisibleCenter(client, selector, context = "") {
@@ -1583,12 +1681,52 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
           };
         })
         .filter(Boolean);
+      const factGrid = document.querySelector("[data-visual-qa-target='auth-session-fact-grid']");
+      const factGridOverflowX = factGrid ? Math.max(0, factGrid.scrollWidth - factGrid.clientWidth) : 0;
+      const factCardRects = [
+        "auth-session-fact-actual",
+        "auth-session-fact-defect",
+        "auth-session-fact-assigned",
+      ]
+        .map((target) => {
+          const element = document.querySelector(`[data-visual-qa-target='${target}']`);
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          const nestedOverflow = [...element.querySelectorAll("[data-visual-qa-target]")]
+            .some((child) => child.scrollWidth > child.clientWidth + 2 || child.scrollHeight > child.clientHeight + 2);
+          return {
+            target,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            nestedOverflow,
+          };
+        })
+        .filter(Boolean);
+      const authSummary = document.querySelector("[data-visual-qa-target='app-auth-session-summary']");
+      const qaButton = document.querySelector("[data-toggle-visual-qa]");
+      const roleLine = document.querySelector("[data-visual-qa-target='app-auth-session-role']");
+      const departmentLine = document.querySelector("[data-visual-qa-target='app-auth-session-department']");
+      const authSummaryRect = authSummary?.getBoundingClientRect();
+      const qaButtonRect = qaButton?.getBoundingClientRect();
+      const authSummaryTopbar = authSummary && qaButton && authSummaryRect && qaButtonRect
+        ? {
+          summaryLeft: Math.round(authSummaryRect.left),
+          summaryRight: Math.round(authSummaryRect.right),
+          qaRight: Math.round(qaButtonRect.right),
+          viewportRight: Math.round(window.innerWidth),
+          roleWeight: Number.parseFloat(getComputedStyle(roleLine).fontWeight || "0"),
+          departmentWeight: Number.parseFloat(getComputedStyle(departmentLine).fontWeight || "0"),
+        }
+        : null;
       return {
         hasContext: Boolean(context),
         routeChainInsideContext: Boolean(context?.querySelector("[data-visual-qa-target='auth-session-route-chain'], .auth-session-route-chain")),
         taskCardCount: taskCards.length,
         hasTaskUi,
         cardRouteProblems,
+        factGridOverflowX,
+        factCardRects,
+        authSummaryTopbar,
         missingTargets,
         nestedCoverageCount: nestedCoverageTargets.length,
       };
@@ -1597,6 +1735,19 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(authSessionReport.missingTargets.length === 0, `authSessionPrototype: missing nested Visual QA targets: ${JSON.stringify(authSessionReport.missingTargets)}`);
     if (authSessionReport.hasTaskUi) {
       assert(authSessionReport.nestedCoverageCount >= 45, `authSessionPrototype: expected broad nested Visual QA coverage, got ${authSessionReport.nestedCoverageCount}`);
+      assert(authSessionReport.factGridOverflowX <= 2, `authSessionPrototype: fact input grid overflows horizontally by ${authSessionReport.factGridOverflowX}px`);
+      assert(
+        authSessionReport.factCardRects.length === 3 && authSessionReport.factCardRects.every((card) => card.width >= 140 && !card.nestedOverflow),
+        `authSessionPrototype: fact cards are too narrow or overflowing: ${JSON.stringify(authSessionReport.factCardRects)}`,
+      );
+      assert(
+        authSessionReport.authSummaryTopbar
+          && authSessionReport.authSummaryTopbar.summaryLeft > authSessionReport.authSummaryTopbar.qaRight
+          && authSessionReport.authSummaryTopbar.viewportRight - authSessionReport.authSummaryTopbar.summaryRight <= 180
+          && authSessionReport.authSummaryTopbar.roleWeight <= 450
+          && authSessionReport.authSummaryTopbar.departmentWeight <= 450,
+        `authSessionPrototype: topbar auth summary must sit at the right and use regular metadata text: ${JSON.stringify(authSessionReport.authSummaryTopbar)}`,
+      );
     }
     if (authSessionReport.taskCardCount > 0) {
       assert(authSessionReport.cardRouteProblems.length === 0, `authSessionPrototype: task cards must contain compact route transfer text: ${JSON.stringify(authSessionReport.cardRouteProblems)}`);
@@ -1684,6 +1835,100 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   assert(rowClickScrollReport.orderStable, `shiftWorkOrders: row click reorders journal rows: ${JSON.stringify(rowClickScrollReport)}`);
 }
 
+async function runAuthSessionTabletLayoutCheck(client, baseUrl) {
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: AUTH_SESSION_TABLET_VIEWPORT.width,
+    height: AUTH_SESSION_TABLET_VIEWPORT.height,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  const loaded = waitForCdpEvent(client, "Page.loadEventFired", 10000);
+  await client.send("Page.navigate", { url: makeModuleUrl(baseUrl, "authSessionPrototype") });
+  await loaded;
+  await delay(250);
+  await waitForModule(client, "authSessionPrototype");
+  const report = await evaluate(client, () => {
+    const rectFor = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        top: Math.round(rect.top),
+        bottom: Math.round(rect.bottom),
+      };
+    };
+    const nestedOverflow = (element) => element
+      ? [...element.querySelectorAll("[data-visual-qa-target]")]
+        .some((child) => child.scrollWidth > child.clientWidth + 2 || child.scrollHeight > child.clientHeight + 2)
+      : false;
+    const factCards = [
+      "auth-session-fact-actual",
+      "auth-session-fact-defect",
+      "auth-session-fact-assigned",
+    ].map((target) => {
+      const element = document.querySelector(`[data-visual-qa-target='${target}']`);
+      return {
+        target,
+        rect: rectFor(`[data-visual-qa-target='${target}']`),
+        nestedOverflow: nestedOverflow(element),
+      };
+    });
+    const keypadButtons = [...document.querySelectorAll("[data-visual-qa-target^='auth-session-keypad-digit-'], [data-visual-qa-target='auth-session-keypad-backspace']")]
+      .map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          target: button.getAttribute("data-visual-qa-target"),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        };
+      });
+    return {
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+      pageOverflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+      content: rectFor(".auth-session-content"),
+      mainGrid: rectFor(".auth-session-main-grid"),
+      detailPanel: rectFor("[data-visual-qa-target='auth-session-detail-panel']"),
+      workspacePanel: rectFor("[data-visual-qa-target='auth-session-workspace-panel']"),
+      factGridOverflowX: (() => {
+        const grid = document.querySelector("[data-visual-qa-target='auth-session-fact-grid']");
+        return grid ? Math.max(0, grid.scrollWidth - grid.clientWidth) : 0;
+      })(),
+      factCards,
+      keypadButtons,
+      taskCardCount: document.querySelectorAll("[data-visual-qa-target='auth-session-task-card']").length,
+    };
+  });
+  assert(report.viewport.width === AUTH_SESSION_TABLET_VIEWPORT.width && report.viewport.height === AUTH_SESSION_TABLET_VIEWPORT.height, `authSessionPrototype: expected ${AUTH_SESSION_TABLET_VIEWPORT.name}, got ${JSON.stringify(report.viewport)}`);
+  assert(report.pageOverflowX <= 2, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} page horizontal overflow ${report.pageOverflowX}px`);
+  assert(report.content?.width >= 2500, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} content does not use available width: ${JSON.stringify(report)}`);
+  assert(report.mainGrid?.width >= 2500, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} main grid is too narrow: ${JSON.stringify(report)}`);
+  assert(report.detailPanel?.width >= 1180, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} detail panel is too narrow: ${JSON.stringify(report.detailPanel)}`);
+  assert(report.workspacePanel?.width >= 820, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} task board is too narrow: ${JSON.stringify(report.workspacePanel)}`);
+  assert(report.workspacePanel.left > report.detailPanel.right, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} panels overlap or collapse: ${JSON.stringify(report)}`);
+  assert(report.factGridOverflowX <= 2, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} fact grid overflow ${report.factGridOverflowX}px`);
+  assert(
+    report.factCards.every((card) => card.rect?.width >= 260 && card.rect?.height >= 100 && !card.nestedOverflow),
+    `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} fact cards are not tablet-ready: ${JSON.stringify(report.factCards)}`
+  );
+  assert(
+    report.keypadButtons.length >= 11 && report.keypadButtons.every((button) => button.width >= 84 && button.height >= 84),
+    `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} keypad buttons are too small: ${JSON.stringify(report.keypadButtons)}`
+  );
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: SMOKE_VIEWPORT.width,
+    height: SMOKE_VIEWPORT.height,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+}
+
 async function main() {
   const baseUrl = getArg("--url", defaultUrl);
   await waitForAppReachable(baseUrl);
@@ -1741,7 +1986,11 @@ async function main() {
       await waitForModule(client, moduleId);
       await runVisualQaPickerSmoke(client, moduleId);
       await runInteractionStabilityChecks(client, moduleId);
+      await runFocusModeTopbarStabilityCheck(client, moduleId);
       await runModuleSpecificSmokeChecks(client, moduleId);
+      if (moduleId === "authSessionPrototype") {
+        await runAuthSessionTabletLayoutCheck(client, baseUrl);
+      }
       passed.push(moduleId);
     }
 
@@ -1754,6 +2003,7 @@ async function main() {
       await waitForModule(client, alias.target);
       await runVisualQaPickerSmoke(client, alias.target);
       await runInteractionStabilityChecks(client, alias.target);
+      await runFocusModeTopbarStabilityCheck(client, alias.target);
       await runModuleSpecificSmokeChecks(client, alias.target);
       const aliasReport = await evaluate(client, (payload) => {
         const ui = JSON.parse(localStorage.getItem(payload.storageKey) || "{}");

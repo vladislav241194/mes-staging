@@ -3167,13 +3167,8 @@ main.app-shell[data-layout="app-shell"] :is(.is-route-labor-factor, .is-resource
 }main.app-shell.is-focus-mode[data-layout="app-shell"] > .app-topbar,
 main.app-shell.is-focus-mode[data-layout="app-shell"] > :is([data-layout="main-content"], [data-layout="planning-page"], .planner-workspace-gantt-only){
   grid-column: 1 !important;
-}main.app-shell.is-focus-mode[data-layout="app-shell"] .app-topbar-title p{
-  display: none !important;
 }main.app-shell.is-focus-mode[data-layout="app-shell"] .app-topbar{
-  grid-template-columns: minmax(0, 1fr) auto !important;
-  min-height: 44px !important;
-  height: 44px !important;
-  padding-block: 0 !important;
+  grid-template-columns: minmax(180px, 0.54fr) minmax(280px, 1fr) auto !important;
 }main.app-shell.is-focus-mode[data-layout="app-shell"] :is(.directories-page, .module-data-page, .calculator-page, .planning-order-page, .supply-page){
   grid-template-columns: minmax(0, 1fr);
 }main.app-shell[data-layout="app-shell"] :is(.directory-table, .calculator-table, .supply-table, .bom-import-table, .nomenclature-table, .speki-structure-table, .route-object-table){

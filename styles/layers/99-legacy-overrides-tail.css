@@ -2196,6 +2196,7 @@ main.app-shell[data-layout="app-shell"] .app-auth-session-summary{
   grid-template-areas: "copy logout";
   align-items: center;
   column-gap: 8px;
+  margin-left: auto;
   min-width: 190px;
   max-width: 260px;
   min-height: 42px;
@@ -2230,7 +2231,7 @@ main.app-shell[data-layout="app-shell"] .app-auth-session-copy strong{
 main.app-shell[data-layout="app-shell"] .app-auth-session-copy small{
   color: var(--mes-ui-muted);
   font-size: 8.5px;
-  font-weight: 560;
+  font-weight: var(--mes-ui-weight-regular);
   line-height: 10px;
 }
 
@@ -3151,31 +3152,31 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actio
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
   display: grid;
-  grid-template-columns: minmax(260px, 0.72fr) minmax(260px, 0.28fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
   align-items: start;
   min-width: 0;
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-values{
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(112px, 1fr));
+  gap: 6px;
   min-width: 0;
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint{
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: center;
-  min-height: 96px;
+  min-height: 74px;
   min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: var(--mes-ui-radius-sm);
   background: #fff;
   color: var(--mes-ui-text);
-  padding: 12px;
+  padding: 8px;
   text-align: left;
 }
 
@@ -3197,9 +3198,9 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint 
   min-width: 0;
   overflow: hidden;
   color: var(--mes-ui-text);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: var(--mes-ui-weight-semibold);
-  line-height: 26px;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3212,15 +3213,15 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint 
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
   display: grid;
-  grid-template-columns: repeat(3, 64px);
-  gap: 8px;
+  grid-template-columns: repeat(3, 60px);
+  gap: 6px;
   justify-content: end;
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad span{
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button{
@@ -3230,7 +3231,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad but
   border-radius: var(--mes-ui-radius-sm);
   background: #fff;
   color: var(--mes-ui-text);
-  font-size: 22px;
+  font-size: 21px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 1;
 }
@@ -3244,8 +3245,195 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-del
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
-  width: 25px;
-  height: 25px;
+  width: 23px;
+  height: 23px;
+}
+
+@media (max-width: 1180px) {
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
+    justify-content: start;
+  }
+}
+
+@media (min-width: 2400px) and (min-height: 1500px) {
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-content{
+    gap: 18px;
+    padding: 18px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+    grid-template-columns: minmax(1180px, 1.18fr) minmax(820px, 0.82fr);
+    gap: 18px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-body{
+    gap: 16px;
+    padding: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-context,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
+    gap: 12px;
+    padding: 14px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis article{
+    padding: 10px 12px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell span,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis :is(span, small){
+    font-size: 11px;
+    line-height: 14px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell strong,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis strong{
+    font-size: 15px;
+    line-height: 19px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small{
+    font-size: 11px;
+    line-height: 14px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div{
+    gap: 10px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header strong{
+    font-size: 15px;
+    line-height: 19px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header span{
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions > div{
+    gap: 12px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions .ui-action-button{
+    min-height: 72px;
+    font-size: 14px;
+    line-height: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-values{
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint{
+    min-height: 116px;
+    padding: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value span,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint span{
+    font-size: 13px;
+    line-height: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value strong,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint strong{
+    font-size: 30px;
+    line-height: 36px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-note{
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
+    grid-template-columns: repeat(3, 88px);
+    gap: 10px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad span{
+    width: 88px;
+    height: 88px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button{
+    font-size: 30px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
+    width: 31px;
+    height: 31px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-panel .ui-panel-footer{
+    min-height: 48px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-board-controls{
+    gap: 12px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
+    gap: 8px;
+    padding: 8px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-board{
+    gap: 12px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card{
+    grid-template-columns: minmax(0, 1fr) minmax(120px, auto) auto;
+    gap: 14px;
+    min-height: 98px;
+    padding: 16px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card strong{
+    font-size: 17px;
+    line-height: 21px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card small,
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card em{
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route{
+    gap: 4px;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route > span{
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route b{
+    font-size: 12px;
+    line-height: 15px;
+  }
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-panel .ui-panel-footer{

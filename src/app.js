@@ -80,7 +80,7 @@ const SHARED_STATE_POLL_INTERVAL_MS = 4000;
 const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
 const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
 const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
-const APP_VERSION = "v.1.412";
+const APP_VERSION = "v.1.417";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -16843,7 +16843,6 @@ function renderAppTopbar() {
         <span>${escapeHtml(getModuleAnnotation(activeModule.id))}</span>
       </div>
       <div class="app-topbar-actions" aria-label="Режимы интерфейса">
-        ${renderTopbarAuthenticatedAccessCard(activeRole)}
         <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса: скрыть вторичные панели">
           ${icon("focus")}
           <span>Фокус</span>
@@ -16852,9 +16851,25 @@ function renderAppTopbar() {
           ${icon("bug")}
           <span>QA</span>
         </button>
+        <button class="app-topbar-action" data-refresh-app type="button" title="Обновить страницу">
+          ${icon("refresh")}
+          <span>Обновить</span>
+        </button>
+        ${renderTopbarAuthenticatedAccessCard(activeRole)}
       </div>
     </header>
   `;
+}
+
+function refreshCurrentAppPage() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("__mes_cache_refresh", APP_VERSION);
+  const nextUrl = url.toString();
+  if (nextUrl === window.location.href) {
+    window.location.reload();
+    return;
+  }
+  window.location.assign(nextUrl);
 }
 
 function renderCalculatorPage() {
@@ -42456,6 +42471,13 @@ window.addEventListener("click", (event) => {
     persistUiState();
     notifySaveSuccess(ui.visualQaEnabled ? "QA: клик - компактный отчет, Shift+клик - полный" : "Visual QA выключен");
     render();
+    return;
+  }
+
+  const refreshAppButton = event.target.closest?.("[data-refresh-app]");
+  if (refreshAppButton && app.contains(refreshAppButton)) {
+    event.preventDefault();
+    refreshCurrentAppPage();
     return;
   }
 
