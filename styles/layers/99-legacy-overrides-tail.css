@@ -2190,97 +2190,71 @@ main.app-shell[data-layout="app-shell"] .module-menu-ui-presets .module-menu-pre
   width: 100% !important;
 }
 
-main.app-shell[data-layout="app-shell"] .module-menu-auth-session{
-  gap: 5px;
-  padding-top: 2px;
-}
-
-main.app-shell[data-layout="app-shell"] .access-role-card,
-main.app-shell[data-layout="app-shell"] .access-session-card{
+main.app-shell[data-layout="app-shell"] .app-auth-session-summary{
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 24px;
+  grid-template-areas: "copy logout";
   align-items: center;
-  gap: 5px;
-  min-width: 0;
+  column-gap: 8px;
+  min-width: 190px;
+  max-width: 260px;
   min-height: 42px;
-  border: 1px solid var(--mes-sidebar-border, rgba(148, 163, 184, 0.22));
-  border-radius: var(--mes-radius-card, 8px);
-  background: var(--mes-sidebar-surface, rgba(15, 23, 42, 0.72));
-  color: var(--mes-sidebar-text, #e5e7eb);
-  padding: 5px 6px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--mes-ui-text);
+  padding: 5px 7px;
 }
 
-main.app-shell[data-layout="app-shell"] .access-role-card{
-  min-height: 40px;
-}
-
-main.app-shell[data-layout="app-shell"] .access-role-card svg,
-main.app-shell[data-layout="app-shell"] .access-session-card svg{
-  width: 14px;
-  height: 14px;
-  color: var(--mes-sidebar-muted, #94a3b8);
-}
-
-main.app-shell[data-layout="app-shell"] .access-role-card span,
-main.app-shell[data-layout="app-shell"] .access-session-card span{
+main.app-shell[data-layout="app-shell"] .app-auth-session-copy{
+  grid-area: copy;
   display: grid;
   gap: 1px;
   min-width: 0;
 }
 
-main.app-shell[data-layout="app-shell"] .access-role-card strong,
-main.app-shell[data-layout="app-shell"] .access-role-card small,
-main.app-shell[data-layout="app-shell"] .access-session-card strong,
-main.app-shell[data-layout="app-shell"] .access-session-card small{
+main.app-shell[data-layout="app-shell"] .app-auth-session-copy :is(strong, small){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-main.app-shell[data-layout="app-shell"] .access-role-card strong,
-main.app-shell[data-layout="app-shell"] .access-session-card strong{
-  color: #ffffff;
+main.app-shell[data-layout="app-shell"] .app-auth-session-copy strong{
+  color: var(--mes-ui-text);
   font-size: 10px;
-  font-weight: 680;
+  font-weight: 720;
   line-height: 12px;
 }
 
-main.app-shell[data-layout="app-shell"] .access-role-card small,
-main.app-shell[data-layout="app-shell"] .access-session-card small{
-  color: var(--mes-sidebar-muted, #94a3b8);
+main.app-shell[data-layout="app-shell"] .app-auth-session-copy small{
+  color: var(--mes-ui-muted);
   font-size: 8.5px;
   font-weight: 560;
   line-height: 10px;
 }
 
-main.app-shell[data-layout="app-shell"] .access-logout-button{
-  display: grid !important;
-  grid-template-columns: 12px minmax(0, auto);
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  min-height: 28px;
-  border: 1px solid var(--mes-sidebar-border, rgba(148, 163, 184, 0.22));
-  border-radius: var(--mes-radius-control, 7px);
-  background: transparent;
-  color: var(--mes-sidebar-muted, #94a3b8);
-  padding: 0 7px;
-  font-size: 9px;
-  font-weight: 720;
-  line-height: 11px;
-  box-shadow: none;
+main.app-shell[data-layout="app-shell"] .app-auth-session-logout{
+  grid-area: logout;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--mes-ui-line);
+  border-radius: var(--mes-ui-radius-xs);
+  background: #fff;
+  color: var(--mes-ui-muted);
+  padding: 0;
 }
 
-main.app-shell[data-layout="app-shell"] .access-logout-button:hover{
-  background: var(--mes-sidebar-hover, rgba(255, 255, 255, 0.08));
-  color: #ffffff;
+main.app-shell[data-layout="app-shell"] .app-auth-session-logout:hover{
+  border-color: var(--mes-ui-line-strong);
+  color: var(--mes-ui-text);
 }
 
-main.app-shell[data-layout="app-shell"] .access-logout-button svg{
-  width: 12px;
-  height: 12px;
+main.app-shell[data-layout="app-shell"] .app-auth-session-logout svg{
+  width: 13px;
+  height: 13px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-page{
@@ -2890,61 +2864,17 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-header{
   margin: 0;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-top-controls{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-board-controls{
   display: grid;
-  grid-template-columns: minmax(260px, 0.86fr) minmax(360px, 1.35fr) auto;
   gap: 8px;
-  align-items: stretch;
   min-width: 0;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis,
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-actions{
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
   min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(255, 255, 255, 0.84);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context{
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 8px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context svg{
-  width: 18px;
-  height: 18px;
-  color: var(--mes-ui-primary);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context span{
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context :is(strong, small){
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context strong{
-  color: var(--mes-ui-text);
-  font-size: 12px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 15px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-user-context small{
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
@@ -2985,13 +2915,6 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis stron
   white-space: nowrap;
 }
 
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-actions{
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 6px;
-}
-
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
   display: grid;
   grid-template-columns: minmax(520px, 1.08fr) minmax(420px, 0.92fr);
@@ -3024,7 +2947,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-conte
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
   min-width: 0;
 }
@@ -3173,7 +3096,6 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
 }
 
 @media (max-width: 1500px) {
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-top-controls,
   main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3186,10 +3108,6 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
   grid-template-columns: minmax(680px, 1.18fr) minmax(360px, 0.82fr);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-actions{
-  gap: 8px;
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select{
@@ -3216,7 +3134,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-sel
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions > div{
@@ -3309,7 +3227,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad but
   display: grid;
   place-items: center;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 16px;
+  border-radius: var(--mes-ui-radius-sm);
   background: #fff;
   color: var(--mes-ui-text);
   font-size: 22px;
@@ -3405,9 +3323,34 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card 
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route{
+  display: grid;
+  gap: 2px;
   color: #64748b;
   font-size: 9px;
   line-height: 11px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route > span{
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 4px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route b{
+  color: #475569;
+  font-size: 9px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 11px;
+}
+
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route em{
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: normal;
 }
 
 .auth-session-modal{
@@ -3772,17 +3715,22 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
 }
 
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad button{
-  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
   border-radius: var(--mes-ui-radius-sm) !important;
   background: #fff !important;
+  color: var(--mes-ui-text) !important;
   font-size: 28px !important;
-  font-weight: 800 !important;
+  font-weight: var(--mes-ui-weight-semibold) !important;
+  line-height: 1 !important;
 }
 
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-clear{
-  border: 1px solid #fff !important;
-  background: #fff !important;
-  color: #fff !important;
+  visibility: hidden !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  pointer-events: none !important;
 }
 
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-delete{

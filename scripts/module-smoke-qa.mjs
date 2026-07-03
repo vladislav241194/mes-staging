@@ -1537,15 +1537,47 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     const authSessionReport = await evaluate(client, () => {
       const context = document.querySelector("[data-visual-qa-target='auth-session-task-context']");
       const taskCards = [...document.querySelectorAll("[data-visual-qa-target='auth-session-task-card']")];
+      const baseRequiredTargets = [
+        "auth-session-header",
+        "auth-session-kpis",
+        "auth-session-kpi-tasks-value",
+      ];
+      const taskRequiredTargets = [
+        "auth-session-summary-product-value",
+        "auth-session-summary-operation-value",
+        "auth-session-task-actions-header",
+        "auth-session-task-action-start",
+        "auth-session-fact-header",
+        "auth-session-fact-status",
+        "auth-session-fact-actual-value",
+        "auth-session-fact-defect-value",
+        "auth-session-keypad-digit-0",
+        "auth-session-keypad-backspace",
+        "auth-session-task-card-operation",
+        "auth-session-task-card-route-before",
+        "auth-session-task-card-route-after",
+        "auth-session-task-card-quantity",
+        "auth-session-task-card-status",
+      ];
+      const hasTaskUi = Boolean(context) || taskCards.length > 0;
+      const requiredTargets = hasTaskUi ? [...baseRequiredTargets, ...taskRequiredTargets] : baseRequiredTargets;
+      const missingTargets = requiredTargets.filter((target) => !document.querySelector(`[data-visual-qa-target='${target}']`));
+      const nestedCoverageTargets = [...document.querySelectorAll("[data-visual-qa-target^='auth-session-']")]
+        .map((node) => node.getAttribute("data-visual-qa-target"))
+        .filter(Boolean);
       const cardRouteProblems = taskCards
         .map((card, index) => {
           const route = card.querySelector("[data-visual-qa-target='auth-session-task-card-route']");
+          const before = card.querySelector("[data-visual-qa-target='auth-session-task-card-route-before']");
+          const after = card.querySelector("[data-visual-qa-target='auth-session-task-card-route-after']");
           const rect = route?.getBoundingClientRect();
           const overflowX = route ? Math.max(0, route.scrollWidth - route.clientWidth) : 0;
-          if (route && rect?.width > 0 && overflowX <= 2) return null;
+          if (route && before && after && rect?.width > 0 && overflowX <= 2) return null;
           return {
             index,
             hasRoute: Boolean(route),
+            hasBefore: Boolean(before),
+            hasAfter: Boolean(after),
             overflowX,
             cardText: (card.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
           };
@@ -1555,10 +1587,17 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         hasContext: Boolean(context),
         routeChainInsideContext: Boolean(context?.querySelector("[data-visual-qa-target='auth-session-route-chain'], .auth-session-route-chain")),
         taskCardCount: taskCards.length,
+        hasTaskUi,
         cardRouteProblems,
+        missingTargets,
+        nestedCoverageCount: nestedCoverageTargets.length,
       };
     });
     assert(!authSessionReport.routeChainInsideContext, `authSessionPrototype: route chain must be moved out of task context: ${JSON.stringify(authSessionReport)}`);
+    assert(authSessionReport.missingTargets.length === 0, `authSessionPrototype: missing nested Visual QA targets: ${JSON.stringify(authSessionReport.missingTargets)}`);
+    if (authSessionReport.hasTaskUi) {
+      assert(authSessionReport.nestedCoverageCount >= 45, `authSessionPrototype: expected broad nested Visual QA coverage, got ${authSessionReport.nestedCoverageCount}`);
+    }
     if (authSessionReport.taskCardCount > 0) {
       assert(authSessionReport.cardRouteProblems.length === 0, `authSessionPrototype: task cards must contain compact route transfer text: ${JSON.stringify(authSessionReport.cardRouteProblems)}`);
     }

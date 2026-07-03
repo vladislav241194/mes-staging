@@ -760,16 +760,6 @@ employee and planning-order foundations.
   box-shadow: var(--shadow-soft);
 }.module-tab.is-active svg{
   color: var(--blue);
-}.module-menu-meta,
-.access-menu-meta{
-  justify-self: stretch;
-  display: grid;
-  gap: 9px;
-  color: var(--muted);
-  white-space: normal;
-}.module-menu-meta > span{
-  color: var(--muted);
-  font-size: 10px;
 }.topbar{
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(0, 2.4fr) auto;
@@ -1057,8 +1047,6 @@ employee and planning-order foundations.
   }.module-tab{
     flex: 0 0 auto;
     width: auto;
-  }.access-menu-meta{
-    display: none;
   }
 }@media (max-width: 1120px) {.planner-workspace{
     grid-template-columns: minmax(0, 1fr);
@@ -1261,13 +1249,6 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}.module-menu-meta{
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  justify-self: stretch;
-  white-space: normal;
 }.icon-button,
 .table-icon-button{
   display: inline-grid;
@@ -1981,8 +1962,6 @@ textarea:focus,
     grid-template-columns: 18px;
     justify-content: center;
     padding: 0;
-  }.module-menu-meta{
-    justify-content: center;
   }.app-topbar{
     grid-template-columns: minmax(0, 1fr) auto;
   }.app-topbar-title{

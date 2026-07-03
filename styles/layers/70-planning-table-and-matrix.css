@@ -404,8 +404,6 @@ input[type="radio"]{
   border-radius: 0 var(--slot-radius, var(--geometry-gantt-corner-radius)) var(--slot-radius, var(--geometry-gantt-corner-radius)) 0 !important;
 }/* Overflow containment audit v1: keep text and nested panels inside their own frames. */
 .module-menu-footer,
-.module-menu-meta,
-.access-menu-meta,
 .module-menu-preset-main,
 .module-menu-preset-main span,
 .module-menu-preset-main strong,
@@ -422,13 +420,7 @@ input[type="radio"]{
   line-height: 14px !important;
   text-overflow: ellipsis;
   white-space: nowrap;
-}.module-menu .access-menu-meta{
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  gap: 5px !important;
-  width: 100% !important;
-  justify-self: stretch !important;
-}.directory-table .actions-cell,
+}.module-menu .directory-table .actions-cell,
 .bom-import-table .actions-cell,
 .bom-import-table .bom-row-action-cell{
   width: 96px;

@@ -80,7 +80,7 @@ const SHARED_STATE_POLL_INTERVAL_MS = 4000;
 const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
 const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
 const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
-const APP_VERSION = "v.1.399";
+const APP_VERSION = "v.1.412";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -3862,7 +3862,6 @@ function isVisualQaNavigationElement(element) {
     "[data-module]",
     "[data-save-workflow-preset]",
     "[data-restore-workflow-preset]",
-    "[data-auth-logout]",
     "[data-toggle-focus-mode]",
     "[data-toggle-visual-qa]",
   ].join(",")));
@@ -3920,6 +3919,7 @@ function getInspectableVisualQaElement(target) {
     || isVisualQaNavigationElement(target)
   ) return null;
   const element = target.closest([
+    "[data-visual-qa-target]",
     "button",
     "input",
     "select",
@@ -3928,7 +3928,6 @@ function getInspectableVisualQaElement(target) {
     "a[href]",
     "[role='button']",
     "[role='dialog']",
-    "[data-visual-qa-target]",
     "[popover]",
     ".operation-slot",
     ".supply-demand-bar",
@@ -16710,7 +16709,6 @@ function renderModuleMenuBadge(badge = null) {
 function renderModuleMenu() {
   const modules = getAvailableModules();
   const groups = getModuleGroups(modules);
-  const activeRole = getActiveInterfaceRole();
   const activeModule = modules.find((moduleItem) => moduleItem.id === ui.activeModule) || modules[0];
   const activeModuleGroup = groups.find((group) => group.modules.some((moduleItem) => moduleItem.id === activeModule?.id));
   const menuBadges = getModuleMenuBadges(modules);
@@ -16761,11 +16759,6 @@ function renderModuleMenu() {
       </div>
       <div class="module-menu-footer">
         ${renderUiPresetMenuGroup()}
-        <div class="module-menu-meta access-menu-meta">
-          <span class="module-menu-section-title">Роль интерфейса</span>
-          ${renderAuthorizationRoleCard(activeRole)}
-          ${renderAuthenticatedAccessCard(activeRole)}
-        </div>
       </div>
     </nav>
   `;
@@ -16780,7 +16773,7 @@ function renderUiPresetMenuGroup() {
   `;
 }
 
-function renderAuthenticatedAccessCard(activeRole = getActiveInterfaceRole()) {
+function renderTopbarAuthenticatedAccessCard(activeRole = getActiveInterfaceRole()) {
   const person = getAuthenticatedAccessPerson();
   const isBypass = isAuthGateQaBypassEnabled();
   const title = person?.name || (isBypass ? "QA-обход" : "Сеанс не выбран");
@@ -16788,42 +16781,16 @@ function renderAuthenticatedAccessCard(activeRole = getActiveInterfaceRole()) {
   const departmentLabel = person?.department || (isBypass ? "сотрудник не выбран" : "отдел не выбран");
 
   return `
-    <section class="module-menu-section module-menu-auth-session" aria-label="Текущая авторизация">
-      <span class="module-menu-section-title">Авторизация</span>
-      <div class="access-session-card">
-        ${icon(person ? activeRole.icon : "lock")}
-        <span>
-          <strong>${escapeHtml(title)}</strong>
-          <small>${escapeHtml(roleLabel)}</small>
-          <small>${escapeHtml(departmentLabel)}</small>
-        </span>
-      </div>
-      <button class="secondary-button ui-action-button access-logout-button" data-auth-logout type="button" title="Выйти и вернуться на экран авторизации">
-        ${icon("lock")}<span>Выход</span>
+    <section class="app-auth-session-summary" data-visual-qa-target="app-auth-session-summary" aria-label="Текущая авторизация">
+      <span class="app-auth-session-copy" data-visual-qa-target="app-auth-session-copy">
+        <strong data-visual-qa-target="app-auth-session-name">${escapeHtml(title)}</strong>
+        <small data-visual-qa-target="app-auth-session-role">${escapeHtml(roleLabel)}</small>
+        <small data-visual-qa-target="app-auth-session-department">${escapeHtml(departmentLabel)}</small>
+      </span>
+      <button class="app-auth-session-logout" data-auth-logout data-visual-qa-target="app-auth-session-logout" type="button" title="Выйти и вернуться на экран авторизации">
+        ${icon("lock")}
       </button>
     </section>
-  `;
-}
-
-function renderAuthorizationRoleCard(activeRole = getActiveInterfaceRole()) {
-  const person = getAuthenticatedAccessPerson();
-  const isBypass = isAuthGateQaBypassEnabled();
-  const sourceLabel = person?.id
-    ? "на основе авторизации"
-    : isBypass
-      ? "QA-обход"
-      : "ожидает вход";
-  const scopeLabel = getAccessRoleScopeLabel(activeRole.scope);
-
-  return `
-    <div class="access-role-card" aria-label="Роль интерфейса">
-      ${icon(activeRole.icon)}
-      <span>
-        <strong>${escapeHtml(activeRole.label)}</strong>
-        <small>${escapeHtml(sourceLabel)}</small>
-        <small>${escapeHtml(scopeLabel)}</small>
-      </span>
-    </div>
   `;
 }
 
@@ -16876,6 +16843,7 @@ function renderAppTopbar() {
         <span>${escapeHtml(getModuleAnnotation(activeModule.id))}</span>
       </div>
       <div class="app-topbar-actions" aria-label="Режимы интерфейса">
+        ${renderTopbarAuthenticatedAccessCard(activeRole)}
         <button class="app-topbar-action ${ui.focusMode ? "is-active" : ""}" data-toggle-focus-mode type="button" aria-pressed="${ui.focusMode ? "true" : "false"}" title="Режим фокуса: скрыть вторичные панели">
           ${icon("focus")}
           <span>Фокус</span>
@@ -21642,7 +21610,7 @@ function renderAuthPrototypeUnitStep(people, departmentRow) {
         className: "auth-prototype-panel auth-prototype-step-panel auth-prototype-unit-panel",
         body: renderUiPanelBody({ body: `
           <div class="auth-prototype-step-toolbar">
-            ${renderUiActionButton({ label: "К отделам", iconName: "arrowLeft", attributes: "data-auth-back-departments type=\"button\"" })}
+            ${renderUiActionButton({ label: "Назад", iconName: "arrowLeft", attributes: "data-auth-back-departments type=\"button\"" })}
             ${renderUiStatusToken(`${units.length.toLocaleString("ru-RU")} участков`, "neutral")}
             ${directEmployees.length ? renderUiStatusToken(`${directEmployees.length.toLocaleString("ru-RU")} сотрудников отдела`, "neutral") : ""}
           </div>
@@ -21691,8 +21659,11 @@ function renderAuthPrototypePersonStep(people, departmentRow, unitRow) {
         className: "auth-prototype-panel auth-prototype-step-panel auth-prototype-picker-panel auth-prototype-person-panel",
         body: renderUiPanelBody({ body: `
           <div class="auth-prototype-step-toolbar">
-            ${hasUnitStep && unitRow?.id ? renderUiActionButton({ label: "К участкам", iconName: "arrowLeft", attributes: "data-auth-back-units type=\"button\"" }) : ""}
-            ${renderUiActionButton({ label: "К отделам", iconName: "arrowLeft", attributes: "data-auth-back-departments type=\"button\"" })}
+            ${renderUiActionButton({
+              label: "Назад",
+              iconName: "arrowLeft",
+              attributes: `${hasUnitStep && unitRow?.id ? "data-auth-back-units" : "data-auth-back-departments"} type=\"button\"`,
+            })}
             ${renderUiStatusToken(`${employees.length.toLocaleString("ru-RU")} сотрудников`, "neutral")}
           </div>
           <div class="auth-prototype-people-grid auth-prototype-step-people-grid">
@@ -21727,9 +21698,7 @@ function renderAuthPrototypeUnifiedPinStep(people, departmentRow, unitRow, selec
         className: "auth-prototype-panel auth-prototype-step-panel auth-prototype-pin-panel auth-prototype-unified-pin-panel",
         body: renderUiPanelBody({ body: `
           <div class="auth-prototype-step-toolbar">
-            ${renderUiActionButton({ label: "К сотрудникам", iconName: "arrowLeft", attributes: "data-auth-back-people type=\"button\"" })}
-            ${renderUiActionButton({ label: "К участкам", iconName: "arrowLeft", attributes: "data-auth-back-units type=\"button\"" })}
-            ${renderUiActionButton({ label: "К отделам", iconName: "arrowLeft", attributes: "data-auth-back-departments type=\"button\"" })}
+            ${renderUiActionButton({ label: "Назад", iconName: "arrowLeft", attributes: "data-auth-back-people type=\"button\"" })}
           </div>
           <div class="auth-prototype-pin-entry">
             <div class="auth-prototype-selected-person">
@@ -22228,32 +22197,13 @@ function getAuthSessionPrototypeModel() {
   };
 }
 
-function renderAuthSessionPrototypeTopControls(model) {
-  const person = model.person;
+function renderAuthSessionKpiSummary(model) {
   return `
-    <section class="auth-session-top-controls" data-visual-qa-target="auth-session-top-controls">
-      <div class="auth-session-user-context" data-visual-qa-target="auth-session-user-context">
-        ${icon(model.role.icon || "keyboard")}
-        <span>
-          <strong>${escapeHtml(model.canViewAll && model.viewedPersonId === "__all" ? "Все рабочие столы" : person?.name || model.role.label)}</strong>
-          <small>${escapeHtml(model.canViewAll && model.viewedPersonId === "__all" ? "режим просмотра начальника производства" : [person?.role, person?.department].filter(Boolean).join(" · ") || model.role.caption || "сеанс открыт")}</small>
-        </span>
-        ${renderUiStatusToken(model.canViewAll ? "просмотр" : "исполнение", model.canViewAll ? "neutral" : "ok")}
-      </div>
-      <div class="auth-session-kpis" aria-label="Сводка рабочего стола">
-        ${renderAuthSessionKpi("Задания", model.tasks.length.toLocaleString("ru-RU"), `${model.activeTasks.length.toLocaleString("ru-RU")} открыто`)}
-        ${renderAuthSessionKpi("Распределено", `${formatReportNumber(model.assignedQuantity)} шт.`, "по видимым заданиям")}
-        ${renderAuthSessionKpi("Факт", `${formatReportNumber(model.goodQuantity)} шт.`, `${model.doneTasks.length.toLocaleString("ru-RU")} закрыто`)}
-      </div>
-      <div class="auth-session-actions">
-        ${model.canViewAll ? renderAuthSessionViewerSelect(model) : ""}
-        ${renderUiActionButton({
-          label: "Выйти",
-          iconName: "lock",
-          attributes: "data-auth-logout type=\"button\"",
-        })}
-      </div>
-    </section>
+    <div class="auth-session-kpis" data-visual-qa-target="auth-session-kpis" aria-label="Сводка рабочего стола">
+      ${renderAuthSessionKpi("Задания", model.tasks.length.toLocaleString("ru-RU"), `${model.activeTasks.length.toLocaleString("ru-RU")} открыто`, "auth-session-kpi-tasks")}
+      ${renderAuthSessionKpi("Распределено", `${formatReportNumber(model.assignedQuantity)} шт.`, "по видимым заданиям", "auth-session-kpi-assigned")}
+      ${renderAuthSessionKpi("Факт", `${formatReportNumber(model.goodQuantity)} шт.`, `${model.doneTasks.length.toLocaleString("ru-RU")} закрыто`, "auth-session-kpi-fact")}
+    </div>
   `;
 }
 
@@ -22261,7 +22211,7 @@ function renderAuthSessionViewerSelect(model) {
   return `
     <label class="auth-session-viewer-select" data-visual-qa-target="auth-session-viewer-select">
       <span>Рабочий стол</span>
-      <select data-auth-session-view-person>
+      <select data-auth-session-view-person data-visual-qa-target="auth-session-viewer-control">
         <option value="__all" ${model.viewedPersonId === "__all" ? "selected" : ""}>Все сотрудники</option>
         ${model.taskPeople.map((person) => `
           <option value="${escapeAttribute(person.id)}" ${model.viewedPersonId === person.id ? "selected" : ""}>${escapeHtml(person.name)}</option>
@@ -22271,12 +22221,12 @@ function renderAuthSessionViewerSelect(model) {
   `;
 }
 
-function renderAuthSessionKpi(label, value, meta = "") {
+function renderAuthSessionKpi(label, value, meta = "", qaTarget = "auth-session-kpi") {
   return `
-    <article data-visual-qa-target="auth-session-kpi">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(String(value || "—"))}</strong>
-      <small>${escapeHtml(meta || "—")}</small>
+    <article data-visual-qa-target="${escapeAttribute(qaTarget)}">
+      <span data-visual-qa-target="${escapeAttribute(`${qaTarget}-label`)}">${escapeHtml(label)}</span>
+      <strong data-visual-qa-target="${escapeAttribute(`${qaTarget}-value`)}">${escapeHtml(String(value || "—"))}</strong>
+      <small data-visual-qa-target="${escapeAttribute(`${qaTarget}-meta`)}">${escapeHtml(meta || "—")}</small>
     </article>
   `;
 }
@@ -22306,26 +22256,25 @@ function renderAuthSessionTaskContext(task) {
   return `
     <section class="auth-session-task-context" data-visual-qa-target="auth-session-task-context" aria-label="Контекст задания">
       <section class="auth-session-inline-summary" data-visual-qa-target="auth-session-inline-summary">
-        ${renderAuthSessionSummaryCell("Изделие", task.orderLabel)}
-        ${renderAuthSessionSummaryCell("Операция", task.operationName, { className: "is-operation" })}
-        ${renderAuthSessionSummaryCell("Маршрут", task.routePartLabel)}
-        ${renderAuthSessionSummaryCell("Участок", task.workCenterLabel)}
-        ${renderAuthSessionSummaryCell("Кол-во", `${formatReportNumber(task.assignedQuantity)} ${task.unit}`)}
+        ${renderAuthSessionSummaryCell("Изделие", task.orderLabel, { qaTarget: "auth-session-summary-product" })}
+        ${renderAuthSessionSummaryCell("Операция", task.operationName, { className: "is-operation", qaTarget: "auth-session-summary-operation" })}
+        ${renderAuthSessionSummaryCell("Маршрут", task.routePartLabel, { qaTarget: "auth-session-summary-route" })}
       </section>
     </section>
   `;
 }
 
 function renderAuthSessionSummaryCell(label, value, options = {}) {
+  const qaTarget = options.qaTarget || "auth-session-summary-cell";
   return `
     <article
       class="auth-session-summary-cell ${options.className ? escapeAttribute(options.className) : ""}"
-      data-visual-qa-target="auth-session-summary-cell"
+      data-visual-qa-target="${escapeAttribute(qaTarget)}"
       aria-label="${escapeAttribute(`${label}: ${value || "нет значения"}`)}"
     >
-      <span>${escapeHtml(label)}</span>
-      <strong title="${escapeAttribute(value || "")}">${escapeHtml(value || "—")}</strong>
-      ${options.valueMeta ? `<small>${escapeHtml(options.valueMeta)}</small>` : ""}
+      <span data-visual-qa-target="${escapeAttribute(`${qaTarget}-label`)}">${escapeHtml(label)}</span>
+      <strong data-visual-qa-target="${escapeAttribute(`${qaTarget}-value`)}" title="${escapeAttribute(value || "")}">${escapeHtml(value || "—")}</strong>
+      ${options.valueMeta ? `<small data-visual-qa-target="${escapeAttribute(`${qaTarget}-meta`)}">${escapeHtml(options.valueMeta)}</small>` : ""}
     </article>
   `;
 }
@@ -22333,11 +22282,12 @@ function renderAuthSessionSummaryCell(label, value, options = {}) {
 function renderAuthSessionRouteCard(label, row, fallback, isCurrent = false) {
   const title = row?.operationName || fallback || "—";
   const meta = row ? `${row.workCenterLabel || "участок не задан"} · ${getShiftMasterRowRoutePartLabel(row)}` : "вне текущего окна";
+  const qaTarget = isCurrent ? "auth-session-route-chain-current" : label === "До" ? "auth-session-route-chain-before" : "auth-session-route-chain-after";
   return `
-    <article class="${isCurrent ? "is-current" : ""}" data-visual-qa-target="auth-session-route-chain-card">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(title)}</strong>
-      <small>${escapeHtml(meta)}</small>
+    <article class="${isCurrent ? "is-current" : ""}" data-visual-qa-target="${escapeAttribute(qaTarget)}">
+      <span data-visual-qa-target="${escapeAttribute(`${qaTarget}-label`)}">${escapeHtml(label)}</span>
+      <strong data-visual-qa-target="${escapeAttribute(`${qaTarget}-title`)}">${escapeHtml(title)}</strong>
+      <small data-visual-qa-target="${escapeAttribute(`${qaTarget}-meta`)}">${escapeHtml(meta)}</small>
     </article>
   `;
 }
@@ -22357,13 +22307,17 @@ function renderAuthSessionRouteChain(task) {
 
 function getAuthSessionCompactRouteText(task = {}) {
   const chain = task.chain || {};
-  const trimPart = (value = "", limit = 22) => {
+  const trimPart = (value = "", limit = 38) => {
     const chars = Array.from(String(value || "").trim());
     return chars.length > limit ? `${chars.slice(0, limit - 3).join("")}...` : chars.join("");
   };
   const previous = trimPart(chain.previous?.operationName || "старт");
   const next = trimPart(chain.next?.operationName || "финиш");
-  return `До: ${previous} -> После: ${next}`;
+  return {
+    previous,
+    next,
+    title: `До: ${previous}; После: ${next}`,
+  };
 }
 
 function renderAuthSessionTaskActions(model) {
@@ -22371,34 +22325,33 @@ function renderAuthSessionTaskActions(model) {
   const editDisabled = model.canEditSelectedTask ? "" : "disabled";
   return `
     <section class="auth-session-section auth-session-task-actions" data-visual-qa-target="auth-session-task-actions">
-      <header>
-        <div>
-          <strong>Действия с заданием</strong>
-          <span>${escapeHtml(model.canEditSelectedTask ? "планшетный сценарий исполнителя" : "режим просмотра без записи")}</span>
+      <header data-visual-qa-target="auth-session-task-actions-header">
+        <div data-visual-qa-target="auth-session-task-actions-copy">
+          <strong data-visual-qa-target="auth-session-task-actions-title">Действия с заданием</strong>
+          <span data-visual-qa-target="auth-session-task-actions-meta">${escapeHtml(model.canEditSelectedTask ? "планшетный сценарий исполнителя" : "режим просмотра без записи")}</span>
         </div>
-        ${renderUiStatusToken(task.status, task.isDone ? "ok" : task.isStarted ? "primary" : "neutral")}
       </header>
-      <div>
+      <div data-visual-qa-target="auth-session-task-actions-buttons">
         ${renderUiActionButton({
           label: task.isStarted ? "В работе" : "Взять",
           iconName: "play",
           tone: "primary",
-          attributes: `data-auth-session-start-task="${escapeAttribute(task.id)}" type="button" ${editDisabled}`,
+          attributes: `data-auth-session-start-task="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-task-action-start" type="button" ${editDisabled}`,
         })}
         ${renderUiActionButton({
           label: "Структура",
           iconName: "tree",
-          attributes: `data-auth-session-modal="structure" data-auth-session-task-id="${escapeAttribute(task.id)}" type="button"`,
+          attributes: `data-auth-session-modal="structure" data-auth-session-task-id="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-task-action-structure" type="button"`,
         })}
         ${renderUiActionButton({
           label: "Маршрут",
           iconName: "route",
-          attributes: `data-auth-session-modal="route" data-auth-session-task-id="${escapeAttribute(task.id)}" type="button"`,
+          attributes: `data-auth-session-modal="route" data-auth-session-task-id="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-task-action-route" type="button"`,
         })}
         ${renderUiActionButton({
           label: "PDF",
           iconName: "document",
-          attributes: `data-auth-session-modal="pdf" data-auth-session-task-id="${escapeAttribute(task.id)}" type="button"`,
+          attributes: `data-auth-session-modal="pdf" data-auth-session-task-id="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-task-action-pdf" type="button"`,
         })}
       </div>
     </section>
@@ -22413,21 +22366,21 @@ function renderAuthSessionFactPanel(model) {
   const doneSiblings = siblingTasks.filter((item) => item.isDone).length;
   return `
     <section class="auth-session-section auth-session-fact-panel" data-visual-qa-target="auth-session-fact-panel">
-      <header>
-        <div>
-          <strong>Завершение задания</strong>
-          <span>ввод факта и брака без экранной клавиатуры</span>
+      <header data-visual-qa-target="auth-session-fact-header">
+        <div data-visual-qa-target="auth-session-fact-copy">
+          <strong data-visual-qa-target="auth-session-fact-title">Завершение задания</strong>
+          <span data-visual-qa-target="auth-session-fact-meta">ввод факта и брака без экранной клавиатуры</span>
         </div>
-        ${renderUiStatusToken(`${doneSiblings}/${siblingTasks.length} фактов`, doneSiblings >= siblingTasks.length && siblingTasks.length ? "ok" : "neutral")}
+        <span data-visual-qa-target="auth-session-fact-status">${renderUiStatusToken(`${doneSiblings}/${siblingTasks.length} фактов`, doneSiblings >= siblingTasks.length && siblingTasks.length ? "ok" : "neutral")}</span>
       </header>
-      <div class="auth-session-fact-grid">
+      <div class="auth-session-fact-grid" data-visual-qa-target="auth-session-fact-grid">
         <div class="auth-session-fact-values" data-visual-qa-target="auth-session-fact-values">
           ${renderAuthSessionFactValueButton("actual", "Выполнено", `${formatReportNumber(task.actualQuantity)} ${task.unit}`, activeField === "actual", editDisabled)}
           ${renderAuthSessionFactValueButton("defect", "Брак", `${formatReportNumber(task.defectQuantity)} ${task.unit}`, activeField === "defect", editDisabled)}
-          <article class="auth-session-fact-hint">
-            <span>Назначено</span>
-            <strong>${escapeHtml(`${formatReportNumber(task.assignedQuantity)} ${task.unit}`)}</strong>
-            <small>${escapeHtml(task.laborLabel)}</small>
+          <article class="auth-session-fact-hint" data-visual-qa-target="auth-session-fact-assigned">
+            <span data-visual-qa-target="auth-session-fact-assigned-label">Назначено</span>
+            <strong data-visual-qa-target="auth-session-fact-assigned-value">${escapeHtml(`${formatReportNumber(task.assignedQuantity)} ${task.unit}`)}</strong>
+            <small data-visual-qa-target="auth-session-fact-assigned-meta">${escapeHtml(task.laborLabel)}</small>
           </article>
         </div>
         ${renderAuthSessionKeypad(editDisabled)}
@@ -22437,25 +22390,26 @@ function renderAuthSessionFactPanel(model) {
           label: "Записать факт",
           iconName: "check",
           tone: "primary",
-          attributes: `data-auth-session-save-fact="${escapeAttribute(task.id)}" type="button" ${editDisabled}`,
+          attributes: `data-auth-session-save-fact="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-save-fact" type="button" ${editDisabled}`,
         })}
-        <span class="auth-session-fact-note">Операция закроется после фактов всех назначенных исполнителей.</span>
+        <span class="auth-session-fact-note" data-visual-qa-target="auth-session-fact-note">Операция закроется после фактов всех назначенных исполнителей.</span>
       ` })}
     </section>
   `;
 }
 
 function renderAuthSessionFactValueButton(field, label, value, active = false, disabledAttr = "") {
+  const qaTarget = `auth-session-fact-${field}`;
   return `
     <button
       class="auth-session-fact-value ${active ? "is-active" : ""}"
       data-auth-session-field="${escapeAttribute(field)}"
-      data-visual-qa-target="auth-session-fact-value"
+      data-visual-qa-target="${escapeAttribute(qaTarget)}"
       type="button"
       ${disabledAttr}
     >
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
+      <span data-visual-qa-target="${escapeAttribute(`${qaTarget}-label`)}">${escapeHtml(label)}</span>
+      <strong data-visual-qa-target="${escapeAttribute(`${qaTarget}-value`)}">${escapeHtml(value)}</strong>
     </button>
   `;
 }
@@ -22464,22 +22418,28 @@ function renderAuthSessionKeypad(disabledAttr = "") {
   const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
   return `
     <div class="auth-session-keypad" data-visual-qa-target="auth-session-keypad" aria-label="Цифровой ввод количества">
-      ${digits.map((digit) => `<button data-auth-session-digit="${digit}" type="button" ${disabledAttr}>${digit}</button>`).join("")}
+      ${digits.map((digit) => `<button data-auth-session-digit="${digit}" data-visual-qa-target="auth-session-keypad-digit-${digit}" type="button" ${disabledAttr}>${digit}</button>`).join("")}
       <span aria-hidden="true"></span>
-      <button data-auth-session-digit="0" type="button" ${disabledAttr}>0</button>
-      <button class="auth-session-keypad-delete" data-auth-session-backspace type="button" ${disabledAttr}>${icon("backspaceApple")}</button>
+      <button data-auth-session-digit="0" data-visual-qa-target="auth-session-keypad-digit-0" type="button" ${disabledAttr}>0</button>
+      <button class="auth-session-keypad-delete" data-auth-session-backspace data-visual-qa-target="auth-session-keypad-backspace" type="button" ${disabledAttr}>${icon("backspaceApple")}</button>
     </div>
   `;
 }
 
 function renderAuthSessionTaskBoard(model) {
+  const showTaskPerson = Boolean(model.canViewAll && model.viewedPersonId === "__all");
   return renderUiPanel({
     title: "Назначенные задания",
     meta: model.canViewAll && model.viewedPersonId === "__all" ? "все рабочие столы" : model.person?.name || "исполнитель",
     className: "auth-session-panel auth-session-workspace-panel",
     attributes: "data-visual-qa-target=\"auth-session-workspace-panel\"",
     body: renderUiPanelBody({
-      body: model.tasks.length ? `
+      body: `
+        <div class="auth-session-board-controls" data-visual-qa-target="auth-session-board-controls">
+          ${renderAuthSessionKpiSummary(model)}
+          ${model.canViewAll ? renderAuthSessionViewerSelect(model) : ""}
+        </div>
+        ${model.tasks.length ? `
         <div class="auth-session-task-board" data-visual-qa-target="auth-session-task-board">
           ${model.tasks.map((task) => {
             const routeText = getAuthSessionCompactRouteText(task);
@@ -22491,12 +22451,15 @@ function renderAuthSessionTaskBoard(model) {
               type="button"
             >
               <div class="auth-session-task-card-main" data-visual-qa-target="auth-session-task-card-main">
-                <strong>${escapeHtml(task.operationName)}</strong>
-                <small>${escapeHtml(`${task.employeeName} · ${task.workCenterLabel}`)}</small>
-                <small class="auth-session-task-card-route" data-visual-qa-target="auth-session-task-card-route" title="${escapeAttribute(routeText)}">${escapeHtml(routeText)}</small>
+                <strong data-visual-qa-target="auth-session-task-card-operation">${escapeHtml(task.operationName)}</strong>
+                ${showTaskPerson ? `<small data-visual-qa-target="auth-session-task-card-person">${escapeHtml(`${task.employeeName} · ${task.workCenterLabel}`)}</small>` : ""}
+                <span class="auth-session-task-card-route" data-visual-qa-target="auth-session-task-card-route" title="${escapeAttribute(routeText.title)}">
+                  <span data-visual-qa-target="auth-session-task-card-route-before"><b>До</b><em>${escapeHtml(routeText.previous)}</em></span>
+                  <span data-visual-qa-target="auth-session-task-card-route-after"><b>После</b><em>${escapeHtml(routeText.next)}</em></span>
+                </span>
               </div>
-              <em>${escapeHtml(`${formatReportNumber(task.assignedQuantity)} ${task.unit}`)}</em>
-              ${renderUiStatusToken(task.status, task.isDone ? "ok" : task.isStarted ? "primary" : "neutral")}
+              <em data-visual-qa-target="auth-session-task-card-quantity">${escapeHtml(`${formatReportNumber(task.assignedQuantity)} ${task.unit}`)}</em>
+              <span data-visual-qa-target="auth-session-task-card-status">${renderUiStatusToken(task.status, task.isDone ? "ok" : task.isStarted ? "primary" : "neutral")}</span>
             </button>
           `;
           }).join("")}
@@ -22505,7 +22468,8 @@ function renderAuthSessionTaskBoard(model) {
         iconName: "document",
         title: "Заданий нет",
         text: "После распределения в Мастерской здесь появятся сменные задания исполнителей.",
-      }),
+      })}
+      `,
     }),
   });
 }
@@ -22553,15 +22517,18 @@ function renderAuthSessionStructureModalBody(task) {
   ];
   return `
     <div class="auth-session-modal-structure" data-visual-qa-target="auth-session-structure-preview">
-      <section>
-        ${rows.map(([label, value]) => `
-          <article>
-            <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(value || "—")}</strong>
+      <section data-visual-qa-target="auth-session-structure-rows">
+        ${rows.map(([label, value], index) => {
+          const qaTarget = `auth-session-structure-row-${index + 1}`;
+          return `
+          <article data-visual-qa-target="auth-session-structure-row-${index + 1}">
+            <span data-visual-qa-target="${escapeAttribute(`${qaTarget}-label`)}">${escapeHtml(label)}</span>
+            <strong data-visual-qa-target="${escapeAttribute(`${qaTarget}-value`)}">${escapeHtml(value || "—")}</strong>
           </article>
-        `).join("")}
+        `;
+        }).join("")}
       </section>
-      <p>Здесь сотрудник видит понятную структуру изделия и свою часть маршрута без перехода в технологические модули.</p>
+      <p data-visual-qa-target="auth-session-structure-note">Здесь сотрудник видит понятную структуру изделия и свою часть маршрута без перехода в технологические модули.</p>
     </div>
   `;
 }
@@ -22578,19 +22545,19 @@ function renderAuthSessionPdfModalBody(task) {
   const fileName = `Инструкция_${task.operationName || "операция"}.pdf`;
   return `
     <div class="auth-session-pdf-preview" data-visual-qa-target="auth-session-pdf-preview">
-      <div class="auth-session-pdf-toolbar">
-        ${icon("document")}
-        <span>
-          <strong>${escapeHtml(fileName)}</strong>
-          <small>предпросмотр инструкции, прикрепленной в предшествующем технологическом модуле</small>
+      <div class="auth-session-pdf-toolbar" data-visual-qa-target="auth-session-pdf-toolbar">
+        <span data-visual-qa-target="auth-session-pdf-icon">${icon("document")}</span>
+        <span data-visual-qa-target="auth-session-pdf-copy">
+          <strong data-visual-qa-target="auth-session-pdf-file-name">${escapeHtml(fileName)}</strong>
+          <small data-visual-qa-target="auth-session-pdf-meta">предпросмотр инструкции, прикрепленной в предшествующем технологическом модуле</small>
         </span>
       </div>
-      <div class="auth-session-pdf-page" aria-label="Предпросмотр PDF">
-        <strong>${escapeHtml(task.operationName)}</strong>
-        <span>${escapeHtml(task.orderLabel)}</span>
-        <p>1. Проверить соответствие изделия сменному листу.</p>
-        <p>2. Выполнить операцию по технологической инструкции.</p>
-        <p>3. Зафиксировать выпуск и брак на рабочем столе.</p>
+      <div class="auth-session-pdf-page" data-visual-qa-target="auth-session-pdf-page" aria-label="Предпросмотр PDF">
+        <strong data-visual-qa-target="auth-session-pdf-operation">${escapeHtml(task.operationName)}</strong>
+        <span data-visual-qa-target="auth-session-pdf-order">${escapeHtml(task.orderLabel)}</span>
+        <p data-visual-qa-target="auth-session-pdf-step-1">1. Проверить соответствие изделия сменному листу.</p>
+        <p data-visual-qa-target="auth-session-pdf-step-2">2. Выполнить операцию по технологической инструкции.</p>
+        <p data-visual-qa-target="auth-session-pdf-step-3">3. Зафиксировать выпуск и брак на рабочем столе.</p>
       </div>
     </div>
   `;
@@ -22641,10 +22608,9 @@ function renderAuthSessionPrototypePage() {
         title: "Рабочий стол",
       description: "Назначенные сменные задания, маршрут, инструкции и ввод факта с сенсорного планшета.",
       className: "directory-header auth-session-header",
-        actions: renderUiStatusToken(model.canViewAll ? "режим просмотра" : "рабочий экран", model.canViewAll ? "neutral" : "ok"),
+      attributes: "data-visual-qa-target=\"auth-session-header\"",
     }),
     content: `
-      ${renderAuthSessionPrototypeTopControls(model)}
       <div class="auth-session-main-grid">
         ${renderAuthSessionDetail(model)}
         ${renderAuthSessionTaskBoard(model)}

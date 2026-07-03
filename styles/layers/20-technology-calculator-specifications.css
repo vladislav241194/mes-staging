@@ -840,8 +840,7 @@ body,
     align-items: stretch;
     gap: 6px;
     padding: 8px;
-  }.module-menu-brand,
-.module-menu-meta{
+  }.module-menu-brand{
     min-width: 0;
   }.module-tabs{
     justify-content: flex-start;

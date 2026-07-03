@@ -1044,9 +1044,6 @@ body,
   }.module-tab svg{
     width: 18px !important;
     height: 18px !important;
-  }.module-menu-meta{
-    width: 40px !important;
-    justify-self: center;
   }}@media (max-width: 900px) {.app-topbar-title{
     min-width: 0;
   }.app-topbar-title h1,

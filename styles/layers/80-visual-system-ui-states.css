@@ -275,9 +275,7 @@ main.app-shell[data-layout="app-shell"] .module-tabs{
   height: 30px !important;
   font-size: 0 !important;
   line-height: 0 !important;
-}main.app-shell[data-layout="app-shell"] .access-menu-meta{
-  gap: 4px !important;
-}main.app-shell[data-layout="app-shell"] .module-group.is-test-group{
+}main.app-shell[data-layout="app-shell"] main.app-shell[data-layout="app-shell"] .module-group.is-test-group{
   border-color: rgba(245, 158, 11, 0.36) !important;
   background: rgba(245, 158, 11, 0.075) !important;
   padding: 4px 3px 5px !important;
@@ -1602,12 +1600,6 @@ main.app-shell[data-layout="app-shell"] .module-menu-preset-main{
     border-top: 0 !important;
     padding: 0 !important;
   }
-
-  main.app-shell[data-layout="app-shell"] .access-menu-meta {
-    display: grid !important;
-    gap: 3px !important;
-  }
-
   main.app-shell[data-layout="app-shell"] .app-topbar {
     grid-template-columns: minmax(0, 1fr) !important;
     grid-auto-rows: auto !important;
@@ -2389,13 +2381,6 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
   main.app-shell[data-layout="app-shell"] .module-menu-preset {
     display: none !important;
   }
-
-  main.app-shell[data-layout="app-shell"] .access-menu-meta {
-    display: grid !important;
-    justify-content: end !important;
-    gap: 0 !important;
-  }
-
   main.app-shell[data-layout="app-shell"] .app-topbar {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;

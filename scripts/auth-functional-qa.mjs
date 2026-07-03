@@ -279,6 +279,54 @@ async function completeAuthSelection(client) {
   await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-pin-digit]")));
 }
 
+async function readAuthBackNavigation(client) {
+  return await evaluate(client, () => {
+    const step = document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step") || "";
+    const buttons = [...document.querySelectorAll(".auth-prototype-step-toolbar button")]
+      .filter((button) => (
+        button.hasAttribute("data-auth-back-departments")
+        || button.hasAttribute("data-auth-back-units")
+        || button.hasAttribute("data-auth-back-people")
+      ))
+      .map((button) => ({
+        text: button.textContent.trim().replace(/\s+/g, " "),
+        target: button.hasAttribute("data-auth-back-people")
+          ? "people"
+          : button.hasAttribute("data-auth-back-units")
+            ? "units"
+            : "departments",
+      }));
+    return { step, buttons };
+  });
+}
+
+async function assertAuthSingleBack(client, expectedStep, expectedTarget) {
+  const report = await readAuthBackNavigation(client);
+  assert(report.step === expectedStep, `Auth back contract expected step "${expectedStep}", got "${report.step}".`);
+  assert(report.buttons.length === 1, `Auth ${expectedStep} step must expose exactly one back button, got ${JSON.stringify(report.buttons)}.`);
+  assert(report.buttons[0].target === expectedTarget, `Auth ${expectedStep} back must target "${expectedTarget}", got "${report.buttons[0].target}".`);
+  assert(report.buttons[0].text === "Назад", `Auth ${expectedStep} back button must be labeled "Назад", got "${report.buttons[0].text}".`);
+}
+
+async function verifyAuthOneStepBackFlow(client) {
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-department]")));
+  await clickByText(client, "[data-auth-department]", "Отдел ручного монтажа");
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-unit]")));
+  await assertAuthSingleBack(client, "unit", "departments");
+
+  await clickFirst(client, "[data-auth-unit]");
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-person]")));
+  await assertAuthSingleBack(client, "person", "units");
+
+  await clickFirst(client, "[data-auth-person]");
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-pin-digit]")));
+  await assertAuthSingleBack(client, "pin", "people");
+
+  await clickFirst(client, "[data-auth-back-people]");
+  await waitForCondition(client, () => document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step") === "person");
+  await assertAuthSingleBack(client, "person", "units");
+}
+
 async function verifyAuthVisualQaPicker(client) {
   await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-department]")));
   const headerGeometry = await evaluate(client, () => {
@@ -369,13 +417,32 @@ async function readPinKeyboard(client) {
     const allButtonsText = [...document.querySelectorAll(".auth-prototype-keypad button")]
       .map((button) => button.textContent.trim())
       .join(" ");
+    const firstDigitButton = document.querySelector("[data-auth-pin-digit]");
+    const firstDigitStyle = firstDigitButton ? getComputedStyle(firstDigitButton) : null;
+    const clearCell = document.querySelector(".auth-prototype-keypad-clear");
+    const clearCellStyle = clearCell ? getComputedStyle(clearCell) : null;
     return {
       digits,
       uniqueDigits: new Set(digits).size,
       hasClearC: /\bC\b|С/.test(allButtonsText),
       hasBackspace: Boolean(document.querySelector("[data-auth-pin-backspace]")),
+      digitRadius: Number.parseFloat(firstDigitStyle?.borderTopLeftRadius || "0") || 0,
+      clearCell: clearCellStyle ? {
+        visibility: clearCellStyle.visibility,
+        borderTopWidth: clearCellStyle.borderTopWidth,
+        backgroundColor: clearCellStyle.backgroundColor,
+        pointerEvents: clearCellStyle.pointerEvents,
+      } : null,
     };
   });
+}
+
+function assertPinKeyboardVisualContract(report, label) {
+  assert(report.digitRadius <= 8, `${label}: PIN digit buttons must use the standard <=8px radius, got ${report.digitRadius}px.`);
+  assert(report.clearCell?.visibility === "hidden", `${label}: lower-left PIN placeholder must be visually hidden.`);
+  assert(report.clearCell?.borderTopWidth === "0px", `${label}: lower-left PIN placeholder must not have a visible border.`);
+  assert(report.clearCell?.backgroundColor === "rgba(0, 0, 0, 0)", `${label}: lower-left PIN placeholder must be transparent, got ${report.clearCell?.backgroundColor}.`);
+  assert(report.clearCell?.pointerEvents === "none", `${label}: lower-left PIN placeholder must not act like a control.`);
 }
 
 async function verifyAuthMasterRoleMarker(client) {
@@ -439,12 +506,18 @@ async function main() {
 
     const visualQaReport = await verifyAuthVisualQaPicker(client);
 
+    await verifyAuthOneStepBackFlow(client);
+    await resetAuthStorage(client);
+    await client.send("Page.navigate", { url });
+    await new Promise((resolve) => client.on("Page.loadEventFired", resolve));
+
     await completeAuthSelection(client);
     const pinPanelGeometry = await verifyPinPanelGeometry(client);
     const wrongKeyboard = await readPinKeyboard(client);
     assert(wrongKeyboard.digits.length === 10 && wrongKeyboard.uniqueDigits === 10, "PIN keypad must render ten unique digit buttons.");
     assert(!wrongKeyboard.hasClearC, "PIN keypad must not render a C/С clear button.");
     assert(wrongKeyboard.hasBackspace, "PIN keypad must render a dedicated backspace button.");
+    assertPinKeyboardVisualContract(wrongKeyboard, "Wrong PIN keyboard");
     await submitPin(client, [1, 1, 1, 1, 1]);
     await delay(700);
     const failedReport = await evaluate(client, () => {
@@ -474,6 +547,7 @@ async function main() {
     assert(correctKeyboard.digits.length === 10 && correctKeyboard.uniqueDigits === 10, "PIN keypad must render ten unique digit buttons after reset.");
     assert(!correctKeyboard.hasClearC, "PIN keypad must not restore a C/С clear button after reset.");
     assert(correctKeyboard.hasBackspace, "PIN keypad must render a dedicated backspace button after reset.");
+    assertPinKeyboardVisualContract(correctKeyboard, "Correct PIN keyboard");
     await submitPin(client, [5, 5, 5, 5, 5]);
 
     const report = await waitForCondition(client, () => {
@@ -487,16 +561,16 @@ async function main() {
         session = null;
       }
       if (pageId === "authPrototype") return null;
-      const roleCardText = document.querySelector(".access-role-card")?.innerText || "";
-      const sessionCardText = document.querySelector(".access-session-card")?.innerText || "";
+      const authSummaryText = document.querySelector("[data-visual-qa-target='app-auth-session-summary']")?.innerText || "";
       return {
         pageId,
         activeModule: window.__MES_ACTIVE_MODULE__ || "",
         hasMenu: Boolean(document.querySelector(".module-menu")),
         hasTopbar: Boolean(document.querySelector(".app-topbar")),
         hasLogout: Boolean(document.querySelector("[data-auth-logout]")),
-        roleCardText,
-        sessionCardText,
+        hasSidebarRoleCard: Boolean(document.querySelector(".access-role-card")),
+        hasSidebarSessionCard: Boolean(document.querySelector(".access-session-card")),
+        authSummaryText,
         sessionUnlocked: Boolean(session?.unlocked),
         sessionUserId: session?.userId || "",
         sessionRoleId: session?.roleId || "",
@@ -505,18 +579,19 @@ async function main() {
 
     assert(report.hasMenu, "After PIN auth the standard module menu must be visible.");
     assert(report.hasTopbar, "After PIN auth the standard topbar must be visible.");
-    assert(report.hasLogout, "After PIN auth the logout button must be visible in the sidebar.");
+    assert(report.hasLogout, "After PIN auth the logout button must be visible in the topbar auth summary.");
     assert(report.sessionUnlocked, "Auth session must be persisted after successful PIN.");
     assert(report.sessionUserId, "Auth session must store selected person id.");
     assert(report.sessionRoleId, "Auth session must store interface role id.");
-    assert(/на основе авторизации/.test(report.roleCardText), "Interface role card must be bound to the authenticated user.");
-    assert(report.sessionCardText.includes("Алексеев Егор Максимович"), "Sidebar auth card must show the selected employee name.");
+    assert(!report.hasSidebarRoleCard, "Sidebar role card must be removed after moving auth context to the topbar.");
+    assert(!report.hasSidebarSessionCard, "Sidebar auth card must be removed after moving auth context to the topbar.");
+    assert(report.authSummaryText.includes("Алексеев Егор Максимович"), "Topbar auth summary must show the selected employee name.");
     assert(
-      report.sessionCardText.split("\n").filter(Boolean).length >= 3
-        && !/(?:Сеанс не выбран|роль не определена|отдел не выбран|сотрудник не выбран)/.test(report.sessionCardText),
-      "Sidebar auth card must show selected employee name, role and department.",
+      report.authSummaryText.split("\n").filter(Boolean).length >= 4
+        && !/(?:Сеанс не выбран|роль не определена|отдел не выбран|сотрудник не выбран)/.test(report.authSummaryText),
+      "Topbar auth summary must show selected employee name, role and department.",
     );
-    assert(report.sessionCardText.includes("Административный отдел"), "Production director auth card must show the virtual administrative department.");
+    assert(report.authSummaryText.includes("Административный отдел"), "Production director auth summary must show the virtual administrative department.");
 
     const reloadPromise = new Promise((resolve) => client.on("Page.loadEventFired", resolve));
     await client.send("Page.reload");
@@ -536,13 +611,14 @@ async function main() {
         pageId,
         sessionUnlocked: Boolean(session?.unlocked),
         sessionUserId: session?.userId || "",
-        roleCardText: document.querySelector(".access-role-card")?.innerText || "",
-        sessionCardText: document.querySelector(".access-session-card")?.innerText || "",
+        hasSidebarRoleCard: Boolean(document.querySelector(".access-role-card")),
+        authSummaryText: document.querySelector("[data-visual-qa-target='app-auth-session-summary']")?.innerText || "",
       };
     }, 10000);
     assert(persistedReport.sessionUnlocked, "Auth session must survive a same-day page reload.");
     assert(persistedReport.sessionUserId === report.sessionUserId, "Reloaded auth session must keep the selected user id.");
-    assert(/на основе авторизации/.test(persistedReport.roleCardText), "Reloaded interface role card must stay auth-bound.");
+    assert(!persistedReport.hasSidebarRoleCard, "Reloaded interface must not restore the removed sidebar role card.");
+    assert(persistedReport.authSummaryText.includes(report.sessionUserId) || persistedReport.authSummaryText.includes("Алексеев Егор Максимович"), "Reloaded topbar auth summary must stay bound to the authenticated user.");
 
     await clickFirst(client, "[data-auth-logout]");
     const logoutReport = await waitForCondition(client, () => {

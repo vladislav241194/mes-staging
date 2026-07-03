@@ -29,8 +29,7 @@ directory and Gantt primitives.
 }.module-menu-brand strong{
   font-size: 16px;
   font-weight: 860;
-}.module-menu-brand span,
-.module-menu-meta{
+}.module-menu-brand span{
   color: rgba(255, 255, 255, 0.72);
   font-size: 12px;
   font-weight: 700;
@@ -61,14 +60,6 @@ directory and Gantt primitives.
 }.module-tab svg{
   width: 17px;
   height: 17px;
-}.module-menu-meta{
-  justify-self: end;
-  white-space: nowrap;
-}.access-menu-meta{
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
 }.startup-error-shell{
   display: grid;
   min-height: 100%;
@@ -1568,8 +1559,7 @@ body{
 }.module-menu-brand strong{
   font-size: 14px;
   font-weight: 860;
-}.module-menu-brand span,
-.module-menu-meta{
+}.module-menu-brand span{
   color: rgba(236, 241, 245, 0.7);
   font-size: 11px;
   font-weight: 720;
@@ -2193,11 +2183,8 @@ body{
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 6px;
     padding: 0 8px;
-  }.module-menu-brand span,
-.access-menu-meta > span{
+  }.module-menu-brand span > span{
     display: none;
-  }.access-menu-meta{
-    display: flex;
   }.module-tabs{
     justify-content: flex-end;
     gap: 1px;
@@ -2293,8 +2280,7 @@ body{
 }.module-menu-brand strong{
   color: #ffffff;
   font-weight: 850;
-}.module-menu-brand span,
-.module-menu-meta{
+}.module-menu-brand span{
   color: #9fb0c4;
 }.module-tab{
   border-color: transparent;

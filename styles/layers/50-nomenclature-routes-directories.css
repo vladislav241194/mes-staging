@@ -1868,14 +1868,6 @@ main[data-layout="app-shell"] > [data-layout="planning-page"]{
 }.module-tab.is-active svg{
   color: #ffffff;
   stroke: #ffffff;
-}.module-menu-meta{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-  color: var(--mes-sidebar-muted);
 }.module-menu-footer{
   display: grid;
   gap: 6px;
@@ -2630,9 +2622,6 @@ textarea:focus,
 .module-tab span,
 .module-menu-preset-main span{
     display: none;
-  }.module-menu-meta{
-    grid-template-columns: 36px;
-    justify-content: center;
   }.module-menu-preset{
     grid-template-columns: 36px;
     justify-content: center;
