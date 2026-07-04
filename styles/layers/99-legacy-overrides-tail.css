@@ -399,6 +399,22 @@ small){
   color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 9px;
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell.is-operation > span:not(.ui-status-token),
+main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article.is-current > span{
+  justify-self: start;
+  min-height: 18px;
+  max-width: 100%;
+  border: 1px solid rgba(16, 35, 60, 0.18);
+  border-radius: 999px;
+  background: var(--mes-ui-sidebar-bg, #10233c);
+  color: #f8fafc;
+  font-size: 9px;
+  font-weight: 760;
+  line-height: 12px;
+  padding: 2px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell strong{
   color: var(--mes-ui-text);
   font-size: 10px;
@@ -519,7 +535,6 @@ small){
   white-space: normal;
   overflow-wrap: anywhere;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article span{
-  color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 10px;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article strong{
@@ -2286,6 +2301,11 @@ main.app-shell[data-layout="app-shell"] .app-auth-session-logout svg{
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-page{
+  --shift-work-orders-accent: var(--mes-ui-sidebar-bg, #10233c);
+  --shift-work-orders-accent-text: #f8fafc;
+  --shift-work-orders-accent-muted: #cbd5e1;
+  --shift-work-orders-accent-soft: rgba(16, 35, 60, 0.075);
+  --shift-work-orders-accent-line: rgba(16, 35, 60, 0.24);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-height: 0;
@@ -2308,11 +2328,6 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-content{
   padding: 10px 12px 16px;
 }
 
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-header{
-  min-height: 66px;
-  padding: 10px 12px;
-}
-
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-main-grid{
   display: grid;
   grid-template-columns: minmax(680px, 1.35fr) minmax(420px, 0.85fr);
@@ -2325,18 +2340,96 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel{
   min-width: 0;
 }
 
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel{
+  --shift-work-orders-detail-strong: #172033;
+  --shift-work-orders-detail-main: #334155;
+  --shift-work-orders-detail-muted: #64748b;
+  --shift-work-orders-detail-soft: #f8fafc;
+  --shift-work-orders-detail-line: rgba(16, 35, 60, 0.16);
+  --shift-work-orders-detail-label-size: 10px;
+  --shift-work-orders-detail-label-line: 13px;
+  --shift-work-orders-detail-value-size: 11px;
+  --shift-work-orders-detail-value-line: 14px;
+  color: var(--shift-work-orders-detail-main);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head{
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--shift-work-orders-accent);
+  color: var(--shift-work-orders-accent-text);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head strong{
+  color: var(--shift-work-orders-accent-text);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head span{
+  color: var(--shift-work-orders-accent-muted);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head strong{
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 15px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head span{
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head .ui-action-button{
+  min-height: 28px;
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 11px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"],
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button){
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: var(--shift-work-orders-accent-text) !important;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"]:hover,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button):hover{
+  border-color: rgba(255, 255, 255, 0.48) !important;
+  background: rgba(255, 255, 255, 0.24) !important;
+  color: #ffffff !important;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"] :is(svg, path, line, polyline, circle, rect),
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button) :is(svg, path, line, polyline, circle, rect){
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"] svg,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button) svg{
+  opacity: 1;
+}
+
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table-wrap{
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   border-radius: var(--mes-ui-radius-sm);
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table{
-  min-width: 1000px;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
   --shift-work-orders-text-strong: #172033;
   --shift-work-orders-text-main: #334155;
   --shift-work-orders-text-secondary: #475569;
   --shift-work-orders-text-muted: #64748b;
+  --shift-work-orders-head-bg: var(--mes-ui-sidebar-bg, #10233c);
+  --shift-work-orders-head-text: #f8fafc;
+  --shift-work-orders-head-line: rgba(255, 255, 255, 0.16);
   --shift-work-orders-font-body: 11px;
   --shift-work-orders-font-meta: 10px;
   --shift-work-orders-line-parent: 15px;
@@ -2345,7 +2438,9 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table{
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td){
-  padding: 7px 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 6px 6px;
   color: var(--shift-work-orders-text-main);
   font-size: var(--shift-work-orders-font-body);
   font-weight: 500;
@@ -2362,35 +2457,69 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tbod
   overflow: visible;
 }
 
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(1){
+  width: 29%;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(2){
+  width: 21%;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(3),
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(4),
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(5),
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(6){
+  width: 7%;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(7){
+  width: 9%;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(8){
+  width: 13%;
+}
+
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th{
-  padding-top: 8px;
-  padding-bottom: 8px;
-  color: var(--shift-work-orders-text-muted);
+  padding-top: 9px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--shift-work-orders-head-line);
+  background: var(--shift-work-orders-head-bg);
+  color: var(--shift-work-orders-head-text);
   font-size: 10px;
-  font-weight: 680;
+  font-weight: 720;
   line-height: 12px;
   white-space: nowrap;
 }
 
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th + th{
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th:first-child{
+  border-top-left-radius: var(--mes-ui-radius-sm);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th:last-child{
+  border-top-right-radius: var(--mes-ui-radius-sm);
+  padding-right: 10px;
+}
+
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-parent td{
-  cursor: default;
+  cursor: pointer;
   background: transparent;
   border-top: 0;
   border-bottom: 0;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation td{
-  cursor: default;
+  cursor: pointer;
   background: transparent;
   border-bottom: 0;
 }
 
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-parent:hover td{
-  background: transparent !important;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation:hover td{
-  background: transparent !important;
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle]:hover td{
+  background: rgba(16, 35, 60, 0.035) !important;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] :is(.shift-work-orders-tree-parent, .shift-work-orders-tree-operation) td:nth-child(n + 3):not(.actions-cell){
@@ -2419,7 +2548,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] :is(.shift-work-orders-tree-p
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell{
-  --speki-tree-step: 36px;
+  --speki-tree-step: 30px;
   --shift-work-orders-tree-line: #94a3b8;
   --shift-work-orders-tree-active-dot: #0f172a;
   --speki-tree-line-color: var(--shift-work-orders-tree-line);
@@ -2430,6 +2559,10 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .rou
   min-height: 100%;
   padding-top: 8px;
   padding-bottom: 8px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.is-shift-work-order-parent{
+  padding-left: 20px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-child .route-tree-cell{
@@ -2445,7 +2578,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .rou
   bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
 }
 
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell:is(.is-shift-work-order-operation, .is-shift-work-order-child) > .speki-tree-start-dot{
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell:is(.is-shift-work-order-parent, .is-shift-work-order-operation, .is-shift-work-order-child) > .speki-tree-start-dot{
   position: absolute;
   top: 50%;
   left: calc(var(--speki-level) * var(--speki-tree-step) + 7px);
@@ -2458,6 +2591,41 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .rou
   background: var(--shift-work-orders-tree-line, #94a3b8);
   box-shadow: none;
   transform: translate(-50%, -50%);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::before,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::after{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  background: #fff;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::before{
+  width: 5px;
+  height: 1px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::after{
+  width: 0;
+  height: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot{
+  background: #fff;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::before,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::after{
+  background: var(--shift-work-orders-tree-line, #94a3b8);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::after{
+  width: 1px;
+  height: 5px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot{
@@ -2487,18 +2655,12 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td:n
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(n + 3):nth-child(-n + 6){
   box-sizing: border-box;
-  width: 82px;
-  min-width: 82px;
-  max-width: 82px;
-  padding-right: 12px;
+  padding-right: 7px;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(8){
-  width: 108px;
-  min-width: 108px;
-  max-width: 108px;
   color: var(--shift-work-orders-text-muted);
   white-space: nowrap;
 }
@@ -2522,6 +2684,8 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.i
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active{
+  outline: 1px solid var(--shift-work-orders-accent-line);
+  outline-offset: -1px;
   filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
 }
 
@@ -2635,21 +2799,67 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .shi
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer{
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
   gap: 8px;
   min-width: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary{
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer{
+  grid-template-columns: minmax(112px, 1fr) 22px minmax(112px, 1fr) 22px minmax(112px, 1fr);
+  align-items: stretch;
+  gap: 6px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article{
   display: grid;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
-  border: 1px solid var(--mes-ui-line);
+  border: 1px solid var(--shift-work-orders-detail-line);
   border-radius: var(--mes-ui-radius-sm);
   background: var(--mes-ui-surface);
-  padding: 8px 9px;
+  padding: 7px 8px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link{
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  align-self: center;
+  height: 20px;
+  pointer-events: none;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link::before{
+  width: 100%;
+  height: 1px;
+  background: var(--shift-work-orders-tree-line, #94a3b8);
+  content: "";
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link::after{
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--shift-work-orders-tree-line, #94a3b8);
+  border-right: 1px solid var(--shift-work-orders-tree-line, #94a3b8);
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article:first-child{
+  position: relative;
+  overflow: hidden;
+  border-color: var(--shift-work-orders-detail-line);
+  box-shadow: none;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary span,
@@ -2659,33 +2869,53 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-sum
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer small,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors small{
   min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
+  color: var(--shift-work-orders-detail-muted);
+  font-size: var(--shift-work-orders-detail-label-size);
+  font-weight: 500;
+  line-height: var(--shift-work-orders-detail-label-line);
   overflow-wrap: anywhere;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article:first-child > span,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article.is-current > span{
+  justify-self: start;
+  min-height: 18px;
+  max-width: 100%;
+  border: 1px solid rgba(16, 35, 60, 0.18);
+  border-radius: 999px;
+  background: var(--shift-work-orders-accent);
+  color: var(--shift-work-orders-accent-text);
+  font-size: var(--shift-work-orders-detail-label-size);
+  font-weight: 720;
+  line-height: var(--shift-work-orders-detail-label-line);
+  padding: 2px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary strong,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer strong,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors strong{
   min-width: 0;
-  color: var(--mes-ui-text);
-  font-size: 12px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 16px;
+  color: var(--shift-work-orders-detail-strong);
+  font-size: var(--shift-work-orders-detail-value-size);
+  font-weight: 600;
+  line-height: var(--shift-work-orders-detail-value-line);
   overflow-wrap: anywhere;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article.is-current{
-  border-color: var(--mes-ui-line);
+  border-color: var(--shift-work-orders-accent-line);
   background: var(--mes-ui-surface);
+  box-shadow: none;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume{
   display: grid;
   gap: 8px;
   min-width: 0;
-  border: 1px solid var(--mes-ui-line);
+  border: 1px solid var(--shift-work-orders-detail-line);
   border-radius: var(--mes-ui-radius-sm);
   background: var(--mes-ui-surface);
   padding: 10px 11px;
@@ -2708,9 +2938,10 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-vol
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume small{
   min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
+  color: var(--shift-work-orders-detail-muted);
+  font-size: var(--shift-work-orders-detail-label-size);
+  font-weight: 500;
+  line-height: var(--shift-work-orders-detail-label-line);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2718,10 +2949,10 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-vol
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume strong{
   min-width: 0;
-  color: var(--mes-ui-text);
-  font-size: 13px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 17px;
+  color: var(--shift-work-orders-detail-strong);
+  font-size: var(--shift-work-orders-detail-value-size);
+  font-weight: 600;
+  line-height: var(--shift-work-orders-detail-value-line);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2744,7 +2975,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-pro
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress i{
-  background: rgba(37, 99, 235, 0.28);
+  background: rgba(16, 35, 60, 0.34);
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress b{
@@ -2762,62 +2993,21 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-vol
   display: grid;
   gap: 1px;
   min-width: 0;
-  border-left: 1px solid var(--mes-ui-line);
-  padding-left: 7px;
+  border-left: 0;
+  padding-left: 6px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article:first-child{
+  padding-left: 0;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article + article{
+  border-left: 1px solid var(--shift-work-orders-detail-line);
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel .ui-panel-body{
   display: grid;
   gap: 8px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-state{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface);
-  padding: 10px 11px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-state.has-issues{
-  border-color: rgba(153, 27, 27, 0.22);
-  background: var(--mes-ui-surface);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-state > div{
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-state span,
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-state small{
-  min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-state strong{
-  min-width: 0;
-  color: var(--mes-ui-text);
-  font-size: 13px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 17px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-state-token{
-  justify-items: end;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel .ui-panel-head-actions{
@@ -2826,7 +3016,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-pan
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors{
   display: grid;
-  gap: 7px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -2837,21 +3027,51 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors 
   min-width: 0;
 }
 
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header strong{
+  color: var(--shift-work-orders-detail-strong);
+  font-size: var(--shift-work-orders-detail-value-size);
+  font-weight: 600;
+  line-height: var(--shift-work-orders-detail-value-line);
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article{
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article strong,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article span{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article span{
+  color: var(--shift-work-orders-detail-main);
+  font-size: var(--shift-work-orders-detail-value-size);
+  font-weight: 600;
+  line-height: var(--shift-work-orders-detail-value-line);
+  font-variant-numeric: tabular-nums;
+}
+
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors p{
   margin: 0;
-  color: var(--mes-ui-muted);
-  font-size: 11px;
-  line-height: 15px;
+  color: var(--shift-work-orders-detail-muted);
+  font-size: 10px;
+  line-height: 13px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list{
   display: grid;
   gap: 8px;
   min-width: 0;
-  border: 1px solid var(--mes-ui-line);
+  border: 1px solid var(--shift-work-orders-detail-line);
   border-radius: var(--mes-ui-radius-sm);
-  background: rgba(255, 255, 255, 0.82);
-  padding: 9px;
+  background: var(--mes-ui-surface);
+  padding: 0;
+  overflow: hidden;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header{
@@ -2860,25 +3080,35 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  border-bottom: 1px solid var(--shift-work-orders-detail-line);
+  background: transparent;
+  padding: 8px 9px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header strong{
   min-width: 0;
-  color: var(--mes-ui-text);
-  font-size: 12px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 16px;
+  color: var(--shift-work-orders-detail-strong);
+  font-size: var(--shift-work-orders-detail-value-size);
+  font-weight: 600;
+  line-height: var(--shift-work-orders-detail-value-line);
 }
 
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header span,
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header span{
+  color: var(--shift-work-orders-detail-muted);
+  font-size: var(--shift-work-orders-detail-label-size);
+  font-weight: 500;
+  line-height: var(--shift-work-orders-detail-label-line);
+}
+
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-empty{
-  color: var(--mes-ui-muted);
+  color: var(--shift-work-orders-detail-muted);
   font-size: 10px;
   line-height: 13px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-empty{
   margin: 0;
+  padding: 9px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card{
@@ -2889,7 +3119,12 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: var(--mes-ui-radius-sm);
   background: #fff;
+  margin: 0 9px 9px;
   padding: 8px;
+}
+
+main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card:first-of-type{
+  margin-top: 9px;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo{
@@ -3014,10 +3249,10 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy strong{
   min-width: 0;
   overflow: hidden;
-  color: var(--mes-ui-text);
-  font-size: 12px;
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: 15px;
+  color: var(--shift-work-orders-detail-strong);
+  font-size: var(--shift-work-orders-detail-value-size);
+  font-weight: 600;
+  line-height: var(--shift-work-orders-detail-value-line);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3025,17 +3260,19 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy small{
   min-width: 0;
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  line-height: 13px;
+  color: var(--shift-work-orders-detail-muted);
+  font-size: var(--shift-work-orders-detail-label-size);
+  font-weight: 500;
+  line-height: var(--shift-work-orders-detail-label-line);
   overflow-wrap: anywhere;
 }
 
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy p{
   margin: 0;
-  color: var(--mes-ui-text);
+  color: var(--shift-work-orders-detail-main);
   font-size: 11px;
-  line-height: 15px;
+  font-weight: 500;
+  line-height: 14px;
   overflow-wrap: anywhere;
 }
 
@@ -3518,6 +3755,24 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-ce
   line-height: 9px;
 }
 
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell.is-operation > span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article.is-current > span{
+  justify-self: start;
+  min-height: 16px;
+  max-width: 100%;
+  border: 1px solid rgba(16, 35, 60, 0.16);
+  border-radius: 999px;
+  background: var(--mes-ui-sidebar-bg, #10233c);
+  color: #f8fafc;
+  font-size: 8px;
+  font-weight: 760;
+  line-height: 10px;
+  padding: 1px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell strong{
   color: var(--mes-ui-text);
   font-size: 10px;
@@ -3610,7 +3865,6 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chai
 }
 
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span{
-  color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 10px;
 }
@@ -4662,4 +4916,656 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .slot-form-
   border-color: var(--mes-signal-test-border);
   background: var(--mes-signal-test-soft);
   color: var(--mes-signal-test);
+}
+
+/* Planning v1.491: work-order screen follows the document-tree/detail pattern from Shift Work Orders. */
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page{
+  --planning-order-accent: var(--mes-ui-sidebar-bg, #10233c);
+  --planning-order-accent-text: #f8fafc;
+  --planning-order-accent-muted: #cbd5e1;
+  --planning-order-accent-soft: rgba(16, 35, 60, 0.075);
+  --planning-order-accent-line: rgba(16, 35, 60, 0.24);
+  --planning-order-tree-line: #94a3b8;
+  --planning-order-tree-active-dot: #0f172a;
+  --planning-order-text-strong: #172033;
+  --planning-order-text-main: #334155;
+  --planning-order-text-secondary: #475569;
+  --planning-order-text-muted: #64748b;
+  --planning-order-detail-line: rgba(16, 35, 60, 0.16);
+  --planning-order-detail-soft: #f8fafc;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  overflow: auto;
+  padding: 10px 12px 16px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
+  display: grid;
+  grid-template-columns: minmax(680px, 1.32fr) minmax(420px, 0.88fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(16, 35, 60, 0.12);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface);
+  padding: 10px 12px;
+  box-shadow: none;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header h2{
+  margin: 0;
+  color: var(--planning-order-text-strong);
+  font-size: 15px;
+  font-weight: 680;
+  line-height: 18px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header p{
+  margin: 2px 0 0;
+  color: var(--planning-order-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control{
+  display: grid;
+  gap: 3px;
+  color: var(--planning-order-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 12px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control input{
+  min-height: 30px;
+  border: 1px solid rgba(16, 35, 60, 0.16);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--planning-order-text-main);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  padding: 0 8px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel{
+  min-width: 0;
+  border-color: rgba(16, 35, 60, 0.12);
+  box-shadow: none;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head{
+  min-height: 42px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--planning-order-accent);
+  color: var(--planning-order-accent-text);
+  padding: 8px 10px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head strong{
+  color: var(--planning-order-accent-text);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 15px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head span{
+  color: var(--planning-order-accent-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 13px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head .ui-status-token{
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--planning-order-accent-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-map > .ui-panel-body,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-body{
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-strip{
+  display: grid !important;
+  grid-template-columns: minmax(170px, 0.65fr) minmax(0, 1.35fr) !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+  border: 1px solid var(--planning-order-detail-line) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--mes-ui-surface) !important;
+  padding: 7px !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary{
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  border-right: 1px solid rgba(16, 35, 60, 0.12);
+  padding: 2px 10px 2px 4px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary small,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric small{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--planning-order-text-muted) !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  line-height: 12px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--planning-order-text-strong) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 14px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metrics{
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric{
+  display: grid !important;
+  align-content: center !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+  min-height: 44px !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(16, 35, 60, 0.10) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 2px 7px !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:first-child{
+  border-left: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button){
+  cursor: pointer;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button):hover,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric.is-active{
+  background: rgba(16, 35, 60, 0.045) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--planning-order-text-strong) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 14px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table-wrap{
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  border-radius: var(--mes-ui-radius-sm);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table{
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td){
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 6px 6px !important;
+  color: var(--planning-order-text-main);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+  vertical-align: middle;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td{
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td:first-child{
+  overflow: visible;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
+  width: 34%;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
+  width: 33%;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
+  width: 13%;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
+  width: 9%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(5){
+  width: 11%;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th{
+  padding-top: 9px !important;
+  padding-bottom: 9px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: var(--planning-order-accent) !important;
+  color: var(--planning-order-accent-text) !important;
+  font-size: 10px !important;
+  font-weight: 720 !important;
+  line-height: 12px !important;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th + th{
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:first-child{
+  border-top-left-radius: var(--mes-ui-radius-sm);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:last-child{
+  border-top-right-radius: var(--mes-ui-radius-sm);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row){
+  cursor: pointer;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row):hover td{
+  background: rgba(16, 35, 60, 0.045) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected td{
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected{
+  outline: 1px solid var(--planning-order-accent-line);
+  outline-offset: -1px;
+  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell{
+  --speki-tree-step: 30px;
+  --speki-tree-line-color: var(--planning-order-tree-line);
+  --speki-tree-line-bleed-top: 24px;
+  --speki-tree-line-bleed-bottom: 24px;
+  box-sizing: border-box;
+  min-height: 38px;
+  height: 100%;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell > .speki-tree-start-dot{
+  position: absolute;
+  top: 50%;
+  left: calc(var(--speki-level) * var(--speki-tree-step) + 7px);
+  z-index: 2;
+  display: block;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--planning-order-tree-line);
+  border-radius: 999px;
+  background: var(--planning-order-tree-line);
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected .route-tree-cell > .speki-tree-start-dot{
+  border-color: var(--planning-order-tree-active-dot);
+  background: var(--planning-order-tree-active-dot);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell.has-children:not(.is-last) > .speki-tree-branch::before{
+  bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell{
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell :is(strong, small),
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table td :is(strong, small){
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-object-row td:first-child strong{
+  color: var(--planning-order-text-strong);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 15px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-step-row td:first-child strong{
+  color: var(--planning-order-text-strong);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell small,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table td small{
+  color: var(--planning-order-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-state-token,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-labor-note-field,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
+  border-color: rgba(16, 35, 60, 0.14) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell{
+  display: grid;
+  gap: 1px;
+  min-height: 30px;
+  padding: 4px 6px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell strong{
+  color: var(--planning-order-text-main) !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+  line-height: 12px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell small{
+  color: var(--planning-order-text-muted) !important;
+  font-size: 9px !important;
+  font-weight: 500 !important;
+  line-height: 11px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
+  padding: 6px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-head{
+  display: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-grid{
+  display: grid !important;
+  grid-template-columns: minmax(96px, 0.9fr) minmax(86px, 0.75fr) minmax(84px, 0.6fr) minmax(102px, 0.8fr) !important;
+  gap: 6px !important;
+  align-items: stretch !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-fields{
+  display: contents !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result{
+  min-width: 0 !important;
+  min-height: 28px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field input,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode select,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference input{
+  width: 100% !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border: 1px solid rgba(16, 35, 60, 0.16) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: #fff !important;
+  color: var(--planning-order-text-main) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 14px !important;
+  padding: 0 7px !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference:not(.is-editable){
+  display: grid !important;
+  align-content: center !important;
+  gap: 1px !important;
+  border: 1px solid rgba(16, 35, 60, 0.14) !important;
+  border-radius: var(--mes-ui-radius-sm) !important;
+  background: var(--planning-order-detail-soft) !important;
+  padding: 4px 6px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result :is(span, strong),
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference :is(span, strong){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference span{
+  color: var(--planning-order-text-muted) !important;
+  font-size: 9px !important;
+  font-weight: 500 !important;
+  line-height: 11px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference strong{
+  color: var(--planning-order-text-strong) !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+  line-height: 12px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-stack{
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel{
+  color: var(--planning-order-text-main);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary{
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume{
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--planning-order-detail-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  overflow: hidden;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer{
+  grid-template-columns: minmax(112px, 1fr) 22px minmax(112px, 1fr) 22px minmax(112px, 1fr);
+  align-items: stretch;
+  gap: 6px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer article{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid var(--planning-order-detail-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: 7px 8px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume article{
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 58px;
+  border-left: 1px solid var(--planning-order-detail-line);
+  background: var(--mes-ui-surface);
+  padding: 7px 8px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume article:first-child{
+  border-left: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary small,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume small,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer small{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--planning-order-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer strong{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--planning-order-text-strong);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article.is-accent > span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer article.is-current > span{
+  justify-self: start;
+  min-height: 18px;
+  max-width: 100%;
+  border: 1px solid rgba(16, 35, 60, 0.18);
+  border-radius: 999px;
+  background: var(--planning-order-accent);
+  color: var(--planning-order-accent-text);
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 13px;
+  padding: 2px 6px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer-link{
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  height: 20px;
+  pointer-events: none;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer-link::before{
+  width: 100%;
+  height: 1px;
+  background: var(--planning-order-tree-line);
+  content: "";
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer-link::after{
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--planning-order-tree-line);
+  border-right: 1px solid var(--planning-order-tree-line);
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-extra{
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-extra .planning-order-record{
+  border-color: rgba(16, 35, 60, 0.12);
+  box-shadow: none;
+}
+
+@media (max-width: 1540px) {
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

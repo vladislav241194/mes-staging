@@ -1254,8 +1254,19 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       const strip = document.querySelector(".planning-order-decision-strip");
       const metrics = [...document.querySelectorAll(".planning-order-decision-metric[data-planning-work-item]")];
       const tableWrap = document.querySelector(".planning-order-table-wrap");
+      const mainGrid = document.querySelector("[data-visual-qa-target='planning-order-main-grid']");
+      const routePanel = document.querySelector(".planning-order-route-map");
+      const detailStack = document.querySelector("[data-visual-qa-target='planning-order-detail-stack']");
+      const detailPanel = document.querySelector(".planning-order-detail-panel");
+      const detailSummary = document.querySelector("[data-visual-qa-target='planning-order-detail-summary']");
+      const detailVolume = document.querySelector("[data-visual-qa-target='planning-order-detail-volume']");
+      const detailTransfer = document.querySelector("[data-visual-qa-target='planning-order-transfer']");
       const stripRect = strip?.getBoundingClientRect();
       const tableRect = tableWrap?.getBoundingClientRect();
+      const routePanelRect = routePanel?.getBoundingClientRect();
+      const detailStackRect = detailStack?.getBoundingClientRect();
+      const routePanelHeadBg = routePanel ? getComputedStyle(routePanel.querySelector(".ui-panel-head") || routePanel).backgroundColor : "";
+      const detailPanelHeadBg = detailPanel ? getComputedStyle(detailPanel.querySelector(".ui-panel-head") || detailPanel).backgroundColor : "";
       const labels = metrics.map((metric) => ({
         id: metric.dataset.planningWorkItem || "",
         text: (metric.textContent || "").replace(/\s+/g, " ").trim(),
@@ -1292,6 +1303,19 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         metricIds: labels.map((item) => item.id),
         metricStyleProblems,
         qaTargets,
+        hasMainGrid: Boolean(mainGrid),
+        mainGridTemplateColumns: mainGrid ? getComputedStyle(mainGrid).gridTemplateColumns : "",
+        hasDetailStack: Boolean(detailStack),
+        detailIsRightOfTree: Boolean(routePanelRect && detailStackRect && detailStackRect.left >= routePanelRect.right - 2),
+        detailSummaryCardCount: detailSummary?.querySelectorAll("article").length || 0,
+        detailVolumeCardCount: detailVolume?.querySelectorAll("article").length || 0,
+        detailTransferCardCount: detailTransfer?.querySelectorAll("article").length || 0,
+        detailTransferLinkCount: detailTransfer?.querySelectorAll("[data-visual-qa-target='planning-order-transfer-link']").length || 0,
+        tableOverflowX: tableWrap ? Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth) : 0,
+        selectedRowCount: document.querySelectorAll(".planning-order-table tr.is-selected").length,
+        activeMetricCount: document.querySelectorAll(".planning-order-decision-metric.is-active").length,
+        routePanelHeadBg,
+        detailPanelHeadBg,
         hasManualLaborMetric: labels.some((item) => item.id === "manualLabor" && item.text.includes("Трудозатраты")),
         hasScheduleMetric: labels.some((item) => item.id === "schedule" && item.text.includes("Гант")),
         tableBelowStrip: Boolean(stripRect && tableRect && tableRect.top >= stripRect.bottom),
@@ -1308,6 +1332,14 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(workOrderUxReport.hasManualLaborMetric, `planning: manual labor decision metric is missing: ${JSON.stringify(workOrderUxReport.metricIds)}`);
     assert(workOrderUxReport.hasScheduleMetric, `planning: schedule decision metric is missing: ${JSON.stringify(workOrderUxReport.metricIds)}`);
     assert(workOrderUxReport.tableBelowStrip, "planning: work-order table overlaps decision strip");
+    assert(workOrderUxReport.hasMainGrid && workOrderUxReport.hasDetailStack, `planning: work-order screen must use document-tree/detail layout: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailIsRightOfTree, `planning: selected detail card must sit to the right of the document tree on MacBook viewport: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailSummaryCardCount === 3, `planning: selected detail card must expose three passport cards: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailVolumeCardCount >= 4, `planning: selected detail card must expose compact volume/labor metrics: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailTransferCardCount === 3 && workOrderUxReport.detailTransferLinkCount === 2, `planning: selected detail card must expose before/current/after transfer route: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.tableOverflowX <= 2, `planning: redesigned work-order tree table must fit without horizontal scrolling: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.selectedRowCount + workOrderUxReport.activeMetricCount >= 1, `planning: redesigned work-order screen must keep either active tree row or active decision metric visible: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.routePanelHeadBg === workOrderUxReport.detailPanelHeadBg && workOrderUxReport.routePanelHeadBg !== "rgba(0, 0, 0, 0)", `planning: document tree and detail panel heads must share the same accent background: ${JSON.stringify(workOrderUxReport)}`);
     const workOrderMetricClickReport = await evaluate(client, async () => {
       const delayFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const metricIds = [...document.querySelectorAll(".planning-order-decision-metric[data-planning-work-item]")]
@@ -1944,7 +1976,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       operation: getTreeObjectLeft(operationRouteTreeCells[0]),
       child: getTreeObjectLeft(childRouteTreeCells[0]),
     };
-    const visibleStartDots = [...operationStartDots, ...childStartDots]
+    const visibleStartDots = [...parentStartDots, ...operationStartDots, ...childStartDots]
       .filter((dot) => window.getComputedStyle(dot).display !== "none");
     const visibleStartDotRects = visibleStartDots.map((dot) => {
       const style = window.getComputedStyle(dot);
@@ -1957,6 +1989,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         boxShadow: style.boxShadow || "",
       };
     });
+    const parentStartDotStyles = parentStartDots.map((dot) => window.getComputedStyle(dot));
     const operationStartDotStyles = operationStartDots.map((dot) => window.getComputedStyle(dot));
     const childStartDotStyles = childStartDots.map((dot) => window.getComputedStyle(dot));
     const activeChildStartDot = activeTreeChild?.querySelector(".route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot") || null;
@@ -2016,16 +2049,25 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
 	    const tablePrintButtons = [...document.querySelectorAll(".shift-work-orders-table [data-work-order-print-preview], .shift-work-orders-table [data-shift-work-order-print-preview]")];
 	    const tableActionCells = [...document.querySelectorAll(".shift-work-orders-table .actions-cell")];
 	    const detailPanel = document.querySelector(".shift-work-orders-detail-panel");
+	    const detailPanelHead = detailPanel?.querySelector(":scope > .ui-panel-head") || detailPanel?.querySelector(".ui-panel-head") || null;
 	    const detailSznButtons = detailPanel ? [...detailPanel.querySelectorAll("[data-shift-work-order-print-preview]")] : [];
 	    const detailPackageButtons = detailPanel ? [...detailPanel.querySelectorAll("[data-work-order-print-preview]")] : [];
+	    const detailPanelBody = detailPanel?.querySelector(":scope > .ui-panel-body") || detailPanel?.querySelector(".ui-panel-body") || null;
 	    const detailState = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-detail-state']");
 	    const detailSummary = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-detail-summary']");
 	    const detailVolume = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-detail-volume']");
 	    const detailTransfer = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-transfer']");
 	    const detailExecutors = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-executors']");
 	    const legacyDetailStrips = detailPanel ? [...detailPanel.querySelectorAll("[data-visual-qa-target='shift-work-orders-quantity-strip'], [data-visual-qa-target='shift-work-orders-fact-strip']")] : [];
+	    const detailVolumeMetricStyles = [...(detailVolume?.querySelectorAll(".shift-work-orders-detail-volume-grid article") || [])]
+	      .map((item) => window.getComputedStyle(item));
+	    const detailExecutorCards = [...(detailExecutors?.querySelectorAll("article") || [])];
+	    const detailExecutorNames = detailExecutorCards.map((item) => (item.querySelector("strong")?.textContent || "").replace(/\s+/g, " ").trim());
+	    const detailExecutorTexts = detailExecutorCards.map((item) => (item.textContent || "").replace(/\s+/g, " ").trim());
+	    const personFullNamePattern = /^[А-ЯЁ][а-яё-]+(?:-[А-ЯЁ][а-яё-]+)?\s+[А-ЯЁ][а-яё-]+(?:-[А-ЯЁ][а-яё-]+)?\s+[А-ЯЁ][а-яё-]+(?:-[А-ЯЁ][а-яё-]+)?$/;
+	    const detailMasterName = (detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-detail-master'] strong")?.textContent || "").replace(/\s+/g, " ").trim();
+	    const treePersonNames = treeChildren.map((row) => (row.querySelector("td:nth-child(2) strong")?.textContent || "").replace(/\s+/g, " ").trim());
 	    const neutralDetailSurfaces = detailPanel ? [
-	      detailState,
 	      detailVolume,
 	      ...[...(detailSummary?.querySelectorAll("article") || [])],
 	      ...[...(detailTransfer?.querySelectorAll("article") || [])],
@@ -2033,22 +2075,62 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
 	    ].filter(Boolean) : [];
 	    const neutralDetailBackgrounds = neutralDetailSurfaces.map((element) => window.getComputedStyle(element).backgroundColor || "");
 	    const currentRouteCard = detailTransfer?.querySelector("article.is-current") || null;
+      const styleSnapshot = (element) => {
+        if (!element) return null;
+        const style = window.getComputedStyle(element);
+        return {
+          fontSize: style.fontSize,
+          fontWeight: style.fontWeight,
+          lineHeight: style.lineHeight,
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+        };
+      };
+      const detailPanelStyle = detailPanel ? window.getComputedStyle(detailPanel) : null;
+      const detailLabelStyles = [
+        detailSummary?.querySelector("article:nth-child(2) > span"),
+        detailSummary?.querySelector("article:nth-child(2) small"),
+        detailVolume?.querySelector(".shift-work-orders-detail-volume-grid article span"),
+        detailTransfer?.querySelector("article:first-child > span"),
+        detailTransfer?.querySelector("article:first-child small"),
+        detailExecutors?.querySelector("header span"),
+        document.querySelector(".shift-work-orders-issue-list > header span"),
+      ].map(styleSnapshot).filter(Boolean);
+      const detailValueStyles = [
+        detailSummary?.querySelector("article:nth-child(2) strong"),
+        detailVolume?.querySelector(".shift-work-orders-detail-volume-grid article strong"),
+        detailTransfer?.querySelector("article:first-child strong"),
+        detailExecutors?.querySelector("header strong"),
+        document.querySelector(".shift-work-orders-issue-list > header strong"),
+      ].map(styleSnapshot).filter(Boolean);
+      const detailAccentStyles = [
+        detailSummary?.querySelector("article:first-child > span"),
+        detailTransfer?.querySelector("article.is-current > span"),
+      ].map(styleSnapshot).filter(Boolean);
 	    const tableTitle = [...document.querySelectorAll(".shift-work-orders-table-panel [data-ui-component='PanelHead'] strong, .shift-work-orders-table-panel .ui-panel-title, .shift-work-orders-table-panel h2")]
 	      .map((node) => (node.textContent || "").replace(/\s+/g, " ").trim())
 	      .find(Boolean) || "";
 	    const pageStyle = page ? window.getComputedStyle(page) : null;
     return {
-      hasPage: Boolean(page),
-      internalSidebarCount: page?.querySelectorAll(".module-data-sidebar, .directory-sidebar").length || 0,
-      gridTemplateColumns: pageStyle?.gridTemplateColumns || "",
+	      hasPage: Boolean(page),
+	      internalSidebarCount: page?.querySelectorAll(".module-data-sidebar, .directory-sidebar").length || 0,
+	      moduleHeaderCount: page?.querySelectorAll("[data-ui-component='ModuleHeader']").length || 0,
+	      gridTemplateColumns: pageStyle?.gridTemplateColumns || "",
       panelCount: panels.length,
       panelWithoutBodyCount: panelWithoutBody.length,
       tableScrollContract: tableWrap?.dataset.scrollContract || "",
+      tableWrapHorizontalOverflow: tableWrap ? Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth) : 0,
+      tableWrapOverflowX: tableWrap ? window.getComputedStyle(tableWrap).overflowX : "",
       contentOverflowY: content ? window.getComputedStyle(content).overflowY : "",
       pageOverflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
       treeParentCount: treeParents.length,
       treeOperationCount: treeOperations.length,
       treeChildCount: treeChildren.length,
+      treeToggleCount: document.querySelectorAll("[data-shift-work-order-tree-toggle]").length,
+      treeToggleAriaExpandedCount: [...document.querySelectorAll("[data-shift-work-order-tree-toggle]")]
+        .filter((row) => row.getAttribute("aria-expanded") === "true" || row.getAttribute("aria-expanded") === "false").length,
+      treeToggleTabindexCount: [...document.querySelectorAll("[data-shift-work-order-tree-toggle]")]
+        .filter((row) => row.getAttribute("tabindex") === "0").length,
       parentRowBackground: firstParentCellStyle?.backgroundColor || "",
       parentRowCursor: firstParentCellStyle?.cursor || "",
       parentRowFirstCellShadow: firstParentCellStyle?.boxShadow || "",
@@ -2101,6 +2183,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       childStartDotVisibleCount: childStartDots.filter((dot) => window.getComputedStyle(dot).display !== "none").length,
       startDotDimensionCount: new Set(visibleStartDotRects.map((rect) => `${rect.width}x${rect.height}`)).size,
       startDotRects: visibleStartDotRects.slice(0, 8),
+      parentStartDotNeutralCount: parentStartDotStyles.filter((style) => /rgb\(148, 163, 184\)/.test(style.backgroundColor || "")).length,
       operationStartDotNeutralCount: operationStartDotStyles.filter((style) => /rgb\(148, 163, 184\)/.test(style.backgroundColor || "")).length,
       childStartDotNeutralCount: childStartDotStyles.filter((style) => /rgb\(148, 163, 184\)/.test(style.backgroundColor || "")).length,
       inactiveChildStartDotNeutralCount: inactiveChildStartDotStyles.filter((style) => /rgb\(148, 163, 184\)/.test(style.backgroundColor || "")).length,
@@ -2134,18 +2217,36 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
 	      detailSznButtonCount: detailSznButtons.length,
 	      detailPackageButtonCount: detailPackageButtons.length,
 	      detailPackageButtonDisabledCount: detailPackageButtons.filter((button) => button.disabled).length,
+	      detailPanelHeadMetaText: (detailPanelHead?.querySelector(".ui-panel-head-copy span")?.textContent || "").replace(/\s+/g, " ").trim(),
+	      detailPanelHeadText: (detailPanelHead?.textContent || "").replace(/\s+/g, " ").trim(),
 	      detailStateCount: detailState ? 1 : 0,
 	      detailStateText: (detailState?.textContent || "").replace(/\s+/g, " ").trim(),
+	      detailFirstBlockTarget: detailPanelBody?.firstElementChild?.getAttribute("data-visual-qa-target") || "",
 	      detailSummaryCardCount: detailSummary?.querySelectorAll("article").length || 0,
-	      detailVolumeCount: detailVolume ? 1 : 0,
-	      detailVolumeMetricCount: detailVolume?.querySelectorAll(".shift-work-orders-detail-volume-grid article").length || 0,
-	      detailVolumeHasProgress: Boolean(detailVolume?.querySelector(".shift-work-orders-detail-progress")),
-	      legacyDetailStripCount: legacyDetailStrips.length,
-	      detailTransferCardCount: detailTransfer?.querySelectorAll("article").length || 0,
-	      neutralDetailBackgroundCount: new Set(neutralDetailBackgrounds).size,
+		      detailVolumeCount: detailVolume ? 1 : 0,
+		      detailVolumeHeaderCount: detailVolume?.querySelectorAll(":scope > header").length || 0,
+		      detailVolumeMetricCount: detailVolume?.querySelectorAll(".shift-work-orders-detail-volume-grid article").length || 0,
+		      detailVolumeFirstMetricBorderLeftWidth: detailVolumeMetricStyles[0]?.borderLeftWidth || "",
+		      detailVolumeSeparatedMetricCount: detailVolumeMetricStyles.slice(1).filter((style) => style.borderLeftWidth === "1px").length,
+		      detailVolumeHasProgress: Boolean(detailVolume?.querySelector(".shift-work-orders-detail-progress")),
+		      legacyDetailStripCount: legacyDetailStrips.length,
+		      detailTransferCardCount: detailTransfer?.querySelectorAll("article").length || 0,
+		      detailTransferLinkCount: detailTransfer?.querySelectorAll("[data-visual-qa-target='shift-work-orders-transfer-link']").length || 0,
+		      neutralDetailBackgroundCount: new Set(neutralDetailBackgrounds).size,
 	      neutralDetailBackgrounds: [...new Set(neutralDetailBackgrounds)].slice(0, 6),
 	      currentRouteCardText: (currentRouteCard?.textContent || "").replace(/\s+/g, " ").trim(),
 	      detailExecutorSectionCount: detailExecutors ? 1 : 0,
+	      detailExecutorCardCount: detailExecutorCards.length,
+	      detailExecutorNoteCount: detailExecutorCards.reduce((sum, item) => sum + item.querySelectorAll("small").length, 0),
+	      detailExecutorHourNoiseCount: detailExecutorTexts.filter((text) => /\b\d+(?:[,.]\d+)?\s*ч\b/i.test(text)).length,
+	      detailExecutorFullNameCount: detailExecutorNames.filter((name) => personFullNamePattern.test(name)).length,
+	      detailMasterFullNameCount: personFullNamePattern.test(detailMasterName) ? 1 : 0,
+	      treePersonFullNameCount: treePersonNames.filter((name) => personFullNamePattern.test(name)).length,
+        detailPanelFontSize: detailPanelStyle?.fontSize || "",
+        detailPanelLineHeight: detailPanelStyle?.lineHeight || "",
+        detailLabelStyles,
+        detailValueStyles,
+        detailAccentStyles,
 	      tableTitle,
 	      reportHeaderCount: [...document.querySelectorAll(".shift-work-orders-table th")]
 	        .filter((cell) => cell.textContent.trim() === "Report").length,
@@ -2158,10 +2259,12 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   });
   assert(report.hasPage, "shiftWorkOrders: page root is missing");
   assert(report.internalSidebarCount === 0, `shiftWorkOrders: should not render an internal sidebar, got ${report.internalSidebarCount}`);
+  assert(report.moduleHeaderCount === 0, `shiftWorkOrders: duplicated module header must not be rendered inside the workspace: ${JSON.stringify(report)}`);
   assert(!/\s/.test(report.gridTemplateColumns.trim()), `shiftWorkOrders: page must use one workspace column, got "${report.gridTemplateColumns}"`);
   assert(report.panelCount >= 2, `shiftWorkOrders: expected table and detail panels, got ${report.panelCount}`);
   assert(report.panelWithoutBodyCount === 0, `shiftWorkOrders: panels without direct PanelBody: ${report.panelWithoutBodyCount}`);
   assert(report.tableScrollContract === "horizontal-only", `shiftWorkOrders: table wrap must use horizontal-only contract, got "${report.tableScrollContract}"`);
+  assert(report.tableWrapHorizontalOverflow <= 2, `shiftWorkOrders: document tree table must fit the table panel without horizontal scrolling: ${JSON.stringify(report)}`);
   assert(["auto", "visible"].includes(report.contentOverflowY), `shiftWorkOrders: unexpected content overflow-y "${report.contentOverflowY}"`);
   assert(report.pageOverflowX <= 2, `shiftWorkOrders: page horizontal overflow ${report.pageOverflowX}px`);
   assert(report.treeParentCount > 0, `shiftWorkOrders: document tree parent rows are missing: ${JSON.stringify(report)}`);
@@ -2169,8 +2272,11 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   assert(report.treeChildCount > 0, `shiftWorkOrders: document tree child rows are missing: ${JSON.stringify(report)}`);
   assert(!/rgba?\(238, 242, 246/.test(report.parentRowBackground), `shiftWorkOrders: parent grouping rows must not use hierarchy darkening backgrounds: ${JSON.stringify(report)}`);
   assert(!/rgba?\(248, 250, 252/.test(report.operationRowBackground), `shiftWorkOrders: operation grouping rows must not use hierarchy darkening backgrounds: ${JSON.stringify(report)}`);
-  assert(report.parentRowCursor === "default", `shiftWorkOrders: parent grouping rows must not look clickable: ${JSON.stringify(report)}`);
-  assert(report.operationRowCursor === "default", `shiftWorkOrders: operation grouping rows must not look clickable: ${JSON.stringify(report)}`);
+  assert(report.parentRowCursor === "pointer", `shiftWorkOrders: parent grouping rows must expose tree collapse affordance: ${JSON.stringify(report)}`);
+  assert(report.operationRowCursor === "pointer", `shiftWorkOrders: operation grouping rows must expose tree collapse affordance: ${JSON.stringify(report)}`);
+  assert(report.treeToggleCount === report.treeParentCount + report.treeOperationCount, `shiftWorkOrders: each parent/operation grouping row must be a tree toggle: ${JSON.stringify(report)}`);
+  assert(report.treeToggleAriaExpandedCount === report.treeToggleCount, `shiftWorkOrders: tree toggles must expose aria-expanded: ${JSON.stringify(report)}`);
+  assert(report.treeToggleTabindexCount === report.treeToggleCount, `shiftWorkOrders: tree toggles must be keyboard focusable: ${JSON.stringify(report)}`);
   assert(report.parentRowFirstCellShadow === "none", `shiftWorkOrders: parent grouping rows must not add separate hierarchy marker rails: ${JSON.stringify(report)}`);
   assert(report.operationRowFirstCellShadow === "none", `shiftWorkOrders: operation grouping rows must not add separate hierarchy marker rails: ${JSON.stringify(report)}`);
   assert(report.bodyHorizontalBorderCount === 0, `shiftWorkOrders: row horizontal separators must be removed: ${JSON.stringify(report)}`);
@@ -2199,17 +2305,18 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   assert(report.parentRouteTreeCellCount === report.treeParentCount, `shiftWorkOrders: parent rows must use the shared route tree cell pattern: ${JSON.stringify(report)}`);
   assert(report.operationRouteTreeCellCount === report.treeOperationCount, `shiftWorkOrders: operation rows must use the shared route tree cell pattern: ${JSON.stringify(report)}`);
   assert(report.childRouteTreeCellCount === report.treeChildCount, `shiftWorkOrders: SZN rows must use the shared route tree cell pattern: ${JSON.stringify(report)}`);
-  assert(report.treeObjectLevelGapParentToOperation >= 32, `shiftWorkOrders: operation level must be strongly indented from parent level: ${JSON.stringify(report)}`);
-  assert(report.treeObjectLevelGapOperationToChild >= 32, `shiftWorkOrders: child SZN level must be strongly indented from operation level: ${JSON.stringify(report)}`);
+  assert(report.treeObjectLevelGapParentToOperation >= 28, `shiftWorkOrders: operation level must stay clearly indented from parent level: ${JSON.stringify(report)}`);
+  assert(report.treeObjectLevelGapOperationToChild >= 28, `shiftWorkOrders: child SZN level must stay clearly indented from operation level: ${JSON.stringify(report)}`);
   assert(report.plannedChildStatusCount === 0, `shiftWorkOrders: pure planned shift rows must stay out of the journal tree: ${JSON.stringify(report)}`);
   assert(report.assignedChildStatusCount > 0, `shiftWorkOrders: distributed shift tasks must be visible in the journal tree: ${JSON.stringify(report)}`);
   assert(report.assignedStageLabelCount > 0, `shiftWorkOrders: distributed rows must be labeled as shift tasks before issued SZN: ${JSON.stringify(report)}`);
-  assert(report.parentStartDotVisibleCount === 0, `shiftWorkOrders: top-level package rows must not render tree start dots: ${JSON.stringify(report)}`);
+  assert(report.parentStartDotVisibleCount === report.treeParentCount, `shiftWorkOrders: top-level package rows must render tree start dots as collapse toggles: ${JSON.stringify(report)}`);
   assert(report.operationStartDotVisibleCount === report.treeOperationCount, `shiftWorkOrders: operation tree rows must render start dots at branch joins: ${JSON.stringify(report)}`);
   assert(report.childStartDotVisibleCount === report.treeChildCount, `shiftWorkOrders: child SZN tree rows must render start dots at branch joins: ${JSON.stringify(report)}`);
   assert(report.startDotDimensionCount === 1, `shiftWorkOrders: tree start dots must use one normalized size: ${JSON.stringify(report)}`);
-  assert(report.startDotNeutralColorCount === report.operationStartDotVisibleCount + report.childStartDotVisibleCount, `shiftWorkOrders: tree start dots must use neutral gray, with black only for the active row: ${JSON.stringify(report)}`);
+  assert(report.startDotNeutralColorCount === report.parentStartDotVisibleCount + report.operationStartDotVisibleCount + report.childStartDotVisibleCount, `shiftWorkOrders: tree start dots must use neutral gray, with black only for the active row: ${JSON.stringify(report)}`);
   assert(report.startDotHaloCount === 0, `shiftWorkOrders: tree start dots must not mask connector lines with a white halo: ${JSON.stringify(report)}`);
+  assert(report.parentStartDotNeutralCount === report.parentStartDotVisibleCount, `shiftWorkOrders: parent group dots must be filled neutral gray when expanded: ${JSON.stringify(report)}`);
   assert(report.operationStartDotNeutralCount === report.operationStartDotVisibleCount, `shiftWorkOrders: operation group dots must be filled neutral gray: ${JSON.stringify(report)}`);
   assert(report.activeChildStartDotFilled, `shiftWorkOrders: active child row dot must be filled black: ${JSON.stringify(report)}`);
   assert(report.inactiveChildStartDotNeutralCount === report.childStartDotVisibleCount - report.activeTreeChildCount, `shiftWorkOrders: inactive clickable child row dots must be filled neutral gray: ${JSON.stringify(report)}`);
@@ -2239,22 +2346,100 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   assert(report.childPackageButtons === 0, `shiftWorkOrders: child SZN rows must not duplicate package print actions: ${JSON.stringify(report)}`);
   assert(report.detailSznButtonCount === 1, `shiftWorkOrders: selected document card must expose SZN print action: ${JSON.stringify(report)}`);
   assert(report.detailPackageButtonCount === 1 && report.detailPackageButtonDisabledCount === 0, `shiftWorkOrders: selected document card must expose enabled work-order package action: ${JSON.stringify(report)}`);
+  assert(report.detailPanelHeadMetaText === "", `shiftWorkOrders: selected document card header must not duplicate operation/work-center meta: ${JSON.stringify(report)}`);
   assert(/Дерево документов/.test(report.tableTitle), `shiftWorkOrders: table panel must be the document tree, got "${report.tableTitle}"`);
-  assert(report.detailStateCount === 1, `shiftWorkOrders: selected document card must expose one unified document state block: ${JSON.stringify(report)}`);
-  assert(/Состояние документа/.test(report.detailStateText), `shiftWorkOrders: document state block must be explicit: ${JSON.stringify(report)}`);
+  assert(report.detailStateCount === 0 && !/Состояние документа/.test(report.detailStateText), `shiftWorkOrders: selected document card must not render the removed document state block: ${JSON.stringify(report)}`);
+  assert(report.detailFirstBlockTarget === "shift-work-orders-issue-reports", `shiftWorkOrders: Report block must replace the removed state block at the top of the selected document card: ${JSON.stringify(report)}`);
   assert(report.detailSummaryCardCount === 3, `shiftWorkOrders: selected document card passport must expose order, operation and master cards: ${JSON.stringify(report)}`);
   assert(report.legacyDetailStripCount === 0, `shiftWorkOrders: selected document card must not keep old separate quantity/fact strips: ${JSON.stringify(report)}`);
   assert(report.detailVolumeCount === 1, `shiftWorkOrders: selected document card must expose one unified volume block: ${JSON.stringify(report)}`);
+  assert(report.detailVolumeHeaderCount === 0, `shiftWorkOrders: selected document volume block must not duplicate volume totals in an inner header: ${JSON.stringify(report)}`);
   assert(report.detailVolumeMetricCount === 5, `shiftWorkOrders: selected document volume block must expose assigned, fact, remaining, defect and report metrics: ${JSON.stringify(report)}`);
+  assert(report.detailVolumeFirstMetricBorderLeftWidth === "0px", `shiftWorkOrders: first volume metric must not render an external left separator: ${JSON.stringify(report)}`);
+  assert(report.detailVolumeSeparatedMetricCount === report.detailVolumeMetricCount - 1, `shiftWorkOrders: volume metrics must only use separators between cells: ${JSON.stringify(report)}`);
   assert(report.detailVolumeHasProgress, `shiftWorkOrders: selected document volume block must show assigned/fact progress: ${JSON.stringify(report)}`);
   assert(report.detailTransferCardCount === 3, `shiftWorkOrders: selected document card must expose transfer route cards: ${JSON.stringify(report)}`);
+  assert(report.detailTransferLinkCount === 2, `shiftWorkOrders: transfer route must expose two visual connectors between Before/Current/After cards: ${JSON.stringify(report)}`);
   assert(report.neutralDetailBackgroundCount === 1, `shiftWorkOrders: neutral document cards must share one background; color should only encode explicit status tokens/problems: ${JSON.stringify(report)}`);
   assert(/текущий шаг/.test(report.currentRouteCardText), `shiftWorkOrders: current route step must be labeled by text, not by a unique background color: ${JSON.stringify(report)}`);
   assert(report.detailExecutorSectionCount === 1, `shiftWorkOrders: selected document card must expose executors section: ${JSON.stringify(report)}`);
+  assert(report.detailMasterFullNameCount === 0, `shiftWorkOrders: selected document master name must use short format: ${JSON.stringify(report)}`);
+  assert(report.treePersonFullNameCount === 0, `shiftWorkOrders: tree person labels must use short names across the module: ${JSON.stringify(report)}`);
+  if (report.detailExecutorCardCount > 0) {
+    assert(report.detailExecutorNoteCount === 0, `shiftWorkOrders: executor rows must be compact and must not render secondary note lines: ${JSON.stringify(report)}`);
+    assert(report.detailExecutorHourNoiseCount === 0, `shiftWorkOrders: executor rows must not show labor-hour notes like 0.2 ч: ${JSON.stringify(report)}`);
+    assert(report.detailExecutorFullNameCount === 0, `shiftWorkOrders: executor names must use short format like Степанов Н. В.: ${JSON.stringify(report)}`);
+  }
+  assert(report.detailPanelFontSize === "11px" && report.detailPanelLineHeight === "15px", `shiftWorkOrders: selected document card must use the same compact body scale as the neighboring tree: ${JSON.stringify(report)}`);
+  assert(report.detailLabelStyles.length >= 7 && report.detailLabelStyles.every((style) => style.fontSize === "10px" && Number(style.fontWeight) === 500 && style.lineHeight === "13px"), `shiftWorkOrders: selected document labels/meta must share one quiet typography contract: ${JSON.stringify(report.detailLabelStyles)}`);
+  assert(report.detailValueStyles.length >= 5 && report.detailValueStyles.every((style) => style.fontSize === "11px" && Number(style.fontWeight) === 600 && style.lineHeight === "14px"), `shiftWorkOrders: selected document values must share one value typography contract: ${JSON.stringify(report.detailValueStyles)}`);
+  assert(report.detailAccentStyles.length === 2 && report.detailAccentStyles.every((style) => style.fontSize === "10px" && Number(style.fontWeight) === 720 && style.lineHeight === "13px"), `shiftWorkOrders: selected document accent pills must be limited and normalized: ${JSON.stringify(report.detailAccentStyles)}`);
   assert(report.reportHeaderCount === 0, `shiftWorkOrders: Report must not be a separate tree-table column: ${JSON.stringify(report)}`);
   assert(report.reportCellCount === 0, `shiftWorkOrders: tree rows must not render separate Report cells: ${JSON.stringify(report)}`);
   assert(report.reportBadgeCount === 0, `shiftWorkOrders: Report badges must live in the selected document card/photos, not in the tree table: ${JSON.stringify(report)}`);
   assert(report.issuePanelCount === 1, `shiftWorkOrders: selected SZN detail must expose issue reports panel: ${JSON.stringify(report)}`);
+
+  const treeCollapseReport = await evaluate(client, async () => {
+    const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const waitRender = async () => {
+      await waitFrame();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    };
+    const findToggle = (nodeId) => [...document.querySelectorAll("[data-shift-work-order-tree-toggle]")]
+      .find((row) => row.getAttribute("data-shift-work-order-tree-toggle") === nodeId) || null;
+    const getCounts = () => ({
+      parents: document.querySelectorAll("[data-shift-work-order-package-row]").length,
+      operations: document.querySelectorAll("[data-shift-work-order-operation-row]").length,
+      children: document.querySelectorAll("[data-shift-work-order-row]").length,
+    });
+    const before = getCounts();
+    const operation = document.querySelector("[data-shift-work-order-operation-row][data-shift-work-order-tree-toggle]");
+    const operationNodeId = operation?.getAttribute("data-shift-work-order-tree-toggle") || "";
+    if (!operation || !operationNodeId || before.children < 1) return { checked: false, reason: "operation toggle missing", before };
+    operation.click();
+    await waitRender();
+    const afterOperationCollapse = getCounts();
+    const operationCollapsed = findToggle(operationNodeId)?.classList.contains("is-collapsed") || false;
+    findToggle(operationNodeId)?.click();
+    await waitRender();
+    const afterOperationRestore = getCounts();
+    const parent = document.querySelector("[data-shift-work-order-package-row][data-shift-work-order-tree-toggle]");
+    const parentNodeId = parent?.getAttribute("data-shift-work-order-tree-toggle") || "";
+    if (!parent || !parentNodeId || afterOperationRestore.operations < 1) {
+      return {
+        checked: false,
+        reason: "parent toggle missing",
+        before,
+        afterOperationCollapse,
+        afterOperationRestore,
+      };
+    }
+    parent.click();
+    await waitRender();
+    const afterParentCollapse = getCounts();
+    const parentCollapsed = findToggle(parentNodeId)?.classList.contains("is-collapsed") || false;
+    findToggle(parentNodeId)?.click();
+    await waitRender();
+    const afterParentRestore = getCounts();
+    return {
+      checked: true,
+      before,
+      operationCollapsed,
+      afterOperationCollapse,
+      afterOperationRestore,
+      parentCollapsed,
+      afterParentCollapse,
+      afterParentRestore,
+    };
+  });
+  assert(treeCollapseReport.checked, `shiftWorkOrders: tree collapse check was not meaningful: ${JSON.stringify(treeCollapseReport)}`);
+  assert(treeCollapseReport.operationCollapsed, `shiftWorkOrders: clicking an operation row must switch it to collapsed state: ${JSON.stringify(treeCollapseReport)}`);
+  assert(treeCollapseReport.afterOperationCollapse.children < treeCollapseReport.before.children, `shiftWorkOrders: collapsed operation must hide child SZN rows: ${JSON.stringify(treeCollapseReport)}`);
+  assert(treeCollapseReport.afterOperationRestore.children === treeCollapseReport.before.children, `shiftWorkOrders: operation restore must bring child SZN rows back: ${JSON.stringify(treeCollapseReport)}`);
+  assert(treeCollapseReport.parentCollapsed, `shiftWorkOrders: clicking a package row must switch it to collapsed state: ${JSON.stringify(treeCollapseReport)}`);
+  assert(treeCollapseReport.afterParentCollapse.operations < treeCollapseReport.afterOperationRestore.operations, `shiftWorkOrders: collapsed package must hide operation rows: ${JSON.stringify(treeCollapseReport)}`);
+  assert(treeCollapseReport.afterParentCollapse.children < treeCollapseReport.afterOperationRestore.children, `shiftWorkOrders: collapsed package must hide nested SZN rows: ${JSON.stringify(treeCollapseReport)}`);
+  assert(treeCollapseReport.afterParentRestore.operations === treeCollapseReport.before.operations && treeCollapseReport.afterParentRestore.children === treeCollapseReport.before.children, `shiftWorkOrders: package restore must return the full tree: ${JSON.stringify(treeCollapseReport)}`);
 
   const rowClickScrollReport = await evaluate(client, async () => {
     const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

@@ -80,7 +80,7 @@ const SHARED_STATE_POLL_INTERVAL_MS = 4000;
 const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
 const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
 const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
-const APP_VERSION = "v.1.474";
+const APP_VERSION = "v.1.491";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -589,6 +589,7 @@ const defaultUiState = {
   shiftWorkOrderPrintPreviewId: "",
   shiftWorkOrderIssuePhotoViewer: null,
   shiftWorkOrderIssueReports: {},
+  shiftWorkOrderCollapsedTreeIds: [],
   shiftMasterAssignmentMatrix: {},
   activeDispatchSlotId: "",
   timesheetView: "month",
@@ -4819,6 +4820,7 @@ function loadUiState() {
       shiftWorkOrderPrintPreviewId: "",
       shiftWorkOrderIssuePhotoViewer: null,
       shiftWorkOrderIssueReports: normalizeShiftWorkOrderIssueReports(parsed.shiftWorkOrderIssueReports),
+      shiftWorkOrderCollapsedTreeIds: normalizeShiftWorkOrderCollapsedTreeIds(parsed.shiftWorkOrderCollapsedTreeIds),
       shiftMasterAssignmentMatrix: normalizeShiftMasterAssignmentMatrix(parsed.shiftMasterAssignmentMatrix),
       timesheetView: normalizeTimesheetView(parsed.timesheetView),
       timesheetPeriodAnchor: normalizeDateInput(parsed.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor) || defaultUiState.timesheetPeriodAnchor,
@@ -4925,6 +4927,7 @@ function persistUiState(options = {}) {
       shiftMasterBoardPrintPreviewId: String(ui.shiftMasterBoardPrintPreviewId || ""),
       shiftWorkOrderJournalSelectedId: String(ui.shiftWorkOrderJournalSelectedId || ""),
       shiftWorkOrderIssueReports: normalizeShiftWorkOrderIssueReports(ui.shiftWorkOrderIssueReports),
+      shiftWorkOrderCollapsedTreeIds: normalizeShiftWorkOrderCollapsedTreeIds(ui.shiftWorkOrderCollapsedTreeIds),
       shiftMasterAssignmentMatrix: normalizeShiftMasterAssignmentMatrix(ui.shiftMasterAssignmentMatrix),
       timesheetView: normalizeTimesheetView(ui.timesheetView),
       timesheetPeriodAnchor: normalizeDateInput(ui.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor) || defaultUiState.timesheetPeriodAnchor,
@@ -7885,6 +7888,9 @@ function renderPlanningWorkbenchPage() {
   const detailContent = activeRoute
     ? renderPlanningWorkbenchDetail(activeRoute, transferSummary, tasks, routeSteps, selectedItem)
     : "";
+  const selectedDetail = activeRoute
+    ? renderPlanningWorkbenchSelectedDetail(activeRoute, transferSummary, tasks, routeSteps, selectedItem, detailContent)
+    : "";
 
   if (!routes.length) {
     return `
@@ -7928,12 +7934,10 @@ function renderPlanningWorkbenchPage() {
       `,
     contentClassName: "planning-order-workspace",
     content: activeRoute ? `
+          <section class="planning-order-main-grid" data-visual-qa-target="planning-order-main-grid">
             ${renderPlanningWorkbenchRouteMap(activeRoute, transferSummary, tasks, routeSteps, selectedItem)}
-            ${detailContent ? `
-              <div class="planning-order-detail planning-work-detail" aria-label="Рабочая область выбранного этапа">
-                ${detailContent}
-              </div>
-            ` : ""}
+            ${selectedDetail}
+          </section>
         ` : `
           <section class="module-panel planning-order-route-map" data-ui-component="Panel">
             ${renderUiPanelBody({ body: `
@@ -7987,17 +7991,11 @@ function renderPlanningWorkbenchRouteMap(route, transferSummary, tasks, routeSte
   const shiftOrders = getPlanningShiftOrdersForRoute(route, routeSteps);
   const laborReadiness = getPlanningRouteLaborReadiness(route, routeSteps);
 
-  return `
-    <section class="module-panel planning-order-route-map planning-order-structure-panel" data-ui-component="Panel" aria-label="Структура заказ-наряда">
-      ${renderUiPanelBody({ body: `
-      <div class="planning-order-map-head">
-        <div>
-          <strong>Структура заказ-наряда</strong>
-          <span>${planningQuantity.toLocaleString("ru-RU")} шт. · ${formatPlanningObjectCount(tasks.length)} · ${formatPlanningOperationCount(routeSteps.length)}</span>
-        </div>
-        <em class="planning-section-tag">${escapeHtml(getRouteDocumentKindLabel(route))}</em>
-      </div>
-
+  return renderUiPanel({
+    title: "Дерево заказ-наряда",
+    meta: `${planningQuantity.toLocaleString("ru-RU")} шт. · ${formatPlanningObjectCount(tasks.length)} · ${formatPlanningOperationCount(routeSteps.length)} · ${getRouteDocumentKindLabel(route)}`,
+    className: "planning-order-route-map planning-order-structure-panel",
+    body: renderUiPanelBody({ body: `
       ${renderPlanningOrderDecisionStrip({
         route,
         selectedItem,
@@ -8012,9 +8010,8 @@ function renderPlanningWorkbenchRouteMap(route, transferSummary, tasks, routeSte
       })}
 
       ${renderPlanningOrderStructureTable(route, tasks, routeSteps, selectedItem, planningQuantity)}
-      ` })}
-    </section>
-  `;
+    ` }),
+  });
 }
 
 function getPlanningLaborNoteKey(route, itemId = "") {
@@ -9082,6 +9079,181 @@ function renderPlanningWorkbenchStepPill(step, selectedItem) {
       </span>
       ${isSmtStep ? `<em>SMT</em>` : isManufacturingOutputReceiptRouteStep(step) ? `<em>приемка</em>` : ""}
     </button>
+  `;
+}
+
+function renderPlanningWorkbenchSelectedDetail(route, transferSummary, tasks, routeSteps, selectedItem, detailContent = "") {
+  const planningQuantity = normalizeQuantity(transferSummary?.planningQuantity || getPlanningRouteQuantity(route), 1);
+  const orderView = getWorkOrderViewModel(route, { summary: transferSummary, routeSteps });
+  const { type, id } = parsePlanningWorkItemId(selectedItem);
+  const selectedTask = type === "task" ? tasks.find((task) => task.id === id) : null;
+  const selectedStep = type === "step" ? routeSteps.find((step) => step.id === id) : null;
+  const shiftOrders = getPlanningShiftOrdersForRoute(route, routeSteps);
+  const scheduleExpected = Number(transferSummary?.expected || 0);
+  const schedulePlanned = Number(transferSummary?.planned || 0);
+  const specialSections = {
+    supply: ["Состав и обеспечение", "как объект попадает в производство", "контроль", "neutral"],
+    chain: ["Системная передача", "связь операций и WIP", "маршрут", "neutral"],
+    manualLabor: ["Трудозатраты", "обязательная оценка для Ганта", "расчет", "warning"],
+    schedule: [
+      "Размещение в Ганте",
+      "плановые слоты заказ-наряда",
+      scheduleExpected && schedulePlanned >= scheduleExpected ? "готово" : "план",
+      scheduleExpected && schedulePlanned >= scheduleExpected ? "ok" : "neutral",
+    ],
+    shifts: [
+      "Планы смен",
+      "передача в мастерскую",
+      shiftOrders.length ? `${shiftOrders.length} смен` : "после Ганта",
+      shiftOrders.length ? "ok" : "neutral",
+    ],
+  };
+
+  let model = {
+    title: orderView.title || "Заказ-наряд",
+    meta: orderView.subtitle || "",
+    statusLabel: orderView.status?.label || "заказ-наряд",
+    statusTone: orderView.status?.tone || "neutral",
+    summary: [
+      ["Заказ-наряд", orderView.title || "Заказ-наряд", `${planningQuantity.toLocaleString("ru-RU")} шт.`],
+      ["Маршрут", getRouteDocumentKindLabel(route), formatPlanningOperationCount(routeSteps.length)],
+      ["Состав", formatPlanningObjectCount(tasks.length), orderView.subtitle || "структура"],
+    ],
+    metrics: [
+      ["Количество", `${planningQuantity.toLocaleString("ru-RU")} шт.`, "из заказ-наряда"],
+      ["Операции", routeSteps.length.toLocaleString("ru-RU"), "в маршруте"],
+      ["Гант", scheduleExpected ? `${schedulePlanned}/${scheduleExpected}` : "нет", scheduleExpected ? "слоты" : "после передачи"],
+      ["Смены", shiftOrders.length ? shiftOrders.length.toLocaleString("ru-RU") : "нет", shiftOrders.length ? "сформированы" : "после Ганта"],
+    ],
+    transfer: [
+      ["До", "Спецификация", "состав изделия"],
+      ["Сейчас", "Заказ-наряд", "подготовка к плану"],
+      ["После", "Гант", "размещение операций"],
+    ],
+  };
+
+  if (selectedTask) {
+    const stats = getPlanningTaskOperationStats(route, selectedTask, routeSteps);
+    const readiness = getPlanningTaskReadiness(selectedTask, stats);
+    const taskQuantity = normalizeQuantity(selectedTask.quantity || 1);
+    const orderQuantity = normalizeQuantity(planningQuantity * taskQuantity);
+    model = {
+      title: selectedTask.title || "Объект заказ-наряда",
+      meta: getPlanningTaskBomLabel(selectedTask),
+      statusLabel: readiness.label,
+      statusTone: readiness.tone,
+      summary: [
+        ["Заказ-наряд", orderView.title || "Заказ-наряд", `${planningQuantity.toLocaleString("ru-RU")} шт.`],
+        ["Объект", selectedTask.title || "Составная часть", getPlanningTaskBomLabel(selectedTask)],
+        ["Готовность", readiness.label, formatPlanningOperationCount(stats.stepsCount)],
+      ],
+      metrics: [
+        ["Кол-во", `${orderQuantity.toLocaleString("ru-RU")} ${selectedTask.unit || "шт."}`, "по ветке"],
+        ["Операции", stats.stepsCount.toLocaleString("ru-RU"), "в объекте"],
+        ["SMT", stats.smtCount.toLocaleString("ru-RU"), "операций"],
+        ["Выход", stats.outputCount.toLocaleString("ru-RU"), "финальных"],
+      ],
+      transfer: [
+        ["До", selectedTask.parentTitle || "начало маршрута", selectedTask.isMain ? "главная ветка" : "родительский объект"],
+        ["Сейчас", selectedTask.title || "Составная часть", getPlanningTaskBomLabel(selectedTask)],
+        ["После", stats.steps[0]?.operationName || "операции не заданы", stats.steps[0] ? getPlanningStepLineLabel(stats.steps[0]) : "заполнить маршрут"],
+      ],
+    };
+  }
+
+  if (selectedStep) {
+    const stepIndex = routeSteps.findIndex((step) => step.id === selectedStep.id);
+    const previousStep = stepIndex > 0 ? routeSteps[stepIndex - 1] : null;
+    const nextStep = stepIndex >= 0 && stepIndex < routeSteps.length - 1 ? routeSteps[stepIndex + 1] : null;
+    const stepQuantity = getRouteStepQuantityForBatch(selectedStep, { quantity: planningQuantity });
+    const isSmtStep = routeStepRequiresManualPlanningLine(selectedStep, planningState)
+      || isSmtOperationWorkCenter(selectedStep.workCenterId, selectedStep, planningState);
+    const laborCalc = getPlanningManualStepCalculation(route, selectedStep, {
+      routeQuantity: planningQuantity,
+      quantity: stepQuantity,
+      allowCalculator: isSmtStep,
+    });
+    const stepTone = getPlanningStepTone(selectedStep);
+    const statusLabel = stepTone === "warning"
+      ? "проверьте"
+      : laborCalc.isConfirmed
+        ? "готово"
+        : "нет оценки";
+    const statusTone = stepTone === "warning" || !laborCalc.isConfirmed ? "warning" : "ok";
+    model = {
+      title: selectedStep.operationName || "Операция",
+      meta: getPlanningStepLineLabel(selectedStep),
+      statusLabel,
+      statusTone,
+      summary: [
+        ["Заказ-наряд", orderView.title || "Заказ-наряд", `${planningQuantity.toLocaleString("ru-RU")} шт.`],
+        ["Операция", selectedStep.operationName || "Операция", getPlanningStepLineLabel(selectedStep)],
+        ["Трудозатраты", laborCalc.durationLabel, laborCalc.sourceLabel],
+      ],
+      metrics: [
+        ["Кол-во", `${Number(stepQuantity || 0).toLocaleString("ru-RU")} шт.`, "для операции"],
+        ["Длительность", laborCalc.durationLabel, laborCalc.sourceLabel],
+        ["Смены", laborCalc.shiftCount.toLocaleString("ru-RU"), `${laborCalc.shiftCapacity.toLocaleString("ru-RU")} шт./смена`],
+        ["Ресурс", laborCalc.workCenterLabel, laborCalc.resourceLabel || "ресурс"],
+      ],
+      transfer: [
+        ["До", previousStep?.operationName || "начало", previousStep ? getPlanningStepLineLabel(previousStep) : "первый шаг"],
+        ["Сейчас", selectedStep.operationName || "Операция", getPlanningStepLineLabel(selectedStep)],
+        ["После", nextStep?.operationName || "завершение", nextStep ? getPlanningStepLineLabel(nextStep) : "последний шаг"],
+      ],
+    };
+  }
+
+  if (!selectedTask && !selectedStep && specialSections[type]) {
+    const [title, meta, statusLabel, statusTone] = specialSections[type];
+    model = { ...model, title, meta, statusLabel, statusTone };
+  }
+
+  const summary = model.summary.map(([label, value, meta], index) => `
+    <article class="${index === 0 ? "is-accent" : ""}" data-visual-qa-target="planning-order-detail-summary-card">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+      ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+    </article>
+  `).join("");
+  const metrics = model.metrics.map(([label, value, meta]) => `
+    <article data-visual-qa-target="planning-order-detail-volume-card">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+      ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+    </article>
+  `).join("");
+  const transfer = model.transfer.map(([label, value, meta], index) => `
+    ${index > 0 ? `<span class="planning-order-transfer-link" data-visual-qa-target="planning-order-transfer-link" aria-hidden="true"></span>` : ""}
+    <article class="${index === 1 ? "is-current" : ""}" data-visual-qa-target="planning-order-transfer-card">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+      ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+    </article>
+  `).join("");
+  const compactPanel = renderUiPanel({
+    title: model.title,
+    meta: model.meta,
+    className: "planning-order-detail-panel",
+    actions: renderUiStatusToken(model.statusLabel, model.statusTone, "planning-order-detail-status"),
+    body: renderUiPanelBody({ body: `
+      <section class="planning-order-detail-summary" data-visual-qa-target="planning-order-detail-summary">
+        ${summary}
+      </section>
+      <section class="planning-order-detail-volume" data-visual-qa-target="planning-order-detail-volume">
+        ${metrics}
+      </section>
+      <section class="planning-order-transfer" data-visual-qa-target="planning-order-transfer">
+        ${transfer}
+      </section>
+    ` }),
+  });
+
+  return `
+    <div class="planning-order-detail-stack planning-work-detail" data-visual-qa-target="planning-order-detail-stack" aria-label="Карточка выбранного элемента заказ-наряда">
+      ${compactPanel}
+      ${detailContent ? `<div class="planning-order-detail-extra" data-visual-qa-target="planning-order-detail-extra">${detailContent}</div>` : ""}
+    </div>
   `;
 }
 
@@ -12383,7 +12555,7 @@ function buildShiftWorkOrderJournalRow(row = {}, options = {}) {
     masterName: sheetContract.masterName || row.masterProfile?.name || "Мастер не назначен",
     executors,
     executorLabel: executors.length
-      ? executors.map((executor) => executor.employeeName || "Исполнитель").join(", ")
+      ? formatShiftWorkOrderExecutorList(executors)
       : "не назначены",
     plannedQuantity,
     assignedQuantity,
@@ -12430,7 +12602,7 @@ function buildShiftWorkOrderJournalStoredRow(id = "", assignment = {}) {
     masterName: sheetContract.masterName || assignment.masterId || "Мастер не назначен",
     executors: sheetContract.executors || assignment.executors || [],
     executorLabel: (sheetContract.executors || assignment.executors || []).length
-      ? (sheetContract.executors || assignment.executors || []).map((executor) => executor.employeeName || getShiftMasterEmployee(executor.employeeId)?.name || "Исполнитель").join(", ")
+      ? formatShiftWorkOrderExecutorList(sheetContract.executors || assignment.executors || [])
       : "не назначены",
     plannedQuantity,
     assignedQuantity,
@@ -12505,12 +12677,6 @@ function renderShiftWorkOrdersPage() {
     className: "shift-work-orders-page",
     workspaceClassName: "shift-work-orders-workspace",
     contentClassName: "shift-work-orders-content",
-    header: renderUiModuleHeader({
-      eyebrow: "Оперативное управление",
-      title: "Журнал сменных заданий",
-      description: "Распределенные сменные задания, сформированные СЗН, факт, остатки и report из Мастерской. Чистый план остается только в Мастерской.",
-      className: "directory-header shift-work-orders-header",
-    }),
     content: `
       <section class="shift-work-orders-main-grid">
         ${renderShiftWorkOrdersTable(model)}
@@ -12545,7 +12711,7 @@ function renderShiftWorkOrderIssueReports(row) {
             </button>
             <div class="shift-work-orders-issue-copy" data-visual-qa-target="shift-work-orders-issue-copy">
               <header data-visual-qa-target="shift-work-orders-issue-card-header">
-                <strong data-visual-qa-target="shift-work-orders-issue-card-author">${escapeHtml(report.employeeName || "Исполнитель")}</strong>
+                <strong data-visual-qa-target="shift-work-orders-issue-card-author">${escapeHtml(formatShiftWorkOrderPersonName(report.employeeName || "Исполнитель"))}</strong>
                 <span data-visual-qa-target="shift-work-orders-issue-card-date">${escapeHtml(report.createdAt ? formatDateTimeShort(report.createdAt) : "без даты")}</span>
               </header>
               <p data-visual-qa-target="shift-work-orders-issue-card-text">${escapeHtml(report.text || "Описание не заполнено.")}</p>
@@ -12679,49 +12845,6 @@ function getShiftWorkOrderOperationTreeStatus(operationGroup = {}) {
   return { label: "план", tone: "neutral" };
 }
 
-function getShiftWorkOrderDetailState(row = {}) {
-  const issueSummary = getShiftWorkOrderIssueSummary(row);
-  const status = row.status || { label: "статус не задан", tone: "neutral", id: "" };
-  const hasIssues = issueSummary.reportCount > 0;
-  const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
-  const assignedQuantity = normalizeShiftMasterBoardQuantity(row.assignedQuantity || 0);
-  const factQuantity = normalizeShiftMasterBoardQuantity(row.factQuantity || 0);
-  const remainingQuantity = normalizeShiftMasterBoardQuantity(row.remainingQuantity || Math.max(0, plannedQuantity - factQuantity));
-  const coverageLabel = plannedQuantity > 0
-    ? `${Math.min(100, Math.round((assignedQuantity / plannedQuantity) * 100)).toLocaleString("ru-RU")}% распределено`
-    : "нет планового объема";
-  const factLabel = plannedQuantity > 0
-    ? `${Math.min(100, Math.round((factQuantity / plannedQuantity) * 100)).toLocaleString("ru-RU")}% факта`
-    : "факт без плана";
-  return {
-    status,
-    issueSummary,
-    hasIssues,
-    title: hasIssues ? `${status.label} · есть report` : status.label,
-    tone: hasIssues && status.id !== "closed" ? "risk" : status.tone,
-    coverageLabel,
-    factLabel,
-    remainingQuantity,
-  };
-}
-
-function renderShiftWorkOrdersDetailState(row) {
-  const state = getShiftWorkOrderDetailState(row);
-  return `
-    <section class="shift-work-orders-detail-state ${state.hasIssues ? "has-issues" : ""}" data-visual-qa-target="shift-work-orders-detail-state">
-      <div>
-        <span>Состояние документа</span>
-        <strong>${escapeHtml(state.title)}</strong>
-        <small>${escapeHtml([state.coverageLabel, state.factLabel].filter(Boolean).join(" · "))}</small>
-      </div>
-      <div class="shift-work-orders-detail-state-token">
-        ${renderUiStatusToken(state.status.label, state.tone)}
-        <small>${state.issueSummary.reportCount.toLocaleString("ru-RU")} report · ${state.issueSummary.photoCount.toLocaleString("ru-RU")} фото</small>
-      </div>
-    </section>
-  `;
-}
-
 function getShiftWorkOrderDetailPercent(value = 0, total = 0) {
   const normalizedValue = normalizeShiftMasterBoardQuantity(value || 0);
   const normalizedTotal = normalizeShiftMasterBoardQuantity(total || 0);
@@ -12743,13 +12866,6 @@ function renderShiftWorkOrdersDetailVolume(row, issueSummary = getShiftWorkOrder
     : "ожидает рабочего стола";
   return `
     <section class="shift-work-orders-detail-volume" data-visual-qa-target="shift-work-orders-detail-volume">
-      <header>
-        <div>
-          <span>Объем</span>
-          <strong>${plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)}</strong>
-        </div>
-        <small>${assignedPercent.toLocaleString("ru-RU")}% распределено · ${factPercent.toLocaleString("ru-RU")}% факт</small>
-      </header>
       <div class="shift-work-orders-detail-progress" aria-hidden="true">
         <i style="width: ${assignedPercent}%"></i>
         <b style="width: ${factPercent}%"></b>
@@ -12774,11 +12890,13 @@ function renderShiftWorkOrdersDetailTransfer(row) {
         <strong>${escapeHtml(transfer.fromOperationName || row.operationName)}</strong>
         <small>${escapeHtml(transfer.fromWorkCenterLabel || row.workCenterLabel)}</small>
       </article>
+      <span class="shift-work-orders-transfer-link" data-visual-qa-target="shift-work-orders-transfer-link" aria-hidden="true"></span>
       <article class="is-current">
         <span>Сейчас</span>
         <strong>${escapeHtml(row.operationName)}</strong>
         <small>${escapeHtml(row.workCenterLabel)} · текущий шаг</small>
       </article>
+      <span class="shift-work-orders-transfer-link" data-visual-qa-target="shift-work-orders-transfer-link" aria-hidden="true"></span>
       <article>
         <span>После</span>
         <strong>${escapeHtml(transfer.toOperationName || transfer.targetLabel || "следующий шаг")}</strong>
@@ -12786,6 +12904,33 @@ function renderShiftWorkOrdersDetailTransfer(row) {
       </article>
     </section>
   `;
+}
+
+function isShiftWorkOrderPersonNamePart(value = "") {
+  return /^[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?$/.test(String(value || "").trim());
+}
+
+function formatShiftWorkOrderPersonName(value = "") {
+  const parts = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+  if (parts.length < 2) return parts[0] || "Исполнитель";
+  if (!isShiftWorkOrderPersonNamePart(parts[0]) || !isShiftWorkOrderPersonNamePart(parts[1])) {
+    return parts.join(" ");
+  }
+  const [lastName, firstName = "", middleName = ""] = parts;
+  const firstInitial = firstName ? `${firstName.slice(0, 1).toLocaleUpperCase("ru-RU")}.` : "";
+  const middleInitial = isShiftWorkOrderPersonNamePart(middleName) ? `${middleName.slice(0, 1).toLocaleUpperCase("ru-RU")}.` : "";
+  return [lastName, firstInitial, middleInitial].filter(Boolean).join(" ");
+}
+
+function formatShiftWorkOrderExecutorList(executors = []) {
+  return (Array.isArray(executors) ? executors : [])
+    .map((executor) => formatShiftWorkOrderPersonName(executor.employeeName || getShiftMasterEmployee(executor.employeeId)?.name || "Исполнитель"))
+    .filter(Boolean)
+    .join(", ");
 }
 
 function renderShiftWorkOrderPrintInfoTable(rows = [], className = "") {
@@ -12854,7 +12999,7 @@ function renderShiftWorkOrderPrintExecutorsTable(row) {
         ${executors.map((executor, index) => `
           <tr>
             <td>${index + 1}</td>
-            <td><strong>${escapeHtml(executor.employeeName || getShiftMasterEmployee(executor.employeeId)?.name || "Исполнитель")}</strong></td>
+            <td><strong>${escapeHtml(formatShiftWorkOrderPersonName(executor.employeeName || getShiftMasterEmployee(executor.employeeId)?.name || "Исполнитель"))}</strong></td>
             <td>${escapeHtml(formatShiftWorkOrderPrintQuantity(executor.quantity || 0, row.unit || "шт."))}</td>
             <td>${escapeHtml(executor.note || "")}</td>
           </tr>
@@ -12915,7 +13060,7 @@ function renderShiftWorkOrderPrintSheet(row) {
           ["Операция", row.operationName],
           ["Участок", row.workCenterLabel],
           ["Ресурс", row.resourceLabel || row.workCenterLabel],
-          ["Мастер", row.masterName],
+          ["Мастер", formatShiftWorkOrderPersonName(row.masterName)],
           ["Сформирован", formedLabel],
           ["Обновлено", row.dateLabel],
         ], "shift-work-order-print-passport-table")}
@@ -13020,7 +13165,7 @@ function renderShiftWorkOrderIssuePhotoModal() {
             <div>
               <span class="eyebrow">Report · ${escapeHtml(counterLabel)}</span>
               <h2>${escapeHtml(activePhoto.name || "Фото проблемы")}</h2>
-              <small>${escapeHtml([row?.documentNumber, activePhoto.employeeName, activePhoto.createdAt ? formatDateTimeShort(activePhoto.createdAt) : ""].filter(Boolean).join(" · "))}</small>
+              <small>${escapeHtml([row?.documentNumber, activePhoto.employeeName ? formatShiftWorkOrderPersonName(activePhoto.employeeName) : "", activePhoto.createdAt ? formatDateTimeShort(activePhoto.createdAt) : ""].filter(Boolean).join(" · "))}</small>
             </div>
             <button class="icon-button ui-action-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
           </div>
@@ -13045,6 +13190,36 @@ function renderShiftWorkOrderIssuePhotoModal() {
   `;
 }
 
+function normalizeShiftWorkOrderCollapsedTreeIds(value = []) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function getShiftWorkOrderTreeNodeId(type = "", id = "", parentId = "") {
+  return ["shiftWorkOrder", type, parentId, id]
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .join("::");
+}
+
+function getShiftWorkOrderCollapsedTreeSet() {
+  return new Set(normalizeShiftWorkOrderCollapsedTreeIds(ui.shiftWorkOrderCollapsedTreeIds));
+}
+
+function toggleShiftWorkOrderTreeNode(nodeId = "") {
+  const safeNodeId = String(nodeId || "").trim();
+  if (!safeNodeId) return;
+  const collapsedTreeIds = getShiftWorkOrderCollapsedTreeSet();
+  if (collapsedTreeIds.has(safeNodeId)) {
+    collapsedTreeIds.delete(safeNodeId);
+  } else {
+    collapsedTreeIds.add(safeNodeId);
+  }
+  ui.shiftWorkOrderCollapsedTreeIds = [...collapsedTreeIds];
+  persistUiState();
+  renderPreservingModuleScroll();
+}
+
 function renderShiftWorkOrdersTable(model) {
   if (!model.rows.length) {
     return renderUiPanel({
@@ -13062,6 +13237,7 @@ function renderShiftWorkOrdersTable(model) {
   }
   const documentTree = model.documentTree || buildShiftWorkOrderDocumentTree(model.rows);
   const operationCount = documentTree.reduce((sum, group) => sum + (group.operationGroups || []).length, 0);
+  const collapsedTreeIds = getShiftWorkOrderCollapsedTreeSet();
   return renderUiPanel({
     title: "Дерево документов",
     meta: `${documentTree.length.toLocaleString("ru-RU")} заказ-нарядов · ${operationCount.toLocaleString("ru-RU")} операций · ${model.rows.length.toLocaleString("ru-RU")} заданий · окно ${model.sourceWindow.label}`,
@@ -13087,8 +13263,18 @@ function renderShiftWorkOrdersTable(model) {
               ${documentTree.map((group, groupIndex) => {
                 const operationGroups = group.operationGroups || [];
                 const groupIsLast = groupIndex === documentTree.length - 1;
+                const groupNodeId = getShiftWorkOrderTreeNodeId("package", group.id);
+                const groupCollapsed = collapsedTreeIds.has(groupNodeId);
                 return `
-                <tr class="shift-work-orders-tree-parent" data-shift-work-order-package-row="${escapeAttribute(group.id)}" style="--speki-level: 0;">
+                <tr
+                  class="shift-work-orders-tree-parent ${groupCollapsed ? "is-collapsed" : "is-expanded"}"
+                  data-shift-work-order-package-row="${escapeAttribute(group.id)}"
+                  data-shift-work-order-tree-toggle="${escapeAttribute(groupNodeId)}"
+                  aria-expanded="${groupCollapsed ? "false" : "true"}"
+                  title="${escapeAttribute(groupCollapsed ? "Раскрыть заказ-наряд" : "Свернуть заказ-наряд")}"
+                  style="--speki-level: 0;"
+                  tabindex="0"
+                >
                   <td>${renderRouteTreeCell({
                     level: 0,
                     hasChildren: operationGroups.length > 0,
@@ -13110,11 +13296,21 @@ function renderShiftWorkOrdersTable(model) {
 	                  <td><span class="shift-work-orders-group-status">заказ-наряд</span></td>
 	                  <td>${escapeHtml(group.latestLabel)}</td>
 	                </tr>
-                ${operationGroups.map((operationGroup, operationIndex) => {
+                ${groupCollapsed ? "" : operationGroups.map((operationGroup, operationIndex) => {
                   const operationStatus = getShiftWorkOrderOperationTreeStatus(operationGroup);
                   const operationIsLast = operationIndex === operationGroups.length - 1;
+                  const operationNodeId = getShiftWorkOrderTreeNodeId("operation", operationGroup.id, group.id);
+                  const operationCollapsed = collapsedTreeIds.has(operationNodeId);
                   return `
-                  <tr class="shift-work-orders-tree-operation" data-shift-work-order-operation-row="${escapeAttribute(operationGroup.id)}" style="--speki-level: 1;">
+                  <tr
+                    class="shift-work-orders-tree-operation ${operationCollapsed ? "is-collapsed" : "is-expanded"}"
+                    data-shift-work-order-operation-row="${escapeAttribute(operationGroup.id)}"
+                    data-shift-work-order-tree-toggle="${escapeAttribute(operationNodeId)}"
+                    aria-expanded="${operationCollapsed ? "false" : "true"}"
+                    title="${escapeAttribute(operationCollapsed ? "Раскрыть операцию" : "Свернуть операцию")}"
+                    style="--speki-level: 1;"
+                    tabindex="0"
+                  >
                     <td>${renderRouteTreeCell({
                       level: 1,
                       hasChildren: operationGroup.rows.length > 0,
@@ -13136,7 +13332,7 @@ function renderShiftWorkOrdersTable(model) {
 	                    <td><span class="shift-work-orders-group-status">${escapeHtml(operationStatus.label)}</span></td>
 	                    <td>${escapeHtml(operationGroup.latestLabel)}</td>
 	                  </tr>
-	                  ${operationGroup.rows.map((row, rowIndex) => {
+	                  ${operationCollapsed ? "" : operationGroup.rows.map((row, rowIndex) => {
 	                    const childTreeClasses = [
                       "shift-work-orders-tree-child",
                       rowIndex === 0 ? "is-first-in-operation" : "",
@@ -13159,7 +13355,7 @@ function renderShiftWorkOrdersTable(model) {
                         `,
                         className: "is-shift-work-order-child",
                       })}</td>
-                      <td><strong>${escapeHtml(row.executorLabel || row.masterName || row.workCenterLabel)}</strong><small>${escapeHtml(row.shiftDateKey || row.dateLabel)}</small></td>
+                      <td><strong>${escapeHtml(formatShiftWorkOrderExecutorList(row.executors) || formatShiftWorkOrderPersonName(row.masterName || "") || row.workCenterLabel)}</strong><small>${escapeHtml(row.shiftDateKey || row.dateLabel)}</small></td>
                       <td>${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</td>
                       <td>${row.assignedQuantity.toLocaleString("ru-RU")}</td>
 	                      <td>${row.factQuantity.toLocaleString("ru-RU")}</td>
@@ -13197,7 +13393,7 @@ function renderShiftWorkOrdersDetail(row) {
   const issueSummary = getShiftWorkOrderIssueSummary(row);
   return renderUiPanel({
     title: row.documentNumber,
-    meta: `${row.operationName} · ${row.workCenterLabel}`,
+    meta: "",
     className: "shift-work-orders-panel shift-work-orders-detail-panel",
     actions: `
       ${renderUiActionButton({
@@ -13218,11 +13414,11 @@ function renderShiftWorkOrdersDetail(row) {
     `,
     body: renderUiPanelBody({
       body: `
-        ${renderShiftWorkOrdersDetailState(row)}
+        ${renderShiftWorkOrderIssueReports(row)}
         <section class="shift-work-orders-detail-summary" data-visual-qa-target="shift-work-orders-detail-summary">
           <article data-visual-qa-target="shift-work-orders-detail-order"><span>Заказ-наряд</span><strong>${escapeHtml(row.orderLabel)}</strong><small>${escapeHtml(row.routePartLabel)}</small></article>
           <article data-visual-qa-target="shift-work-orders-detail-operation"><span>Операция</span><strong>${escapeHtml(row.operationName)}</strong><small>${escapeHtml(row.workCenterLabel)}</small></article>
-          <article data-visual-qa-target="shift-work-orders-detail-master"><span>Мастер</span><strong>${escapeHtml(row.masterName)}</strong><small>${escapeHtml(row.resourceLabel || row.workCenterLabel)}</small></article>
+          <article data-visual-qa-target="shift-work-orders-detail-master"><span>Мастер</span><strong>${escapeHtml(formatShiftWorkOrderPersonName(row.masterName))}</strong><small>${escapeHtml(row.resourceLabel || row.workCenterLabel)}</small></article>
         </section>
         ${renderShiftWorkOrdersDetailVolume(row, issueSummary)}
         ${renderShiftWorkOrdersDetailTransfer(row)}
@@ -13230,13 +13426,11 @@ function renderShiftWorkOrdersDetail(row) {
           <header><strong>Исполнители</strong><span>${executorRows.length.toLocaleString("ru-RU")} назначений</span></header>
           ${executorRows.length ? executorRows.map((executor) => `
             <article>
-              <strong>${escapeHtml(executor.employeeName || getShiftMasterEmployee(executor.employeeId)?.name || "Исполнитель")}</strong>
+              <strong>${escapeHtml(formatShiftWorkOrderPersonName(executor.employeeName || getShiftMasterEmployee(executor.employeeId)?.name || "Исполнитель"))}</strong>
               <span>${normalizeShiftMasterBoardQuantity(executor.quantity || 0).toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</span>
-              ${executor.note ? `<small>${escapeHtml(executor.note)}</small>` : ""}
             </article>
           `).join("") : `<p>Исполнители еще не назначены.</p>`}
         </section>
-        ${renderShiftWorkOrderIssueReports(row)}
       `,
     }),
   });
@@ -13291,6 +13485,19 @@ function bindShiftWorkOrdersEvents() {
     document.title = model?.workOrderView?.objectLabel || model?.workOrderView?.title || "";
     window.addEventListener("afterprint", restoreTitle, { once: true });
     window.requestAnimationFrame(() => window.print());
+  });
+
+  app.querySelectorAll("[data-shift-work-order-tree-toggle]").forEach((row) => {
+    const toggle = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleShiftWorkOrderTreeNode(row.getAttribute("data-shift-work-order-tree-toggle") || "");
+    };
+    row.addEventListener("click", toggle);
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      toggle(event);
+    });
   });
 
   app.querySelectorAll("[data-shift-work-order-row]").forEach((row) => {
@@ -23430,6 +23637,16 @@ function renderVisualSystemPage() {
     { id: "soft-fill", title: "Мягкая заливка", meta: "без бокового маркера" },
     { id: "double-rail", title: "Двойной rail", meta: "левый выбор + правый статус" },
   ];
+  const cardAccentVariants = [
+    { id: "top-rail", title: "Верхняя линия", meta: "акцент без изменения левого края" },
+    { id: "thin-outline", title: "Тонкая рамка", meta: "самый спокойный вариант" },
+    { id: "corner-pin", title: "Угол", meta: "короткий маркер в правом верхнем углу" },
+    { id: "label-pill", title: "Плашка", meta: "акцент только на типе поля" },
+    { id: "label-underline", title: "Подчеркивание", meta: "цвет внутри заголовка" },
+    { id: "soft-surface", title: "Мягкий фон", meta: "легкая заливка без статуса" },
+    { id: "lift", title: "Подъем", meta: "акцент через слой и тень" },
+    { id: "dot", title: "Точка", meta: "минимальный маркер рядом с лейблом" },
+  ];
   const visualGanttFactGroups = [
     {
       title: "Распределено совпало · 1000",
@@ -23847,6 +24064,28 @@ function renderVisualSystemPage() {
                     </tr>
                   </tbody>
                 </table>
+              </article>
+            `).join("")}
+          </div>
+        </article>
+
+        <article class="visual-system-panel is-full visual-card-accent-panel" data-visual-qa-target="visual-card-accent-options">
+          <div class="visual-system-panel-title">
+            ${icon("directory")}
+            <div><h3>Акцент компактной карточки</h3><p>Варианты замены левого маркера в карточках правой панели Журнала СЗН. Сравниваем один и тот же контент в одинаковой геометрии.</p></div>
+          </div>
+          <div class="visual-card-accent-grid">
+            ${cardAccentVariants.map((variant) => `
+              <article class="visual-card-accent-option is-${escapeAttribute(variant.id)}" data-visual-qa-target="visual-card-accent-option">
+                <header>
+                  <strong>${escapeHtml(variant.title)}</strong>
+                  <small>${escapeHtml(variant.meta)}</small>
+                </header>
+                <div class="visual-card-accent-preview" aria-label="${escapeAttribute(`Вариант акцента карточки: ${variant.title}`)}">
+                  <span>Заказ-наряд</span>
+                  <strong>изд. "Хуета"</strong>
+                  <small>Сборка в заготовку</small>
+                </div>
               </article>
             `).join("")}
           </div>
@@ -30247,7 +30486,7 @@ function renderWorkOrderPrintPackageRegistryTable(model) {
             <td><strong>${escapeHtml(row.documentNumber)}</strong></td>
             <td>${escapeHtml(getShiftWorkOrderJournalShiftLabel(row))}</td>
             <td><strong>${escapeHtml(row.operationName)}</strong><span>${escapeHtml(row.workCenterLabel)}</span></td>
-            <td>${escapeHtml(row.masterName)}</td>
+            <td>${escapeHtml(formatShiftWorkOrderPersonName(row.masterName))}</td>
             <td>${escapeHtml(row.executorLabel || "не назначены")}</td>
             <td>${escapeHtml(formatShiftWorkOrderPrintQuantity(row.plannedQuantity, row.unit))}</td>
             <td>${escapeHtml(formatShiftWorkOrderPrintQuantity(row.assignedQuantity, row.unit))}</td>
@@ -30284,7 +30523,7 @@ function renderWorkOrderPrintPackageExecutorsTable(model) {
       <tbody>
         ${model.executorRows.map((row) => `
           <tr>
-            <td><strong>${escapeHtml(row.employeeName)}</strong></td>
+            <td><strong>${escapeHtml(formatShiftWorkOrderPersonName(row.employeeName))}</strong></td>
             <td>${escapeHtml(formatShiftWorkOrderPrintQuantity(row.quantity, row.unit))}</td>
             <td>${[...row.shifts].length.toLocaleString("ru-RU")}</td>
             <td>${[...row.documents].length.toLocaleString("ru-RU")}</td>
