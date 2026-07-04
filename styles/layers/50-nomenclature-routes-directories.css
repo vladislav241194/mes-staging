@@ -842,6 +842,9 @@ directories and table refinements.
   width: 14px;
   min-width: 14px;
   min-height: 28px;
+}.speki-tree-start-dot{
+  display: none;
+  pointer-events: none;
 }.speki-tree-guide{
   position: absolute;
   top: calc(-1 * var(--speki-tree-line-bleed-top));

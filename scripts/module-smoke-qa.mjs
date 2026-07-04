@@ -1125,6 +1125,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       const badgeText = (badge?.textContent || "").trim();
       const badgeCount = badgeText === "99+" ? 100 : Number.parseInt(badgeText.replace(/\D/g, ""), 10);
       const rect = badge?.getBoundingClientRect();
+      const tabRect = badge?.closest(".module-tab")?.getBoundingClientRect();
       const style = badge ? getComputedStyle(badge) : null;
       return {
         intakeCount,
@@ -1136,6 +1137,16 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
           height: Math.round(rect.height),
           x: Math.round(rect.x),
           y: Math.round(rect.y),
+          right: Math.round(rect.right),
+          bottom: Math.round(rect.bottom),
+        } : null,
+        tabRect: tabRect ? {
+          width: Math.round(tabRect.width),
+          height: Math.round(tabRect.height),
+          x: Math.round(tabRect.x),
+          y: Math.round(tabRect.y),
+          right: Math.round(tabRect.right),
+          bottom: Math.round(tabRect.bottom),
         } : null,
         background: style?.backgroundColor || "",
         borderColor: style?.borderTopColor || "",
@@ -1157,9 +1168,17 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       );
       assert(
         badgeReport.background.includes("255, 59, 48")
-          && badgeReport.borderColor.includes("255, 255, 255")
-          && Number.parseFloat(badgeReport.borderWidth || "0") >= 2,
-        `shiftMasterBoard: sidebar badge should look like a macOS notification badge: ${JSON.stringify(badgeReport)}`
+          && Number.parseFloat(badgeReport.borderWidth || "0") === 0,
+        `shiftMasterBoard: sidebar badge should be a macOS-like red counter without a white outline: ${JSON.stringify(badgeReport)}`
+      );
+      assert(
+        badgeReport.rect
+          && badgeReport.tabRect
+          && badgeReport.rect.x >= badgeReport.tabRect.x
+          && badgeReport.rect.y >= badgeReport.tabRect.y
+          && badgeReport.rect.right <= badgeReport.tabRect.right
+          && badgeReport.rect.bottom <= badgeReport.tabRect.bottom,
+        `shiftMasterBoard: sidebar badge must stay inside the module tab to avoid clipping: ${JSON.stringify(badgeReport)}`
       );
     }
     const calendarReport = await evaluate(client, () => {
@@ -1201,6 +1220,34 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         .every((item) => item.width === 28 && item.svgWidth === 14 && item.svgHeight === 14 && item.svgCenterDelta <= 1),
       `shiftMasterBoard: calendar icon buttons must have centered 14px icons: ${JSON.stringify(calendarReport)}`
     );
+    const kuzmMasterScopeReport = await evaluate(client, async () => {
+      const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const masterButton = [...document.querySelectorAll("[data-shift-board-master]")]
+        .find((button) => /Кузьмина Ирина Романович/i.test(button.getAttribute("title") || button.textContent || ""));
+      if (!masterButton) return { checked: false, reason: "master switch is not visible" };
+      masterButton.click();
+      await waitFrame();
+      const panels = [...document.querySelectorAll("[data-shift-board-assignment-panel]")].map((panel) => ({
+        masterId: panel.getAttribute("data-shift-board-assignment-master-id") || "",
+        scopeCount: Number(panel.getAttribute("data-shift-board-assignment-scope-count") || 0),
+        availableCount: Number(panel.getAttribute("data-shift-board-assignment-available-count") || 0),
+        employeeCardCount: panel.querySelectorAll("[data-visual-qa-target=\"shift-master-board-available-person\"]").length,
+        text: (panel.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
+      }));
+      return {
+        checked: true,
+        panelCount: panels.length,
+        maxScopeCount: Math.max(0, ...panels.map((panel) => panel.scopeCount)),
+        maxAvailableCount: Math.max(0, ...panels.map((panel) => panel.availableCount)),
+        maxEmployeeCardCount: Math.max(0, ...panels.map((panel) => panel.employeeCardCount)),
+        panels: panels.slice(0, 4),
+      };
+    });
+    if (kuzmMasterScopeReport.checked) {
+      assert(kuzmMasterScopeReport.panelCount > 0, `shiftMasterBoard: Kuzmina has no assignment panels: ${JSON.stringify(kuzmMasterScopeReport)}`);
+      assert(kuzmMasterScopeReport.maxScopeCount > 0, `shiftMasterBoard: Kuzmina scope is empty: ${JSON.stringify(kuzmMasterScopeReport)}`);
+      assert(kuzmMasterScopeReport.maxEmployeeCardCount > 0, `shiftMasterBoard: Kuzmina employee cards disappeared: ${JSON.stringify(kuzmMasterScopeReport)}`);
+    }
   }
   if (moduleId === "planning") {
     const workOrderUxReport = await evaluate(client, () => {
@@ -1617,6 +1664,10 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       const ganttBars = [...document.querySelectorAll(".visual-gantt-bar, .visual-gantt-transfer-stack, .visual-gantt-segmented")];
       const factScenarios = [...document.querySelectorAll(".visual-gantt-bar.is-fact-scenario")];
       const transferFlows = [...document.querySelectorAll(".visual-gantt-transfer-stack, .visual-gantt-transfer-flow")];
+      const selectedRowOptions = [...document.querySelectorAll("[data-visual-qa-target='visual-selected-row-option']")];
+      const selectedRowActiveSamples = selectedRowOptions
+        .map((option) => option.querySelector("tr.is-active"))
+        .filter(Boolean);
       const ganttSampleEscapes = ganttModeColumns.flatMap((column, columnIndex) => {
         const columnRect = column.getBoundingClientRect();
         const samples = [...column.querySelectorAll([
@@ -1651,6 +1702,8 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         ganttBarCount: ganttBars.length,
         factScenarioCount: factScenarios.length,
         transferFlowCount: transferFlows.length,
+        selectedRowOptionCount: selectedRowOptions.length,
+        selectedRowActiveSampleCount: selectedRowActiveSamples.length,
         ganttSampleEscapes,
         ganttPanelText: (ganttPanel?.textContent || "").replace(/\s+/g, " ").trim().slice(0, 240),
         text: (page?.textContent || "").replace(/\s+/g, " ").trim().slice(0, 240),
@@ -1667,6 +1720,8 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(visualSystemReport.ganttBarCount >= 12, `visualSystem: expected Gantt visual samples, got ${visualSystemReport.ganttBarCount}`);
     assert(visualSystemReport.factScenarioCount >= 12, `visualSystem: expected fact scenarios, got ${visualSystemReport.factScenarioCount}`);
     assert(visualSystemReport.transferFlowCount >= 2, `visualSystem: expected transfer flow samples, got ${visualSystemReport.transferFlowCount}`);
+    assert(visualSystemReport.selectedRowOptionCount === 12, `visualSystem: expected twelve selected row variants, got ${visualSystemReport.selectedRowOptionCount}`);
+    assert(visualSystemReport.selectedRowActiveSampleCount === 12, `visualSystem: every selected row variant must have an active row sample: ${JSON.stringify(visualSystemReport)}`);
     assert(visualSystemReport.ganttSampleEscapes.length === 0, `visualSystem: Gantt samples escape their mode columns: ${JSON.stringify(visualSystemReport.ganttSampleEscapes)}`);
     assert(visualSystemReport.pageOverflowX <= 2, `visualSystem: page horizontal overflow ${visualSystemReport.pageOverflowX}px`);
   }
@@ -1684,6 +1739,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         "auth-session-summary-operation-value",
         "auth-session-task-actions-header",
         "auth-session-task-action-start",
+        "auth-session-task-action-report",
         "auth-session-fact-header",
         "auth-session-fact-status",
         "auth-session-fact-actual-value",
@@ -1793,6 +1849,13 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     }
   }
   if (moduleId !== "shiftWorkOrders") return;
+  const journalSeedReport = await evaluate(client, () => (
+    window.__mesVisualQaRuntime?.seedShiftWorkOrderJournalAssignmentForQa?.()
+    || { seeded: false, reason: "runtime api missing" }
+  ));
+  assert(journalSeedReport.seeded, `shiftWorkOrders: could not seed a distributed shift task for journal QA: ${JSON.stringify(journalSeedReport)}`);
+  await delay(240);
+  await waitForModule(client, "shiftWorkOrders");
   const report = await evaluate(client, () => {
     const page = document.querySelector(".shift-work-orders-page");
     const panels = [...document.querySelectorAll(".shift-work-orders-panel")];
@@ -1804,7 +1867,176 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     const treeParents = [...document.querySelectorAll("[data-shift-work-order-package-row]")];
     const treeOperations = [...document.querySelectorAll("[data-shift-work-order-operation-row]")];
     const treeChildren = [...document.querySelectorAll("[data-shift-work-order-row]")];
-    const pageStyle = page ? window.getComputedStyle(page) : null;
+    const sampleTreeChild = treeChildren.find((row) => !row.classList.contains("is-active")) || treeChildren[0] || null;
+    const firstParentCellStyle = treeParents[0]?.querySelector("td")
+      ? window.getComputedStyle(treeParents[0].querySelector("td"))
+      : null;
+    const firstOperationCellStyle = treeOperations[0]?.querySelector("td")
+      ? window.getComputedStyle(treeOperations[0].querySelector("td"))
+      : null;
+    const firstChildCellStyle = sampleTreeChild?.querySelector("td")
+      ? window.getComputedStyle(sampleTreeChild.querySelector("td"))
+      : null;
+    const parentStatusStyle = treeParents[0]?.querySelector(".shift-work-orders-group-status")
+      ? window.getComputedStyle(treeParents[0].querySelector(".shift-work-orders-group-status"))
+      : null;
+    const operationStatusStyle = treeOperations[0]?.querySelector(".shift-work-orders-group-status")
+      ? window.getComputedStyle(treeOperations[0].querySelector(".shift-work-orders-group-status"))
+      : null;
+    const activeTreeChild = document.querySelector("[data-shift-work-order-row].is-active");
+    const groupLabels = [...document.querySelectorAll(".shift-work-orders-group-label")];
+    const activeFirstCellStyle = activeTreeChild?.querySelector("td:first-child")
+      ? window.getComputedStyle(activeTreeChild.querySelector("td:first-child"))
+      : null;
+    const activeSecondCellStyle = activeTreeChild?.querySelector("td:nth-child(2)")
+      ? window.getComputedStyle(activeTreeChild.querySelector("td:nth-child(2)"))
+      : null;
+    const parentTitleStyle = treeParents[0]?.querySelector("td:first-child strong")
+      ? window.getComputedStyle(treeParents[0].querySelector("td:first-child strong"))
+      : null;
+    const operationTitleStyle = treeOperations[0]?.querySelector("td:first-child strong")
+      ? window.getComputedStyle(treeOperations[0].querySelector("td:first-child strong"))
+      : null;
+    const childTitleStyle = sampleTreeChild?.querySelector("td:first-child strong")
+      ? window.getComputedStyle(sampleTreeChild.querySelector("td:first-child strong"))
+      : null;
+    const childSecondTitleStyle = sampleTreeChild?.querySelector("td:nth-child(2) strong")
+      ? window.getComputedStyle(sampleTreeChild.querySelector("td:nth-child(2) strong"))
+      : null;
+    const parentMetaStyle = treeParents[0]?.querySelector("small")
+      ? window.getComputedStyle(treeParents[0].querySelector("small"))
+      : null;
+    const operationMetaStyle = treeOperations[0]?.querySelector("small")
+      ? window.getComputedStyle(treeOperations[0].querySelector("small"))
+      : null;
+    const childMetaStyle = sampleTreeChild?.querySelector("small")
+      ? window.getComputedStyle(sampleTreeChild.querySelector("small"))
+      : null;
+    const activeTitleStyle = activeTreeChild?.querySelector("td:first-child strong")
+      ? window.getComputedStyle(activeTreeChild.querySelector("td:first-child strong"))
+      : null;
+    const parentRouteTreeCells = treeParents
+      .map((row) => row.querySelector(".route-tree-cell.is-shift-work-order-parent"))
+      .filter(Boolean);
+    const operationRouteTreeCells = treeOperations
+      .map((row) => row.querySelector(".route-tree-cell.is-shift-work-order-operation"))
+      .filter(Boolean);
+    const childRouteTreeCells = treeChildren
+      .map((row) => row.querySelector(".route-tree-cell.is-shift-work-order-child"))
+      .filter(Boolean);
+    const childStatusTexts = treeChildren.map((row) => (
+      row.querySelector("td:nth-child(7)")?.textContent || ""
+    ).replace(/\s+/g, " ").trim());
+    const childStageLabels = treeChildren.map((row) => (
+      row.querySelector(".route-tree-cell.is-shift-work-order-child small")?.textContent || ""
+    ).replace(/\s+/g, " ").trim());
+    const getDirectStartDot = (cell) => [...(cell?.children || [])]
+      .find((child) => child.classList?.contains("speki-tree-start-dot")) || null;
+    const parentStartDots = parentRouteTreeCells.map(getDirectStartDot).filter(Boolean);
+    const operationStartDots = operationRouteTreeCells.map(getDirectStartDot).filter(Boolean);
+    const childStartDots = childRouteTreeCells.map(getDirectStartDot).filter(Boolean);
+    const getTreeObjectLeft = (cell) => {
+      const rect = cell?.querySelector(".speki-tree-object")?.getBoundingClientRect();
+      return Number.isFinite(rect?.left) ? Math.round(rect.left) : 0;
+    };
+    const treeObjectLefts = {
+      parent: getTreeObjectLeft(parentRouteTreeCells[0]),
+      operation: getTreeObjectLeft(operationRouteTreeCells[0]),
+      child: getTreeObjectLeft(childRouteTreeCells[0]),
+    };
+    const visibleStartDots = [...operationStartDots, ...childStartDots]
+      .filter((dot) => window.getComputedStyle(dot).display !== "none");
+    const visibleStartDotRects = visibleStartDots.map((dot) => {
+      const style = window.getComputedStyle(dot);
+      const rect = dot.getBoundingClientRect();
+      return {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        borderColor: style.borderTopColor || "",
+        backgroundColor: style.backgroundColor || "",
+        boxShadow: style.boxShadow || "",
+      };
+    });
+    const operationStartDotStyles = operationStartDots.map((dot) => window.getComputedStyle(dot));
+    const childStartDotStyles = childStartDots.map((dot) => window.getComputedStyle(dot));
+    const activeChildStartDot = activeTreeChild?.querySelector(".route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot") || null;
+    const activeChildStartDotStyle = activeChildStartDot ? window.getComputedStyle(activeChildStartDot) : null;
+    const inactiveChildStartDotStyles = treeChildren
+      .filter((row) => row !== activeTreeChild)
+      .map((row) => row.querySelector(".route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot"))
+      .filter(Boolean)
+      .map((dot) => window.getComputedStyle(dot));
+    const childBranchStyles = treeChildren.map((row) => {
+      const treeCell = row.querySelector(".route-tree-cell.is-shift-work-order-child");
+      const branch = treeCell?.querySelector(".speki-tree-branch");
+      const before = branch ? window.getComputedStyle(branch, "::before") : null;
+      const after = branch ? window.getComputedStyle(branch, "::after") : null;
+      const guides = [...(treeCell?.querySelectorAll(".speki-tree-guide") || [])]
+        .map((guide) => {
+          const style = window.getComputedStyle(guide);
+          return {
+            top: style.top || "",
+            bottom: style.bottom || "",
+            borderColor: style.borderLeftColor || "",
+            borderWidth: style.borderLeftWidth || "",
+          };
+        });
+      return {
+        isFirst: row.classList.contains("is-first-in-operation"),
+        isLast: row.classList.contains("is-last-in-operation"),
+        treeClass: treeCell?.className || "",
+        guideCount: guides.length,
+        guideBleedCount: guides.filter((item) => Number.parseFloat(item.top) <= -20 && Number.parseFloat(item.bottom) <= -20).length,
+        guideNeutralColorCount: guides.filter((item) => item.borderWidth === "1px" && /rgb\(148, 163, 184\)/.test(item.borderColor)).length,
+        beforeTop: before?.top || "",
+        beforeBottom: before?.bottom || "",
+        beforeBorderColor: before?.borderLeftColor || "",
+        beforeBorderWidth: before?.borderLeftWidth || "",
+        afterBorderColor: after?.borderTopColor || "",
+        afterBorderWidth: after?.borderTopWidth || "",
+      };
+    });
+    const operationBranchStyles = treeOperations.map((row) => {
+      const treeCell = row.querySelector(".route-tree-cell.is-shift-work-order-operation");
+      const branch = treeCell?.querySelector(".speki-tree-branch");
+      const before = branch ? window.getComputedStyle(branch, "::before") : null;
+      return {
+        hasChildren: treeCell?.classList.contains("has-children") || false,
+        isLast: treeCell?.classList.contains("is-last") || false,
+        beforeBottom: before?.bottom || "",
+        beforeBorderColor: before?.borderLeftColor || "",
+        beforeBorderWidth: before?.borderLeftWidth || "",
+      };
+    });
+	    const bodyCells = [...document.querySelectorAll(".shift-work-orders-table tbody td")];
+    const numericCells = [...document.querySelectorAll(".shift-work-orders-table tbody td:nth-child(3), .shift-work-orders-table tbody td:nth-child(4), .shift-work-orders-table tbody td:nth-child(5), .shift-work-orders-table tbody td:nth-child(6)")];
+    const numericCellStyles = numericCells.map((cell) => window.getComputedStyle(cell));
+    const groupStatusNodes = [...document.querySelectorAll(".shift-work-orders-tree-parent .shift-work-orders-group-status, .shift-work-orders-tree-operation .shift-work-orders-group-status")];
+    const childStatusTokens = [...document.querySelectorAll(".shift-work-orders-tree-child .ui-status-token")];
+	    const tablePrintButtons = [...document.querySelectorAll(".shift-work-orders-table [data-work-order-print-preview], .shift-work-orders-table [data-shift-work-order-print-preview]")];
+	    const tableActionCells = [...document.querySelectorAll(".shift-work-orders-table .actions-cell")];
+	    const detailPanel = document.querySelector(".shift-work-orders-detail-panel");
+	    const detailSznButtons = detailPanel ? [...detailPanel.querySelectorAll("[data-shift-work-order-print-preview]")] : [];
+	    const detailPackageButtons = detailPanel ? [...detailPanel.querySelectorAll("[data-work-order-print-preview]")] : [];
+	    const detailState = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-detail-state']");
+	    const detailSummary = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-detail-summary']");
+	    const detailVolume = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-detail-volume']");
+	    const detailTransfer = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-transfer']");
+	    const detailExecutors = detailPanel?.querySelector("[data-visual-qa-target='shift-work-orders-executors']");
+	    const legacyDetailStrips = detailPanel ? [...detailPanel.querySelectorAll("[data-visual-qa-target='shift-work-orders-quantity-strip'], [data-visual-qa-target='shift-work-orders-fact-strip']")] : [];
+	    const neutralDetailSurfaces = detailPanel ? [
+	      detailState,
+	      detailVolume,
+	      ...[...(detailSummary?.querySelectorAll("article") || [])],
+	      ...[...(detailTransfer?.querySelectorAll("article") || [])],
+	      ...[...(detailExecutors?.querySelectorAll("article") || [])],
+	    ].filter(Boolean) : [];
+	    const neutralDetailBackgrounds = neutralDetailSurfaces.map((element) => window.getComputedStyle(element).backgroundColor || "");
+	    const currentRouteCard = detailTransfer?.querySelector("article.is-current") || null;
+	    const tableTitle = [...document.querySelectorAll(".shift-work-orders-table-panel [data-ui-component='PanelHead'] strong, .shift-work-orders-table-panel .ui-panel-title, .shift-work-orders-table-panel h2")]
+	      .map((node) => (node.textContent || "").replace(/\s+/g, " ").trim())
+	      .find(Boolean) || "";
+	    const pageStyle = page ? window.getComputedStyle(page) : null;
     return {
       hasPage: Boolean(page),
       internalSidebarCount: page?.querySelectorAll(".module-data-sidebar, .directory-sidebar").length || 0,
@@ -1817,10 +2049,111 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       treeParentCount: treeParents.length,
       treeOperationCount: treeOperations.length,
       treeChildCount: treeChildren.length,
+      parentRowBackground: firstParentCellStyle?.backgroundColor || "",
+      parentRowCursor: firstParentCellStyle?.cursor || "",
+      parentRowFirstCellShadow: firstParentCellStyle?.boxShadow || "",
+      operationRowBackground: firstOperationCellStyle?.backgroundColor || "",
+      operationRowCursor: firstOperationCellStyle?.cursor || "",
+      operationRowFirstCellShadow: firstOperationCellStyle?.boxShadow || "",
+      bodyHorizontalBorderCount: bodyCells.filter((cell) => {
+        const style = window.getComputedStyle(cell);
+        return style.borderTopWidth !== "0px" || style.borderBottomWidth !== "0px";
+      }).length,
+      numericCellCount: numericCells.length,
+      numericRightAlignedCount: numericCellStyles.filter((style) => style.textAlign === "right").length,
+      numericTabularCount: numericCellStyles.filter((style) => /tabular-nums/i.test(style.fontVariantNumeric || "")).length,
+      parentGroupStatusColor: parentStatusStyle?.color || "",
+      operationGroupStatusColor: operationStatusStyle?.color || "",
+      groupStatusTokenCount: groupStatusNodes.filter((node) => node.classList.contains("ui-status-token")).length,
+      childStatusTokenCount: childStatusTokens.length,
+      groupLabelCount: groupLabels.length,
+      parentCellFontSize: firstParentCellStyle?.fontSize || "",
+      parentCellFontWeight: firstParentCellStyle?.fontWeight || "",
+      parentCellColor: firstParentCellStyle?.color || "",
+      parentTitleFontSize: parentTitleStyle?.fontSize || "",
+      parentTitleFontWeight: parentTitleStyle?.fontWeight || "",
+      operationCellFontSize: firstOperationCellStyle?.fontSize || "",
+      operationCellFontWeight: firstOperationCellStyle?.fontWeight || "",
+      operationCellColor: firstOperationCellStyle?.color || "",
+      operationTitleFontSize: operationTitleStyle?.fontSize || "",
+      operationTitleFontWeight: operationTitleStyle?.fontWeight || "",
+      childCellFontSize: firstChildCellStyle?.fontSize || "",
+      childCellFontWeight: firstChildCellStyle?.fontWeight || "",
+      childCellColor: firstChildCellStyle?.color || "",
+      childTitleFontSize: childTitleStyle?.fontSize || "",
+      childTitleFontWeight: childTitleStyle?.fontWeight || "",
+      childSecondTitleFontWeight: childSecondTitleStyle?.fontWeight || "",
+      metaFontSizes: [parentMetaStyle?.fontSize, operationMetaStyle?.fontSize, childMetaStyle?.fontSize].filter(Boolean),
+      metaFontWeights: [parentMetaStyle?.fontWeight, operationMetaStyle?.fontWeight, childMetaStyle?.fontWeight].filter(Boolean),
+      activeTitleFontSize: activeTitleStyle?.fontSize || "",
+      activeTitleFontWeight: activeTitleStyle?.fontWeight || "",
+      parentRouteTreeCellCount: parentRouteTreeCells.length,
+      operationRouteTreeCellCount: operationRouteTreeCells.length,
+      childRouteTreeCellCount: childRouteTreeCells.length,
+      treeObjectLevelGapParentToOperation: treeObjectLefts.operation - treeObjectLefts.parent,
+      treeObjectLevelGapOperationToChild: treeObjectLefts.child - treeObjectLefts.operation,
+      plannedChildStatusCount: childStatusTexts.filter((text) => text === "план").length,
+      assignedChildStatusCount: childStatusTexts.filter((text) => /распределено/i.test(text)).length,
+      childStageLabels: childStageLabels.slice(0, 8),
+      assignedStageLabelCount: childStageLabels.filter((text) => /сменное задание/i.test(text)).length,
+      parentStartDotVisibleCount: parentStartDots.filter((dot) => window.getComputedStyle(dot).display !== "none").length,
+      operationStartDotVisibleCount: operationStartDots.filter((dot) => window.getComputedStyle(dot).display !== "none").length,
+      childStartDotVisibleCount: childStartDots.filter((dot) => window.getComputedStyle(dot).display !== "none").length,
+      startDotDimensionCount: new Set(visibleStartDotRects.map((rect) => `${rect.width}x${rect.height}`)).size,
+      startDotRects: visibleStartDotRects.slice(0, 8),
+      operationStartDotNeutralCount: operationStartDotStyles.filter((style) => /rgb\(148, 163, 184\)/.test(style.backgroundColor || "")).length,
+      childStartDotNeutralCount: childStartDotStyles.filter((style) => /rgb\(148, 163, 184\)/.test(style.backgroundColor || "")).length,
+      inactiveChildStartDotNeutralCount: inactiveChildStartDotStyles.filter((style) => /rgb\(148, 163, 184\)/.test(style.backgroundColor || "")).length,
+      activeChildStartDotFilled: Boolean(activeChildStartDotStyle && /rgb\(15, 23, 42\)/.test(activeChildStartDotStyle.backgroundColor || "")),
+      startDotHaloCount: visibleStartDotRects.filter((rect) => rect.boxShadow && rect.boxShadow !== "none").length,
+      childFirstMarkerCount: childBranchStyles.filter((item) => item.isFirst).length,
+      childLastMarkerCount: childBranchStyles.filter((item) => item.isLast).length,
+      childLevelTwoCount: childBranchStyles.filter((item) => item.treeClass.includes("is-level-2")).length,
+      childBranchTopBleedCount: childBranchStyles.filter((item) => Number.parseFloat(item.beforeTop) <= -20).length,
+      operationBranchFullBleedCount: operationBranchStyles.filter((item) => item.hasChildren && !item.isLast && item.beforeBorderWidth === "1px" && Number.parseFloat(item.beforeBottom) <= -20).length,
+      operationBranchExpectedFullBleedCount: operationBranchStyles.filter((item) => item.hasChildren && !item.isLast).length,
+      operationLastBranchFullBleedCount: operationBranchStyles.filter((item) => item.hasChildren && item.isLast && item.beforeBorderWidth === "1px" && Number.parseFloat(item.beforeBottom) <= -20).length,
+      operationBranchNeutralColorCount: operationBranchStyles.filter((item) => item.hasChildren && item.beforeBorderWidth === "1px" && /rgb\(148, 163, 184\)/.test(item.beforeBorderColor)).length,
+      operationBranchWithChildrenCount: operationBranchStyles.filter((item) => item.hasChildren).length,
+      childBranchLineCount: childBranchStyles.filter((item) => item.beforeBorderWidth === "1px" && /rgb\(148, 163, 184\)/.test(item.beforeBorderColor)).length,
+      childBranchJoinCount: childBranchStyles.filter((item) => item.afterBorderWidth === "1px" && /rgb\(148, 163, 184\)/.test(item.afterBorderColor)).length,
+      startDotNeutralColorCount: visibleStartDotRects.filter((rect) => /rgb\(148, 163, 184\)|rgb\(15, 23, 42\)/.test(rect.borderColor)).length,
+      childGuideTotal: childBranchStyles.reduce((sum, item) => sum + item.guideCount, 0),
+      childGuideBleedCount: childBranchStyles.reduce((sum, item) => sum + item.guideBleedCount, 0),
+      childGuideNeutralColorCount: childBranchStyles.reduce((sum, item) => sum + item.guideNeutralColorCount, 0),
+      activeTreeChildCount: document.querySelectorAll("[data-shift-work-order-row].is-active").length,
+      activeRowBackground: activeSecondCellStyle?.backgroundColor || "",
+      activeRowFilter: activeTreeChild ? window.getComputedStyle(activeTreeChild).filter : "",
+      activeRowFirstCellShadow: activeFirstCellStyle?.boxShadow || "",
       parentPackageButtons: treeParents.filter((row) => row.querySelector("[data-work-order-print-preview]")).length,
       operationPrintButtons: treeOperations.filter((row) => row.querySelector("[data-work-order-print-preview], [data-shift-work-order-print-preview]")).length,
       childSznButtons: treeChildren.filter((row) => row.querySelector("[data-shift-work-order-print-preview]")).length,
       childPackageButtons: treeChildren.filter((row) => row.querySelector("[data-work-order-print-preview]")).length,
+      tablePrintButtonCount: tablePrintButtons.length,
+      tableActionCellCount: tableActionCells.length,
+	      detailSznButtonCount: detailSznButtons.length,
+	      detailPackageButtonCount: detailPackageButtons.length,
+	      detailPackageButtonDisabledCount: detailPackageButtons.filter((button) => button.disabled).length,
+	      detailStateCount: detailState ? 1 : 0,
+	      detailStateText: (detailState?.textContent || "").replace(/\s+/g, " ").trim(),
+	      detailSummaryCardCount: detailSummary?.querySelectorAll("article").length || 0,
+	      detailVolumeCount: detailVolume ? 1 : 0,
+	      detailVolumeMetricCount: detailVolume?.querySelectorAll(".shift-work-orders-detail-volume-grid article").length || 0,
+	      detailVolumeHasProgress: Boolean(detailVolume?.querySelector(".shift-work-orders-detail-progress")),
+	      legacyDetailStripCount: legacyDetailStrips.length,
+	      detailTransferCardCount: detailTransfer?.querySelectorAll("article").length || 0,
+	      neutralDetailBackgroundCount: new Set(neutralDetailBackgrounds).size,
+	      neutralDetailBackgrounds: [...new Set(neutralDetailBackgrounds)].slice(0, 6),
+	      currentRouteCardText: (currentRouteCard?.textContent || "").replace(/\s+/g, " ").trim(),
+	      detailExecutorSectionCount: detailExecutors ? 1 : 0,
+	      tableTitle,
+	      reportHeaderCount: [...document.querySelectorAll(".shift-work-orders-table th")]
+	        .filter((cell) => cell.textContent.trim() === "Report").length,
+	      formHeaderCount: [...document.querySelectorAll(".shift-work-orders-table th")]
+	        .filter((cell) => cell.textContent.trim() === "Форма").length,
+	      reportCellCount: document.querySelectorAll(".shift-work-orders-report-cell").length,
+	      reportBadgeCount: document.querySelectorAll(".shift-work-orders-table [data-visual-qa-target='shift-work-orders-report-badge'], .shift-work-orders-table .shift-work-orders-report-badge").length,
+	      issuePanelCount: document.querySelectorAll("[data-visual-qa-target='shift-work-orders-issue-reports']").length,
     };
   });
   assert(report.hasPage, "shiftWorkOrders: page root is missing");
@@ -1834,10 +2167,94 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   assert(report.treeParentCount > 0, `shiftWorkOrders: document tree parent rows are missing: ${JSON.stringify(report)}`);
   assert(report.treeOperationCount > 0, `shiftWorkOrders: document tree operation aggregation rows are missing: ${JSON.stringify(report)}`);
   assert(report.treeChildCount > 0, `shiftWorkOrders: document tree child rows are missing: ${JSON.stringify(report)}`);
-  assert(report.parentPackageButtons === report.treeParentCount, `shiftWorkOrders: work-order package print must live on parent rows: ${JSON.stringify(report)}`);
+  assert(!/rgba?\(238, 242, 246/.test(report.parentRowBackground), `shiftWorkOrders: parent grouping rows must not use hierarchy darkening backgrounds: ${JSON.stringify(report)}`);
+  assert(!/rgba?\(248, 250, 252/.test(report.operationRowBackground), `shiftWorkOrders: operation grouping rows must not use hierarchy darkening backgrounds: ${JSON.stringify(report)}`);
+  assert(report.parentRowCursor === "default", `shiftWorkOrders: parent grouping rows must not look clickable: ${JSON.stringify(report)}`);
+  assert(report.operationRowCursor === "default", `shiftWorkOrders: operation grouping rows must not look clickable: ${JSON.stringify(report)}`);
+  assert(report.parentRowFirstCellShadow === "none", `shiftWorkOrders: parent grouping rows must not add separate hierarchy marker rails: ${JSON.stringify(report)}`);
+  assert(report.operationRowFirstCellShadow === "none", `shiftWorkOrders: operation grouping rows must not add separate hierarchy marker rails: ${JSON.stringify(report)}`);
+  assert(report.bodyHorizontalBorderCount === 0, `shiftWorkOrders: row horizontal separators must be removed: ${JSON.stringify(report)}`);
+  assert(report.numericCellCount > 0 && report.numericRightAlignedCount === report.numericCellCount, `shiftWorkOrders: quantity columns must be right-aligned for registry scanning: ${JSON.stringify(report)}`);
+  assert(report.numericTabularCount === report.numericCellCount, `shiftWorkOrders: quantity columns must use tabular numbers: ${JSON.stringify(report)}`);
+  assert(report.groupLabelCount === 0, `shiftWorkOrders: grouping rows must not use loud explicit group labels: ${JSON.stringify(report)}`);
+  assert(/rgb\(100, 116, 139\)/.test(report.parentGroupStatusColor), `shiftWorkOrders: parent grouping status token must be monochrome neutral: ${JSON.stringify(report)}`);
+  assert(/rgb\(100, 116, 139\)/.test(report.operationGroupStatusColor), `shiftWorkOrders: operation grouping status token must be monochrome neutral: ${JSON.stringify(report)}`);
+  assert(report.groupStatusTokenCount === 0, `shiftWorkOrders: grouping rows must use quiet text statuses, not colored status tokens: ${JSON.stringify(report)}`);
+  assert(report.childStatusTokenCount === report.treeChildCount, `shiftWorkOrders: only concrete SZN rows should carry real status tokens: ${JSON.stringify(report)}`);
+  assert(report.parentCellFontSize === "11px", `shiftWorkOrders: parent row body typography must be normalized: ${JSON.stringify(report)}`);
+  assert(report.operationCellFontSize === "11px", `shiftWorkOrders: operation row body typography must be normalized: ${JSON.stringify(report)}`);
+  assert(report.childCellFontSize === "11px", `shiftWorkOrders: child row body typography must be normalized: ${JSON.stringify(report)}`);
+  assert(/rgb\(51, 65, 85\)/.test(report.parentCellColor), `shiftWorkOrders: parent row body color must use the shared main token: ${JSON.stringify(report)}`);
+  assert(/rgb\(51, 65, 85\)/.test(report.operationCellColor), `shiftWorkOrders: operation row body color must use the shared main token: ${JSON.stringify(report)}`);
+  assert(/rgb\(51, 65, 85\)/.test(report.childCellColor), `shiftWorkOrders: child row body color must use the shared main token: ${JSON.stringify(report)}`);
+  assert(report.metaFontSizes.length === 3 && report.metaFontSizes.every((size) => size === "10px"), `shiftWorkOrders: all tree meta labels must share one quiet size: ${JSON.stringify(report)}`);
+  assert(report.metaFontWeights.length === 3 && report.metaFontWeights.every((weight) => Number(weight) === 500), `shiftWorkOrders: all tree meta labels must share one quiet weight: ${JSON.stringify(report)}`);
+  assert(report.parentTitleFontSize === "12px", `shiftWorkOrders: parent grouping title must be the strongest tree level: ${JSON.stringify(report)}`);
+  assert(Number(report.parentTitleFontWeight) >= 660, `shiftWorkOrders: parent grouping title must have strongest hierarchy weight: ${JSON.stringify(report)}`);
+  assert(report.operationTitleFontSize === "11px", `shiftWorkOrders: operation grouping title must use the normalized body scale: ${JSON.stringify(report)}`);
+  assert(Number(report.operationTitleFontWeight) >= 610 && Number(report.operationTitleFontWeight) < Number(report.parentTitleFontWeight), `shiftWorkOrders: operation grouping title weight must sit below parent level: ${JSON.stringify(report)}`);
+  assert(report.childTitleFontSize === "11px", `shiftWorkOrders: child SZN rows must use the normalized body scale: ${JSON.stringify(report)}`);
+  assert(Number(report.childTitleFontWeight) >= 590 && Number(report.childTitleFontWeight) < Number(report.operationTitleFontWeight), `shiftWorkOrders: child SZN title weight must sit below operation grouping: ${JSON.stringify(report)}`);
+  assert(Number(report.childSecondTitleFontWeight) >= 540 && Number(report.childSecondTitleFontWeight) < Number(report.childTitleFontWeight), `shiftWorkOrders: child secondary title must be quieter than the SZN number: ${JSON.stringify(report)}`);
+  assert(report.parentRouteTreeCellCount === report.treeParentCount, `shiftWorkOrders: parent rows must use the shared route tree cell pattern: ${JSON.stringify(report)}`);
+  assert(report.operationRouteTreeCellCount === report.treeOperationCount, `shiftWorkOrders: operation rows must use the shared route tree cell pattern: ${JSON.stringify(report)}`);
+  assert(report.childRouteTreeCellCount === report.treeChildCount, `shiftWorkOrders: SZN rows must use the shared route tree cell pattern: ${JSON.stringify(report)}`);
+  assert(report.treeObjectLevelGapParentToOperation >= 32, `shiftWorkOrders: operation level must be strongly indented from parent level: ${JSON.stringify(report)}`);
+  assert(report.treeObjectLevelGapOperationToChild >= 32, `shiftWorkOrders: child SZN level must be strongly indented from operation level: ${JSON.stringify(report)}`);
+  assert(report.plannedChildStatusCount === 0, `shiftWorkOrders: pure planned shift rows must stay out of the journal tree: ${JSON.stringify(report)}`);
+  assert(report.assignedChildStatusCount > 0, `shiftWorkOrders: distributed shift tasks must be visible in the journal tree: ${JSON.stringify(report)}`);
+  assert(report.assignedStageLabelCount > 0, `shiftWorkOrders: distributed rows must be labeled as shift tasks before issued SZN: ${JSON.stringify(report)}`);
+  assert(report.parentStartDotVisibleCount === 0, `shiftWorkOrders: top-level package rows must not render tree start dots: ${JSON.stringify(report)}`);
+  assert(report.operationStartDotVisibleCount === report.treeOperationCount, `shiftWorkOrders: operation tree rows must render start dots at branch joins: ${JSON.stringify(report)}`);
+  assert(report.childStartDotVisibleCount === report.treeChildCount, `shiftWorkOrders: child SZN tree rows must render start dots at branch joins: ${JSON.stringify(report)}`);
+  assert(report.startDotDimensionCount === 1, `shiftWorkOrders: tree start dots must use one normalized size: ${JSON.stringify(report)}`);
+  assert(report.startDotNeutralColorCount === report.operationStartDotVisibleCount + report.childStartDotVisibleCount, `shiftWorkOrders: tree start dots must use neutral gray, with black only for the active row: ${JSON.stringify(report)}`);
+  assert(report.startDotHaloCount === 0, `shiftWorkOrders: tree start dots must not mask connector lines with a white halo: ${JSON.stringify(report)}`);
+  assert(report.operationStartDotNeutralCount === report.operationStartDotVisibleCount, `shiftWorkOrders: operation group dots must be filled neutral gray: ${JSON.stringify(report)}`);
+  assert(report.activeChildStartDotFilled, `shiftWorkOrders: active child row dot must be filled black: ${JSON.stringify(report)}`);
+  assert(report.inactiveChildStartDotNeutralCount === report.childStartDotVisibleCount - report.activeTreeChildCount, `shiftWorkOrders: inactive clickable child row dots must be filled neutral gray: ${JSON.stringify(report)}`);
+  assert(report.childLevelTwoCount === report.treeChildCount, `shiftWorkOrders: SZN rows must be rendered as level-2 tree children: ${JSON.stringify(report)}`);
+  assert(report.childBranchTopBleedCount === report.treeChildCount, `shiftWorkOrders: SZN tree lines must overlap row seams enough to avoid visual breaks: ${JSON.stringify(report)}`);
+  assert(report.operationBranchFullBleedCount === report.operationBranchExpectedFullBleedCount, `shiftWorkOrders: only operation rows with a next same-level sibling may continue connector lines downward: ${JSON.stringify(report)}`);
+  assert(report.operationLastBranchFullBleedCount === 0, `shiftWorkOrders: last operation rows must not draw an extra downward connector line: ${JSON.stringify(report)}`);
+  assert(report.operationBranchNeutralColorCount === report.operationBranchWithChildrenCount, `shiftWorkOrders: operation tree connector lines must be neutral gray: ${JSON.stringify(report)}`);
+  assert(report.childGuideBleedCount === report.childGuideTotal, `shiftWorkOrders: SZN guide lines must overlap row seams enough to avoid visual breaks: ${JSON.stringify(report)}`);
+  assert(report.childGuideNeutralColorCount === report.childGuideTotal, `shiftWorkOrders: SZN guide lines must be neutral gray: ${JSON.stringify(report)}`);
+  assert(report.childFirstMarkerCount === report.treeOperationCount, `shiftWorkOrders: each operation group must mark its first child row for tree connectors: ${JSON.stringify(report)}`);
+  assert(report.childLastMarkerCount === report.treeOperationCount, `shiftWorkOrders: each operation group must mark its last child row for tree connectors: ${JSON.stringify(report)}`);
+  assert(report.childBranchLineCount === report.treeChildCount, `shiftWorkOrders: every SZN child row must render speki-tree vertical branch line: ${JSON.stringify(report)}`);
+  assert(report.childBranchJoinCount === report.treeChildCount, `shiftWorkOrders: every SZN child row must render speki-tree horizontal branch join: ${JSON.stringify(report)}`);
+  assert(report.activeTreeChildCount === 1, `shiftWorkOrders: exactly one child row must be visibly selected: ${JSON.stringify(report)}`);
+  assert(/rgba?\(255, 255, 255/.test(report.activeRowBackground), `shiftWorkOrders: active row lift variant must keep a white cell background: ${JSON.stringify(report)}`);
+  assert(/drop-shadow/i.test(report.activeRowFilter), `shiftWorkOrders: active row must use the lift variant shadow: ${JSON.stringify(report)}`);
+  assert(report.activeRowFirstCellShadow === "none", `shiftWorkOrders: active row must not use a first-cell marker shadow; keep only lift: ${JSON.stringify(report)}`);
+  assert(report.activeTitleFontSize === report.childTitleFontSize, `shiftWorkOrders: active SZN row must not get a separate selected font size: ${JSON.stringify(report)}`);
+  assert(report.activeTitleFontWeight === report.childTitleFontWeight, `shiftWorkOrders: active SZN row must not get a separate selected font weight: ${JSON.stringify(report)}`);
+  assert(report.formHeaderCount === 0, `shiftWorkOrders: table must not keep a row-action Form column: ${JSON.stringify(report)}`);
+  assert(report.tableActionCellCount === 0, `shiftWorkOrders: tree table rows must be scan/select only without action cells: ${JSON.stringify(report)}`);
+  assert(report.tablePrintButtonCount === 0, `shiftWorkOrders: print actions must live in the selected document card, not rows: ${JSON.stringify(report)}`);
+  assert(report.parentPackageButtons === 0, `shiftWorkOrders: work-order package print must not live on parent rows: ${JSON.stringify(report)}`);
   assert(report.operationPrintButtons === 0, `shiftWorkOrders: operation aggregation rows must not duplicate document print actions: ${JSON.stringify(report)}`);
-  assert(report.childSznButtons === report.treeChildCount, `shiftWorkOrders: SZN print must live on child rows: ${JSON.stringify(report)}`);
+  assert(report.childSznButtons === 0, `shiftWorkOrders: SZN print must not live on child rows: ${JSON.stringify(report)}`);
   assert(report.childPackageButtons === 0, `shiftWorkOrders: child SZN rows must not duplicate package print actions: ${JSON.stringify(report)}`);
+  assert(report.detailSznButtonCount === 1, `shiftWorkOrders: selected document card must expose SZN print action: ${JSON.stringify(report)}`);
+  assert(report.detailPackageButtonCount === 1 && report.detailPackageButtonDisabledCount === 0, `shiftWorkOrders: selected document card must expose enabled work-order package action: ${JSON.stringify(report)}`);
+  assert(/Дерево документов/.test(report.tableTitle), `shiftWorkOrders: table panel must be the document tree, got "${report.tableTitle}"`);
+  assert(report.detailStateCount === 1, `shiftWorkOrders: selected document card must expose one unified document state block: ${JSON.stringify(report)}`);
+  assert(/Состояние документа/.test(report.detailStateText), `shiftWorkOrders: document state block must be explicit: ${JSON.stringify(report)}`);
+  assert(report.detailSummaryCardCount === 3, `shiftWorkOrders: selected document card passport must expose order, operation and master cards: ${JSON.stringify(report)}`);
+  assert(report.legacyDetailStripCount === 0, `shiftWorkOrders: selected document card must not keep old separate quantity/fact strips: ${JSON.stringify(report)}`);
+  assert(report.detailVolumeCount === 1, `shiftWorkOrders: selected document card must expose one unified volume block: ${JSON.stringify(report)}`);
+  assert(report.detailVolumeMetricCount === 5, `shiftWorkOrders: selected document volume block must expose assigned, fact, remaining, defect and report metrics: ${JSON.stringify(report)}`);
+  assert(report.detailVolumeHasProgress, `shiftWorkOrders: selected document volume block must show assigned/fact progress: ${JSON.stringify(report)}`);
+  assert(report.detailTransferCardCount === 3, `shiftWorkOrders: selected document card must expose transfer route cards: ${JSON.stringify(report)}`);
+  assert(report.neutralDetailBackgroundCount === 1, `shiftWorkOrders: neutral document cards must share one background; color should only encode explicit status tokens/problems: ${JSON.stringify(report)}`);
+  assert(/текущий шаг/.test(report.currentRouteCardText), `shiftWorkOrders: current route step must be labeled by text, not by a unique background color: ${JSON.stringify(report)}`);
+  assert(report.detailExecutorSectionCount === 1, `shiftWorkOrders: selected document card must expose executors section: ${JSON.stringify(report)}`);
+  assert(report.reportHeaderCount === 0, `shiftWorkOrders: Report must not be a separate tree-table column: ${JSON.stringify(report)}`);
+  assert(report.reportCellCount === 0, `shiftWorkOrders: tree rows must not render separate Report cells: ${JSON.stringify(report)}`);
+  assert(report.reportBadgeCount === 0, `shiftWorkOrders: Report badges must live in the selected document card/photos, not in the tree table: ${JSON.stringify(report)}`);
+  assert(report.issuePanelCount === 1, `shiftWorkOrders: selected SZN detail must expose issue reports panel: ${JSON.stringify(report)}`);
 
   const rowClickScrollReport = await evaluate(client, async () => {
     const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -1889,6 +2306,131 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   assert(rowClickScrollReport.selectedId === rowClickScrollReport.targetId, `shiftWorkOrders: row click did not select target row: ${JSON.stringify(rowClickScrollReport)}`);
   assert(rowClickScrollReport.delta <= 2, `shiftWorkOrders: row click changes content scroll position: ${JSON.stringify(rowClickScrollReport)}`);
   assert(rowClickScrollReport.orderStable, `shiftWorkOrders: row click reorders journal rows: ${JSON.stringify(rowClickScrollReport)}`);
+
+  const seededReport = await evaluate(client, () => {
+    const rows = [...document.querySelectorAll("[data-shift-work-order-row]")];
+    const rowIds = rows.map((row) => row.getAttribute("data-shift-work-order-row") || "").filter(Boolean);
+    const rowId = rowIds[0] || "";
+    if (!rowId) return { seeded: false, reason: "no row" };
+    const storageKey = "mes-planning-prototype-ui-v1";
+    const planningStorageKey = "mes-planning-prototype-state-v2";
+    const workflowPresetKey = "mes-planning-prototype-workflow-preset-v1";
+    const preset = JSON.parse(localStorage.getItem(workflowPresetKey) || "{}");
+    if (!localStorage.getItem(planningStorageKey) && preset?.values?.[planningStorageKey]) {
+      localStorage.setItem(planningStorageKey, preset.values[planningStorageKey]);
+    }
+    const ui = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    const photoDataUrl = (label, color) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="260" viewBox="0 0 420 260"><rect width="420" height="260" fill="${color}"/><text x="210" y="136" text-anchor="middle" fill="white" font-family="Arial" font-size="42" font-weight="700">${label}</text></svg>`)}`;
+    const makeReports = (targetRowId) => [
+      {
+        id: `qa-report-1-${targetRowId}`,
+        rowId: targetRowId,
+        taskId: `${targetRowId}::qa-1`,
+        documentNumber: targetRowId,
+        employeeName: "QA Исполнитель",
+        operationName: "QA операция",
+        workCenterLabel: "QA участок",
+        text: "Первое фото проблемы",
+        status: "new",
+        createdAt: "2026-07-03T08:00:00.000Z",
+        photo: {
+          id: `qa-photo-1-${targetRowId}`,
+          name: "qa-photo-1.jpg",
+          type: "image/svg+xml",
+          size: 128,
+          source: "qa",
+          dataUrl: photoDataUrl("1", "#2563eb"),
+        },
+      },
+      {
+        id: `qa-report-2-${targetRowId}`,
+        rowId: targetRowId,
+        taskId: `${targetRowId}::qa-2`,
+        documentNumber: targetRowId,
+        employeeName: "QA Исполнитель",
+        operationName: "QA операция",
+        workCenterLabel: "QA участок",
+        text: "Второе фото проблемы",
+        status: "new",
+        createdAt: "2026-07-03T08:05:00.000Z",
+        photo: {
+          id: `qa-photo-2-${targetRowId}`,
+          name: "qa-photo-2.jpg",
+          type: "image/svg+xml",
+          size: 128,
+          source: "qa",
+          dataUrl: photoDataUrl("2", "#16a34a"),
+        },
+      },
+    ];
+    ui.activeModule = "shiftWorkOrders";
+    ui.shiftWorkOrderJournalSelectedId = rowId;
+    ui.shiftWorkOrderIssueReports = {
+      ...(ui.shiftWorkOrderIssueReports || {}),
+      ...Object.fromEntries(rowIds.map((targetRowId) => [targetRowId, makeReports(targetRowId)])),
+    };
+    localStorage.setItem(storageKey, JSON.stringify(ui));
+    return {
+      seeded: true,
+      rowId,
+      rowCount: rowIds.length,
+      hasPlanningState: Boolean(localStorage.getItem(planningStorageKey)),
+    };
+  });
+  assert(seededReport.seeded, `shiftWorkOrders: could not seed issue report photos: ${JSON.stringify(seededReport)}`);
+  const seededImmediateReport = await evaluate(client, () => {
+    const ui = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+    const reportStore = ui.shiftWorkOrderIssueReports || {};
+    return {
+      keyCount: Object.keys(reportStore).length,
+      firstCount: Array.isArray(reportStore[Object.keys(reportStore)[0]]) ? reportStore[Object.keys(reportStore)[0]].length : -1,
+    };
+  });
+  assert(seededImmediateReport.keyCount > 0, `shiftWorkOrders: issue report seed was not written to localStorage: ${JSON.stringify({ seededReport, seededImmediateReport })}`);
+  const runtimeApplyReport = await evaluate(client, () => {
+    const ui = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+    return window.__mesVisualQaRuntime?.setShiftWorkOrderIssueReportsForQa?.(ui.shiftWorkOrderIssueReports || {}) || { applied: false, reason: "runtime api missing" };
+  });
+  assert(runtimeApplyReport.applied && runtimeApplyReport.rowCount > 0, `shiftWorkOrders: could not apply seeded issue reports through QA runtime: ${JSON.stringify({ seededReport, seededImmediateReport, runtimeApplyReport })}`);
+  await delay(250);
+	  await waitForModule(client, "shiftWorkOrders");
+	  const photoReport = await evaluate(client, async () => {
+	    const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+	    const activeRow = document.querySelector("[data-shift-work-order-row].is-active");
+	    const ui = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+	    const reportStore = ui.shiftWorkOrderIssueReports || {};
+	    const activeRowId = activeRow?.getAttribute("data-shift-work-order-row") || "";
+	    const issueCountText = document.querySelector("[data-visual-qa-target='shift-work-orders-issue-count']")?.textContent.trim() || "";
+	    const detailVolumeText = document.querySelector("[data-visual-qa-target='shift-work-orders-detail-volume']")?.textContent.replace(/\s+/g, " ").trim() || "";
+	    const photoButtons = [...document.querySelectorAll("[data-shift-work-order-report-photo]")];
+	    const photoBadges = [...document.querySelectorAll("[data-visual-qa-target='shift-work-orders-issue-photo-count']")].map((item) => item.textContent.trim());
+    photoButtons[0]?.click();
+    await waitFrame();
+    const openedCounter = document.querySelector("[data-visual-qa-target='shift-work-orders-photo-counter']")?.textContent.trim() || "";
+    document.querySelector("[data-shift-work-order-report-photo-nav='1']")?.click();
+    await waitFrame();
+	    const nextCounter = document.querySelector("[data-visual-qa-target='shift-work-orders-photo-counter']")?.textContent.trim() || "";
+	    return {
+	      activeRowId,
+	      storedReportKeys: Object.keys(reportStore).slice(0, 5),
+	      activeStoredReportCount: Array.isArray(reportStore[activeRowId]) ? reportStore[activeRowId].length : -1,
+	      issueCountText,
+	      detailVolumeText,
+	      tableReportCellCount: document.querySelectorAll(".shift-work-orders-table .shift-work-orders-report-cell, .shift-work-orders-table [data-visual-qa-target='shift-work-orders-report-badge']").length,
+	      photoButtonCount: photoButtons.length,
+	      photoBadges,
+      modalOpened: Boolean(document.querySelector("[data-visual-qa-target='shift-work-orders-photo-viewer']")),
+      openedCounter,
+      nextCounter,
+	    };
+	  });
+	  assert(photoReport.tableReportCellCount === 0, `shiftWorkOrders: seeded reports must not recreate Report cells in the document tree: ${JSON.stringify(photoReport)}`);
+	  assert(/Report/.test(photoReport.detailVolumeText) && /2 проблем/.test(photoReport.detailVolumeText), `shiftWorkOrders: detail volume block must show seeded report count: ${JSON.stringify(photoReport)}`);
+	  assert(photoReport.issueCountText.includes("2 записей") && photoReport.issueCountText.includes("2 фото"), `shiftWorkOrders: detail issue header must show report/photo counts: ${JSON.stringify(photoReport)}`);
+  assert(photoReport.photoButtonCount === 2, `shiftWorkOrders: detail must expose two clickable report photos: ${JSON.stringify(photoReport)}`);
+  assert(photoReport.photoBadges.every((badge) => badge === "2"), `shiftWorkOrders: photo thumbnails must show total photo count: ${JSON.stringify(photoReport)}`);
+  assert(photoReport.modalOpened, `shiftWorkOrders: clicking report photo must open photo viewer: ${JSON.stringify(photoReport)}`);
+  assert(photoReport.openedCounter === "1 из 2" && photoReport.nextCounter === "2 из 2", `shiftWorkOrders: photo viewer must paginate photos: ${JSON.stringify(photoReport)}`);
 }
 
 async function runAuthSessionTabletLayoutCheck(client, baseUrl) {
@@ -1969,14 +2511,16 @@ async function runAuthSessionTabletLayoutCheck(client, baseUrl) {
   assert(report.workspacePanel?.width >= 820, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} task board is too narrow: ${JSON.stringify(report.workspacePanel)}`);
   assert(report.workspacePanel.left > report.detailPanel.right, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} panels overlap or collapse: ${JSON.stringify(report)}`);
   assert(report.factGridOverflowX <= 2, `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} fact grid overflow ${report.factGridOverflowX}px`);
-  assert(
-    report.factCards.every((card) => card.rect?.width >= 260 && card.rect?.height >= 100 && !card.nestedOverflow),
-    `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} fact cards are not tablet-ready: ${JSON.stringify(report.factCards)}`
-  );
-  assert(
-    report.keypadButtons.length >= 11 && report.keypadButtons.every((button) => button.width >= 84 && button.height >= 84),
-    `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} keypad buttons are too small: ${JSON.stringify(report.keypadButtons)}`
-  );
+  if (report.taskCardCount > 0) {
+    assert(
+      report.factCards.every((card) => card.rect?.width >= 260 && card.rect?.height >= 100 && !card.nestedOverflow),
+      `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} fact cards are not tablet-ready: ${JSON.stringify(report.factCards)}`
+    );
+    assert(
+      report.keypadButtons.length >= 11 && report.keypadButtons.every((button) => button.width >= 84 && button.height >= 84),
+      `authSessionPrototype: ${AUTH_SESSION_TABLET_VIEWPORT.name} keypad buttons are too small: ${JSON.stringify(report.keypadButtons)}`
+    );
+  }
   await client.send("Emulation.setDeviceMetricsOverride", {
     width: SMOKE_VIEWPORT.width,
     height: SMOKE_VIEWPORT.height,

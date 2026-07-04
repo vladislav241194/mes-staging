@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1020" viewBox="0 0 1400 1020">
+  <rect width="1400" height="1020" fill="#F8FAFC"/>
+  <text x="70" y="72" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">Варианты цвета выбранной строки таблицы</text>
+  <text x="70" y="112" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="20">Фон строки + левый акцент. Плашки сделаны крупными, чтобы цвет считывался сразу.</text>
+
+  <g transform="translate(70 160)">
+    <rect x="0" y="0" width="1260" height="118" rx="12" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="2"/>
+    <rect x="0" y="0" width="34" height="118" rx="12" fill="#475569"/>
+    <rect x="22" y="0" width="12" height="118" fill="#475569"/>
+    <text x="68" y="48" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">Нейтральный slate</text>
+    <text x="68" y="84" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="22">фон #E2E8F0 · акцент #475569 · спокойный выбор без ощущения ошибки</text>
+  </g>
+
+  <g transform="translate(70 302)">
+    <rect x="0" y="0" width="1260" height="118" rx="12" fill="#FEF3C7" stroke="#FDE68A" stroke-width="2"/>
+    <rect x="0" y="0" width="34" height="118" rx="12" fill="#B45309"/>
+    <rect x="22" y="0" width="12" height="118" fill="#B45309"/>
+    <text x="68" y="48" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">Теплый янтарный</text>
+    <text x="68" y="84" fill="#78350F" font-family="Inter, Arial, sans-serif" font-size="22">фон #FEF3C7 · акцент #B45309 · заметно, но может читаться как предупреждение</text>
+  </g>
+
+  <g transform="translate(70 444)">
+    <rect x="0" y="0" width="1260" height="118" rx="12" fill="#DCFCE7" stroke="#BBF7D0" stroke-width="2"/>
+    <rect x="0" y="0" width="34" height="118" rx="12" fill="#15803D"/>
+    <rect x="22" y="0" width="12" height="118" fill="#15803D"/>
+    <text x="68" y="48" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">Мягкий зеленый</text>
+    <text x="68" y="84" fill="#14532D" font-family="Inter, Arial, sans-serif" font-size="22">фон #DCFCE7 · акцент #15803D · приятный, но может путаться с готовностью</text>
+  </g>
+
+  <g transform="translate(70 586)">
+    <rect x="0" y="0" width="1260" height="118" rx="12" fill="#CCFBF1" stroke="#99F6E4" stroke-width="2"/>
+    <rect x="0" y="0" width="34" height="118" rx="12" fill="#0F766E"/>
+    <rect x="22" y="0" width="12" height="118" fill="#0F766E"/>
+    <text x="68" y="48" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">Бирюзовый</text>
+    <text x="68" y="84" fill="#134E4A" font-family="Inter, Arial, sans-serif" font-size="22">фон #CCFBF1 · акцент #0F766E · хороший “текущий фокус”, не тревожный</text>
+  </g>
+
+  <g transform="translate(70 728)">
+    <rect x="0" y="0" width="1260" height="118" rx="12" fill="#EDE9FE" stroke="#DDD6FE" stroke-width="2"/>
+    <rect x="0" y="0" width="34" height="118" rx="12" fill="#7C3AED"/>
+    <rect x="22" y="0" width="12" height="118" fill="#7C3AED"/>
+    <text x="68" y="48" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">Лавандовый muted</text>
+    <text x="68" y="84" fill="#4C1D95" font-family="Inter, Arial, sans-serif" font-size="22">фон #EDE9FE · акцент #7C3AED · хорошо отделяется, но может быть чужеродным</text>
+  </g>
+
+  <g transform="translate(70 870)">
+    <rect x="0" y="0" width="1260" height="118" rx="12" fill="#FFFFFF" stroke="#64748B" stroke-width="3"/>
+    <rect x="0" y="0" width="34" height="118" rx="12" fill="#64748B"/>
+    <rect x="22" y="0" width="12" height="118" fill="#64748B"/>
+    <text x="68" y="48" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">Белый + контур</text>
+    <text x="68" y="84" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="22">фон #FFFFFF · акцент #64748B · самый спокойный, но менее заметный</text>
+  </g>
+</svg>

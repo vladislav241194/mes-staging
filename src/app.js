@@ -80,7 +80,7 @@ const SHARED_STATE_POLL_INTERVAL_MS = 4000;
 const SHARED_STATE_SAVE_DEBOUNCE_MS = 900;
 const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
 const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
-const APP_VERSION = "v.1.423";
+const APP_VERSION = "v.1.474";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
@@ -587,6 +587,8 @@ const defaultUiState = {
   shiftMasterBoardPrintPreviewId: "",
   shiftWorkOrderJournalSelectedId: "",
   shiftWorkOrderPrintPreviewId: "",
+  shiftWorkOrderIssuePhotoViewer: null,
+  shiftWorkOrderIssueReports: {},
   shiftMasterAssignmentMatrix: {},
   activeDispatchSlotId: "",
   timesheetView: "month",
@@ -619,6 +621,7 @@ const defaultUiState = {
   authSessionViewedPersonId: "",
   authSessionSelectedTaskId: "",
   authSessionFactDrafts: {},
+  authSessionReportDrafts: {},
   authSessionActiveFactField: "actual",
   authSessionModal: null,
   calculatorStep: "inputs",
@@ -4814,6 +4817,8 @@ function loadUiState() {
       shiftMasterBoardPrintPreviewId: String(parsed.shiftMasterBoardPrintPreviewId || ""),
       shiftWorkOrderJournalSelectedId: String(parsed.shiftWorkOrderJournalSelectedId || ""),
       shiftWorkOrderPrintPreviewId: "",
+      shiftWorkOrderIssuePhotoViewer: null,
+      shiftWorkOrderIssueReports: normalizeShiftWorkOrderIssueReports(parsed.shiftWorkOrderIssueReports),
       shiftMasterAssignmentMatrix: normalizeShiftMasterAssignmentMatrix(parsed.shiftMasterAssignmentMatrix),
       timesheetView: normalizeTimesheetView(parsed.timesheetView),
       timesheetPeriodAnchor: normalizeDateInput(parsed.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor) || defaultUiState.timesheetPeriodAnchor,
@@ -4835,6 +4840,7 @@ function loadUiState() {
       authSessionViewedPersonId: String(parsed.authSessionViewedPersonId || ""),
       authSessionSelectedTaskId: String(parsed.authSessionSelectedTaskId || ""),
       authSessionFactDrafts: normalizePlainRecord(parsed.authSessionFactDrafts),
+      authSessionReportDrafts: {},
       authSessionActiveFactField: parsed.authSessionActiveFactField === "defect" ? "defect" : "actual",
       authSessionModal: null,
       activeNomenclaturePane: parsed.activeModule === "bomLists" || parsed.activeNomenclaturePane === "boards" ? "boards" : "items",
@@ -4918,6 +4924,7 @@ function persistUiState(options = {}) {
       shiftMasterBoardCarryovers: normalizePlainRecord(ui.shiftMasterBoardCarryovers),
       shiftMasterBoardPrintPreviewId: String(ui.shiftMasterBoardPrintPreviewId || ""),
       shiftWorkOrderJournalSelectedId: String(ui.shiftWorkOrderJournalSelectedId || ""),
+      shiftWorkOrderIssueReports: normalizeShiftWorkOrderIssueReports(ui.shiftWorkOrderIssueReports),
       shiftMasterAssignmentMatrix: normalizeShiftMasterAssignmentMatrix(ui.shiftMasterAssignmentMatrix),
       timesheetView: normalizeTimesheetView(ui.timesheetView),
       timesheetPeriodAnchor: normalizeDateInput(ui.timesheetPeriodAnchor || defaultUiState.timesheetPeriodAnchor) || defaultUiState.timesheetPeriodAnchor,
@@ -4936,6 +4943,7 @@ function persistUiState(options = {}) {
       authSessionViewedPersonId: String(ui.authSessionViewedPersonId || ""),
       authSessionSelectedTaskId: String(ui.authSessionSelectedTaskId || ""),
       authSessionFactDrafts: normalizePlainRecord(ui.authSessionFactDrafts),
+      authSessionReportDrafts: {},
       authSessionActiveFactField: ui.authSessionActiveFactField === "defect" ? "defect" : "actual",
       activeShopMapWidgetId: ui.activeShopMapWidgetId,
       shopMapEditMode: ui.shopMapEditMode,
@@ -7507,7 +7515,7 @@ function render(options = {}) {
         pageId: "shiftWorkOrders",
         className: "shift-work-orders-app-shell",
         body: renderShiftWorkOrdersPage(),
-        modals: `${renderShiftWorkOrderPrintPreviewModal()}${renderWorkOrderPrintPackageModal()}${renderConfirmModal()}`,
+        modals: `${renderShiftWorkOrderPrintPreviewModal()}${renderShiftWorkOrderIssuePhotoModal()}${renderWorkOrderPrintPackageModal()}${renderConfirmModal()}`,
       });
       bindGlobalNavigation();
       bindShiftWorkOrdersEvents();
@@ -9717,16 +9725,18 @@ function getShiftMasterAssignableEmployees(masterProfile = null, workCenterId = 
 
   if (config.mode === "manual") {
     const byId = new Map(allEmployees.map((employee) => [employee.id, employee]));
-    return sortShiftMasterAssignableEmployees(config.employeeIds.map((id) => byId.get(id)).filter(Boolean));
+    const manualEmployees = sortShiftMasterAssignableEmployees(config.employeeIds.map((id) => byId.get(id)).filter(Boolean));
+    return manualEmployees.length ? manualEmployees : getShiftMasterDefaultEmployeeScope(masterProfile);
   }
 
   if (config.mode === "workCenter") {
     const exactScopeIds = workCenterId
-      ? new Set([getShiftMasterNormalizedWorkCenterId(workCenterId)].filter(Boolean))
-      : new Set((masterProfile.workCenterIds || []).map(getShiftMasterNormalizedWorkCenterId).filter(Boolean));
-    return sortShiftMasterAssignableEmployees(
+      ? getShiftMasterDescendantWorkCenterIds([workCenterId])
+      : getShiftMasterDescendantWorkCenterIds(masterProfile.workCenterIds || []);
+    const scopedEmployees = sortShiftMasterAssignableEmployees(
       allEmployees.filter((employee) => shiftMasterEmployeeMatchesWorkCenterScope(employee, exactScopeIds)),
     );
+    return scopedEmployees.length ? scopedEmployees : getShiftMasterDefaultEmployeeScope(masterProfile);
   }
 
   return getShiftMasterDefaultEmployeeScope(masterProfile);
@@ -11183,7 +11193,9 @@ function getShiftMasterBoardLaborMinutesPerUnit(row = {}) {
 }
 
 function getShiftMasterBoardTimesheetCapacity(row = {}) {
-  const availableEmployees = (row.availableEmployees || []).filter((employee) => employee?.availability?.isAvailable);
+  const scopeEmployees = (row.employees || []).filter((employee) => employee?.id);
+  const timesheetAvailableEmployees = (row.availableEmployees || []).filter((employee) => employee?.availability?.isAvailable);
+  const availableEmployees = timesheetAvailableEmployees.length ? timesheetAvailableEmployees : scopeEmployees;
   const laborMinutesPerUnit = getShiftMasterBoardLaborMinutesPerUnit(row);
   const totalMinutes = availableEmployees.reduce((sum, employee) => (
     sum + Math.max(0, Number(employee.availability?.hours || 0)) * 60
@@ -11193,6 +11205,8 @@ function getShiftMasterBoardTimesheetCapacity(row = {}) {
     : 0;
   return {
     availableEmployees,
+    timesheetAvailableEmployees,
+    isTimesheetFallback: !timesheetAvailableEmployees.length && scopeEmployees.length > 0,
     laborMinutesPerUnit,
     totalMinutes,
     quantity,
@@ -12006,6 +12020,7 @@ function renderShiftMasterBoardAvailableEmployeeLoadbar(row, model) {
   const unit = row.unit || "шт.";
   const scopeCount = (row.employees || []).length;
   const availableCount = availableEmployees.length;
+  const timesheetAvailableCount = capacity.timesheetAvailableEmployees.length;
   if (!availableCount) {
     return `
       <div class="shift-master-board-available-loadbar is-empty" data-visual-qa-target="shift-master-board-available-loadbar">
@@ -12067,7 +12082,8 @@ function renderShiftMasterBoardAvailableEmployeeLoadbar(row, model) {
     const reserveLeft = Math.min(100, baseRatio);
     const reserveWidth = Math.max(0, Math.min(100 - reserveLeft, reserveRatio));
     const tone = totalMinutes <= 0 ? "neutral" : previewMinutes > totalMinutes ? "warning" : previewMinutes > 0 ? "primary" : "ok";
-    const roleLabel = employee.role || employee.position || employee.kind || employee.availability?.label || "исполнитель";
+    const availabilityLabel = employee.availability?.isAvailable ? "" : employee.availability?.label || "нет часов";
+    const roleLabel = [employee.role || employee.position || employee.kind || "исполнитель", availabilityLabel].filter(Boolean).join(" · ");
     return `
       <article
         class="shift-master-board-available-person is-${escapeAttribute(normalizeUiTone(tone))}"
@@ -12105,7 +12121,9 @@ function renderShiftMasterBoardAvailableEmployeeLoadbar(row, model) {
         </label>
         <footer data-visual-qa-target="shift-master-board-available-capacity">
           <span data-shift-board-available-hours>другие ${formatReportNumber(baseMinutes / 60)} ч · это задание ${formatReportNumber(reservedHours)} ч</span>
-          <small data-shift-board-available-caption>всего ${formatReportNumber(assignedHours)} / ${formatReportNumber(hours)} ч · ${formatReportNumber(freeHours)} ч свободно · ${previewQuantity.toLocaleString("ru-RU")} / ${employeeCapacity.toLocaleString("ru-RU")} ${escapeHtml(unit)} · ${freeQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)} ост.</small>
+          <small data-shift-board-available-caption>${totalMinutes > 0
+            ? `всего ${formatReportNumber(assignedHours)} / ${formatReportNumber(hours)} ч · ${formatReportNumber(freeHours)} ч свободно · ${previewQuantity.toLocaleString("ru-RU")} / ${employeeCapacity.toLocaleString("ru-RU")} ${escapeHtml(unit)} · ${freeQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)} ост.`
+            : `по Табелю 0 ч · ручной резерв ${previewQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)}`}</small>
         </footer>
       </article>
     `;
@@ -12116,9 +12134,11 @@ function renderShiftMasterBoardAvailableEmployeeLoadbar(row, model) {
       <header data-visual-qa-target="shift-master-board-available-header">
         <div>
           <span>Доступные исполнители</span>
-          <strong>${availableCount.toLocaleString("ru-RU")} из ${scopeCount.toLocaleString("ru-RU")} по иерархии</strong>
+          <strong>${capacity.isTimesheetFallback
+            ? `0 по Табелю · показано ${availableCount.toLocaleString("ru-RU")} из ${scopeCount.toLocaleString("ru-RU")} по матрице`
+            : `${timesheetAvailableCount.toLocaleString("ru-RU")} из ${scopeCount.toLocaleString("ru-RU")} по иерархии`}</strong>
         </div>
-        <small>${capacity.laborMinutesPerUnit ? `${formatReportNumber(capacity.laborMinutesPerUnit)} мин/ед.` : "нет нормы"}</small>
+        <small>${capacity.isTimesheetFallback ? "ручное распределение без часов смены" : capacity.laborMinutesPerUnit ? `${formatReportNumber(capacity.laborMinutesPerUnit)} мин/ед.` : "нет нормы"}</small>
       </header>
       <div class="shift-master-board-available-list">
         ${cards}
@@ -12287,10 +12307,31 @@ function getShiftWorkOrderJournalStatus(row = {}, assignment = {}, fact = {}, tr
   const factUpdated = Boolean(fact.updatedAt);
   const remainingQuantity = normalizeShiftMasterBoardQuantity(transfer.remainingQuantity || 0);
   if (factUpdated && remainingQuantity > 0) return { id: "carryover", label: "остаток", tone: "warning" };
-  if (factUpdated) return { id: "closed", label: "закрыт", tone: "ok" };
-  if (assignment.issued) return { id: "issued", label: "СЗН готов", tone: "primary" };
-  if (assignedQuantity > 0) return { id: "assigned", label: "распределен", tone: "active" };
-  return { id: "planned", label: "план", tone: "neutral" };
+  if (factUpdated) return { id: "closed", label: "факт внесен", tone: "ok" };
+  if (assignment.issued) return { id: "issued", label: "в работе", tone: "primary" };
+  if (assignedQuantity > 0) return { id: "assigned", label: "распределено", tone: "active" };
+  return { id: "planned", label: "запланировано", tone: "neutral" };
+}
+
+function getShiftWorkOrderJournalStageLabel(status = {}) {
+  const statusId = status?.id || "";
+  if (statusId === "assigned") return "сменное задание";
+  if (statusId === "issued") return "СЗН в работе";
+  if (statusId === "closed") return "СЗН с фактом";
+  if (statusId === "carryover") return "СЗН с остатком";
+  return "запланировано";
+}
+
+function shouldIncludeShiftWorkOrderJournalRow(row = {}) {
+  if (!row?.id) return false;
+  if (row.status?.id && row.status.id !== "planned") return true;
+  if (normalizeShiftMasterBoardQuantity(row.assignedQuantity || 0) > 0) return true;
+  if (normalizeShiftMasterBoardQuantity(row.factQuantity || 0) > 0) return true;
+  if (normalizeShiftMasterBoardQuantity(row.defectQuantity || 0) > 0) return true;
+  if (Array.isArray(row.executors) && row.executors.length) return true;
+  if (row.issuedAt) return true;
+  const issueSummary = getShiftWorkOrderIssueSummary(row);
+  return issueSummary.reportCount > 0 || issueSummary.photoCount > 0;
 }
 
 function buildShiftWorkOrderJournalRow(row = {}, options = {}) {
@@ -12351,6 +12392,7 @@ function buildShiftWorkOrderJournalRow(row = {}, options = {}) {
     remainingQuantity,
     unit: sheetContract.unit || transfer.unit || row.unit || "шт.",
     status,
+    stageLabel: getShiftWorkOrderJournalStageLabel(status),
     transfer,
     sheetContract,
     issuedAt: sheetContract.issuedAt || assignment.issuedAt || "",
@@ -12397,6 +12439,7 @@ function buildShiftWorkOrderJournalStoredRow(id = "", assignment = {}) {
     remainingQuantity,
     unit: sheetContract.unit || transfer.unit || assignment.unit || "шт.",
     status,
+    stageLabel: getShiftWorkOrderJournalStageLabel(status),
     transfer,
     sheetContract,
     issuedAt: sheetContract.issuedAt || assignment.issuedAt || "",
@@ -12413,13 +12456,15 @@ function getShiftWorkOrderJournalViewModel() {
   const rowIds = new Set();
   (model.allRows || []).forEach((row) => {
     const journalRow = buildShiftWorkOrderJournalRow(row);
-    if (!journalRow.id) return;
+    if (!shouldIncludeShiftWorkOrderJournalRow(journalRow)) return;
     rows.push(journalRow);
     rowIds.add(journalRow.id);
   });
   Object.entries(normalizePlainRecord(ui.shiftMasterBoardAssignments)).forEach(([id, assignment]) => {
     if (!id || rowIds.has(id)) return;
-    rows.push(buildShiftWorkOrderJournalStoredRow(id, assignment));
+    const journalRow = buildShiftWorkOrderJournalStoredRow(id, assignment);
+    if (!shouldIncludeShiftWorkOrderJournalRow(journalRow)) return;
+    rows.push(journalRow);
   });
   const sortedRows = rows.sort((left, right) => (
     toDate(right.updatedAt || right.issuedAt || 0) - toDate(left.updatedAt || left.issuedAt || 0)
@@ -12456,14 +12501,14 @@ function getShiftWorkOrderJournalViewModel() {
 function renderShiftWorkOrdersPage() {
   const model = getShiftWorkOrderJournalViewModel();
   return renderUiModulePage({
-    ariaLabel: "Журнал сменных заказ-нарядов",
+    ariaLabel: "Журнал сменных заданий",
     className: "shift-work-orders-page",
     workspaceClassName: "shift-work-orders-workspace",
     contentClassName: "shift-work-orders-content",
     header: renderUiModuleHeader({
       eyebrow: "Оперативное управление",
-      title: "Журнал сменных заказ-нарядов",
-      description: "Реестр СЗН, сменных листов, факта и остатков из Мастерской. Просмотр без изменения плана, Ганта и распределения.",
+      title: "Журнал сменных заданий",
+      description: "Распределенные сменные задания, сформированные СЗН, факт, остатки и report из Мастерской. Чистый план остается только в Мастерской.",
       className: "directory-header shift-work-orders-header",
     }),
     content: `
@@ -12475,13 +12520,48 @@ function renderShiftWorkOrdersPage() {
   });
 }
 
-function renderShiftWorkOrdersKpi(label, value, unit = "") {
+function renderShiftWorkOrderIssueReports(row) {
+  const rowId = row?.id || row?.sourceRowId || "";
+  const reports = getShiftWorkOrderIssueReports(row || rowId);
+  const photoItems = getShiftWorkOrderReportPhotoItems(row || rowId);
+  const photoCount = photoItems.length;
   return `
-    <article>
-      <span>${escapeHtml(label)}</span>
-      <strong>${normalizeShiftMasterBoardQuantity(value || 0).toLocaleString("ru-RU")}</strong>
-      <small>${escapeHtml(unit)}</small>
-    </article>
+    <section class="shift-work-orders-issue-list" data-visual-qa-target="shift-work-orders-issue-reports">
+      <header data-visual-qa-target="shift-work-orders-issue-header">
+        <strong data-visual-qa-target="shift-work-orders-issue-title">Проблемы / Report</strong>
+        <span data-visual-qa-target="shift-work-orders-issue-count">${reports.length.toLocaleString("ru-RU")} записей · ${photoCount.toLocaleString("ru-RU")} фото</span>
+      </header>
+      ${reports.length ? reports.map((report) => {
+        const photo = normalizePlainRecord(report.photo);
+        const reportRowId = report.rowId || rowId;
+        const photoButtonAttributes = photo.dataUrl
+          ? `type="button" data-shift-work-order-report-photo="${escapeAttribute(photo.id || report.id)}" data-shift-work-order-report-photo-row="${escapeAttribute(reportRowId)}" data-visual-qa-target="shift-work-orders-issue-photo"`
+          : `type="button" disabled data-visual-qa-target="shift-work-orders-issue-photo"`;
+        return `
+          <article class="shift-work-orders-issue-card" data-visual-qa-target="shift-work-orders-issue-card">
+            <button class="shift-work-orders-issue-photo ${photo.dataUrl ? "has-photo" : "is-empty"}" ${photoButtonAttributes} aria-label="${escapeAttribute(photo.dataUrl ? `Открыть фото проблемы. Всего фото: ${photoCount}` : "Фото не приложено")}">
+              ${photo.dataUrl ? `<img src="${escapeAttribute(photo.dataUrl)}" alt="${escapeAttribute(photo.name || "Фото проблемы")}">` : icon("alert")}
+              ${photo.dataUrl ? `<span class="shift-work-orders-issue-photo-count" data-visual-qa-target="shift-work-orders-issue-photo-count">${photoCount.toLocaleString("ru-RU")}</span>` : ""}
+            </button>
+            <div class="shift-work-orders-issue-copy" data-visual-qa-target="shift-work-orders-issue-copy">
+              <header data-visual-qa-target="shift-work-orders-issue-card-header">
+                <strong data-visual-qa-target="shift-work-orders-issue-card-author">${escapeHtml(report.employeeName || "Исполнитель")}</strong>
+                <span data-visual-qa-target="shift-work-orders-issue-card-date">${escapeHtml(report.createdAt ? formatDateTimeShort(report.createdAt) : "без даты")}</span>
+              </header>
+              <p data-visual-qa-target="shift-work-orders-issue-card-text">${escapeHtml(report.text || "Описание не заполнено.")}</p>
+              <small data-visual-qa-target="shift-work-orders-issue-card-meta">${escapeHtml([
+                report.operationName || row?.operationName || "",
+                report.workCenterLabel || row?.workCenterLabel || "",
+                photo.name ? `фото: ${photo.name}` : "",
+              ].filter(Boolean).join(" · "))}</small>
+              ${photo.storageNote ? `<small data-visual-qa-target="shift-work-orders-issue-card-storage-note">${escapeHtml(photo.storageNote)}</small>` : ""}
+            </div>
+          </article>
+        `;
+      }).join("") : `
+        <p class="shift-work-orders-issue-empty" data-visual-qa-target="shift-work-orders-issue-empty">Проблемы по этому СЗН не зафиксированы.</p>
+      `}
+    </section>
   `;
 }
 
@@ -12500,6 +12580,8 @@ function buildShiftWorkOrderDocumentTree(rows = []) {
         factQuantity: 0,
         remainingQuantity: 0,
         unit: row.unit || "шт.",
+        issueReportCount: 0,
+        issuePhotoCount: 0,
         rows: [],
         operationMap: new Map(),
         latestTime: 0,
@@ -12524,12 +12606,15 @@ function buildShiftWorkOrderDocumentTree(rows = []) {
         factQuantity: 0,
         remainingQuantity: 0,
         unit: row.unit || "шт.",
+        issueReportCount: 0,
+        issuePhotoCount: 0,
         rows: [],
         latestTime: 0,
         latestLabel: "дата не задана",
       });
     }
     const operationGroup = group.operationMap.get(operationKey);
+    const issueSummary = getShiftWorkOrderIssueSummary(row);
     operationGroup.rows.push(row);
     operationGroup.plannedQuantity = Math.max(
       operationGroup.plannedQuantity,
@@ -12538,6 +12623,8 @@ function buildShiftWorkOrderDocumentTree(rows = []) {
     operationGroup.assignedQuantity += normalizeShiftMasterBoardQuantity(row.assignedQuantity || 0);
     operationGroup.factQuantity += normalizeShiftMasterBoardQuantity(row.factQuantity || 0);
     operationGroup.remainingQuantity = Math.max(0, operationGroup.plannedQuantity - operationGroup.factQuantity);
+    operationGroup.issueReportCount += issueSummary.reportCount;
+    operationGroup.issuePhotoCount += issueSummary.photoCount;
     if (!group.routeId && (row.planningOrderId || row.routeId)) group.routeId = row.planningOrderId || row.routeId;
     if (!group.meta && row.routePartLabel) group.meta = row.routePartLabel;
     const rowTime = toDate(row.updatedAt || row.issuedAt || row.shiftDateKey || 0);
@@ -12568,6 +12655,8 @@ function buildShiftWorkOrderDocumentTree(rows = []) {
     group.assignedQuantity = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.assignedQuantity, 0);
     group.factQuantity = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.factQuantity, 0);
     group.remainingQuantity = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.remainingQuantity, 0);
+    group.issueReportCount = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.issueReportCount, 0);
+    group.issuePhotoCount = operationGroups.reduce((sum, operationGroup) => sum + operationGroup.issuePhotoCount, 0);
     return group;
   }).sort((left, right) => (
     right.latestTime - left.latestTime
@@ -12588,6 +12677,115 @@ function getShiftWorkOrderOperationTreeStatus(operationGroup = {}) {
   if (plannedQuantity > 0 && assignedQuantity >= plannedQuantity) return { label: "распределена", tone: "active" };
   if (assignedQuantity > 0) return { label: "частично", tone: "warning" };
   return { label: "план", tone: "neutral" };
+}
+
+function getShiftWorkOrderDetailState(row = {}) {
+  const issueSummary = getShiftWorkOrderIssueSummary(row);
+  const status = row.status || { label: "статус не задан", tone: "neutral", id: "" };
+  const hasIssues = issueSummary.reportCount > 0;
+  const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
+  const assignedQuantity = normalizeShiftMasterBoardQuantity(row.assignedQuantity || 0);
+  const factQuantity = normalizeShiftMasterBoardQuantity(row.factQuantity || 0);
+  const remainingQuantity = normalizeShiftMasterBoardQuantity(row.remainingQuantity || Math.max(0, plannedQuantity - factQuantity));
+  const coverageLabel = plannedQuantity > 0
+    ? `${Math.min(100, Math.round((assignedQuantity / plannedQuantity) * 100)).toLocaleString("ru-RU")}% распределено`
+    : "нет планового объема";
+  const factLabel = plannedQuantity > 0
+    ? `${Math.min(100, Math.round((factQuantity / plannedQuantity) * 100)).toLocaleString("ru-RU")}% факта`
+    : "факт без плана";
+  return {
+    status,
+    issueSummary,
+    hasIssues,
+    title: hasIssues ? `${status.label} · есть report` : status.label,
+    tone: hasIssues && status.id !== "closed" ? "risk" : status.tone,
+    coverageLabel,
+    factLabel,
+    remainingQuantity,
+  };
+}
+
+function renderShiftWorkOrdersDetailState(row) {
+  const state = getShiftWorkOrderDetailState(row);
+  return `
+    <section class="shift-work-orders-detail-state ${state.hasIssues ? "has-issues" : ""}" data-visual-qa-target="shift-work-orders-detail-state">
+      <div>
+        <span>Состояние документа</span>
+        <strong>${escapeHtml(state.title)}</strong>
+        <small>${escapeHtml([state.coverageLabel, state.factLabel].filter(Boolean).join(" · "))}</small>
+      </div>
+      <div class="shift-work-orders-detail-state-token">
+        ${renderUiStatusToken(state.status.label, state.tone)}
+        <small>${state.issueSummary.reportCount.toLocaleString("ru-RU")} report · ${state.issueSummary.photoCount.toLocaleString("ru-RU")} фото</small>
+      </div>
+    </section>
+  `;
+}
+
+function getShiftWorkOrderDetailPercent(value = 0, total = 0) {
+  const normalizedValue = normalizeShiftMasterBoardQuantity(value || 0);
+  const normalizedTotal = normalizeShiftMasterBoardQuantity(total || 0);
+  if (normalizedTotal <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((normalizedValue / normalizedTotal) * 100)));
+}
+
+function renderShiftWorkOrdersDetailVolume(row, issueSummary = getShiftWorkOrderIssueSummary(row)) {
+  const unit = row.unit || "шт.";
+  const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
+  const assignedQuantity = normalizeShiftMasterBoardQuantity(row.assignedQuantity || 0);
+  const factQuantity = normalizeShiftMasterBoardQuantity(row.factQuantity || 0);
+  const defectQuantity = normalizeShiftMasterBoardQuantity(row.defectQuantity || 0);
+  const remainingQuantity = normalizeShiftMasterBoardQuantity(row.remainingQuantity || Math.max(0, plannedQuantity - factQuantity));
+  const assignedPercent = getShiftWorkOrderDetailPercent(assignedQuantity, plannedQuantity);
+  const factPercent = getShiftWorkOrderDetailPercent(factQuantity, plannedQuantity);
+  const factSource = row.status.id === "closed" || row.status.id === "carryover"
+    ? "внесен с рабочего стола"
+    : "ожидает рабочего стола";
+  return `
+    <section class="shift-work-orders-detail-volume" data-visual-qa-target="shift-work-orders-detail-volume">
+      <header>
+        <div>
+          <span>Объем</span>
+          <strong>${plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)}</strong>
+        </div>
+        <small>${assignedPercent.toLocaleString("ru-RU")}% распределено · ${factPercent.toLocaleString("ru-RU")}% факт</small>
+      </header>
+      <div class="shift-work-orders-detail-progress" aria-hidden="true">
+        <i style="width: ${assignedPercent}%"></i>
+        <b style="width: ${factPercent}%"></b>
+      </div>
+      <div class="shift-work-orders-detail-volume-grid">
+        <article><span>Распределено</span><strong>${assignedQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)}</strong></article>
+        <article><span>Факт</span><strong>${factQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)}</strong><small>${escapeHtml(factSource)}</small></article>
+        <article><span>Остаток</span><strong>${remainingQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)}</strong></article>
+        <article><span>Брак</span><strong>${defectQuantity.toLocaleString("ru-RU")} ${escapeHtml(unit)}</strong></article>
+        <article><span>Report</span><strong>${issueSummary.reportCount.toLocaleString("ru-RU")} проблем</strong><small>${issueSummary.photoCount.toLocaleString("ru-RU")} фото</small></article>
+      </div>
+    </section>
+  `;
+}
+
+function renderShiftWorkOrdersDetailTransfer(row) {
+  const transfer = row.transfer || {};
+  return `
+    <section class="shift-work-orders-transfer" data-visual-qa-target="shift-work-orders-transfer">
+      <article>
+        <span>До</span>
+        <strong>${escapeHtml(transfer.fromOperationName || row.operationName)}</strong>
+        <small>${escapeHtml(transfer.fromWorkCenterLabel || row.workCenterLabel)}</small>
+      </article>
+      <article class="is-current">
+        <span>Сейчас</span>
+        <strong>${escapeHtml(row.operationName)}</strong>
+        <small>${escapeHtml(row.workCenterLabel)} · текущий шаг</small>
+      </article>
+      <article>
+        <span>После</span>
+        <strong>${escapeHtml(transfer.toOperationName || transfer.targetLabel || "следующий шаг")}</strong>
+        <small>${escapeHtml(transfer.toWorkCenterLabel || "не задано")}</small>
+      </article>
+    </section>
+  `;
 }
 
 function renderShiftWorkOrderPrintInfoTable(rows = [], className = "") {
@@ -12800,6 +12998,53 @@ function renderShiftWorkOrderPrintPreviewModal() {
   `;
 }
 
+function renderShiftWorkOrderIssuePhotoModal() {
+  const viewer = normalizePlainRecord(ui.shiftWorkOrderIssuePhotoViewer);
+  const rowId = String(viewer.rowId || "").trim();
+  const photoId = String(viewer.photoId || "").trim();
+  if (!rowId || !photoId) return "";
+  const photos = getShiftWorkOrderReportPhotoItems(rowId);
+  if (!photos.length) return "";
+  const activeIndex = Math.max(0, photos.findIndex((item) => item.photoId === photoId || item.reportId === photoId));
+  const activePhoto = photos[activeIndex] || photos[0];
+  const model = getShiftWorkOrderJournalViewModel();
+  const row = model.rows.find((item) => getShiftWorkOrderIssueLookupKeys(item).includes(rowId)) || model.selectedRow || null;
+  const counterLabel = `${(activeIndex + 1).toLocaleString("ru-RU")} из ${photos.length.toLocaleString("ru-RU")}`;
+  return `
+    <div class="modal-backdrop shift-work-orders-photo-backdrop" data-modal-backdrop>
+      ${renderUiModalShell({
+        className: "large-modal shift-work-orders-photo-modal",
+        attributes: "aria-label=\"Фото report\"",
+        content: `
+          <div class="modal-header">
+            <div>
+              <span class="eyebrow">Report · ${escapeHtml(counterLabel)}</span>
+              <h2>${escapeHtml(activePhoto.name || "Фото проблемы")}</h2>
+              <small>${escapeHtml([row?.documentNumber, activePhoto.employeeName, activePhoto.createdAt ? formatDateTimeShort(activePhoto.createdAt) : ""].filter(Boolean).join(" · "))}</small>
+            </div>
+            <button class="icon-button ui-action-button" data-close-modal type="button" title="Закрыть">${icon("close")}</button>
+          </div>
+          <div class="shift-work-orders-photo-viewer" data-visual-qa-target="shift-work-orders-photo-viewer">
+            <button class="icon-button ui-action-button shift-work-orders-photo-nav" data-shift-work-order-report-photo-nav="-1" type="button" ${photos.length > 1 ? "" : "disabled"} aria-label="Предыдущее фото">${icon("arrowLeft")}</button>
+            <figure class="shift-work-orders-photo-stage" data-visual-qa-target="shift-work-orders-photo-stage">
+              <img src="${escapeAttribute(activePhoto.dataUrl)}" alt="${escapeAttribute(activePhoto.name || "Фото проблемы")}">
+              <figcaption>
+                <strong>${escapeHtml(activePhoto.text || "Описание проблемы не заполнено.")}</strong>
+                <span>${escapeHtml([activePhoto.operationName, activePhoto.workCenterLabel].filter(Boolean).join(" · "))}</span>
+              </figcaption>
+            </figure>
+            <button class="icon-button ui-action-button shift-work-orders-photo-nav" data-shift-work-order-report-photo-nav="1" type="button" ${photos.length > 1 ? "" : "disabled"} aria-label="Следующее фото">${icon("arrowRight")}</button>
+          </div>
+          <div class="modal-footer">
+            <span class="shift-work-orders-photo-counter" data-visual-qa-target="shift-work-orders-photo-counter">${escapeHtml(counterLabel)}</span>
+            <button class="secondary-button ui-action-button" data-close-modal type="button">${icon("close")}<span>Закрыть</span></button>
+          </div>
+        `,
+      })}
+    </div>
+  `;
+}
+
 function renderShiftWorkOrdersTable(model) {
   if (!model.rows.length) {
     return renderUiPanel({
@@ -12809,8 +13054,8 @@ function renderShiftWorkOrdersTable(model) {
       body: renderUiPanelBody({
         body: renderUiEmptyState({
           iconName: "document",
-          title: "СЗН еще не сформированы",
-          text: "Сначала передайте заказ-наряд в планирование и распределите сменную задачу в Мастерской.",
+          title: "Сменные задания еще не распределены",
+          text: "Журнал заполнится после распределения сменной задачи в Мастерской, выдачи СЗН, факта или report.",
         }),
       }),
     });
@@ -12819,7 +13064,7 @@ function renderShiftWorkOrdersTable(model) {
   const operationCount = documentTree.reduce((sum, group) => sum + (group.operationGroups || []).length, 0);
   return renderUiPanel({
     title: "Дерево документов",
-    meta: `${documentTree.length.toLocaleString("ru-RU")} заказ-нарядов · ${operationCount.toLocaleString("ru-RU")} операций · ${model.rows.length.toLocaleString("ru-RU")} СЗН · окно ${model.sourceWindow.label}`,
+    meta: `${documentTree.length.toLocaleString("ru-RU")} заказ-нарядов · ${operationCount.toLocaleString("ru-RU")} операций · ${model.rows.length.toLocaleString("ru-RU")} заданий · окно ${model.sourceWindow.label}`,
     className: "shift-work-orders-panel shift-work-orders-table-panel",
     body: renderUiPanelBody({
       body: renderUiTableWrap({
@@ -12836,86 +13081,98 @@ function renderShiftWorkOrdersTable(model) {
                 <th>Ост.</th>
                 <th>Статус</th>
                 <th>Обновлено</th>
-                <th>Форма</th>
               </tr>
             </thead>
             <tbody>
-              ${documentTree.map((group) => `
-                <tr class="shift-work-orders-tree-parent" data-shift-work-order-package-row="${escapeAttribute(group.id)}">
-                  <td>
-                    <div class="shift-work-orders-tree-document is-parent">
-                      <span class="shift-work-orders-tree-node" aria-hidden="true"></span>
-                      <div>
+              ${documentTree.map((group, groupIndex) => {
+                const operationGroups = group.operationGroups || [];
+                const groupIsLast = groupIndex === documentTree.length - 1;
+                return `
+                <tr class="shift-work-orders-tree-parent" data-shift-work-order-package-row="${escapeAttribute(group.id)}" style="--speki-level: 0;">
+                  <td>${renderRouteTreeCell({
+                    level: 0,
+                    hasChildren: operationGroups.length > 0,
+                    isLast: groupIsLast,
+                    continuationLevels: [],
+                    content: `
+                      <div class="shift-work-orders-tree-copy">
                         <strong>${escapeHtml(group.label)}</strong>
                         <small>печатный пакет заказ-наряда</small>
                       </div>
-                    </div>
-                  </td>
-                  <td><strong>${(group.operationGroups || []).length.toLocaleString("ru-RU")} операций</strong><small>${group.rows.length.toLocaleString("ru-RU")} СЗН · ${escapeHtml(group.meta || "маршрут")}</small></td>
+                    `,
+                    className: "is-shift-work-order-parent",
+                  })}</td>
+                  <td><strong>${(group.operationGroups || []).length.toLocaleString("ru-RU")} операций</strong><small>${group.rows.length.toLocaleString("ru-RU")} заданий · ${escapeHtml(group.meta || "маршрут")}</small></td>
                   <td>${group.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(group.unit)}</td>
                   <td>${group.assignedQuantity.toLocaleString("ru-RU")}</td>
-                  <td>${group.factQuantity.toLocaleString("ru-RU")}</td>
-                  <td>${group.remainingQuantity.toLocaleString("ru-RU")}</td>
-                  <td>${renderUiStatusToken("заказ-наряд", "primary")}</td>
-                  <td>${escapeHtml(group.latestLabel)}</td>
-                  <td class="actions-cell">
-                    <div class="shift-work-orders-print-actions" aria-label="Печатный пакет заказ-наряда">
-                      <button class="table-icon-button ui-action-button" data-work-order-print-preview="${escapeAttribute(group.routeId || "")}" type="button" ${group.routeId ? "" : "disabled"} title="Пакет заказ-наряда" aria-label="${escapeAttribute(`Печатный пакет заказ-наряда ${group.label || ""}`)}">${icon("package")}</button>
-                    </div>
-                  </td>
-                </tr>
-                ${(group.operationGroups || []).map((operationGroup) => {
+	                  <td>${group.factQuantity.toLocaleString("ru-RU")}</td>
+	                  <td>${group.remainingQuantity.toLocaleString("ru-RU")}</td>
+	                  <td><span class="shift-work-orders-group-status">заказ-наряд</span></td>
+	                  <td>${escapeHtml(group.latestLabel)}</td>
+	                </tr>
+                ${operationGroups.map((operationGroup, operationIndex) => {
                   const operationStatus = getShiftWorkOrderOperationTreeStatus(operationGroup);
+                  const operationIsLast = operationIndex === operationGroups.length - 1;
                   return `
-                  <tr class="shift-work-orders-tree-operation" data-shift-work-order-operation-row="${escapeAttribute(operationGroup.id)}">
-                    <td>
-                      <div class="shift-work-orders-tree-document is-operation">
-                        <span class="shift-work-orders-tree-operation-node" aria-hidden="true"></span>
-                        <div>
+                  <tr class="shift-work-orders-tree-operation" data-shift-work-order-operation-row="${escapeAttribute(operationGroup.id)}" style="--speki-level: 1;">
+                    <td>${renderRouteTreeCell({
+                      level: 1,
+                      hasChildren: operationGroup.rows.length > 0,
+                      isLast: operationIsLast,
+                      continuationLevels: [!groupIsLast],
+                      content: `
+                        <div class="shift-work-orders-tree-copy">
                           <strong>${escapeHtml(operationGroup.operationName)}</strong>
-                          <small>операция · ${operationGroup.rows.length.toLocaleString("ru-RU")} СЗН</small>
+                          <small>операция · ${operationGroup.rows.length.toLocaleString("ru-RU")} заданий</small>
                         </div>
-                      </div>
-                    </td>
+                      `,
+                      className: "is-shift-work-order-operation",
+                    })}</td>
                     <td><strong>${escapeHtml(operationGroup.workCenterLabel)}</strong><small>${escapeHtml(operationGroup.routePartLabel || "маршрут")}</small></td>
                     <td>${operationGroup.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(operationGroup.unit)}</td>
                     <td>${operationGroup.assignedQuantity.toLocaleString("ru-RU")}</td>
-                    <td>${operationGroup.factQuantity.toLocaleString("ru-RU")}</td>
-                    <td>${operationGroup.remainingQuantity.toLocaleString("ru-RU")}</td>
-                    <td>${renderUiStatusToken(operationStatus.label, operationStatus.tone)}</td>
-                    <td>${escapeHtml(operationGroup.latestLabel)}</td>
-                    <td class="actions-cell">
-                      <span class="shift-work-orders-tree-muted-action">—</span>
-                    </td>
-                  </tr>
-                  ${operationGroup.rows.map((row) => `
-                    <tr class="shift-work-orders-tree-child ${row.id === model.selectedRow?.id ? "is-active" : ""}" data-shift-work-order-row="${escapeAttribute(row.id)}" tabindex="0">
-                      <td>
-                        <div class="shift-work-orders-tree-document is-child">
-                          <span class="shift-work-orders-tree-branch" aria-hidden="true"></span>
-                          <div>
+	                    <td>${operationGroup.factQuantity.toLocaleString("ru-RU")}</td>
+	                    <td>${operationGroup.remainingQuantity.toLocaleString("ru-RU")}</td>
+	                    <td><span class="shift-work-orders-group-status">${escapeHtml(operationStatus.label)}</span></td>
+	                    <td>${escapeHtml(operationGroup.latestLabel)}</td>
+	                  </tr>
+	                  ${operationGroup.rows.map((row, rowIndex) => {
+	                    const childTreeClasses = [
+                      "shift-work-orders-tree-child",
+                      rowIndex === 0 ? "is-first-in-operation" : "",
+                      rowIndex === operationGroup.rows.length - 1 ? "is-last-in-operation" : "",
+                      row.id === model.selectedRow?.id ? "is-active" : "",
+                    ].filter(Boolean).join(" ");
+                    const childIsLast = rowIndex === operationGroup.rows.length - 1;
+                    return `
+                    <tr class="${childTreeClasses}" data-shift-work-order-row="${escapeAttribute(row.id)}" style="--speki-level: 2;" tabindex="0">
+                      <td>${renderRouteTreeCell({
+                        level: 2,
+                        hasChildren: false,
+                        isLast: childIsLast,
+                        continuationLevels: [!groupIsLast, !operationIsLast],
+                        content: `
+                          <div class="shift-work-orders-tree-copy">
                             <strong>${escapeHtml(row.documentNumber)}</strong>
-                            <small>сменный заказ-наряд</small>
+                            <small>${escapeHtml(row.stageLabel || "сменное задание")}</small>
                           </div>
-                        </div>
-                      </td>
+                        `,
+                        className: "is-shift-work-order-child",
+                      })}</td>
                       <td><strong>${escapeHtml(row.executorLabel || row.masterName || row.workCenterLabel)}</strong><small>${escapeHtml(row.shiftDateKey || row.dateLabel)}</small></td>
                       <td>${row.plannedQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)}</td>
                       <td>${row.assignedQuantity.toLocaleString("ru-RU")}</td>
-                      <td>${row.factQuantity.toLocaleString("ru-RU")}</td>
-                      <td>${row.remainingQuantity.toLocaleString("ru-RU")}</td>
-                      <td>${renderUiStatusToken(row.status.label, row.status.tone)}</td>
-                      <td>${escapeHtml(row.dateLabel)}</td>
-                      <td class="actions-cell">
-                        <div class="shift-work-orders-print-actions" aria-label="Печатная форма СЗН">
-                          <button class="table-icon-button ui-action-button" data-shift-work-order-print-preview="${escapeAttribute(row.id)}" type="button" title="Печатная форма СЗН" aria-label="${escapeAttribute(`Печатная форма ${row.documentNumber}`)}">${icon("document")}</button>
-                        </div>
-                      </td>
-                    </tr>
-                  `).join("")}
+	                      <td>${row.factQuantity.toLocaleString("ru-RU")}</td>
+	                      <td>${row.remainingQuantity.toLocaleString("ru-RU")}</td>
+	                      <td>${renderUiStatusToken(row.status.label, row.status.tone)}</td>
+	                      <td>${escapeHtml(row.dateLabel)}</td>
+	                    </tr>
+                  `;
+                  }).join("")}
                 `;
                 }).join("")}
-              `).join("")}
+              `;
+              }).join("")}
             </tbody>
           </table>
         `,
@@ -12931,47 +13188,44 @@ function renderShiftWorkOrdersDetail(row) {
       meta: "",
       className: "shift-work-orders-panel shift-work-orders-detail-panel",
       body: renderUiPanelBody({
-        body: renderUiEmptyState({ iconName: "document", title: "Выберите СЗН", text: "Карточка покажет маршрут передачи, исполнителей и факт." }),
+        body: renderUiEmptyState({ iconName: "document", title: "Выберите сменное задание", text: "Карточка покажет маршрут передачи, исполнителей и факт." }),
       }),
     });
   }
-  const transfer = row.transfer || {};
   const executorRows = row.executors.length ? row.executors : [];
+  const packageRouteId = row.routeId || row.planningOrderId || "";
+  const issueSummary = getShiftWorkOrderIssueSummary(row);
   return renderUiPanel({
     title: row.documentNumber,
     meta: `${row.operationName} · ${row.workCenterLabel}`,
     className: "shift-work-orders-panel shift-work-orders-detail-panel",
     actions: `
       ${renderUiActionButton({
-        label: "Печатная форма",
+        label: "Печать СЗН",
         iconName: "document",
         attributes: `data-shift-work-order-print-preview="${escapeAttribute(row.id)}" type="button"`,
       })}
       ${renderUiActionButton({
-        label: "Открыть в Мастерской",
+        label: "Пакет ЗН",
+        iconName: "package",
+        attributes: `data-work-order-print-preview="${escapeAttribute(packageRouteId)}" type="button" ${packageRouteId ? "" : "disabled"}`,
+      })}
+      ${renderUiActionButton({
+        label: "Мастерская",
         iconName: "worker",
         attributes: `data-shift-work-order-open-master="${escapeAttribute(row.sourceRowId)}" type="button"`,
       })}
     `,
     body: renderUiPanelBody({
       body: `
+        ${renderShiftWorkOrdersDetailState(row)}
         <section class="shift-work-orders-detail-summary" data-visual-qa-target="shift-work-orders-detail-summary">
-          <article><span>Заказ-наряд</span><strong>${escapeHtml(row.orderLabel)}</strong><small>${escapeHtml(row.routePartLabel)}</small></article>
-          <article><span>Статус</span><strong>${escapeHtml(row.status.label)}</strong><small>${escapeHtml(row.dateLabel)}</small></article>
-          <article><span>Мастер</span><strong>${escapeHtml(row.masterName)}</strong><small>${escapeHtml(row.resourceLabel || row.workCenterLabel)}</small></article>
+          <article data-visual-qa-target="shift-work-orders-detail-order"><span>Заказ-наряд</span><strong>${escapeHtml(row.orderLabel)}</strong><small>${escapeHtml(row.routePartLabel)}</small></article>
+          <article data-visual-qa-target="shift-work-orders-detail-operation"><span>Операция</span><strong>${escapeHtml(row.operationName)}</strong><small>${escapeHtml(row.workCenterLabel)}</small></article>
+          <article data-visual-qa-target="shift-work-orders-detail-master"><span>Мастер</span><strong>${escapeHtml(row.masterName)}</strong><small>${escapeHtml(row.resourceLabel || row.workCenterLabel)}</small></article>
         </section>
-        <section class="shift-work-orders-quantity-strip" data-visual-qa-target="shift-work-orders-quantity-strip">
-          ${renderShiftWorkOrdersKpi("План", row.plannedQuantity, row.unit)}
-          ${renderShiftWorkOrdersKpi("Распределено", row.assignedQuantity, row.unit)}
-          ${renderShiftWorkOrdersKpi("Факт", row.factQuantity, row.unit)}
-          ${renderShiftWorkOrdersKpi("Брак", row.defectQuantity, row.unit)}
-          ${renderShiftWorkOrdersKpi("Остаток", row.remainingQuantity, row.unit)}
-        </section>
-        <section class="shift-work-orders-transfer" data-visual-qa-target="shift-work-orders-transfer">
-          <article><span>Откуда</span><strong>${escapeHtml(transfer.fromWorkCenterLabel || row.workCenterLabel)}</strong><small>${escapeHtml(transfer.fromOperationName || row.operationName)}</small></article>
-          <article><span>Куда</span><strong>${escapeHtml(transfer.toWorkCenterLabel || "не задано")}</strong><small>${escapeHtml(transfer.toOperationName || transfer.targetLabel || "следующий шаг")}</small></article>
-          <article><span>Передача</span><strong>${escapeHtml(transfer.targetLabel || "нет данных")}</strong><small>${transfer.remainingQuantity ? `${transfer.remainingQuantity.toLocaleString("ru-RU")} ${escapeHtml(row.unit)} остаток` : "остатка нет"}</small></article>
-        </section>
+        ${renderShiftWorkOrdersDetailVolume(row, issueSummary)}
+        ${renderShiftWorkOrdersDetailTransfer(row)}
         <section class="shift-work-orders-executors" data-visual-qa-target="shift-work-orders-executors">
           <header><strong>Исполнители</strong><span>${executorRows.length.toLocaleString("ru-RU")} назначений</span></header>
           ${executorRows.length ? executorRows.map((executor) => `
@@ -12982,12 +13236,14 @@ function renderShiftWorkOrdersDetail(row) {
             </article>
           `).join("") : `<p>Исполнители еще не назначены.</p>`}
         </section>
+        ${renderShiftWorkOrderIssueReports(row)}
       `,
     }),
   });
 }
 
 function bindShiftWorkOrdersEvents() {
+  bindGenericModalCloseEvents();
   app.querySelectorAll("[data-shift-work-order-print-preview]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -13050,6 +13306,33 @@ function bindShiftWorkOrdersEvents() {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       select();
+    });
+  });
+  app.querySelectorAll("[data-shift-work-order-report-photo]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const rowId = button.getAttribute("data-shift-work-order-report-photo-row") || "";
+      const photoId = button.getAttribute("data-shift-work-order-report-photo") || "";
+      if (!rowId || !photoId) return;
+      ui.shiftWorkOrderIssuePhotoViewer = { rowId, photoId };
+      renderPreservingModuleScroll();
+    });
+  });
+  app.querySelectorAll("[data-shift-work-order-report-photo-nav]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const viewer = normalizePlainRecord(ui.shiftWorkOrderIssuePhotoViewer);
+      const rowId = String(viewer.rowId || "").trim();
+      const photos = getShiftWorkOrderReportPhotoItems(rowId);
+      if (!rowId || photos.length < 2) return;
+      const currentPhotoId = String(viewer.photoId || "").trim();
+      const currentIndex = Math.max(0, photos.findIndex((item) => item.photoId === currentPhotoId || item.reportId === currentPhotoId));
+      const delta = Number(button.getAttribute("data-shift-work-order-report-photo-nav") || 0) || 0;
+      const nextIndex = (currentIndex + delta + photos.length) % photos.length;
+      ui.shiftWorkOrderIssuePhotoViewer = { rowId, photoId: photos[nextIndex].photoId };
+      renderPreservingModuleScroll();
     });
   });
   app.querySelectorAll("[data-shift-work-order-open-master]").forEach((button) => {
@@ -22118,6 +22401,254 @@ function setAuthSessionFactDraft(taskId = "", patch = {}) {
   return next;
 }
 
+function normalizeShiftWorkOrderIssueReports(value = {}) {
+  const source = normalizePlainRecord(value);
+  return Object.fromEntries(Object.entries(source).map(([rowId, reports]) => {
+    const normalizedReports = Array.isArray(reports)
+      ? reports
+        .map((report) => {
+          const record = normalizePlainRecord(report);
+          const photo = normalizePlainRecord(record.photo);
+          return {
+            id: String(record.id || makeId("issue")).trim(),
+            rowId: String(record.rowId || rowId || "").trim(),
+            taskId: String(record.taskId || "").trim(),
+            documentNumber: String(record.documentNumber || "").trim(),
+            employeeId: String(record.employeeId || "").trim(),
+            employeeName: String(record.employeeName || "").trim(),
+            operationName: String(record.operationName || "").trim(),
+            workCenterLabel: String(record.workCenterLabel || "").trim(),
+            text: String(record.text || "").slice(0, 1200),
+            status: String(record.status || "new").trim() || "new",
+            createdAt: String(record.createdAt || "").trim(),
+            photo: photo.name || photo.dataUrl ? {
+              id: String(photo.id || makeId("photo")).trim(),
+              name: String(photo.name || "photo.jpg").trim(),
+              type: String(photo.type || "image/jpeg").trim(),
+              size: Math.max(0, Number(photo.size || 0) || 0),
+              source: String(photo.source || "file").trim(),
+              dataUrl: String(photo.dataUrl || "").startsWith("data:image/") ? String(photo.dataUrl || "") : "",
+              storageNote: String(photo.storageNote || "").trim(),
+            } : null,
+          };
+        })
+        .filter((report) => report.rowId && report.id)
+        .slice(0, 8)
+      : [];
+    return [String(rowId || "").trim(), normalizedReports];
+  }).filter(([rowId]) => rowId));
+}
+
+function getShiftWorkOrderIssueLookupKeys(target = "") {
+  const record = typeof target === "object" ? normalizePlainRecord(target) : {};
+  const sheetContract = normalizePlainRecord(record.sheetContract);
+  const transfer = normalizePlainRecord(record.transfer);
+  const keys = typeof target === "string"
+    ? [target]
+    : [
+      record.id,
+      record.rowId,
+      record.sourceRowId,
+      record.slotId,
+      sheetContract.rowId,
+      sheetContract.sourceRowId,
+      sheetContract.sourceSlotId,
+      transfer.sourceRowId,
+      transfer.sourceSlotId,
+    ];
+  return [...new Set(keys
+    .map((key) => String(key || "").trim())
+    .filter(Boolean))];
+}
+
+function getShiftWorkOrderIssueReports(target = "") {
+  const lookupKeys = getShiftWorkOrderIssueLookupKeys(target);
+  if (!lookupKeys.length) return [];
+  const store = normalizeShiftWorkOrderIssueReports(ui.shiftWorkOrderIssueReports);
+  const seen = new Set();
+  return lookupKeys.flatMap((rowId) => store[rowId] || [])
+    .filter((report) => {
+      const reportKey = String(report.id || `${report.rowId || ""}:${report.taskId || ""}:${report.createdAt || ""}`).trim();
+      if (!reportKey || seen.has(reportKey)) return false;
+      seen.add(reportKey);
+      return true;
+    });
+}
+
+function getShiftWorkOrderReportPhotoItems(target = "") {
+  return getShiftWorkOrderIssueReports(target)
+    .map((report) => {
+      const photo = normalizePlainRecord(report.photo);
+      if (!photo.dataUrl) return null;
+      return {
+        rowId: String(report.rowId || "").trim(),
+        reportId: String(report.id || "").trim(),
+        photoId: String(photo.id || report.id || "").trim(),
+        name: String(photo.name || "Фото проблемы").trim(),
+        dataUrl: String(photo.dataUrl || ""),
+        text: String(report.text || "").trim(),
+        employeeName: String(report.employeeName || "").trim(),
+        operationName: String(report.operationName || "").trim(),
+        workCenterLabel: String(report.workCenterLabel || "").trim(),
+        createdAt: String(report.createdAt || "").trim(),
+      };
+    })
+    .filter(Boolean);
+}
+
+function getShiftWorkOrderIssueSummary(target = "") {
+  const reports = getShiftWorkOrderIssueReports(target);
+  const photoCount = reports.reduce((sum, report) => (
+    sum + (normalizePlainRecord(report.photo).dataUrl ? 1 : 0)
+  ), 0);
+  return {
+    reportCount: reports.length,
+    photoCount,
+  };
+}
+
+function getAuthSessionReportDraft(taskId = "") {
+  const store = normalizePlainRecord(ui.authSessionReportDrafts);
+  const draft = normalizePlainRecord(store[taskId]);
+  const photo = normalizePlainRecord(draft.photo);
+  return {
+    text: String(draft.text || ""),
+    photo: photo.name || photo.dataUrl ? {
+      id: String(photo.id || "").trim(),
+      name: String(photo.name || "").trim(),
+      type: String(photo.type || "").trim(),
+      size: Math.max(0, Number(photo.size || 0) || 0),
+      source: String(photo.source || "file").trim(),
+      dataUrl: String(photo.dataUrl || ""),
+      storageNote: String(photo.storageNote || "").trim(),
+    } : null,
+  };
+}
+
+function setAuthSessionReportDraft(taskId = "", patch = {}) {
+  const normalizedTaskId = String(taskId || "").trim();
+  if (!normalizedTaskId) return null;
+  const store = normalizePlainRecord(ui.authSessionReportDrafts);
+  const previous = normalizePlainRecord(store[normalizedTaskId]);
+  const next = {
+    ...previous,
+    ...patch,
+  };
+  ui.authSessionReportDrafts = {
+    ...store,
+    [normalizedTaskId]: next,
+  };
+  return next;
+}
+
+function clearAuthSessionReportDraft(taskId = "") {
+  const normalizedTaskId = String(taskId || "").trim();
+  if (!normalizedTaskId) return;
+  const store = normalizePlainRecord(ui.authSessionReportDrafts);
+  delete store[normalizedTaskId];
+  ui.authSessionReportDrafts = store;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(reader.error || new Error("File read failed")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function resizeAuthSessionIssueImage(dataUrl = "", options = {}) {
+  const maxSide = Number(options.maxSide || 720) || 720;
+  const quality = Number(options.quality || 0.58) || 0.58;
+  return new Promise((resolve) => {
+    if (!String(dataUrl || "").startsWith("data:image/")) {
+      resolve("");
+      return;
+    }
+    const image = new Image();
+    image.addEventListener("load", () => {
+      const naturalWidth = image.naturalWidth || image.width || maxSide;
+      const naturalHeight = image.naturalHeight || image.height || maxSide;
+      const scale = Math.min(1, maxSide / Math.max(naturalWidth, naturalHeight));
+      const width = Math.max(1, Math.round(naturalWidth * scale));
+      const height = Math.max(1, Math.round(naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    }, { once: true });
+    image.addEventListener("error", () => resolve(dataUrl), { once: true });
+    image.src = dataUrl;
+  });
+}
+
+async function prepareAuthSessionReportPhoto(file, source = "file") {
+  if (!file) return null;
+  const rawDataUrl = await readFileAsDataUrl(file);
+  const compressedDataUrl = await resizeAuthSessionIssueImage(rawDataUrl);
+  const finalDataUrl = compressedDataUrl && compressedDataUrl.length <= 320000
+    ? compressedDataUrl
+    : "";
+  return {
+    id: makeId("photo"),
+    name: String(file.name || (source === "camera" ? "camera-photo.jpg" : "image.jpg")),
+    type: String(file.type || "image/jpeg"),
+    size: Math.max(0, Number(file.size || 0) || 0),
+    source,
+    dataUrl: finalDataUrl,
+    storageNote: finalDataUrl ? "" : "Фото слишком большое для локального хранения, сохранены только реквизиты файла.",
+  };
+}
+
+function saveAuthSessionTaskReport(taskId = "") {
+  const model = getAuthSessionPrototypeModel();
+  const task = model.allTasks.find((item) => item.id === taskId)
+    || model.selectedTask
+    || null;
+  if (!task?.rowId) return;
+  const textField = app.querySelector("[data-auth-session-report-text]");
+  const draft = getAuthSessionReportDraft(task.id);
+  const text = String(textField?.value || draft.text || "").trim();
+  const photo = draft.photo || null;
+  if (!text && !photo) {
+    notifySaveSuccess("Добавьте фото или описание проблемы.");
+    return;
+  }
+  const rowId = String(task.rowId || "").trim();
+  const store = normalizeShiftWorkOrderIssueReports(ui.shiftWorkOrderIssueReports);
+  const previousReports = Array.isArray(store[rowId]) ? store[rowId] : [];
+  const report = {
+    id: makeId("issue"),
+    rowId,
+    taskId: task.id,
+    documentNumber: task.documentNumber || "",
+    employeeId: task.employeeId || "",
+    employeeName: task.employeeName || "",
+    operationName: task.operationName || "",
+    workCenterLabel: task.workCenterLabel || "",
+    text,
+    photo,
+    status: "new",
+    createdAt: new Date().toISOString(),
+  };
+  ui.shiftWorkOrderIssueReports = {
+    ...store,
+    [rowId]: [report, ...previousReports].slice(0, 8),
+  };
+  clearAuthSessionReportDraft(task.id);
+  ui.authSessionModal = null;
+  persistUiState();
+  notifySaveSuccess("Report сохранен в Журнале СЗН.");
+  render();
+}
+
 function buildAuthSessionStoredAssignmentRow(rowId = "", assignment = {}) {
   const sheetContract = assignment.sheetContract || {};
   const transferContract = assignment.transferContract || sheetContract.transferContract || {};
@@ -22497,6 +23028,11 @@ function renderAuthSessionTaskActions(model) {
           iconName: "document",
           attributes: `data-auth-session-modal="pdf" data-auth-session-task-id="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-task-action-pdf" type="button"`,
         })}
+        ${renderUiActionButton({
+          label: "Report",
+          iconName: "alert",
+          attributes: `data-auth-session-modal="issue" data-auth-session-task-id="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-task-action-report" type="button" ${editDisabled}`,
+        })}
       </div>
     </section>
   `;
@@ -22631,12 +23167,27 @@ function renderAuthSessionModal() {
     ? "PDF-инструкция"
     : modalType === "route"
       ? "Маршрут задания"
-      : "Структура изделия";
+      : modalType === "issue"
+        ? "Report"
+        : "Структура изделия";
   const body = modalType === "pdf"
     ? renderAuthSessionPdfModalBody(task)
     : modalType === "route"
       ? renderAuthSessionRouteModalBody(task)
-      : renderAuthSessionStructureModalBody(task);
+      : modalType === "issue"
+        ? renderAuthSessionIssueModalBody(task)
+        : renderAuthSessionStructureModalBody(task);
+  const actions = modalType === "issue"
+    ? `
+      ${renderUiActionButton({ label: "Закрыть", iconName: "close", attributes: "data-close-modal type=\"button\"" })}
+      ${renderUiActionButton({
+        label: "Сохранить report",
+        iconName: "check",
+        tone: "primary",
+        attributes: `data-auth-session-save-report="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-report-save" type="button"`,
+      })}
+    `
+    : renderUiActionButton({ label: "Закрыть", iconName: "close", attributes: "data-close-modal type=\"button\"" });
   return `
     <div class="modal-backdrop auth-session-modal-backdrop" data-modal-backdrop>
       ${renderUiModalFrame({
@@ -22645,7 +23196,7 @@ function renderAuthSessionModal() {
         className: "auth-session-modal",
         attributes: "data-visual-qa-target=\"auth-session-modal\"",
         body,
-        actions: renderUiActionButton({ label: "Закрыть", iconName: "close", attributes: "data-close-modal type=\"button\"" }),
+        actions,
       })}
     </div>
   `;
@@ -22703,6 +23254,59 @@ function renderAuthSessionPdfModalBody(task) {
         <p data-visual-qa-target="auth-session-pdf-step-2">2. Выполнить операцию по технологической инструкции.</p>
         <p data-visual-qa-target="auth-session-pdf-step-3">3. Зафиксировать выпуск и брак на рабочем столе.</p>
       </div>
+    </div>
+  `;
+}
+
+function renderAuthSessionIssueModalBody(task) {
+  const draft = getAuthSessionReportDraft(task.id);
+  const photo = draft.photo || null;
+  const sourceLabel = photo?.source === "camera" ? "камера" : "файл";
+  return `
+    <div class="auth-session-issue-modal" data-visual-qa-target="auth-session-report-modal-body">
+      <section class="auth-session-issue-context" data-visual-qa-target="auth-session-report-context">
+        <article data-visual-qa-target="auth-session-report-context-document">
+          <span>СЗН</span>
+          <strong>${escapeHtml(task.documentNumber || "без номера")}</strong>
+        </article>
+        <article data-visual-qa-target="auth-session-report-context-operation">
+          <span>Операция</span>
+          <strong>${escapeHtml(task.operationName || "операция")}</strong>
+        </article>
+        <article data-visual-qa-target="auth-session-report-context-person">
+          <span>Исполнитель</span>
+          <strong>${escapeHtml(task.employeeName || "исполнитель")}</strong>
+        </article>
+      </section>
+      <section class="auth-session-issue-pickers" data-visual-qa-target="auth-session-report-pickers">
+        ${renderUiActionButton({
+          label: "Фото с планшета",
+          iconName: "camera",
+          tone: "primary",
+          attributes: `data-auth-session-report-trigger="camera" data-auth-session-report-task-id="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-report-camera-trigger" type="button"`,
+        })}
+        ${renderUiActionButton({
+          label: "Прикрепить фото",
+          iconName: "upload",
+          attributes: `data-auth-session-report-trigger="file" data-auth-session-report-task-id="${escapeAttribute(task.id)}" data-visual-qa-target="auth-session-report-file-trigger" type="button"`,
+        })}
+        <input class="auth-session-issue-file-input" data-auth-session-report-camera data-auth-session-report-task-id="${escapeAttribute(task.id)}" type="file" accept="image/*" capture="environment" aria-hidden="true" tabindex="-1">
+        <input class="auth-session-issue-file-input" data-auth-session-report-file data-auth-session-report-task-id="${escapeAttribute(task.id)}" type="file" accept="image/*" aria-hidden="true" tabindex="-1">
+      </section>
+      <section class="auth-session-issue-preview ${photo ? "has-photo" : ""}" data-visual-qa-target="auth-session-report-photo-preview">
+        ${photo?.dataUrl ? `<img src="${escapeAttribute(photo.dataUrl)}" alt="${escapeAttribute(photo.name || "Фото проблемы")}" data-visual-qa-target="auth-session-report-photo-image">` : `<div data-visual-qa-target="auth-session-report-photo-empty">${icon("camera")}<span>Фото пока не прикреплено</span></div>`}
+        ${photo ? `
+          <article data-visual-qa-target="auth-session-report-photo-meta">
+            <strong>${escapeHtml(photo.name || "photo.jpg")}</strong>
+            <small>${escapeHtml(`${sourceLabel}${photo.size ? ` · ${Math.round(photo.size / 1024).toLocaleString("ru-RU")} КБ` : ""}`)}</small>
+            ${photo.storageNote ? `<small>${escapeHtml(photo.storageNote)}</small>` : ""}
+          </article>
+        ` : ""}
+      </section>
+      <label class="auth-session-issue-text" data-visual-qa-target="auth-session-report-text-field">
+        <span>Описание проблемы</span>
+        <textarea data-auth-session-report-text data-auth-session-report-task-id="${escapeAttribute(task.id)}" rows="5" placeholder="Что произошло, где видно проблему, что мешает выполнить операцию">${escapeHtml(draft.text || "")}</textarea>
+      </label>
     </div>
   `;
 }
@@ -22811,6 +23415,20 @@ function renderVisualSystemPage() {
     ["Плашки-счетчики без действия", "удалять", "KPI вида Участков 6 / Планов 2 не добавлять, если они не помогают сценарию."],
     ["Дубли паспорта", "удалять", "Если информация уже есть в структуре документа, не добавлять второй summary-блок."],
     ["Демо-функция", "изолировать", "Демо-плашки использовать только для UX-макетов. Рабочие расчетные поля не окрашивать как демо."],
+  ];
+  const selectedRowVariants = [
+    { id: "stripe", title: "Полоса", meta: "левый маркер + светлый фон" },
+    { id: "frame", title: "Рамка", meta: "без заливки, только границы" },
+    { id: "first-cell", title: "Первая ячейка", meta: "темный якорь в названии" },
+    { id: "marker-text", title: "Маркер + текст", meta: "минимум цвета" },
+    { id: "gradient", title: "Градиент", meta: "цвет уходит вправо" },
+    { id: "key-cell", title: "Ключевая ячейка", meta: "выделяется только СЗН" },
+    { id: "dot", title: "Точка", meta: "малый маркер без заливки" },
+    { id: "lift", title: "Подъем", meta: "строка чуть отделена тенью" },
+    { id: "right-rail", title: "Правый rail", meta: "выбор читается по статусу" },
+    { id: "id-pill", title: "Плашка СЗН", meta: "акцент только на номере" },
+    { id: "soft-fill", title: "Мягкая заливка", meta: "без бокового маркера" },
+    { id: "double-rail", title: "Двойной rail", meta: "левый выбор + правый статус" },
   ];
   const visualGanttFactGroups = [
     {
@@ -23192,6 +23810,45 @@ function renderVisualSystemPage() {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </article>
+
+        <article class="visual-system-panel is-full visual-selected-row-panel" data-visual-qa-target="visual-selected-row-options">
+          <div class="visual-system-panel-title">
+            ${icon("selection")}
+            <div><h3>Выделение строки таблицы</h3><p>Двенадцать вариантов для Журнала СЗН и других плотных таблиц. Сравниваем только состояние выбранной строки.</p></div>
+          </div>
+          <div class="visual-selected-row-grid">
+            ${selectedRowVariants.map((variant) => `
+              <article class="visual-selected-row-option is-${escapeAttribute(variant.id)}" data-visual-qa-target="visual-selected-row-option">
+                <header>
+                  <strong>${escapeHtml(variant.title)}</strong>
+                  <small>${escapeHtml(variant.meta)}</small>
+                </header>
+                <table aria-label="${escapeAttribute(`Вариант выделения строки: ${variant.title}`)}">
+                  <tbody>
+                    <tr>
+                      <td><span>СЗН-20260701-D5-06</span></td>
+                      <td>Выводной монтаж</td>
+                      <td>1 000</td>
+                      <td>закрыт</td>
+                    </tr>
+                    <tr class="is-active">
+                      <td><span>СЗН-20260702-D5-07</span></td>
+                      <td>Отмывка</td>
+                      <td>700</td>
+                      <td>в работе</td>
+                    </tr>
+                    <tr>
+                      <td><span>СЗН-20260703-D5-08</span></td>
+                      <td>Контроль</td>
+                      <td>300</td>
+                      <td>план</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </article>
+            `).join("")}
           </div>
         </article>
 
@@ -29917,6 +30574,7 @@ function renderRouteTreeCell({
     <div class="speki-tree-cell route-tree-cell is-level-${safeLevel} ${hasChildren ? "has-children" : ""} ${isLast ? "is-last" : ""} ${escapeAttribute(className)}">
       ${renderStructureTreeGuides(continuationLevels)}
       <span class="speki-tree-branch" aria-hidden="true"></span>
+      <span class="speki-tree-start-dot" aria-hidden="true"></span>
       <div class="speki-tree-object">${content}</div>
     </div>
   `;
@@ -32497,6 +33155,52 @@ function exposeVisualQaRuntimeApi() {
     getFocusMode() {
       return Boolean(ui.focusMode);
     },
+    setShiftWorkOrderIssueReportsForQa(reportsByRow) {
+      if (!new URLSearchParams(window.location.search).has("qa")) {
+        return { applied: false, reason: "qa parameter is required" };
+      }
+      ui.shiftWorkOrderIssueReports = normalizeShiftWorkOrderIssueReports(reportsByRow);
+      persistUiState();
+      renderPreservingModuleScroll();
+      return {
+        applied: true,
+        rowCount: Object.keys(ui.shiftWorkOrderIssueReports || {}).length,
+      };
+    },
+    seedShiftWorkOrderJournalAssignmentForQa() {
+      if (!new URLSearchParams(window.location.search).has("qa")) {
+        return { seeded: false, reason: "qa parameter is required" };
+      }
+      const model = getShiftMasterBoardModel();
+      const row = (model.allRows || model.rows || []).find((item) => (
+        item?.id
+        && normalizeShiftMasterBoardQuantity(item.plannedQuantity || 0) > 0
+        && ((item.availableEmployees || []).length || (item.employees || []).length)
+      )) || (model.allRows || model.rows || [])[0] || null;
+      if (!row?.id) return { seeded: false, reason: "shift row is missing" };
+      const employee = (row.availableEmployees || []).find((item) => item?.id)
+        || (row.employees || []).find((item) => item?.id)
+        || null;
+      if (!employee?.id) return { seeded: false, reason: "employee is missing", rowId: row.id };
+      const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 1);
+      const quantity = Math.max(1, Math.min(plannedQuantity || 1, Math.floor((plannedQuantity || 1) * 0.5) || 1));
+      const assignment = saveShiftMasterBoardAssignment(row.id, {
+        masterId: row.masterProfile?.id || ui.activeShiftMasterId || "",
+        executors: [{
+          employeeId: employee.id,
+          quantity,
+          note: "QA распределение для журнала",
+        }],
+        updatedAt: new Date().toISOString(),
+      });
+      renderPreservingModuleScroll();
+      return {
+        seeded: Boolean(assignment?.assignedQuantity),
+        rowId: row.id,
+        assignedQuantity: assignment?.assignedQuantity || 0,
+        plannedQuantity,
+      };
+    },
   };
 }
 
@@ -33328,7 +34032,9 @@ function updateShiftMasterBoardAvailableQuantityPreview(input) {
       : `${otherLabel} · это задание: нет нормы`;
   }
   if (captionNode) {
-    captionNode.textContent = `всего ${formatReportNumber(previewHours)} / ${formatReportNumber(totalHours)} ч · ${formatReportNumber(freeHours)} ч свободно · ${previewQuantity.toLocaleString("ru-RU")} / ${capacityQuantity.toLocaleString("ru-RU")} ${unit} · ${freeQuantity.toLocaleString("ru-RU")} ${unit} ост.`;
+    captionNode.textContent = totalMinutes > 0
+      ? `всего ${formatReportNumber(previewHours)} / ${formatReportNumber(totalHours)} ч · ${formatReportNumber(freeHours)} ч свободно · ${previewQuantity.toLocaleString("ru-RU")} / ${capacityQuantity.toLocaleString("ru-RU")} ${unit} · ${freeQuantity.toLocaleString("ru-RU")} ${unit} ост.`
+      : `по Табелю 0 ч · ручной резерв ${previewQuantity.toLocaleString("ru-RU")} ${unit}`;
   }
 }
 
@@ -33694,7 +34400,7 @@ function bindShiftMasterBoardEvents() {
         issued: true,
         updatedAt: new Date().toISOString(),
       });
-      notifySaveSuccess("Распределение сохранено. СЗН сформирован и готов к печати.");
+      notifySaveSuccess("Распределение сохранено. Сменное задание сформировано и готово к печати СЗН.");
       render();
     });
   });
@@ -34056,6 +34762,49 @@ function bindAuthSessionEvents() {
   app.querySelectorAll("[data-auth-session-save-fact]").forEach((button) => {
     button.addEventListener("click", () => {
       saveAuthSessionTaskFact(button.dataset.authSessionSaveFact || ui.authSessionSelectedTaskId || "");
+    });
+  });
+
+  app.querySelectorAll("[data-auth-session-report-trigger]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const taskId = button.dataset.authSessionReportTaskId || ui.authSessionSelectedTaskId || "";
+      const text = app.querySelector("[data-auth-session-report-text]")?.value || "";
+      if (taskId) setAuthSessionReportDraft(taskId, { text });
+      const source = button.dataset.authSessionReportTrigger === "camera" ? "camera" : "file";
+      const input = app.querySelector(source === "camera" ? "[data-auth-session-report-camera]" : "[data-auth-session-report-file]");
+      input?.click();
+    });
+  });
+
+  app.querySelectorAll("[data-auth-session-report-camera], [data-auth-session-report-file]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const taskId = input.dataset.authSessionReportTaskId || ui.authSessionSelectedTaskId || "";
+      const file = input.files?.[0] || null;
+      const source = input.matches("[data-auth-session-report-camera]") ? "camera" : "file";
+      const text = app.querySelector("[data-auth-session-report-text]")?.value || "";
+      if (taskId) setAuthSessionReportDraft(taskId, { text });
+      if (!taskId || !file) return;
+      try {
+        const photo = await prepareAuthSessionReportPhoto(file, source);
+        setAuthSessionReportDraft(taskId, { photo, text });
+        render();
+      } catch {
+        notifySaveSuccess("Не удалось прикрепить фото.");
+      } finally {
+        input.value = "";
+      }
+    });
+  });
+
+  app.querySelector("[data-auth-session-report-text]")?.addEventListener("input", (event) => {
+    const taskId = event.currentTarget.dataset.authSessionReportTaskId || ui.authSessionSelectedTaskId || "";
+    if (!taskId) return;
+    setAuthSessionReportDraft(taskId, { text: event.currentTarget.value || "" });
+  });
+
+  app.querySelectorAll("[data-auth-session-save-report]").forEach((button) => {
+    button.addEventListener("click", () => {
+      saveAuthSessionTaskReport(button.dataset.authSessionSaveReport || ui.authSessionSelectedTaskId || "");
     });
   });
 }
@@ -41947,6 +42696,7 @@ function closeModals() {
   ui.workOrderPrintPreviewId = "";
   ui.shiftMasterBoardPrintPreviewId = "";
   ui.shiftWorkOrderPrintPreviewId = "";
+  ui.shiftWorkOrderIssuePhotoViewer = null;
   ui.timesheetEditor = null;
   ui.directoryEditor = null;
   ui.authSessionModal = null;
@@ -42460,6 +43210,7 @@ function icon(name) {
     map: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18-6 3V6l6-3 6 3 6-3v15l-6 3Z"></path><path d="M9 3v15M15 6v15"></path></svg>`,
     palette: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.7H17a4 4 0 0 0 4-4.1C20.8 6.6 16.9 3 12 3Z"></path><circle cx="7.5" cy="10" r="1"></circle><circle cx="10" cy="7.5" r="1"></circle><circle cx="14" cy="7.5" r="1"></circle><circle cx="16.5" cy="10.5" r="1"></circle></svg>`,
     target: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>`,
+    selection: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="4" rx="1.5"></rect><rect x="4" y="10" width="16" height="4" rx="1.5"></rect><rect x="4" y="15" width="16" height="4" rx="1.5"></rect><path d="M2.5 12h2M19.5 12h2"></path></svg>`,
     keyboard: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M7 9h.01M11 9h.01M15 9h.01M19 9h.01M7 13h.01M11 13h.01M15 13h.01M7 17h10"></path></svg>`,
     book: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z"></path><path d="M8 7h8M8 11h8"></path></svg>`,
     document: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M14 3v6h6M8 13h8M8 17h6"></path></svg>`,
@@ -42473,6 +43224,7 @@ function icon(name) {
     settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,
     calculator: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M8 6h8M8 10h2M12 10h2M16 10h.01M8 14h2M12 14h2M16 14h.01M8 18h2M12 18h4"></path></svg>`,
     calendar: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path></svg>`,
+    camera: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4l2-3h4l2 3h4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"></path><circle cx="12" cy="14" r="4"></circle><path d="M18 11h.01"></path></svg>`,
     today: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path><circle cx="12" cy="15" r="2.3"></circle></svg>`,
     gantt: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v14M4 19h16"></path><path d="M8 7h9M8 12h5M12 17h8"></path><path d="M7 7h1M7 12h1M11 17h1"></path></svg>`,
     routeEdit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5a3 3 0 0 1 3 3v4a3 3 0 0 0 3 3h5"></path><circle cx="4" cy="7" r="1.7"></circle><circle cx="20" cy="17" r="1.7"></circle><path d="M15.5 5.5a1.8 1.8 0 0 1 2.5 2.5l-6.7 6.7-3.1.8.8-3.1Z"></path></svg>`,

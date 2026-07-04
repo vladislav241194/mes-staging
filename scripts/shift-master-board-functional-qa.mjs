@@ -586,6 +586,14 @@ async function main() {
       let kuzminaTaskCount = -1;
       let kuzminaMatrixScopeCount = 0;
       let kuzminaAvailableCount = 0;
+      let kuzminaEmployeeCardCount = 0;
+      let kuzminaLoadbarText = "";
+      let kuzminaFallbackTaskCount = 0;
+      let kuzminaFallbackScopeCount = 0;
+      let kuzminaFallbackAvailableCount = 0;
+      let kuzminaFallbackEmployeeCardCount = 0;
+      let kuzminaFallbackSavedQuantity = 0;
+      let kuzminaFallbackLoadbarText = "";
       if (kuzminaButton) {
         kuzminaTaskCount = getMasterTaskCount(kuzminaButton);
         if (kuzminaTaskCount > 0) {
@@ -597,8 +605,45 @@ async function main() {
           const assignmentPanel = document.querySelector("[data-shift-board-assignment-panel]");
           kuzminaMatrixScopeCount = Number(assignmentPanel?.getAttribute("data-shift-board-assignment-scope-count") || 0);
           kuzminaAvailableCount = Number(assignmentPanel?.getAttribute("data-shift-board-assignment-available-count") || 0);
+          kuzminaEmployeeCardCount = assignmentPanel?.querySelectorAll("[data-visual-qa-target=\"shift-master-board-available-person\"]").length || 0;
+          kuzminaLoadbarText = assignmentPanel?.querySelector("[data-visual-qa-target=\"shift-master-board-available-loadbar\"]")?.innerText.trim().replace(/\s+/g, " ") || "";
           clickIfExists("[data-shift-board-focus=\"all\"]");
           await wait(80);
+        }
+
+        const dateField = document.querySelector("[data-shift-calendar-date]");
+        if (dateField) {
+          dateField.value = "2026-06-27";
+          dateField.dispatchEvent(new Event("change", { bubbles: true }));
+          await wait(180);
+          const fallbackKuzminaButton = [...document.querySelectorAll("[data-shift-board-master]")]
+            .find((button) => /Кузьмина/.test(button.innerText) || /Кузьмина/.test(button.title || ""));
+          kuzminaFallbackTaskCount = fallbackKuzminaButton ? getMasterTaskCount(fallbackKuzminaButton) : 0;
+          if (fallbackKuzminaButton && kuzminaFallbackTaskCount > 0) {
+            fallbackKuzminaButton.click();
+            await wait(160);
+            const fallbackCard = [...document.querySelectorAll("[data-shift-board-card]")][0];
+            fallbackCard?.click();
+            await wait(100);
+            const fallbackPanel = document.querySelector("[data-shift-board-assignment-panel]");
+            const fallbackInput = fallbackPanel?.querySelector("[data-shift-board-available-quantity]");
+            if (fallbackInput) {
+              fallbackInput.value = "10";
+              fallbackInput.dispatchEvent(new Event("input", { bubbles: true }));
+              fallbackInput.dispatchEvent(new Event("change", { bubbles: true }));
+              await wait(80);
+            }
+            const fallbackCardId = document.querySelector(".shift-master-board-card.is-active")?.getAttribute("data-shift-board-card") || "";
+            const storedUi = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+            const fallbackAssignment = storedUi.shiftMasterBoardAssignments?.[fallbackCardId] || null;
+            kuzminaFallbackScopeCount = Number(fallbackPanel?.getAttribute("data-shift-board-assignment-scope-count") || 0);
+            kuzminaFallbackAvailableCount = Number(fallbackPanel?.getAttribute("data-shift-board-assignment-available-count") || 0);
+            kuzminaFallbackEmployeeCardCount = fallbackPanel?.querySelectorAll("[data-visual-qa-target=\"shift-master-board-available-person\"]").length || 0;
+            kuzminaFallbackSavedQuantity = Number((fallbackAssignment?.executors || [])[0]?.quantity || 0);
+            kuzminaFallbackLoadbarText = fallbackPanel?.querySelector("[data-visual-qa-target=\"shift-master-board-available-loadbar\"]")?.innerText.trim().replace(/\s+/g, " ") || "";
+            clickIfExists("[data-shift-board-focus=\"all\"]");
+            await wait(80);
+          }
         }
       }
       if (masterWithRows && getMasterTaskCount(masterWithRows) > 0) {
@@ -839,7 +884,7 @@ async function main() {
       const runtimeIsolationAfter = readRuntimeIsolation();
       const runtimeChangedKeys = Object.keys(runtimeIsolationAfter).filter((key) => runtimeIsolationAfter[key] !== runtimeIsolationBefore[key]);
 
-      return { laneCounts, removedPanelsVisible, boardLaneStructureValid, invalidDragTargetsBlocked, masterSelectorKeepsBoardVisible, kuzminaTaskCount, kuzminaMatrixScopeCount, kuzminaAvailableCount, qaAssignmentQuantity, availableQuantityAutoSaved, directIssueSavedUnsavedExecutor, directIssueAssignmentSummary, unauthorizedExecutorFiltered, oldExecutorGridVisible, storedAssignmentRisks, coverageText, taskContextGap, taskContextText, inlineSummaryText, routeChainText, documentPanelText, documentTransferCards, factPanelVisible, factSaveVisible, detailQaTargets, carryoverPanelVisible, recommendationsPanelVisible, modalOpened, modalText, sheetContract, transferContract, modalOverflowBlocks, riskCardText, availableLoadbarText, availableLoadbarCards, availableQuantityInputVisible, availableQuantityAssignmentSaved, otherTaskLoadChecked, otherTaskLoadText, otherTaskBaseLoad, quantityPreviewText, quantityPreviewLoad, tinyTargets, viewportOverflowX, overflowBlocks, insetIssues, runtimeChangedKeys };
+      return { laneCounts, removedPanelsVisible, boardLaneStructureValid, invalidDragTargetsBlocked, masterSelectorKeepsBoardVisible, kuzminaTaskCount, kuzminaMatrixScopeCount, kuzminaAvailableCount, kuzminaEmployeeCardCount, kuzminaLoadbarText, kuzminaFallbackTaskCount, kuzminaFallbackScopeCount, kuzminaFallbackAvailableCount, kuzminaFallbackEmployeeCardCount, kuzminaFallbackSavedQuantity, kuzminaFallbackLoadbarText, qaAssignmentQuantity, availableQuantityAutoSaved, directIssueSavedUnsavedExecutor, directIssueAssignmentSummary, unauthorizedExecutorFiltered, oldExecutorGridVisible, storedAssignmentRisks, coverageText, taskContextGap, taskContextText, inlineSummaryText, routeChainText, documentPanelText, documentTransferCards, factPanelVisible, factSaveVisible, detailQaTargets, carryoverPanelVisible, recommendationsPanelVisible, modalOpened, modalText, sheetContract, transferContract, modalOverflowBlocks, riskCardText, availableLoadbarText, availableLoadbarCards, availableQuantityInputVisible, availableQuantityAssignmentSaved, otherTaskLoadChecked, otherTaskLoadText, otherTaskBaseLoad, quantityPreviewText, quantityPreviewLoad, tinyTargets, viewportOverflowX, overflowBlocks, insetIssues, runtimeChangedKeys };
     });
 
     assert(result.modalOpened, "Shift board sheet modal did not open.");
@@ -858,14 +903,28 @@ async function main() {
     assert(result.kuzminaTaskCount >= 0, "Kuzmina master profile was not available in the shift board.");
     if (result.kuzminaTaskCount > 0) {
       assert(result.kuzminaMatrixScopeCount >= 10, `Kuzmina should receive expanded department branch employees from assignment matrix, got ${result.kuzminaMatrixScopeCount}.`);
-      assert(result.kuzminaAvailableCount > 0, `Kuzmina should have available employees after timesheet filtering, got ${result.kuzminaAvailableCount}.`);
+      assert(result.kuzminaEmployeeCardCount > 0, `Kuzmina should keep employee cards for manual assignment even when timesheet availability is zero: ${JSON.stringify({ available: result.kuzminaAvailableCount, cards: result.kuzminaEmployeeCardCount, text: result.kuzminaLoadbarText })}`);
+    }
+    if (result.kuzminaFallbackTaskCount > 0) {
+      assert(result.kuzminaFallbackScopeCount >= 10, `Kuzmina fallback date should keep expanded department scope: ${JSON.stringify(result)}`);
+      assert(result.kuzminaFallbackAvailableCount === 0, `Kuzmina fallback date must exercise zero-timesheet availability, got ${result.kuzminaFallbackAvailableCount}.`);
+      assert(result.kuzminaFallbackEmployeeCardCount >= 10, `Kuzmina fallback date must still render employee cards from matrix: ${JSON.stringify({ cards: result.kuzminaFallbackEmployeeCardCount, text: result.kuzminaFallbackLoadbarText })}`);
+      assert(result.kuzminaFallbackSavedQuantity === 10, `Kuzmina fallback employee card input must save assignment quantity: ${JSON.stringify({ quantity: result.kuzminaFallbackSavedQuantity, text: result.kuzminaFallbackLoadbarText })}`);
     }
     assert(result.unauthorizedExecutorFiltered, "Shift board did not keep assignment limited to available employee cards.");
     assert(!result.oldExecutorGridVisible, "Shift board still renders duplicate executor table.");
     assert(result.riskCardText.includes("риск: ресурс"), `Manual risk flag is not visible on the card. Active card text: ${result.riskCardText}. Stored risks: ${result.storedAssignmentRisks.join(", ") || "none"}`);
     assert(result.availableLoadbarText.includes("Доступные исполнители"), `Available employee loadbar is missing: ${result.availableLoadbarText}`);
-    assert(result.availableLoadbarText.includes("свободно"), `Available employee loadbar does not show free capacity: ${result.availableLoadbarText}`);
-    assert(!/\s\/\s0\s/.test(result.availableLoadbarText), `Available employee loadbar still renders zero capacity: ${result.availableLoadbarText}`);
+    assert(
+      result.availableLoadbarText.includes("свободно")
+        || (result.availableLoadbarText.includes("0 по Табелю") && result.availableLoadbarText.includes("ручной резерв")),
+      `Available employee loadbar does not show free capacity or manual fallback: ${result.availableLoadbarText}`,
+    );
+    assert(
+      !/\s\/\s0\s/.test(result.availableLoadbarText)
+        || (result.availableLoadbarText.includes("0 по Табелю") && result.availableLoadbarText.includes("ручное распределение")),
+      `Available employee loadbar still renders accidental zero capacity: ${result.availableLoadbarText}`,
+    );
     assert(result.availableLoadbarCards > 0, "Available employee loadbar does not render employee cards.");
     assert(result.availableQuantityInputVisible, "Available employee loadbar does not render direct quantity input.");
     assert(result.availableQuantityAutoSaved, "Quantity input in available employee card must autosave assignment before explicit save/print.");
