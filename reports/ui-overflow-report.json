@@ -1,0 +1,6045 @@
+{
+  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "threshold": 16,
+  "checks": [
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 1423,
+          "width": 1252,
+          "overflowRight": -17,
+          "scrollDelta": 2532,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.gantt-canvas",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-row",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3954,
+          "width": 118,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 1114,
+          "width": 101,
+          "overflowRight": -326,
+          "scrollDelta": 123,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "Главная карта · 1 000 шт.",
+          "right": 272,
+          "width": 72,
+          "overflowRight": -1168,
+          "scrollDelta": 56,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_ELF",
+          "right": 1317,
+          "width": 101,
+          "overflowRight": -123,
+          "scrollDelta": 45,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "Дочерняя карта · 1 000 шт.",
+          "right": 504,
+          "width": 101,
+          "overflowRight": -936,
+          "scrollDelta": 36,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "Дочерняя карта · 1 000 шт.",
+          "right": 707,
+          "width": 101,
+          "overflowRight": -733,
+          "scrollDelta": 36,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "Дочерняя карта · 1 000 шт.",
+          "right": 911,
+          "width": 101,
+          "overflowRight": -529,
+          "scrollDelta": 36,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Read-only реестр сменных заказ-нарядов, сменных листов, факта, передачи и остатк",
+          "right": 1063,
+          "width": 553,
+          "overflowRight": -377,
+          "scrollDelta": 121,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "Дочерняя карта · 1.1.2 Печатная плата BOM_для расчетттттта · 3 шагов",
+          "right": 366,
+          "width": 180,
+          "overflowRight": -1074,
+          "scrollDelta": 225,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Отдел нанесения влагозащитных покрытий",
+          "right": 742,
+          "width": 97,
+          "overflowRight": -698,
+          "scrollDelta": 142,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Дочерняя карта · 1.2 Печатная плата BOM_ELF · 3 шагов",
+          "right": 366,
+          "width": 180,
+          "overflowRight": -1074,
+          "scrollDelta": 139,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Отдел программной подготовки изделий",
+          "right": 742,
+          "width": 97,
+          "overflowRight": -698,
+          "scrollDelta": 129,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "Участок упаковки и маркировки изделий",
+          "right": 742,
+          "width": 97,
+          "overflowRight": -698,
+          "scrollDelta": 128,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Главная карта · Маршрутная карта №1 · 20 шагов",
+          "right": 362,
+          "width": 176,
+          "overflowRight": -1078,
+          "scrollDelta": 104,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "td.primary-cell",
+          "text": "Module; SoC; Wi-Fi/Bluetooth; transceiver; 4MB FLASH/PSRAM/520KB SRAM/448KB ROM;",
+          "right": 732,
+          "width": 243,
+          "overflowRight": -708,
+          "scrollDelta": 368,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Индуктивность Power Chip Shielded Multi-Layer 10uH 20% 1MHz Ferrite 100mA 780mOh",
+          "right": 732,
+          "width": 243,
+          "overflowRight": -708,
+          "scrollDelta": 336,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Микросхема LDO Regulator Pos 3.3V 0.8A 4-Pin(3+Tab) SOT-223 T/R / IC REG LDO 3.3",
+          "right": 732,
+          "width": 243,
+          "overflowRight": -708,
+          "scrollDelta": 317,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Микросхема DCDC 4.5V to 60 V Input, 3.5 A Step-Down Converter with Eco-mode 8-SO",
+          "right": 732,
+          "width": 243,
+          "overflowRight": -708,
+          "scrollDelta": 302,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Антенна керамическая SMD -0.5dBi Gain 2500MHz 2-Pin Case 18-4 T/R / ANTENNA CHIP",
+          "right": 732,
+          "width": 243,
+          "overflowRight": -708,
+          "scrollDelta": 299,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Кнопка тактовая N.O. SPST Round Button Gull Wing 0.05A 12VDC 1.5N SMD Embossed T",
+          "right": 732,
+          "width": 243,
+          "overflowRight": -708,
+          "scrollDelta": 256,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.directory-table-wrap.ui-table-wrap",
+          "text": "Операция Выбрать все 21 Возврат из производства 1 Выводной монтаж (пайка) 1 Выда",
+          "right": 1383,
+          "width": 916,
+          "overflowRight": -57,
+          "scrollDelta": 206,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-menu",
+          "text": "Выбрать все 2 Активен 21 Отключен 1 Сбросить Применить",
+          "right": 1625,
+          "width": 260,
+          "overflowRight": 185,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "label.directory-filter-option.is-all",
+          "text": "Выбрать все 2",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 175,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-options",
+          "text": "Активен 21 Отключен 1",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 175,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-actions",
+          "text": "Сбросить Применить",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 175,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "button",
+          "text": "Применить",
+          "right": 1615,
+          "width": 74,
+          "overflowRight": 175,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.timesheet-table-wrap.ui-table-wrap",
+          "text": "Сотрудник Роль График 1пн2вт3ср4чт5пт6сб7вс8пн9вт10ср11чт12пт13сб14вс15пн16вт17с",
+          "right": 1380,
+          "width": 1166,
+          "overflowRight": -60,
+          "scrollDelta": 294,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 1392,
+          "width": 1190,
+          "overflowRight": -48,
+          "scrollDelta": 281,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.timesheet-board-panel",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 1401,
+          "width": 1208,
+          "overflowRight": -39,
+          "scrollDelta": 273,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.timesheet-content",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1409,
+          "width": 1224,
+          "overflowRight": -31,
+          "scrollDelta": 264,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1430,
+          "width": 1266,
+          "overflowRight": -10,
+          "scrollDelta": 244,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-data-page.ui-module-page.is-full-width",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1440,
+          "width": 1286,
+          "overflowRight": 0,
+          "scrollDelta": 233,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.production-structure-table-wrap",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 1382,
+          "width": 1170,
+          "overflowRight": -58,
+          "scrollDelta": 8264,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.production-structure-table",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8205,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8205,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8205,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.production-structure-wide-column",
+          "text": "Условие растянутой смены",
+          "right": 9645,
+          "width": 260,
+          "overflowRight": 8205,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Руководитель производства Директор производства 1 —нет-даопциональноне требуется",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8205,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Рабочая доска мастера: распределение сменных задач по колонкам, исполнителям, ри",
+          "right": 1063,
+          "width": 553,
+          "overflowRight": -377,
+          "scrollDelta": 178,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Васильев Владимир Максимовна",
+          "right": 692,
+          "width": 138,
+          "overflowRight": -748,
+          "scrollDelta": 20,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "authPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "authSessionPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Рабочий стол исполнителя: назначенные сменные задания, инструкции, маршрут, ввод",
+          "right": 1063,
+          "width": 553,
+          "overflowRight": -377,
+          "scrollDelta": 93,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "roles",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Рабочий контур авторизации и доступа: роли, права на модули, действия и ручные н",
+          "right": 1063,
+          "width": 553,
+          "overflowRight": -377,
+          "scrollDelta": 158,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-table-wrap.access-role-permission-table-wrap",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 1374,
+          "width": 886,
+          "overflowRight": -66,
+          "scrollDelta": 96,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-table-wrap.access-role-assignment-table-wrap",
+          "text": "Сотрудник Отдел / участок Авто-логика Роль после входа Алексеев Егор Максимович ",
+          "right": 1374,
+          "width": 886,
+          "overflowRight": -66,
+          "scrollDelta": 96,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "input",
+          "text": "",
+          "right": 926,
+          "width": 214,
+          "overflowRight": -514,
+          "scrollDelta": 77,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "table.directory-table.access-role-permission-table",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 29,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 29,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "planningTable",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "matrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "supply",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.supply-gantt-shell",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 1390,
+          "width": 918,
+          "overflowRight": -50,
+          "scrollDelta": 2536,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-row",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 3925,
+          "width": 3452,
+          "overflowRight": 2485,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-cells",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3925,
+          "width": 3192,
+          "overflowRight": 2485,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group-row",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3925,
+          "width": 3192,
+          "overflowRight": 2485,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group",
+          "text": "Н38 14.09-20.09",
+          "right": 3925,
+          "width": 265,
+          "overflowRight": 2485,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-day-row",
+          "text": "29.06 30.06 01.07 02.07 03.07 04.07 05.07 06.07 07.07 08.07 09.07 10.07 11.07 12",
+          "right": 3925,
+          "width": 3192,
+          "overflowRight": 2485,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "shopMap",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.production-flow-lane",
+          "text": "Склад выдача и возврат 1активно 1очередь 8риск 1 рес. 7 оп. 100% Возврат из прои",
+          "right": 1388,
+          "width": 1182,
+          "overflowRight": -52,
+          "scrollDelta": 592,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.production-flow-node.is-warning.is-tone-slate",
+          "text": "Упаковка маркировка и упаковка 0активно 1очередь 0риск 1 рес. 2 оп. 50% Маркиров",
+          "right": 1978,
+          "width": 168,
+          "overflowRight": 538,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.production-flow-node-head",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1968,
+          "width": 148,
+          "overflowRight": 528,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 528,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 528,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "маркировка и упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 528,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "visualSystem",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
+          "right": 450,
+          "width": 184,
+          "overflowRight": -990,
+          "scrollDelta": 272,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
+          "right": 450,
+          "width": 167,
+          "overflowRight": -990,
+          "scrollDelta": 172,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-table-wrap.visual-table-wrap",
+          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "right": 778,
+          "width": 599,
+          "overflowRight": -662,
+          "scrollDelta": 123,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "образец круглого маркера, а не маркировка карточки стенда",
+          "right": 450,
+          "width": 235,
+          "overflowRight": -990,
+          "scrollDelta": 87,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.ui-gantt-bar",
+          "text": "план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
+          "right": 1405,
+          "width": 179,
+          "overflowRight": -35,
+          "scrollDelta": 62,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.visual-rule-card",
+          "text": "GanttBar план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
+          "right": 1415,
+          "width": 199,
+          "overflowRight": -25,
+          "scrollDelta": 53,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "employees",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "section.employee-hierarchy-layer.is-level-0.is-units",
+          "text": "Отдел 1 Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев По",
+          "right": 1345,
+          "width": 1096,
+          "overflowRight": -95,
+          "scrollDelta": 189,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-row",
+          "text": "Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев Полина Вик",
+          "right": 1345,
+          "width": 1033,
+          "overflowRight": -95,
+          "scrollDelta": 189,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.employee-hierarchy-layer.is-level-1.is-mixed",
+          "text": "Участки / люди 8 Слесарный участок 1 Начальник участка: Рябов Валентин Участок р",
+          "right": 1345,
+          "width": 1096,
+          "overflowRight": -95,
+          "scrollDelta": 189,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-row",
+          "text": "Слесарный участок 1 Начальник участка: Рябов Валентин Участок ручного монтажа 1 ",
+          "right": 1345,
+          "width": 1033,
+          "overflowRight": -95,
+          "scrollDelta": 189,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.employee-hierarchy-branch.is-wide",
+          "text": "Поддерево Отдел ручного монтажа 6 подраздел. · 29 чел. · 6 ресурсов Отдел 1 Отде",
+          "right": 1356,
+          "width": 1118,
+          "overflowRight": -84,
+          "scrollDelta": 179,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-map.is-branch",
+          "text": "Отдел 1 Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев По",
+          "right": 1355,
+          "width": 1116,
+          "overflowRight": -85,
+          "scrollDelta": 179,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "moduleId": "dispatch",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Модуль-заглушка: диспетчерская выведена из рабочего контура и сейчас не влияет н",
+          "right": 1063,
+          "width": 553,
+          "overflowRight": -377,
+          "scrollDelta": 222,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 1163,
+          "width": 992,
+          "overflowRight": -17,
+          "scrollDelta": 2792,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.gantt-canvas",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-row",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3954,
+          "width": 118,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Плановый документ: количество, срок, расчетные блоки и подготовка передачи в пла",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 165,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 337,
+          "width": 137,
+          "overflowRight": -843,
+          "scrollDelta": 87,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "Произвести · Печатная плата BOM_для расчетттттта",
+          "right": 534,
+          "width": 233,
+          "overflowRight": -646,
+          "scrollDelta": 38,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Главная карта · 1 000 шт.",
+          "right": 308,
+          "width": 108,
+          "overflowRight": -872,
+          "scrollDelta": 20,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Read-only реестр сменных заказ-нарядов, сменных листов, факта, передачи и остатк",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 290,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "1 заданий · Печатная плата BOM_для расчетттттта",
+          "right": 603,
+          "width": 141,
+          "overflowRight": -577,
+          "scrollDelta": 119,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 603,
+          "width": 141,
+          "overflowRight": -577,
+          "scrollDelta": 60,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.speki-structure-table-wrap.route-object-table-wrap.ui-table-wrap",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 1114,
+          "width": 626,
+          "overflowRight": -66,
+          "scrollDelta": 356,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.directory-table.speki-structure-table.route-object-table",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "colgroup",
+          "text": "",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "col.route-object-col-actions",
+          "text": "",
+          "right": 1469,
+          "width": 220,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "td.primary-cell",
+          "text": "Module; SoC; Wi-Fi/Bluetooth; transceiver; 4MB FLASH/PSRAM/520KB SRAM/448KB ROM;",
+          "right": 654,
+          "width": 165,
+          "overflowRight": -526,
+          "scrollDelta": 446,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Индуктивность Power Chip Shielded Multi-Layer 10uH 20% 1MHz Ferrite 100mA 780mOh",
+          "right": 654,
+          "width": 165,
+          "overflowRight": -526,
+          "scrollDelta": 414,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Микросхема LDO Regulator Pos 3.3V 0.8A 4-Pin(3+Tab) SOT-223 T/R / IC REG LDO 3.3",
+          "right": 654,
+          "width": 165,
+          "overflowRight": -526,
+          "scrollDelta": 395,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Микросхема DCDC 4.5V to 60 V Input, 3.5 A Step-Down Converter with Eco-mode 8-SO",
+          "right": 654,
+          "width": 165,
+          "overflowRight": -526,
+          "scrollDelta": 380,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Антенна керамическая SMD -0.5dBi Gain 2500MHz 2-Pin Case 18-4 T/R / ANTENNA CHIP",
+          "right": 654,
+          "width": 165,
+          "overflowRight": -526,
+          "scrollDelta": 377,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Кнопка тактовая N.O. SPST Round Button Gull Wing 0.05A 12VDC 1.5N SMD Embossed T",
+          "right": 654,
+          "width": 165,
+          "overflowRight": -526,
+          "scrollDelta": 334,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.directory-table-wrap.ui-table-wrap",
+          "text": "Операция Выбрать все 21 Возврат из производства 1 Выводной монтаж (пайка) 1 Выда",
+          "right": 1123,
+          "width": 656,
+          "overflowRight": -57,
+          "scrollDelta": 466,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-menu",
+          "text": "Выбрать все 2 Активен 21 Отключен 1 Сбросить Применить",
+          "right": 1625,
+          "width": 260,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "label.directory-filter-option.is-all",
+          "text": "Выбрать все 2",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 435,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-options",
+          "text": "Активен 21 Отключен 1",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 435,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-actions",
+          "text": "Сбросить Применить",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 435,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "button",
+          "text": "Применить",
+          "right": 1615,
+          "width": 74,
+          "overflowRight": 435,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.timesheet-table-wrap.ui-table-wrap",
+          "text": "Сотрудник Роль График 1пн2вт3ср4чт5пт6сб7вс8пн9вт10ср11чт12пт13сб14вс15пн16вт17с",
+          "right": 1120,
+          "width": 906,
+          "overflowRight": -60,
+          "scrollDelta": 554,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 1132,
+          "width": 930,
+          "overflowRight": -48,
+          "scrollDelta": 541,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.timesheet-board-panel",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 1141,
+          "width": 948,
+          "overflowRight": -39,
+          "scrollDelta": 533,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.timesheet-content",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1149,
+          "width": 964,
+          "overflowRight": -31,
+          "scrollDelta": 524,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1170,
+          "width": 1006,
+          "overflowRight": -10,
+          "scrollDelta": 504,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-data-page.ui-module-page.is-full-width",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1180,
+          "width": 1026,
+          "overflowRight": 0,
+          "scrollDelta": 493,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.production-structure-table-wrap",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 1122,
+          "width": 910,
+          "overflowRight": -58,
+          "scrollDelta": 8524,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.production-structure-table",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8465,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8465,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8465,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.production-structure-wide-column",
+          "text": "Условие растянутой смены",
+          "right": 9645,
+          "width": 260,
+          "overflowRight": 8465,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Руководитель производства Директор производства 1 —нет-даопциональноне требуется",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8465,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Рабочая доска мастера: распределение сменных задач по колонкам, исполнителям, ри",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 347,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Васильев Владимир Максимовна",
+          "right": 646,
+          "width": 123,
+          "overflowRight": -534,
+          "scrollDelta": 35,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Егоров Владимир Максимович",
+          "right": 339,
+          "width": 122,
+          "overflowRight": -841,
+          "scrollDelta": 25,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Васильев Полина Викторовна",
+          "right": 340,
+          "width": 123,
+          "overflowRight": -840,
+          "scrollDelta": 19,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "authPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "authSessionPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Рабочий стол исполнителя: назначенные сменные задания, инструкции, маршрут, ввод",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 262,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.auth-session-main-grid",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 1141,
+          "width": 948,
+          "overflowRight": -39,
+          "scrollDelta": 104,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.auth-session-content",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 1149,
+          "width": 964,
+          "overflowRight": -31,
+          "scrollDelta": 96,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Оперативное управление Рабочий стол Назначенные сменные задания, маршрут, инстру",
+          "right": 1170,
+          "width": 1006,
+          "overflowRight": -10,
+          "scrollDelta": 76,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.ui-panel.auth-session-panel",
+          "text": "Назначенные задания все рабочие столы Задания 0 0 открыто Распределено 0 шт. по ",
+          "right": 1245,
+          "width": 360,
+          "overflowRight": 65,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-head",
+          "text": "Назначенные задания все рабочие столы",
+          "right": 1230,
+          "width": 330,
+          "overflowRight": 50,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "roles",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.access-role-permission-table-wrap",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 1114,
+          "width": 626,
+          "overflowRight": -66,
+          "scrollDelta": 356,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-table-wrap.access-role-assignment-table-wrap",
+          "text": "Сотрудник Отдел / участок Авто-логика Роль после входа Алексеев Егор Максимович ",
+          "right": 1114,
+          "width": 626,
+          "overflowRight": -66,
+          "scrollDelta": 356,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "span",
+          "text": "Рабочий контур авторизации и доступа: роли, права на модули, действия и ручные н",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 327,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "table.directory-table.access-role-permission-table",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 289,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "planningTable",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Демо-представление Gantt в виде матрицы ресурсов и табличного реестра слотов.",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 88,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "th",
+          "text": "Документ",
+          "right": 715,
+          "width": 50,
+          "overflowRight": -465,
+          "scrollDelta": 17,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th",
+          "text": "Операция",
+          "right": 814,
+          "width": 50,
+          "overflowRight": -366,
+          "scrollDelta": 17,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "matrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Read-only матрица загрузки ресурсов по дням на основе текущих слотов Gantt.",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 65,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "supply",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.supply-gantt-shell",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 1130,
+          "width": 926,
+          "overflowRight": -50,
+          "scrollDelta": 2528,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-row",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 3657,
+          "width": 3452,
+          "overflowRight": 2477,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-cells",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3657,
+          "width": 3192,
+          "overflowRight": 2477,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group-row",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3657,
+          "width": 3192,
+          "overflowRight": 2477,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group",
+          "text": "Н38 14.09-20.09",
+          "right": 3657,
+          "width": 265,
+          "overflowRight": 2477,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-day-row",
+          "text": "29.06 30.06 01.07 02.07 03.07 04.07 05.07 06.07 07.07 08.07 09.07 10.07 11.07 12",
+          "right": 3657,
+          "width": 3192,
+          "overflowRight": 2477,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "shopMap",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.production-flow-lane",
+          "text": "Склад выдача и возврат 1активно 1очередь 8риск 1 рес. 7 оп. 100% Возврат из прои",
+          "right": 1128,
+          "width": 922,
+          "overflowRight": -52,
+          "scrollDelta": 852,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.production-flow-node.is-warning.is-tone-slate",
+          "text": "Упаковка маркировка и упаковка 0активно 1очередь 0риск 1 рес. 2 оп. 50% Маркиров",
+          "right": 1978,
+          "width": 168,
+          "overflowRight": 798,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.production-flow-node-head",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1968,
+          "width": 148,
+          "overflowRight": 788,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 788,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 788,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "маркировка и упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 788,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "visualSystem",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
+          "right": 469,
+          "width": 203,
+          "overflowRight": -711,
+          "scrollDelta": 253,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
+          "right": 469,
+          "width": 186,
+          "overflowRight": -711,
+          "scrollDelta": 153,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-table-wrap.visual-table-wrap",
+          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "right": 1155,
+          "width": 638,
+          "overflowRight": -25,
+          "scrollDelta": 84,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "образец круглого маркера, а не маркировка карточки стенда",
+          "right": 469,
+          "width": 254,
+          "overflowRight": -711,
+          "scrollDelta": 68,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "table.visual-system-table",
+          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "right": 1238,
+          "width": 720,
+          "overflowRight": 58,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "ДеревоТипСостояниеПолеДействия",
+          "right": 1238,
+          "width": 720,
+          "overflowRight": 58,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "employees",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "section.employee-hierarchy-layer.is-level-0.is-units",
+          "text": "Отдел 1 Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев По",
+          "right": 1085,
+          "width": 836,
+          "overflowRight": -95,
+          "scrollDelta": 449,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-row",
+          "text": "Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев Полина Вик",
+          "right": 1085,
+          "width": 773,
+          "overflowRight": -95,
+          "scrollDelta": 449,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.employee-hierarchy-layer.is-level-1.is-mixed",
+          "text": "Участки / люди 8 Слесарный участок 1 Начальник участка: Рябов Валентин Участок р",
+          "right": 1085,
+          "width": 836,
+          "overflowRight": -95,
+          "scrollDelta": 449,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-row",
+          "text": "Слесарный участок 1 Начальник участка: Рябов Валентин Участок ручного монтажа 1 ",
+          "right": 1085,
+          "width": 773,
+          "overflowRight": -95,
+          "scrollDelta": 449,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.employee-hierarchy-branch.is-wide",
+          "text": "Поддерево Отдел ручного монтажа 6 подраздел. · 29 чел. · 6 ресурсов Отдел 1 Отде",
+          "right": 1096,
+          "width": 858,
+          "overflowRight": -84,
+          "scrollDelta": 439,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-map.is-branch",
+          "text": "Отдел 1 Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев По",
+          "right": 1095,
+          "width": 856,
+          "overflowRight": -85,
+          "scrollDelta": 439,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "moduleId": "dispatch",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Модуль-заглушка: диспетчерская выведена из рабочего контура и сейчас не влияет н",
+          "right": 803,
+          "width": 384,
+          "overflowRight": -377,
+          "scrollDelta": 391,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 1007,
+          "width": 836,
+          "overflowRight": -17,
+          "scrollDelta": 2948,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.gantt-canvas",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-row",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3954,
+          "width": 118,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Плановый документ: количество, срок, расчетные блоки и подготовка передачи в пла",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 284,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 298,
+          "width": 98,
+          "overflowRight": -726,
+          "scrollDelta": 126,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "Произвести · Печатная плата BOM_для расчетттттта",
+          "right": 478,
+          "width": 177,
+          "overflowRight": -546,
+          "scrollDelta": 94,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 478,
+          "width": 177,
+          "overflowRight": -546,
+          "scrollDelta": 67,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Главная карта · 1 000 шт.",
+          "right": 269,
+          "width": 69,
+          "overflowRight": -755,
+          "scrollDelta": 59,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_ELF",
+          "right": 499,
+          "width": 98,
+          "overflowRight": -525,
+          "scrollDelta": 48,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Read-only реестр сменных заказ-нарядов, сменных листов, факта, передачи и остатк",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 409,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "1 заданий · Печатная плата BOM_для расчетттттта",
+          "right": 535,
+          "width": 112,
+          "overflowRight": -489,
+          "scrollDelta": 148,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 535,
+          "width": 112,
+          "overflowRight": -489,
+          "scrollDelta": 89,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "СЗН-20260622-D1-01",
+          "right": 402,
+          "width": 91,
+          "overflowRight": -622,
+          "scrollDelta": 33,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.speki-structure-table-wrap.route-object-table-wrap.ui-table-wrap",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 958,
+          "width": 470,
+          "overflowRight": -66,
+          "scrollDelta": 512,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.directory-table.speki-structure-table.route-object-table",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "colgroup",
+          "text": "",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "col.route-object-col-actions",
+          "text": "",
+          "right": 1469,
+          "width": 220,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Структура изделия: узлы, платы, вложенность и количество.",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 76,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "td.primary-cell",
+          "text": "Module; SoC; Wi-Fi/Bluetooth; transceiver; 4MB FLASH/PSRAM/520KB SRAM/448KB ROM;",
+          "right": 607,
+          "width": 118,
+          "overflowRight": -417,
+          "scrollDelta": 493,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Индуктивность Power Chip Shielded Multi-Layer 10uH 20% 1MHz Ferrite 100mA 780mOh",
+          "right": 607,
+          "width": 118,
+          "overflowRight": -417,
+          "scrollDelta": 461,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Микросхема LDO Regulator Pos 3.3V 0.8A 4-Pin(3+Tab) SOT-223 T/R / IC REG LDO 3.3",
+          "right": 607,
+          "width": 118,
+          "overflowRight": -417,
+          "scrollDelta": 442,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Микросхема DCDC 4.5V to 60 V Input, 3.5 A Step-Down Converter with Eco-mode 8-SO",
+          "right": 607,
+          "width": 118,
+          "overflowRight": -417,
+          "scrollDelta": 427,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Антенна керамическая SMD -0.5dBi Gain 2500MHz 2-Pin Case 18-4 T/R / ANTENNA CHIP",
+          "right": 607,
+          "width": 118,
+          "overflowRight": -417,
+          "scrollDelta": 424,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "td.primary-cell",
+          "text": "Кнопка тактовая N.O. SPST Round Button Gull Wing 0.05A 12VDC 1.5N SMD Embossed T",
+          "right": 607,
+          "width": 118,
+          "overflowRight": -417,
+          "scrollDelta": 381,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.directory-table-wrap.ui-table-wrap",
+          "text": "Операция Выбрать все 21 Возврат из производства 1 Выводной монтаж (пайка) 1 Выда",
+          "right": 967,
+          "width": 500,
+          "overflowRight": -57,
+          "scrollDelta": 622,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-menu",
+          "text": "Выбрать все 2 Активен 21 Отключен 1 Сбросить Применить",
+          "right": 1625,
+          "width": 260,
+          "overflowRight": 601,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "label.directory-filter-option.is-all",
+          "text": "Выбрать все 2",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 591,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-options",
+          "text": "Активен 21 Отключен 1",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 591,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-actions",
+          "text": "Сбросить Применить",
+          "right": 1615,
+          "width": 240,
+          "overflowRight": 591,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "button",
+          "text": "Применить",
+          "right": 1615,
+          "width": 74,
+          "overflowRight": 591,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.timesheet-table-wrap.ui-table-wrap",
+          "text": "Сотрудник Роль График 1пн2вт3ср4чт5пт6сб7вс8пн9вт10ср11чт12пт13сб14вс15пн16вт17с",
+          "right": 964,
+          "width": 750,
+          "overflowRight": -60,
+          "scrollDelta": 710,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 976,
+          "width": 774,
+          "overflowRight": -48,
+          "scrollDelta": 697,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.timesheet-board-panel",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 985,
+          "width": 792,
+          "overflowRight": -39,
+          "scrollDelta": 689,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.timesheet-content",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 993,
+          "width": 808,
+          "overflowRight": -31,
+          "scrollDelta": 680,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1014,
+          "width": 850,
+          "overflowRight": -10,
+          "scrollDelta": 660,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-data-page.ui-module-page.is-full-width",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 1024,
+          "width": 870,
+          "overflowRight": 0,
+          "scrollDelta": 649,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.production-structure-table-wrap",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 966,
+          "width": 754,
+          "overflowRight": -58,
+          "scrollDelta": 8680,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.production-structure-table",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.production-structure-wide-column",
+          "text": "Условие растянутой смены",
+          "right": 9645,
+          "width": 260,
+          "overflowRight": 8621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Руководитель производства Директор производства 1 —нет-даопциональноне требуется",
+          "right": 9645,
+          "width": 9432,
+          "overflowRight": 8621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Рабочая доска мастера: распределение сменных задач по колонкам, исполнителям, ри",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 466,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Васильев Владимир Максимовна",
+          "right": 644,
+          "width": 122,
+          "overflowRight": -380,
+          "scrollDelta": 36,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Егоров Владимир Максимович",
+          "right": 491,
+          "width": 122,
+          "overflowRight": -533,
+          "scrollDelta": 25,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Васильев Полина Викторовна",
+          "right": 339,
+          "width": 122,
+          "overflowRight": -685,
+          "scrollDelta": 20,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "authPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "authSessionPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Рабочий стол исполнителя: назначенные сменные задания, инструкции, маршрут, ввод",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 381,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.auth-session-main-grid",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 985,
+          "width": 792,
+          "overflowRight": -39,
+          "scrollDelta": 260,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.auth-session-content",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 993,
+          "width": 808,
+          "overflowRight": -31,
+          "scrollDelta": 252,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Оперативное управление Рабочий стол Назначенные сменные задания, маршрут, инстру",
+          "right": 1014,
+          "width": 850,
+          "overflowRight": -10,
+          "scrollDelta": 232,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.ui-panel.auth-session-panel",
+          "text": "Назначенные задания все рабочие столы Задания 0 0 открыто Распределено 0 шт. по ",
+          "right": 1245,
+          "width": 360,
+          "overflowRight": 221,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-head",
+          "text": "Назначенные задания все рабочие столы",
+          "right": 1230,
+          "width": 330,
+          "overflowRight": 206,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "roles",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.access-role-permission-table-wrap",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 958,
+          "width": 470,
+          "overflowRight": -66,
+          "scrollDelta": 512,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-table-wrap.access-role-assignment-table-wrap",
+          "text": "Сотрудник Отдел / участок Авто-логика Роль после входа Алексеев Егор Максимович ",
+          "right": 958,
+          "width": 470,
+          "overflowRight": -66,
+          "scrollDelta": 512,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "span",
+          "text": "Рабочий контур авторизации и доступа: роли, права на модули, действия и ручные н",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 446,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "table.directory-table.access-role-permission-table",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1469,
+          "width": 980,
+          "overflowRight": 445,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "planningTable",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Демо-представление Gantt в виде матрицы ресурсов и табличного реестра слотов.",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 207,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "th",
+          "text": "Документ",
+          "right": 697,
+          "width": 32,
+          "overflowRight": -327,
+          "scrollDelta": 35,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th",
+          "text": "Операция",
+          "right": 762,
+          "width": 32,
+          "overflowRight": -262,
+          "scrollDelta": 35,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "span.mes-signal.ui-status-token.is-neutral",
+          "text": "Запланировано",
+          "right": 949,
+          "width": 63,
+          "overflowRight": -75,
+          "scrollDelta": 27,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "span.mes-signal.ui-status-token.is-neutral",
+          "text": "Факт не внесен",
+          "right": 949,
+          "width": 63,
+          "overflowRight": -75,
+          "scrollDelta": 26,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "span.mes-signal.ui-status-token.is-neutral",
+          "text": "Факт не внесен",
+          "right": 949,
+          "width": 63,
+          "overflowRight": -75,
+          "scrollDelta": 26,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "matrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Read-only матрица загрузки ресурсов по дням на основе текущих слотов Gantt.",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 184,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "supply",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.supply-gantt-shell",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 974,
+          "width": 770,
+          "overflowRight": -50,
+          "scrollDelta": 2684,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-row",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 3657,
+          "width": 3452,
+          "overflowRight": 2633,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-cells",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3657,
+          "width": 3192,
+          "overflowRight": 2633,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group-row",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3657,
+          "width": 3192,
+          "overflowRight": 2633,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group",
+          "text": "Н38 14.09-20.09",
+          "right": 3657,
+          "width": 265,
+          "overflowRight": 2633,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-day-row",
+          "text": "29.06 30.06 01.07 02.07 03.07 04.07 05.07 06.07 07.07 08.07 09.07 10.07 11.07 12",
+          "right": 3657,
+          "width": 3192,
+          "overflowRight": 2633,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "shopMap",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.production-flow-lane",
+          "text": "Склад выдача и возврат 1активно 1очередь 8риск 1 рес. 7 оп. 100% Возврат из прои",
+          "right": 972,
+          "width": 766,
+          "overflowRight": -52,
+          "scrollDelta": 1008,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.production-flow-node.is-warning.is-tone-slate",
+          "text": "Упаковка маркировка и упаковка 0активно 1очередь 0риск 1 рес. 2 оп. 50% Маркиров",
+          "right": 1978,
+          "width": 168,
+          "overflowRight": 954,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.production-flow-node-head",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1968,
+          "width": 148,
+          "overflowRight": 944,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 944,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 944,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "маркировка и упаковка",
+          "right": 1968,
+          "width": 113,
+          "overflowRight": 944,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "visualSystem",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
+          "right": 560,
+          "width": 294,
+          "overflowRight": -464,
+          "scrollDelta": 162,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Витрина UI-kit, сигналов, Gantt-состояний и визуальных правил прототипа.",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 159,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.ui-gantt-bar",
+          "text": "план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
+          "right": 575,
+          "width": 179,
+          "overflowRight": -449,
+          "scrollDelta": 62,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
+          "right": 560,
+          "width": 277,
+          "overflowRight": -464,
+          "scrollDelta": 62,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "td",
+          "text": "Выводной монтаж",
+          "right": 356,
+          "width": 59,
+          "overflowRight": -668,
+          "scrollDelta": 54,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "td",
+          "text": "Выводной монтаж",
+          "right": 633,
+          "width": 59,
+          "overflowRight": -391,
+          "scrollDelta": 54,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "employees",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "section.employee-hierarchy-layer.is-level-0.is-units",
+          "text": "Отдел 1 Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев По",
+          "right": 929,
+          "width": 680,
+          "overflowRight": -95,
+          "scrollDelta": 605,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-row",
+          "text": "Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев Полина Вик",
+          "right": 929,
+          "width": 617,
+          "overflowRight": -95,
+          "scrollDelta": 605,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.employee-hierarchy-layer.is-level-1.is-mixed",
+          "text": "Участки / люди 8 Слесарный участок 1 Начальник участка: Рябов Валентин Участок р",
+          "right": 929,
+          "width": 680,
+          "overflowRight": -95,
+          "scrollDelta": 605,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-row",
+          "text": "Слесарный участок 1 Начальник участка: Рябов Валентин Участок ручного монтажа 1 ",
+          "right": 929,
+          "width": 617,
+          "overflowRight": -95,
+          "scrollDelta": 605,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.employee-hierarchy-branch.is-wide",
+          "text": "Поддерево Отдел ручного монтажа 6 подраздел. · 29 чел. · 6 ресурсов Отдел 1 Отде",
+          "right": 940,
+          "width": 702,
+          "overflowRight": -84,
+          "scrollDelta": 595,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.employee-hierarchy-map.is-branch",
+          "text": "Отдел 1 Отдел ручного монтажа Старший мастер отдела ручного монтажа: Васильев По",
+          "right": 939,
+          "width": 700,
+          "overflowRight": -85,
+          "scrollDelta": 595,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "moduleId": "dispatch",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Модуль-заглушка: диспетчерская выведена из рабочего контура и сейчас не влияет н",
+          "right": 648,
+          "width": 265,
+          "overflowRight": -376,
+          "scrollDelta": 510,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Gantt is an absolute-positioned timeline; narrow smoke checks blank/runtime/guardrails, not full mobile UX.",
+      "candidates": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 419,
+          "width": 408,
+          "overflowRight": -11,
+          "scrollDelta": 3376,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-day-cell-row",
+          "text": "Пн 22.06 2026 Вт 23.06 23.06 Ср 24.06 24.06 Чт 25.06 25.06 Пт 26.06 26.06 Сб 27.",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cell.is-week-start",
+          "text": "Пн 20.07 20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Planning order labor table is data-dense; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "Произвести · Печатная плата BOM_для расчетттттта",
+          "right": 166,
+          "width": 19,
+          "overflowRight": -264,
+          "scrollDelta": 252,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 166,
+          "width": 19,
+          "overflowRight": -264,
+          "scrollDelta": 225,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small.route-task-output-hint",
+          "text": "Выход: Печатная плата BOM_для расчетттттта",
+          "right": 166,
+          "width": 19,
+          "overflowRight": -264,
+          "scrollDelta": 200,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "Технический контроль промежуточный",
+          "right": 166,
+          "width": 49,
+          "overflowRight": -264,
+          "scrollDelta": 177,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Отдел нанесения влагозащитных покрытий",
+          "right": 166,
+          "width": 49,
+          "overflowRight": -264,
+          "scrollDelta": 176,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Произвести · Производимая позиция",
+          "right": 166,
+          "width": 19,
+          "overflowRight": -264,
+          "scrollDelta": 173,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "1 заданий · Печатная плата BOM_для расчетттттта",
+          "right": 187,
+          "width": 33,
+          "overflowRight": -243,
+          "scrollDelta": 227,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 187,
+          "width": 33,
+          "overflowRight": -243,
+          "scrollDelta": 168,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "Выдача в производство",
+          "right": 134,
+          "width": 7,
+          "overflowRight": -296,
+          "scrollDelta": 130,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "печатный пакет заказ-наряда",
+          "right": 134,
+          "width": 37,
+          "overflowRight": -296,
+          "scrollDelta": 116,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "section.shift-work-orders-transfer",
+          "text": "До Выдача в производство Склад Сейчас Выдача в производство Склад · текущий шаг ",
+          "right": 364,
+          "width": 298,
+          "overflowRight": -66,
+          "scrollDelta": 106,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "операция · 1 заданий",
+          "right": 134,
+          "width": 7,
+          "overflowRight": -296,
+          "scrollDelta": 101,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Route tree editing is data-dense; narrow smoke verifies render and table contract only.",
+      "candidates": [
+        {
+          "selector": "div.speki-structure-table-wrap.route-object-table-wrap.ui-table-wrap",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 364,
+          "width": 30,
+          "overflowRight": -66,
+          "scrollDelta": 482,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.directory-table.speki-structure-table.route-object-table",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 415,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "colgroup",
+          "text": "",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 415,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "col.route-object-col-actions",
+          "text": "",
+          "right": 845,
+          "width": 220,
+          "overflowRight": 415,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 415,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 415,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Specification tree editing is data-dense; narrow smoke verifies render and table contract only.",
+      "candidates": [
+        {
+          "selector": "span",
+          "text": "Выберите изделие слева или создайте новое, чтобы объединить платы и номенклатуру",
+          "right": 366,
+          "width": 34,
+          "overflowRight": -64,
+          "scrollDelta": 71,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.bom-import-empty.module-preview-empty.ui-empty-state",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 390,
+          "width": 82,
+          "overflowRight": -40,
+          "scrollDelta": 47,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 402,
+          "width": 106,
+          "overflowRight": -28,
+          "scrollDelta": 35,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.ui-panel.speki-spec-table-panel",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 411,
+          "width": 124,
+          "overflowRight": -19,
+          "scrollDelta": 27,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.speki-module-content",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 419,
+          "width": 140,
+          "overflowRight": -11,
+          "scrollDelta": 18,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "strong",
+          "text": "01 · Список номенклатуры",
+          "right": 366,
+          "width": 34,
+          "overflowRight": -64,
+          "scrollDelta": 77,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "header.directory-header.ui-module-header",
+          "text": "Список компонентов Объект не выбран Выберите позицию в таблице или создайте нову",
+          "right": 399,
+          "width": 100,
+          "overflowRight": -31,
+          "scrollDelta": 46,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-table-wrap.directory-table-wrap.nomenclature-table-wrap",
+          "text": "Наименование Артикул Раздел Корпус Ед. Производитель Статус Действия Печатная пл",
+          "right": 364,
+          "width": 30,
+          "overflowRight": -66,
+          "scrollDelta": 46,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Список компонентов Объект не выбран Выберите позицию в таблице или создайте нову",
+          "right": 420,
+          "width": 142,
+          "overflowRight": -10,
+          "scrollDelta": 26,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.directory-filter-menu",
+          "text": "Выбрать все 2 Активен 21 Отключен 1 Сбросить Применить",
+          "right": 1061,
+          "width": 260,
+          "overflowRight": 631,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "label.directory-filter-option.is-all",
+          "text": "Выбрать все 2",
+          "right": 1051,
+          "width": 240,
+          "overflowRight": 621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-options",
+          "text": "Активен 21 Отключен 1",
+          "right": 1051,
+          "width": 240,
+          "overflowRight": 621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-actions",
+          "text": "Сбросить Применить",
+          "right": 1051,
+          "width": 240,
+          "overflowRight": 621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "button",
+          "text": "Применить",
+          "right": 1051,
+          "width": 74,
+          "overflowRight": 621,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "label.directory-filter-option",
+          "text": "Активен 21",
+          "right": 1049,
+          "width": 238,
+          "overflowRight": 619,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Timesheet is a dense calendar grid; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "div.timesheet-table-wrap.ui-table-wrap",
+          "text": "Сотрудник Роль График 1пн2вт3ср4чт5пт6сб7вс8пн9вт10ср11чт12пт13сб14вс15пн16вт17с",
+          "right": 370,
+          "width": 310,
+          "overflowRight": -60,
+          "scrollDelta": 1150,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 382,
+          "width": 334,
+          "overflowRight": -48,
+          "scrollDelta": 1137,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.timesheet-board-panel",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 391,
+          "width": 352,
+          "overflowRight": -39,
+          "scrollDelta": 1129,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.timesheet-content",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 399,
+          "width": 368,
+          "overflowRight": -31,
+          "scrollDelta": 1120,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 420,
+          "width": 410,
+          "overflowRight": -10,
+          "scrollDelta": 1100,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "#app",
+          "text": "MES v.1.491 Табель Система Модули Планирование нагрузки Планирование Заказ-наряд",
+          "right": 430,
+          "width": 430,
+          "overflowRight": 0,
+          "scrollDelta": 1089,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Production structure matrix is a wide matrix editor; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.production-structure-table-wrap",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 372,
+          "width": 314,
+          "overflowRight": -58,
+          "scrollDelta": 9120,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.production-structure-table",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9061,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9061,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9061,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.production-structure-wide-column",
+          "text": "Условие растянутой смены",
+          "right": 9491,
+          "width": 260,
+          "overflowRight": 9061,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Руководитель производства Директор производства 1 —нет-даопциональноне требуется",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9061,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.shift-calendar-control",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена",
+          "right": 382,
+          "width": 334,
+          "overflowRight": -48,
+          "scrollDelta": 130,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.shift-master-board-top-row",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена План 12 000 шт. Распределено 0 шт. Факт ",
+          "right": 382,
+          "width": 334,
+          "overflowRight": -48,
+          "scrollDelta": 129,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.shift-master-board-top-controls",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена План 12 000 шт. Распределено 0 шт. Факт ",
+          "right": 391,
+          "width": 352,
+          "overflowRight": -39,
+          "scrollDelta": 121,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.shift-master-board-content",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена План 12 000 шт. Распределено 0 шт. Факт ",
+          "right": 399,
+          "width": 368,
+          "overflowRight": -31,
+          "scrollDelta": 112,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Оперативное управление Мастерская Рабочий стол мастера: сменные задачи, распреде",
+          "right": 420,
+          "width": 410,
+          "overflowRight": -10,
+          "scrollDelta": 92,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span.shift-calendar-range",
+          "text": "22.06.2026 · 1 смена",
+          "right": 511,
+          "width": 104,
+          "overflowRight": 81,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "authPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "authSessionPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.auth-session-main-grid",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 391,
+          "width": 352,
+          "overflowRight": -39,
+          "scrollDelta": 700,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.auth-session-content",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 399,
+          "width": 368,
+          "overflowRight": -31,
+          "scrollDelta": 692,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Оперативное управление Рабочий стол Назначенные сменные задания, маршрут, инстру",
+          "right": 420,
+          "width": 410,
+          "overflowRight": -10,
+          "scrollDelta": 672,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.ui-panel.auth-session-panel",
+          "text": "Назначенные задания все рабочие столы Задания 0 0 открыто Распределено 0 шт. по ",
+          "right": 1091,
+          "width": 360,
+          "overflowRight": 661,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-head",
+          "text": "Назначенные задания все рабочие столы",
+          "right": 1076,
+          "width": 330,
+          "overflowRight": 646,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "Задания 0 0 открыто Распределено 0 шт. по видимым заданиям Факт 0 шт. 0 закрыто ",
+          "right": 1076,
+          "width": 330,
+          "overflowRight": 646,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "roles",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.access-role-permission-table-wrap",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 364,
+          "width": 30,
+          "overflowRight": -66,
+          "scrollDelta": 952,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-table-wrap.access-role-assignment-table-wrap",
+          "text": "Сотрудник Отдел / участок Авто-логика Роль после входа Алексеев Егор Максимович ",
+          "right": 364,
+          "width": 30,
+          "overflowRight": -66,
+          "scrollDelta": 952,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.directory-table.access-role-permission-table",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th",
+          "text": "Настр.",
+          "right": 1315,
+          "width": 74,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "planningTable",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Planning table is a dense analytical table; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 364,
+          "width": 30,
+          "overflowRight": -66,
+          "scrollDelta": 952,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.planning-table-matrix",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.is-weekend",
+          "text": "05.07вс",
+          "right": 1315,
+          "width": 60,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "matrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 364,
+          "width": 30,
+          "overflowRight": -66,
+          "scrollDelta": 952,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.planning-table-matrix",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.is-weekend",
+          "text": "05.07вс",
+          "right": 1315,
+          "width": 60,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 885,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "supply",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Supply timeline/table can require internal horizontal scroll on narrow screens.",
+      "candidates": [
+        {
+          "selector": "div.supply-gantt-shell",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 380,
+          "width": 330,
+          "overflowRight": -50,
+          "scrollDelta": 3124,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-row",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 3503,
+          "width": 3452,
+          "overflowRight": 3073,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-cells",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3503,
+          "width": 3192,
+          "overflowRight": 3073,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group-row",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3503,
+          "width": 3192,
+          "overflowRight": 3073,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group",
+          "text": "Н38 14.09-20.09",
+          "right": 3503,
+          "width": 265,
+          "overflowRight": 3073,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-day-row",
+          "text": "29.06 30.06 01.07 02.07 03.07 04.07 05.07 06.07 07.07 08.07 09.07 10.07 11.07 12",
+          "right": 3503,
+          "width": 3192,
+          "overflowRight": 3073,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "shopMap",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.production-flow-lane",
+          "text": "Склад выдача и возврат 1активно 1очередь 8риск 1 рес. 7 оп. 100% Возврат из прои",
+          "right": 380,
+          "width": 330,
+          "overflowRight": -50,
+          "scrollDelta": 1324,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.production-flow-node.is-warning.is-tone-slate",
+          "text": "Упаковка маркировка и упаковка 0активно 1очередь 0риск 1 рес. 2 оп. 50% Маркиров",
+          "right": 1702,
+          "width": 156,
+          "overflowRight": 1272,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.production-flow-node-head",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1692,
+          "width": 136,
+          "overflowRight": 1262,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1692,
+          "width": 101,
+          "overflowRight": 1262,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Упаковка",
+          "right": 1692,
+          "width": 101,
+          "overflowRight": 1262,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "маркировка и упаковка",
+          "right": 1692,
+          "width": 101,
+          "overflowRight": 1262,
+          "scrollDelta": 12,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "visualSystem",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.visual-table-wrap",
+          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "right": 409,
+          "width": 388,
+          "overflowRight": -21,
+          "scrollDelta": 334,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.visual-system-table",
+          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 312,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "ДеревоТипСостояниеПолеДействия",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 312,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "ДеревоТипСостояниеПолеДействия",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 312,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th",
+          "text": "Действия",
+          "right": 742,
+          "width": 76,
+          "overflowRight": 312,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Финальная сборка узел готово Плата BOM_ELF расчет ожидание SMT монтаж UX риск",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 312,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "employees",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "moduleId": "dispatch",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Gantt is an absolute-positioned timeline; narrow smoke checks blank/runtime/guardrails, not full mobile UX.",
+      "candidates": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 379,
+          "width": 368,
+          "overflowRight": -11,
+          "scrollDelta": 3416,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-day-cell-row",
+          "text": "Пн 22.06 2026 Вт 23.06 23.06 Ср 24.06 24.06 Чт 25.06 25.06 Пт 26.06 26.06 Сб 27.",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cell.is-week-start",
+          "text": "Пн 20.07 20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Planning order labor table is data-dense; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "Произвести · Печатная плата BOM_для расчетттттта",
+          "right": 151,
+          "width": 4,
+          "overflowRight": -239,
+          "scrollDelta": 267,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 151,
+          "width": 4,
+          "overflowRight": -239,
+          "scrollDelta": 240,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small.route-task-output-hint",
+          "text": "Выход: Печатная плата BOM_для расчетттттта",
+          "right": 151,
+          "width": 4,
+          "overflowRight": -239,
+          "scrollDelta": 215,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "strong",
+          "text": "Технический контроль промежуточный",
+          "right": 151,
+          "width": 34,
+          "overflowRight": -239,
+          "scrollDelta": 192,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Отдел нанесения влагозащитных покрытий",
+          "right": 151,
+          "width": 34,
+          "overflowRight": -239,
+          "scrollDelta": 191,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Произвести · Производимая позиция",
+          "right": 151,
+          "width": 4,
+          "overflowRight": -239,
+          "scrollDelta": 188,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "small",
+          "text": "1 заданий · Печатная плата BOM_для расчетттттта",
+          "right": 170,
+          "width": 26,
+          "overflowRight": -220,
+          "scrollDelta": 234,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "small",
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 170,
+          "width": 26,
+          "overflowRight": -220,
+          "scrollDelta": 175,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "section.shift-work-orders-transfer",
+          "text": "До Выдача в производство Склад Сейчас Выдача в производство Склад · текущий шаг ",
+          "right": 324,
+          "width": 258,
+          "overflowRight": -66,
+          "scrollDelta": 146,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "Проблемы / Report 0 записей · 0 фото Проблемы по этому СЗН не зафиксированы. Зак",
+          "right": 336,
+          "width": 282,
+          "overflowRight": -54,
+          "scrollDelta": 134,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "печатный пакет заказ-наряда",
+          "right": 124,
+          "width": 27,
+          "overflowRight": -266,
+          "scrollDelta": 126,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "section.module-panel.ui-panel.shift-work-orders-panel",
+          "text": "СЗН-20260622-D1-01 Печать СЗН Пакет ЗН Мастерская Проблемы / Report 0 записей · ",
+          "right": 351,
+          "width": 312,
+          "overflowRight": -39,
+          "scrollDelta": 120,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Route tree editing is data-dense; narrow smoke verifies render and table contract only.",
+      "candidates": [
+        {
+          "selector": "div.speki-structure-table-wrap.route-object-table-wrap.ui-table-wrap",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 336,
+          "width": 2,
+          "overflowRight": -54,
+          "scrollDelta": 510,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.directory-table.speki-structure-table.route-object-table",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм. 1 Финальная сборка Отдел не выб",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 455,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "colgroup",
+          "text": "",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 455,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "col.route-object-col-actions",
+          "text": "",
+          "right": 845,
+          "width": 220,
+          "overflowRight": 455,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 455,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "П/п Объект / операция Коэф. Физ. кол-во Ед. изм.",
+          "right": 845,
+          "width": 510,
+          "overflowRight": 455,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Specification tree editing is data-dense; narrow smoke verifies render and table contract only.",
+      "candidates": [
+        {
+          "selector": "div.bom-import-empty.module-preview-empty.ui-empty-state",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 356,
+          "width": 48,
+          "overflowRight": -34,
+          "scrollDelta": 81,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Выберите изделие слева или создайте новое, чтобы объединить платы и номенклатуру",
+          "right": 360,
+          "width": 28,
+          "overflowRight": -30,
+          "scrollDelta": 77,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 362,
+          "width": 66,
+          "overflowRight": -28,
+          "scrollDelta": 75,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.ui-panel.speki-spec-table-panel",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 371,
+          "width": 84,
+          "overflowRight": -19,
+          "scrollDelta": 67,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.speki-module-content",
+          "text": "Изделие не выбрано Выберите изделие слева или создайте новое, чтобы объединить п",
+          "right": 379,
+          "width": 100,
+          "overflowRight": -11,
+          "scrollDelta": 58,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Изделие не выбрано",
+          "right": 360,
+          "width": 28,
+          "overflowRight": -30,
+          "scrollDelta": 22,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "header.directory-header.ui-module-header",
+          "text": "Список компонентов Объект не выбран Выберите позицию в таблице или создайте нову",
+          "right": 359,
+          "width": 60,
+          "overflowRight": -31,
+          "scrollDelta": 86,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-table-wrap.directory-table-wrap.nomenclature-table-wrap",
+          "text": "Наименование Артикул Раздел Корпус Ед. Производитель Статус Действия Печатная пл",
+          "right": 336,
+          "width": 2,
+          "overflowRight": -54,
+          "scrollDelta": 74,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Список компонентов Объект не выбран Выберите позицию в таблице или создайте нову",
+          "right": 380,
+          "width": 102,
+          "overflowRight": -10,
+          "scrollDelta": 66,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div",
+          "text": "Список компонентов Объект не выбран Выберите позицию в таблице или создайте нову",
+          "right": 445,
+          "width": 136,
+          "overflowRight": 55,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "h2",
+          "text": "Объект не выбран",
+          "right": 445,
+          "width": 136,
+          "overflowRight": 55,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "p",
+          "text": "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактиров",
+          "right": 445,
+          "width": 136,
+          "overflowRight": 55,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.directory-filter-menu",
+          "text": "Выбрать все 2 Активен 21 Отключен 1 Сбросить Применить",
+          "right": 1061,
+          "width": 260,
+          "overflowRight": 671,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "label.directory-filter-option.is-all",
+          "text": "Выбрать все 2",
+          "right": 1051,
+          "width": 240,
+          "overflowRight": 661,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-options",
+          "text": "Активен 21 Отключен 1",
+          "right": 1051,
+          "width": 240,
+          "overflowRight": 661,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.directory-filter-actions",
+          "text": "Сбросить Применить",
+          "right": 1051,
+          "width": 240,
+          "overflowRight": 661,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "button",
+          "text": "Применить",
+          "right": 1051,
+          "width": 74,
+          "overflowRight": 661,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "label.directory-filter-option",
+          "text": "Активен 21",
+          "right": 1049,
+          "width": 238,
+          "overflowRight": 659,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Timesheet is a dense calendar grid; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "div.timesheet-table-wrap.ui-table-wrap",
+          "text": "Сотрудник Роль График 1пн2вт3ср4чт5пт6сб7вс8пн9вт10ср11чт12пт13сб14вс15пн16вт17с",
+          "right": 330,
+          "width": 270,
+          "overflowRight": -60,
+          "scrollDelta": 1190,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 342,
+          "width": 294,
+          "overflowRight": -48,
+          "scrollDelta": 1177,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.timesheet-board-panel",
+          "text": "График работы сотрудников Клик по ячейке открывает редактор дня. Клик по графику",
+          "right": 351,
+          "width": 312,
+          "overflowRight": -39,
+          "scrollDelta": 1169,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.timesheet-content",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 359,
+          "width": 328,
+          "overflowRight": -31,
+          "scrollDelta": 1160,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Рабочий календарь Табель · июнь 2026 г. Производственный календарь сотрудников: ",
+          "right": 380,
+          "width": 370,
+          "overflowRight": -10,
+          "scrollDelta": 1140,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "#app",
+          "text": "MES v.1.491 Табель Система Модули Планирование нагрузки Планирование Заказ-наряд",
+          "right": 390,
+          "width": 390,
+          "overflowRight": 0,
+          "scrollDelta": 1129,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Production structure matrix is a wide matrix editor; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.production-structure-table-wrap",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 332,
+          "width": 274,
+          "overflowRight": -58,
+          "scrollDelta": 9160,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.production-structure-table",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9101,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9101,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "СтруктураКол-воРаспределяет работуПолучает работу после распределения в системеИ",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9101,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.production-structure-wide-column",
+          "text": "Условие растянутой смены",
+          "right": 9491,
+          "width": 260,
+          "overflowRight": 9101,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Руководитель производства Директор производства 1 —нет-даопциональноне требуется",
+          "right": 9491,
+          "width": 9432,
+          "overflowRight": 9101,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.shift-calendar-control",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена",
+          "right": 342,
+          "width": 294,
+          "overflowRight": -48,
+          "scrollDelta": 170,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.shift-master-board-top-row",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена План 12 000 шт. Распределено 0 шт. Факт ",
+          "right": 342,
+          "width": 294,
+          "overflowRight": -48,
+          "scrollDelta": 169,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.shift-master-board-top-controls",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена План 12 000 шт. Распределено 0 шт. Факт ",
+          "right": 351,
+          "width": 312,
+          "overflowRight": -39,
+          "scrollDelta": 161,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.shift-master-board-content",
+          "text": "Дата смены Сегодня 22.06.2026 · 1 смена План 12 000 шт. Распределено 0 шт. Факт ",
+          "right": 359,
+          "width": 328,
+          "overflowRight": -31,
+          "scrollDelta": 152,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Оперативное управление Мастерская Рабочий стол мастера: сменные задачи, распреде",
+          "right": 380,
+          "width": 370,
+          "overflowRight": -10,
+          "scrollDelta": 132,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span.shift-calendar-range",
+          "text": "22.06.2026 · 1 смена",
+          "right": 511,
+          "width": 104,
+          "overflowRight": 121,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "authPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": []
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "authSessionPrototype",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.auth-session-main-grid",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 351,
+          "width": 312,
+          "overflowRight": -39,
+          "scrollDelta": 740,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.module-data-content.ui-module-content.auth-session-content",
+          "text": "Рабочая карточка назначений нет Нет назначенных заданий Рабочий стол заполнится ",
+          "right": 359,
+          "width": 328,
+          "overflowRight": -31,
+          "scrollDelta": 732,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.directory-workspace.module-data-workspace.ui-module-workspace",
+          "text": "Оперативное управление Рабочий стол Назначенные сменные задания, маршрут, инстру",
+          "right": 380,
+          "width": 370,
+          "overflowRight": -10,
+          "scrollDelta": 712,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.module-panel.ui-panel.auth-session-panel",
+          "text": "Назначенные задания все рабочие столы Задания 0 0 открыто Распределено 0 шт. по ",
+          "right": 1091,
+          "width": 360,
+          "overflowRight": 701,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-head",
+          "text": "Назначенные задания все рабочие столы",
+          "right": 1076,
+          "width": 330,
+          "overflowRight": 686,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.ui-panel-body",
+          "text": "Задания 0 0 открыто Распределено 0 шт. по видимым заданиям Факт 0 шт. 0 закрыто ",
+          "right": 1076,
+          "width": 330,
+          "overflowRight": 686,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "roles",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.access-role-permission-table-wrap",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 336,
+          "width": 2,
+          "overflowRight": -54,
+          "scrollDelta": 980,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.ui-table-wrap.access-role-assignment-table-wrap",
+          "text": "Сотрудник Отдел / участок Авто-логика Роль после входа Алексеев Егор Максимович ",
+          "right": 336,
+          "width": 2,
+          "overflowRight": -54,
+          "scrollDelta": 980,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.directory-table.access-role-permission-table",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр. Планирование Диаграмма нагрузки: ",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Модуль Группа ВидитПравитПечатьНазн.Утв.Настр.",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th",
+          "text": "Настр.",
+          "right": 1315,
+          "width": 74,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "planningTable",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Planning table is a dense analytical table; narrow smoke allows internal table scroll.",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 336,
+          "width": 2,
+          "overflowRight": -54,
+          "scrollDelta": 980,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.planning-table-matrix",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.is-weekend",
+          "text": "05.07вс",
+          "right": 1315,
+          "width": 60,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "matrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 336,
+          "width": 2,
+          "overflowRight": -54,
+          "scrollDelta": 980,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.planning-table-matrix",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th.is-weekend",
+          "text": "05.07вс",
+          "right": 1315,
+          "width": 60,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
+          "right": 1315,
+          "width": 980,
+          "overflowRight": 925,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "supply",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "Supply timeline/table can require internal horizontal scroll on narrow screens.",
+      "candidates": [
+        {
+          "selector": "div.supply-gantt-shell",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 340,
+          "width": 290,
+          "overflowRight": -50,
+          "scrollDelta": 3164,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-row",
+          "text": "Компоненты дни внутри недель Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30",
+          "right": 3503,
+          "width": 3452,
+          "overflowRight": 3113,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-timeline-cells",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3503,
+          "width": 3192,
+          "overflowRight": 3113,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group-row",
+          "text": "Н27 29.06-05.07 Н28 06.07-12.07 Н29 13.07-19.07 Н30 20.07-26.07 Н31 27.07-02.08 ",
+          "right": 3503,
+          "width": 3192,
+          "overflowRight": 3113,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-week-group",
+          "text": "Н38 14.09-20.09",
+          "right": 3503,
+          "width": 265,
+          "overflowRight": 3113,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.supply-day-row",
+          "text": "29.06 30.06 01.07 02.07 03.07 04.07 05.07 06.07 07.07 08.07 09.07 10.07 11.07 12",
+          "right": 3503,
+          "width": 3192,
+          "overflowRight": 3113,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "shopMap",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.production-flow-lane",
+          "text": "Склад выдача и возврат 1активно 1очередь 8риск 1 рес. 7 оп. 100% Возврат из прои",
+          "right": 340,
+          "width": 290,
+          "overflowRight": -50,
+          "scrollDelta": 1364,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "article.production-flow-node.is-warning.is-tone-slate",
+          "text": "Упаковка маркировка и упаковка 0активно 1очередь 0риск 1 рес. 2 оп. 50% Маркиров",
+          "right": 1702,
+          "width": 156,
+          "overflowRight": 1312,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.production-flow-node-head",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1692,
+          "width": 136,
+          "overflowRight": 1302,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "span",
+          "text": "Упаковка маркировка и упаковка",
+          "right": 1692,
+          "width": 101,
+          "overflowRight": 1302,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Упаковка",
+          "right": 1692,
+          "width": 101,
+          "overflowRight": 1302,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "small",
+          "text": "маркировка и упаковка",
+          "right": 1692,
+          "width": 101,
+          "overflowRight": 1302,
+          "scrollDelta": 12,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "visualSystem",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div.ui-table-wrap.visual-table-wrap",
+          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "right": 369,
+          "width": 348,
+          "overflowRight": -21,
+          "scrollDelta": 374,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "table.visual-system-table",
+          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 352,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "thead",
+          "text": "ДеревоТипСостояниеПолеДействия",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 352,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tr",
+          "text": "ДеревоТипСостояниеПолеДействия",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 352,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "th",
+          "text": "Действия",
+          "right": 742,
+          "width": 76,
+          "overflowRight": 352,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "tbody",
+          "text": "Финальная сборка узел готово Плата BOM_ELF расчет ожидание SMT монтаж UX риск",
+          "right": 742,
+          "width": 720,
+          "overflowRight": 352,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "employees",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "strong",
+          "text": "Отдел нанесения влагозащитных покрытий",
+          "right": 295,
+          "width": 200,
+          "overflowRight": -95,
+          "scrollDelta": 34,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "strong",
+          "text": "Отдел программной подготовки изделий",
+          "right": 295,
+          "width": 200,
+          "overflowRight": -95,
+          "scrollDelta": 20,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "moduleId": "dispatch",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "limitedSupport": "",
+      "candidates": [
+        {
+          "selector": "div",
+          "text": "Модуль отключен Диспетчерская Функциональность диспетчерской выведена из рабочег",
+          "right": 296,
+          "width": 134,
+          "overflowRight": -94,
+          "scrollDelta": 33,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "h1",
+          "text": "Диспетчерская",
+          "right": 296,
+          "width": 134,
+          "overflowRight": -94,
+          "scrollDelta": 33,
+          "visible": true,
+          "isAllowedContainer": false
+        }
+      ]
+    }
+  ]
+}

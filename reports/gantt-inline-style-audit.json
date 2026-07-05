@@ -1,0 +1,512 @@
+{
+  "generatedAt": "2026-07-05T04:50:15.435Z",
+  "sourcePath": "src/app.js",
+  "ranges": [
+    {
+      "id": "runtime-render",
+      "start": 6660,
+      "end": 6740
+    },
+    {
+      "id": "toolbar",
+      "start": 33680,
+      "end": 33860
+    },
+    {
+      "id": "timeline-rows",
+      "start": 33940,
+      "end": 34520
+    },
+    {
+      "id": "slots",
+      "start": 34880,
+      "end": 35520
+    },
+    {
+      "id": "dependencies",
+      "start": 35600,
+      "end": 35960
+    },
+    {
+      "id": "overlays",
+      "start": 37070,
+      "end": 37490
+    }
+  ],
+  "summary": {
+    "entries": 20,
+    "geometry": 20,
+    "geometryCssVariable": 0,
+    "visualViolations": 0,
+    "unknownWarnings": 0
+  },
+  "entries": [
+    {
+      "rangeId": "toolbar",
+      "line": 33785,
+      "style": "height:${TIMELINE_HEIGHT}px;",
+      "keys": [
+        "height"
+      ],
+      "keyClassifications": [
+        {
+          "key": "height",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "toolbar",
+      "line": 33793,
+      "style": "width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;",
+      "keys": [
+        "width",
+        "left"
+      ],
+      "keyClassifications": [
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "left",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "toolbar",
+      "line": 33802,
+      "style": "left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "toolbar",
+      "line": 33815,
+      "style": "left:${group.startIndex * scaleInfo.cellWidth}px; width:${group.dayCount * scaleInfo.cellWidth}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "toolbar",
+      "line": 33826,
+      "style": "left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "toolbar",
+      "line": 33856,
+      "style": "left:${round(boundary.left)}px;",
+      "keys": [
+        "left"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "timeline-rows",
+      "line": 34265,
+      "style": "height:${height}px;",
+      "keys": [
+        "height"
+      ],
+      "keyClassifications": [
+        {
+          "key": "height",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "timeline-rows",
+      "line": 34267,
+      "style": "left:${round(segment.left)}px; width:${round(segment.width)}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "timeline-rows",
+      "line": 34299,
+      "style": "width:${progress}%",
+      "keys": [
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "timeline-rows",
+      "line": 34328,
+      "style": "width:${progress}%",
+      "keys": [
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "slots",
+      "line": 35062,
+      "style": "--segment-left:${round(segment.left)}%; --segment-width:${round(segment.width)}%;",
+      "keys": [
+        "--segment-left",
+        "--segment-width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "--segment-left",
+          "classification": "geometry"
+        },
+        {
+          "key": "--segment-width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "slots",
+      "line": 35104,
+      "style": "--slot-validation-progress:${Math.round(state.validationPercent || 0)}%; --slot-fact-progress:${Math.round(state.factPercent || 0)}%;",
+      "keys": [
+        "--slot-validation-progress",
+        "--slot-fact-progress"
+      ],
+      "keyClassifications": [
+        {
+          "key": "--slot-validation-progress",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-fact-progress",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "slots",
+      "line": 35178,
+      "style": "left:${segment.offset}px; width:${segment.width}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "slots",
+      "line": 35205,
+      "style": "left:${segment.offset}px; width:${segment.width}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "slots",
+      "line": 35231,
+      "style": "left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;",
+      "keys": [
+        "left",
+        "top",
+        "width",
+        "height",
+        "--slot-height",
+        "--slot-radius"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-radius",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "slots",
+      "line": 35247,
+      "style": "left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;",
+      "keys": [
+        "left",
+        "top",
+        "width",
+        "height",
+        "--slot-height",
+        "--slot-radius"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-radius",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "dependencies",
+      "line": 35753,
+      "style": "left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --cell-width:${scaleInfo.cellWidth}px; --snap-width:${round(snapWidth)}px; --dependency-clip-left:${ui.scrollLeft}px;",
+      "keys": [
+        "left",
+        "top",
+        "width",
+        "height",
+        "--cell-width",
+        "--snap-width",
+        "--dependency-clip-left"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--cell-width",
+          "classification": "geometry"
+        },
+        {
+          "key": "--snap-width",
+          "classification": "geometry"
+        },
+        {
+          "key": "--dependency-clip-left",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "dependencies",
+      "line": 35757,
+      "style": "left:${round(columnLeft)}px; width:${round(columnWidth)}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "dependencies",
+      "line": 35758,
+      "style": "left:${round(rect.x)}px; top:${round(top)}px; width:${round(rect.width)}px; height:${round(height)}px;",
+      "keys": [
+        "left",
+        "top",
+        "width",
+        "height"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "dependencies",
+      "line": 35759,
+      "style": "left:${round(guideX)}px;",
+      "keys": [
+        "left"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    }
+  ],
+  "visualViolations": [],
+  "unknownWarnings": []
+}

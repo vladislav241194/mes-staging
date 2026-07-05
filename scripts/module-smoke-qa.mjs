@@ -26,7 +26,6 @@ const LEGACY_MODULE_ALIASES = [
   { source: "specifications", target: "products" },
   { source: "planning2", target: "planning" },
   { source: "planningWorkbench", target: "planning" },
-  { source: "calculator", target: "planning" },
   { source: "warehouse", target: "gantt" },
   { source: "shiftMaster", target: "shiftMasterBoard" },
   { source: "shiftMasterContext", target: "shiftMasterBoard" },
@@ -307,6 +306,8 @@ async function waitForModule(client, moduleId) {
 	        if (!element) return null;
 	        const rect = element.getBoundingClientRect();
 	        return {
+	          top: Math.round(rect.top),
+	          bottom: Math.round(rect.bottom),
 	          left: Math.round(rect.left),
 	          right: Math.round(rect.right),
 	          width: Math.round(rect.width),
@@ -319,7 +320,10 @@ async function waitForModule(client, moduleId) {
 	        title: (document.querySelector(".app-topbar-title h1")?.textContent || "").trim(),
 	        annotationGroup: (document.querySelector(".app-module-annotation strong")?.textContent || "").trim(),
 	        annotation: (document.querySelector(".app-module-annotation span")?.textContent || "").trim(),
-	        qaAction: rectFor("[data-toggle-visual-qa]"),
+	        topbar: rectFor("main.app-shell > .app-topbar"),
+	        topbarTitle: rectFor(".app-topbar-title"),
+	        topbarAnnotation: rectFor(".app-module-annotation"),
+	        topbarActions: rectFor(".app-topbar-actions"),
 	        refreshAction: rectFor("[data-refresh-app]"),
 	        authSummary: rectFor("[data-visual-qa-target='app-auth-session-summary']"),
 	        mainTextLength: (shell?.innerText || "").trim().length,
@@ -341,13 +345,27 @@ async function waitForModule(client, moduleId) {
 	            `${moduleId}: topbar annotation group is out of sync with MES_MODULE_FLOW_CONTRACTS.group. Expected "${expectedGroup}", got "${report.annotationGroup}".`
 	          );
 	        }
-	        assert(report.qaAction?.width > 0, `${moduleId}: topbar QA action is missing`);
-	        assert(report.refreshAction?.width > 0, `${moduleId}: topbar refresh action is missing`);
-	        assert(report.authSummary?.width > 0, `${moduleId}: topbar auth summary is missing`);
-	        assert(
-	          report.qaAction.right <= report.refreshAction.left && report.refreshAction.right <= report.authSummary.left,
-	          `${moduleId}: topbar action order must be QA -> refresh -> auth summary: ${JSON.stringify({ qa: report.qaAction, refresh: report.refreshAction, auth: report.authSummary })}`
-	        );
+		        assert(report.refreshAction?.width > 0, `${moduleId}: topbar refresh action is missing`);
+		        assert(report.authSummary?.width > 0, `${moduleId}: topbar auth summary is missing`);
+		        assert(
+		          report.topbar?.height >= 56
+		            && report.topbarTitle?.left >= report.topbar.left
+		            && report.topbarTitle.right <= report.topbarAnnotation.left
+		            && report.topbarAnnotation.right <= report.topbarActions.left
+		            && report.topbarActions.right <= report.topbar.right + 1
+		            && report.topbarTitle.top >= report.topbar.top - 1
+		            && report.topbarActions.bottom <= report.topbar.bottom + 1,
+		          `${moduleId}: app topbar must keep title, annotation, and actions in one ordered row: ${JSON.stringify({
+		            topbar: report.topbar,
+		            title: report.topbarTitle,
+		            annotation: report.topbarAnnotation,
+		            actions: report.topbarActions,
+		          })}`
+		        );
+		        assert(
+		          report.refreshAction.right <= report.authSummary.left,
+		          `${moduleId}: topbar action order must be refresh -> auth summary: ${JSON.stringify({ refresh: report.refreshAction, auth: report.authSummary })}`
+		        );
 	      }
       assert(report.mainTextLength > 40, `${moduleId}: rendered shell looks empty`);
       assert(!report.hasStartupError, `${moduleId}: startup error text is visible`);
@@ -433,13 +451,6 @@ async function runInteractionStabilityChecks(client, moduleId) {
   ));
   assert(animatedAtRest.length === 0, `${moduleId}: interactive controls have transition/animation and can flicker: ${JSON.stringify(animatedAtRest.slice(0, 6))}`);
 
-  const visualQaReport = await evaluate(client, () => ({
-    bodyQa: document.body.classList.contains("is-mes-visual-qa-enabled"),
-    shellQa: Boolean(document.querySelector("main.app-shell")?.classList.contains("is-visual-qa-enabled")),
-    markerLayer: Boolean(document.querySelector(".visual-debug-marker-layer")),
-  }));
-  assert(!visualQaReport.bodyQa && !visualQaReport.shellQa && !visualQaReport.markerLayer, `${moduleId}: Visual QA restored as a persistent mode and can consume the first click: ${JSON.stringify(visualQaReport)}`);
-
   const driftProblems = [];
   for (const candidate of candidates) {
     await client.send("Input.dispatchMouseEvent", {
@@ -506,12 +517,17 @@ async function runFocusModeTopbarStabilityCheck(client, moduleId) {
     if (!shell || !topbar || !focusButton) {
       return { canCheck: false };
     }
+    const shellRect = shell.getBoundingClientRect();
     const rect = topbar.getBoundingClientRect();
+    const actionsRect = topbar.querySelector(".app-topbar-actions")?.getBoundingClientRect();
     const style = getComputedStyle(topbar);
     const titleMetaStyle = titleMeta ? getComputedStyle(titleMeta) : null;
     return {
       canCheck: true,
       isFocusMode: shell.classList.contains("is-focus-mode"),
+      shellWidth: Math.round(shellRect.width * 10) / 10,
+      width: Math.round(rect.width * 10) / 10,
+      rightGap: actionsRect ? Math.round((rect.right - actionsRect.right) * 10) / 10 : null,
       height: Math.round(rect.height * 10) / 10,
       minHeight: style.minHeight,
       paddingBlockStart: style.paddingBlockStart,
@@ -559,6 +575,8 @@ async function runFocusModeTopbarStabilityCheck(client, moduleId) {
   await delay(80);
   const focused = await measure();
   assert(focused.isFocusMode, `${moduleId}: focus mode did not turn on for topbar stability check: ${JSON.stringify(focused)}`);
+  assert(focused.width >= focused.shellWidth - 2, `${moduleId}: focus mode must keep topbar full-width: ${JSON.stringify({ before, focused })}`);
+  assert(focused.rightGap !== null && focused.rightGap <= 28, `${moduleId}: focus mode must keep topbar actions near the right edge: ${JSON.stringify({ before, focused })}`);
   assert(Math.abs(focused.height - before.height) <= 2, `${moduleId}: focus mode must not shrink topbar height: ${JSON.stringify({ before, focused })}`);
   assert(focused.minHeight === before.minHeight, `${moduleId}: focus mode changed topbar min-height: ${JSON.stringify({ before, focused })}`);
   assert(
@@ -608,109 +626,6 @@ async function clickVisibleCenter(client, selector, context = "") {
   await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
   await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
   return rect;
-}
-
-async function waitForVisualQaState(client, expectedEnabled, moduleId) {
-  const startedAt = Date.now();
-  let lastReport = null;
-  while (Date.now() - startedAt < 6000) {
-    lastReport = await evaluate(client, () => ({
-      bodyQa: document.body.classList.contains("is-mes-visual-qa-enabled"),
-      bodyInspecting: document.body.classList.contains("is-mes-visual-qa-inspecting"),
-      shellQa: Boolean(document.querySelector("main.app-shell")?.classList.contains("is-visual-qa-enabled")),
-      markerLayer: Boolean(document.querySelector(".visual-debug-marker-layer")),
-      debug: sessionStorage.getItem("mes-visual-qa-last-debug") || "",
-    }));
-    if (Boolean(lastReport.bodyQa) === expectedEnabled && Boolean(lastReport.shellQa) === expectedEnabled) return lastReport;
-    await delay(80);
-  }
-  throw new Error(`${moduleId}: Visual QA ${expectedEnabled ? "did not turn on" : "did not turn off"}: ${JSON.stringify(lastReport)}`);
-}
-
-async function runVisualQaPickerSmoke(client, moduleId) {
-  await evaluate(client, () => {
-    window.__mesVisualQaInspectorReport = null;
-    window.__mesVisualQaSmartReport = null;
-    sessionStorage.removeItem("mes-visual-qa-last-report");
-    sessionStorage.removeItem("mes-visual-qa-last-debug");
-  });
-  const toggleRect = await clickVisibleCenter(client, "[data-toggle-visual-qa]", `${moduleId}: Visual QA toggle`);
-  await waitForVisualQaState(client, true, moduleId);
-
-  const targetReport = await evaluate(client, () => {
-    const selector = [
-      "[data-visual-qa-target]:not([data-toggle-visual-qa])",
-      "[data-ui-component='Panel']",
-      "[data-ui-component='ModuleHeader']",
-      "[data-layout='main-content']",
-      ".module-data-page",
-      ".planner-workspace",
-      ".gantt-shell",
-      ".operation-slot",
-      ".row-label",
-      ".module-panel",
-      "main.app-shell",
-    ].join(",");
-    const blocked = ".module-menu, .app-topbar, .mobile-module-switcher, .mes-visual-mode-tray, .visual-debug-marker-layer";
-    const element = [...document.querySelectorAll(selector)].find((candidate) => {
-      if (candidate.closest(blocked)) return false;
-      const rect = candidate.getBoundingClientRect();
-      const style = getComputedStyle(candidate);
-      return rect.width >= 16
-        && rect.height >= 16
-        && rect.bottom > 0
-        && rect.right > 0
-        && rect.top < innerHeight
-        && rect.left < innerWidth
-        && style.display !== "none"
-        && style.visibility !== "hidden"
-        && style.pointerEvents !== "none";
-    });
-    if (!element) return null;
-    element.dataset.smokeVisualQaTarget = "yes";
-    const rect = element.getBoundingClientRect();
-    return {
-      selector: "[data-smoke-visual-qa-target='yes']",
-      visualQaTarget: element.dataset.visualQaTarget || "",
-      className: element.className || "",
-      text: (element.textContent || element.getAttribute("aria-label") || element.tagName)
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 120),
-      rect: {
-        x: Math.round(rect.left + rect.width / 2),
-        y: Math.round(rect.top + rect.height / 2),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      },
-    };
-  });
-  assert(targetReport?.selector, `${moduleId}: no visible content target for Visual QA picker after toggle ${JSON.stringify({ toggleRect })}`);
-
-  await clickVisibleCenter(client, targetReport.selector, `${moduleId}: Visual QA content target`);
-  await delay(260);
-  const result = await evaluate(client, () => {
-    const smartText = window.__mesVisualQaSmartReport?.text || "";
-    const smartReport = window.__mesVisualQaSmartReport?.report || null;
-    return {
-      bodyQa: document.body.classList.contains("is-mes-visual-qa-enabled"),
-      shellQa: Boolean(document.querySelector("main.app-shell")?.classList.contains("is-visual-qa-enabled")),
-      smartText,
-      detailLevel: smartReport?.detailLevel || "",
-      reportTextLength: String(smartReport?.text || "").length,
-      module: smartReport?.module || "",
-      signature: smartReport?.signature || "",
-      selector: smartReport?.selector || "",
-      debug: sessionStorage.getItem("mes-visual-qa-last-debug") || "",
-    };
-  });
-  assert(!result.bodyQa && !result.shellQa, `${moduleId}: Visual QA did not turn off after inspected click: ${JSON.stringify(result)}`);
-  assert(result.smartText.startsWith("Visual QA Inspector report"), `${moduleId}: Visual QA did not produce a copyable report: ${JSON.stringify({ result, targetReport })}`);
-  assert(result.detailLevel === "compact", `${moduleId}: Visual QA default report must be compact: ${JSON.stringify({ result, targetReport })}`);
-  assert(result.reportTextLength <= 120, `${moduleId}: Visual QA compact text is too long: ${JSON.stringify({ result, targetReport })}`);
-  assert(!result.smartText.includes("Что проверить"), `${moduleId}: Visual QA compact report still contains full checklist: ${JSON.stringify({ result, targetReport })}`);
-  assert(result.module === moduleId, `${moduleId}: Visual QA report has wrong module: ${JSON.stringify({ result, targetReport })}`);
-  assert(result.signature || result.selector, `${moduleId}: Visual QA report has no selected element signature: ${JSON.stringify({ result, targetReport })}`);
 }
 
 async function runModuleSpecificSmokeChecks(client, moduleId) {
@@ -932,7 +847,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         '[data-ui-component="TableWrap"]',
         '[data-ui-component="ActionButton"]',
         '[data-ui-component="FormField"] :is(input, select, textarea)',
-        '.planning-order-page.is-heroui :is(.planning-order-queue, .planning-order-header, .planning-order-route-map, .planning-order-record, .planning-order-record-section, .planning-order-route-item, .planning-order-phase, .planning-order-lane-head, .planning-order-step-pill, .planning-order-register-row, .route-smt-step-card, .route-smt-grid, .planning-detail-disclosure, .planning-detail-body, .route-smt-balance-block, .route-smt-input-block, .route-smt-result-block, .route-smt-balance-disclosure, .smt-result-kpi-row article, .smt-machine-balance-summary article)',
+        '.planning-order-page.is-heroui :is(.planning-order-queue, .planning-order-header, .planning-order-route-map, .planning-order-record, .planning-order-record-section, .planning-order-route-item, .planning-order-phase, .planning-order-lane-head, .planning-order-step-pill, .planning-order-register-row, .planning-detail-disclosure, .planning-detail-body)',
         '.directories-page :is(.directory-sidebar, .directory-header, .directory-table-card, .directory-nav-item, .directory-health div, .directory-detail-list div)',
         '.shift-master-board-page :is(.shift-master-board-panel, .shift-master-board-task-context, .shift-master-board-section, .shift-master-board-card, .shift-master-board-available-person, .shift-master-board-document, .shift-master-board-summary-cell, .shift-master-board-route-chain-card)',
       ].join(",");
@@ -1250,23 +1165,88 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     }
   }
   if (moduleId === "planning") {
+    await evaluate(client, async () => {
+      const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const firstStep = document.querySelector(".planning-order-table .planning-order-step-row");
+      firstStep?.click();
+      await waitFrame();
+    });
     const workOrderUxReport = await evaluate(client, () => {
       const strip = document.querySelector(".planning-order-decision-strip");
       const metrics = [...document.querySelectorAll(".planning-order-decision-metric[data-planning-work-item]")];
       const tableWrap = document.querySelector(".planning-order-table-wrap");
       const mainGrid = document.querySelector("[data-visual-qa-target='planning-order-main-grid']");
       const routePanel = document.querySelector(".planning-order-route-map");
+      const routeStrip = document.querySelector("[data-visual-qa-target='planning-work-order-route-strip']");
+      const legacySidebar = document.querySelector(".planning-order-queue");
       const detailStack = document.querySelector("[data-visual-qa-target='planning-order-detail-stack']");
-      const detailPanel = document.querySelector(".planning-order-detail-panel");
-      const detailSummary = document.querySelector("[data-visual-qa-target='planning-order-detail-summary']");
-      const detailVolume = document.querySelector("[data-visual-qa-target='planning-order-detail-volume']");
-      const detailTransfer = document.querySelector("[data-visual-qa-target='planning-order-transfer']");
+      const detailPanel = document.querySelector("[data-visual-qa-target='planning-order-detail-panel']");
       const stripRect = strip?.getBoundingClientRect();
       const tableRect = tableWrap?.getBoundingClientRect();
+      const mainGridRect = mainGrid?.getBoundingClientRect();
       const routePanelRect = routePanel?.getBoundingClientRect();
-      const detailStackRect = detailStack?.getBoundingClientRect();
+      const routeStripRect = routeStrip?.getBoundingClientRect();
+      const detailPanelRect = detailPanel?.getBoundingClientRect();
       const routePanelHeadBg = routePanel ? getComputedStyle(routePanel.querySelector(".ui-panel-head") || routePanel).backgroundColor : "";
-      const detailPanelHeadBg = detailPanel ? getComputedStyle(detailPanel.querySelector(".ui-panel-head") || detailPanel).backgroundColor : "";
+      const styleSnapshot = (element) => {
+        if (!element) return null;
+        const style = window.getComputedStyle(element);
+        return {
+          backgroundColor: style.backgroundColor,
+          borderTopWidth: style.borderTopWidth,
+          borderBottomWidth: style.borderBottomWidth,
+          boxShadow: style.boxShadow,
+          color: style.color,
+          display: style.display,
+          filter: style.filter,
+          fontSize: style.fontSize,
+          fontWeight: style.fontWeight,
+          lineHeight: style.lineHeight,
+          outlineStyle: style.outlineStyle,
+          overflowX: style.overflowX,
+          paddingRight: style.paddingRight,
+          textAlign: style.textAlign,
+        };
+      };
+      const table = document.querySelector(".planning-order-table");
+      const bodyCells = [...document.querySelectorAll(".planning-order-table tbody td")];
+      const numericCells = [...document.querySelectorAll(".planning-order-table tbody td:nth-child(4)")];
+      const selectedRow = table?.querySelector("tr.is-selected") || null;
+      const selectedCell = selectedRow?.querySelector("td") || null;
+      const firstObjectRow = table?.querySelector(".planning-order-object-row") || null;
+      const firstStepRow = table?.querySelector(".planning-order-step-row") || null;
+      const firstObjectTitle = firstObjectRow?.querySelector("td:first-child strong") || null;
+      const firstStepTitle = firstStepRow?.querySelector("td:first-child strong") || null;
+      const firstStepSecondary = firstStepRow?.querySelector("td:nth-child(3) strong") || null;
+      const metaNodes = [
+        firstObjectRow?.querySelector("td:first-child small"),
+        firstStepRow?.querySelector("td:first-child small"),
+        firstStepRow?.querySelector("td:nth-child(3) small"),
+      ].filter(Boolean);
+      const routeTreeCells = [...document.querySelectorAll(".planning-order-table .route-tree-cell")];
+      const startDots = routeTreeCells.map((cell) => cell.querySelector(".speki-tree-start-dot")).filter(Boolean);
+      const selectedDot = selectedRow?.querySelector(".route-tree-cell > .speki-tree-start-dot") || null;
+      const branchNodes = [...document.querySelectorAll(".planning-order-table .route-tree-cell .speki-tree-branch")];
+      const detailPanelBody = detailPanel?.querySelector(":scope > .ui-panel-body") || detailPanel?.querySelector(".ui-panel-body") || null;
+      const detailSummary = detailPanel?.querySelector("[data-visual-qa-target='planning-order-detail-summary']") || null;
+      const detailTransfer = detailPanel?.querySelector("[data-visual-qa-target='planning-order-detail-transfer']") || null;
+      const detailLabor = detailPanel?.querySelector("[data-visual-qa-target='planning-order-detail-labor']") || null;
+      const detailLabelNodes = [
+        detailSummary?.querySelector("article:nth-child(2) > span"),
+        detailSummary?.querySelector("article:nth-child(2) small"),
+        detailTransfer?.querySelector("article:first-child > span"),
+        detailTransfer?.querySelector("article:first-child small"),
+        detailLabor?.querySelector("header span"),
+      ].filter(Boolean);
+      const detailValueNodes = [
+        detailSummary?.querySelector("article:nth-child(2) strong"),
+        detailTransfer?.querySelector("article:first-child strong"),
+        detailLabor?.querySelector("header strong"),
+      ].filter(Boolean);
+      const detailAccentNodes = [
+        detailSummary?.querySelector("article:first-child > span"),
+        detailTransfer?.querySelector("article.is-current > span"),
+      ].filter(Boolean);
       const labels = metrics.map((metric) => ({
         id: metric.dataset.planningWorkItem || "",
         text: (metric.textContent || "").replace(/\s+/g, " ").trim(),
@@ -1305,20 +1285,72 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         qaTargets,
         hasMainGrid: Boolean(mainGrid),
         mainGridTemplateColumns: mainGrid ? getComputedStyle(mainGrid).gridTemplateColumns : "",
+        hasRouteStrip: Boolean(routeStrip),
+        routeStripChipCount: routeStrip?.querySelectorAll("[data-planning-route-open]").length || 0,
+        routeStripOverflowX: routeStrip ? Math.max(0, routeStrip.scrollWidth - routeStrip.clientWidth) : 0,
+        hasLegacySidebar: Boolean(legacySidebar),
         hasDetailStack: Boolean(detailStack),
-        detailIsRightOfTree: Boolean(routePanelRect && detailStackRect && detailStackRect.left >= routePanelRect.right - 2),
-        detailSummaryCardCount: detailSummary?.querySelectorAll("article").length || 0,
-        detailVolumeCardCount: detailVolume?.querySelectorAll("article").length || 0,
-        detailTransferCardCount: detailTransfer?.querySelectorAll("article").length || 0,
-        detailTransferLinkCount: detailTransfer?.querySelectorAll("[data-visual-qa-target='planning-order-transfer-link']").length || 0,
+        hasDetailPanel: Boolean(detailPanel),
+        detailPanelText: (detailPanel?.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
+        detailIsRightOfTree: Boolean(routePanelRect && detailPanelRect && detailPanelRect.left >= routePanelRect.right - 2),
+        routePanelAndDetailInsideGrid: Boolean(
+          mainGridRect
+          && routePanelRect
+          && detailPanelRect
+          && Math.abs(routePanelRect.left - mainGridRect.left) <= 2
+          && detailPanelRect.right <= mainGridRect.right + 2
+        ),
         tableOverflowX: tableWrap ? Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth) : 0,
         selectedRowCount: document.querySelectorAll(".planning-order-table tr.is-selected").length,
         activeMetricCount: document.querySelectorAll(".planning-order-decision-metric.is-active").length,
+        tableHeaderLastPaddingRight: table ? window.getComputedStyle(table.querySelector("th:last-child") || table).paddingRight : "",
+        bodyHorizontalBorderCount: bodyCells.filter((cell) => {
+          const style = window.getComputedStyle(cell);
+          return style.borderTopWidth !== "0px" || style.borderBottomWidth !== "0px";
+        }).length,
+        numericCellCount: numericCells.length,
+        numericRightAlignedCount: numericCells.filter((cell) => window.getComputedStyle(cell).textAlign === "right").length,
+        numericTabularCount: numericCells.filter((cell) => /tabular-nums/i.test(window.getComputedStyle(cell).fontVariantNumeric || "")).length,
+        selectedCellStyle: styleSnapshot(selectedCell),
+        selectedRowStyle: styleSnapshot(selectedRow),
+        firstObjectCellStyle: styleSnapshot(firstObjectRow?.querySelector("td")),
+        firstStepCellStyle: styleSnapshot(firstStepRow?.querySelector("td")),
+        objectTitleStyle: styleSnapshot(firstObjectTitle),
+        stepTitleStyle: styleSnapshot(firstStepTitle),
+        stepSecondaryTitleStyle: styleSnapshot(firstStepSecondary),
+        metaStyles: metaNodes.map(styleSnapshot).filter(Boolean),
+        routeTreeCellCount: routeTreeCells.length,
+        routeTreeBleedValues: [...new Set(routeTreeCells.map((cell) => [
+          window.getComputedStyle(cell).getPropertyValue("--speki-tree-line-bleed-top").trim(),
+          window.getComputedStyle(cell).getPropertyValue("--speki-tree-line-bleed-bottom").trim(),
+        ].join("/")).filter(Boolean))],
+        startDotCount: startDots.length,
+        startDotDimensionCount: new Set(startDots.map((dot) => {
+          const style = window.getComputedStyle(dot);
+          return `${style.width}x${style.height}`;
+        })).size,
+        startDotNeutralCount: startDots.filter((dot) => /rgb\(148, 163, 184\)/.test(window.getComputedStyle(dot).backgroundColor)).length,
+        selectedDotStyle: styleSnapshot(selectedDot),
+        branchLineNeutralCount: branchNodes.filter((branch) => /rgb\(148, 163, 184\)/.test(window.getComputedStyle(branch, "::before").borderLeftColor)).length,
+        branchLineCount: branchNodes.length,
+        detailPanelStyle: styleSnapshot(detailPanel),
+        detailBodyGap: detailPanelBody ? window.getComputedStyle(detailPanelBody).gap : "",
+        detailSummaryDisplay: detailSummary ? window.getComputedStyle(detailSummary).display : "",
+        detailSummaryGap: detailSummary ? window.getComputedStyle(detailSummary).gap : "",
+        detailSummaryCardCount: detailSummary?.querySelectorAll("article").length || 0,
+        detailSummaryOuterBorderTop: detailSummary ? window.getComputedStyle(detailSummary).borderTopWidth : "",
+        detailSummaryArticleBorderCount: [...(detailSummary?.querySelectorAll("article") || [])]
+          .filter((item) => window.getComputedStyle(item).borderTopWidth !== "0px").length,
+        detailTransferCardCount: detailTransfer?.querySelectorAll("article").length || 0,
+        detailTransferLinkCount: detailTransfer?.querySelectorAll(".planning-order-detail-transfer-link").length || 0,
+        detailLabelStyles: detailLabelNodes.map(styleSnapshot).filter(Boolean),
+        detailValueStyles: detailValueNodes.map(styleSnapshot).filter(Boolean),
+        detailAccentStyles: detailAccentNodes.map(styleSnapshot).filter(Boolean),
         routePanelHeadBg,
-        detailPanelHeadBg,
         hasManualLaborMetric: labels.some((item) => item.id === "manualLabor" && item.text.includes("Трудозатраты")),
         hasScheduleMetric: labels.some((item) => item.id === "schedule" && item.text.includes("Гант")),
         tableBelowStrip: Boolean(stripRect && tableRect && tableRect.top >= stripRect.bottom),
+        routeStripAboveGrid: Boolean(routeStripRect && mainGridRect && routeStripRect.bottom <= mainGridRect.top),
       };
     });
     assert(workOrderUxReport.hasStrip, "planning: work-order decision strip is missing");
@@ -1332,14 +1364,45 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(workOrderUxReport.hasManualLaborMetric, `planning: manual labor decision metric is missing: ${JSON.stringify(workOrderUxReport.metricIds)}`);
     assert(workOrderUxReport.hasScheduleMetric, `planning: schedule decision metric is missing: ${JSON.stringify(workOrderUxReport.metricIds)}`);
     assert(workOrderUxReport.tableBelowStrip, "planning: work-order table overlaps decision strip");
-    assert(workOrderUxReport.hasMainGrid && workOrderUxReport.hasDetailStack, `planning: work-order screen must use document-tree/detail layout: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailIsRightOfTree, `planning: selected detail card must sit to the right of the document tree on MacBook viewport: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailSummaryCardCount === 3, `planning: selected detail card must expose three passport cards: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailVolumeCardCount >= 4, `planning: selected detail card must expose compact volume/labor metrics: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailTransferCardCount === 3 && workOrderUxReport.detailTransferLinkCount === 2, `planning: selected detail card must expose before/current/after transfer route: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.hasRouteStrip && workOrderUxReport.routeStripChipCount > 1, `planning: work-order route strip is missing or empty: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.routeStripOverflowX <= 2 && workOrderUxReport.routeStripAboveGrid, `planning: work-order route strip geometry is broken: ${JSON.stringify(workOrderUxReport)}`);
+    assert(!workOrderUxReport.hasLegacySidebar, `planning: work-order screen must not use the old local sidebar: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.hasMainGrid && !workOrderUxReport.hasDetailStack && workOrderUxReport.hasDetailPanel, `planning: work-order screen must use document-tree/detail layout without legacy detail stack: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailIsRightOfTree && workOrderUxReport.routePanelAndDetailInsideGrid, `planning: selected detail card must sit to the right of the document tree on MacBook viewport: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailPanelText.length > 20, `planning: selected detail card is empty: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.tableOverflowX <= 2, `planning: redesigned work-order tree table must fit without horizontal scrolling: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.selectedRowCount + workOrderUxReport.activeMetricCount >= 1, `planning: redesigned work-order screen must keep either active tree row or active decision metric visible: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.routePanelHeadBg === workOrderUxReport.detailPanelHeadBg && workOrderUxReport.routePanelHeadBg !== "rgba(0, 0, 0, 0)", `planning: document tree and detail panel heads must share the same accent background: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.routePanelHeadBg !== "rgba(0, 0, 0, 0)", `planning: document tree panel head must keep accent background: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.tableHeaderLastPaddingRight === "10px", `planning: table header must not be visually clipped at the last column: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.bodyHorizontalBorderCount === 0, `planning: work-order tree rows must not return horizontal separators: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.numericCellCount > 0 && workOrderUxReport.numericRightAlignedCount === workOrderUxReport.numericCellCount, `planning: quantity cells must be right-aligned: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.numericTabularCount === workOrderUxReport.numericCellCount, `planning: quantity cells must use tabular numbers: ${JSON.stringify(workOrderUxReport)}`);
+    if (workOrderUxReport.selectedRowCount > 0) {
+      assert(/rgba?\(255, 255, 255/.test(workOrderUxReport.selectedCellStyle?.backgroundColor || ""), `planning: active row must use the same white lift variant as Shift Work Orders: ${JSON.stringify(workOrderUxReport)}`);
+      assert(/drop-shadow/i.test(workOrderUxReport.selectedRowStyle?.filter || ""), `planning: active row must use lift shadow, not the old blue fill: ${JSON.stringify(workOrderUxReport)}`);
+      assert(workOrderUxReport.selectedCellStyle?.boxShadow === "none", `planning: active row must not use a first-cell marker shadow: ${JSON.stringify(workOrderUxReport)}`);
+    }
+    assert(workOrderUxReport.firstObjectCellStyle?.fontSize === "11px", `planning: object row body typography must match compact document tree scale: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.firstStepCellStyle?.fontSize === "11px", `planning: step row body typography must match compact document tree scale: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.objectTitleStyle?.fontSize === "12px" && Number(workOrderUxReport.objectTitleStyle?.fontWeight || 0) >= 660, `planning: object title must be the strongest tree level: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.stepTitleStyle?.fontSize === "11px" && Number(workOrderUxReport.stepTitleStyle?.fontWeight || 0) >= 590, `planning: operation title typography must match the document tree child level: ${JSON.stringify(workOrderUxReport)}`);
+    assert(Number(workOrderUxReport.stepSecondaryTitleStyle?.fontWeight || 0) < Number(workOrderUxReport.stepTitleStyle?.fontWeight || 0), `planning: secondary operation/context title must be quieter than the main title: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.metaStyles.length >= 2 && workOrderUxReport.metaStyles.every((style) => style.fontSize === "10px" && Number(style.fontWeight) === 500), `planning: tree meta labels must use one quiet size/weight: ${JSON.stringify(workOrderUxReport.metaStyles)}`);
+    assert(workOrderUxReport.routeTreeCellCount > 0 && workOrderUxReport.startDotCount === workOrderUxReport.routeTreeCellCount, `planning: every tree row must expose the shared route tree dot: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.startDotDimensionCount === 1, `planning: tree start dots must use one normalized size: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.startDotNeutralCount >= workOrderUxReport.startDotCount - 1, `planning: inactive tree dots must stay neutral gray: ${JSON.stringify(workOrderUxReport)}`);
+    assert(/rgb\(15, 23, 42\)/.test(workOrderUxReport.selectedDotStyle?.backgroundColor || ""), `planning: selected tree dot must be filled black: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.routeTreeBleedValues.every((value) => !/^(4px|8px)\/(4px|8px)$/.test(value)), `planning: old tree line bleed values from legacy layer returned: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.branchLineCount === 0 || workOrderUxReport.branchLineNeutralCount === workOrderUxReport.branchLineCount, `planning: tree connector lines must stay neutral gray: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailPanelStyle?.fontSize === "11px" && workOrderUxReport.detailPanelStyle?.lineHeight === "15px", `planning: selected detail card must use compact body scale: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailBodyGap === "8px", `planning: selected detail card body gap must match Shift Work Orders: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailSummaryDisplay === "grid" && workOrderUxReport.detailSummaryGap === "8px", `planning: detail summary must use separate compact cards: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailSummaryOuterBorderTop === "0px", `planning: detail summary must not render as one old bordered strip: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailSummaryCardCount === 3 && workOrderUxReport.detailSummaryArticleBorderCount === 3, `planning: detail summary must expose three bordered passport cards: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailTransferCardCount === 3 && workOrderUxReport.detailTransferLinkCount === 2, `planning: transfer route must expose three cards and two connectors: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.detailLabelStyles.length >= 3 && workOrderUxReport.detailLabelStyles.every((style) => style.fontSize === "10px" && Number(style.fontWeight) === 500 && style.lineHeight === "13px"), `planning: selected detail labels/meta must share the compact typography contract: ${JSON.stringify(workOrderUxReport.detailLabelStyles)}`);
+    assert(workOrderUxReport.detailValueStyles.length >= 2 && workOrderUxReport.detailValueStyles.every((style) => style.fontSize === "11px" && Number(style.fontWeight) === 600 && style.lineHeight === "14px"), `planning: selected detail values must share the compact typography contract: ${JSON.stringify(workOrderUxReport.detailValueStyles)}`);
+    assert(workOrderUxReport.detailAccentStyles.length >= 1 && workOrderUxReport.detailAccentStyles.every((style) => style.fontSize === "10px" && Number(style.fontWeight) === 720 && style.lineHeight === "13px"), `planning: selected detail accent pills must be normalized: ${JSON.stringify(workOrderUxReport.detailAccentStyles)}`);
     const workOrderMetricClickReport = await evaluate(client, async () => {
       const delayFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const metricIds = [...document.querySelectorAll(".planning-order-decision-metric[data-planning-work-item]")]
@@ -1353,13 +1416,11 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         const currentMetric = document.querySelector(`.planning-order-decision-metric[data-planning-work-item="${CSS.escape(id)}"]`);
         const strip = document.querySelector(".planning-order-decision-strip");
         const tableWrap = document.querySelector(".planning-order-table-wrap");
-        const detail = document.querySelector(".planning-work-detail");
         const stripRect = strip?.getBoundingClientRect();
         const tableRect = tableWrap?.getBoundingClientRect();
         results.push({
           id,
           active: Boolean(currentMetric?.classList.contains("is-active")),
-          detailText: (detail?.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120),
           stripOverflowX: strip ? Math.max(0, strip.scrollWidth - strip.clientWidth) : 0,
           tableOverflowX: tableWrap ? Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth) : 0,
           tableBelowStrip: Boolean(stripRect && tableRect && tableRect.top >= stripRect.bottom),
@@ -1368,10 +1429,8 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       return results;
     });
     const inactiveDecisionMetrics = workOrderMetricClickReport.filter((item) => !item.active);
-    const emptyDecisionDetails = workOrderMetricClickReport.filter((item) => !item.detailText);
     const overflowingDecisionMetrics = workOrderMetricClickReport.filter((item) => item.stripOverflowX > 2 || item.tableOverflowX > 2 || !item.tableBelowStrip);
     assert(inactiveDecisionMetrics.length === 0, `planning: decision metrics do not become active after click: ${JSON.stringify(inactiveDecisionMetrics)}`);
-    assert(emptyDecisionDetails.length === 0, `planning: decision metrics open empty details: ${JSON.stringify(emptyDecisionDetails)}`);
     assert(overflowingDecisionMetrics.length === 0, `planning: decision metric click causes layout drift: ${JSON.stringify(overflowingDecisionMetrics)}`);
   }
   if (moduleId === "gantt") {
@@ -1683,8 +1742,8 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         hitTestProblems,
       };
     });
-    assert(slotEditorQaReport.hasContext, "gantt: slot editor context Visual QA root is missing");
-    assert(slotEditorQaReport.missingTargets.length === 0, `gantt: slot editor context lacks nested Visual QA targets: ${JSON.stringify(slotEditorQaReport)}`);
+    assert(slotEditorQaReport.hasContext, "gantt: slot editor context inspection root is missing");
+    assert(slotEditorQaReport.missingTargets.length === 0, `gantt: slot editor context lacks nested inspection targets: ${JSON.stringify(slotEditorQaReport)}`);
     assert(slotEditorQaReport.hitTestProblems.length === 0, `gantt: slot editor nested QA hit-test falls back to parent block: ${JSON.stringify(slotEditorQaReport.hitTestProblems)}`);
   }
   if (moduleId === "visualSystem") {
@@ -1830,19 +1889,19 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         })
         .filter(Boolean);
       const authSummary = document.querySelector("[data-visual-qa-target='app-auth-session-summary']");
-      const qaButton = document.querySelector("[data-toggle-visual-qa]");
-      const roleLine = document.querySelector("[data-visual-qa-target='app-auth-session-role']");
+      const refreshButton = document.querySelector("[data-refresh-app]");
       const departmentLine = document.querySelector("[data-visual-qa-target='app-auth-session-department']");
       const authSummaryRect = authSummary?.getBoundingClientRect();
-      const qaButtonRect = qaButton?.getBoundingClientRect();
-      const authSummaryTopbar = authSummary && qaButton && authSummaryRect && qaButtonRect
+      const refreshButtonRect = refreshButton?.getBoundingClientRect();
+      const authSummaryTopbar = authSummary && refreshButton && authSummaryRect && refreshButtonRect
         ? {
           summaryLeft: Math.round(authSummaryRect.left),
           summaryRight: Math.round(authSummaryRect.right),
-          qaRight: Math.round(qaButtonRect.right),
+          summaryWidth: Math.round(authSummaryRect.width),
+          refreshRight: Math.round(refreshButtonRect.right),
           viewportRight: Math.round(window.innerWidth),
-          roleWeight: Number.parseFloat(getComputedStyle(roleLine).fontWeight || "0"),
           departmentWeight: Number.parseFloat(getComputedStyle(departmentLine).fontWeight || "0"),
+          text: (authSummary.textContent || "").replace(/\s+/g, " ").trim(),
         }
         : null;
       return {
@@ -1859,9 +1918,9 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       };
     });
     assert(!authSessionReport.routeChainInsideContext, `authSessionPrototype: route chain must be moved out of task context: ${JSON.stringify(authSessionReport)}`);
-    assert(authSessionReport.missingTargets.length === 0, `authSessionPrototype: missing nested Visual QA targets: ${JSON.stringify(authSessionReport.missingTargets)}`);
+    assert(authSessionReport.missingTargets.length === 0, `authSessionPrototype: missing nested inspection targets: ${JSON.stringify(authSessionReport.missingTargets)}`);
     if (authSessionReport.hasTaskUi) {
-      assert(authSessionReport.nestedCoverageCount >= 45, `authSessionPrototype: expected broad nested Visual QA coverage, got ${authSessionReport.nestedCoverageCount}`);
+      assert(authSessionReport.nestedCoverageCount >= 45, `authSessionPrototype: expected broad nested inspection coverage, got ${authSessionReport.nestedCoverageCount}`);
       assert(authSessionReport.factGridOverflowX <= 2, `authSessionPrototype: fact input grid overflows horizontally by ${authSessionReport.factGridOverflowX}px`);
       assert(
         authSessionReport.factCardRects.length === 3 && authSessionReport.factCardRects.every((card) => card.width >= 140 && !card.nestedOverflow),
@@ -1869,22 +1928,22 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       );
       assert(
         authSessionReport.authSummaryTopbar
-          && authSessionReport.authSummaryTopbar.summaryLeft > authSessionReport.authSummaryTopbar.qaRight
+          && authSessionReport.authSummaryTopbar.summaryLeft > authSessionReport.authSummaryTopbar.refreshRight
           && authSessionReport.authSummaryTopbar.viewportRight - authSessionReport.authSummaryTopbar.summaryRight <= 180
-          && authSessionReport.authSummaryTopbar.roleWeight <= 450
+          && authSessionReport.authSummaryTopbar.summaryWidth <= 170
           && authSessionReport.authSummaryTopbar.departmentWeight <= 450,
-        `authSessionPrototype: topbar auth summary must sit at the right and use regular metadata text: ${JSON.stringify(authSessionReport.authSummaryTopbar)}`,
+        `authSessionPrototype: topbar auth summary must be compact, sit at the right, and use regular department text: ${JSON.stringify(authSessionReport.authSummaryTopbar)}`,
       );
     }
     if (authSessionReport.taskCardCount > 0) {
       assert(authSessionReport.cardRouteProblems.length === 0, `authSessionPrototype: task cards must contain compact route transfer text: ${JSON.stringify(authSessionReport.cardRouteProblems)}`);
     }
   }
-  if (moduleId !== "shiftWorkOrders") return;
-  const journalSeedReport = await evaluate(client, () => (
-    window.__mesVisualQaRuntime?.seedShiftWorkOrderJournalAssignmentForQa?.()
-    || { seeded: false, reason: "runtime api missing" }
-  ));
+	  if (moduleId !== "shiftWorkOrders") return;
+	  const journalSeedReport = await evaluate(client, () => (
+	    window.__mesRuntime?.seedShiftWorkOrderJournalAssignmentForTest?.()
+	    || { seeded: false, reason: "runtime api missing" }
+	  ));
   assert(journalSeedReport.seeded, `shiftWorkOrders: could not seed a distributed shift task for journal QA: ${JSON.stringify(journalSeedReport)}`);
   await delay(240);
   await waitForModule(client, "shiftWorkOrders");
@@ -2572,10 +2631,10 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     };
   });
   assert(seededImmediateReport.keyCount > 0, `shiftWorkOrders: issue report seed was not written to localStorage: ${JSON.stringify({ seededReport, seededImmediateReport })}`);
-  const runtimeApplyReport = await evaluate(client, () => {
-    const ui = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
-    return window.__mesVisualQaRuntime?.setShiftWorkOrderIssueReportsForQa?.(ui.shiftWorkOrderIssueReports || {}) || { applied: false, reason: "runtime api missing" };
-  });
+	  const runtimeApplyReport = await evaluate(client, () => {
+	    const ui = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+	    return window.__mesRuntime?.setShiftWorkOrderIssueReportsForTest?.(ui.shiftWorkOrderIssueReports || {}) || { applied: false, reason: "runtime api missing" };
+	  });
   assert(runtimeApplyReport.applied && runtimeApplyReport.rowCount > 0, `shiftWorkOrders: could not apply seeded issue reports through QA runtime: ${JSON.stringify({ seededReport, seededImmediateReport, runtimeApplyReport })}`);
   await delay(250);
 	  await waitForModule(client, "shiftWorkOrders");
@@ -2745,15 +2804,7 @@ async function main() {
     await client.send("Page.enable");
     await client.send("Runtime.enable");
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: `
-        sessionStorage.setItem('mes-planning-prototype-shared-disabled-until-v1', String(Date.now() + 60 * 60 * 1000));
-        try {
-          const key = 'mes-planning-prototype-ui-v1';
-          const ui = JSON.parse(localStorage.getItem(key) || '{}');
-          ui.visualQaEnabled = true;
-          localStorage.setItem(key, JSON.stringify(ui));
-        } catch {}
-      `,
+      source: "sessionStorage.setItem('mes-planning-prototype-shared-disabled-until-v1', String(Date.now() + 60 * 60 * 1000));",
     });
     await client.send("Emulation.setDeviceMetricsOverride", {
       width: SMOKE_VIEWPORT.width,
@@ -2769,7 +2820,6 @@ async function main() {
       await loaded;
       await delay(250);
       await waitForModule(client, moduleId);
-      await runVisualQaPickerSmoke(client, moduleId);
       await runInteractionStabilityChecks(client, moduleId);
       await runFocusModeTopbarStabilityCheck(client, moduleId);
       await runModuleSpecificSmokeChecks(client, moduleId);
@@ -2786,7 +2836,6 @@ async function main() {
       await loaded;
       await delay(250);
       await waitForModule(client, alias.target);
-      await runVisualQaPickerSmoke(client, alias.target);
       await runInteractionStabilityChecks(client, alias.target);
       await runFocusModeTopbarStabilityCheck(client, alias.target);
       await runModuleSpecificSmokeChecks(client, alias.target);

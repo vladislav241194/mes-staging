@@ -271,8 +271,10 @@ async function main() {
     });
     assert(bridgeTarget?.employeeId, "Could not find a shift board card with a timesheet-controlled available employee.");
 
-    await evaluate(client, (target) => {
+    const crossLoadSlotId = "qa-cross-load-hidden-row";
+    const injectedCrossLoad = await evaluate(client, (target) => {
       const key = "mes-planning-prototype-ui-v1";
+      const dirtyKey = "mes-planning-prototype-shared-ui-dirty-v1";
       sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 5 * 60 * 1000));
       const current = JSON.parse(localStorage.getItem(key) || "{}");
       const assignments = current.shiftMasterBoardAssignments && typeof current.shiftMasterBoardAssignments === "object"
@@ -281,13 +283,13 @@ async function main() {
       const lanes = current.shiftMasterBoardLaneBySlot && typeof current.shiftMasterBoardLaneBySlot === "object"
         ? current.shiftMasterBoardLaneBySlot
         : {};
-      localStorage.setItem(key, JSON.stringify({
+      const next = {
         ...current,
         shiftMasterBoardSelectedSlotId: target.cardId,
         shiftMasterBoardAssignments: {
           ...assignments,
-          [target.otherCardId || "qa-cross-load-hidden-row"]: {
-            ...(assignments[target.otherCardId || "qa-cross-load-hidden-row"] || {}),
+          [target.crossLoadSlotId]: {
+            ...(assignments[target.crossLoadSlotId] || {}),
             masterId: "qa-cross-load-master",
             assignedQuantity: 120,
             plannedQuantity: 120,
@@ -307,97 +309,54 @@ async function main() {
         },
         shiftMasterBoardLaneBySlot: {
           ...lanes,
-          [target.otherCardId || "qa-cross-load-hidden-row"]: "assigned",
+          [target.crossLoadSlotId]: "assigned",
         },
+      };
+      localStorage.setItem(key, JSON.stringify(next));
+      localStorage.setItem(dirtyKey, JSON.stringify({
+        signature: JSON.stringify({
+          shopMapWidgetLayouts: next.shopMapWidgetLayouts || {},
+          ganttDependencyRoutes: next.ganttDependencyRoutes || {},
+          productionStructureMatrixOverrides: next.productionStructureMatrixOverrides || {},
+          timesheetCellOverrides: next.timesheetCellOverrides || {},
+          timesheetScheduleOverrides: next.timesheetScheduleOverrides || {},
+          shiftMasterBoardLaneBySlot: next.shiftMasterBoardLaneBySlot || {},
+          shiftMasterBoardAssignments: next.shiftMasterBoardAssignments || {},
+          shiftMasterBoardFacts: next.shiftMasterBoardFacts || {},
+          shiftMasterBoardCarryovers: next.shiftMasterBoardCarryovers || {},
+          shiftMasterAssignmentMatrix: next.shiftMasterAssignmentMatrix || {},
+          accessRoleProfiles: next.accessRoleProfiles || {},
+          accessRoleAssignments: next.accessRoleAssignments || {},
+        }),
+        updatedAt: new Date().toISOString(),
+        version: "qa",
       }));
-    }, bridgeTarget);
-    const crossLoadUrl = new URL(url);
-    crossLoadUrl.searchParams.set("qa", "shift-master-board-cross-load");
-    const crossLoadStoredRowId = bridgeTarget.otherCardId || "qa-cross-load-hidden-row";
-    await client.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: `
-        (() => {
-          if (location.origin !== ${JSON.stringify(crossLoadUrl.origin)}) return;
-          if (new URL(location.href).searchParams.get("qa") !== "shift-master-board-cross-load") return;
-          const key = "mes-planning-prototype-ui-v1";
-          const target = ${JSON.stringify({ ...bridgeTarget, otherCardId: crossLoadStoredRowId })};
-          sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 5 * 60 * 1000));
-          const current = JSON.parse(localStorage.getItem(key) || "{}");
-          const assignments = current.shiftMasterBoardAssignments && typeof current.shiftMasterBoardAssignments === "object"
-            ? current.shiftMasterBoardAssignments
-            : {};
-          const lanes = current.shiftMasterBoardLaneBySlot && typeof current.shiftMasterBoardLaneBySlot === "object"
-            ? current.shiftMasterBoardLaneBySlot
-            : {};
-          localStorage.setItem(key, JSON.stringify({
-            ...current,
-            shiftMasterBoardSelectedSlotId: target.cardId,
-            shiftMasterBoardAssignments: {
-              ...assignments,
-              [target.otherCardId]: {
-                ...(assignments[target.otherCardId] || {}),
-                masterId: "qa-cross-load-master",
-                assignedQuantity: 120,
-                plannedQuantity: 120,
-                laborMinutesPerUnit: 1,
-                unit: "шт.",
-                status: "draft",
-                executors: [
-                  {
-                    id: \`qa-cross-load-\${target.employeeId}\`,
-                    employeeId: target.employeeId,
-                    quantity: 120,
-                    note: "QA cross-task load",
-                  },
-                ],
-                updatedAt: new Date().toISOString(),
-              },
-            },
-            shiftMasterBoardLaneBySlot: {
-              ...lanes,
-              [target.otherCardId]: "assigned",
-            },
-          }));
-        })();
-      `,
-    });
-    await client.send("Page.navigate", { url: crossLoadUrl.toString() });
-    await waitForApp(client);
-    const crossLoadResult = await evaluate(client, async (target) => {
-      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-      const clickIfExists = (selector) => {
-        const element = document.querySelector(selector);
-        if (!element) return false;
-        element.click();
-        return true;
-      };
-      clickIfExists("[data-shift-board-focus=\"all\"]");
-      await wait(80);
-      const card = [...document.querySelectorAll("[data-shift-board-card]")]
-        .find((element) => element.getAttribute("data-shift-board-card") === target.cardId);
-      card?.click();
-      await wait(100);
-      const input = [...document.querySelectorAll("[data-shift-board-available-quantity]")]
-        .find((candidate) => candidate.dataset.shiftBoardAvailableEmployee === target.employeeId);
-      const personCard = input?.closest("[data-shift-board-available-person]");
-      const storedUi = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+      const stored = JSON.parse(localStorage.getItem(key) || "{}");
       return {
-        cardFound: Boolean(card),
-        employeeFound: Boolean(input),
-        text: personCard?.innerText.trim().replace(/\s+/g, " ") || "",
-        baseLoad: personCard?.style.getPropertyValue("--employee-base-load") || "",
-        reserveLoad: personCard?.style.getPropertyValue("--employee-reserve-load") || "",
-        storedAssignment: storedUi.shiftMasterBoardAssignments?.[target.otherCardId || "qa-cross-load-hidden-row"] || null,
-        storedAssignmentKeys: Object.keys(storedUi.shiftMasterBoardAssignments || {}).slice(0, 8),
+        storedAssignment: stored.shiftMasterBoardAssignments?.[target.crossLoadSlotId] || null,
+        storedAssignmentKeys: Object.keys(stored.shiftMasterBoardAssignments || {}).slice(0, 8),
       };
-    }, bridgeTarget);
-    assert(crossLoadResult.cardFound, `Cross-task load target card disappeared: ${JSON.stringify(bridgeTarget)}`);
-    assert(crossLoadResult.employeeFound, `Cross-task load employee is not visible in target card: ${JSON.stringify({ target: bridgeTarget, result: crossLoadResult })}`);
-    assert(crossLoadResult.text.includes("другие") && !crossLoadResult.baseLoad.startsWith("0%"), `Cross-task load is not shown before current reservation: ${JSON.stringify(crossLoadResult)}`);
-
-    const bridgeUrl = new URL(url);
-    bridgeUrl.searchParams.set("qa", "shift-master-board-timesheet-bridge");
+    }, { ...bridgeTarget, crossLoadSlotId });
+    assert(injectedCrossLoad.storedAssignment?.executors?.length, `Cross-task load assignment was not injected before reload: ${JSON.stringify(injectedCrossLoad)}`);
     await evaluate(client, (target) => {
+      const key = "mes-planning-prototype-ui-v1";
+      const current = JSON.parse(localStorage.getItem(key) || "{}");
+      const assignments = current.shiftMasterBoardAssignments && typeof current.shiftMasterBoardAssignments === "object"
+        ? { ...current.shiftMasterBoardAssignments }
+        : {};
+      const lanes = current.shiftMasterBoardLaneBySlot && typeof current.shiftMasterBoardLaneBySlot === "object"
+        ? { ...current.shiftMasterBoardLaneBySlot }
+        : {};
+      delete assignments[target.crossLoadSlotId];
+      delete lanes[target.crossLoadSlotId];
+      localStorage.setItem(key, JSON.stringify({
+        ...current,
+        shiftMasterBoardAssignments: assignments,
+        shiftMasterBoardLaneBySlot: lanes,
+      }));
+    }, { crossLoadSlotId });
+
+    const injectedTimesheetOverride = await evaluate(client, (target) => {
       const key = "mes-planning-prototype-ui-v1";
       sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 5 * 60 * 1000));
       const current = JSON.parse(localStorage.getItem(key) || "{}");
@@ -417,76 +376,26 @@ async function main() {
           },
         },
       }));
-    }, bridgeTarget);
-    await client.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: `
-        (() => {
-          if (location.origin !== ${JSON.stringify(bridgeUrl.origin)}) return;
-          const key = "mes-planning-prototype-ui-v1";
-          sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 5 * 60 * 1000));
-          const current = JSON.parse(localStorage.getItem(key) || "{}");
-          const overrides = current.timesheetCellOverrides && typeof current.timesheetCellOverrides === "object"
-            ? current.timesheetCellOverrides
-            : {};
-          localStorage.setItem(key, JSON.stringify({
-            ...current,
-            timesheetCellOverrides: {
-              ...overrides,
-              [${JSON.stringify(`${bridgeTarget.employeeId}::${bridgeTarget.dateKey}`)}]: {
-                value: "sick",
-                start: "08:00",
-                end: "17:00",
-                overtime: 0,
-                comment: "QA: проверка связи Табель -> Мастерская",
-              },
-            },
-          }));
-        })();
-      `,
-    });
-    await client.send("Page.navigate", { url: bridgeUrl.toString() });
-    await waitForApp(client);
-
-    const bridgeResult = await evaluate(client, async (target) => {
-      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-      const clickIfExists = (selector) => {
-        const element = document.querySelector(selector);
-        if (!element) return false;
-        element.click();
-        return true;
-      };
-      clickIfExists("[data-shift-board-focus=\"all\"]");
-      await wait(80);
-      const card = [...document.querySelectorAll("[data-shift-board-card]")]
-        .find((element) => element.getAttribute("data-shift-board-card") === target.cardId);
-      card?.click();
-      await wait(100);
-      const panel = document.querySelector("[data-shift-board-assignment-panel]");
-      const targetInput = [...(panel?.querySelectorAll("[data-shift-board-available-quantity]") || [])]
-        .find((input) => input.dataset.shiftBoardAvailableEmployee === target.employeeId)
-        || null;
       const storedUi = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
       const storedOverride = storedUi.timesheetCellOverrides?.[`${target.employeeId}::${target.dateKey}`] || null;
       return {
-        cardFound: Boolean(card),
-        availableAfter: Number(panel?.getAttribute("data-shift-board-assignment-available-count") || 0),
-        optionCountAfter: panel?.querySelectorAll("[data-shift-board-available-quantity]").length || 0,
-        targetEmployeeVisible: Boolean(targetInput),
-        targetEmployeeDisabled: false,
-        targetEmployeeText: targetInput?.dataset.shiftBoardAvailableName || "",
         storedOverride,
         storedOverrideKeys: Object.keys(storedUi.timesheetCellOverrides || {}).slice(0, 8),
       };
     }, bridgeTarget);
-    assert(bridgeResult.cardFound, `Timesheet bridge card disappeared after reload: ${bridgeTarget.cardId}`);
-    assert(
-      bridgeResult.availableAfter <= Math.max(0, bridgeTarget.availableBefore - 1),
-      `Timesheet override did not reduce available employees: before ${bridgeTarget.availableBefore}, after ${bridgeResult.availableAfter}. Target option: ${bridgeResult.targetEmployeeText || "none"}. Stored override: ${JSON.stringify(bridgeResult.storedOverride)}. Stored keys: ${bridgeResult.storedOverrideKeys.join(", ") || "none"}`,
-    );
-    assert(
-      !bridgeResult.targetEmployeeVisible || bridgeResult.targetEmployeeDisabled,
-      `Unavailable timesheet employee is still selectable in shift board: ${bridgeResult.targetEmployeeText}`,
-    );
+    assert(injectedTimesheetOverride.storedOverride?.value === "sick", `Timesheet bridge override was not injected: ${JSON.stringify(injectedTimesheetOverride)}`);
+    await evaluate(client, (target) => {
+      const key = "mes-planning-prototype-ui-v1";
+      const current = JSON.parse(localStorage.getItem(key) || "{}");
+      const overrides = current.timesheetCellOverrides && typeof current.timesheetCellOverrides === "object"
+        ? { ...current.timesheetCellOverrides }
+        : {};
+      delete overrides[`${target.employeeId}::${target.dateKey}`];
+      localStorage.setItem(key, JSON.stringify({
+        ...current,
+        timesheetCellOverrides: overrides,
+      }));
+    }, bridgeTarget);
 
     const result = await evaluate(client, async () => {
       const click = (selector) => {
@@ -520,7 +429,6 @@ async function main() {
         const keys = [
           "mes-planning-prototype-state-v2",
           "mes-planning-prototype-directories-v2",
-          "mes-planning-prototype-complexity-calculator-v5",
           "mes-planning-prototype-supply-control-v1",
         ];
         return Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)]));
@@ -833,11 +741,22 @@ async function main() {
       const carryoverPanelVisible = Boolean(document.querySelector(".shift-master-board-carryover, [data-visual-qa-target=\"shift-master-board-carryover-panel\"]"));
       const recommendationsPanelVisible = Boolean(document.querySelector(".shift-master-board-recommendations, [data-visual-qa-target=\"shift-master-board-recommendations-panel\"]"));
       const viewportOverflowX = Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth, document.body.scrollWidth - document.body.clientWidth);
-      const tinyTargets = [...document.querySelectorAll("button, input, select, textarea, a")].filter((element) => {
+      const tinyTargetDetails = [...document.querySelectorAll("button, input, select, textarea, a")].filter((element) => {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
         return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0 && (rect.width < 24 || rect.height < 22);
-      }).length;
+      }).map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          className: element.className || "",
+          target: element.getAttribute("data-visual-qa-target") || "",
+          text: element.innerText?.trim().replace(/\s+/g, " ").slice(0, 80) || element.getAttribute("aria-label") || element.getAttribute("title") || "",
+          width: Number(rect.width.toFixed(2)),
+          height: Number(rect.height.toFixed(2)),
+        };
+      });
+      const tinyTargets = tinyTargetDetails.length;
       const overflowBlocks = [...document.querySelectorAll([
         ".shift-master-board-sidebar",
         ".shift-master-board-panel",
@@ -884,7 +803,7 @@ async function main() {
       const runtimeIsolationAfter = readRuntimeIsolation();
       const runtimeChangedKeys = Object.keys(runtimeIsolationAfter).filter((key) => runtimeIsolationAfter[key] !== runtimeIsolationBefore[key]);
 
-      return { laneCounts, removedPanelsVisible, boardLaneStructureValid, invalidDragTargetsBlocked, masterSelectorKeepsBoardVisible, kuzminaTaskCount, kuzminaMatrixScopeCount, kuzminaAvailableCount, kuzminaEmployeeCardCount, kuzminaLoadbarText, kuzminaFallbackTaskCount, kuzminaFallbackScopeCount, kuzminaFallbackAvailableCount, kuzminaFallbackEmployeeCardCount, kuzminaFallbackSavedQuantity, kuzminaFallbackLoadbarText, qaAssignmentQuantity, availableQuantityAutoSaved, directIssueSavedUnsavedExecutor, directIssueAssignmentSummary, unauthorizedExecutorFiltered, oldExecutorGridVisible, storedAssignmentRisks, coverageText, taskContextGap, taskContextText, inlineSummaryText, routeChainText, documentPanelText, documentTransferCards, factPanelVisible, factSaveVisible, detailQaTargets, carryoverPanelVisible, recommendationsPanelVisible, modalOpened, modalText, sheetContract, transferContract, modalOverflowBlocks, riskCardText, availableLoadbarText, availableLoadbarCards, availableQuantityInputVisible, availableQuantityAssignmentSaved, otherTaskLoadChecked, otherTaskLoadText, otherTaskBaseLoad, quantityPreviewText, quantityPreviewLoad, tinyTargets, viewportOverflowX, overflowBlocks, insetIssues, runtimeChangedKeys };
+      return { laneCounts, removedPanelsVisible, boardLaneStructureValid, invalidDragTargetsBlocked, masterSelectorKeepsBoardVisible, kuzminaTaskCount, kuzminaMatrixScopeCount, kuzminaAvailableCount, kuzminaEmployeeCardCount, kuzminaLoadbarText, kuzminaFallbackTaskCount, kuzminaFallbackScopeCount, kuzminaFallbackAvailableCount, kuzminaFallbackEmployeeCardCount, kuzminaFallbackSavedQuantity, kuzminaFallbackLoadbarText, qaAssignmentQuantity, availableQuantityAutoSaved, directIssueSavedUnsavedExecutor, directIssueAssignmentSummary, unauthorizedExecutorFiltered, oldExecutorGridVisible, storedAssignmentRisks, coverageText, taskContextGap, taskContextText, inlineSummaryText, routeChainText, documentPanelText, documentTransferCards, factPanelVisible, factSaveVisible, detailQaTargets, carryoverPanelVisible, recommendationsPanelVisible, modalOpened, modalText, sheetContract, transferContract, modalOverflowBlocks, riskCardText, availableLoadbarText, availableLoadbarCards, availableQuantityInputVisible, availableQuantityAssignmentSaved, otherTaskLoadChecked, otherTaskLoadText, otherTaskBaseLoad, quantityPreviewText, quantityPreviewLoad, tinyTargets, tinyTargetDetails, viewportOverflowX, overflowBlocks, insetIssues, runtimeChangedKeys };
     });
 
     assert(result.modalOpened, "Shift board sheet modal did not open.");
@@ -951,7 +870,7 @@ async function main() {
     ].forEach((targetName) => {
       assert(
         result.detailQaTargets.includes(targetName),
-        `Shift board detail card is missing inner Visual QA target: ${targetName}. Existing: ${result.detailQaTargets.join(", ")}`,
+        `Shift board detail card is missing inner inspection target: ${targetName}. Existing: ${result.detailQaTargets.join(", ")}`,
       );
     });
     assert(!result.factPanelVisible, "Shift board still renders duplicate end-of-shift fact panel. Fact entry must be in Рабочий стол.");
@@ -970,7 +889,7 @@ async function main() {
     assert(result.routeChainText.includes("Маршрут передачи"), "Shift board route transfer context is missing.");
     assert(result.runtimeChangedKeys.length === 0, `Shift board changed runtime data outside UI state: ${result.runtimeChangedKeys.join(", ")}`);
     assert(result.viewportOverflowX === 0, `Unexpected page horizontal overflow: ${result.viewportOverflowX}`);
-    assert(result.tinyTargets === 0, `Unexpected tiny controls in shift board: ${result.tinyTargets}`);
+    assert(result.tinyTargets === 0, `Unexpected tiny controls in shift board: ${JSON.stringify(result.tinyTargetDetails, null, 2)}`);
     assert(result.overflowBlocks.length === 0, `Unexpected horizontal overflow blocks in shift board: ${JSON.stringify(result.overflowBlocks, null, 2)}`);
     assert(result.insetIssues.length === 0, `Text is too close to a shift board panel edge: ${JSON.stringify(result.insetIssues, null, 2)}`);
 

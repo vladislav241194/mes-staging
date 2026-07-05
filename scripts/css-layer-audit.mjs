@@ -12,7 +12,7 @@ const entryFiles = [
 const expectedLayerImports = [
   "./styles/layers/00-foundation-base.css",
   "./styles/layers/10-shell-directory-gantt-base.css",
-  "./styles/layers/20-technology-calculator-specifications.css",
+  "./styles/layers/20-technology-specifications.css",
   "./styles/layers/30-module-shell-ui-foundations.css",
   "./styles/layers/40-gantt-planning-routes.css",
   "./styles/layers/50-nomenclature-routes-directories.css",
@@ -21,6 +21,9 @@ const expectedLayerImports = [
   "./styles/layers/80-visual-system-ui-states.css",
   "./styles/layers/90-shift-master-board.css",
   "./styles/layers/99-legacy-overrides-tail.css",
+  "./styles/ui/actions.css",
+  "./styles/ui/status.css",
+  "./styles/ui/kit-polish.css",
 ];
 const budgets = {
   duplicateSelectorGroups: 470,
@@ -40,7 +43,7 @@ const failures = [];
 const removedProjectUiPattern = /project-(?:binding|list|card|row|panel|relation|route|main|name-line|meta|status|readiness|module-content|editor-panel)|projectBinding|projectList|director-project-|data-focus-project/;
 const removedReportDebugModulePattern = /reports-page|report-sidebar|report-workspace|report-(?:app-shell|content|main|chart-grid|chart-card|table-card|insights|dashboard-workspace|header|kpi|kpi-grid)|debug-(?:action-menu|app-shell|check-list|chip-select|combobox|command-input|content|dense-row|drawer|drawer-backdrop|dropdown-menu|dropdown-panel|error-tip|index|inline-options|inline-select|menu-panel|metric-popover|mini-list|modal-grid|popover|popover-stage|segment-label|select-button|spec-grid|status-select|stepper-card|stepper-grid|steps|tree-select|usage-grid|validation|wizard-modal)|debug-page|debug-sidebar|debug-workspace|debug-card|debug-section|activeModule\s*={2,3}\s*["'](?:reports|debug)["']/;
 const removedDashboardLayoutPattern = /dashboard-app-shell|dashboard-page|dashboard-control-room|dashboard-header|dashboard-time|dashboard-grid|dashboard-status-grid|dashboard-workspace|data-layout-page="dashboard"|activeModule\s*={2,3}\s*["']dashboard["']/;
-const removedStandaloneShellPattern = /(?:calculator|project|specification)-app-shell/;
+const removedStandaloneShellPattern = /(?:project|specification)-app-shell/;
 const removedStandaloneBomLayoutPattern = /data-layout-page="bomLists"|bom-list-app-shell/;
 
 function fail(message) {
@@ -234,8 +237,12 @@ const removedStandaloneBomLayoutSelectorRules = rules.filter((rule) => (
   removedStandaloneBomLayoutPattern.test(rule.selector)
 ));
 const insetlessPanelHeaderRules = rules.filter((rule) => (
-  /(?:report-card-head|assistant-panel-head|planning-panel-head|shop-map-panel-head|ui-panel-head|module-panel\s+h2|directory-sidebar-head|directory-table-toolbar|detail-card-head|planning-operation-group-head|route-smt-step-head|supply-header)/.test(rule.selector)
+  /(?:report-card-head|assistant-panel-head|planning-panel-head|shop-map-panel-head|ui-panel-head|module-panel\s+h2|directory-sidebar-head|directory-table-toolbar|detail-card-head|planning-operation-group-head|supply-header)/.test(rule.selector)
   && /padding\s*:\s*0\s+0\s+\d+(?:px|rem|em)/i.test(rule.body)
+));
+const planningRulesInWorkshopLayer = rules.filter((rule) => (
+  rule.file === "styles/layers/90-shift-master-board.css"
+  && /data-layout-page="planning".*planning-order-page\.is-route-structure/.test(rule.selector)
 ));
 
 if (riskyOverflowRules.length) {
@@ -285,6 +292,9 @@ if (removedStandaloneBomLayoutSelectorRules.length > budgets.removedStandaloneBo
 if (insetlessPanelHeaderRules.length > budgets.insetlessPanelHeaderRules) {
   fail(`Insetless panel/header text rules returned: ${insetlessPanelHeaderRules.length}`);
 }
+if (planningRulesInWorkshopLayer.length > 0) {
+  fail(`Planning route-structure rules must not live in the workshop layer: ${planningRulesInWorkshopLayer.length}`);
+}
 
 console.log("MES CSS Layer Audit");
 console.log(`Rules: ${rules.length}`);
@@ -329,7 +339,7 @@ console.log(`- ${removedDashboardSelectorRules.length} rules mention removed das
 removedDashboardSelectorRules.slice(0, 8).forEach((rule) => console.log(`  ${rule.file}:${rule.line} ${rule.selector}`));
 
 console.log("\nRemoved standalone shell selector pressure");
-console.log(`- ${removedStandaloneShellSelectorRules.length} rules mention removed calculator/project/specification app shells`);
+console.log(`- ${removedStandaloneShellSelectorRules.length} rules mention removed project/specification app shells`);
 removedStandaloneShellSelectorRules.slice(0, 8).forEach((rule) => console.log(`  ${rule.file}:${rule.line} ${rule.selector}`));
 
 console.log("\nRemoved standalone bomLists layout selector pressure");
@@ -339,6 +349,10 @@ removedStandaloneBomLayoutSelectorRules.slice(0, 8).forEach((rule) => console.lo
 console.log("\nPotential insetless panel/header text");
 console.log(`- ${insetlessPanelHeaderRules.length} rules set vertical-only padding on panel headers`);
 insetlessPanelHeaderRules.slice(0, 12).forEach((rule) => console.log(`  ${rule.file}:${rule.line} ${rule.selector}`));
+
+console.log("\nPlanning rules in workshop layer");
+console.log(`- ${planningRulesInWorkshopLayer.length}`);
+planningRulesInWorkshopLayer.slice(0, 12).forEach((rule) => console.log(`  ${rule.file}:${rule.line} ${rule.selector}`));
 
 if (failures.length) {
   console.error("\nFailures:");

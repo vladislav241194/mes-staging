@@ -79,7 +79,7 @@
 
 Если новый блок нельзя понятно пометить одним из этих маркеров, сначала расширяется UI-kit, а не создается локальная HTML-структура.
 
-Живые ручные контейнеры, которые еще не переведены на helper, не являются исключением из контракта: `section.module-panel` маркируется как `Panel`, а table-wrap/ui-table-wrap маркируется как `TableWrap` и получает `data-scroll-contract="horizontal-only"`. Это позволяет Visual QA и статическим gate-ам отличать управляемый UI-kit слой от случайной локальной верстки.
+Живые ручные контейнеры, которые еще не переведены на helper, не являются исключением из контракта: `section.module-panel` маркируется как `Panel`, а table-wrap/ui-table-wrap маркируется как `TableWrap` и получает `data-scroll-contract="horizontal-only"`. Это позволяет design snapshots и статическим gate-ам отличать управляемый UI-kit слой от случайной локальной верстки.
 
 ## Runtime normalizer
 
@@ -87,7 +87,7 @@
 
 - после каждого `render()` он проставляет `data-ui-component` на видимые формы, обычные `label` с input/select/textarea, кнопки, table-wrap, панели, dropdown, modal, drawer и Gantt-слоты;
 - он не должен подменять миграцию helper-ами, но делает старый живой UI диагностируемым;
-- Visual QA проверяет `unmarked = 0`, то есть UI-примитивы не должны оставаться без контракта.
+- Design snapshots проверяют `unmarked = 0`, то есть UI-примитивы не должны оставаться без контракта.
 
 Правило для нового кода остается жестким: сначала использовать helper, а runtime normalizer считать страховкой для старого слоя.
 
@@ -99,7 +99,7 @@
 
 - `styles/layers/00-foundation-base.css`;
 - `styles/layers/10-shell-directory-gantt-base.css`;
-- `styles/layers/20-technology-calculator-specifications.css`;
+- `styles/layers/20-technology-specifications.css`;
 - `styles/layers/30-module-shell-ui-foundations.css`;
 - `styles/layers/40-gantt-planning-routes.css`;
 - `styles/layers/50-nomenclature-routes-directories.css`;
@@ -141,6 +141,6 @@
 - удаленные `reports/debug` CSS-селекторы должны оставаться равными 0.
 - standalone `bomLists` layout (`data-layout-page="bomLists"`, `bom-list-app-shell`) должен оставаться равным 0: платы/BOM являются вкладкой Номенклатуры, а не отдельным экраном.
 - старый `dashboard-*` layout должен оставаться равным 0: обзорные/аналитические экраны собираются через текущий `renderUiAppShell()` и `module-panel`.
-- standalone shell-классы `calculator-app-shell`, `project-app-shell`, `specification-app-shell` должны оставаться равными 0: это старые оболочки экранов, а не live-компоненты.
+- standalone shell-классы `project-app-shell`, `specification-app-shell` должны оставаться равными 0: это старые оболочки экранов, а не live-компоненты.
 
 Если счетчик вырос, это не всегда означает ошибку бизнес-логики, но означает, что новая реализация снова поехала мимо текущего UI/flow контракта.

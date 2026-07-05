@@ -30,6 +30,10 @@ const [
   designQaSource,
   packageSource,
   buildSource,
+  uiHtmlSource,
+  uiComponentsSource,
+  uiActionsCssSource,
+  uiStatusCssSource,
 ] = await Promise.all([
   read("src/app.js"),
   read("styles/mes-ui-core.css"),
@@ -41,10 +45,16 @@ const [
   read("scripts/design-qa-snapshots.mjs"),
   read("package.json"),
   read("scripts/build.mjs"),
+  read("src/ui/html.js"),
+  read("src/ui/components.js"),
+  read("styles/ui/actions.css"),
+  read("styles/ui/status.css"),
 ]);
 
 const packageJson = JSON.parse(packageSource);
 const failures = [];
+const uiRuntimeJsSource = [appSource, uiHtmlSource, uiComponentsSource].join("\n");
+const uiCssContractSource = [coreCssSource, uiActionsCssSource, uiStatusCssSource].join("\n");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -131,7 +141,7 @@ const evidenceChecks = {
       assert(contract.component && Array.isArray(contract.helperNames) && contract.helperNames.length, `bad helper contract for ${contract.component}`);
       assert(Array.isArray(contract.cssSelectors) && contract.cssSelectors.length, `bad CSS contract for ${contract.component}`);
       assert(contract.purpose, `missing purpose for ${contract.component}`);
-      contract.helperNames.forEach((helperName) => includes(appSource, `function ${helperName}`, `${contract.component}.${helperName}`));
+      contract.helperNames.forEach((helperName) => includes(uiRuntimeJsSource, `function ${helperName}`, `${contract.component}.${helperName}`));
     });
   },
   "style-token-contracts": () => {
@@ -153,18 +163,18 @@ const evidenceChecks = {
     });
     includes(appSource, "UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach", "runtime normalizer execution");
   },
-  "action-button-helper": () => includes(appSource, "function renderUiActionButton", "renderUiActionButton"),
+  "action-button-helper": () => includes(uiRuntimeJsSource, "function renderUiActionButton", "renderUiActionButton"),
   "action-button-css": () => {
-    includes(coreCssSource, ".ui-action-button", "ActionButton CSS");
-    includes(coreCssSource, "var(--mes-ui-control-height)", "ActionButton control height token");
+    includes(uiCssContractSource, ".ui-action-button", "ActionButton CSS");
+    includes(uiCssContractSource, "var(--mes-ui-control-height)", "ActionButton control height token");
   },
   "action-button-smoke-gate": () => includes(moduleSmokeSource, "visible button without UI component marker", "ActionButton smoke gate"),
   "sidebar-helper": () => {
-    includes(appSource, "function renderUiModuleSidebar", "renderUiModuleSidebar");
+    includes(uiRuntimeJsSource, "function renderUiModuleSidebar", "renderUiModuleSidebar");
     includes(coreCssSource, "--mes-ui-module-sidebar-width", "ModuleSidebar width token");
   },
   "module-header-helper": () => {
-    includes(appSource, "function renderUiModuleHeader", "renderUiModuleHeader");
+    includes(uiRuntimeJsSource, "function renderUiModuleHeader", "renderUiModuleHeader");
     includes(coreCssSource, ".ui-module-header", "ModuleHeader CSS");
   },
   "sidebar-width-smoke-gate": () => {
@@ -175,8 +185,8 @@ const evidenceChecks = {
     includes(coreCssSource, "--mes-ui-module-page-background", "ModulePage background token");
     includes(moduleSmokeSource, "ModulePage background contract drift", "ModulePage background smoke gate");
   },
-  "panel-helper": () => includes(appSource, "function renderUiPanel(", "renderUiPanel"),
-  "panel-body-helper": () => includes(appSource, "function renderUiPanelBody", "renderUiPanelBody"),
+  "panel-helper": () => includes(uiRuntimeJsSource, "function renderUiPanel(", "renderUiPanel"),
+  "panel-body-helper": () => includes(uiRuntimeJsSource, "function renderUiPanelBody", "renderUiPanelBody"),
   "panel-padding-tokens": () => {
     ["--mes-ui-panel-gap", "--mes-ui-panel-head-padding", "--mes-ui-panel-body-padding", "--mes-ui-panel-footer-padding"].forEach((token) => {
       assert(hasToken(token), `missing panel spacing token ${token}`);
@@ -186,24 +196,24 @@ const evidenceChecks = {
     includes(moduleSmokeSource, "panel content escapes panel bounds", "Panel bounds gate");
     includes(moduleSmokeSource, "PanelBody direct blocks overlap", "PanelBody overlap gate");
   },
-  "table-helper": () => includes(appSource, "function renderUiTableWrap", "renderUiTableWrap"),
+  "table-helper": () => includes(uiRuntimeJsSource, "function renderUiTableWrap", "renderUiTableWrap"),
   "table-horizontal-scroll-contract": () => {
-    includes(appSource, "data-scroll-contract=\"horizontal-only\"", "TableWrap horizontal-only marker");
+    includes(uiRuntimeJsSource, "data-scroll-contract=\"horizontal-only\"", "TableWrap horizontal-only marker");
     includes(coreCssSource, ".ui-table-wrap[data-scroll-contract=\"horizontal-only\"]", "TableWrap horizontal-only CSS");
   },
   "table-vertical-scroll-smoke-gate": () => includes(moduleSmokeSource, "horizontal-only TableWrap has vertical scroll contract drift", "TableWrap vertical scroll smoke gate"),
-  "form-field-helper": () => includes(appSource, "function renderUiFormField", "renderUiFormField"),
+  "form-field-helper": () => includes(uiRuntimeJsSource, "function renderUiFormField", "renderUiFormField"),
   "form-control-height-token": () => assert(hasToken("--mes-ui-form-control-height"), "missing form control height token"),
   "form-field-smoke-gate": () => includes(moduleSmokeSource, "visible form field without FormField marker", "FormField smoke gate"),
   "modal-helper": () => {
-    includes(appSource, "function renderUiModalFrame", "renderUiModalFrame");
-    includes(appSource, "function renderUiModalShell", "renderUiModalShell");
+    includes(uiRuntimeJsSource, "function renderUiModalFrame", "renderUiModalFrame");
+    includes(uiRuntimeJsSource, "function renderUiModalShell", "renderUiModalShell");
   },
   "drawer-helper": () => {
-    includes(appSource, "function renderUiDrawerFrame", "renderUiDrawerFrame");
-    includes(appSource, "function renderUiDrawerShell", "renderUiDrawerShell");
+    includes(uiRuntimeJsSource, "function renderUiDrawerFrame", "renderUiDrawerFrame");
+    includes(uiRuntimeJsSource, "function renderUiDrawerShell", "renderUiDrawerShell");
   },
-  "dropdown-helper": () => includes(appSource, "function renderUiDropdownFrame", "renderUiDropdownFrame"),
+  "dropdown-helper": () => includes(uiRuntimeJsSource, "function renderUiDropdownFrame", "renderUiDropdownFrame"),
   "opened-overlay-smoke-gates": () => {
     includes(moduleSmokeSource, "selected slot edit surface contract is missing after opening slot", "opened Gantt modal gate");
     ["routes-labor-open", "timesheet-editor-open", "shift-master-sheet-open", "authPrototype-pin"].forEach((stateId) => {

@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-07-05T04:58:19.180Z",
+  "states": [
+    "planned",
+    "distributed",
+    "in_progress",
+    "paused",
+    "completed",
+    "overdue",
+    "problem",
+    "transfer",
+    "non_working_segment",
+    "selected",
+    "dragging",
+    "resizing",
+    "readonly"
+  ],
+  "classes": [
+    "status-planned",
+    "status-in_progress",
+    "status-paused",
+    "status-completed",
+    "status-problem",
+    "status-overdue",
+    "is-selected",
+    "is-dragging",
+    "is-locked",
+    "is-compact",
+    "is-tiny",
+    "is-segmented",
+    "material-transfer-slot",
+    "has-warning",
+    "critical",
+    "warning",
+    "slot-working-segment",
+    "slot-non-working-segment",
+    "slot-operational-layer",
+    "slot-operational-segment",
+    "slot-transfer-batch-indicator"
+  ],
+  "requiredComponents": [
+    "GanttSlot",
+    "GanttWorkingSegment",
+    "GanttNonWorkingSegment",
+    "GanttOperationalLayer",
+    "GanttOperationalSegment",
+    "GanttResizeHandle",
+    "GanttTransferBatch"
+  ]
+}

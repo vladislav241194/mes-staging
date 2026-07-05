@@ -40,13 +40,13 @@
 
 1. `styles/layers/00-foundation-base.css` - tokens, reset, базовые browser primitives;
 2. `styles/layers/10-shell-directory-gantt-base.css` - первый проход shell/sidebar/directory/Gantt primitives;
-3. `styles/layers/20-technology-calculator-specifications.css` - калькулятор, BOM, спецификации;
+3. `styles/layers/20-technology-specifications.css` - BOM, спецификации, технологические primitives;
 4. `styles/layers/30-module-shell-ui-foundations.css` - module shell, sidebar, employee, planning-order foundations;
 5. `styles/layers/40-gantt-planning-routes.css` - Gantt, планирование, маршрутные карты;
 6. `styles/layers/50-nomenclature-routes-directories.css` - номенклатура, маршруты, справочники, таблицы;
 7. `styles/layers/60-operational-modules.css` - снабжение, табель, цех, оперативные модули;
 8. `styles/layers/70-planning-table-and-matrix.css` - план-таблица, матрица, аналитические таблицы;
-9. `styles/layers/80-visual-system-ui-states.css` - UI-состояния, Gantt Design System, Visual QA stand;
+9. `styles/layers/80-visual-system-ui-states.css` - UI-состояния, Gantt Design System, runtime/design snapshot стенд;
 10. `styles/layers/90-shift-master-board.css` - текущая доска Мастерской;
 11. `styles/layers/99-legacy-overrides-tail.css` - поздние override-правила, которые еще ждут отдельного cleanup.
 
@@ -80,7 +80,7 @@ Shared-state contract: все ключи из `SHARED_STATE_VALUE_KEYS` в `src/
 
 `accessRoleProfiles` и `accessRoleAssignments` входят в `sharedUi`: модуль `Роли` уже влияет на авторизацию и видимость модулей, поэтому его настройки нельзя оставлять только в локальном UI state одной вкладки.
 
-`npm run qa:module-smoke` без screenshots открывает все модули из `MES_MODULE_FLOW_SEQUENCE` и основные legacy alias на desktop viewport, проверяет корректный `layout-page`, topbar-заголовок из `MES_MODULE_FLOW_CONTRACTS.label`, группу/роль topbar-аннотации, непустой shell и отсутствие startup error/console error. Отдельно проверяются входы `bomLists`, `speki`, `specifications`, `planning2`, `planningWorkbench`, `calculator`, `warehouse`, `shiftMaster`, `shiftMasterContext`, `shiftMasterV2`: они должны открывать новые целевые модули, а не отдельные старые layout-page. Это быстрый gate против ситуаций вида "Ошибка запуска интерфейса" или "модуль переименовали только в одном месте" после рефакторинга.
+`npm run qa:module-smoke` без screenshots открывает все модули из `MES_MODULE_FLOW_SEQUENCE` и основные legacy alias на desktop viewport, проверяет корректный `layout-page`, topbar-заголовок из `MES_MODULE_FLOW_CONTRACTS.label`, группу/роль topbar-аннотации, непустой shell и отсутствие startup error/console error. Отдельно проверяются входы `bomLists`, `speki`, `specifications`, `planning2`, `planningWorkbench`, `warehouse`, `shiftMaster`, `shiftMasterContext`, `shiftMasterV2`: они должны открывать новые целевые модули, а не отдельные старые layout-page. Это быстрый gate против ситуаций вида "Ошибка запуска интерфейса" или "модуль переименовали только в одном месте" после рефакторинга.
 
 `npm run qa:auth` проверяет полубоевой вход без `qa-auth-bypass`: явный путь `Административный отдел -> Группа без участка -> Алексеев`, PIN-клавиатуру из 10 уникальных цифр без `C/С`, ошибочный PIN без unlocked-сессии, PIN `55555`, обычный shell с меню/topbar, роль из авторизованного сотрудника, карточку сайдбара с ФИО/должностью/отделом, reload сессии до конца дня и `Выход` обратно на первый шаг. Этот тест входит в `npm run qa:functional`, потому что авторизация стала стартовым контуром системы.
 
@@ -118,7 +118,7 @@ Shared-state contract: все ключи из `SHARED_STATE_VALUE_KEYS` в `src/
 
 Каждый helper также ставит `data-ui-component`: `AppShell`, `Panel`, `PanelHead`, `PanelBody`, `PanelFooter`, `ModuleHeader`, `ActionButton`, `ActionBar`, `SidebarItem`, `TableWrap`, `FormField`, `Dropdown`, `Modal`, `Drawer`, `GanttBar`, `StatusToken`, `DemoBadge`, `DemoMarker`. Это промежуточный слой перед будущими React/HeroUI-компонентами и диагностический якорь для QA.
 
-Дополнительно включен runtime normalizer `applyUiRuntimeContracts()`. Он запускается после каждого `render()` и маркирует старые живые примитивы, которые еще не переведены на helper-ы: формы, обычные `label` с input/select/textarea, все кнопки, table-wrap, панели, panel head/footer, dropdown, modal, drawer и Gantt-слоты. Это временный стабилизационный bridge: новый код все равно должен начинаться с helper-а, но Visual QA теперь может видеть и проверять старые участки.
+Дополнительно включен runtime normalizer `applyUiRuntimeContracts()`. Он запускается после каждого `render()` и маркирует старые живые примитивы, которые еще не переведены на helper-ы: формы, обычные `label` с input/select/textarea, все кнопки, table-wrap, панели, panel head/footer, dropdown, modal, drawer и Gantt-слоты. Это временный стабилизационный bridge: новый код все равно должен начинаться с helper-а, но design snapshots и статические gate-ы теперь могут видеть и проверять старые участки.
 
 Если старый живой блок пока не переведен на helper, он все равно обязан иметь runtime-маркер. Любой ручной `section.module-panel` должен иметь `data-ui-component="Panel"`, а любой table-wrap/ui-table-wrap должен иметь `data-ui-component="TableWrap"` и `data-scroll-contract="horizontal-only"`. `qa:ui` падает на незамаркированных контейнерах, чтобы новая ручная верстка не возвращалась невидимо.
 
@@ -168,7 +168,7 @@ Inset-contract для заголовков и текстовых блоков:
 
 ### 7. Упрощение app.js
 
-Физический разрез монолита уже выполнен безопасным способом: порядок cascade сохранен через manifest. Следующие cleanup-проходы должны не менять порядок без Visual QA, а постепенно переносить повторяющиеся shared-правила из `styles/layers/*` в `styles/mes-ui-core.css` и снижать CSS budgets.
+Физический разрез монолита уже выполнен безопасным способом: порядок cascade сохранен через manifest. Следующие cleanup-проходы должны не менять порядок без snapshot/functional проверки, а постепенно переносить повторяющиеся shared-правила из `styles/layers/*` в `styles/mes-ui-core.css` и снижать CSS budgets.
 
 ### 8. Бизнес и UI
 
@@ -256,7 +256,7 @@ npm run qa:legacy
 
 Показывает legacy inventory:
 
-- hard forbidden patterns: поиск, breadcrumbs, старые демо-ветки Мастерской, удаленный РКД в runtime/CSS/HTML, старый `dashboard-*` layout, старые standalone shell-классы `calculator/project/specification`, старое имя `planning-v2`, старый `planning-order-batch-row/actions/grid` слой заказ-нарядов, кастомные кнопки помощника Ганта `mini-action`/`assistant-command`, старая рабочая доска диспетчерской;
+- hard forbidden patterns: поиск, breadcrumbs, старые демо-ветки Мастерской, удаленный РКД в runtime/CSS/HTML, старый `dashboard-*` layout, старые standalone shell-классы `project/specification`, старое имя `planning-v2`, старый `planning-order-batch-row/actions/grid` слой заказ-нарядов, кастомные кнопки помощника Ганта `mini-action`/`assistant-command`, старая рабочая доска диспетчерской;
 - compatibility debt: `projectId`, `batchId`, legacy planning demo storage keys, `shiftMaster/shiftMasterContext/shiftMasterV2` URL aliases; после stabilization pass бюджеты ужаты до `projectId <= 126`, `batchId <= 8`, а новые слоты больше не записывают `batchId`; `planning-batch`, старые `project-*` UI class names включая `project-main/status/readiness` и `director-project-*`, `planning-v2` и `planning-order-batch-row/actions/grid` зафиксированы как запрещенный возврат с бюджетом 0;
 - compatibility debt для `report-card-head` закрыт: новый helper выпускает только `ui-panel-head`, а CSS-совместимость `:is(.report-card-head, .ui-panel-head)` удалена;
 - CSS legacy map: live `material-transfer-slot`, запрещенный старый warehouse-page/sidebar/table CSS, старый CSS `shiftMasterV2`, module-specific sidebar overrides;
@@ -289,8 +289,8 @@ npm run qa:css
 - давление legacy-селекторов `module-entity-*`; `planning-batch`, старый `warehouse-slot` Gantt marker, `planning-v2` и `planning-order-batch-row/actions/grid` отдельно блокируются `qa:legacy`, а текущие боковые списки должны использовать `ui-sidebar-*`.
 - давление CSS-селекторов удаленных из runtime `reports/debug` модулей; этот слой должен оставаться равным 0 и не возвращаться в CSS.
 - давление CSS-селекторов старого `dashboard-*` layout; этот слой должен оставаться равным 0, а новые обзорные экраны должны использовать текущий shell/UI-kit.
-- давление standalone shell-классов `calculator/project/specification-app-shell`; эти оболочки должны оставаться равными 0, при этом live `calculator-panel/page` для встроенного SMT-калькулятора не запрещается.
-- потенциально опасные заголовки/toolbar без бокового inset: `directory-sidebar-head`, `directory-table-toolbar`, `detail-card-head`, `route-smt-step-head`, `supply-header` и panel-head варианты.
+- давление standalone shell-классов `project/specification-app-shell`; эти оболочки должны оставаться равными 0.
+- потенциально опасные заголовки/toolbar без бокового inset: `directory-sidebar-head`, `directory-table-toolbar`, `detail-card-head`, `supply-header` и panel-head варианты.
 
 Это диагностический отчет и budget gate. Его задача - показать, где следующий cleanup даст максимальную скорость прототипирования, и не дать новым правкам увеличить:
 

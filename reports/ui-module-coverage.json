@@ -1,0 +1,721 @@
+{
+  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "modules": [
+    {
+      "moduleId": "gantt",
+      "profile": {
+        "type": "special-runtime-protected",
+        "hasTable": false,
+        "hasActions": true,
+        "hasGantt": true,
+        "allowedInternalOverflowSelectors": [
+          ".gantt-shell",
+          ".planner-workspace"
+        ],
+        "requiredSelectors": [
+          ".gantt-shell",
+          ".timeline-row",
+          ".rows-layer",
+          ".operation-slot",
+          "[data-ui-component='GanttToolbar']"
+        ],
+        "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+      },
+      "exception": {
+        "module": "gantt",
+        "type": "special-runtime-protected",
+        "reason": "Absolute geometry timeline with SVG dependencies and drag/resize behavior; protected by Gantt Phase 5 contract and regression suite.",
+        "expectedMissingMarkers": [
+          "ModulePage",
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".gantt-shell",
+          ".planner-workspace"
+        ],
+        "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+      },
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "warn"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "warn"
+        }
+      ]
+    },
+    {
+      "moduleId": "planning",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true,
+        "requiredSelectors": [
+          ".planning-order-page"
+        ]
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "shiftWorkOrders",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true,
+        "hasTree": true,
+        "hasOverlayProbe": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "routes",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true,
+        "hasTree": true,
+        "hasOverlayProbe": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "warn"
+        }
+      ]
+    },
+    {
+      "moduleId": "products",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true,
+        "hasTree": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "nomenclature",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "directories",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "timesheet",
+      "profile": {
+        "type": "special-runtime",
+        "hasTable": true,
+        "hasActions": true,
+        "hasOverlayProbe": true
+      },
+      "exception": {
+        "module": "timesheet",
+        "type": "data-dense-limited-mobile",
+        "reason": "Dense calendar table uses internal table scroll; narrow viewport is smoke-only.",
+        "expectedMissingMarkers": [
+          "ModuleHeader"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".timesheet-table-wrap",
+          ".ui-table-wrap"
+        ],
+        "futurePhase": "Tablet-first timesheet adaptation"
+      },
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "warn"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "warn"
+        }
+      ]
+    },
+    {
+      "moduleId": "productionStructureMatrix",
+      "profile": {
+        "type": "special-runtime",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": {
+        "module": "productionStructureMatrix",
+        "type": "data-dense-limited-mobile",
+        "reason": "Wide organizational matrix editor requires internal horizontal table scroll.",
+        "expectedMissingMarkers": [],
+        "allowedInternalOverflowSelectors": [
+          ".production-structure-table-wrap",
+          ".ui-table-wrap"
+        ],
+        "futurePhase": "Matrix editing ergonomics phase"
+      },
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "shiftMasterBoard",
+      "profile": {
+        "type": "contract",
+        "hasTable": false,
+        "hasActions": true,
+        "hasOverlayProbe": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "authPrototype",
+      "profile": {
+        "type": "special-runtime",
+        "hasTable": false,
+        "hasActions": true,
+        "requiredSelectors": [
+          "[data-visual-qa-target='auth-prototype-header']",
+          ".auth-prototype-department-grid"
+        ]
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "authSessionPrototype",
+      "profile": {
+        "type": "contract",
+        "hasTable": false,
+        "hasActions": true,
+        "hasOverlayProbe": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "roles",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "planningTable",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "matrix",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "supply",
+      "profile": {
+        "type": "contract",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "shopMap",
+      "profile": {
+        "type": "special-runtime",
+        "hasTable": true,
+        "hasActions": true
+      },
+      "exception": null,
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "visualSystem",
+      "profile": {
+        "type": "special-runtime",
+        "hasTable": true,
+        "hasActions": true,
+        "requiredSelectors": [
+          "[data-ui-component='VisualSystemRuntime']",
+          ".visual-system-page"
+        ]
+      },
+      "exception": {
+        "module": "visualSystem",
+        "type": "special-runtime",
+        "reason": "Living UI contract gallery; it intentionally renders multiple sample patterns.",
+        "expectedMissingMarkers": [
+          "ModuleHeader"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".visual-system-page"
+        ],
+        "futurePhase": "Keep as contract gallery, not a normal data module."
+      },
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "employees",
+      "profile": {
+        "type": "placeholder",
+        "hasTable": false,
+        "hasActions": true
+      },
+      "exception": {
+        "module": "employees",
+        "type": "placeholder",
+        "reason": "Legacy employees module was renamed/repositioned; current visible module is a compatibility placeholder.",
+        "expectedMissingMarkers": [
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [],
+        "futurePhase": "Remove alias or rebuild as real staff view"
+      },
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "moduleId": "dispatch",
+      "profile": {
+        "type": "placeholder",
+        "hasTable": false,
+        "hasActions": true
+      },
+      "exception": {
+        "module": "dispatch",
+        "type": "placeholder",
+        "reason": "Dispatcher module is intentionally a stub and should not expose live workflow UI.",
+        "expectedMissingMarkers": [
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [],
+        "futurePhase": "Replace placeholder only when dispatcher workflow returns"
+      },
+      "checks": [
+        {
+          "viewport": "desktop",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet",
+          "status": "ok"
+        },
+        {
+          "viewport": "tablet-compact",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow",
+          "status": "ok"
+        },
+        {
+          "viewport": "narrow-compact",
+          "status": "ok"
+        }
+      ]
+    }
+  ]
+}

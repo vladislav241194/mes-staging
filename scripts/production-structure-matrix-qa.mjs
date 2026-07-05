@@ -224,7 +224,6 @@ assert(!brokenOperationRefs.length, `Операции ссылаются на о
   "MES_PRODUCTION_RESOURCES",
   "WORK_CENTER_RATES",
   "planningState.workCenters.push",
-  "applyCalculatorRateToWorkCenter",
   "Норматив отдела обновлен",
 ].forEach((forbiddenToken) => {
   assert(!appSource.includes(forbiddenToken), `Runtime не должен использовать старый источник производственной структуры: ${forbiddenToken}`);

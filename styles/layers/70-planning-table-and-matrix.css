@@ -1,235 +1,3 @@
-/* MES CSS layer: planning table{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--planning-sheet-muted, #64748b);
-  font-style: normal;
-  font-weight: 900;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .smt-result-kpi-row{
-  flex-wrap: wrap !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .smt-result-kpi-row article{
-  flex: 1 1 calc(20% - 2px) !important;
-  min-width: 76px !important;
-}
-.app-shell[data-layout-page="planning"] .planning-work-detail > .module-panel{
-  overflow: visible;
-}
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-section-head,
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-head,
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-panel-head{
-  align-items: center !important;
-  min-height: 38px;
-}
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-section-head > div,
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-head > div,
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-panel-head > div{
-  min-width: 0;
-}
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-detail-disclosure > summary > em{
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  align-self: center;
-  justify-self: end;
-  min-width: 0;
-  min-height: 22px !important;
-  max-width: 100%;
-  padding: 3px 8px !important;
-  border-radius: 5px !important;
-  line-height: 1 !important;
-  text-align: center;
-  white-space: nowrap;
-}
-.app-shell[data-layout-page="planning"] .planning-work-detail .icon-button{
-  align-self: center;
-  justify-self: center;
-}
-.app-shell[data-layout-page="planning"] .planning-order-placement-summary,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary{
-  gap: 8px !important;
-}
-.app-shell[data-layout-page="planning"] .planning-order-placement-summary article,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis article,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary article{
-  align-content: center;
-  min-width: 0;
-  border-radius: 7px;
-}
-.app-shell[data-layout-page="planning"] .planning-order-placement-summary article,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis article,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary article{
-  padding: 7px 8px !important;
-}
-.app-shell[data-layout-page="planning"] .planning-order-placement-summary span,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis span,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis small,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary span,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary small{
-  min-width: 0;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
-}
-.app-shell[data-layout-page="planning"] .planning-order-placement-summary strong,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis strong,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary strong{
-  min-width: 0;
-  overflow-wrap: anywhere;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-card.is-operation-embedded{
-  display: grid;
-  gap: 8px !important;
-  padding: 8px !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-step-card.is-operation-embedded > .route-smt-grid,
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-smt-work-grid{
-  gap: 8px !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .planning-editable-panel,
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-result-panel,
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure{
-  border-radius: 7px !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .planning-editable-panel,
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-result-panel{
-  display: grid;
-  gap: 8px;
-  padding: 9px !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-panel .ui-panel-head,
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure > summary{
-  min-height: 34px;
-  padding-bottom: 7px !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .dense-inline-select > summary{
-  height: auto !important;
-  min-height: 40px !important;
-  align-items: center;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .dense-inline-select > summary strong,
-.app-shell[data-layout-page="planning"] .planning-work-detail .dense-inline-select > summary small,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis span,
-.app-shell[data-layout-page="planning"] .planning-work-detail .calculator-kpis small,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary span,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-balance-summary small{
-  overflow: visible !important;
-  text-overflow: clip !important;
-  white-space: normal !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .smt-result-kpi-row article{
-  min-height: 50px;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .field input,
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary{
-  height: 40px !important;
-  min-height: 40px !important;
-  padding: 5px 8px !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary > span{
-  gap: 1px;
-  overflow: hidden;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary strong,
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-input-block .dense-inline-select > summary small{
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure > summary{
-  align-items: center;
-  padding: 8px 10px !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-disclosure > summary > div{
-  min-width: 0;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  table-layout: fixed;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th,
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td{
-  padding: 5px 4px !important;
-  font-size: 10px;
-  line-height: 1.15;
-  vertical-align: middle;
-  white-space: normal !important;
-  overflow-wrap: anywhere;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(1),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(1){
-  width: 24% !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(2),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(2){
-  width: 12% !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(3),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3){
-  width: 10% !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(4),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(4){
-  width: 8% !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(5),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(5){
-  width: 24% !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(6),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(6),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(7),
-.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(7){
-  width: 11% !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .readonly-token{
-  display: inline-flex;
-  max-width: 100%;
-  min-height: 18px;
-  border-radius: 5px;
-  padding: 1px 5px;
-  font-size: 10px;
-  line-height: 1.1;
-  white-space: normal;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice{
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 3px;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice label{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 24px;
-  border-radius: 5px;
-  padding: 3px 4px;
-  text-align: center;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice span{
-  overflow: visible !important;
-  font-size: 10px;
-  line-height: 1;
-  text-overflow: clip !important;
-  white-space: nowrap !important;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-balance-table-wrap .smt-machine-choice small{
-  display: none;
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-popup-actions,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-actions{
-  display: flex !important;
-  flex-wrap: wrap;
-  width: 100%;
-  max-width: 100%;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-start;
-  min-width: 0;
-  margin: 0;
-  padding-top: 8px;
-  border-top: 1px solid var(--order-line);
-}.app-shell[data-layout-page="planning"] .planning-work-detail .route-smt-popup-actions .secondary-button,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-actions .secondary-button,
-.app-shell[data-layout-page="planning"] .planning-work-detail .smt-machine-actions .primary-button{
-  flex: 0 1 260px;
-  min-height: 32px;
-  justify-content: center;
-}@container (max-width: 860px) {
-.app-shell[data-layout-page="planning"] .planning-work-detail .planning-detail-disclosure > summary > em{
-    justify-self: start;
-  }}.gantt-shell .today-marker{
-  background: var(--mes-danger, #dc2626) !important;
-  box-shadow: none !important;
-}.gantt-shell .slot-quantity-badge,
-.gantt-shell .slot-quantity-badge.is-compact,
-.gantt-shell .slot-quantity-badge.is-tiny,
-.gantt-shell .operation-slot.week-slot .slot-quantity-badge.is-compact,
-.gantt-shell .operation-slot.week-slot .slot-quantity-badge.is-tiny{
-  height: 16px !important;
-  min-width: 0 !important;
-  padding: 0 5px !important;
-  border: 1px solid rgba(148, 163, 184, 0.45) !important;
-  border-radius: 0 !important;
-  background: rgba(255, 255, 255, 0.92) !important;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10) !important;
-  color: #334155 !important;
-  line-height: 16px !important;
-  text-shadow: none;
-}/* Geometry system v1: shared macOS-like shape contract without palette changes. */
 :root{
   --mes-radius-xs: 4px;
   --mes-radius-sm: 6px;
@@ -249,31 +17,6 @@
   --geometry-panel-padding: 12px;
   --geometry-card-padding: 10px;
   --geometry-gantt-corner-radius: 8px;
-}.primary-button,
-.secondary-button,
-.bom-file-import-button,
-.module-form-actions button,
-.director-command-actions button,
-.calculator-panel-actions button,
-.directory-actions button,
-.toolbar-actions button:not(.toggle-switch-button),
-.gantt-zoom-value,
-.segment,
-.module-tab,
-.dense-inline-select > summary,
-.smt-machine-choice button{
-  min-height: var(--layout-control-height);
-  border-radius: var(--mes-radius-control) !important;
-}.icon-button,
-.table-icon-button,
-.toolbar-actions .icon-button,
-.directory-actions .icon-button,
-.gantt-zoom-control .icon-button{
-  width: var(--geometry-icon-button-size);
-  min-width: var(--geometry-icon-button-size);
-  height: var(--geometry-icon-button-size);
-  min-height: var(--geometry-icon-button-size);
-  border-radius: var(--mes-radius-control) !important;
 }.field input,
 .field select,
 .field textarea,
@@ -297,17 +40,14 @@ input[type="radio"]{
   border-radius: var(--mes-radius-xs);
 }.directory-table-card,
 .module-panel,
-.calculator-panel,
 .route-step-editor-row,
 .route-step-flow-editor,
-.smt-line-card,
 .assistant-panel,
 .director-command,
 .topbar,
 .planner-frame,
 .ui-sidebar-item,
 .directory-nav-item,
-.specification-list-row,
 .bom-import-preview-note,
 .module-preview-empty,
 .empty-state,
@@ -326,13 +66,11 @@ input[type="radio"]{
 .module-data-sidebar,
 .module-data-workspace,
 .directory-workspace,
-.calculator-workspace,
 .modal,
 .large-modal,
 .confirm-modal,
 .slot-drawer,
 .dense-inline-options,
-.route-smt-modal,
 .shop-map-widget-modal{
   border-radius: var(--mes-radius-panel);
 }.slot-drawer{
@@ -350,7 +88,6 @@ input[type="radio"]{
   border-radius: var(--mes-radius-pill) !important;
 }.directory-table-wrap,
 .bom-import-table-wrap,
-.specification-list-table,
 .route-module-sequence,
 .bar-track,
 .progress{
@@ -629,9 +366,6 @@ input[type="radio"]{
   font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
-}.app-shell[data-layout-page="planning"] .planning-order-actions{
-  align-items: center;
-  justify-content: end;
 }.app-shell[data-layout-page="planning"] .planning-order-workspace{
   display: grid;
   grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
@@ -646,32 +380,6 @@ input[type="radio"]{
   background: var(--planning-order-subtle) !important;
   box-shadow: none !important;
   padding: 10px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-map-head{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  min-width: 0;
-  border-bottom: 1px solid var(--planning-order-line);
-  padding: 4px 2px 10px;
-}.app-shell[data-layout-page="planning"] .planning-order-map-head strong{
-  display: block;
-  min-width: 0;
-  color: var(--planning-order-text);
-  font-size: 13px;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}.app-shell[data-layout-page="planning"] .planning-order-map-head em{
-  border: 0;
-  border-radius: var(--planning-order-radius-sm);
-  background: #dbeafe;
-  color: #0c66e4;
-  padding: 2px 7px;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 800;
-  line-height: 16px;
-  text-transform: none;
 }.app-shell[data-layout-page="planning"] .planning-order-flow{
   display: grid;
   gap: 6px;
@@ -1135,42 +843,14 @@ input[type="radio"]{
   font-size: 13px;
   font-weight: 800;
   text-align: right;
-}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-step-card,
-.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-grid,
-.app-shell[data-layout-page="planning"] .planning-order-detail .planning-detail-disclosure,
-.app-shell[data-layout-page="planning"] .planning-order-detail .planning-detail-body,
-.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-balance-block{
-  box-sizing: border-box;
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
 }.app-shell[data-layout-page="planning"] .planning-order-detail .planning-detail-body{
   padding: 8px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-popup-actions{
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-popup-actions .secondary-button{
-  width: 100%;
-  min-width: 0;
-  flex: none !important;
 }.app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button{
   height: auto;
   min-height: 34px;
   align-items: center;
 }.app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button strong,
 .app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button small{
-  overflow: visible !important;
-  overflow-wrap: anywhere;
-  text-overflow: clip !important;
-  white-space: normal !important;
-}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary{
-  height: auto !important;
-  min-height: 40px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary > span{
-  overflow: visible !important;
-}.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary strong,
-.app-shell[data-layout-page="planning"] .planning-order-detail .route-smt-input-block .dense-inline-select > summary small{
   overflow: visible !important;
   overflow-wrap: anywhere;
   text-overflow: clip !important;
@@ -1266,11 +946,6 @@ input[type="radio"]{
   font-size: 21px;
   line-height: 1.18;
   letter-spacing: 0;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions{
-  gap: 8px;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions .primary-button,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions .secondary-button{
-  border-radius: 12px !important;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-workspace{
   grid-template-columns: minmax(360px, 0.82fr) minmax(460px, 1.18fr);
   gap: 14px;
@@ -1278,12 +953,6 @@ input[type="radio"]{
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-map{
   gap: 10px;
   padding: 12px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-map-head{
-  border-bottom-color: rgba(226, 232, 240, 0.88);
-  padding: 2px 2px 10px;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-map-head strong{
-  font-size: 12px;
-  font-weight: 850;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-flow{
   gap: 8px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase,
@@ -1411,269 +1080,7 @@ input[type="radio"]{
   gap: 8px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor.is-system-transfer{
   grid-template-columns: repeat(2, minmax(0, 1fr)) max-content;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-card,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-grid,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .planning-detail-disclosure,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .planning-detail-body,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-block{
-  border-radius: 14px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-card.is-operation-embedded{
-  display: grid;
-  gap: 10px !important;
-  width: 100%;
-  min-width: 0;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-width: 0;
-  min-height: 40px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 16px;
-  background: #fbfdff;
-  padding: 8px 10px;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head > div{
-  min-width: 0;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head span,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head strong{
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.15;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head span{
-  color: var(--planning-order-muted);
-  font-size: 10px;
-  font-weight: 760;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head strong{
-  color: var(--planning-order-text);
-  font-size: 13px;
-  font-weight: 850;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-step-head em{
-  justify-self: end;
-  border: 0;
-  border-radius: var(--planning-order-pill);
-  background: var(--planning-order-green-bg);
-  color: var(--planning-order-green-text);
-  padding: 3px 8px;
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 850;
-  line-height: 16px;
-  white-space: nowrap;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-grid{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) !important;
-  gap: 10px !important;
-  width: 100%;
-  min-width: 0;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block{
-  display: grid;
-  gap: 10px;
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgba(148, 163, 184, 0.22) !important;
-  border-radius: 16px !important;
-  background: #fbfdff !important;
-  box-shadow: none !important;
-  padding: 10px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .ui-panel-head,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .ui-panel-head{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-height: 0;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.88);
-  padding: 0 8px 8px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .ui-panel-head strong,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .ui-panel-head strong{
-  color: var(--planning-order-text);
-  font-size: 12px;
-  font-weight: 850;
-  line-height: 1.15;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .ui-panel-head span,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .ui-panel-head span{
-  color: var(--planning-order-muted);
-  font-size: 10px;
-  font-weight: 650;
-  line-height: 1.2;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .planning-section-tag,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .planning-section-tag,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary > em{
-  border: 0 !important;
-  border-radius: var(--planning-order-pill) !important;
-  background: #eef6ff;
-  color: var(--planning-order-link);
-  padding: 3px 8px !important;
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 850;
-  line-height: 16px !important;
-  text-transform: none;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .calculator-input-grid{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 8px !important;
-  min-width: 0;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field{
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  margin: 0;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field > span{
-  color: var(--planning-order-muted);
-  font-size: 9px;
-  font-weight: 850;
-  line-height: 1.1;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field input,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary{
-  width: 100%;
-  height: auto !important;
-  min-height: 34px !important;
-  border: 1px solid rgba(148, 163, 184, 0.28) !important;
-  border-radius: 12px !important;
-  background: #ffffff !important;
-  color: var(--planning-order-text) !important;
-  padding: 6px 8px !important;
-  font-size: 11px !important;
-  font-weight: 780 !important;
-  line-height: 1.15 !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .field.readonly input{
-  background: #f8fafc !important;
-  color: var(--planning-order-muted) !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary > span,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary strong,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .dense-inline-select > summary small{
-  min-width: 0;
-  overflow: visible !important;
-  overflow-wrap: anywhere;
-  text-overflow: clip !important;
-  white-space: normal !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row{
-  display: grid !important;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-  gap: 6px !important;
-  padding: 0 !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row article{
-  display: grid !important;
-  align-content: start !important;
-  gap: 2px !important;
-  min-width: 0 !important;
-  min-height: 56px !important;
-  border: 1px solid rgba(148, 163, 184, 0.20) !important;
-  border-radius: 12px !important;
-  background: #ffffff !important;
-  box-shadow: none !important;
-  padding: 7px 6px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row .smt-panel-kpi{
-  background: #f8fafc !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row .smt-machine-kpi{
-  border-color: rgba(37, 99, 235, 0.18) !important;
-  background: #eff6ff !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row span,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row strong,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row small{
-  min-width: 0;
-  overflow: visible !important;
-  overflow-wrap: anywhere;
-  line-height: 1.08 !important;
-  text-overflow: clip !important;
-  white-space: normal !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row span,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row small{
-  color: var(--planning-order-muted);
-  font-size: 7.5px !important;
-  font-weight: 700;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row strong{
-  margin: 1px 0 !important;
-  color: var(--planning-order-text);
-  font-size: 11px !important;
-  font-weight: 900;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure{
-  border: 1px solid rgba(148, 163, 184, 0.22) !important;
-  border-radius: 16px !important;
-  background: #fbfdff !important;
-  box-shadow: none !important;
-  overflow: visible;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-height: 42px;
-  border-radius: 16px;
-  padding: 9px 10px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary strong{
-  color: var(--planning-order-text);
-  font-size: 12px;
-  font-weight: 850;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure > summary span{
-  color: var(--planning-order-muted);
-  font-size: 10px;
-  font-weight: 650;
-  line-height: 1.2;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-disclosure .planning-detail-body{
-  border-top: 1px solid rgba(226, 232, 240, 0.88);
-  padding: 10px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-balance-block{
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-balance-summary{
-  display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 6px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-balance-summary article{
-  min-width: 0;
-  min-height: 46px !important;
-  border: 1px solid rgba(148, 163, 184, 0.20) !important;
-  border-radius: 12px !important;
-  background: #ffffff !important;
-  box-shadow: none !important;
-  padding: 7px !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions{
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 100%;
-  max-width: 100%;
-  gap: 6px !important;
-  align-items: stretch;
-  margin: 0 !important;
-  border-top: 0 !important;
-  border-bottom: 0 !important;
-  background: transparent !important;
-  padding: 0 !important;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions .secondary-button,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .secondary-button,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .primary-button{
-  width: 100%;
-  min-width: 0;
-  min-height: 34px;
-  border-radius: 12px !important;
-  justify-content: center;
-  padding: 6px 8px;
-  font-size: 10px;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions .secondary-button span,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .secondary-button span,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions .primary-button span{
-  min-width: 0;
-  overflow-wrap: anywhere;
-  text-align: center;
-  white-space: normal;
-}@container (max-width: 720px) {.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-input-block .calculator-input-grid,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-result-block .smt-result-kpi-row,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-balance-summary,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .route-smt-popup-actions,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail .smt-machine-actions{
-    grid-template-columns: minmax(0, 1fr) !important;
-  }}@container (max-width: 760px) {.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor,
+}@container (max-width: 760px) {.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor.is-system-transfer,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table.is-supply .planning-order-register-row,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-table.is-wip .planning-order-register-row,
@@ -1688,7 +1095,7 @@ input[type="radio"]{
     width: max-content;
     min-width: 100%;
     table-layout: auto;
-  }}/* Visual QA pass: prevent compact production screens from hiding meaningful UI text. */
+  }}/* Compact layout pass: prevent production screens from hiding meaningful UI text. */
 .directories-page .directory-content{
   grid-template-columns: minmax(0, 1fr) !important;
 }.directories-page .directory-table-card{
@@ -1783,13 +1190,6 @@ input[type="radio"]{
 }.app-shell[data-layout-page="directories"] .directory-header p{
   font-size: 9.75px !important;
   line-height: 13px !important;
-}.app-shell[data-layout-page="directories"] .directory-actions button{
-  font-size: 10.5px !important;
-  line-height: 14px !important;
-}.app-shell[data-layout-page="directories"] .directory-actions button{
-  gap: 6px !important;
-  padding-right: 12px !important;
-  padding-left: 12px !important;
 }.app-shell[data-layout-page="directories"] .directory-table-toolbar strong{
   font-size: 10.25px !important;
   line-height: 14px !important;
@@ -1928,16 +1328,6 @@ input[type="radio"]{
   letter-spacing: 0 !important;
 }.app-shell[data-layout-page="directories"] .directory-header p{
   color: var(--directory-ui-muted) !important;
-}.app-shell[data-layout-page="directories"] .directory-actions{
-  gap: 8px !important;
-}.app-shell[data-layout-page="directories"] .directory-actions button{
-  border-color: rgba(148, 163, 184, 0.28) !important;
-  border-radius: 12px !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.035) !important;
-}.app-shell[data-layout-page="directories"] .directory-actions .primary-button{
-  border-color: var(--directory-ui-selected-border) !important;
-  background: var(--directory-ui-selected-border) !important;
 }.app-shell[data-layout-page="directories"] .directory-content{
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
@@ -2004,10 +1394,6 @@ input[type="radio"]{
 }.app-shell[data-layout-page="directories"] .directory-header{
   gap: 10px !important;
   padding: 8px 12px !important;
-}.app-shell[data-layout-page="directories"] .directory-actions{
-  gap: 6px !important;
-}.app-shell[data-layout-page="directories"] .directory-actions button{
-  min-height: 32px !important;
 }.app-shell[data-layout-page="directories"] .directory-content{
   gap: 8px !important;
   padding-top: 3px !important;
@@ -2189,15 +1575,15 @@ input[type="radio"]{
   border-color: rgba(148, 163, 184, 0.24) !important;
   border-radius: var(--mes-ui-radius-md) !important;
   background: var(--mes-ui-surface) !important;
-}.app-shell :is(.directory-table, .calculator-table) th{
+}.app-shell .directory-table th{
   background: var(--mes-ui-surface-subtle);
   color: var(--mes-ui-muted);
-}.app-shell :is(.directory-table, .calculator-table) th,
-.app-shell :is(.directory-table, .calculator-table) td{
+}.app-shell .directory-table th,
+.app-shell .directory-table td{
   border-bottom-color: rgba(226, 232, 240, 0.86);
-}.app-shell :is(.directory-table, .calculator-table) tr:hover td{
+}.app-shell .directory-table tr:hover td{
   background: var(--mes-ui-hover);
-}.app-shell :is(.directory-table, .calculator-table) tr.is-selected td{
+}.app-shell .directory-table tr.is-selected td{
   background: #dceafe;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
   --planning-order-bg: var(--mes-ui-bg);
@@ -3056,11 +2442,6 @@ main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(input, select, tex
 main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(.primary-button, .secondary-button, .icon-button, .table-icon-button){
   min-height: var(--mes-ui-ops-control-height) !important;
   font-size: var(--mes-ui-ops-font-sm) !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.planning-smt-calculator-panel){
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-lg) !important;
-  background: var(--mes-ui-surface-raised) !important;
-  padding: 8px !important;
 }main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.planning-order-placement-summary){
   gap: 6px !important;
 }main.app-shell[data-layout-page="shopMap"] .shop-map-page.module-data-page{
@@ -3510,15 +2891,13 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
   height: var(--gantt-toolbar-container-height) !important;
   min-height: var(--gantt-toolbar-container-height) !important;
   max-height: var(--gantt-toolbar-container-height) !important;
-}
-/* Production structure matrix: full-width editable contract for org/resources behavior. */
+}/* Production structure matrix: full-width editable contract for org/resources behavior. */
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-page{
   display: grid;
   min-height: 100%;
   background: var(--mes-ui-page-bg, #f4f7fb);
   overflow: hidden auto;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-workspace{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-workspace{
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 10px;
@@ -3527,21 +2906,18 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   min-width: 0;
   padding: 10px 12px 14px;
   overflow: visible;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-content{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-content{
   display: grid;
   align-content: start;
   gap: 10px;
   min-width: 0;
   overflow: visible;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis article{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis article{
   display: grid;
   align-content: center;
   gap: 3px;
@@ -3551,31 +2927,25 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   border-radius: var(--mes-ui-radius-md, 8px);
   background: #ffffff;
   padding: 7px 9px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis strong{
   min-width: 0;
   overflow-wrap: anywhere;
   line-height: 1.15;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 10px;
   font-weight: 700;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis strong{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis strong{
   color: var(--mes-ui-text, #0f172a);
   font-size: 16px;
   font-weight: 700;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-panel{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-panel{
   min-width: 0;
   overflow: visible;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-panel{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-panel{
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro{
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -3584,30 +2954,25 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   border-radius: var(--mes-ui-radius-md, 8px);
   background: #f8fbff;
   padding: 9px 10px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro span{
   min-width: 0;
   overflow-wrap: anywhere;
   line-height: 1.25;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong{
   color: var(--mes-ui-text, #0f172a);
   font-size: 12px;
   font-weight: 700;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro span{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 11px;
   font-weight: 560;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-grid{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-grid{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 10px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card{
   display: grid;
   align-content: start;
   gap: 9px;
@@ -3616,62 +2981,52 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   border-radius: var(--mes-ui-radius-md, 8px);
   background: #ffffff;
   padding: 10px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card > header{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card > header{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 8px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card p,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card span,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card strong,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card small{
   min-width: 0;
   overflow-wrap: anywhere;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div{
   display: grid;
   gap: 2px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header span{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 10px;
   font-weight: 720;
   line-height: 1.15;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header strong{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header strong{
   color: var(--mes-ui-text, #0f172a);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.18;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header small,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header small,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card p{
   color: var(--mes-ui-muted, #64748b);
   font-size: 10px;
   line-height: 1.25;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 8px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label{
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label > span{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label > span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 10px;
   font-weight: 760;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls select{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls select{
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -3682,40 +3037,34 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   color: var(--mes-ui-text, #0f172a);
   padding: 5px 28px 5px 8px;
   font: 700 11px/16px var(--mes-ui-font, Arial, sans-serif);
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats article{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats article{
   display: grid;
   gap: 2px;
   min-width: 0;
   border-radius: var(--mes-ui-radius-sm, 6px);
   background: #f8fafc;
   padding: 6px 7px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats span{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 9px;
   font-weight: 760;
   line-height: 1.1;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats strong{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats strong{
   color: var(--mes-ui-text, #0f172a);
   font-size: 15px;
   font-weight: 700;
   line-height: 1.1;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 5px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip{
   display: grid;
   gap: 1px;
   max-width: 180px;
@@ -3723,24 +3072,20 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   border-radius: 999px;
   background: #eff6ff;
   padding: 4px 8px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong{
   color: #1e3a8a;
   font-size: 10px;
   font-weight: 760;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
   color: #64748b;
   font-size: 8px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview em{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview em{
   border-radius: 999px;
   background: #f1f5f9;
   color: #475569;
@@ -3748,15 +3093,13 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   font-size: 10px;
   font-style: normal;
   font-weight: 760;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-manual-list{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-manual-list{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 6px;
   min-width: 0;
   overflow: visible;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check{
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   align-items: center;
@@ -3767,47 +3110,39 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   border-radius: var(--mes-ui-radius-sm, 6px);
   background: #ffffff;
   padding: 5px 7px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check input{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check input{
   inline-size: 14px;
   block-size: 14px;
   margin: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check > span{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check > span{
   display: grid;
   gap: 1px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check small{
   display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong{
   color: var(--mes-ui-text, #0f172a);
   font-size: 10px;
   font-weight: 720;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check small{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check small{
   color: var(--mes-ui-muted, #64748b);
   font-size: 9px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table-wrap{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table-wrap{
   max-width: 100%;
   overflow-x: auto;
   overflow-y: visible;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table{
   width: max-content;
   min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table td{
   box-sizing: border-box;
   min-width: 96px;
@@ -3820,16 +3155,13 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   font-size: 10px;
   line-height: 1.15;
   vertical-align: middle;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-wide-column{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-wide-column{
   min-width: 260px;
   max-width: 360px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-code-column{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-code-column{
   min-width: 180px;
   max-width: 260px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th{
   position: sticky;
   top: 0;
   z-index: 3;
@@ -3838,53 +3170,43 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   font-size: 9px;
   font-weight: 700;
   text-align: left;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th:first-child{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th:first-child{
   position: sticky;
   left: 0;
   z-index: 4;
   min-width: 260px;
   max-width: 300px;
   border-left: 1px solid var(--mes-ui-border, #d8e0eb);
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th:first-child{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th:first-child{
   z-index: 5;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.has-override td,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.has-override td,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.has-override th{
   background: #f8fbff;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell{
   padding-left: calc(8px + var(--structure-level, 0) * 16px) !important;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > strong,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > small{
   display: block;
   min-width: 0;
   overflow-wrap: anywhere;
   line-height: 1.12;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 9px;
   font-weight: 760;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell .production-structure-row-type{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell .production-structure-row-type{
   margin-bottom: 3px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > strong{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > strong{
   margin-top: 2px;
   color: var(--mes-ui-text, #0f172a);
   font-size: 11px;
   font-weight: 700;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > small{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > small{
   margin-top: 2px;
   color: var(--mes-ui-muted, #64748b);
   font-size: 9px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell{
   display: block;
   min-width: 0;
   min-height: 28px;
@@ -3894,20 +3216,17 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-structure-name{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-structure-name{
   min-height: 30px;
   padding-left: 0;
   color: var(--mes-ui-text, #0f172a);
   font-size: 11px;
   font-weight: 760;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-code,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-code,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-row-type{
   color: var(--mes-ui-text-secondary, #334155);
   font-weight: 680;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-control{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-control{
   box-sizing: border-box;
   display: block;
   width: 100%;
@@ -3919,25 +3238,19 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   color: var(--mes-ui-text, #0f172a);
   padding: 4px 6px;
   font: 650 10px/16px var(--mes-ui-font, Arial, sans-serif);
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-control{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-control{
   min-height: 30px;
   border-color: transparent;
   background: #f8fafc;
   font-size: 11px;
   font-weight: 760;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] select.production-structure-control{
+}main.app-shell[data-layout-page="productionStructureMatrix"] select.production-structure-control{
   padding-right: 22px;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.is-demo-user th,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.is-demo-user th,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.is-demo-user td{
   background: #fbfdff;
-}
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-muted{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-muted{
   color: var(--mes-ui-muted, #64748b);
-}
-
-main.app-shell[data-layout-page="roles"] :is(.access-role-permission-table, .access-role-assignment-table) .primary-cell strong{
+}main.app-shell[data-layout-page="roles"] :is(.access-role-permission-table, .access-role-assignment-table) .primary-cell strong{
   font-weight: 700;
 }

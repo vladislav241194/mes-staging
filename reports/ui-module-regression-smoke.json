@@ -1,0 +1,638 @@
+{
+  "generatedAt": "2026-07-05T01:54:55.351Z",
+  "modules": [
+    "gantt",
+    "planning",
+    "shiftWorkOrders",
+    "routes",
+    "products",
+    "nomenclature",
+    "directories",
+    "timesheet",
+    "productionStructureMatrix",
+    "shiftMasterBoard"
+  ],
+  "viewports": [
+    {
+      "id": "desktop",
+      "width": 1710,
+      "height": 1112
+    },
+    {
+      "id": "tablet",
+      "width": 1180,
+      "height": 900
+    },
+    {
+      "id": "narrow",
+      "width": 820,
+      "height": 900
+    }
+  ],
+  "summary": {
+    "checks": 30,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "viewport": "desktop",
+      "module": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "-",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "gantt",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 56,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "planning",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 81,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "EmptyState",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "shiftWorkOrders",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 2,
+        "overlayCount": 0,
+        "actionButtonCount": 43,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "routes",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 603,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "EmptyState",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "products",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 1,
+        "overlayCount": 0,
+        "actionButtonCount": 44,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "nomenclature",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 109,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "directories",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 97,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "timesheet",
+        "headerHeight": 64,
+        "mainHeight": 3241,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 2403,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "productionStructureMatrix",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 51,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "desktop",
+      "module": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "-",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "shiftMasterBoard",
+        "headerHeight": 64,
+        "mainHeight": 1052,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 69,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "-",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "gantt",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 56,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "planning",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 81,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "EmptyState",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "shiftWorkOrders",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 2,
+        "overlayCount": 0,
+        "actionButtonCount": 43,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "routes",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 603,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "EmptyState",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "products",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 1,
+        "overlayCount": 0,
+        "actionButtonCount": 44,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "nomenclature",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 109,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "directories",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 97,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "timesheet",
+        "headerHeight": 64,
+        "mainHeight": 3241,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 2403,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "productionStructureMatrix",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 51,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "tablet",
+      "module": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "-",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "shiftMasterBoard",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 69,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "gantt",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "-",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "gantt",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 56,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "planning",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "planning",
+        "headerHeight": 64,
+        "mainHeight": 2494,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 81,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "shiftWorkOrders",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "EmptyState",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "shiftWorkOrders",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 2,
+        "overlayCount": 0,
+        "actionButtonCount": 43,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "routes",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "routes",
+        "headerHeight": 64,
+        "mainHeight": 2193,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 603,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "products",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "EmptyState",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "products",
+        "headerHeight": 64,
+        "mainHeight": 840,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 1,
+        "overlayCount": 0,
+        "actionButtonCount": 44,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "nomenclature",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "nomenclature",
+        "headerHeight": 64,
+        "mainHeight": 2320,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 109,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "directories",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "directories",
+        "headerHeight": 64,
+        "mainHeight": 1174,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 97,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "timesheet",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "timesheet",
+        "headerHeight": 64,
+        "mainHeight": 3241,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 2403,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "productionStructureMatrix",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "TableWrap",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "productionStructureMatrix",
+        "headerHeight": 64,
+        "mainHeight": 11851,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 1,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 51,
+        "notes": []
+      }
+    },
+    {
+      "viewport": "narrow",
+      "module": "shiftMasterBoard",
+      "status": "ok",
+      "bodyOverflowX": 0,
+      "tableContract": "-",
+      "overlayCount": 0,
+      "notes": [],
+      "metrics": {
+        "layoutPage": "shiftMasterBoard",
+        "headerHeight": 64,
+        "mainHeight": 2359,
+        "bodyOverflowX": 0,
+        "tableWrapCount": 0,
+        "emptyStateCount": 0,
+        "overlayCount": 0,
+        "actionButtonCount": 69,
+        "notes": []
+      }
+    }
+  ]
+}

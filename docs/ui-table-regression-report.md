@@ -1,0 +1,76 @@
+# UI Table Regression Report
+
+Generated: 2026-07-05T04:57:40.467Z
+
+viewport | module | status | tables | TableWrap | EmptyState | tree markers | notes
+--- | --- | --- | --- | --- | --- | --- | ---
+desktop | planning | ok | 1 | 1 | 0 | 50 | 
+desktop | shiftWorkOrders | ok | 0 | 0 | 2 | 0 | 
+desktop | routes | ok | 1 | 1 | 0 | 50 | 
+desktop | products | ok | 0 | 0 | 1 | 0 | 
+desktop | nomenclature | ok | 1 | 1 | 0 | 0 | 
+desktop | directories | ok | 1 | 1 | 0 | 0 | 
+desktop | timesheet | ok | 1 | 1 | 0 | 0 | 
+desktop | productionStructureMatrix | ok | 1 | 1 | 0 | 0 | 
+desktop | roles | ok | 2 | 2 | 0 | 0 | 
+desktop | planningTable | ok | 8 | 8 | 0 | 0 | 
+desktop | matrix | ok | 1 | 1 | 0 | 0 | 
+desktop | supply | ok | 1 | 1 | 0 | 0 | 
+desktop | shopMap | ok | 1 | 1 | 0 | 0 | 
+desktop | visualSystem | ok | 14 | 2 | 0 | 0 | 
+tablet | planning | ok | 1 | 1 | 0 | 50 | 
+tablet | shiftWorkOrders | ok | 1 | 1 | 0 | 6 | 
+tablet | routes | ok | 1 | 1 | 0 | 50 | 
+tablet | products | ok | 0 | 0 | 1 | 0 | 
+tablet | nomenclature | ok | 1 | 1 | 0 | 0 | 
+tablet | directories | ok | 1 | 1 | 0 | 0 | 
+tablet | timesheet | ok | 1 | 1 | 0 | 0 | 
+tablet | productionStructureMatrix | ok | 1 | 1 | 0 | 0 | 
+tablet | roles | ok | 2 | 2 | 0 | 0 | 
+tablet | planningTable | ok | 8 | 8 | 0 | 0 | 
+tablet | matrix | ok | 1 | 1 | 0 | 0 | 
+tablet | supply | ok | 1 | 1 | 0 | 0 | 
+tablet | shopMap | ok | 1 | 1 | 0 | 0 | 
+tablet | visualSystem | ok | 14 | 2 | 0 | 0 | 
+tablet-compact | planning | ok | 1 | 1 | 0 | 50 | 
+tablet-compact | shiftWorkOrders | ok | 1 | 1 | 0 | 6 | 
+tablet-compact | routes | ok | 1 | 1 | 0 | 50 | 
+tablet-compact | products | ok | 0 | 0 | 1 | 0 | 
+tablet-compact | nomenclature | ok | 1 | 1 | 0 | 0 | 
+tablet-compact | directories | ok | 1 | 1 | 0 | 0 | 
+tablet-compact | timesheet | ok | 1 | 1 | 0 | 0 | 
+tablet-compact | productionStructureMatrix | ok | 1 | 1 | 0 | 0 | 
+tablet-compact | roles | ok | 2 | 2 | 0 | 0 | 
+tablet-compact | planningTable | ok | 8 | 8 | 0 | 0 | 
+tablet-compact | matrix | ok | 1 | 1 | 0 | 0 | 
+tablet-compact | supply | ok | 1 | 1 | 0 | 0 | 
+tablet-compact | shopMap | ok | 1 | 1 | 0 | 0 | 
+tablet-compact | visualSystem | ok | 14 | 2 | 0 | 0 | 
+narrow | planning | ok | 1 | 1 | 0 | 50 | 
+narrow | shiftWorkOrders | ok | 1 | 1 | 0 | 6 | 
+narrow | routes | ok | 1 | 1 | 0 | 50 | 
+narrow | products | ok | 0 | 0 | 1 | 0 | 
+narrow | nomenclature | ok | 1 | 1 | 0 | 0 | 
+narrow | directories | ok | 1 | 1 | 0 | 0 | 
+narrow | timesheet | warn | 1 | 1 | 0 | 0 | 
+narrow | productionStructureMatrix | ok | 1 | 1 | 0 | 0 | 
+narrow | roles | ok | 2 | 2 | 0 | 0 | 
+narrow | planningTable | ok | 8 | 8 | 0 | 0 | 
+narrow | matrix | ok | 1 | 1 | 0 | 0 | 
+narrow | supply | ok | 1 | 1 | 0 | 0 | 
+narrow | shopMap | ok | 1 | 1 | 0 | 0 | 
+narrow | visualSystem | ok | 14 | 2 | 0 | 0 | 
+narrow-compact | planning | ok | 1 | 1 | 0 | 50 | 
+narrow-compact | shiftWorkOrders | ok | 1 | 1 | 0 | 6 | 
+narrow-compact | routes | warn | 1 | 1 | 0 | 50 | 
+narrow-compact | products | ok | 0 | 0 | 1 | 0 | 
+narrow-compact | nomenclature | ok | 1 | 1 | 0 | 0 | 
+narrow-compact | directories | ok | 1 | 1 | 0 | 0 | 
+narrow-compact | timesheet | warn | 1 | 1 | 0 | 0 | 
+narrow-compact | productionStructureMatrix | ok | 1 | 1 | 0 | 0 | 
+narrow-compact | roles | ok | 2 | 2 | 0 | 0 | 
+narrow-compact | planningTable | ok | 8 | 8 | 0 | 0 | 
+narrow-compact | matrix | ok | 1 | 1 | 0 | 0 | 
+narrow-compact | supply | ok | 1 | 1 | 0 | 0 | 
+narrow-compact | shopMap | ok | 1 | 1 | 0 | 0 | 
+narrow-compact | visualSystem | ok | 14 | 2 | 0 | 0 | 

@@ -327,7 +327,7 @@ async function verifyAuthOneStepBackFlow(client) {
   await assertAuthSingleBack(client, "person", "units");
 }
 
-async function verifyAuthVisualQaPicker(client) {
+async function verifyAuthHeaderContract(client) {
   await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-department]")));
   const headerGeometry = await evaluate(client, () => {
     const header = document.querySelector("[data-visual-qa-target='auth-prototype-header']");
@@ -341,7 +341,7 @@ async function verifyAuthVisualQaPicker(client) {
       viewportWidth: document.documentElement.clientWidth,
     };
   });
-  assert(headerGeometry?.target === "auth-prototype-header", "Auth header must expose a stable Visual QA target.");
+  assert(headerGeometry?.target === "auth-prototype-header", "Auth header must expose a stable inspection target.");
   assert(headerGeometry.x === 0 && headerGeometry.y === 0, "Auth header must start at the top-left edge of the standalone auth screen.");
   assert(headerGeometry.width === headerGeometry.viewportWidth, "Auth header must span the full auth viewport width.");
 
@@ -351,55 +351,7 @@ async function verifyAuthVisualQaPicker(client) {
     return getComputedStyle(icon).color;
   });
   assert(departmentIconTone === "rgb(16, 35, 60)", "Auth department icons must use the sidebar background blue tone, not bright primary blue.");
-
-  await clickCenterNative(client, "[data-toggle-visual-qa]");
-  await waitForCondition(client, () => document.body.classList.contains("is-mes-visual-qa-enabled"));
-  await clickCenterNative(client, "[data-visual-qa-target='auth-prototype-header']");
-  await delay(250);
-  const report = await evaluate(client, () => {
-    const activeStep = document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step") || "";
-    const smartText = window.__mesVisualQaSmartReport?.text || "";
-    const smartReport = window.__mesVisualQaSmartReport?.report || null;
-    return {
-      activeStep,
-      bodyClassName: document.body.className,
-      smartText,
-      detailLevel: smartReport?.detailLevel || "",
-      reportText: smartReport?.text || "",
-      module: smartReport?.module || "",
-      selector: smartReport?.selector || "",
-      signature: smartReport?.signature || "",
-      rect: smartReport?.rect || null,
-    };
-  });
-  assert(report.activeStep === "department", "Auth Visual QA must not advance the auth step while inspecting.");
-  assert(!report.bodyClassName.includes("is-mes-visual-qa-enabled"), "Auth Visual QA must turn off after one inspected click.");
-  assert(report.module === "authPrototype", "Auth Visual QA report must be produced for authPrototype.");
-  assert(report.smartText.startsWith("Visual QA Inspector report"), "Auth Visual QA must create a copyable inspector report.");
-  assert(report.detailLevel === "compact", `Auth Visual QA default report must be compact: ${report.smartText}`);
-  assert(report.reportText.length <= 120, `Auth Visual QA compact element text is too long: ${report.reportText}`);
-  assert(!report.smartText.includes("Что проверить"), "Auth Visual QA compact report must not contain the full checklist.");
-  assert(report.signature.includes('data-visual-qa-target="auth-prototype-header"'), "Auth Visual QA must select the auth header target.");
-  assert(report.rect?.x === 0 && report.rect?.y === 0, "Auth Visual QA header report must start at the viewport top-left edge.");
-
-  await clickCenterNative(client, "[data-toggle-visual-qa]");
-  await waitForCondition(client, () => document.body.classList.contains("is-mes-visual-qa-enabled"));
-  await clickCenterNative(client, "[data-visual-qa-target='auth-prototype-header']", { shiftKey: true });
-  await delay(250);
-  const fullReport = await evaluate(client, () => {
-    const smartText = window.__mesVisualQaSmartReport?.text || "";
-    const smartReport = window.__mesVisualQaSmartReport?.report || null;
-    return {
-      smartText,
-      detailLevel: smartReport?.detailLevel || "",
-      reportText: smartReport?.text || "",
-      parentChainLength: smartReport?.parentChain?.length || 0,
-    };
-  });
-  assert(fullReport.detailLevel === "full", `Auth Visual QA Shift+click must create a full report: ${fullReport.smartText}`);
-  assert(fullReport.smartText.includes("Что проверить"), "Auth Visual QA full report must contain the diagnostic checklist.");
-  assert(fullReport.reportText.length <= 260, `Auth Visual QA full element text exceeds limit: ${fullReport.reportText}`);
-  return { ...report, fullReport };
+  return { headerGeometry, departmentIconTone };
 }
 
 async function submitPin(client, digits = []) {
@@ -504,7 +456,7 @@ async function main() {
     await client.send("Page.navigate", { url });
     await new Promise((resolve) => client.on("Page.loadEventFired", resolve));
 
-    const visualQaReport = await verifyAuthVisualQaPicker(client);
+    const headerContract = await verifyAuthHeaderContract(client);
 
     await verifyAuthOneStepBackFlow(client);
     await resetAuthStorage(client);
@@ -587,9 +539,10 @@ async function main() {
     assert(!report.hasSidebarSessionCard, "Sidebar auth card must be removed after moving auth context to the topbar.");
     assert(report.authSummaryText.includes("Алексеев Егор Максимович"), "Topbar auth summary must show the selected employee name.");
     assert(
-      report.authSummaryText.split("\n").filter(Boolean).length >= 4
-        && !/(?:Сеанс не выбран|роль не определена|отдел не выбран|сотрудник не выбран)/.test(report.authSummaryText),
-      "Topbar auth summary must show selected employee name, role and department.",
+      report.authSummaryText.split("\n").filter(Boolean).length >= 2
+        && !/(?:Сеанс не выбран|отдел не выбран|сотрудник не выбран)/.test(report.authSummaryText)
+        && !report.authSummaryText.includes("Директор производства"),
+      "Topbar auth summary must show selected employee name and department without the job title.",
     );
     assert(report.authSummaryText.includes("Административный отдел"), "Production director auth summary must show the virtual administrative department.");
 
@@ -646,7 +599,7 @@ async function main() {
       wrongKeyboard,
       correctPin: report,
       correctKeyboard,
-      visualQa: visualQaReport,
+      headerContract,
       pinPanelGeometry,
       reload: persistedReport,
       logout: logoutReport,

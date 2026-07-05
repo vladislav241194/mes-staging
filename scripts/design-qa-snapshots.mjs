@@ -332,8 +332,8 @@ async function waitForApp(client) {
 
 async function switchModule(client, moduleId) {
   const runtimeResult = await evaluate(client, (id) => {
-    if (!window.__mesVisualQaRuntime?.navigateToModule) return "";
-    return window.__mesVisualQaRuntime.navigateToModule(id);
+    if (!window.__mesRuntime?.navigateToModule) return "";
+    return window.__mesRuntime.navigateToModule(id);
   }, moduleId);
   if (runtimeResult) {
     await delay(520);
@@ -390,14 +390,14 @@ async function switchModule(client, moduleId) {
 
 async function setFocusMode(client, enabled) {
   const runtimeResult = await evaluate(client, (value) => {
-    if (!window.__mesVisualQaRuntime?.setFocusMode) return null;
-    return window.__mesVisualQaRuntime.setFocusMode(Boolean(value));
+    if (!window.__mesRuntime?.setFocusMode) return null;
+    return window.__mesRuntime.setFocusMode(Boolean(value));
   }, enabled);
   await delay(520);
   await waitForApp(client);
   const runtimeOk = await evaluate(client, () => ({
     classActive: Boolean(document.querySelector("main.app-shell")?.classList.contains("is-focus-mode")),
-    runtimeActive: Boolean(window.__mesVisualQaRuntime?.getFocusMode?.()),
+    runtimeActive: Boolean(window.__mesRuntime?.getFocusMode?.()),
   }));
   if (runtimeResult !== null && runtimeOk.classActive === Boolean(enabled) && runtimeOk.runtimeActive === Boolean(enabled)) return;
 
@@ -757,9 +757,28 @@ async function triggerFirstVisibleElement(client, selector, label, options = {})
     }
     return true;
   }, { selector, dblClick: Boolean(options.dblClick) });
-  if (!ok) throw new Error(`Cannot open interaction state: ${label}`);
+  if (!ok) {
+    if (options.optional) return false;
+    throw new Error(`Cannot open interaction state: ${label}`);
+  }
   await delay(options.delayMs || 420);
   await waitForApp(client);
+  return true;
+}
+
+async function hasVisibleElement(client, selector) {
+  return evaluate(client, (targetSelector) => {
+    return Array.from(document.querySelectorAll(targetSelector)).some((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const disabled = element.disabled || element.getAttribute("aria-disabled") === "true";
+      return !disabled
+        && rect.width > 0
+        && rect.height > 0
+        && style.visibility !== "hidden"
+        && style.display !== "none";
+    });
+  }, selector);
 }
 
 async function setupInteractionState(client, state) {
@@ -824,7 +843,10 @@ async function setupAuthVisualState(client, state) {
   if (state.step === "departments") return;
   await triggerFirstVisibleElement(client, "[data-auth-department]", state.id, { delayMs: 360 });
   if (state.step === "units") return;
-  await triggerFirstVisibleElement(client, "[data-auth-unit]", state.id, { delayMs: 360 });
+  const hasDirectPeople = await hasVisibleElement(client, "[data-auth-person]");
+  if (!hasDirectPeople) {
+    await triggerFirstVisibleElement(client, "[data-auth-unit]", state.id, { delayMs: 360 });
+  }
   if (state.step === "people") return;
   await triggerFirstVisibleElement(client, "[data-auth-person]", state.id, { delayMs: 360 });
   if (state.step === "pin") return;

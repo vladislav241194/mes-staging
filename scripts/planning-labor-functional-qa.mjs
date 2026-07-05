@@ -242,6 +242,18 @@ async function setLaborField(client, key, fieldName, value) {
   await delay(300);
 }
 
+async function selectPlanningStepWorkItem(client, stepId) {
+  const ok = await evaluate(client, (id) => {
+    const workItem = `step:${id}`;
+    const button = document.querySelector(`[data-planning-work-item="${CSS.escape(workItem)}"]`);
+    if (!button) return false;
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    return true;
+  }, stepId);
+  assert(ok, `Не найден UI-элемент заказ-наряда для шага ${stepId}`);
+  await delay(360);
+}
+
 async function main() {
   const url = withQuery(getArg("--url", defaultUrl), {
     module: "planning",
@@ -509,6 +521,7 @@ async function main() {
       mobile: false,
     });
     await delay(240);
+    await selectPlanningStepWorkItem(client, selected.stepId);
     const scrollProbe = await evaluate(client, async ({ routeId, stepId }) => {
       const key = `${routeId}::${stepId}`;
       const selector = `[data-planning-order-labor="${CSS.escape(key)}"][data-planning-order-labor-field="mode"]`;

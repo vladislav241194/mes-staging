@@ -1,0 +1,66 @@
+/* ActionButton contract styles. Extracted in Phase 6 runtime decomposition. */
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].ui-action-button,
+main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"],
+main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--mes-ui-control-height);
+  border-radius: var(--mes-ui-radius-sm);
+  border-width: 1px;
+  border-style: solid;
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+  white-space: nowrap;
+}main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"]{
+  border-color: var(--mes-ui-primary);
+  background: var(--mes-ui-primary);
+  color: #ffffff;
+}main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"]{
+  border-color: var(--mes-ui-line);
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-text);
+}main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"]{
+  width: var(--mes-ui-icon-button-size);
+  min-width: var(--mes-ui-icon-button-size);
+  height: var(--mes-ui-icon-button-size);
+  min-height: var(--mes-ui-icon-button-size);
+  padding: 0;
+}main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
+  width: var(--mes-ui-table-icon-button-size);
+  min-width: var(--mes-ui-table-icon-button-size);
+  height: var(--mes-ui-table-icon-button-size);
+  min-height: var(--mes-ui-table-icon-button-size);
+  padding: 0;
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-ghost{
+  border-color: transparent;
+  background: transparent;
+  color: var(--mes-ui-text);
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-danger{
+  border-color: var(--mes-ui-status-danger-border);
+  background: var(--mes-ui-status-danger-bg);
+  color: var(--mes-ui-status-danger-text);
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-compact{
+  min-height: var(--mes-ui-control-height-compact);
+  font-size: var(--mes-ui-type-caption);
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-touch{
+  min-height: var(--mes-ui-control-height-touch);
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"] svg{
+  width: var(--mes-ui-icon-size-md);
+  height: var(--mes-ui-icon-size-md);
+  flex: 0 0 auto;
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:disabled,
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][aria-disabled="true"]{
+  cursor: default;
+  opacity: 0.58;
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"] > :is(span, strong, small){
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

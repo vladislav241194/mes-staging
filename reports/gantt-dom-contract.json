@@ -1,0 +1,2720 @@
+{
+  "generatedAt": "2026-07-05T04:58:19.180Z",
+  "requiredSelectors": [
+    ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+    ".gantt-canvas[data-ui-component='GanttCanvas']",
+    ".timeline-row[data-ui-component='GanttTimeline']",
+    ".rows-layer[data-ui-component='GanttRowsLayer']",
+    ".gantt-row[data-row-id]",
+    ".row-label",
+    ".lane[data-lane-row-id]",
+    ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+    ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+    ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+    ".dependency-path[data-ui-component='GanttDependencyPath']",
+    ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+    "[data-gantt-zoom]",
+    "[data-ui-component='GanttToolbar']"
+  ],
+  "requiredDataAttributes": [
+    "data-gantt-shell",
+    "data-ui-runtime",
+    "data-ui-component",
+    "data-row-id",
+    "data-lane-row-id",
+    "data-slot-id",
+    "data-resize-slot",
+    "data-gantt-zoom",
+    "data-scale",
+    "data-toggle-all-projects",
+    "data-toggle-gantt-quantity",
+    "data-gantt-optimize-select",
+    "data-dependency-edit-route",
+    "data-dependency-segment-index",
+    "data-dependency-orientation",
+    "data-dependency-start-index",
+    "data-dependency-end-index",
+    "data-dependency-start-base-x",
+    "data-dependency-start-base-y",
+    "data-dependency-end-base-x",
+    "data-dependency-end-base-y",
+    "data-dependency-start-current-x",
+    "data-dependency-start-current-y",
+    "data-dependency-end-current-x",
+    "data-dependency-end-current-y",
+    "data-close-drawer",
+    "data-close-modal"
+  ],
+  "checks": [
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "scale": "hours",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 563
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "scale": "days",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 706
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "scale": "weeks",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 0
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 1333
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 0
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop-wide",
+        "width": 1512,
+        "height": 982,
+        "category": "desktop"
+      },
+      "scale": "hours",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 563
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop-wide",
+        "width": 1512,
+        "height": 982,
+        "category": "desktop"
+      },
+      "scale": "days",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 706
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "desktop-wide",
+        "width": 1512,
+        "height": 982,
+        "category": "desktop"
+      },
+      "scale": "weeks",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 0
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 1333
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 0
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "scale": "hours",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 563
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "scale": "days",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 706
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "scale": "weeks",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 0
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 1333
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 0
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "scale": "hours",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 563
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "scale": "days",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 706
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "scale": "weeks",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 0
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 1333
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 0
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "scale": "hours",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 563
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "scale": "days",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 20
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 706
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 20
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "scale": "weeks",
+      "status": "ok",
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".row-label",
+          "count": 10
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 10
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 23
+        },
+        {
+          "selector": ".resize-handle[data-ui-component='GanttResizeHandle'][data-resize-slot]",
+          "count": 0
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".dependency-path[data-ui-component='GanttDependencyPath']",
+          "count": 15
+        },
+        {
+          "selector": ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+          "count": 6
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        }
+      ],
+      "requiredDataAttributes": [
+        {
+          "attribute": "data-gantt-shell",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-runtime",
+          "count": 1
+        },
+        {
+          "attribute": "data-ui-component",
+          "count": 1333
+        },
+        {
+          "attribute": "data-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-lane-row-id",
+          "count": 10
+        },
+        {
+          "attribute": "data-slot-id",
+          "count": 23
+        },
+        {
+          "attribute": "data-resize-slot",
+          "count": 0
+        },
+        {
+          "attribute": "data-gantt-zoom",
+          "count": 3
+        },
+        {
+          "attribute": "data-scale",
+          "count": 3
+        },
+        {
+          "attribute": "data-toggle-all-projects",
+          "count": 1
+        },
+        {
+          "attribute": "data-toggle-gantt-quantity",
+          "count": 1
+        },
+        {
+          "attribute": "data-gantt-optimize-select",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-edit-route",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-segment-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-orientation",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-index",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-base-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-start-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-x",
+          "count": 0
+        },
+        {
+          "attribute": "data-dependency-end-current-y",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-drawer",
+          "count": 0
+        },
+        {
+          "attribute": "data-close-modal",
+          "count": 0
+        }
+      ]
+    }
+  ]
+}

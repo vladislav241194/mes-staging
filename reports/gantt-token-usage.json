@@ -1,0 +1,186 @@
+{
+  "generatedAt": "2026-07-05T04:58:19.179Z",
+  "tokens": [
+    {
+      "token": "--mes-ui-gantt-row-height",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-timeline-height",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-left-width",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-slot-radius",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-slot-border",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-slot-planned-bg",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-slot-distributed-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-slot-active-bg",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-slot-completed-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-slot-warning-bg",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-slot-problem-bg",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-slot-paused-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-slot-transfer-bg",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-non-working-bg",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-dependency-color",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-dependency-active-color",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-dependency-warning-color",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-grid-line",
+      "defined": true,
+      "used": true
+    },
+    {
+      "token": "--mes-ui-gantt-timeline-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-row-hover-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-row-selected-bg",
+      "defined": true,
+      "used": false
+    }
+  ],
+  "missingDefinitions": [],
+  "unusedTokens": [
+    {
+      "token": "--mes-ui-gantt-slot-distributed-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-slot-completed-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-slot-paused-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-timeline-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-row-hover-bg",
+      "defined": true,
+      "used": false
+    },
+    {
+      "token": "--mes-ui-gantt-row-selected-bg",
+      "defined": true,
+      "used": false
+    }
+  ],
+  "rawGanttColorCount": 68,
+  "rawGanttColorSamples": [
+    "#60a5fa",
+    "#1e3a8a",
+    "rgba(22, 163, 74, 0.46)",
+    "rgba(148, 163, 184, 0.45)",
+    "rgba(255, 255, 255, 0.92)",
+    "#334155",
+    "rgba(15, 23, 42, 0.10)",
+    "rgba(148, 163, 184, 0.38)",
+    "rgba(15, 23, 42, 0.08)",
+    "#ffffff",
+    "rgba(15, 23, 42, 0.18)",
+    "rgba(255, 255, 255, 0.22)",
+    "rgba(255, 255, 255, 0.72)",
+    "rgba(37, 99, 235, 0.22)",
+    "rgba(15, 23, 42, 0.16)",
+    "rgba(37, 99, 235, 0.32)",
+    "rgba(37, 99, 235, 0.08)",
+    "rgba(37, 99, 235, 0.78)",
+    "rgba(37, 99, 235, 0.12)",
+    "rgba(47, 143, 91, 0.82)",
+    "rgba(47, 143, 91, 0.13)",
+    "rgba(37, 99, 235, 0.62)",
+    "rgba(37, 99, 235, 0.09)",
+    "#d7e0ea",
+    "#344054",
+    "rgba(15, 23, 42, 0.22)",
+    "#2563eb",
+    "#64748b",
+    "#86efac",
+    "#ecfdf5",
+    "#eff6ff",
+    "#0f172a",
+    "#f8fafc",
+    "#fde68a",
+    "#fffbeb",
+    "#fbfdff",
+    "#dbe3ec",
+    "#fff7ed",
+    "#e2e8f0",
+    "rgba(37, 99, 235, 0.28)"
+  ]
+}

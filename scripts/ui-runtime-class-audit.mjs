@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  UI_RUNTIME_COMPATIBILITY_CSS_ONLY_CLASSES,
   UI_RUNTIME_CONTROLLED_CLASS_PREFIXES,
   UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES,
   UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES,
@@ -13,6 +14,7 @@ const rootDir = path.resolve(__dirname, "..");
 const runtimeClassPrefixes = UI_RUNTIME_CONTROLLED_CLASS_PREFIXES;
 const dynamicCssOnlyPrefixes = UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES;
 const dynamicCssOnlyClasses = new Set(UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES);
+const compatibilityCssOnlyClasses = new Set(UI_RUNTIME_COMPATIBILITY_CSS_ONLY_CLASSES);
 
 async function collectCssFiles(relativeDir = "styles") {
   const absoluteDir = path.join(rootDir, relativeDir);
@@ -25,6 +27,21 @@ async function collectCssFiles(relativeDir = "styles") {
       continue;
     }
     if (entry.isFile() && entry.name.endsWith(".css")) files.push(relativePath);
+  }
+  return files;
+}
+
+async function collectJsFiles(relativeDir = "src") {
+  const absoluteDir = path.join(rootDir, relativeDir);
+  const entries = await fs.readdir(absoluteDir, { withFileTypes: true }).catch(() => []);
+  const files = [];
+  for (const entry of entries) {
+    const relativePath = `${relativeDir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      files.push(...await collectJsFiles(relativePath));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".js")) files.push(relativePath);
   }
   return files;
 }
@@ -43,7 +60,8 @@ function maskCssNonSelectorText(source) {
     .replace(/(["'])(?:\\.|(?!\1)[\s\S])*\1/g, (match) => match.replace(/[^\n]/g, " "));
 }
 
-const appSource = await fs.readFile(path.join(rootDir, "src", "app.js"), "utf8");
+const jsFiles = await collectJsFiles();
+const runtimeSource = (await Promise.all(jsFiles.map((file) => fs.readFile(path.join(rootDir, file), "utf8")))).join("\n");
 const cssFiles = ["styles.css", ...await collectCssFiles()];
 const classes = new Map();
 const allClasses = new Map();
@@ -63,14 +81,17 @@ for (const relativePath of cssFiles) {
 }
 
 const cssOnlyClasses = [...classes.entries()]
-  .filter(([className]) => !appSource.includes(className))
+  .filter(([className]) => !runtimeSource.includes(className))
   .map(([className, meta]) => ({ className, ...meta }))
   .sort((left, right) => left.className.localeCompare(right.className));
 const isAllowedDynamicCssOnly = (className) =>
   dynamicCssOnlyClasses.has(className) ||
+  compatibilityCssOnlyClasses.has(className) ||
   dynamicCssOnlyPrefixes.some((prefix) => className.startsWith(prefix));
+const unexpectedRuntimeCssOnlyClasses = cssOnlyClasses
+  .filter(({ className }) => !isAllowedDynamicCssOnly(className));
 const allCssOnlyClasses = [...allClasses.entries()]
-  .filter(([className]) => !appSource.includes(className))
+  .filter(([className]) => !runtimeSource.includes(className))
   .map(([className, meta]) => ({ className, ...meta }))
   .sort((left, right) => left.className.localeCompare(right.className));
 const unexpectedCssOnlyClasses = allCssOnlyClasses
@@ -85,22 +106,25 @@ console.log("MES UI Runtime Class Audit");
 console.log(`Prefixes: ${runtimeClassPrefixes.join(", ")}`);
 console.log(`CSS classes checked: ${classes.size}`);
 console.log(`CSS-only runtime classes: ${cssOnlyClasses.length}`);
+console.log(`Compatibility CSS-only classes: ${cssOnlyClasses.filter(({ className }) => compatibilityCssOnlyClasses.has(className)).length}`);
+console.log(`Unexpected runtime CSS-only classes: ${unexpectedRuntimeCssOnlyClasses.length}`);
 console.log(`Global CSS-only classes: ${allCssOnlyClasses.length}`);
 console.log(`Unexpected global CSS-only classes: ${unexpectedCssOnlyClasses.length}`);
 console.log(`Allowed dynamic CSS-only prefixes: ${dynamicCssOnlyPrefixes.join(", ")}`);
 console.log(`Allowed dynamic CSS-only classes: ${[...dynamicCssOnlyClasses].sort().join(", ")}`);
+console.log(`Compatibility CSS-only classes: ${[...compatibilityCssOnlyClasses].sort().join(", ")}`);
 console.log("Classes by prefix:");
 [...byPrefix.entries()]
   .sort(([left], [right]) => left.localeCompare(right))
   .forEach(([prefix, count]) => console.log(`- ${prefix}: ${count}`));
 
-if (cssOnlyClasses.length) {
+if (unexpectedRuntimeCssOnlyClasses.length) {
   console.error("\nFailures:");
-  cssOnlyClasses.slice(0, 80).forEach((item) => {
+  unexpectedRuntimeCssOnlyClasses.slice(0, 80).forEach((item) => {
     console.error(`- ${item.className}: ${item.locations.slice(0, 6).join(", ")}`);
   });
-  if (cssOnlyClasses.length > 80) {
-    console.error(`- ...and ${cssOnlyClasses.length - 80} more`);
+  if (unexpectedRuntimeCssOnlyClasses.length > 80) {
+    console.error(`- ...and ${unexpectedRuntimeCssOnlyClasses.length - 80} more`);
   }
   process.exit(1);
 }
@@ -116,5 +140,6 @@ if (unexpectedCssOnlyClasses.length) {
   process.exit(1);
 }
 
-console.log("OK: selected hard-runtime CSS classes are backed by src/app.js runtime classes.");
+console.log(`Runtime JS files checked: ${jsFiles.length}`);
+console.log("OK: selected hard-runtime CSS classes are backed by src/**/*.js runtime classes.");
 console.log("OK: global CSS-only classes are limited to documented dynamic patterns.");

@@ -1,0 +1,1124 @@
+{
+  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "gantt": [
+    {
+      "moduleId": "gantt",
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "profileType": "special-runtime-protected",
+      "layoutPage": "gantt",
+      "textLength": 1388,
+      "bodyOverflowX": 0,
+      "shell": {
+        "present": true,
+        "width": 1440,
+        "height": 932
+      },
+      "header": {
+        "present": true,
+        "width": 1286,
+        "height": 64
+      },
+      "main": {
+        "present": true,
+        "width": 1286,
+        "height": 872
+      },
+      "components": {
+        "AppShell": 1,
+        "ModulePage": 0,
+        "ModuleHeader": 0,
+        "Panel": 0,
+        "TableWrap": 0,
+        "ActionButton": 56,
+        "StatusToken": 4,
+        "ActionBar": 0,
+        "Toolbar": 0,
+        "FilterBar": 0,
+        "EmptyState": 0,
+        "Modal": 0,
+        "Drawer": 0,
+        "Dropdown": 1,
+        "GanttRuntime": 1,
+        "GanttDependencyLayer": 1,
+        "VisualSystemRuntime": 0
+      },
+      "tableWrapCount": 0,
+      "tableCount": 0,
+      "emptyStateCount": 0,
+      "tableReports": [],
+      "overlayCount": 0,
+      "overlayReports": [],
+      "actionButtonCount": 56,
+      "actionZones": [],
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".row-label",
+          "count": 1
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 3
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        }
+      ],
+      "overflowElements": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 1423,
+          "width": 1252,
+          "overflowRight": -17,
+          "scrollDelta": 2532,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.gantt-canvas",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-row",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3954,
+          "width": 118,
+          "overflowRight": 2514,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ],
+      "bodyRuntimeErrorText": false,
+      "gantt": {
+        "shell": true,
+        "timeline": 30,
+        "rows": 1,
+        "rowLabels": 1,
+        "slots": 3,
+        "dependencyLayer": true,
+        "dependencyPaths": 0,
+        "slotIds": 3,
+        "slotBounds": [
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          }
+        ]
+      },
+      "exception": {
+        "module": "gantt",
+        "type": "special-runtime-protected",
+        "reason": "Absolute geometry timeline with SVG dependencies and drag/resize behavior; protected by Gantt Phase 5 contract and regression suite.",
+        "expectedMissingMarkers": [
+          "ModulePage",
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".gantt-shell",
+          ".planner-workspace"
+        ],
+        "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+      },
+      "limitedSupport": "",
+      "consoleErrors": [],
+      "failures": [],
+      "warnings": [],
+      "status": "ok"
+    },
+    {
+      "moduleId": "gantt",
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "profileType": "special-runtime-protected",
+      "layoutPage": "gantt",
+      "textLength": 1121,
+      "bodyOverflowX": 0,
+      "shell": {
+        "present": true,
+        "width": 1180,
+        "height": 820
+      },
+      "header": {
+        "present": true,
+        "width": 1026,
+        "height": 64
+      },
+      "main": {
+        "present": true,
+        "width": 1026,
+        "height": 760
+      },
+      "components": {
+        "AppShell": 1,
+        "ModulePage": 0,
+        "ModuleHeader": 0,
+        "Panel": 0,
+        "TableWrap": 0,
+        "ActionButton": 56,
+        "StatusToken": 4,
+        "ActionBar": 0,
+        "Toolbar": 0,
+        "FilterBar": 0,
+        "EmptyState": 0,
+        "Modal": 0,
+        "Drawer": 0,
+        "Dropdown": 1,
+        "GanttRuntime": 1,
+        "GanttDependencyLayer": 1,
+        "VisualSystemRuntime": 0
+      },
+      "tableWrapCount": 0,
+      "tableCount": 0,
+      "emptyStateCount": 0,
+      "tableReports": [],
+      "overlayCount": 0,
+      "overlayReports": [],
+      "actionButtonCount": 56,
+      "actionZones": [],
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".row-label",
+          "count": 1
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 3
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        }
+      ],
+      "overflowElements": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 1163,
+          "width": 992,
+          "overflowRight": -17,
+          "scrollDelta": 2792,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.gantt-canvas",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-row",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3954,
+          "width": 118,
+          "overflowRight": 2774,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ],
+      "bodyRuntimeErrorText": false,
+      "gantt": {
+        "shell": true,
+        "timeline": 30,
+        "rows": 1,
+        "rowLabels": 1,
+        "slots": 3,
+        "dependencyLayer": true,
+        "dependencyPaths": 0,
+        "slotIds": 3,
+        "slotBounds": [
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          }
+        ]
+      },
+      "exception": {
+        "module": "gantt",
+        "type": "special-runtime-protected",
+        "reason": "Absolute geometry timeline with SVG dependencies and drag/resize behavior; protected by Gantt Phase 5 contract and regression suite.",
+        "expectedMissingMarkers": [
+          "ModulePage",
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".gantt-shell",
+          ".planner-workspace"
+        ],
+        "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+      },
+      "limitedSupport": "",
+      "consoleErrors": [],
+      "failures": [],
+      "warnings": [],
+      "status": "ok"
+    },
+    {
+      "moduleId": "gantt",
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "profileType": "special-runtime-protected",
+      "layoutPage": "gantt",
+      "textLength": 1121,
+      "bodyOverflowX": 0,
+      "shell": {
+        "present": true,
+        "width": 1024,
+        "height": 768
+      },
+      "header": {
+        "present": true,
+        "width": 870,
+        "height": 64
+      },
+      "main": {
+        "present": true,
+        "width": 870,
+        "height": 708
+      },
+      "components": {
+        "AppShell": 1,
+        "ModulePage": 0,
+        "ModuleHeader": 0,
+        "Panel": 0,
+        "TableWrap": 0,
+        "ActionButton": 56,
+        "StatusToken": 4,
+        "ActionBar": 0,
+        "Toolbar": 0,
+        "FilterBar": 0,
+        "EmptyState": 0,
+        "Modal": 0,
+        "Drawer": 0,
+        "Dropdown": 1,
+        "GanttRuntime": 1,
+        "GanttDependencyLayer": 1,
+        "VisualSystemRuntime": 0
+      },
+      "tableWrapCount": 0,
+      "tableCount": 0,
+      "emptyStateCount": 0,
+      "tableReports": [],
+      "overlayCount": 0,
+      "overlayReports": [],
+      "actionButtonCount": 56,
+      "actionZones": [],
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".row-label",
+          "count": 1
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 3
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        }
+      ],
+      "overflowElements": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 1007,
+          "width": 836,
+          "overflowRight": -17,
+          "scrollDelta": 2948,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.gantt-canvas",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-row",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 3954,
+          "width": 3782,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3954,
+          "width": 3422,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3954,
+          "width": 118,
+          "overflowRight": 2930,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ],
+      "bodyRuntimeErrorText": false,
+      "gantt": {
+        "shell": true,
+        "timeline": 30,
+        "rows": 1,
+        "rowLabels": 1,
+        "slots": 3,
+        "dependencyLayer": true,
+        "dependencyPaths": 0,
+        "slotIds": 3,
+        "slotBounds": [
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          }
+        ]
+      },
+      "exception": {
+        "module": "gantt",
+        "type": "special-runtime-protected",
+        "reason": "Absolute geometry timeline with SVG dependencies and drag/resize behavior; protected by Gantt Phase 5 contract and regression suite.",
+        "expectedMissingMarkers": [
+          "ModulePage",
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".gantt-shell",
+          ".planner-workspace"
+        ],
+        "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+      },
+      "limitedSupport": "",
+      "consoleErrors": [],
+      "failures": [],
+      "warnings": [],
+      "status": "ok"
+    },
+    {
+      "moduleId": "gantt",
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "profileType": "special-runtime-protected",
+      "layoutPage": "gantt",
+      "textLength": 820,
+      "bodyOverflowX": 0,
+      "shell": {
+        "present": true,
+        "width": 430,
+        "height": 932
+      },
+      "header": {
+        "present": true,
+        "width": 0,
+        "height": 0
+      },
+      "main": {
+        "present": true,
+        "width": 430,
+        "height": 872
+      },
+      "components": {
+        "AppShell": 1,
+        "ModulePage": 0,
+        "ModuleHeader": 0,
+        "Panel": 0,
+        "TableWrap": 0,
+        "ActionButton": 56,
+        "StatusToken": 4,
+        "ActionBar": 0,
+        "Toolbar": 0,
+        "FilterBar": 0,
+        "EmptyState": 0,
+        "Modal": 0,
+        "Drawer": 0,
+        "Dropdown": 1,
+        "GanttRuntime": 1,
+        "GanttDependencyLayer": 1,
+        "VisualSystemRuntime": 0
+      },
+      "tableWrapCount": 0,
+      "tableCount": 0,
+      "emptyStateCount": 0,
+      "tableReports": [],
+      "overlayCount": 0,
+      "overlayReports": [],
+      "actionButtonCount": 56,
+      "actionZones": [],
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".row-label",
+          "count": 1
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 3
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        }
+      ],
+      "overflowElements": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 419,
+          "width": 408,
+          "overflowRight": -11,
+          "scrollDelta": 3376,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-day-cell-row",
+          "text": "Пн 22.06 2026 Вт 23.06 23.06 Ср 24.06 24.06 Чт 25.06 25.06 Пт 26.06 26.06 Сб 27.",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cell.is-week-start",
+          "text": "Пн 20.07 20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3364,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ],
+      "bodyRuntimeErrorText": false,
+      "gantt": {
+        "shell": true,
+        "timeline": 30,
+        "rows": 1,
+        "rowLabels": 1,
+        "slots": 3,
+        "dependencyLayer": true,
+        "dependencyPaths": 0,
+        "slotIds": 3,
+        "slotBounds": [
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          }
+        ]
+      },
+      "exception": {
+        "module": "gantt",
+        "type": "special-runtime-protected",
+        "reason": "Absolute geometry timeline with SVG dependencies and drag/resize behavior; protected by Gantt Phase 5 contract and regression suite.",
+        "expectedMissingMarkers": [
+          "ModulePage",
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".gantt-shell",
+          ".planner-workspace"
+        ],
+        "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+      },
+      "limitedSupport": "Gantt is an absolute-positioned timeline; narrow smoke checks blank/runtime/guardrails, not full mobile UX.",
+      "consoleErrors": [],
+      "failures": [],
+      "warnings": [
+        "header bounds limited on narrow viewport"
+      ],
+      "status": "warn"
+    },
+    {
+      "moduleId": "gantt",
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "profileType": "special-runtime-protected",
+      "layoutPage": "gantt",
+      "textLength": 820,
+      "bodyOverflowX": 0,
+      "shell": {
+        "present": true,
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "present": true,
+        "width": 0,
+        "height": 0
+      },
+      "main": {
+        "present": true,
+        "width": 390,
+        "height": 784
+      },
+      "components": {
+        "AppShell": 1,
+        "ModulePage": 0,
+        "ModuleHeader": 0,
+        "Panel": 0,
+        "TableWrap": 0,
+        "ActionButton": 56,
+        "StatusToken": 4,
+        "ActionBar": 0,
+        "Toolbar": 0,
+        "FilterBar": 0,
+        "EmptyState": 0,
+        "Modal": 0,
+        "Drawer": 0,
+        "Dropdown": 1,
+        "GanttRuntime": 1,
+        "GanttDependencyLayer": 1,
+        "VisualSystemRuntime": 0
+      },
+      "tableWrapCount": 0,
+      "tableCount": 0,
+      "emptyStateCount": 0,
+      "tableReports": [],
+      "overlayCount": 0,
+      "overlayReports": [],
+      "actionButtonCount": 56,
+      "actionZones": [],
+      "requiredSelectors": [
+        {
+          "selector": ".gantt-shell",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot",
+          "count": 3
+        },
+        {
+          "selector": "[data-ui-component='GanttToolbar']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-canvas[data-ui-component='GanttCanvas']",
+          "count": 1
+        },
+        {
+          "selector": ".timeline-row[data-ui-component='GanttTimeline']",
+          "count": 1
+        },
+        {
+          "selector": ".rows-layer[data-ui-component='GanttRowsLayer']",
+          "count": 1
+        },
+        {
+          "selector": ".gantt-row[data-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".row-label",
+          "count": 1
+        },
+        {
+          "selector": ".lane[data-lane-row-id]",
+          "count": 1
+        },
+        {
+          "selector": ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+          "count": 3
+        },
+        {
+          "selector": ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
+          "count": 1
+        },
+        {
+          "selector": "[data-gantt-zoom]",
+          "count": 3
+        }
+      ],
+      "overflowElements": [
+        {
+          "selector": "div.gantt-shell",
+          "text": "Маршрутные карты и операции План Факт Неделя 26 22.06-28.06 Неделя 27 29.06-05.0",
+          "right": 379,
+          "width": 368,
+          "overflowRight": -11,
+          "scrollDelta": 3416,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cells.is-grouped-by-week",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group-row",
+          "text": "Неделя 26 22.06-28.06 Неделя 27 29.06-05.07 Неделя 28 06.07-12.07 Неделя 29 13.0",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-week-group",
+          "text": "Неделя 30 20.07-20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-day-cell-row",
+          "text": "Пн 22.06 2026 Вт 23.06 23.06 Ср 24.06 24.06 Чт 25.06 25.06 Пт 26.06 26.06 Сб 27.",
+          "right": 3794,
+          "width": 3422,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.timeline-cell.is-week-start",
+          "text": "Пн 20.07 20.07",
+          "right": 3794,
+          "width": 118,
+          "overflowRight": 3404,
+          "scrollDelta": 0,
+          "visible": true,
+          "isAllowedContainer": true
+        }
+      ],
+      "bodyRuntimeErrorText": false,
+      "gantt": {
+        "shell": true,
+        "timeline": 30,
+        "rows": 1,
+        "rowLabels": 1,
+        "slots": 3,
+        "dependencyLayer": true,
+        "dependencyPaths": 0,
+        "slotIds": 3,
+        "slotBounds": [
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          },
+          {
+            "width": 101,
+            "height": 26
+          }
+        ]
+      },
+      "exception": {
+        "module": "gantt",
+        "type": "special-runtime-protected",
+        "reason": "Absolute geometry timeline with SVG dependencies and drag/resize behavior; protected by Gantt Phase 5 contract and regression suite.",
+        "expectedMissingMarkers": [
+          "ModulePage",
+          "TableWrap"
+        ],
+        "allowedInternalOverflowSelectors": [
+          ".gantt-shell",
+          ".planner-workspace"
+        ],
+        "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+      },
+      "limitedSupport": "Gantt is an absolute-positioned timeline; narrow smoke checks blank/runtime/guardrails, not full mobile UX.",
+      "consoleErrors": [],
+      "failures": [],
+      "warnings": [
+        "header bounds limited on narrow viewport"
+      ],
+      "status": "warn"
+    }
+  ]
+}

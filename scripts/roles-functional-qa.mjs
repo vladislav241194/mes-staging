@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 const defaultUrl = new URL("/?module=roles&qa-auth-bypass=1&qa=roles-functional", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const uiStorageKey = "mes-planning-prototype-ui-v1";
+const planningStorageKey = "mes-planning-prototype-state-v2";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -174,16 +175,30 @@ async function navigate(client, url) {
 }
 
 async function resetRolesUiState(client) {
-  await evaluate(client, (storageKey) => {
-    const state = JSON.parse(localStorage.getItem(storageKey) || "{}");
+  await evaluate(client, (payload) => {
+    sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 5 * 60 * 1000));
+    if (!localStorage.getItem(payload.planningStorageKey)) {
+      localStorage.setItem(payload.planningStorageKey, JSON.stringify({
+        version: 1,
+        projects: [],
+        workCenters: [],
+        routes: [],
+        routeSteps: [],
+        slots: [],
+        shiftMasterAssignments: {},
+        dispatchFacts: {},
+        planningCorrections: {},
+      }));
+    }
+    const state = JSON.parse(localStorage.getItem(payload.uiStorageKey) || "{}");
     state.activeRole = "admin";
     state.activeModule = "roles";
     state.accessRoleProfiles = [];
     state.accessRoleAssignments = {};
     state.accessRolesSelectedRoleId = "admin";
-    localStorage.setItem(storageKey, JSON.stringify(state));
+    localStorage.setItem(payload.uiStorageKey, JSON.stringify(state));
     window.location.reload();
-  }, uiStorageKey);
+  }, { uiStorageKey, planningStorageKey });
   await delay(800);
   await waitForRolesPage(client);
 }
@@ -230,6 +245,20 @@ async function runRolesScenario(client) {
 
 async function reloadAndReadState(client, employeeId) {
   await evaluate(client, () => {
+    sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 5 * 60 * 1000));
+    if (!localStorage.getItem("mes-planning-prototype-state-v2")) {
+      localStorage.setItem("mes-planning-prototype-state-v2", JSON.stringify({
+        version: 1,
+        projects: [],
+        workCenters: [],
+        routes: [],
+        routeSteps: [],
+        slots: [],
+        shiftMasterAssignments: {},
+        dispatchFacts: {},
+        planningCorrections: {},
+      }));
+    }
     window.location.reload();
   });
   await delay(800);
@@ -276,9 +305,9 @@ async function main() {
     const scenario = await runRolesScenario(chrome.client);
     const reload = await reloadAndReadState(chrome.client, scenario.employeeId);
     assert(reload.pageId === "roles", `Expected roles page after reload, got ${reload.pageId}`);
-    assert(reload.caption === scenario.caption, "Role caption did not survive reload.");
-    assert(reload.rolesView === true, "Role permission did not survive reload.");
-    assert(reload.assignment === "master", "Role assignment did not survive reload.");
+    assert(reload.caption === scenario.caption, `Role caption did not survive reload: ${JSON.stringify({ scenario, reload })}`);
+    assert(reload.rolesView === true, `Role permission did not survive reload: ${JSON.stringify({ scenario, reload })}`);
+    assert(reload.assignment === "master", `Role assignment did not survive reload: ${JSON.stringify({ scenario, reload })}`);
     console.log("Roles Functional QA OK");
     console.log(JSON.stringify({ scenario, reload }, null, 2));
   } finally {

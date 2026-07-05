@@ -1,5 +1,5 @@
 /* MES CSS layer: current workshop board and late operational overrides.
-   Cascade order is controlled by root styles.css; do not import this file directly. */
+   Cascade order is controlled by root styles.css;do not import this file directly. */
 .visual-state-card{
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -184,8 +184,7 @@
   height: 15px;
   color: var(--mes-icon-tone, #64748b);
 }.visual-state-stack,
-.visual-keyboard-list,
-.visual-qa-steps{
+.visual-keyboard-list{
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -821,8 +820,7 @@
   stroke-dasharray: none;
 }@media (max-width: 1180px) {.visual-gantt-mode-grid{
     grid-template-columns: 1fr;
-  }
-}.visual-loading-line,
+  }}.visual-loading-line,
 .visual-error-line{
   display: inline-flex;
   align-items: center;
@@ -883,8 +881,7 @@
   font-weight: 760;
 }.visual-snapshot-table span,
 .visual-snapshot-table small,
-.visual-system-panel code,
-.visual-qa-steps{
+.visual-system-panel code{
   color: var(--mes-ui-muted, #64748b);
   font-size: 10px;
   font-weight: 620;
@@ -896,46 +893,12 @@
   border-radius: 10px;
   background: #f8fafc;
   padding: 8px;
-}.visual-qa-steps{
-  margin: 0;
-  padding-left: 18px;
-}.visual-debug-marker-layer{
-  position: fixed;
-  inset: 0;
-  z-index: 8990;
-  pointer-events: none;
-}.visual-debug-marker{
-  position: fixed;
-  border: 2px solid rgba(251, 191, 36, 0.92);
-  border-radius: 6px;
-  background: rgba(251, 191, 36, 0.08);
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 9999px rgba(15, 23, 42, 0.00);
-  pointer-events: none;
-}.visual-debug-marker.is-critical{
-  border-color: rgba(248, 113, 113, 0.96);
-  background: rgba(248, 113, 113, 0.10);
-}.visual-debug-marker.is-inspector{
-  border-color: rgba(34, 211, 238, 0.98);
-  border-radius: 8px;
-  background: rgba(34, 211, 238, 0.10);
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.22), 0 0 0 5px rgba(34, 211, 238, 0.18);
-}.visual-debug-marker.is-inspector.is-hover{
-  border-style: dashed;
-}.visual-debug-marker.is-inspector.is-selected{
-  border-width: 3px;
-}.visual-debug-marker.is-pulsing{
-  animation: mes-qa-pulse 850ms var(--mes-motion-ease) 2;
-}@keyframes mes-loading-sweep {from{ transform: translateX(-100%); }to{ transform: translateX(100%); }
-}@keyframes mes-qa-pulse {0%,
-100%{ box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 0 rgba(251, 191, 36, 0.0); }50%{ box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18), 0 0 0 8px rgba(251, 191, 36, 0.28); }
-}@media (prefers-reduced-motion: reduce) {main.app-shell[data-layout="app-shell"] *,
-.visual-debug-marker{
+}@keyframes mes-loading-sweep {from{ transform: translateX(-100%); }to{ transform: translateX(100%); }}@media (prefers-reduced-motion: reduce) {main.app-shell[data-layout="app-shell"] *{
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
-  }
-}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] .app-topbar{
+  }}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] .app-topbar{
     grid-template-columns: minmax(0, 1fr) auto !important;
   }main.app-shell[data-layout="app-shell"] .app-topbar-actions{
     grid-column: 2 !important;
@@ -1012,9 +975,7 @@
     grid-template-columns: minmax(0, 1fr);
   }.visual-gantt-row{
     grid-template-columns: 70px minmax(0, 1fr);
-  }
-
-}.route-print-backdrop{
+  }}.route-print-backdrop{
   z-index: 10060;
   padding: 18px;
 }.route-print-modal{
@@ -1296,11 +1257,8 @@
     padding: 6mm;
   }.route-print-signatures{
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}@media print {@page {
-    size: A4 landscape;
-    margin: 0;
-  }html,
+  }}@media print {@page {size: A4 landscape;
+    margin: 0;}html,
 body{
     width: 297mm !important;
     min-width: 297mm !important;
@@ -1360,8 +1318,7 @@ body{
 .route-print-signatures article{
     break-inside: avoid;
     page-break-inside: avoid;
-  }
-}/* Planning workbench flattening: keep existing behavior,
+  }}/* Planning workbench flattening: keep existing behavior,
 give the order area the full width. */
 main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
   grid-template-columns: minmax(184px, 220px) minmax(0, 1fr) !important;
@@ -1543,660 +1500,6 @@ main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workben
   color: var(--planning-order-muted);
   font-size: 9px;
   font-weight: 500;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-workspace{
-  grid-template-columns: minmax(0, 1fr) !important;
-  align-content: start;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-structure-panel{
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head > div{
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head strong,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head span{
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head strong{
-  color: var(--mes-ui-text);
-  font-size: var(--mes-ui-module-font-md);
-  font-weight: 600;
-  line-height: 1.18;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-map-head span{
-  color: var(--mes-ui-muted);
-  font-size: var(--mes-ui-module-font-xs);
-  font-weight: 500;
-  line-height: 1.2;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-strip{
-  display: grid;
-  grid-template-columns: minmax(210px, 0.62fr) minmax(0, 1.38fr);
-  gap: 0;
-  align-items: stretch;
-  min-width: 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.26);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.26);
-  border-left: 3px solid rgba(148, 163, 184, 0.38);
-  border-radius: 0;
-  background: transparent;
-  padding: 8px 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-strip.is-ok{
-  border-left-color: #16a34a;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-strip.is-warning{
-  border-left-color: #d97706;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary{
-  display: grid;
-  align-content: center;
-  gap: 2px;
-  min-width: 0;
-  padding: 0 12px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary span,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary strong,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary small{
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary span{
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.1;
-  text-transform: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary strong{
-  color: var(--mes-ui-text);
-  font-size: 13px;
-  font-weight: 720;
-  line-height: 1.16;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-primary small{
-  color: var(--mes-ui-muted);
-  font-size: 10px;
-  font-weight: 540;
-  line-height: 1.2;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metrics{
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0;
-  min-width: 0;
-  border-left: 1px solid rgba(148, 163, 184, 0.20);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric{
-  appearance: none;
-  display: grid;
-  align-content: center;
-  gap: 1px;
-  min-width: 0;
-  min-height: 42px;
-  border: 0;
-  border-right: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 0;
-  background: transparent;
-  color: var(--mes-ui-text);
-  padding: 0 10px;
-  text-align: left;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric:is(button){
-  cursor: pointer;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric:is(button):hover,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-active{
-  background: rgba(37, 99, 235, 0.055);
-  box-shadow: inset 0 -2px 0 rgba(37, 99, 235, 0.42);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric span,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric strong,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric small{
-  min-width: 0;
-  overflow: hidden;
-  line-height: 1.12;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric span{
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  font-weight: 660;
-  text-transform: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric strong{
-  color: var(--mes-ui-text);
-  font-size: 11px;
-  font-weight: 720;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric small{
-  color: var(--mes-ui-muted);
-  font-size: 9px;
-  font-weight: 520;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-ok strong{
-  color: #15803d;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-warning strong{
-  color: #b45309;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-decision-metric.is-neutral strong{
-  color: var(--mes-ui-muted);
-}main.app-shell[data-layout-page="planning"] .planning-order-page :is(.planning-order-phase, .planning-order-lane-head, .planning-order-step-pill, .planning-order-record-section > header, .planning-order-map-head) strong{
-  font-weight: var(--mes-ui-weight-semibold, 600) !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table-wrap{
-  width: 100% !important;
-  max-width: 100% !important;
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-md) !important;
-  overflow: visible !important;
-  overflow-x: visible !important;
-  overflow-y: visible !important;
-  overscroll-behavior: auto !important;
-  scrollbar-gutter: auto !important;
-  -webkit-overflow-scrolling: auto;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  table-layout: fixed !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-name{
-  width: 31% !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-labor{
-  width: 42% !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-context{
-  width: 10% !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-quantity{
-  width: 8% !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-col-state{
-  width: 9% !important;
-}@media (max-width: 768px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table-wrap{
-    overflow-x: auto !important;
-    overflow-y: visible !important;
-    overscroll-behavior-x: contain !important;
-    scrollbar-gutter: stable !important;
-    -webkit-overflow-scrolling: touch;
-  }
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(1),
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(1){
-  width: 31% !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(2),
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(2){
-  width: 42% !important;
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
-  padding-right: 6px !important;
-  padding-left: 6px !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(3),
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(3){
-  width: 10% !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(4),
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(4){
-  width: 8% !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:nth-child(5),
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:nth-child(5){
-  width: 9% !important;
-  padding-right: 8px !important;
-  padding-left: 8px !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th{
-  font-weight: 600 !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(th, td){
-  min-width: 0 !important;
-  vertical-align: middle !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table [data-planning-order-row]{
-  cursor: pointer;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table td:first-child{
-  height: auto;
-  overflow: visible;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row td{
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row td:first-child{
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-object-row.is-selected td,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-selected td{
-  background: var(--mes-ui-selected) !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-warning td{
-  background: #fffbeb;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-output td,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row.is-warehouse td{
-  background: color-mix(in srgb, var(--mes-success-soft, #ecfdf5), #ffffff 58%);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-type-icon-badge{
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: var(--mes-ui-radius-xs);
-  background: #f8fafc;
-  color: #475569;
-  vertical-align: middle;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-type-icon-badge svg{
-  width: 14px;
-  height: 14px;
-  stroke-width: 2;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-tree-cell{
-  --speki-tree-line-bleed-top: 8px;
-  --speki-tree-line-bleed-bottom: 8px;
-  box-sizing: border-box;
-  height: 100%;
-  min-height: 100%;
-  padding-top: 8px;
-  padding-bottom: 8px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .route-tree-cell{
-  --speki-tree-line-bleed-top: 4px;
-  --speki-tree-line-bleed-bottom: 4px;
-  height: auto;
-  min-height: 36px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .route-tree-cell .speki-tree-object{
-  display: grid;
-  min-width: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-name-cell strong{
-  color: var(--mes-ui-text);
-  font-size: var(--mes-ui-module-font-sm) !important;
-  font-weight: 600 !important;
-  line-height: 1.2;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-name-cell small{
-  color: var(--mes-ui-muted);
-  font-size: var(--mes-ui-module-font-xs) !important;
-  font-weight: 500 !important;
-  line-height: 1.2;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-name-cell{
-  gap: 1px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-name-cell strong{
-  font-size: 11px !important;
-  line-height: 13px !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-name-cell small{
-  font-size: 9px !important;
-  line-height: 11px !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-quantity{
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 3px;
-  width: 100%;
-  min-width: 0;
-  font-weight: 400 !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-quantity strong,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-quantity small{
-  overflow: hidden;
-  font-size: var(--mes-ui-module-font-xs);
-  font-weight: 400 !important;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell{
-  display: grid;
-  justify-items: start;
-  gap: 1px;
-  min-width: 0;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: var(--mes-ui-radius-xs);
-  background: #ffffff;
-  padding: 5px 7px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-step-row .planning-order-context-cell{
-  min-height: 28px;
-  padding: 3px 6px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell strong,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell small{
-  overflow: hidden;
-  max-width: 100%;
-  line-height: 1.12;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell strong{
-  color: var(--mes-ui-text);
-  font-size: 10px;
-  font-weight: 620;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell small{
-  color: var(--mes-ui-muted);
-  font-size: 8px;
-  font-weight: 500;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-smt{
-  border-color: rgba(37, 99, 235, 0.24);
-  background: rgba(239, 246, 255, 0.86);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-tht{
-  border-color: rgba(15, 118, 110, 0.24);
-  background: rgba(240, 253, 250, 0.86);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-manual{
-  border-color: rgba(180, 83, 9, 0.24);
-  background: rgba(255, 251, 235, 0.90);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-machine{
-  border-color: rgba(71, 85, 105, 0.22);
-  background: rgba(248, 250, 252, 0.92);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-context-cell.is-output{
-  border-color: rgba(22, 163, 74, 0.24);
-  background: rgba(240, 253, 244, 0.86);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field{
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-  min-height: 28px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: var(--mes-ui-radius-xs);
-  background: rgba(248, 250, 252, 0.92);
-  color: var(--mes-ui-text, #10233c);
-  padding: 3px 6px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field span{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  min-height: 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(37, 99, 235, 0.14);
-  background: rgba(239, 246, 255, 0.92);
-  color: #1d4ed8;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 12px;
-  text-transform: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field input{
-  min-width: 0;
-  width: 100%;
-  height: 20px;
-  min-height: 20px !important;
-  border: 0 !important;
-  background: transparent !important;
-  color: var(--mes-ui-text, #10233c) !important;
-  padding: 0 !important;
-  font-size: 10px !important;
-  font-weight: 600;
-  line-height: 14px !important;
-  outline: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field input::placeholder{
-  color: var(--mes-ui-muted, #667085);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field:focus-within{
-  border-color: rgba(37, 99, 235, 0.42);
-  background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-labor{
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: minmax(92px, 0.18fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  min-width: 0;
-  min-height: 32px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--mes-ui-text, #10233c);
-  padding: 0;
-  text-align: left;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head{
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  min-width: 0;
-  min-height: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head span,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head strong{
-  overflow: hidden;
-  min-width: 0;
-  color: var(--mes-ui-text, #10233c);
-  line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head span{
-  flex: 0 0 auto;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--mes-ui-muted, #667085);
-  padding: 0;
-  font-size: 8px;
-  font-weight: 640;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-head strong{
-  flex: 1 1 auto;
-  color: var(--mes-ui-text, #10233c);
-  font-size: 12px;
-  font-weight: 700;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-grid{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(90px, 90px);
-  gap: 5px;
-  align-items: center;
-  min-width: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-fields{
-  display: grid;
-  grid-template-columns: minmax(76px, 0.68fr) minmax(86px, 0.76fr) minmax(104px, 0.92fr);
-  gap: 4px;
-  min-width: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-width: 0;
-  min-height: 32px;
-  height: 32px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: var(--mes-ui-radius-xs);
-  background: #ffffff;
-  padding: 0 4px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result span,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result strong{
-  overflow: hidden;
-  color: var(--mes-ui-text, #10233c);
-  line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result span{
-  color: var(--mes-ui-muted, #667085);
-  font-size: 8px;
-  font-weight: 540;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-result strong{
-  font-size: 9px;
-  font-weight: 620;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field{
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  min-height: 32px;
-  height: 32px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-mode{
-  display: block;
-  min-width: 0;
-  min-height: 32px;
-  height: 32px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-mode select{
-  width: 100%;
-  min-width: 0;
-  height: 32px;
-  min-height: 32px !important;
-  border: 1px solid rgba(15, 23, 42, 0.12) !important;
-  border-radius: var(--mes-ui-radius-xs);
-  background: #ffffff !important;
-  color: var(--mes-ui-text, #10233c) !important;
-  padding: 0 18px 0 7px !important;
-  font-size: 10px !important;
-  font-weight: 600;
-  line-height: 16px !important;
-  outline: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-mode select:focus{
-  border-color: rgba(37, 99, 235, 0.42) !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference{
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 32px;
-  height: 32px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: var(--mes-ui-radius-xs);
-  background: #ffffff;
-  padding: 0 5px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field span,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference span{
-  overflow: hidden;
-  min-width: 0;
-  color: var(--mes-ui-muted, #667085);
-  font-size: 8.5px;
-  font-weight: 620;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference span{
-  display: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference strong{
-  overflow: hidden;
-  color: var(--mes-ui-text, #10233c);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context{
-  padding: 0 3px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context strong{
-  font-size: 10px;
-  letter-spacing: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable{
-  display: grid;
-  grid-template-columns: minmax(44px, 0.50fr) minmax(0, 1fr);
-  gap: 4px;
-  align-items: center;
-  padding: 0 4px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input{
-  width: 100%;
-  min-width: 0;
-  height: 26px;
-  min-height: 26px !important;
-  border: 1px solid rgba(15, 23, 42, 0.12) !important;
-  border-radius: 4px;
-  background: rgba(248, 250, 252, 0.92) !important;
-  color: var(--mes-ui-text, #10233c) !important;
-  padding: 0 5px !important;
-  font-size: 10px !important;
-  font-weight: 600;
-  line-height: 14px !important;
-  text-align: center;
-  outline: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input::-webkit-outer-spin-button,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input::-webkit-inner-spin-button{
-  margin: 0;
-  appearance: none;
-  -webkit-appearance: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input[type="number"]{
-  appearance: textfield;
-  -moz-appearance: textfield;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-panel-context.is-editable input:focus{
-  border-color: rgba(37, 99, 235, 0.42) !important;
-  background: #ffffff !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference:not(.is-editable){
-  justify-content: flex-start;
-  gap: 3px;
-  border-color: transparent;
-  background: transparent;
-  padding: 0 2px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference:not(.is-editable) span{
-  display: inline;
-  flex: 0 0 auto;
-  color: var(--mes-ui-muted, #667085);
-  font-size: 8px;
-  font-weight: 620;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference:not(.is-editable) strong{
-  color: var(--mes-ui-muted, #667085);
-  font-size: 9px;
-  font-weight: 620;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input{
-  width: 100%;
-  min-width: 0;
-  height: 32px;
-  min-height: 32px !important;
-  border: 1px solid rgba(15, 23, 42, 0.12) !important;
-  border-radius: var(--mes-ui-radius-xs);
-  background: #ffffff !important;
-  color: var(--mes-ui-text, #10233c) !important;
-  padding: 0 8px !important;
-  font-size: 10px !important;
-  font-weight: 600;
-  line-height: 16px !important;
-  outline: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input::-webkit-outer-spin-button,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input::-webkit-inner-spin-button{
-  margin: 0;
-  appearance: none;
-  -webkit-appearance: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input[type="number"]{
-  appearance: textfield;
-  -moz-appearance: textfield;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-field input:focus{
-  border-color: rgba(37, 99, 235, 0.42) !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-labor:focus-within{
-  outline: none;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-labor.is-calculator-mode{
-  background: transparent;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-manual-inline-reference.is-calculator{
-  border-color: rgba(37, 99, 235, 0.18);
-  background: rgba(239, 246, 255, 0.92);
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell{
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-  min-height: 28px;
-  height: 28px;
-  border: 1px dashed rgba(148, 163, 184, 0.28);
-  border-radius: var(--mes-ui-radius-xs);
-  background: rgba(248, 250, 252, 0.94);
-  color: var(--mes-ui-text, #10233c);
-  padding: 2px 7px;
-  text-align: left;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell span,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell strong,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell small{
-  overflow: hidden;
-  min-width: 0;
-  line-height: 1.12;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell span{
-  flex: 0 1 auto;
-  color: var(--mes-ui-muted, #667085);
-  font-size: 8px;
-  font-weight: 620;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell strong{
-  flex: 0 0 auto;
-  color: var(--mes-ui-text, #10233c);
-  font-size: 10px;
-  font-weight: 650;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-machine-labor-cell small{
-  flex: 1 1 auto;
-  text-align: right;
-  color: var(--mes-ui-muted, #667085);
-  font-size: 8px;
-  font-weight: 520;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-state-cell{
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  min-width: 0;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-state-cell .planning-order-state-token{
-  min-width: 0;
-  max-width: 110px;
-  overflow: hidden;
-  font-size: var(--mes-ui-module-font-xs);
-  font-weight: 500;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
 }main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item :is(strong, small, i),
 main.app-shell[data-layout-page="routes"] .routes-page .route-lineage-panel :is(strong, em),
 main.app-shell[data-layout-page="routes"] .routes-page .route-card-kind-pill{
@@ -2211,8 +1514,7 @@ main.app-shell[data-layout-page="routes"] .routes-page .route-card-kind-pill{
   display: inline;
 }@media (max-width: 1180px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-shift-row{
     grid-template-columns: minmax(0, 1fr) !important;
-  }
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-supply .planning-order-register-row,
+  }main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-supply .planning-order-register-row,
 main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-wip .planning-order-register-row,
 main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-register-table.is-operations .planning-order-register-row{
     grid-template-columns: minmax(0, 1fr) !important;
@@ -2221,8 +1523,7 @@ main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workben
       "item status"
       "qty route"
       "actions actions" !important;
-  }
-}/* Planning Gantt: outlined sausages without fill for every slot variant. */
+  }}/* Planning Gantt: outlined sausages without fill for every slot variant. */
 main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot{
   background: transparent !important;
   border-color: var(--slot-border, var(--mes-gantt-plan-border)) !important;
@@ -2482,16 +1783,14 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-operational-segment.
   }main.app-shell[data-layout-page="gantt"] .gantt-row-metric-head b,
 main.app-shell[data-layout-page="gantt"] .gantt-row-metric{
     font-size: 8px;
-  }
-}@media (max-width: 860px) {main.app-shell[data-layout-page="gantt"] .gantt-shell{
+  }}@media (max-width: 860px) {main.app-shell[data-layout-page="gantt"] .gantt-shell{
     --gantt-row-metrics-width: 0px;
   }main.app-shell[data-layout-page="gantt"] .gantt-row-metric-head,
 main.app-shell[data-layout-page="gantt"] .gantt-row-metrics{
     display: none !important;
   }main.app-shell[data-layout-page="gantt"] .gantt-shell :is(.timeline-corner, .row-label){
     padding-right: 7px !important;
-  }
-}/* Status directory: keep annotation and impact readable in the default desktop view. */
+  }}/* Status directory: keep annotation and impact readable in the default desktop view. */
 main.app-shell[data-layout-page="directories"] .directory-status-table{
   table-layout: fixed !important;
   width: 100% !important;
@@ -2580,9 +1879,6 @@ main.app-shell[data-layout-page="directories"] .directory-status-table td{
   max-width: 72ch;
   overflow-wrap: normal !important;
   word-break: normal !important;
-}main.app-shell[data-layout-page="directories"] .directory-actions{
-  justify-content: flex-start !important;
-  flex-wrap: wrap !important;
 }main.app-shell[data-layout-page="directories"] .status-audit-token{
   display: inline-flex;
   align-items: center;
@@ -2730,8 +2026,7 @@ main.app-shell[data-layout-page="directories"] .directory-status-table td{
   overflow-wrap: anywhere;
 }@media (max-width: 720px) {main.app-shell[data-layout-page="directories"] .directory-reader-list article{
     grid-template-columns: minmax(0, 1fr);
-  }
-}/* Employees module: org diagrams should expand inside the page,
+  }}/* Employees module: org diagrams should expand inside the page,
 not create nested scroll areas. */
 main.app-shell[data-layout-page="employees"] .employees-content{
   display: block !important;
@@ -2846,13 +2141,11 @@ main.app-shell[data-layout-page="employees"] .employee-resource-card em{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }main.app-shell[data-layout-page="employees"] .employee-org-stage:nth-child(2n)::after{
     display: none;
-  }
-}@media (max-width: 760px) {main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
+  }}@media (max-width: 760px) {main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
     grid-template-columns: minmax(0, 1fr);
   }main.app-shell[data-layout-page="employees"] .employee-org-stage::after{
     display: none !important;
-  }
-}main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
+  }}main.app-shell[data-layout-page="employees"] .employee-org-unit-flow{
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }main.app-shell[data-layout-page="employees"] .employee-org-stage:not(:last-child)::after{
   display: block !important;
@@ -2990,11 +2283,6 @@ main.app-shell[data-layout-page="employees"] .employee-resource-card{
   height: 100%;
   overflow: visible;
   pointer-events: none;
-}body.is-mes-visual-qa-inspecting main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors{
-  z-index: 4;
-  pointer-events: none;
-}body.is-mes-visual-qa-inspecting main.app-shell[data-layout-page="employees"] .employee-hierarchy-connector{
-  pointer-events: stroke;
 }main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker path{
   fill: color-mix(in srgb, var(--mes-ui-primary) 52%, var(--mes-ui-line-strong));
 }main.app-shell[data-layout-page="employees"] .employee-hierarchy-connectors marker#employeeHierarchyArrowResource path{
@@ -3331,8 +2619,7 @@ main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch.is-medium{
     grid-column: span 2;
-  }
-}@media (max-width: 1280px) {main.app-shell[data-layout-page="employees"] .employee-hierarchy-forest{
+  }}@media (max-width: 1280px) {main.app-shell[data-layout-page="employees"] .employee-hierarchy-forest{
     grid-template-columns: minmax(0, 1fr);
   }main.app-shell[data-layout-page="employees"] .employee-hierarchy-branch-head{
     grid-template-columns: minmax(0, 1fr);
@@ -3340,8 +2627,7 @@ main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .
     justify-self: start;
     max-width: 100%;
     text-align: left;
-  }
-}main.app-shell[data-layout-page="employees"] .employees-org-annotation{
+  }}main.app-shell[data-layout-page="employees"] .employees-org-annotation{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -3389,8 +2675,6 @@ main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .
   color: var(--mes-ui-muted);
   font-style: normal;
   font-weight: var(--mes-ui-weight-regular, 600);
-}@media (min-width: 1680px) {
-}@media (max-width: 980px) {
 }/* MES UI Kit generation guard.
    New operational modules must use this contract:
    .module-data-sidebar + .ui-sidebar-list + .ui-sidebar-item.
@@ -3403,117 +2687,6 @@ main.app-shell[data-layout-page="employees"] .employee-hierarchy-map.is-branch .
   --mes-ui-sidebar-row-pad-x: 8px;
   --mes-ui-sidebar-badge-height: 20px;
   --mes-ui-sidebar-badge-width: 28px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
-  --planning-order-bg: var(--mes-ui-bg) !important;
-  --planning-order-surface: var(--mes-ui-surface-raised) !important;
-  --planning-order-subtle: var(--mes-ui-surface-soft) !important;
-  --planning-order-hover: var(--mes-ui-hover) !important;
-  --planning-order-selected: var(--mes-ui-selected) !important;
-  --planning-order-selected-border: var(--mes-ui-primary) !important;
-  --planning-order-line: var(--mes-ui-line) !important;
-  --planning-order-line-strong: var(--mes-ui-line-strong) !important;
-  --planning-order-text: var(--mes-ui-text) !important;
-  --planning-order-muted: var(--mes-ui-muted) !important;
-  --planning-order-link: var(--mes-ui-primary) !important;
-  --planning-order-radius-sm: var(--mes-ui-radius-sm) !important;
-  --planning-order-radius: var(--mes-ui-radius-lg) !important;
-  --planning-order-radius-lg: var(--mes-ui-radius-xl) !important;
-  --planning-order-shadow: var(--mes-ui-shadow-sm) !important;
-  --planning-order-shadow-soft: var(--mes-ui-shadow-sm) !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
-  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
-  gap: var(--mes-ui-density-gap) !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure{
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  grid-template-rows: minmax(100%, max-content) !important;
-  align-items: stretch !important;
-  gap: var(--mes-ui-density-gap) !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-queue,
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-main{
-  align-self: stretch !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-main{
-  align-self: flex-start !important;
-  flex: 1 1 auto !important;
-  grid-template-rows: auto max-content !important;
-  height: auto !important;
-  min-height: 0 !important;
-  min-width: 0 !important;
-  overflow: visible !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-header{
-  align-items: center !important;
-  grid-template-columns: minmax(0, 1fr) max-content !important;
-  height: auto !important;
-  min-height: max-content !important;
-  overflow: visible !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-actions{
-  align-self: center !important;
-  justify-self: end !important;
-  width: auto !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-start-date-control{
-  display: grid;
-  grid-template-columns: max-content 132px;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  min-height: 32px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: var(--mes-ui-radius-sm, 8px);
-  background: var(--mes-ui-surface, #fff);
-  padding: 3px 7px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-start-date-control span{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 10px;
-  font-weight: var(--mes-ui-weight-medium, 600);
-  line-height: 12px;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-start-date-control input{
-  box-sizing: border-box;
-  width: 132px;
-  min-width: 0;
-  height: 24px;
-  border: 0;
-  border-radius: var(--mes-ui-radius-xs, 6px);
-  background: rgba(241, 245, 249, 0.92);
-  color: var(--mes-ui-text, #0f172a);
-  padding: 0 5px;
-  font-size: 11px;
-  font-weight: var(--mes-ui-weight-semibold, 650);
-  line-height: 14px;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-queue{
-  flex: 0 0 var(--mes-ui-work-sidebar-width) !important;
-  height: auto !important;
-  min-height: 100% !important;
-  width: var(--mes-ui-work-sidebar-width) !important;
-}main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-workspace{
-  align-self: start !important;
-  height: auto !important;
-  min-height: 0 !important;
-  overflow: visible !important;
-}@media (max-width: 1180px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure{
-    flex-direction: column !important;
-  }main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure > .planning-order-queue{
-    flex: 0 0 auto !important;
-    width: 100% !important;
-  }
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .planning-order-queue{
-  padding: 8px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-queue .planning-order-route-list{
-  padding: 8px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-queue .planning-order-route-item,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .planning-order-route-item,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-queue .planning-order-route-item{
-  min-height: var(--mes-ui-sidebar-row-height) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  padding: var(--mes-ui-sidebar-row-pad-y) var(--mes-ui-sidebar-row-pad-x) !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-queue .planning-order-route-item.is-active,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .planning-order-route-item.is-active,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-queue .planning-order-route-item.is-active{
-  border-color: rgba(37, 99, 235, 0.28) !important;
-  background: var(--mes-ui-selected) !important;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.06) inset !important;
 }main.app-shell[data-layout-page="routes"] .routes-page .route-card-list-item :is(strong, small, i),
 main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench .planning-order-route-item :is(strong, small){
   overflow: hidden !important;
@@ -3523,14 +2696,9 @@ main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workben
   word-break: normal !important;
 }@media (max-width: 1180px) {main.app-shell[data-layout-page="planning"] .planning-order-page.is-flat-workbench{
     grid-template-columns: minmax(0, 1fr) !important;
-  }
-}/* MES Stabilization Pass v1: keep compact controls usable without changing data density. */
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-route-structure .planning-labor-note-field input{
-  min-height: 28px !important;
-}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item, .planning-order-queue .planning-order-route-item, .module-data-sidebar .nomenclature-type-filter button, .supply-route-card, .planning-order-phase){
+  }}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item, .planning-order-queue .planning-order-route-item, .module-data-sidebar .nomenclature-type-filter button, .supply-route-card, .planning-order-phase){
     min-height: 36px;
-  }
-}/* Status registry: long meaning text must wrap inside the optimized table,
+  }}/* Status registry: long meaning text must wrap inside the optimized table,
 not hide as a single line. */
 main.app-shell[data-layout-page="directories"] .directory-status-table :is(th, td).is-key-impact-view,
 main.app-shell[data-layout-page="directories"] .directory-status-table .status-impact-cell{

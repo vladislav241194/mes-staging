@@ -1,6 +1,6 @@
 /* MES CSS layer: UI states,
 Gantt design system and visual QA stand.
-   Cascade order is controlled by root styles.css; do not import this file directly. */
+   Cascade order is controlled by root styles.css;do not import this file directly. */
 main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control .icon-button,
 main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control .gantt-zoom-value{
   height: var(--gantt-toolbar-inner-height) !important;
@@ -128,8 +128,7 @@ main.app-shell[data-layout-page="gantt"] .gantt-optimization-item i{
   display: none !important;
 }@media (max-width: 900px) {main.app-shell[data-layout="app-shell"] .app-topbar{
     grid-template-columns: minmax(0, 1fr) !important;
-  }
-}/* MES shell contract: brand text is centered on the logo height. */
+  }}/* MES shell contract: brand text is centered on the logo height. */
 main.app-shell[data-layout="app-shell"] .module-menu-brand{
   grid-template-columns: 30px minmax(0, 1fr) !important;
   grid-template-rows: 15px 15px !important;
@@ -1097,10 +1096,11 @@ main.app-shell[data-layout-page="supply"] .supply-today-marker::after{
   background: transparent;
 }main.app-shell[data-layout-page="supply"] .supply-table-wrap{
   min-width: 0;
-  overflow: visible !important;
+  overflow-x: auto;
+  overflow-y: hidden;
 }main.app-shell[data-layout-page="supply"] .supply-table{
-  width: 100%;
-  min-width: 0;
+  width: var(--mes-ui-data-table-min-width-wide);
+  min-width: var(--mes-ui-data-table-min-width-wide);
   table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--mes-ui-type-body);
@@ -1392,8 +1392,7 @@ main.app-shell[data-layout-page="supply"] .supply-detail-delivery-fields small{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }main.app-shell[data-layout-page="supply"] .supply-detail-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}/* Gantt geometry: rounded corners mean real operation start/end; work breaks stay square. */
+  }}/* Gantt geometry: rounded corners mean real operation start/end;work breaks stay square. */
 main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented{
   border-radius: 0 !important;
 }main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot.is-segmented :is(.slot-working-segment, .slot-non-working-segment){
@@ -1425,7 +1424,7 @@ main.app-shell[data-layout="app-shell"] .module-menu-preset-main{
 }main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] :is(.planning-order-record-status, .planning-order-step-pill em, .route-step-order-badge){
   font-size: var(--mes-ui-type-caption) !important;
   line-height: var(--mes-ui-line-caption) !important;
-}main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] :is(.status-pill, .readonly-token){
+	}main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] .status-pill{
   font-size: var(--mes-ui-type-caption) !important;
   line-height: var(--mes-ui-line-caption) !important;
 }main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] :is(.module-preview-empty strong, .bom-import-empty strong, .route-module-empty strong){
@@ -1689,13 +1688,13 @@ main.app-shell[data-layout="app-shell"] .module-menu-preset-main{
     -webkit-overflow-scrolling: touch;
   }
 
-  main.app-shell[data-layout="app-shell"] :is(.directory-table, .calculator-table, .supply-table, .bom-import-table, .nomenclature-table, .speki-structure-table, .route-object-table) {
+  main.app-shell[data-layout="app-shell"] :is(.directory-table, .supply-table, .bom-import-table, .nomenclature-table, .speki-structure-table, .route-object-table) {
     width: max-content;
     min-width: min(680px, calc(100vw - 16px));
     max-width: none;
   }
 
-  main.app-shell[data-layout="app-shell"] :is(.directory-table th, .directory-table td, .calculator-table th, .calculator-table td, .supply-table th, .supply-table td, .bom-import-table th, .bom-import-table td, .speki-structure-table th, .speki-structure-table td, .route-object-table th, .route-object-table td) {
+  main.app-shell[data-layout="app-shell"] :is(.directory-table th, .directory-table td, .supply-table th, .supply-table td, .bom-import-table th, .bom-import-table td, .speki-structure-table th, .speki-structure-table td, .route-object-table th, .route-object-table td) {
     padding: 6px 7px;
     vertical-align: middle;
   }
@@ -1743,7 +1742,6 @@ main.app-shell[data-layout="app-shell"] .module-menu-preset-main{
   .form-modal,
   .confirm-modal,
   .slot-form-modal,
-  .route-smt-modal,
   .shop-map-widget-modal {
     width: 100% !important;
     max-width: calc(100vw - 16px) !important;
@@ -1914,8 +1912,7 @@ main.app-shell[data-layout-page="gantt"] .toolbar-grid{
     min-height: 32px !important;
     padding: 0 10px !important;
     line-height: 18px !important;
-  }
-}@media (max-width: 768px) {main.app-shell[data-layout-page="planning"] .planning-order-page,
+  }}@media (max-width: 768px) {main.app-shell[data-layout-page="planning"] .planning-order-page,
 main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
     grid-template-columns: minmax(0, 1fr) !important;
     grid-auto-rows: auto !important;
@@ -1939,12 +1936,6 @@ main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui :is(.
     grid-template-columns: minmax(0, 1fr) !important;
     gap: var(--mes-mobile-gap) !important;
     overflow: visible !important;
-  }main.app-shell[data-layout-page="planning"] .planning-order-page :is(.planning-order-actions),
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui :is(.planning-order-actions){
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-    width: 100% !important;
   }main.app-shell[data-layout-page="planning"] .planning-order-page :is(.planning-order-phase, .planning-order-lane-head, .planning-order-step-pill, .planning-order-register-row),
 main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui :is(.planning-order-phase, .planning-order-lane-head, .planning-order-step-pill, .planning-order-register-row){
     width: 100% !important;
@@ -1981,11 +1972,9 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
     padding: 0 6px !important;
   }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar :is(input, button, .gantt-zoom-value){
     min-height: 36px !important;
-  }
-}@media (max-width: 430px) {main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid{
+  }}@media (max-width: 430px) {main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid{
     grid-template-columns: minmax(0, 1fr) !important;
-  }
-}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] :is(input:not([type="checkbox"]):not([type="radio"]),
+  }}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-layout="main-content"] :is(input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea,
 .dense-inline-select > summary){
@@ -2036,9 +2025,8 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
   }main.app-shell[data-layout-page="shopMap"] .shop-map-widget{
     min-width: 36px !important;
     min-height: 36px !important;
-  }
-}/* MES Stabilization Pass v1: employees is a dense org map. Desktop keeps the aligned
-   hierarchy; mobile switches to readable wrapped layers instead of unreadable vertical text. */
+  }}/* MES Stabilization Pass v1: employees is a dense org map. Desktop keeps the aligned
+   hierarchy;mobile switches to readable wrapped layers instead of unreadable vertical text. */
 @media (max-width: 768px){
   main.app-shell[data-layout-page="employees"] .employee-hierarchy-layer {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -2729,20 +2717,17 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
     grid-template-columns: minmax(0, 1fr) !important;
   }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid{
     grid-template-columns: minmax(106px, 0.74fr) minmax(0, 1.26fr) !important;
-  }
-}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] .modal .modal-footer :is(button, .primary-button, .secondary-button){
+  }}@media (max-width: 768px) {main.app-shell[data-layout="app-shell"] .modal .modal-footer :is(button, .primary-button, .secondary-button){
     min-height: 36px !important;
     height: 36px !important;
-  }
-main.app-shell[data-layout-page="planning"] .planning-order-segmented-actions button{
+  }main.app-shell[data-layout-page="planning"] .planning-order-segmented-actions button{
     min-height: 32px !important;
     height: 32px !important;
     padding-top: 5px !important;
     padding-bottom: 5px !important;
     line-height: 13px !important;
     white-space: nowrap !important;
-  }
-}main.app-shell[data-layout="app-shell"][data-layout-page="routes"] [data-layout="main-content"] .route-object-table :is(.route-object-add-button, .route-object-add-button span, .route-step-compact-fields .dense-inline-select > summary strong, .route-step-compact-fields .dense-inline-select > summary small, .route-step-flow-summary b, .route-step-flow-summary strong, .route-step-flow-summary i, .route-step-flow-override-compact > summary, .route-step-ratio-cell, .route-step-physical-cell, .route-step-unit-cell, .route-step-order-badge, .speki-static-cell){
+  }}main.app-shell[data-layout="app-shell"][data-layout-page="routes"] [data-layout="main-content"] .route-object-table :is(.route-object-add-button, .route-object-add-button span, .route-step-compact-fields .dense-inline-select > summary strong, .route-step-compact-fields .dense-inline-select > summary small, .route-step-flow-summary b, .route-step-flow-summary strong, .route-step-flow-summary i, .route-step-flow-override-compact > summary, .route-step-ratio-cell, .route-step-physical-cell, .route-step-unit-cell, .route-step-order-badge, .speki-static-cell){
   font-weight: 400 !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="routes"] [data-layout="main-content"] .route-object-table .route-object-name-cell strong{
   font-weight: 600 !important;
@@ -2750,8 +2735,7 @@ main.app-shell[data-layout-page="planning"] .planning-order-segmented-actions bu
     min-height: 0 !important;
     overflow: auto !important;
     overscroll-behavior: contain;
-  }
-}main.app-shell[data-layout="app-shell"] .dense-inline-options.is-viewport-popover,
+  }}main.app-shell[data-layout="app-shell"] .dense-inline-options.is-viewport-popover,
 main.app-shell[data-layout="app-shell"] .dense-inline-select[open] .dense-inline-options.is-viewport-popover,
 .dense-inline-options.is-viewport-popover{
   position: fixed !important;
@@ -2792,9 +2776,8 @@ main.app-shell[data-layout="app-shell"] .dense-inline-select[open] .dense-inline
     min-width: 980px !important;
     max-width: none !important;
     table-layout: fixed !important;
-  }
-}/* Unified icon color contract.
-   Icons keep their semantic tone across modules; action icons inherit from their control. */
+  }}/* Unified icon color contract.
+   Icons keep their semantic tone across modules;action icons inherit from their control. */
 :root{
   --mes-icon-neutral: var(--mes-ui-muted, #64748b);
   --mes-icon-neutral-soft: var(--mes-ui-surface-soft, #f8fafc);
@@ -3029,10 +3012,6 @@ focus mode and visual QA. */
   background: var(--mes-ui-primary, #2563eb);
   color: #fff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}main.app-shell[data-layout="app-shell"] .app-topbar-action.is-qa-active{
-  border-color: var(--mes-signal-test-border);
-  background: var(--mes-signal-test-soft);
-  color: var(--mes-signal-test);
 }main.app-shell[data-layout="app-shell"] .app-topbar-action svg{
   width: 15px;
   height: 15px;
@@ -3071,10 +3050,6 @@ focus mode and visual QA. */
   border-color: var(--mes-ui-primary, #2563eb);
   background: var(--mes-ui-primary, #2563eb);
   color: #fff;
-}.mes-visual-mode-tray .app-topbar-action.is-qa-active{
-  border-color: var(--mes-signal-test-border);
-  background: var(--mes-signal-test-soft);
-  color: var(--mes-signal-test);
 }.mes-visual-mode-tray .app-topbar-action svg{
   width: 15px;
   height: 15px;
@@ -3169,22 +3144,6 @@ main.app-shell.is-focus-mode[data-layout="app-shell"] > :is([data-layout="main-c
   grid-column: 1 !important;
 }main.app-shell.is-focus-mode[data-layout="app-shell"] .app-topbar{
   grid-template-columns: minmax(180px, 0.54fr) minmax(280px, 1fr) auto !important;
-}main.app-shell.is-focus-mode[data-layout="app-shell"] :is(.directories-page, .module-data-page, .calculator-page, .planning-order-page, .supply-page){
-  grid-template-columns: minmax(0, 1fr);
-}main.app-shell[data-layout="app-shell"] :is(.directory-table, .calculator-table, .supply-table, .bom-import-table, .nomenclature-table, .speki-structure-table, .route-object-table){
-  border-collapse: separate;
-  border-spacing: 0;
-}main.app-shell[data-layout="app-shell"] :is(.directory-table, .calculator-table, .supply-table, .bom-import-table, .nomenclature-table, .speki-structure-table, .route-object-table) :is(th,
-td){
-  min-height: var(--mes-ui-table-row-height, 37px);
-  vertical-align: middle;
-}main.app-shell[data-layout="app-shell"] :is(.directory-table, .calculator-table, .supply-table, .bom-import-table, .nomenclature-table, .speki-structure-table, .route-object-table) tbody tr:hover td{
-  background: var(--mes-state-hover, rgba(37, 99, 235, 0.08));
-}main.app-shell[data-layout="app-shell"] .route-smt-balance-table-wrap .smt-machine-split-table td:last-child{
-  position: static !important;
-  right: auto !important;
-  z-index: auto !important;
-  background: inherit !important;
 }main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot{
   --slot-bg: var(--mes-gantt-plan-fill);
   --slot-border: var(--mes-gantt-plan-border);
@@ -3242,8 +3201,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
   grid-template-columns: minmax(28px, 1fr) !important;
 }main.app-shell[data-layout-page="supply"] .supply-control-stack.is-delivery label:nth-child(3) span{
   display: none !important;
-}body.is-mes-visual-qa-inspecting{
-  cursor: crosshair;
 }main.app-shell[data-layout-page="visualSystem"]{
   --visual-system-panel-min: 280px;
 }.visual-system-page{
@@ -3338,7 +3295,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
   gap: 8px;
   min-width: 0;
 }.visual-stabilization-grid,
-.visual-qa-coverage-grid,
 .visual-scroll-zone-grid{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -3349,7 +3305,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
   gap: 8px;
   min-width: 0;
 }.visual-rule-card,
-.visual-qa-coverage-grid div,
 .visual-scroll-zone-grid div,
 .visual-legacy-guard-list div,
 .visual-demo-function-card{
@@ -3363,9 +3318,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
 }.visual-rule-card{
   border-color: rgba(251, 191, 36, 0.42);
   background: rgba(255, 251, 235, 0.72);
-}.visual-qa-coverage-grid div{
-  border-color: rgba(191, 219, 254, 0.76);
-  background: rgba(239, 246, 255, 0.82);
 }.visual-scroll-zone-grid div.is-allowed{
   border-color: rgba(187, 247, 208, 0.86);
   background: rgba(240, 253, 244, 0.78);
@@ -3376,7 +3328,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
   border-color: rgba(226, 232, 240, 0.92);
   background: rgba(248, 250, 252, 0.88);
 }.visual-rule-card strong,
-.visual-qa-coverage-grid strong,
 .visual-scroll-zone-grid strong,
 .visual-legacy-guard-list strong,
 .visual-demo-function-card strong{
@@ -3389,7 +3340,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
   text-overflow: ellipsis;
   white-space: nowrap;
 }.visual-rule-card span,
-.visual-qa-coverage-grid span,
 .visual-scroll-zone-grid span,
 .visual-legacy-guard-list span{
   justify-self: start;
@@ -3404,7 +3354,6 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
   padding: 2px 8px;
   white-space: nowrap;
 }.visual-rule-card small,
-.visual-qa-coverage-grid small,
 .visual-scroll-zone-grid small,
 .visual-legacy-guard-list small,
 .visual-demo-function-card small{
@@ -3557,7 +3506,7 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
 	}.visual-selected-row-option td:first-child{
 	  width: 44%;
 	}.visual-selected-row-option td:nth-child(3),
-	.visual-selected-row-option td:nth-child(4){
+.visual-selected-row-option td:nth-child(4){
 	  width: 16%;
 	  text-align: right;
 	}.visual-selected-row-option td span{
@@ -3682,8 +3631,7 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .operation-slot:focus-visi
 	    inset -4px 0 0 rgba(16, 35, 60, 0.56),
 	    inset 0 1px 0 rgba(16, 35, 60, 0.20),
 	    inset 0 -1px 0 rgba(16, 35, 60, 0.20);
-	}
-.visual-card-accent-panel{
+	}.visual-card-accent-panel{
   --visual-card-accent: var(--mes-ui-sidebar-bg, #10233c);
   --visual-card-accent-line: rgba(16, 35, 60, 0.24);
   --visual-card-accent-soft: rgba(16, 35, 60, 0.055);

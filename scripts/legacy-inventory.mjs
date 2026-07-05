@@ -58,7 +58,7 @@ const files = await Promise.all(trackedFiles.map(readExisting));
 const byPath = new Map(files.map((file) => [file.relativePath, file.source]));
 const removedReportDebugModulePattern = /reports-page|report-sidebar|report-workspace|report-(?:app-shell|content|main|chart-grid|chart-card|table-card|insights|dashboard-workspace|header|kpi|kpi-grid)|debug-(?:action-menu|app-shell|check-list|chip-select|combobox|command-input|content|dense-row|drawer|drawer-backdrop|dropdown-menu|dropdown-panel|error-tip|index|inline-options|inline-select|menu-panel|metric-popover|mini-list|modal-grid|popover|popover-stage|segment-label|select-button|spec-grid|status-select|stepper-card|stepper-grid|steps|tree-select|usage-grid|validation|wizard-modal)|debug-page|debug-sidebar|debug-workspace|debug-card|debug-section|data-layout-page="(?:reports|debug)"|module=(?:reports|debug)|id:\s*["'](?:reports|debug)["']|activeModule\s*={2,3}\s*["'](?:reports|debug)["']/;
 const removedDashboardLayoutPattern = /dashboard-app-shell|dashboard-page|dashboard-control-room|dashboard-header|dashboard-time|dashboard-grid|dashboard-status-grid|dashboard-workspace|data-layout-page="dashboard"|module=dashboard|id:\s*["']dashboard["']|activeModule\s*={2,3}\s*["']dashboard["']/;
-const removedStandaloneShellPattern = /(?:calculator|project|specification)-app-shell/;
+const removedStandaloneShellPattern = /(?:project|specification)-app-shell/;
 const removedProjectUiPattern = /project-(?:binding|list|card|row|panel|relation|route|main|name-line|meta|status|readiness|module-content|editor-panel)|projectBinding|projectList|director-project-|data-focus-project/;
 
 function countMatches(source, regexp) {
@@ -196,7 +196,7 @@ const hardForbidden = [
     label: "Старые standalone app-shell классы",
     regexp: removedStandaloneShellPattern,
     files: ["index.html", "src/app.js", "styles.css", "styles/mes-ui-core.css"],
-    note: "calculator/project/specification standalone shell удалены; встроенные блоки должны жить внутри текущих модулей.",
+    note: "project/specification standalone shell удалены; встроенные блоки должны жить внутри текущих модулей.",
   },
   {
     id: "old-object-tree-page",
@@ -350,7 +350,7 @@ const cssLegacy = [
     regexp: removedReportDebugModulePattern,
     files: ["index.html", "src/app.js", "styles.css", "styles/mes-ui-core.css"],
     maxCount: 0,
-    allowed: "Должно быть 0: старые reports/debug модули удалены; visual-debug-marker остается разрешенным live-паттерном.",
+    allowed: "Должно быть 0: старые reports/debug модули и marker overlay удалены.",
   },
   {
     id: "removed-dashboard-runtime-css",
@@ -366,7 +366,7 @@ const cssLegacy = [
     regexp: removedStandaloneShellPattern,
     files: ["index.html", "src/app.js", "styles.css", "styles/mes-ui-core.css"],
     maxCount: 0,
-    allowed: "Должно быть 0: calculator/project/specification shell больше не существуют как отдельные экраны.",
+    allowed: "Должно быть 0: project/specification shell больше не существуют как отдельные экраны.",
   },
   {
     id: "old-sidebar-specific-patterns",

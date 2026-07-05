@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-07-05T04:58:19.180Z",
+  "classes": [
+    "dependency-path",
+    "dependency-path-underlay",
+    "dependency-path-muted",
+    "has-issue",
+    "is-transfer",
+    "dependency-arrow",
+    "is-muted",
+    "dependency-edit-segment",
+    "dependency-edit-hit",
+    "dependency-edit-handle"
+  ],
+  "requiredComponents": [
+    "GanttDependencyLayer",
+    "GanttDependencyPath",
+    "GanttDependencyArrow",
+    "GanttDependencySlotMask",
+    "GanttDependencySlotMaskRect"
+  ],
+  "tokens": [
+    "--mes-ui-gantt-dependency-color",
+    "--mes-ui-gantt-dependency-active-color",
+    "--mes-ui-gantt-dependency-warning-color"
+  ],
+  "protectedBehavior": [
+    "SVG path algorithm is not changed.",
+    "Markers and mask geometry are not changed.",
+    "Dependency edit controls are smoke-tested but not dragged destructively."
+  ]
+}

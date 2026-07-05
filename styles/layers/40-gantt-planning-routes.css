@@ -1,6 +1,6 @@
 /* MES CSS layer: Gantt,
 planning and route interaction rules.
-   Cascade order is controlled by root styles.css; do not import this file directly. */
+   Cascade order is controlled by root styles.css;do not import this file directly. */
 .gantt-shell .production-main{
   display: grid;
   align-content: center;
@@ -180,9 +180,9 @@ planning and route interaction rules.
 .gantt-shell .operation-slot.status-overdue,
 .gantt-shell .operation-slot.has-warning.warning,
 .gantt-shell .operation-slot.has-warning.critical{
-  --slot-bg: #dbeafe;
-  --slot-border: #93c5fd;
-  --slot-break-border: rgba(96, 165, 250, 0.58);
+  --slot-bg: var(--mes-ui-gantt-slot-planned-bg);
+  --slot-border: var(--mes-ui-gantt-slot-border);
+  --slot-break-border: var(--mes-ui-gantt-slot-break-border);
   --slot-accent: #60a5fa;
   --slot-text: #1e3a8a;
   border-color: var(--slot-border);
@@ -197,11 +197,11 @@ planning and route interaction rules.
 .gantt-shell .operation-slot.material-transfer-slot.status-overdue,
 .gantt-shell .operation-slot.material-transfer-slot.has-warning.warning,
 .gantt-shell .operation-slot.material-transfer-slot.has-warning.critical{
-  --slot-bg: #dcfce7;
-  --slot-border: #86efac;
+  --slot-bg: var(--mes-ui-gantt-slot-transfer-bg);
+  --slot-border: var(--mes-ui-gantt-slot-transfer-border);
   --slot-break-border: rgba(22, 163, 74, 0.46);
-  --slot-accent: #16a34a;
-  --slot-text: #166534;
+  --slot-accent: var(--mes-ui-gantt-slot-transfer-accent);
+  --slot-text: var(--mes-ui-gantt-slot-transfer-text);
   border-color: var(--slot-border);
   background: var(--slot-bg);
   color: var(--slot-text);
@@ -226,8 +226,8 @@ planning and route interaction rules.
   grid-template-columns: 4px minmax(0, 1fr) 7px;
   min-width: 27px;
   overflow: hidden;
-  border: 1px solid var(--slot-border, #93c5fd);
-  border-radius: 8px;
+  border: 1px solid var(--slot-border, var(--mes-ui-gantt-slot-border));
+  border-radius: var(--slot-radius, var(--mes-ui-gantt-slot-radius));
   background: var(--slot-bg);
   color: var(--slot-text);
   box-shadow: var(--mes-shadow-sm);
@@ -240,10 +240,10 @@ planning and route interaction rules.
   grid-template-columns: 4px minmax(0, 1fr) 7px;
   min-width: 12px;
   overflow: hidden;
-  border: 1px solid var(--slot-break-border, rgba(96, 165, 250, 0.58));
-  border-radius: 8px;
+  border: 1px solid var(--slot-break-border, var(--mes-ui-gantt-slot-break-border));
+  border-radius: var(--slot-radius, var(--mes-ui-gantt-slot-radius));
   background: transparent;
-  color: var(--slot-text, #1e3a8a);
+  color: var(--slot-text, var(--mes-ui-gantt-label));
   box-shadow: none;
 }.gantt-shell .slot-non-working-segment .slot-accent{
   height: 100%;
@@ -267,7 +267,7 @@ planning and route interaction rules.
   grid-column: 3;
   height: 100%;
 }.gantt-shell .operation-slot.is-segmented .slot-non-working-segment{
-  border-color: var(--slot-break-border, rgba(96, 165, 250, 0.58));
+  border-color: var(--slot-break-border, var(--mes-ui-gantt-slot-break-border));
   background: transparent;
   box-shadow: none;
   opacity: 1;
@@ -364,10 +364,10 @@ with a stable badge at every scale. */
   position: absolute;
   top: 0;
   bottom: 0;
-  --gantt-non-working-stripe-a: rgba(100, 116, 139, 0.055);
-  --gantt-non-working-stripe-b: rgba(100, 116, 139, 0.095);
-  --gantt-non-working-fill: rgba(148, 163, 184, 0.095);
-  border-inline: 1px solid rgba(148, 163, 184, 0.12);
+  --gantt-non-working-stripe-a: var(--mes-ui-gantt-non-working-stripe-a);
+  --gantt-non-working-stripe-b: var(--mes-ui-gantt-non-working-stripe-b);
+  --gantt-non-working-fill: var(--mes-ui-gantt-non-working-bg);
+  border-inline: 1px solid var(--mes-ui-gantt-non-working-border);
   background:
     repeating-linear-gradient(
       135deg,
@@ -399,29 +399,29 @@ with a stable badge at every scale. */
   pointer-events: auto;
 }.gantt-shell .dependency-path-underlay{
   fill: none;
-  stroke: rgba(255, 255, 255, 0.88);
+  stroke: var(--mes-ui-gantt-dependency-underlay-color);
   stroke-width: 5.5px;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }.gantt-shell .dependency-path-underlay.dependency-path-muted{
-  stroke: rgba(255, 255, 255, 0.24);
+  stroke: var(--mes-ui-gantt-dependency-underlay-muted-color);
   stroke-width: 4px;
   opacity: 0.32;
 }.gantt-shell .dependency-path{
   fill: none;
-  stroke: #475569;
+  stroke: var(--mes-ui-gantt-dependency-color);
   stroke-width: 1.55px;
   stroke-dasharray: none;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }.gantt-shell .dependency-path.dependency-path-muted{
-  stroke: #475569;
+  stroke: var(--mes-ui-gantt-dependency-color);
   stroke-width: 1.35px;
   opacity: 0.42;
 }.gantt-shell .dependency-path.is-transfer{
-  stroke: #2563eb;
+  stroke: var(--mes-ui-gantt-dependency-active-color);
   stroke-dasharray: none;
   stroke-width: 1.35px;
   opacity: 0.48;
@@ -429,12 +429,12 @@ with a stable badge at every scale. */
   stroke-width: 3px;
   opacity: 0.18;
 }.gantt-shell .dependency-path.is-transfer.dependency-path-muted{
-  stroke: #2563eb;
+  stroke: var(--mes-ui-gantt-dependency-active-color);
   opacity: 0.16;
 }.gantt-shell .dependency-path.has-issue{
-  stroke: #475569;
+  stroke: var(--mes-ui-gantt-dependency-warning-color);
 }.gantt-shell .dependency-path.has-issue.dependency-path-muted{
-  stroke: #475569;
+  stroke: var(--mes-ui-gantt-dependency-warning-color);
   opacity: 0.48;
 }.gantt-shell .week-dependencies .dependency-path{
   stroke-width: 1.35px;
@@ -459,32 +459,32 @@ with a stable badge at every scale. */
   vector-effect: non-scaling-stroke;
 }.gantt-shell .dependency-edit-handle{
   fill: #ffffff;
-  stroke: #2563eb;
+  stroke: var(--mes-ui-gantt-dependency-active-color);
   stroke-width: 1.6px;
   filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.18));
   vector-effect: non-scaling-stroke;
 }.gantt-shell .dependency-edit-segment:hover .dependency-edit-handle{
-  fill: #dbeafe;
-  stroke: #1d4ed8;
+  fill: var(--mes-ui-gantt-slot-planned-bg);
+  stroke: var(--mes-ui-gantt-dependency-active-color);
 }.gantt-shell .dependency-arrow{
-  fill: #475569;
-  stroke: rgba(255, 255, 255, 0.78);
+  fill: var(--mes-ui-gantt-dependency-color);
+  stroke: var(--mes-ui-gantt-dependency-arrow-stroke);
   stroke-width: 0.55px;
   paint-order: stroke fill;
 }.gantt-shell .dependency-arrow.is-muted{
-  fill: #475569;
+  fill: var(--mes-ui-gantt-dependency-color);
   opacity: 0.42;
   stroke: rgba(255, 255, 255, 0.22);
 }.gantt-shell .dependency-arrow.has-issue{
-  fill: #475569;
+  fill: var(--mes-ui-gantt-dependency-warning-color);
 }.gantt-shell .dependency-arrow.has-issue.is-muted{
-  fill: #475569;
+  fill: var(--mes-ui-gantt-dependency-warning-color);
   opacity: 0.48;
 }.gantt-shell .dependency-arrow.is-transfer{
-  fill: #2563eb;
+  fill: var(--mes-ui-gantt-dependency-active-color);
   stroke: rgba(255, 255, 255, 0.72);
 }.gantt-shell .dependency-arrow.is-transfer.is-muted{
-  fill: #2563eb;
+  fill: var(--mes-ui-gantt-dependency-active-color);
   opacity: 0.2;
 }.gantt-snap-overlay{
   position: absolute;
@@ -908,8 +908,7 @@ with a stable badge at every scale. */
 }.route-step-compact-fields .dense-inline-select > summary{
   min-height: 28px;
   border-radius: 7px;
-}
-.route-step-ratio-cell,
+}.route-step-ratio-cell,
 .route-step-physical-cell,
 .route-step-unit-cell{
   justify-content: center;
@@ -1246,10 +1245,10 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors.is-in-pan
 }@media (max-width: 980px) {.route-step-flow-panel,
 .route-step-labor-panel,
 .route-step-labor-strip,
-  .route-step-labor-controls,
-  .route-step-labor-readout,
-  .route-step-resource-factors,
-  main.app-shell[data-layout-page="routes"] .route-step-flow-panel,
+.route-step-labor-controls,
+.route-step-labor-readout,
+.route-step-resource-factors,
+main.app-shell[data-layout-page="routes"] .route-step-flow-panel,
 main.app-shell[data-layout-page="routes"] .route-step-labor-panel,
 main.app-shell[data-layout-page="routes"] .route-step-labor-strip,
 main.app-shell[data-layout-page="routes"] .route-step-labor-controls,
@@ -1260,8 +1259,7 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors{
     flex-wrap: wrap;
   }main.app-shell[data-layout-page="routes"] .route-step-labor-strip-summary{
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}.route-step-flow-override-compact{
+  }}.route-step-flow-override-compact{
   min-width: 0;
   justify-self: auto;
 }.route-step-flow-override-compact > summary{
@@ -1441,148 +1439,6 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors{
   height: 30px;
   border-radius: 6px;
   font-size: 11px;
-}.route-smt-calculator-panel{
-  overflow: visible;
-}.planning-smt-calculator-panel{
-  border-color: #cbd5e1;
-}.route-smt-step-list{
-  display: grid;
-  gap: 12px;
-  padding: 10px;
-}.route-smt-step-card{
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  border: 1px solid var(--mes-border, #d7e0ea);
-  border-radius: 10px;
-  background: #ffffff;
-  padding: 10px;
-}.route-smt-step-head{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-width: 0;
-}.route-smt-step-head div{
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}.route-smt-step-head span,
-.route-smt-step-head em{
-  color: var(--mes-text-secondary, #64748b);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 800;
-  text-transform: none;
-}.route-smt-step-head strong{
-  overflow: hidden;
-  color: var(--mes-text, #0f172a);
-  font-size: 14px;
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}.route-smt-step-head em{
-  border: 1px solid #d7e0ea;
-  border-radius: 999px;
-  background: #f8fafc;
-  padding: 4px 8px;
-  text-transform: none;
-  white-space: nowrap;
-}.route-smt-grid{
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
-  gap: 10px;
-  min-width: 0;
-}.route-smt-grid > .calculator-panel,
-.route-smt-balance-block{
-  width: 100%;
-  min-width: 0;
-  border: 1px solid #dbe3ec;
-  border-radius: 9px;
-  box-shadow: none;
-}.route-smt-input-block .calculator-input-grid{
-  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
-}.route-smt-result-block .calculator-kpis{
-  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
-}.route-smt-balance-table-wrap{
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden !important;
-  overflow-y: visible !important;
-  overscroll-behavior-x: auto;
-  scrollbar-gutter: auto;
-  -webkit-overflow-scrolling: auto;
-}.route-smt-balance-table-wrap .smt-machine-split-table,
-.route-smt-calculator-panel .route-smt-balance-table-wrap .smt-machine-split-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  table-layout: fixed;
-}.route-smt-balance-table-wrap .smt-machine-split-table th,
-.route-smt-balance-table-wrap .smt-machine-split-table td{
-  min-width: 0;
-  padding-inline: 5px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: normal;
-}.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(1),
-.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(1){
-  width: 24%;
-}.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(2),
-.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(2){
-  width: 12%;
-}.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(3),
-.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(3){
-  width: 10%;
-}.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(4),
-.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(4){
-  width: 8%;
-}.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(5),
-.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(5){
-  width: 24%;
-}.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(6),
-.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(6),
-.route-smt-balance-table-wrap .smt-machine-split-table th:nth-child(7),
-.route-smt-balance-table-wrap .smt-machine-split-table td:nth-child(7){
-  width: 11%;
-}.route-smt-popup-actions{
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  min-width: 0;
-  border-top: 1px solid #edf2f7;
-  padding-top: 2px;
-}.route-smt-modal{
-  width: min(1180px, calc(100vw - 32px));
-}.route-smt-modal-body{
-  display: grid;
-  gap: 10px;
-  min-height: 0;
-  max-height: min(72vh, 760px);
-  overflow: auto;
-  padding: 10px;
-}.route-smt-calculator-panel .directory-table-wrap,
-.route-smt-calculator-panel [data-layout="table"]{
-  overflow: visible !important;
-}.route-smt-calculator-panel .route-smt-balance-table-wrap{
-  overflow-x: hidden !important;
-  overflow-y: visible !important;
-}.route-smt-calculator-panel .calculator-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  table-layout: fixed;
-}.route-smt-calculator-panel .calculator-table th,
-.route-smt-calculator-panel .calculator-table td{
-  white-space: normal;
-  overflow-wrap: anywhere;
-}.route-smt-balance-table-wrap .smt-machine-position-cell .readonly-token{
-  display: inline-flex;
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}@media (max-width: 760px) {
 }.route-module-empty{
   display: grid;
   justify-items: center;
@@ -1609,15 +1465,12 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors{
     grid-template-columns: 92px minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1fr) 36px;
   }.route-step-editor-row .icon-button.danger-soft{
     align-self: stretch;
-  }
-}@media (max-width: 1040px) {.route-step-editor-row{
+  }}@media (max-width: 1040px) {.route-step-editor-row{
     grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr) 36px;
   }.route-step-editor-row.has-task-target{
     grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr) 36px;
   }.route-step-editor-row.has-task-target .route-step-task{
     grid-column: 2 / 4;
-  }.route-smt-grid{
-    grid-template-columns: minmax(0, 1fr);
   }.route-step-flow-editor{
     grid-template-columns: minmax(0, 1fr);
   }.route-step-flow-override{
@@ -1627,9 +1480,7 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors{
     left: 0;
     grid-template-columns: minmax(0, 1fr);
     min-width: min(360px, calc(100vw - 48px));
-  }
-}@media (max-width: 760px) {
-.route-task-sequence-steps > span{
+  }}@media (max-width: 760px) {.route-task-sequence-steps > span{
     grid-template-columns: minmax(0, 1fr);
   }.route-steps-head-actions{
     justify-content: flex-start;
@@ -1640,8 +1491,7 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors{
     grid-column: auto;
   }.route-step-index{
     width: min(100%, 120px);
-  }
-}.bom-file-import-button{
+  }}.bom-file-import-button{
   position: relative;
   justify-self: end;
   justify-content: center;

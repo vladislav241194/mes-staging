@@ -1,0 +1,316 @@
+/* Phase 7 Internal UI Kit polish layer.
+   This file is the shared visual edit point for MES primitives. Keep it token-only:
+   no direct colors, no emergency important rules, no page-specific business styling. */
+
+main.app-shell[data-layout="app-shell"]{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-body);
+  line-height: var(--mes-ui-line-body);
+}
+
+main.app-shell[data-layout="app-shell"] :where([data-ui-component="ModuleHeader"], [data-ui-component="PanelHead"]){
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] :where([data-ui-component="ModuleHeader"], [data-ui-component="PanelHead"]) :where(h1, h2, h3, strong){
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-section-title);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-section-title);
+  letter-spacing: 0;
+}
+
+main.app-shell[data-layout="app-shell"] :where([data-ui-component="ModuleHeader"], [data-ui-component="PanelHead"]) :where(p, span, small){
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleContent"]{
+  gap: var(--mes-ui-density-gap);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"]{
+  border-width: var(--mes-ui-border-width);
+  border-style: solid;
+  border-color: var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-panel-raised);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="PanelBody"]{
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] :where([data-ui-component="Toolbar"], [data-ui-component="FilterBar"], [data-ui-component="ActionBar"]){
+  gap: var(--mes-ui-control-gap);
+  min-height: var(--mes-ui-control-height-compact);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]{
+  border-width: var(--mes-ui-border-width);
+  border-color: var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-control);
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:focus-visible,
+main.app-shell[data-layout="app-shell"] [data-ui-component="Dropdown"] summary:focus-visible,
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select, textarea):focus-visible{
+  outline: 0;
+  box-shadow: var(--mes-ui-focus-ring);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].primary-button{
+  border-color: var(--mes-ui-accent);
+  background: var(--mes-ui-accent);
+  color: var(--mes-ui-text-inverse);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"]{
+  border-width: var(--mes-ui-border-width);
+  border-style: solid;
+  border-radius: var(--mes-radius-pill);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"]{
+  gap: var(--mes-space-2);
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] > span{
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] > small{
+  color: var(--mes-ui-text-soft);
+  font-size: var(--mes-ui-type-small);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select, textarea){
+  border-width: var(--mes-ui-border-width);
+  border-color: var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-control);
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: var(--mes-ui-line-body);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"]{
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-panel);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] table{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-table);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :where(th){
+  min-height: var(--mes-ui-table-header-height);
+  border-color: var(--mes-ui-table-row-border);
+  background: var(--mes-ui-table-head-bg);
+  color: var(--mes-ui-table-head-text);
+  font-size: var(--mes-ui-type-table);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :where(td){
+  border-color: var(--mes-ui-table-row-border);
+  background: var(--mes-ui-table-row-bg);
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-table);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] tbody tr:hover td{
+  background: var(--mes-ui-table-row-hover-bg);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] tbody tr.is-selected td{
+  background: var(--mes-ui-table-row-selected-bg);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] tbody tr:is(.is-group, .shift-work-orders-tree-parent) td{
+  background: var(--mes-ui-table-row-group-bg);
+  font-weight: var(--mes-ui-weight-medium);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] td :where(strong){
+  color: var(--mes-ui-text);
+  font-weight: var(--mes-ui-weight-medium);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] td :where(small){
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-small);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :where(.actions-cell, .ui-table-actions){
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"] :where([data-ui-component="Modal"], [data-ui-component="Drawer"]){
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-strong);
+  background: var(--mes-ui-surface-panel-raised);
+  color: var(--mes-ui-text);
+  box-shadow: var(--mes-ui-shadow-overlay);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Modal"]{
+  width: var(--mes-ui-modal-width);
+  max-width: var(--mes-ui-overlay-max-width);
+  max-height: var(--mes-ui-overlay-max-height);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Drawer"]{
+  width: var(--mes-ui-drawer-width);
+  max-width: var(--mes-ui-overlay-max-width);
+  max-height: var(--mes-ui-overlay-max-height);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Dropdown"]{
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Dropdown"] .ui-dropdown-trigger{
+  border-color: var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-control);
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="Dropdown"] .ui-dropdown-menu{
+  border-color: var(--mes-ui-border-strong);
+  background: var(--mes-ui-surface-panel-raised);
+  box-shadow: var(--mes-ui-shadow-overlay);
+}
+
+main.app-shell[data-layout="app-shell"] :where(.operation-slot[data-ui-component="GanttBar"], .ui-gantt-bar[data-ui-component="GanttBar"]){
+  border-radius: var(--mes-ui-gantt-slot-radius);
+  color: var(--mes-ui-gantt-label);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] .gantt-shell :where(.timeline-cell, .row-label, .workcenter-name){
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page :where(.visual-internal-ui-kit-panel, .visual-ui-kit-production-panel){
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-foundations{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--mes-ui-density-gap);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-foundation-card,
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-density-card{
+  display: grid;
+  gap: var(--mes-space-2);
+  min-width: 0;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-panel-soft);
+  padding: var(--mes-space-5);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-foundation-card strong,
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-density-card strong{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-foundation-card span,
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-density-card span,
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-density-card small{
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-small);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-foundation-card code{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-small);
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-production-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--mes-ui-density-gap);
+  margin-top: var(--mes-ui-density-gap);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-production-panel.is-wide{
+  grid-column: 1 / -1;
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-button-grid,
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-status-grid,
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-density-grid{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mes-ui-control-gap);
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-table-wrap{
+  max-width: 100%;
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-stabilization-grid{
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-rule-card{
+  max-width: 100%;
+  overflow: hidden;
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-rule-card :where(.ui-modal.is-sample, .ui-drawer.is-sample){
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-rule-card :where(.ui-modal-head, .ui-modal-body, .ui-modal-footer, .ui-drawer-head, .ui-drawer-body, .ui-drawer-footer){
+  min-width: 0;
+  max-width: 100%;
+}
+
+main.app-shell[data-layout="app-shell"] .visual-system-page .visual-ui-kit-demo-marker-sample{
+  display: inline-grid;
+  place-items: center;
+  min-height: var(--mes-ui-control-height-compact);
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-md);
+  padding: var(--mes-space-4);
+}

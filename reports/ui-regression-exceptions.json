@@ -1,0 +1,72 @@
+[
+  {
+    "module": "gantt",
+    "type": "special-runtime-protected",
+    "reason": "Absolute geometry timeline with SVG dependencies and drag/resize behavior; protected by Gantt Phase 5 contract and regression suite.",
+    "expectedMissingMarkers": [
+      "ModulePage",
+      "TableWrap"
+    ],
+    "allowedInternalOverflowSelectors": [
+      ".gantt-shell",
+      ".planner-workspace"
+    ],
+    "futurePhase": "Phase 6 Gantt drag/resize/dependency routing interaction depth"
+  },
+  {
+    "module": "visualSystem",
+    "type": "special-runtime",
+    "reason": "Living UI contract gallery; it intentionally renders multiple sample patterns.",
+    "expectedMissingMarkers": [
+      "ModuleHeader"
+    ],
+    "allowedInternalOverflowSelectors": [
+      ".visual-system-page"
+    ],
+    "futurePhase": "Keep as contract gallery, not a normal data module."
+  },
+  {
+    "module": "timesheet",
+    "type": "data-dense-limited-mobile",
+    "reason": "Dense calendar table uses internal table scroll; narrow viewport is smoke-only.",
+    "expectedMissingMarkers": [
+      "ModuleHeader"
+    ],
+    "allowedInternalOverflowSelectors": [
+      ".timesheet-table-wrap",
+      ".ui-table-wrap"
+    ],
+    "futurePhase": "Tablet-first timesheet adaptation"
+  },
+  {
+    "module": "productionStructureMatrix",
+    "type": "data-dense-limited-mobile",
+    "reason": "Wide organizational matrix editor requires internal horizontal table scroll.",
+    "expectedMissingMarkers": [],
+    "allowedInternalOverflowSelectors": [
+      ".production-structure-table-wrap",
+      ".ui-table-wrap"
+    ],
+    "futurePhase": "Matrix editing ergonomics phase"
+  },
+  {
+    "module": "dispatch",
+    "type": "placeholder",
+    "reason": "Dispatcher module is intentionally a stub and should not expose live workflow UI.",
+    "expectedMissingMarkers": [
+      "TableWrap"
+    ],
+    "allowedInternalOverflowSelectors": [],
+    "futurePhase": "Replace placeholder only when dispatcher workflow returns"
+  },
+  {
+    "module": "employees",
+    "type": "placeholder",
+    "reason": "Legacy employees module was renamed/repositioned; current visible module is a compatibility placeholder.",
+    "expectedMissingMarkers": [
+      "TableWrap"
+    ],
+    "allowedInternalOverflowSelectors": [],
+    "futurePhase": "Remove alias or rebuild as real staff view"
+  }
+]

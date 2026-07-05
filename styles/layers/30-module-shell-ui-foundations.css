@@ -1,25 +1,7 @@
 /* MES CSS layer: module shell,
 sidebar,
 employee and planning-order foundations.
-   Cascade order is controlled by root styles.css; do not import this file directly. */
-.calculator-save-summary > div{
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  border: 1px solid #d7e0ea;
-  border-radius: 7px;
-  background: #f8fafc;
-  color: #334155;
-  padding: 9px;
-  font-size: 12px;
-  font-weight: 740;
-  line-height: 1.35;
-}.calculator-save-summary svg{
-  width: 18px;
-  height: 18px;
-  color: #2563eb;
-}/* Dedicated project/specification modules */
+   Cascade order is controlled by root styles.css;/* Dedicated project/specification modules */
 .module-data-page{
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
@@ -488,11 +470,9 @@ employee and planning-order foundations.
   color: var(--mes-muted);
   font-size: 11px;
   font-weight: 650;
-}@media (max-width: 1180px) {
-.bom-module-content{
+}@media (max-width: 1180px) {.bom-module-content{
     grid-template-columns: minmax(0, 1fr);
-  }
-}@media (max-width: 760px) {.module-data-page{
+  }}@media (max-width: 760px) {.module-data-page{
     grid-template-columns: minmax(0, 1fr);
     overflow: visible;
   }.module-data-sidebar,
@@ -502,8 +482,7 @@ employee and planning-order foundations.
   }.module-form,
 .planning-order-placement-summary{
     grid-template-columns: minmax(0, 1fr);
-  }
-}.drawer-route-sequence{
+  }}.drawer-route-sequence{
   display: grid;
   gap: 7px;
   border: 1px solid #d7e0ea;
@@ -570,8 +549,7 @@ employee and planning-order foundations.
     overflow: visible;
   }.planning-app-shell .slot-drawer{
     right: 18px;
-  }
-}@media (max-width: 680px) {.planning-app-shell{
+  }}@media (max-width: 680px) {.planning-app-shell{
     grid-template-rows: auto auto auto minmax(460px, 1fr);
   }.director-command-head,
 .director-order-strip{
@@ -630,8 +608,7 @@ employee and planning-order foundations.
     justify-content: flex-start;
   }.status-strip{
     justify-content: flex-start;
-  }
-}/* Simplistic Industrial SaaS UI refresh */
+  }}/* Simplistic Industrial SaaS UI refresh */
 :root{
   --bg: #f6f7fb;
   --panel: rgba(255, 255, 255, 0.92);
@@ -859,8 +836,6 @@ employee and planning-order foundations.
 .module-data-sidebar,
 .module-data-workspace,
 .module-panel,
-.calculator-workspace,
-.calculator-panel,
 .directory-table-card,
 .kpi-card{
   border-color: var(--line-soft);
@@ -1014,8 +989,7 @@ employee and planning-order foundations.
 .director-order-strip,
 .planner-workspace{
     grid-template-columns: minmax(0, 1fr);
-  }
-}@media (max-width: 640px) {.app-shell,
+  }}@media (max-width: 640px) {.app-shell,
 .planning-app-shell,
 .directory-app-shell{
     grid-template-columns: minmax(0, 1fr);
@@ -1047,8 +1021,7 @@ employee and planning-order foundations.
   }.module-tab{
     flex: 0 0 auto;
     width: auto;
-  }
-}@media (max-width: 1120px) {.planner-workspace{
+  }}@media (max-width: 1120px) {.planner-workspace{
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(520px, 58vh) auto;
     align-content: start;
@@ -1072,8 +1045,7 @@ employee and planning-order foundations.
     width: 100%;
     max-width: 100%;
     min-width: 0;
-  }
-}/* MES Simplistic Industrial SaaS Design System */
+  }}/* MES Simplistic Industrial SaaS Design System */
 :root{
   --mes-bg: #f8fafc;
   --mes-surface: #ffffff;
@@ -1336,7 +1308,6 @@ body,
   grid-column: 2;
   grid-row: 4;
 }.directories-page,
-.calculator-page,
 .module-data-page,
 .planner-workspace,
 .topbar,
@@ -1344,7 +1315,6 @@ body,
   background: var(--mes-bg);
   background-image: none;
 }.directories-page,
-.calculator-page,
 .module-data-page{
   min-height: 0;
   padding: var(--mes-page-padding);
@@ -1567,10 +1537,6 @@ textarea:focus,
   color: var(--mes-neutral);
 }.module-data-page,
 .directories-page{
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 24px;
-}.calculator-page{
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 24px;
@@ -1886,34 +1852,7 @@ textarea:focus,
   border-radius: var(--mes-radius-card);
   background: var(--mes-surface);
   box-shadow: var(--mes-shadow-sm);
-}
-.smt-line-card{
-  border: 1px solid var(--mes-border);
-  border-radius: var(--mes-radius-card);
-  background: var(--mes-surface);
-  color: var(--mes-text-primary);
-  box-shadow: var(--mes-shadow-sm);
-}
-.smt-line-card.ok,
-.smt-line-card.active,
-.smt-line-card.warning,
-.smt-line-card.critical{
-  background: var(--mes-surface);
-  color: var(--mes-text-primary);
-}
-.smt-line-card.ok{
-  border-color: var(--mes-success-border);
-}
-.smt-line-card.active{
-  border-color: var(--mes-accent-border);
-}
-.smt-line-card.warning{
-  border-color: var(--mes-warning-border);
-}
-.smt-line-card.critical{
-  border-color: var(--mes-danger-border);
-}
-.progress span{
+}.progress span{
   border-radius: 999px;
   background: var(--mes-accent);
 }.modal-backdrop{
@@ -1967,15 +1906,13 @@ textarea:focus,
   }.app-topbar-title{
     grid-column: 1;
   }.module-data-page,
-.directories-page,
-.calculator-page{
+.directories-page{
     grid-template-columns: 240px minmax(0, 1fr);
     gap: 16px;
   }.planner-workspace{
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(520px, 1fr) auto;
-  }
-}@media (max-width: 760px) {.app-shell,
+  }}@media (max-width: 760px) {.app-shell,
 .planning-app-shell,
 .directory-app-shell{
     grid-template-columns: 72px minmax(0, 1fr);
@@ -2005,13 +1942,11 @@ textarea:focus,
   }.app-topbar-title p{
     display: none;
   }.directories-page,
-.calculator-page,
 .module-data-page,
 .planner-workspace{
     padding: 16px;
   }.module-data-page,
-.directories-page,
-.calculator-page{
+.directories-page{
     grid-template-columns: minmax(0, 1fr);
   }.toolbar-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2026,31 +1961,25 @@ textarea:focus,
     width: 360px;
   }.slot-drawer{
     width: min(100vw - 72px, 520px);
-  }
-}@media (max-width: 520px) {.toolbar-grid,
+  }}@media (max-width: 520px) {.toolbar-grid,
 .director-command-head,
 .director-flow-grid{
     grid-template-columns: minmax(0, 1fr);
-  }
-}/* Layout audit fixes: prevent collapsed rails,
+  }}/* Layout audit fixes: prevent collapsed rails,
 clipped cards and block overlap */
 .app-shell,
 .directories-page,
-.calculator-page,
 .module-data-page,
 .directory-workspace,
 .module-data-workspace,
-.calculator-workspace,
 .directory-content,
 .module-data-content{
   min-width: 0;
 }.directory-workspace,
-.module-data-workspace,
-.calculator-workspace{
+.module-data-workspace{
   max-width: 100%;
 }.directory-table-card,
-.module-panel,
-.smt-line-card{
+.module-panel{
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -2065,22 +1994,7 @@ clipped cards and block overlap */
 .directory-header,
 .ui-panel-head{
   flex-wrap: wrap;
-}.module-form,
-.directory-actions,
-.toolbar-actions,
-.director-command-actions,
-.drawer-actions,
-.modal-footer{
-  min-width: 0;
-}.module-form input,
-.module-form select,
-.module-form textarea,
-.directory-actions input,
-.toolbar-grid input{
-  width: 100%;
-  min-width: 0;
 }@media (max-width: 1180px) {.directories-page,
-.calculator-page,
 .module-data-page{
     align-content: start;
     align-items: start;
@@ -2092,14 +2006,11 @@ clipped cards and block overlap */
     min-height: 0;
     max-height: none;
   }.directory-workspace,
-.module-data-workspace,
-.calculator-workspace{
+.module-data-workspace{
     align-self: start;
     height: auto;
     min-height: 0;
-  }
-}@media (max-width: 760px) {.directories-page,
-.calculator-page,
+  }}@media (max-width: 760px) {.directories-page,
 .module-data-page{
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -2121,8 +2032,7 @@ clipped cards and block overlap */
   }.module-data-workspace,
 .module-data-content,
 .directory-workspace,
-.directory-content,
-.calculator-workspace{
+.directory-content{
     height: auto;
     min-height: 0;
     overflow: visible;
@@ -2136,10 +2046,6 @@ clipped cards and block overlap */
 .director-command-head{
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-  }.directory-actions{
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    width: 100%;
   }.directory-table-card,
 .module-panel{
     padding: 16px;
@@ -2160,14 +2066,8 @@ clipped cards and block overlap */
     overflow: visible !important;
   }.planner-workspace .assistant-panel-head{
     min-height: 44px;
-  }
-}/* Whole-project layout audit v1.5: responsive rails,
-grids and card containment */
-.calculator-page{
+  }}/* Whole-project layout audit v1.5: responsive rails{
   grid-template-columns: minmax(0, 1fr);
-}.calculator-workspace{
-  width: 100%;
-  max-width: 100%;
 }.planning-app-shell > .topbar{
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2243,8 +2143,7 @@ grids and card containment */
   height: auto;
 }@media (max-width: 1500px) {.bom-module-content{
     grid-template-columns: minmax(0, 1fr);
-  }
-}@media (max-width: 900px) {.directory-app-shell{
+  }}@media (max-width: 900px) {.directory-app-shell{
     grid-template-rows: 56px auto;
     height: auto;
     min-height: 100vh;
@@ -2274,8 +2173,7 @@ grids and card containment */
     max-height: none;
     overflow: visible;
   }.directory-workspace,
-.module-data-workspace,
-.calculator-workspace{
+.module-data-workspace{
     align-self: start;
     height: auto;
     min-height: 0;
@@ -2287,8 +2185,7 @@ grids and card containment */
 .ui-sidebar-list{
     max-height: 320px;
     overflow: auto;
-  }
-}@media (max-width: 760px) {.planning-app-shell .toolbar-grid{
+  }}@media (max-width: 760px) {.planning-app-shell .toolbar-grid{
     grid-template-columns: minmax(0, 1fr);
   }.planning-app-shell .director-order-strip{
     display: grid;
@@ -2303,8 +2200,7 @@ grids and card containment */
     grid-template-columns: minmax(0, 1fr);
   }.planning-app-shell .director-command-actions .secondary-button{
     width: 100%;
-  }
-}/* Layout contract v1.6: one stable MES shell across all modules */
+  }}/* Layout contract v1.6: one stable MES shell across all modules */
 *,
 *::before,
 *::after{
@@ -2380,12 +2276,8 @@ body,
   gap: var(--layout-gap);
   align-items: stretch;
   overflow: hidden;
-}.calculator-page{
-  display: block;
-  overflow: auto;
 }[data-layout="page-workspace"],
 .directory-workspace,
-.calculator-workspace,
 .module-data-workspace{
   width: 100%;
   max-width: 100%;
@@ -2402,20 +2294,8 @@ body,
 .module-tabs{
   min-width: 0;
   overflow: auto;
-}.directory-content,
-.module-data-content,
-.bom-module-content,
-.kpi-row,
-.toolbar-grid,
-.director-flow-grid,
-.director-order-strip,
-.planning-assistant-dock{
-  min-width: 0;
-  max-width: 100%;
 }.directory-table-card,
 .module-panel,
-.calculator-panel,
-.smt-line-card,
 .assistant-panel,
 .director-command,
 .topbar,
@@ -2424,17 +2304,6 @@ body,
   min-width: 0;
   border-radius: var(--layout-card-radius);
   overflow: hidden;
-}.directory-header,
-.directory-table-toolbar,
-.ui-panel-head,
-.assistant-panel-head,
-.director-command-head,
-.toolbar-actions,
-.directory-actions,
-.modal-footer,
-.drawer-actions{
-  min-width: 0;
-  flex-wrap: wrap;
 }input,
 select,
 textarea,
@@ -2510,8 +2379,7 @@ button,
   }.directories-page,
 .module-data-page{
     grid-template-columns: minmax(220px, 252px) minmax(0, 1fr);
-  }
-}@media (max-width: 900px) {[data-layout="app-shell"]{
+  }}@media (max-width: 900px) {[data-layout="app-shell"]{
     grid-template-columns: var(--layout-sidebar-collapsed) minmax(0, 1fr);
     grid-template-rows: 56px auto;
     height: auto;
@@ -2530,7 +2398,6 @@ button,
     overflow: visible;
   }[data-layout="page-workspace"],
 .directory-workspace,
-.calculator-workspace,
 .module-data-workspace,
 .directory-content,
 .module-data-content,
@@ -2546,8 +2413,7 @@ button,
     grid-template-columns: minmax(0, 1fr);
     max-height: none;
     overflow: visible;
-  }
-}@media (max-width: 760px) {.app-topbar{
+  }}@media (max-width: 760px) {.app-topbar{
     grid-template-columns: minmax(0, 1fr);
   }.module-form,
 .directory-content,
@@ -2557,12 +2423,7 @@ button,
 .planning-app-shell .director-command-head,
 .planning-app-shell .director-command-actions{
     grid-template-columns: minmax(0, 1fr);
-  }.planning-app-shell .director-command-actions .secondary-button,
-.calculator-panel-actions button,
-.directory-actions button{
-    width: 100%;
-  }
-}/* Layout contract v1.7: final override layer for visual QA */
+  }}/* Layout contract v1.7: final override layer for visual QA */
 [data-layout="app-shell"]{
   isolation: isolate;
 }[data-layout="main-content"],
@@ -2643,12 +2504,6 @@ button,
 }.planner-workspace .assistant-list{
   min-height: 0;
   overflow: auto;
-}
-.kpi-row{
-  min-width: 0;
-  max-width: 100%;
-}.kpi-row{
-  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
 }[data-layout="table"],
 .directory-table-wrap{
   contain: inline-size;
@@ -2661,8 +2516,7 @@ button,
   overscroll-behavior: contain;
 }@media (max-width: 1180px) {.planning-app-shell .toolbar-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}@media (max-width: 900px) {[data-layout="app-shell"]{
+  }}@media (max-width: 900px) {[data-layout="app-shell"]{
     overflow: visible;
   }.planning-app-shell{
     grid-template-rows: 56px auto auto auto;
@@ -2671,16 +2525,13 @@ button,
 .module-data-page{
     overflow: visible;
   }.directory-workspace,
-.module-data-workspace,
-.calculator-workspace{
+.module-data-workspace{
     overflow: visible;
-  }
-}@media (max-width: 760px) {.planning-controls{
+  }}@media (max-width: 760px) {.planning-controls{
     grid-template-columns: minmax(0, 1fr);
   }.assistant-panel-command{
     width: 100%;
-  }
-}main[data-layout="app-shell"] > [data-layout="header"]{
+  }}main[data-layout="app-shell"] > [data-layout="header"]{
   grid-column: 2 !important;
   grid-row: 1 !important;
   width: 100% !important;
@@ -2691,8 +2542,7 @@ main[data-layout="app-shell"] > [data-layout="planning-page"]{
   grid-row: 2 !important;
   min-width: 0;
 }.directories-page,
-.module-data-page,
-.calculator-page{
+.module-data-page{
   overflow: auto;
 }main.planning-app-shell{
   grid-template-rows: var(--layout-header-height) max-content max-content minmax(620px, auto) !important;
@@ -2755,8 +2605,7 @@ main[data-layout="app-shell"] > [data-layout="planning-page"]{
 }.module-form{
   min-height: 0;
   overflow: auto;
-}.module-panel,
-.calculator-panel{
+}.module-panel{
   grid-template-columns: minmax(0, 1fr);
 }.flow-node{
   width: 100%;
@@ -2776,24 +2625,20 @@ main.planning-app-shell > .topbar .status-strip{
     overflow-y: visible;
   }.planner-workspace .assistant-panel{
     min-height: 170px;
-  }
-}@media (max-width: 900px) {main[data-layout="app-shell"]{
+  }}@media (max-width: 900px) {main[data-layout="app-shell"]{
     grid-template-columns: var(--layout-sidebar-collapsed) minmax(0, 1fr) !important;
   }main[data-layout="app-shell"] > [data-layout="header"]{
     grid-column: 2 !important;
   }.directories-page,
-.module-data-page,
-.calculator-page{
+.module-data-page{
     overflow: visible;
   }main.planning-app-shell{
     grid-template-rows: 56px max-content max-content minmax(560px, auto) !important;
     height: auto;
     min-height: 100dvh;
-  }
-}@media (max-width: 760px) {.bar-track{
+  }}@media (max-width: 760px) {.bar-track{
     grid-column: 1 / -1;
-  }
-}/* Layout contract v1.9: form and builder containment */
+  }}/* Layout contract v1.9: form and builder containment */
 .module-form-actions{
   display: flex;
   justify-content: flex-end;
@@ -2807,8 +2652,7 @@ main.planning-app-shell > .topbar .status-strip{
     grid-template-columns: minmax(0, 1fr);
   }.module-form-actions.full button{
     width: 100%;
-  }
-}/* Layout contract v1.10: stable planning fixed column and compact Gantt bars */
+  }}/* Layout contract v1.10: stable planning fixed column and compact Gantt bars */
 .gantt-shell .row-label{
   overflow: hidden;
 }.gantt-shell .production-label{

@@ -1,7 +1,7 @@
 /* MES CSS architecture manifest. Keep imports in this order: it preserves the historical cascade while the CSS debt is being reduced layer by layer. */
 @import "./styles/layers/00-foundation-base.css";
 @import "./styles/layers/10-shell-directory-gantt-base.css";
-@import "./styles/layers/20-technology-calculator-specifications.css";
+@import "./styles/layers/20-technology-specifications.css";
 @import "./styles/layers/30-module-shell-ui-foundations.css";
 @import "./styles/layers/40-gantt-planning-routes.css";
 @import "./styles/layers/50-nomenclature-routes-directories.css";
@@ -10,3 +10,7 @@
 @import "./styles/layers/80-visual-system-ui-states.css";
 @import "./styles/layers/90-shift-master-board.css";
 @import "./styles/layers/99-legacy-overrides-tail.css";
+
+@import "./styles/ui/actions.css";
+@import "./styles/ui/status.css";
+@import "./styles/ui/kit-polish.css";

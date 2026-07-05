@@ -79,9 +79,9 @@ Smoke QA использует тот же эталонный viewport, что и
 - `Табель` исправлен: hero-блок и табличный блок получили `PanelBody`, table wrapper получил общий `ui-table-wrap`.
 - `План-таблица` исправлена: все основные панели блока теперь обернуты в `PanelBody`.
 - CSS-контракт `TableWrap` усилен через `data-ui-component`, а не только через класс.
-- Visual QA усилен: типографические предупреждения в hard-runtime модулях теперь валят проверку.
-- Visual QA дополнен hard-модулями `shiftWorkOrders` и `authSessionPrototype`, которые раньше не попадали в экранный прогон.
-- Visual QA усилен runtime coverage guard: hard/special модуль больше не может выпасть из обычного или focus-прогона без падения QA.
+- Design snapshots усилены: типографические предупреждения в hard-runtime модулях теперь валят проверку.
+- Design snapshots дополнены hard-модулями `shiftWorkOrders` и `authSessionPrototype`, которые раньше не попадали в экранный прогон.
+- Design snapshots усилены runtime coverage guard: hard/special модуль больше не может выпасть из обычного или focus-прогона без падения QA.
 - Module smoke усилен: hard-runtime модуль теперь не может выпасть из smoke-проверки без падения QA.
 - Module smoke усилен: special-runtime модуль теперь тоже не может выпасть из smoke-проверки без падения QA.
 - Module smoke запрещает `hard-v1` и specialized runtime markers вне соответствующих списков `HARD_UI_RUNTIME_MODULE_IDS`/`SPECIAL_UI_RUNTIME_MODULE_IDS`.
@@ -111,14 +111,14 @@ Smoke QA использует тот же эталонный viewport, что и
 - `ui-runtime-class-audit` расширен на технологический контур: `route-*`, `routes-*`, `speki-*`, `bom-*`, `nomenclature-*`. CSS технологических модулей теперь тоже обязан иметь живую runtime-опору в `src/app.js`.
 - `ui-runtime-class-audit` также закрывает runtime-хвосты `employee-*`, `employees-*`, `directory-*`, `dispatch-*`, `supply-*`, `shop-*`, `shop-map-*`, `product-*`, `products-*`; CSS-only классы этих hard-модулей теперь считаются ошибкой.
 - Старый CSS-only `spec-*`/`specification-*` конструктор удален точечно; живые `spec-bom-plan-*`, `specification-list-*` и `speki-*` оставлены и защищены class-audit'ом.
-- Старые standalone-классы калькулятора/stepper/guided/process удалены; живые `calculator-*` и `operation-*` классы защищены class-audit'ом.
+- Старые standalone-классы stepper/guided/process удалены; живые `operation-*` классы защищены class-audit'ом.
 - Старые `slot-*` хвосты прежнего контента/ручного количества Ганта удалены; живые `slot-working/non-working/operational/transfer/quantity-badge` классы остались и закрыты class-audit'ом.
 - Старые `planning-*` supply/chain/sidebar хвосты и старые generic `module-*` header/status/kpi/logout классы удалены; живые `planning-*` и `module-*` классы теперь защищены class-audit'ом.
 - Дополнительно вычищены старые `auth/access/smt/visual/row/bar/modal/app` CSS-only хвосты; эти префиксы включены в `ui-runtime-class-audit`.
 - `ui-runtime-class-audit` теперь проверяет весь CSS-граф на неожиданные CSS-only классы. Перед поиском классов он маскирует комментарии и строковые литералы CSS. Разрешены только задокументированные динамические паттерны: `is-*`, `status-*`, `dense-select-*`, `production-row`, `resource-row`, `workCenter-row`. Фактический счетчик после чистки: 101 разрешенный CSS-only класс, 0 неожиданных.
 - Удален мертвый модификатор `.module-sidebar-actions.two`; сайдбарные action-зоны теперь не держат скрытый двухколоночный legacy-режим.
 - Удален последний найденный глобальным class-audit мертвый CSS-хвост `production-resource-factor-panel`; живой стиль расчета ресурсов остается через `route-step-resource-factors`.
-- Исправлено focus-состояние модуля `Роли`: глобальное схлопывание `.module-data-page` в одну колонку больше не ломает RBAC-sidebar, редактор ролей сохраняет двухколоночную рабочую сетку и проходит inset-аудит Visual QA.
+- Исправлено focus-состояние модуля `Роли`: глобальное схлопывание `.module-data-page` в одну колонку больше не ломает RBAC-sidebar, редактор ролей сохраняет двухколоночную рабочую сетку и проходит inset-аудит design snapshots.
 - `Снабжение` переведено с ручной оболочки на `renderUiModulePage()`/`renderUiModuleSidebar()` и добавлено в hard-runtime список.
 - `Цех производства` переведен с ручной оболочки на `renderUiModulePage()` и получил `PanelBody` в рабочих панелях карты.
 - `Справочники` переведены с ручной оболочки на `renderUiModulePage()`/`renderUiModuleSidebar()`, таблица справочника теперь находится внутри `PanelBody`.

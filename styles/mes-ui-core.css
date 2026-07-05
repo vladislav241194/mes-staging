@@ -10,15 +10,43 @@ html{
     var(--mes-ui-bg);
   --mes-ui-module-page-background-size: auto, 22px 22px, 22px 22px, auto;
   --mes-ui-module-page-background-repeat: no-repeat, repeat, repeat, repeat;
+
+  /* Phase 7 semantic surface aliases. New UI rules should depend on meaning,
+     not on direct color values. Compatibility aliases below stay intact. */
   --mes-ui-surface: #ffffff;
   --mes-ui-surface-soft: #f8fafc;
   --mes-ui-surface-raised: #ffffff;
+  --mes-ui-surface-muted: var(--mes-ui-surface-soft);
+  --mes-ui-surface-selected: #f1f6fd;
+  --mes-ui-surface-page: var(--mes-ui-bg);
+  --mes-ui-surface-panel: var(--mes-ui-surface);
+  --mes-ui-surface-panel-soft: var(--mes-ui-surface-soft);
+  --mes-ui-surface-panel-raised: var(--mes-ui-surface-raised);
+  --mes-ui-surface-control: var(--mes-ui-surface);
+  --mes-ui-surface-hover: var(--mes-ui-table-row-hover-bg);
+  --mes-ui-surface-inverse: var(--mes-ui-sidebar-bg);
+
+  /* Phase 7 border aliases. */
   --mes-ui-line: #d7e0ea;
   --mes-ui-line-strong: #cbd5e1;
+  --mes-ui-line-soft: #e5edf5;
+  --mes-ui-border-width: 1px;
+  --mes-ui-border-soft: var(--mes-ui-line-soft);
+  --mes-ui-border-default: var(--mes-ui-line);
+  --mes-ui-border-strong: var(--mes-ui-line-strong);
+
+  /* Phase 7 text/accent aliases. */
   --mes-ui-text: #0f172a;
   --mes-ui-muted: #64748b;
+  --mes-ui-text-muted: var(--mes-ui-muted);
+  --mes-ui-text-soft: #94a3b8;
+  --mes-ui-text-inverse: #ffffff;
   --mes-ui-primary: #2563eb;
   --mes-ui-sidebar-bg: #10233c;
+  --mes-ui-accent: var(--mes-ui-primary);
+  --mes-ui-accent-soft: var(--mes-ui-status-info-bg);
+  --mes-ui-focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  --mes-ui-focus-ring-strong: 0 0 0 3px rgba(37, 99, 235, 0.28);
   --mes-ui-success: #15803d;
   --mes-ui-success-soft: #f0fdf4;
   --mes-ui-success-border: #bbf7d0;
@@ -28,8 +56,27 @@ html{
   --mes-ui-danger: #b91c1c;
   --mes-ui-danger-soft: #fff1f2;
   --mes-ui-danger-border: #fecdd3;
+  --mes-ui-neutral: #475569;
+  --mes-ui-neutral-soft: #f8fafc;
+  --mes-ui-neutral-border: #d7e0ea;
   --mes-ui-module-sidebar-width: 260px;
   --mes-ui-work-sidebar-width: 300px;
+  --mes-space-0: 0;
+  --mes-space-1: 2px;
+  --mes-space-2: 4px;
+  --mes-space-3: 6px;
+  --mes-space-4: 8px;
+  --mes-space-5: 10px;
+  --mes-space-6: 12px;
+  --mes-space-8: 16px;
+  --mes-space-10: 20px;
+  --mes-space-12: 24px;
+  --mes-density-page-gap: var(--mes-ui-density-page);
+  --mes-density-panel-gap: var(--mes-ui-panel-gap);
+  --mes-density-card-gap: var(--mes-space-4);
+  --mes-density-table-row-compact: var(--mes-ui-table-row-height-compact);
+  --mes-density-table-row-default: var(--mes-ui-table-row-height-default);
+  --mes-density-table-row-comfortable: var(--mes-ui-table-row-height-comfortable);
   --mes-ui-density-page: 8px;
   --mes-ui-density-gap: 8px;
   --mes-ui-panel-gap: 10px;
@@ -38,10 +85,63 @@ html{
   --mes-ui-panel-body-padding: 12px;
   --mes-ui-panel-footer-padding: 10px 12px;
   --mes-ui-control-height: 36px;
+  --mes-ui-control-height-compact: 30px;
+  --mes-ui-control-height-default: var(--mes-ui-control-height);
+  --mes-ui-control-height-touch: 44px;
+  --mes-ui-control-padding-x: 10px;
+  --mes-ui-control-gap: 8px;
+  --mes-control-height-compact: var(--mes-ui-control-height-compact);
+  --mes-control-height-default: var(--mes-ui-control-height-default);
+  --mes-control-height-touch: var(--mes-ui-control-height-touch);
+  --mes-control-padding-x: var(--mes-ui-control-padding-x);
+  --mes-control-gap: var(--mes-ui-control-gap);
   --mes-ui-icon-button-size: 36px;
   --mes-ui-table-icon-button-size: 30px;
+  --mes-ui-topbar-compact-action-size: 28px;
+  --mes-icon-button-size: var(--mes-ui-icon-button-size);
+  --mes-table-icon-button-size: var(--mes-ui-table-icon-button-size);
+  --mes-ui-icon-size-sm: 14px;
+  --mes-ui-icon-size-md: 16px;
+  --mes-ui-icon-size-lg: 18px;
   --mes-ui-form-control-height: 34px;
   --mes-ui-table-row-height: 40px;
+  --mes-ui-table-row-height-compact: 34px;
+  --mes-ui-table-row-height-default: var(--mes-ui-table-row-height);
+  --mes-ui-table-row-height-comfortable: 48px;
+  --mes-ui-table-header-height: 36px;
+  --mes-ui-table-cell-padding-x: 10px;
+  --mes-ui-table-cell-padding-y: 7px;
+  --mes-ui-table-tree-indent: 18px;
+  --mes-ui-table-action-size: var(--mes-ui-table-icon-button-size);
+  --mes-ui-data-table-min-width-wide: 1180px;
+  --mes-ui-auth-card-title-line-clamp: 4;
+  --mes-ui-table-head-bg: var(--mes-ui-sidebar-bg);
+  --mes-ui-table-head-text: var(--mes-ui-text-inverse);
+  --mes-ui-table-row-bg: var(--mes-ui-surface);
+  --mes-ui-table-row-hover-bg: #f6f9fd;
+  --mes-ui-table-row-selected-bg: var(--mes-ui-surface-selected);
+  --mes-ui-table-row-group-bg: var(--mes-ui-surface-soft);
+  --mes-ui-table-row-muted-bg: var(--mes-ui-neutral-soft);
+  --mes-ui-table-row-warning-bg: var(--mes-ui-warning-soft);
+  --mes-ui-table-row-problem-bg: var(--mes-ui-danger-soft);
+  --mes-ui-table-row-border: var(--mes-ui-line-soft);
+  --mes-ui-table-tree-line: #9ca3af;
+  --mes-ui-table-tree-dot: #9ca3af;
+  --mes-ui-table-tree-dot-active: #111827;
+  --mes-table-row-height: var(--mes-ui-table-row-height);
+  --mes-table-header-height: var(--mes-ui-table-header-height);
+  --mes-table-cell-padding-x: var(--mes-ui-table-cell-padding-x);
+  --mes-table-cell-padding-y: var(--mes-ui-table-cell-padding-y);
+  --mes-table-border-color: var(--mes-ui-table-row-border);
+  --mes-table-header-bg: var(--mes-ui-table-head-bg);
+  --mes-table-header-text: var(--mes-ui-table-head-text);
+  --mes-table-row-bg: var(--mes-ui-table-row-bg);
+  --mes-table-row-hover-bg: var(--mes-ui-table-row-hover-bg);
+  --mes-table-row-selected-bg: var(--mes-ui-table-row-selected-bg);
+  --mes-table-tree-indent: var(--mes-ui-table-tree-indent);
+  --mes-table-action-size: var(--mes-ui-table-action-size);
+  --mes-table-font-size: var(--mes-ui-type-table);
+  --mes-table-line-height: var(--mes-ui-line-caption);
   --mes-ui-touch-min: 32px;
   --mes-ui-radius-xs: 4px;
   --mes-ui-radius-sm: 5px;
@@ -49,26 +149,155 @@ html{
   --mes-ui-radius-lg: 8px;
   --mes-ui-radius-xl: 8px;
   --mes-ui-pill: 999px;
+  --mes-radius-none: 0;
+  --mes-radius-xs: var(--mes-ui-radius-xs);
+  --mes-radius-sm: var(--mes-ui-radius-sm);
+  --mes-radius-md: var(--mes-ui-radius-md);
+  --mes-radius-lg: var(--mes-ui-radius-lg);
+  --mes-radius-xl: var(--mes-ui-radius-xl);
+  --mes-radius-pill: var(--mes-ui-pill);
   --mes-ui-type-caption: 11px;
   --mes-ui-type-body: 13px;
   --mes-ui-type-section-title: 15px;
+  --mes-ui-type-table: 11px;
+  --mes-ui-type-small: 10px;
+  --mes-font-size-caption: var(--mes-ui-type-caption);
+  --mes-font-size-body: var(--mes-ui-type-body);
+  --mes-font-size-table: var(--mes-ui-type-table);
+  --mes-font-size-section: var(--mes-ui-type-section-title);
+  --mes-font-size-section-title: var(--mes-ui-type-section-title);
+  --mes-font-size-title: 18px;
   --mes-ui-line-caption: 15px;
   --mes-ui-line-body: 18px;
   --mes-ui-line-section-title: 20px;
+  --mes-line-height-caption: var(--mes-ui-line-caption);
+  --mes-line-height-body: var(--mes-ui-line-body);
+  --mes-line-height-table: var(--mes-ui-line-caption);
+  --mes-line-height-section-title: var(--mes-ui-line-section-title);
   --mes-ui-weight-regular: 400;
+  --mes-ui-weight-medium: 560;
   --mes-ui-weight-semibold: 680;
   --mes-ui-weight-bold: 820;
+  --mes-font-weight-regular: var(--mes-ui-weight-regular);
+  --mes-font-weight-medium: var(--mes-ui-weight-medium);
+  --mes-font-weight-semibold: var(--mes-ui-weight-semibold);
+  --mes-font-weight-bold: var(--mes-ui-weight-bold);
+  --mes-ui-status-neutral-bg: var(--mes-ui-neutral-soft);
+  --mes-ui-status-neutral-border: var(--mes-ui-neutral-border);
+  --mes-ui-status-neutral-text: var(--mes-ui-neutral);
+  --mes-ui-status-success-bg: var(--mes-ui-success-soft);
+  --mes-ui-status-success-border: var(--mes-ui-success-border);
+  --mes-ui-status-success-text: var(--mes-ui-success);
+  --mes-ui-status-warning-bg: var(--mes-ui-warning-soft);
+  --mes-ui-status-warning-border: var(--mes-ui-warning-border);
+  --mes-ui-status-warning-text: var(--mes-ui-warning);
+  --mes-ui-status-danger-bg: var(--mes-ui-danger-soft);
+  --mes-ui-status-danger-border: var(--mes-ui-danger-border);
+  --mes-ui-status-danger-text: var(--mes-ui-danger);
+  --mes-ui-status-info-bg: #eff6ff;
+  --mes-ui-status-info-border: #bfdbfe;
+  --mes-ui-status-info-text: #1d4ed8;
+  --mes-ui-status-demo-bg: #fff7ed;
+  --mes-ui-status-demo-border: #fed7aa;
+  --mes-ui-status-demo-text: #9a3412;
+  --mes-status-neutral-bg: var(--mes-ui-status-neutral-bg);
+  --mes-status-neutral-border: var(--mes-ui-status-neutral-border);
+  --mes-status-neutral-text: var(--mes-ui-status-neutral-text);
+  --mes-status-neutral-accent: var(--mes-ui-neutral);
+  --mes-status-ready-bg: var(--mes-ui-status-success-bg);
+  --mes-status-ready-border: var(--mes-ui-status-success-border);
+  --mes-status-ready-text: var(--mes-ui-status-success-text);
+  --mes-status-ready-accent: var(--mes-ui-success);
+  --mes-status-active-bg: var(--mes-ui-status-info-bg);
+  --mes-status-active-border: var(--mes-ui-status-info-border);
+  --mes-status-active-text: var(--mes-ui-status-info-text);
+  --mes-status-active-accent: var(--mes-ui-primary);
+  --mes-status-warning-bg: var(--mes-ui-status-warning-bg);
+  --mes-status-warning-border: var(--mes-ui-status-warning-border);
+  --mes-status-warning-text: var(--mes-ui-status-warning-text);
+  --mes-status-warning-accent: var(--mes-ui-warning);
+  --mes-status-blocked-bg: var(--mes-ui-status-danger-bg);
+  --mes-status-blocked-border: var(--mes-ui-status-danger-border);
+  --mes-status-blocked-text: var(--mes-ui-status-danger-text);
+  --mes-status-blocked-accent: var(--mes-ui-danger);
+  --mes-status-problem-bg: var(--mes-ui-status-danger-bg);
+  --mes-status-problem-border: var(--mes-ui-status-danger-border);
+  --mes-status-problem-text: var(--mes-ui-status-danger-text);
+  --mes-status-problem-accent: var(--mes-ui-danger);
+  --mes-status-manual-bg: var(--mes-ui-status-warning-bg);
+  --mes-status-manual-border: var(--mes-ui-status-warning-border);
+  --mes-status-manual-text: var(--mes-ui-status-warning-text);
+  --mes-status-manual-accent: var(--mes-ui-warning);
+  --mes-status-calculated-bg: var(--mes-ui-status-info-bg);
+  --mes-status-calculated-border: var(--mes-ui-status-info-border);
+  --mes-status-calculated-text: var(--mes-ui-status-info-text);
+  --mes-status-calculated-accent: var(--mes-ui-primary);
+  --mes-status-demo-bg: var(--mes-ui-status-demo-bg);
+  --mes-status-demo-border: var(--mes-ui-status-demo-border);
+  --mes-status-demo-text: var(--mes-ui-status-demo-text);
+  --mes-status-demo-accent: #f97316;
+  --mes-ui-gantt-plan-bg: #dbeafe;
+  --mes-ui-gantt-distributed-bg: #bfdbfe;
+  --mes-ui-gantt-fact-bg: #bbf7d0;
+  --mes-ui-gantt-deficit-bg: #fecdd3;
+  --mes-ui-gantt-transfer-bg: #fde68a;
+  --mes-ui-gantt-border: #93c5fd;
+  --mes-ui-gantt-label: #0f172a;
+  --mes-ui-gantt-row-height: 68px;
+  --mes-ui-gantt-timeline-height: 48px;
+  --mes-ui-gantt-left-width: 360px;
+  --mes-ui-gantt-slot-radius: var(--mes-radius-none);
+  --mes-ui-gantt-slot-border: var(--mes-ui-gantt-border);
+  --mes-ui-gantt-slot-planned-bg: var(--mes-ui-gantt-plan-bg);
+  --mes-ui-gantt-slot-distributed-bg: var(--mes-ui-gantt-distributed-bg);
+  --mes-ui-gantt-slot-active-bg: var(--mes-ui-gantt-distributed-bg);
+  --mes-ui-gantt-slot-completed-bg: var(--mes-ui-gantt-fact-bg);
+  --mes-ui-gantt-slot-warning-bg: var(--mes-ui-status-warning-bg);
+  --mes-ui-gantt-slot-problem-bg: var(--mes-ui-status-danger-bg);
+  --mes-ui-gantt-slot-paused-bg: var(--mes-ui-status-warning-bg);
+  --mes-ui-gantt-slot-transfer-bg: #dcfce7;
+  --mes-ui-gantt-slot-transfer-border: #86efac;
+  --mes-ui-gantt-slot-transfer-accent: #16a34a;
+  --mes-ui-gantt-slot-transfer-text: #166534;
+  --mes-ui-gantt-slot-break-border: rgba(96, 165, 250, 0.58);
+  --mes-ui-gantt-non-working-bg: rgba(148, 163, 184, 0.095);
+  --mes-ui-gantt-non-working-stripe-a: rgba(100, 116, 139, 0.055);
+  --mes-ui-gantt-non-working-stripe-b: rgba(100, 116, 139, 0.095);
+  --mes-ui-gantt-non-working-border: rgba(148, 163, 184, 0.12);
+  --mes-ui-gantt-dependency-color: #475569;
+  --mes-ui-gantt-dependency-active-color: #2563eb;
+  --mes-ui-gantt-dependency-warning-color: #475569;
+  --mes-ui-gantt-dependency-underlay-color: rgba(255, 255, 255, 0.88);
+  --mes-ui-gantt-dependency-underlay-muted-color: rgba(255, 255, 255, 0.24);
+  --mes-ui-gantt-dependency-arrow-stroke: rgba(255, 255, 255, 0.78);
+  --mes-ui-gantt-grid-line: rgba(216, 222, 230, 0.95);
+  --mes-ui-gantt-timeline-bg: #f8fafc;
+  --mes-ui-gantt-row-hover-bg: rgba(219, 234, 254, 0.36);
+  --mes-ui-gantt-row-selected-bg: rgba(37, 99, 235, 0.08);
+  --mes-gantt-row-height: var(--mes-ui-gantt-row-height);
+  --mes-gantt-timeline-height: var(--mes-ui-gantt-timeline-height);
+  --mes-gantt-left-width: var(--mes-ui-gantt-left-width);
+  --mes-gantt-slot-radius: var(--mes-ui-gantt-slot-radius);
+  --mes-gantt-slot-border: var(--mes-ui-gantt-slot-border);
+  --mes-gantt-slot-planned-bg: var(--mes-ui-gantt-slot-planned-bg);
+  --mes-gantt-slot-active-bg: var(--mes-ui-gantt-slot-active-bg);
+  --mes-gantt-slot-warning-bg: var(--mes-ui-gantt-slot-warning-bg);
+  --mes-gantt-slot-problem-bg: var(--mes-ui-gantt-slot-problem-bg);
+  --mes-gantt-non-working-bg: var(--mes-ui-gantt-non-working-bg);
+  --mes-gantt-dependency-color: var(--mes-ui-gantt-dependency-active-color);
   --mes-ui-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --mes-ui-shadow-md: 0 12px 32px rgba(15, 23, 42, 0.08);
+  --mes-ui-shadow-overlay: var(--mes-ui-shadow-md);
+  --mes-ui-shadow-lift: 0 6px 18px rgba(15, 23, 42, 0.08);
+  --mes-ui-overlay-max-height: calc(100vh - 32px);
+  --mes-ui-overlay-max-width: calc(100vw - 32px);
+  --mes-ui-modal-width: min(920px, var(--mes-ui-overlay-max-width));
+  --mes-ui-drawer-width: min(520px, var(--mes-ui-overlay-max-width));
   --mes-ui-z-dropdown: 120;
-}
-
-.ui-panel{
+}.ui-panel{
   min-width: 0;
   overflow: visible !important;
-}
-
-/* Hard-runtime panel contract: a panel may contain tables,
+}/* Hard-runtime panel contract: a panel may contain tables,
 cards and nested
    strips,
 but its body must never collapse and leak into the next block. */
@@ -81,21 +310,17 @@ but its body must never collapse and leak into the next block. */
   min-height: max-content !important;
   max-height: none !important;
   overflow: visible !important;
-}
-
-.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"]{
+}.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"]{
   height: auto !important;
   min-height: max-content !important;
   max-height: none !important;
   overflow-y: visible !important;
-}
-
-.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"]{
+}.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"]{
   min-height: 0 !important;
 }
 
 /* Runtime markers are a safe compatibility bridge for live legacy fragments.
-   They should not redesign old blocks; they only keep primitives measurable and bounded. */
+   They should not redesign old blocks;they only keep primitives measurable and bounded. */
 [data-ui-component="Panel"],
 [data-ui-component="PanelHead"],
 [data-ui-component="PanelBody"],
@@ -115,39 +340,25 @@ but its body must never collapse and leak into the next block. */
 [data-ui-component="GanttBar"]{
   min-width: 0;
   box-sizing: border-box;
-}
-
-[data-ui-component="FormField"] :is(input, select, textarea){
+}[data-ui-component="FormField"] :is(input, select, textarea){
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-}
-
-[data-ui-component="ActionButton"] :is(span, strong, small){
+}[data-ui-component="ActionButton"] :is(span, strong, small){
   min-width: 0;
   max-width: 100%;
-}
-
-[data-ui-component="TableWrap"]{
+}[data-ui-component="TableWrap"]{
   max-width: 100%;
-}
-
-[data-ui-component="Modal"]{
+}[data-ui-component="Modal"]{
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
-}
-
-[data-ui-component="Drawer"]{
+}[data-ui-component="Drawer"]{
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
-}
-
-.ui-panel-body{
+}.ui-panel-body{
   min-width: 0;
   box-sizing: border-box;
-}
-
-.ui-panel-footer{
+}.ui-panel-footer{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -157,161 +368,123 @@ but its body must never collapse and leak into the next block. */
   box-sizing: border-box;
   border-top: 1px solid var(--line, rgba(148, 163, 184, 0.28));
   padding: 10px 12px;
-}
-
-.ui-module-header{
+}.ui-module-header{
   min-width: 0;
   box-sizing: border-box;
-}
-
-.ui-module-page{
+}.ui-module-page{
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
-}
-
-.ui-module-page.is-full-width{
+}.ui-module-page.is-full-width{
   grid-template-columns: minmax(0, 1fr) !important;
-}
-
-.ui-module-page.has-sidebar{
+}.ui-module-page.has-sidebar{
   grid-template-columns: var(--mes-ui-module-sidebar-width, 260px) minmax(0, 1fr);
-}
-
-.ui-module-workspace{
+}.ui-module-workspace{
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-
-.ui-module-content{
+}.ui-module-content{
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
-}
-
-.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="ModuleContent"].ui-module-content{
+}.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="ModuleContent"].ui-module-content{
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
   justify-content: flex-start !important;
-}
-
-.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="ModuleContent"].ui-module-content > *{
+}.ui-module-page[data-ui-runtime="hard-v1"] [data-ui-component="ModuleContent"].ui-module-content > *{
   flex: 0 0 auto;
   min-width: 0;
-}
-
-.ui-module-sidebar{
+}.ui-module-sidebar{
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
-}
-
-.ui-module-header > div{
+}.ui-module-header > div{
   min-width: 0;
-}
-
-.ui-module-header :is(h1, h2, p, strong, span){
+}.ui-module-header :is(h1, h2, p, strong, span){
   min-width: 0;
   max-width: 100%;
-}
-
-.ui-module-header :is(h1, h2, p){
+}.ui-module-header :is(h1, h2, p){
   overflow-wrap: anywhere;
-}
-
-.ui-module-header-actions{
+}.ui-module-header-actions{
   justify-self: end;
-}
-
-.ui-panel-head[data-ui-component="PanelHead"]{
+}.ui-panel-head[data-ui-component="PanelHead"]{
   min-width: 0;
   align-items: center;
-}
-
-.ui-panel-head-copy{
+}.ui-panel-head-copy{
   min-width: 0;
-}
-
-.ui-panel-head-copy > div{
+}.ui-panel-head-copy > div{
   display: grid;
   gap: 2px;
   min-width: 0;
-}
-
-.ui-panel-head-copy :is(strong, span),
+}.ui-panel-head-copy :is(strong, span),
 .ui-panel-head > :is(strong, span){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.ui-panel-head-actions{
+}.ui-panel-head-actions{
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
   min-width: 0;
-}
-
-.ui-action-bar{
+}.ui-action-bar{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
   min-width: 0;
-}
-
-.ui-action-button{
+}.ui-toolbar,
+.ui-filter-bar{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mes-ui-control-gap);
   min-width: 0;
-}
-
-.ui-action-button span{
+  min-height: var(--mes-ui-control-height-compact);
+  box-sizing: border-box;
+}.ui-filter-bar{
+  align-content: flex-start;
+}.ui-toolbar > *,
+.ui-filter-bar > *{
+  min-width: 0;
+}.ui-action-button{
+  min-width: 0;
+}.ui-action-button span{
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.ui-form-field{
+}.ui-form-field{
   display: grid;
   align-content: start;
   gap: 5px;
   min-width: 0;
   box-sizing: border-box;
-}
-
-.ui-form-field > span{
+}.ui-form-field > span{
   min-width: 0;
   color: var(--muted, #64748b);
   font-size: 11px;
   font-weight: var(--mes-ui-weight-semibold, 680);
   line-height: 1.25;
-}
-
-.ui-form-field > :is(input, select, textarea){
+}.ui-form-field > :is(input, select, textarea){
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
-}
-
-.ui-form-field > small{
+}.ui-form-field > small{
   min-width: 0;
   color: var(--muted, #64748b);
   font-size: 10px;
   line-height: 1.25;
-}
-
-.ui-table-wrap{
+}.ui-table-wrap{
   min-width: 0;
   max-width: 100%;
 }
 
 /* Scroll contract: new dense panels grow by content. Only the module workspace
-   owns vertical scrolling; table wrappers may scroll horizontally,
+   owns vertical scrolling;table wrappers may scroll horizontally,
 never by Y. */
 .ui-table-wrap[data-scroll-contract="horizontal-only"],
 [data-ui-component="TableWrap"][data-scroll-contract="horizontal-only"]{
@@ -321,87 +494,55 @@ never by Y. */
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
-}
-
-.ui-empty-state{
+}.ui-empty-state{
   min-width: 0;
   box-sizing: border-box;
-}
-
-.ui-empty-state > :is(strong, span){
+}.ui-empty-state > :is(strong, span){
   min-width: 0;
   max-width: 100%;
-}
-
-.ui-status-token,
+}.ui-status-token,
 .ui-demo-badge{
   min-width: 0;
   max-width: 100%;
-}
-
-main.app-shell[data-layout="app-shell"] .ui-sidebar-list{
+}main.app-shell[data-layout="app-shell"] .ui-sidebar-list{
   min-width: 0;
   min-height: 0;
-}
-
-main.app-shell[data-layout="app-shell"] .ui-sidebar-label{
+}main.app-shell[data-layout="app-shell"] .ui-sidebar-label{
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
-}
-
-main.app-shell[data-layout="app-shell"] .ui-sidebar-item{
+}main.app-shell[data-layout="app-shell"] .ui-sidebar-item{
   min-width: 0;
   box-sizing: border-box;
-}
-
-.ui-sidebar-item-body{
+}.ui-sidebar-item-body{
   min-width: 0;
-}
-
-.ui-sidebar-item :is(strong, small, em){
+}.ui-sidebar-item :is(strong, small, em){
   min-width: 0;
   max-width: 100%;
-}
-
-.ui-sidebar-item :is(strong, small){
+}.ui-sidebar-item :is(strong, small){
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ui-sidebar-item-badge{
+}.ui-sidebar-item-badge{
   flex: 0 0 auto;
-}
-
-.ui-demo-badge{
+}.ui-demo-badge{
   display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-}
-
-.ui-demo-badge strong,
+}.ui-demo-badge strong,
 .ui-demo-badge small{
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.ui-demo-badge strong{
+}.ui-demo-badge strong{
   font-weight: var(--mes-ui-weight-semibold, 680);
-}
-
-.ui-demo-badge small{
+}.ui-demo-badge small{
   font-weight: var(--mes-ui-weight-regular, 400);
   opacity: 0.82;
-}
-
-.ui-demo-marker-host{
+}.ui-demo-marker-host{
   position: relative;
-}
-
-.ui-demo-corner-marker{
+}.ui-demo-corner-marker{
   position: absolute;
   top: 7px;
   right: 7px;
@@ -419,9 +560,7 @@ main.app-shell[data-layout="app-shell"] .ui-sidebar-item{
   font-weight: 820;
   line-height: 1;
   pointer-events: none;
-}
-
-.ui-demo-corner-marker.is-interactive{
+}.ui-demo-corner-marker.is-interactive{
   top: 2px;
   right: 2px;
   z-index: 8;
@@ -430,9 +569,7 @@ main.app-shell[data-layout="app-shell"] .ui-sidebar-item{
   border-color: rgba(15, 35, 60, 0.28);
   font-size: 8px;
   font-weight: 820;
-}
-
-.ui-demo-inline-marker{
+}.ui-demo-inline-marker{
   display: inline-grid;
   place-items: center;
   width: 14px;
@@ -447,24 +584,16 @@ main.app-shell[data-layout="app-shell"] .ui-sidebar-item{
   line-height: 1 !important;
   vertical-align: -1px;
   pointer-events: none;
-}
-
-button.ui-demo-marker-host,
+}button.ui-demo-marker-host,
 label.ui-demo-marker-host{
   position: relative;
   overflow: visible;
-}
-
-button.ui-demo-marker-host{
+}button.ui-demo-marker-host{
   padding-inline-end: 24px;
-}
-
-.ui-dropdown{
+}.ui-dropdown{
   position: relative;
   min-width: 0;
-}
-
-.ui-dropdown-trigger{
+}.ui-dropdown-trigger{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -474,13 +603,9 @@ button.ui-demo-marker-host{
   box-sizing: border-box;
   cursor: pointer;
   list-style: none;
-}
-
-.ui-dropdown-trigger::-webkit-details-marker{
+}.ui-dropdown-trigger::-webkit-details-marker{
   display: none;
-}
-
-.ui-dropdown-menu{
+}.ui-dropdown-menu{
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -497,50 +622,36 @@ button.ui-demo-marker-host{
   background: var(--panel, #ffffff);
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
   padding: 6px;
-}
-
-.ui-modal,
+}.ui-modal,
 .ui-drawer{
   min-width: 0;
   box-sizing: border-box;
   background: var(--panel, #ffffff);
-}
-
-.ui-modal{
+}.ui-modal{
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow: auto;
-}
-
-.ui-drawer{
+}.ui-drawer{
   width: min(420px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
   overflow: auto;
-}
-
-.ui-modal.is-sample,
+}.ui-modal.is-sample,
 .ui-drawer.is-sample{
   width: 100%;
   max-height: none;
   overflow: visible;
   box-shadow: none;
-}
-
-.ui-modal-body,
+}.ui-modal-body,
 .ui-drawer-body{
   display: grid;
   gap: 10px;
   padding: 12px;
-}
-
-.ui-gantt-bar{
+}.ui-gantt-bar{
   display: grid;
   gap: 4px;
   min-width: 0;
   box-sizing: border-box;
-}
-
-.ui-gantt-bar-meta{
+}.ui-gantt-bar-meta{
   min-width: 0;
   color: var(--muted, #64748b);
   font-size: 10px;
@@ -548,9 +659,7 @@ button.ui-demo-marker-host{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ui-gantt-bar-track{
+}.ui-gantt-bar-track{
   position: relative;
   display: flex;
   align-items: stretch;
@@ -559,9 +668,7 @@ button.ui-demo-marker-host{
   overflow: hidden;
   border-radius: 999px;
   background: rgba(226, 232, 240, 0.78);
-}
-
-.ui-gantt-bar-segment{
+}.ui-gantt-bar-segment{
   position: relative;
   display: grid;
   place-items: center;
@@ -571,33 +678,21 @@ button.ui-demo-marker-host{
   font-size: 10px;
   font-weight: var(--mes-ui-weight-semibold, 680);
   line-height: 1;
-}
-
-.ui-gantt-bar-segment.is-plan{
+}.ui-gantt-bar-segment.is-plan{
   background: rgba(96, 165, 250, 0.42);
-}
-
-.ui-gantt-bar-segment.is-assigned{
+}.ui-gantt-bar-segment.is-assigned{
   background: rgba(59, 130, 246, 0.58);
-}
-
-.ui-gantt-bar-segment.is-fact{
+}.ui-gantt-bar-segment.is-fact{
   background: rgba(34, 197, 94, 0.58);
-}
-
-.ui-gantt-bar-segment.is-gap{
+}.ui-gantt-bar-segment.is-gap{
   background: rgba(244, 114, 182, 0.42);
-}
-
-.ui-gantt-bar-segment b,
+}.ui-gantt-bar-segment b,
 .ui-gantt-bar-value{
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ui-gantt-bar-value{
+}.ui-gantt-bar-value{
   position: absolute;
   inset: 0;
   display: grid;
@@ -607,36 +702,22 @@ button.ui-demo-marker-host{
   font-weight: var(--mes-ui-weight-semibold, 680);
   line-height: 1;
   pointer-events: none;
-}
-
-/* Shell annotation contract: the former search slot now explains the active module. */
+}/* Shell annotation contract: the former search slot now explains the active module. */
 main.app-shell[data-layout="app-shell"] > .app-topbar{
   grid-template-columns: minmax(180px, 0.54fr) minmax(280px, 1fr) auto !important;
-}
-
-main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
+}main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
   grid-column: 2 !important;
-}
-
-main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
+}main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
   grid-column: 3 !important;
 }
 
-@media (max-width: 900px) {
-  main.app-shell[data-layout="app-shell"] > .app-topbar{
+@media (max-width: 900px) {main.app-shell[data-layout="app-shell"] > .app-topbar{
     grid-template-columns: minmax(0, 1fr) auto !important;
-  }
-
-  main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
+  }main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
     display: none !important;
-  }
-
-  main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
+  }main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
     grid-column: 2 !important;
-  }
-}
-
-/* Shared module sidebar contract: keep this in UI Core,
+  }}/* Shared module sidebar contract: keep this in UI Core,
 not in module-specific layers. */
 main.app-shell[data-layout="app-shell"] :is(.module-data-page .module-data-sidebar, .planning-order-page .planning-order-queue, .directories-page .directory-sidebar){
   gap: var(--mes-ui-sidebar-row-gap);
@@ -687,9 +768,7 @@ main.app-shell[data-layout="app-shell"] :is(.module-data-page .module-data-sideb
   border-color: var(--mes-ui-danger-border);
   background: var(--mes-ui-danger-soft);
   color: var(--mes-ui-danger);
-}
-
-/* Auth prototype is tablet-first: employee and PIN selection targets must be comfortable for finger input. */
+}/* Auth prototype is tablet-first: employee and PIN selection targets must be comfortable for finger input. */
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone{
   height: 100dvh !important;
   min-height: 100dvh !important;
@@ -697,9 +776,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   grid-template-rows: minmax(0, 1fr) !important;
   background: var(--mes-ui-sidebar-bg, #10233c) !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"].auth-prototype-page{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"].auth-prototype-page{
   grid-column: 1 / -1 !important;
   grid-row: 1 / -1 !important;
   grid-template-rows: minmax(0, 1fr) !important;
@@ -710,9 +787,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   align-content: stretch !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-workspace{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-workspace{
   display: grid !important;
   grid-row: 1 / -1 !important;
   min-height: 0 !important;
@@ -722,9 +797,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   border-radius: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-content{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-content{
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
@@ -735,71 +808,47 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   height: 100% !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-step{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-step{
   justify-self: stretch !important;
   justify-items: center !important;
   width: 100% !important;
   min-width: 0 !important;
   padding: clamp(12px, 1.2vw, 22px) !important;
   box-sizing: border-box !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-step-panel{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-step-panel{
   justify-self: center !important;
   width: min(1320px, calc(100vw - 44px)) !important;
   max-width: calc(100vw - 44px) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-pin-panel{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-pin-panel{
   width: min(1320px, calc(100vw - 44px)) !important;
   max-width: calc(100vw - 44px) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-people-grid button[data-ui-component="ActionButton"]{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-people-grid button[data-ui-component="ActionButton"]{
   min-height: 112px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-department-grid button[data-ui-component="ActionButton"],
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-department-grid button[data-ui-component="ActionButton"],
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-unit-grid button[data-ui-component="ActionButton"]{
   min-height: 112px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-keypad button[data-ui-component="ActionButton"]{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone [data-layout="main-content"] .auth-prototype-keypad button[data-ui-component="ActionButton"]{
   width: 96px !important;
   min-width: 96px !important;
   height: 96px !important;
   min-height: 96px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head{
   align-items: start !important;
   min-height: 64px !important;
   padding: 14px 18px 16px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head .ui-panel-head-copy > div{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head .ui-panel-head-copy > div{
   gap: 5px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head strong{
   font-size: 14px !important;
   line-height: 18px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head span{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-head span{
   overflow: visible !important;
   line-height: 16px !important;
   text-overflow: clip !important;
   white-space: normal !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-body{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-panel > .ui-panel-body{
   padding-top: 14px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-header{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-header{
   justify-self: stretch !important;
   width: 100% !important;
   min-width: 0 !important;
@@ -808,19 +857,13 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   border-bottom: 1px solid var(--mes-ui-line, #e2e8f0) !important;
   background: #ffffff !important;
   color: var(--mes-ui-text, #0f172a) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-header :is(.eyebrow, h1, p, span, strong, small){
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-header :is(.eyebrow, h1, p, span, strong, small){
   color: inherit !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-grid button{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-grid button{
   grid-template-columns: 42px minmax(0, 1fr) !important;
   gap: 10px !important;
   align-items: center !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-icon{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-icon{
   display: grid !important;
   place-items: center !important;
   width: 42px !important;
@@ -828,37 +871,25 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   min-width: 42px !important;
   min-height: 42px !important;
   overflow: visible !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-icon svg{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-icon svg{
   display: block !important;
   width: 22px !important;
   height: 22px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-department-icon{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-department-icon{
   color: var(--mes-ui-sidebar-bg, #10233c) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-copy{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-copy{
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master{
   position: relative !important;
   padding-right: 72px !important;
   border-color: var(--mes-ui-line, #e2e8f0) !important;
   background: #fff !important;
   box-shadow: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master strong{
   color: var(--mes-ui-text, #0f172a) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-role-marker{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-role-marker{
   position: absolute !important;
   top: 10px !important;
   right: 10px !important;
@@ -877,15 +908,11 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   line-height: 12px !important;
   text-transform: uppercase !important;
   pointer-events: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people{
   display: grid;
   gap: 10px;
   min-width: 0;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head{
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -893,84 +920,60 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   min-width: 0;
   border-top: 1px solid var(--mes-ui-line, #e2e8f0);
   padding-top: 12px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head strong,
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head strong,
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head span{
   min-width: 0;
   overflow: visible;
   overflow-wrap: anywhere;
   line-height: 16px;
   white-space: normal;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head strong{
   color: var(--mes-ui-text, #0f172a);
   font-size: 12px;
   font-weight: 780;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head span{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-inline-people-head span{
   color: var(--mes-ui-muted, #64748b);
   font-size: 11px;
   font-weight: 600;
-}
-
-/* UI Control Surface v1.
+}/* UI Control Surface v1.
    This late layer is the single edit point for shared MES primitives. */
 main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]){
   background: var(--mes-ui-module-page-background);
   background-size: var(--mes-ui-module-page-background-size);
   background-repeat: var(--mes-ui-module-page-background-repeat);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ModulePage"].ui-module-page{
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ModulePage"].ui-module-page{
   gap: var(--mes-ui-density-gap);
   padding: var(--mes-ui-density-page) calc(var(--mes-ui-density-page) + 2px);
   background: var(--mes-ui-module-page-background);
   background-size: var(--mes-ui-module-page-background-size);
   background-repeat: var(--mes-ui-module-page-background-repeat);
-}
-
-main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-runtime="hard-v1"][data-ui-component="ModulePage"].ui-module-page,
+}main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-runtime="hard-v1"][data-ui-component="ModulePage"].ui-module-page,
 main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .module-data-page,
 main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .planner-workspace,
 main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .planning-page{
   background: var(--mes-ui-module-page-background);
   background-size: var(--mes-ui-module-page-background-size);
   background-repeat: var(--mes-ui-module-page-background-repeat);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ModulePage"].ui-module-page.has-sidebar{
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ModulePage"].ui-module-page.has-sidebar{
   grid-template-columns: minmax(var(--mes-ui-module-sidebar-width, 260px), var(--mes-ui-module-sidebar-width, 260px)) minmax(0, 1fr);
   column-gap: var(--mes-ui-density-gap, 8px);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleWorkspace"].ui-module-workspace,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleWorkspace"].ui-module-workspace,
 main.app-shell[data-layout="app-shell"] .module-data-workspace[data-ui-component="ModuleWorkspace"]{
   border-color: var(--mes-ui-line-strong);
   border-radius: var(--mes-ui-radius-md);
   background: var(--mes-ui-surface);
   box-shadow: var(--mes-ui-shadow-sm);
-}
-
-main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-component="ModuleWorkspace"].ui-module-workspace,
+}main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-component="ModuleWorkspace"].ui-module-workspace,
 main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .module-data-workspace[data-ui-component="ModuleWorkspace"]{
   background: var(--mes-ui-surface) !important;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleContent"].ui-module-content,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleContent"].ui-module-content,
 main.app-shell[data-layout="app-shell"] .module-data-content[data-ui-component="ModuleContent"]{
   gap: var(--mes-ui-density-gap);
   padding: var(--mes-ui-density-page);
-}
-
-main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-component="ModuleContent"].ui-module-content,
+}main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-component="ModuleContent"].ui-module-content,
 main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .module-data-content[data-ui-component="ModuleContent"]{
   background: transparent !important;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleSidebar"].ui-module-sidebar,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleSidebar"].ui-module-sidebar,
 main.app-shell[data-layout="app-shell"] .module-data-sidebar[data-ui-component="ModuleSidebar"],
 main.app-shell[data-layout="app-shell"] .directory-sidebar[data-ui-component="ModuleSidebar"]{
   width: var(--mes-ui-module-sidebar-width, 260px);
@@ -982,9 +985,7 @@ main.app-shell[data-layout="app-shell"] .directory-sidebar[data-ui-component="Mo
   background: var(--mes-ui-surface-raised);
   color: var(--mes-ui-text);
   box-shadow: var(--mes-ui-shadow-sm);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleHeader"].ui-module-header,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleHeader"].ui-module-header,
 main.app-shell[data-layout="app-shell"] .directory-header[data-ui-component="ModuleHeader"]{
   min-width: 0;
   border-color: var(--mes-ui-line);
@@ -992,9 +993,7 @@ main.app-shell[data-layout="app-shell"] .directory-header[data-ui-component="Mod
   background: var(--mes-ui-surface-raised);
   padding: var(--mes-ui-panel-head-padding);
   color: var(--mes-ui-text);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"].ui-panel,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"].ui-panel,
 main.app-shell[data-layout="app-shell"] .module-panel[data-ui-component="Panel"]{
   gap: var(--mes-ui-panel-gap);
   min-width: 0;
@@ -1003,100 +1002,27 @@ main.app-shell[data-layout="app-shell"] .module-panel[data-ui-component="Panel"]
   background: var(--mes-ui-surface-raised);
   color: var(--mes-ui-text);
   box-shadow: var(--mes-ui-shadow-sm);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"].ui-panel-head,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"].ui-panel-head,
 main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > .modal-header[data-ui-component="PanelHead"]{
   min-width: 0;
   border-bottom: 1px solid var(--mes-ui-line);
   padding: var(--mes-ui-panel-head-padding);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"].ui-panel-body{
+}main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"].ui-panel-body{
   min-width: 0;
   padding: var(--mes-ui-panel-body-padding);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelFooter"].ui-panel-footer,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > [data-ui-component="PanelFooter"].ui-panel-footer,
 main.app-shell[data-layout="app-shell"] [data-ui-component="Panel"] > .modal-footer[data-ui-component="PanelFooter"]{
   min-width: 0;
   padding: var(--mes-ui-panel-footer-padding);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].ui-action-button,
-main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"],
-main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"],
-main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"],
-main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: var(--mes-ui-control-height);
-  border-radius: var(--mes-ui-radius-sm);
-  border-width: 1px;
-  border-style: solid;
-  font-size: var(--mes-ui-type-body);
-  font-weight: var(--mes-ui-weight-semibold);
-  line-height: var(--mes-ui-line-caption);
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"]{
-  border-color: var(--mes-ui-primary);
-  background: var(--mes-ui-primary);
-  color: #ffffff;
-}
-
-main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"]{
-  border-color: var(--mes-ui-line);
-  background: var(--mes-ui-surface);
-  color: var(--mes-ui-text);
-}
-
-main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"]{
-  width: var(--mes-ui-icon-button-size);
-  min-width: var(--mes-ui-icon-button-size);
-  height: var(--mes-ui-icon-button-size);
-  min-height: var(--mes-ui-icon-button-size);
-  padding: 0;
-}
-
-main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
-  width: var(--mes-ui-table-icon-button-size);
-  min-width: var(--mes-ui-table-icon-button-size);
-  height: var(--mes-ui-table-icon-button-size);
-  min-height: var(--mes-ui-table-icon-button-size);
-  padding: 0;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"] > :is(span, strong, small){
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-main.app-shell[data-layout="app-shell"] .mes-signal[data-ui-component="StatusToken"],
-main.app-shell[data-layout="app-shell"] .ui-status-token[data-ui-component="StatusToken"]{
-  min-width: 0;
-  max-width: 100%;
-}
-
-main.app-shell[data-layout="app-shell"] .module-preview-empty[data-ui-component="EmptyState"],
+}main.app-shell[data-layout="app-shell"] .module-preview-empty[data-ui-component="EmptyState"],
 main.app-shell[data-layout="app-shell"] .ui-empty-state[data-ui-component="EmptyState"]{
   min-width: 0;
   max-width: 100%;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"].ui-form-field,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"].ui-form-field,
 main.app-shell[data-layout="app-shell"] .form-field[data-ui-component="FormField"]{
   min-width: 0;
   gap: 5px;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select, textarea){
+}main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select, textarea){
   min-width: 0;
   max-width: 100%;
   min-height: var(--mes-ui-form-control-height);
@@ -1107,49 +1033,103 @@ main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(inpu
   font-size: var(--mes-ui-type-body);
   font-weight: var(--mes-ui-weight-semibold);
   line-height: var(--mes-ui-line-body);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select){
+}main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] :is(input, select){
   padding: 0 10px;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] textarea{
+}main.app-shell[data-layout="app-shell"] [data-ui-component="FormField"] textarea{
   padding: 8px 10px;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"].ui-table-wrap{
+}main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"].ui-table-wrap{
   max-width: 100%;
   border-radius: var(--mes-ui-radius-md);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :is(th, td){
+  --ui-table-row-height: var(--mes-ui-table-row-height);
+  --ui-table-row-height-compact: var(--mes-ui-table-row-height-compact);
+  --ui-table-head-bg: var(--mes-ui-table-head-bg);
+  --ui-table-head-text: var(--mes-ui-table-head-text);
+  --ui-table-row-bg: var(--mes-ui-table-row-bg);
+  --ui-table-row-hover-bg: var(--mes-ui-table-row-hover-bg);
+  --ui-table-row-selected-bg: var(--mes-ui-table-row-selected-bg);
+  --ui-table-row-border: var(--mes-ui-table-row-border);
+  --ui-table-tree-line: var(--mes-ui-table-tree-line);
+  --ui-table-tree-dot: var(--mes-ui-table-tree-dot);
+  --ui-table-tree-dot-active: var(--mes-ui-table-tree-dot-active);
+  --ui-table-tree-indent: var(--mes-ui-table-tree-indent);
+  --ui-table-action-size: var(--mes-ui-table-action-size);
+}main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :is(th, td){
   min-height: var(--mes-ui-table-row-height);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="Dropdown"].ui-dropdown,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :is(
+  .directory-table,
+  .planning-order-table,
+  .shift-work-orders-table,
+  .route-object-table,
+  .speki-structure-table,
+  .nomenclature-table,
+  .timesheet-table,
+  .production-structure-table,
+  .supply-table,
+  .bom-import-table,
+  .ui-table
+){
+  --ui-table-font-size: var(--mes-table-font-size);
+  --ui-table-line-height: var(--mes-table-line-height);
+  --ui-table-cell-padding-x: var(--mes-table-cell-padding-x);
+  --ui-table-cell-padding-y: var(--mes-table-cell-padding-y);
+}main.app-shell[data-layout="app-shell"] .ui-table{
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--mes-ui-text);
+  font-size: var(--ui-table-font-size, var(--mes-table-font-size));
+  line-height: var(--ui-table-line-height, var(--mes-table-line-height));
+}main.app-shell[data-layout="app-shell"] .ui-table-header,
+main.app-shell[data-layout="app-shell"] .ui-table :is(thead th){
+  min-height: var(--mes-table-header-height);
+  background: var(--ui-table-head-bg, var(--mes-table-header-bg));
+  color: var(--ui-table-head-text, var(--mes-table-header-text));
+}main.app-shell[data-layout="app-shell"] .ui-table-row,
+main.app-shell[data-layout="app-shell"] .ui-table :is(tbody tr){
+  min-height: var(--ui-table-row-height, var(--mes-table-row-height));
+  background: var(--ui-table-row-bg, var(--mes-table-row-bg));
+}main.app-shell[data-layout="app-shell"] .ui-table-row.is-selected,
+main.app-shell[data-layout="app-shell"] .ui-table :is(tbody tr.is-selected){
+  background: var(--ui-table-row-selected-bg, var(--mes-table-row-selected-bg));
+}main.app-shell[data-layout="app-shell"] .ui-table-cell,
+main.app-shell[data-layout="app-shell"] .ui-table :is(th, td){
+  border-color: var(--ui-table-row-border, var(--mes-table-border-color));
+  padding: var(--ui-table-cell-padding-y, var(--mes-table-cell-padding-y)) var(--ui-table-cell-padding-x, var(--mes-table-cell-padding-x));
+}main.app-shell[data-layout="app-shell"] .ui-table-actions{
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mes-space-2);
+}main.app-shell[data-layout="app-shell"] .ui-tree-cell:not(.speki-tree-cell){
+  position: relative;
+  padding-left: calc(var(--ui-table-tree-level, 0) * var(--ui-table-tree-indent, var(--mes-table-tree-indent)));
+}main.app-shell[data-layout="app-shell"] .ui-tree-toggle{
+  width: var(--ui-table-action-size, var(--mes-table-action-size));
+  height: var(--ui-table-action-size, var(--mes-table-action-size));
+  min-width: var(--ui-table-action-size, var(--mes-table-action-size));
+  border-color: var(--ui-table-tree-line, var(--mes-ui-table-tree-line));
+  color: var(--ui-table-tree-dot, var(--mes-ui-table-tree-dot));
+}main.app-shell[data-layout="app-shell"] .ui-table-empty{
+  min-height: var(--mes-density-table-row-comfortable);
+  color: var(--mes-ui-text-muted);
+  text-align: center;
+}main.app-shell[data-layout="app-shell"] [data-ui-component="Dropdown"].ui-dropdown,
 main.app-shell[data-layout="app-shell"] .dense-inline-select[data-ui-component="Dropdown"],
 main.app-shell[data-layout="app-shell"] .directory-column-filter[data-ui-component="Dropdown"]{
   min-width: 0;
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="Modal"].ui-modal,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="Modal"].ui-modal,
 main.app-shell[data-layout="app-shell"] .modal[data-ui-component="Modal"]{
   border-radius: var(--mes-ui-radius-lg);
   background: var(--mes-ui-surface-raised);
   color: var(--mes-ui-text);
   box-shadow: var(--mes-ui-shadow-md);
-}
-
-main.app-shell[data-layout="app-shell"] [data-ui-component="Drawer"].ui-drawer,
+}main.app-shell[data-layout="app-shell"] [data-ui-component="Drawer"].ui-drawer,
 main.app-shell[data-layout="app-shell"] .detail-drawer[data-ui-component="Drawer"],
 main.app-shell[data-layout="app-shell"] .slot-drawer[data-ui-component="Drawer"]{
   border-radius: var(--mes-ui-radius-lg);
   background: var(--mes-ui-surface-raised);
   color: var(--mes-ui-text);
   box-shadow: var(--mes-ui-shadow-md);
-}
-
-main.app-shell[data-layout="app-shell"] .operation-slot[data-ui-component="GanttBar"],
+}main.app-shell[data-layout="app-shell"] .operation-slot[data-ui-component="GanttBar"],
 main.app-shell[data-layout="app-shell"] .ui-gantt-bar[data-ui-component="GanttBar"]{
   min-width: 0;
   box-sizing: border-box;
@@ -1157,7 +1137,8 @@ main.app-shell[data-layout="app-shell"] .ui-gantt-bar[data-ui-component="GanttBa
 
 /* Radius normalization contract.
    Dense MES screens should read as calm rectangles, not soft consumer cards.
-   Keep pills only for explicit badges/tokens; panels, cards and controls stay <= 8px. */
+   Keep pills only for explicit badges/tokens;panels,
+cards and controls stay <= 8px. */
 main.app-shell[data-layout="app-shell"]{
   --mes-ui-radius-xs: 4px;
   --mes-ui-radius-sm: 5px;
@@ -1174,23 +1155,17 @@ main.app-shell[data-layout="app-shell"]{
   --mes-radius-card: var(--mes-ui-radius-md);
   --mes-radius-panel: var(--mes-ui-radius-xl);
   --layout-card-radius: var(--mes-ui-radius-md);
-}
-
-main.app-shell[data-layout-page="planning"] .planning-order-page,
+}main.app-shell[data-layout-page="planning"] .planning-order-page,
 main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
   --planning-order-radius-xs: var(--mes-ui-radius-xs);
   --planning-order-radius-sm: var(--mes-ui-radius-sm);
   --planning-order-radius: var(--mes-ui-radius-md);
   --planning-order-radius-lg: var(--mes-ui-radius-xl);
-}
-
-main.app-shell[data-layout-page="directories"] .directories-page{
+}main.app-shell[data-layout-page="directories"] .directories-page{
   --directory-ui-radius-sm: var(--mes-ui-radius-sm);
   --directory-ui-radius: var(--mes-ui-radius-md);
   --directory-ui-radius-lg: var(--mes-ui-radius-xl);
-}
-
-main.app-shell[data-layout="app-shell"] :is(
+}main.app-shell[data-layout="app-shell"] :is(
   [data-ui-component="ModuleWorkspace"],
   [data-ui-component="ModuleSidebar"],
   [data-ui-component="ModuleHeader"],
@@ -1198,9 +1173,7 @@ main.app-shell[data-layout="app-shell"] :is(
   [data-ui-component="TableWrap"]
 ){
   border-radius: var(--mes-ui-radius-md) !important;
-}
-
-main.app-shell[data-layout="app-shell"] :is(
+}main.app-shell[data-layout="app-shell"] :is(
   [data-ui-component="ActionButton"].ui-action-button,
   .primary-button[data-ui-component="ActionButton"],
   .secondary-button[data-ui-component="ActionButton"],
@@ -1209,32 +1182,9 @@ main.app-shell[data-layout="app-shell"] :is(
   [data-ui-component="FormField"] :is(input, select, textarea)
 ){
   border-radius: var(--mes-ui-radius-sm) !important;
-}
-
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui :is(
-  .planning-order-queue,
-  .planning-order-header,
-  .planning-order-route-map,
-  .planning-order-record,
-  .planning-order-record-section,
-  .route-smt-step-card,
-  .route-smt-grid,
-  .planning-detail-disclosure,
-  .planning-detail-body,
-  .route-smt-balance-block,
-  .route-smt-input-block,
-  .route-smt-result-block,
-  .route-smt-balance-disclosure,
-  .smt-result-kpi-row article,
-  .smt-machine-balance-summary article
-),
-main.app-shell[data-layout-page="directories"] .directories-page :is(
+}main.app-shell[data-layout-page="directories"] .directories-page :is(
   .directory-header,
   [class~="directory-table-card"]
-),
-main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(
-  .planning-smt-calculator-panel,
-  .planning-empty-panel
 ),
 main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(
   .shop-map-widget
@@ -1249,26 +1199,7 @@ main.app-shell[data-layout-page="shiftMasterBoard"] :is(
   .visual-state-card
 ){
   border-radius: var(--mes-ui-radius-md) !important;
-}
-
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui :is(
-  .planning-order-route-item,
-  .planning-order-phase,
-  .planning-order-lane-head,
-  .planning-order-step-pill,
-  .planning-order-register-row,
-  .planning-order-segmented-actions button,
-  .planning-order-rule-editor input,
-  .route-smt-step-head,
-  .route-smt-input-block .field input,
-  .route-smt-input-block .dense-inline-select > summary,
-  .route-smt-result-block .smt-result-kpi-row article,
-  .route-smt-balance-disclosure > summary,
-  .route-smt-popup-actions .secondary-button,
-  .smt-machine-actions .secondary-button,
-  .smt-machine-actions .primary-button
-),
-main.app-shell[data-layout-page="directories"] .directories-page :is(
+}main.app-shell[data-layout-page="directories"] .directories-page :is(
   .directory-nav-item,
   .directory-health div,
   .directory-detail-list div
@@ -1279,18 +1210,6 @@ main.app-shell[data-layout-page="shiftMasterBoard"] :is(
   .shift-master-board-summary-cell,
   .shift-master-board-route-chain-card,
   .visual-form-grid .form-field
-){
-  border-radius: var(--mes-ui-radius-sm) !important;
-}
-
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-actions :is(
-  .primary-button,
-  .secondary-button
-),
-main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-detail :is(
-  .route-smt-popup-actions .secondary-button,
-  .smt-machine-actions .secondary-button,
-  .smt-machine-actions .primary-button
 ){
   border-radius: var(--mes-ui-radius-sm) !important;
 }

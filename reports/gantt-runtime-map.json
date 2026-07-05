@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-07-05T04:58:19.180Z",
+  "zones": [
+    {
+      "id": "shell",
+      "label": "Gantt runtime shell",
+      "selector": ".gantt-shell[data-gantt-shell]",
+      "risk": "critical",
+      "allowedChanges": "Markers, tokens and scroll-safe wrapper rules only."
+    },
+    {
+      "id": "toolbar",
+      "label": "Gantt toolbar and filters",
+      "selector": "[data-ui-component='GanttToolbar'], .topbar",
+      "risk": "medium",
+      "allowedChanges": "ActionButton markers, wrapping tokens and non-mutating control labels."
+    },
+    {
+      "id": "timeline",
+      "label": "Timeline scale rows",
+      "selector": ".timeline-row, .timeline-cell",
+      "risk": "high",
+      "allowedChanges": "Tokenized colors and typography; no scale calculation changes."
+    },
+    {
+      "id": "rows",
+      "label": "Rows and lane labels",
+      "selector": ".gantt-row, .row-label, .lane",
+      "risk": "high",
+      "allowedChanges": "Typography/tokens and markers; no rowLayout calculation changes."
+    },
+    {
+      "id": "slots",
+      "label": "Operation slots",
+      "selector": ".operation-slot[data-slot-id]",
+      "risk": "critical",
+      "allowedChanges": "State classes/tokens/markers; no DOM or drag/resize behavior changes without tests."
+    },
+    {
+      "id": "non-working",
+      "label": "Non-working layer",
+      "selector": ".non-working-layer, .non-working-segment",
+      "risk": "medium",
+      "allowedChanges": "Tokenized fill/stripe/border only."
+    },
+    {
+      "id": "dependencies",
+      "label": "SVG dependency layer",
+      "selector": ".dependencies-layer, .dependency-path, .dependency-arrow",
+      "risk": "critical",
+      "allowedChanges": "Stroke/fill tokens and markers; no path routing or marker geometry changes."
+    },
+    {
+      "id": "overlays",
+      "label": "Drawer/editor/optimization overlays",
+      "selector": ".slot-drawer, .slot-form-modal, .gantt-optimization-modal",
+      "risk": "high",
+      "allowedChanges": "Overlay markers and viewport-fit checks; no form business logic changes."
+    },
+    {
+      "id": "interactions",
+      "label": "Drag/resize/snap/dependency edit",
+      "selector": ".gantt-snap-overlay, .gantt-drag-ghost, [data-dependency-edit-route]",
+      "risk": "critical",
+      "allowedChanges": "Smoke checks and markers only."
+    }
+  ]
+}

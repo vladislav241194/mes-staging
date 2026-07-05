@@ -1,0 +1,54 @@
+/* StatusToken contract styles. Extracted in Phase 6 runtime decomposition. */
+main.app-shell[data-layout="app-shell"] .mes-signal[data-ui-component="StatusToken"],
+main.app-shell[data-layout="app-shell"] .ui-status-token[data-ui-component="StatusToken"]{
+  min-width: 0;
+  max-width: 100%;
+  border-color: var(--mes-ui-status-neutral-border);
+  background: var(--mes-ui-status-neutral-bg);
+  color: var(--mes-ui-status-neutral-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-success,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-ready,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-positive{
+  border-color: var(--mes-ui-status-success-border);
+  background: var(--mes-ui-status-success-bg);
+  color: var(--mes-ui-status-success-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-warning,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-pending,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-attention,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-risk,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-manual{
+  border-color: var(--mes-ui-status-warning-border);
+  background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-danger,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-error,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-critical,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-negative,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-blocked,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-problem{
+  border-color: var(--mes-ui-status-danger-border);
+  background: var(--mes-ui-status-danger-bg);
+  color: var(--mes-ui-status-danger-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-info,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-active,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-calc,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-calculated{
+  border-color: var(--mes-ui-status-info-border);
+  background: var(--mes-ui-status-info-bg);
+  color: var(--mes-ui-status-info-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-demo,
+main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-demo-function{
+  border-color: var(--mes-ui-status-demo-border);
+  background: var(--mes-ui-status-demo-bg);
+  color: var(--mes-ui-status-demo-text);
+}

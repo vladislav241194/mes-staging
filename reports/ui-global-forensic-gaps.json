@@ -1,0 +1,510 @@
+{
+  "generatedAt": "2026-07-05T05:08:07.380Z",
+  "gaps": [
+    {
+      "id": "runtime-decomposition-monolith",
+      "severity": "high",
+      "area": "Runtime decomposition",
+      "verdict": "partial",
+      "evidence": [
+        "src/app.js: 39103 lines",
+        "module renderers still in src/app.js: 61",
+        "src/modules files: 1",
+        "extracted module renderers: 1"
+      ],
+      "problem": "Phase 6 created real src/ui and one extracted module, but most UI runtime is still monolithic.",
+      "correctiveTask": "Extract one module family per pass from src/app.js into src/modules/<module>/render.js while keeping public handlers unchanged.",
+      "expectedFiles": [
+        "src/modules/<module>/render.js",
+        "src/app.js",
+        "scripts/extracted-module-render-smoke.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:syntax",
+        "npm run qa:modules:extracted",
+        "npm run qa:functional"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "css-legacy-pressure",
+      "severity": "high",
+      "area": "CSS architecture",
+      "verdict": "partial",
+      "evidence": [
+        "styles.css manifest-only: yes",
+        "duplicate selector groups: 349",
+        "styles/layers/99-legacy-overrides-tail.css: 4821 lines",
+        "!important usages: 3047 baseline-aware"
+      ],
+      "problem": "CSS entrypoint is cleaned, but selector pressure and legacy tail remain large enough to keep cascade fragile.",
+      "correctiveTask": "Shrink 99-legacy-overrides-tail.css by moving only stable generic rules into token/component layers and deleting shadowed duplicates with css-layer-audit after each batch.",
+      "expectedFiles": [
+        "styles/layers/99-legacy-overrides-tail.css",
+        "styles/layers/30-module-shell-ui-foundations.css",
+        "styles/ui/*.css"
+      ],
+      "expectedQa": [
+        "npm run qa:css",
+        "npm run qa:ui",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "raw-token-baseline-too-large",
+      "severity": "high",
+      "area": "Token system",
+      "verdict": "partial",
+      "evidence": [
+        "raw hex usages: 1894",
+        "unique hex colors: 223",
+        "font-size px declarations: 779",
+        "spacing/position px declarations: 2094",
+        "spacing/typography/layout token group counts: 0"
+      ],
+      "problem": "Raw-token audit is present and passing only against baseline; it prevents new debt but does not prove existing debt was normalized.",
+      "correctiveTask": "Add shrinking budgets per token category and migrate one visual family at a time to semantic variables.",
+      "expectedFiles": [
+        "styles/mes-ui-core.css",
+        "scripts/ui-raw-token-baseline.json",
+        "styles/layers/*.css"
+      ],
+      "expectedQa": [
+        "npm run qa:ui",
+        "npm run qa:css"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "forms-contract-low-coverage",
+      "severity": "medium",
+      "area": "Forms",
+      "verdict": "partial",
+      "evidence": [
+        "renderUiFormField calls: 6",
+        "input tags in src/app.js: 98",
+        "select tags: 27",
+        "textarea tags: 5"
+      ],
+      "problem": "Form helper exists, but most form controls are still authored directly or through local classes.",
+      "correctiveTask": "Migrate modal/table/sidebar forms to renderUiFormField or explicitly register exceptions for dense cells and PIN keypad.",
+      "expectedFiles": [
+        "src/app.js",
+        "src/ui/components.js",
+        "scripts/ui-contract-qa.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:ui",
+        "npm run qa:ui:overlays",
+        "npm run qa:functional"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "overlay-contract-low-coverage",
+      "severity": "medium",
+      "area": "Overlays",
+      "verdict": "partial",
+      "evidence": [
+        "modal class mentions: 136",
+        "modal backdrop mentions: 28",
+        "drawer mentions: 50",
+        "dropdown mentions: 10",
+        "renderUiModalFrame calls: 2",
+        "renderUiDropdownFrame calls: 1"
+      ],
+      "problem": "Overlay helpers and smoke probes exist, but many overlay implementations still use local markup/classes.",
+      "correctiveTask": "Create overlay inventory with standard/special classification and migrate live modal shells first, keeping content DOM stable.",
+      "expectedFiles": [
+        "src/app.js",
+        "src/ui/components.js",
+        "src/ui_regression_exceptions.js"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:overlays",
+        "npm run qa:functional"
+      ],
+      "risk": "high"
+    },
+    {
+      "id": "status-zoo",
+      "severity": "medium",
+      "area": "Statuses/badges/chips",
+      "verdict": "partial",
+      "evidence": [
+        "renderUiStatusToken calls: 57",
+        "status-pill occurrences: 39",
+        "mes-signal occurrences: 107",
+        "planning-order-state-token: 11",
+        "supply-status-pill: 11"
+      ],
+      "problem": "StatusToken exists but domain-specific status/chip classes continue to carry independent visual meaning.",
+      "correctiveTask": "Separate semantic status data from visual tokens and migrate domain chips to StatusToken wrappers or named MES chip helpers.",
+      "expectedFiles": [
+        "src/ui/components.js",
+        "src/app.js",
+        "styles/ui/status.css"
+      ],
+      "expectedQa": [
+        "npm run qa:ui",
+        "npm run qa:ui-kit"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "module-coverage-partials",
+      "severity": "medium",
+      "area": "Module coverage",
+      "verdict": "partial",
+      "evidence": [
+        "ui-contract-coverage summary: 14 contract, 2 special-runtime, 4 partial",
+        "partial modules: dispatch, shiftWorkOrders, employees, timesheet"
+      ],
+      "problem": "Runtime registry says no partial modules, while browser coverage report still finds partial component coverage in several modules.",
+      "correctiveTask": "Use browser coverage report as authoritative for nextMigration and align runtime registry status with measured component coverage.",
+      "expectedFiles": [
+        "src/ui/contracts/runtime-contracts.js",
+        "scripts/ui-contract-coverage-report.mjs",
+        "reports/ui-contract-coverage.json"
+      ],
+      "expectedQa": [
+        "npm run qa:ui-contract-coverage",
+        "npm run qa:ui"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "table-contract-not-universal",
+      "severity": "medium",
+      "area": "Tables and TreeTables",
+      "verdict": "partial",
+      "evidence": [
+        "tables found: 34",
+        "tables under TableWrap: 24",
+        "documented exceptions: 10",
+        "renderUiTableWrap calls: 16"
+      ],
+      "problem": "Table contract is real and guarded, but not universal; print/visual exceptions and local tree patterns remain.",
+      "correctiveTask": "Split production TableWrap from PrintTable/VisualSample exceptions and add TreeTable helper for hierarchy lines/selection.",
+      "expectedFiles": [
+        "src/ui/components.js",
+        "src/app.js",
+        "scripts/ui-table-contract-audit.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:tables",
+        "npm run qa:ui"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "mobile-is-smoke-not-product",
+      "severity": "medium",
+      "area": "Mobile/tablet/narrow support",
+      "verdict": "partial",
+      "evidence": [
+        "ui regression viewports include 430x932 and 390x844",
+        "warnings: 11",
+        "examples: gantt header bounds limited, timesheet action zone overflow"
+      ],
+      "problem": "Narrow support is smoke-tested, but warnings show it is not a complete product-ready mobile/tablet design guarantee.",
+      "correctiveTask": "Convert recurrent narrow warnings into either explicit limited-support exceptions or failing budgets for target tablet screens.",
+      "expectedFiles": [
+        "scripts/ui-module-regression-smoke.mjs",
+        "src/ui_regression_exceptions.js",
+        "docs/mobile-limited-support-map.md"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:regression",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "visual-polish-partial",
+      "severity": "medium",
+      "area": "Visual polish consistency",
+      "verdict": "partial",
+      "evidence": [
+        "styles/ui/kit-polish.css is token-only and qa:ui-kit passes",
+        "duplicate selector groups remain 349",
+        "raw font/radius/spacing declarations remain high"
+      ],
+      "problem": "Polish layer is constrained, but global consistency still depends on many older module CSS rules.",
+      "correctiveTask": "Define measurable typography/radius/spacing budgets and migrate high-pressure layers by component family.",
+      "expectedFiles": [
+        "styles/mes-ui-core.css",
+        "styles/ui/kit-polish.css",
+        "scripts/ui-raw-token-audit.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:ui-kit",
+        "npm run qa:css",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    },
+    {
+      "id": "manual-check-reduction-not-elimination",
+      "severity": "medium",
+      "area": "Regression QA",
+      "verdict": "partial",
+      "evidence": [
+        "build and all QA commands pass",
+        "visual QA covers 48/48 modules",
+        "ui regression reports 100 checks / 0 failed / 11 warnings",
+        "open states and semantics are not exhaustive"
+      ],
+      "problem": "Automated checks reduce manual review, but do not fully replace manual product/UX review after broad visual changes.",
+      "correctiveTask": "Introduce per-component golden states for open overlays, selected table rows, filled forms, and Gantt slot states.",
+      "expectedFiles": [
+        "scripts/ui-module-regression-smoke.mjs",
+        "docs/ui-regression-strategy.md",
+        "reports/*.json"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:regression",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    }
+  ],
+  "correctiveRoadmap": [
+    {
+      "priority": "P0",
+      "problem": "Phase 6 created real src/ui and one extracted module, but most UI runtime is still monolithic.",
+      "evidence": [
+        "src/app.js: 39103 lines",
+        "module renderers still in src/app.js: 61",
+        "src/modules files: 1",
+        "extracted module renderers: 1"
+      ],
+      "correctiveTask": "Extract one module family per pass from src/app.js into src/modules/<module>/render.js while keeping public handlers unchanged.",
+      "expectedFiles": [
+        "src/modules/<module>/render.js",
+        "src/app.js",
+        "scripts/extracted-module-render-smoke.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:syntax",
+        "npm run qa:modules:extracted",
+        "npm run qa:functional"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P0",
+      "problem": "CSS entrypoint is cleaned, but selector pressure and legacy tail remain large enough to keep cascade fragile.",
+      "evidence": [
+        "styles.css manifest-only: yes",
+        "duplicate selector groups: 349",
+        "styles/layers/99-legacy-overrides-tail.css: 4821 lines",
+        "!important usages: 3047 baseline-aware"
+      ],
+      "correctiveTask": "Shrink 99-legacy-overrides-tail.css by moving only stable generic rules into token/component layers and deleting shadowed duplicates with css-layer-audit after each batch.",
+      "expectedFiles": [
+        "styles/layers/99-legacy-overrides-tail.css",
+        "styles/layers/30-module-shell-ui-foundations.css",
+        "styles/ui/*.css"
+      ],
+      "expectedQa": [
+        "npm run qa:css",
+        "npm run qa:ui",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P0",
+      "problem": "Raw-token audit is present and passing only against baseline; it prevents new debt but does not prove existing debt was normalized.",
+      "evidence": [
+        "raw hex usages: 1894",
+        "unique hex colors: 223",
+        "font-size px declarations: 779",
+        "spacing/position px declarations: 2094",
+        "spacing/typography/layout token group counts: 0"
+      ],
+      "correctiveTask": "Add shrinking budgets per token category and migrate one visual family at a time to semantic variables.",
+      "expectedFiles": [
+        "styles/mes-ui-core.css",
+        "scripts/ui-raw-token-baseline.json",
+        "styles/layers/*.css"
+      ],
+      "expectedQa": [
+        "npm run qa:ui",
+        "npm run qa:css"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P1",
+      "problem": "Form helper exists, but most form controls are still authored directly or through local classes.",
+      "evidence": [
+        "renderUiFormField calls: 6",
+        "input tags in src/app.js: 98",
+        "select tags: 27",
+        "textarea tags: 5"
+      ],
+      "correctiveTask": "Migrate modal/table/sidebar forms to renderUiFormField or explicitly register exceptions for dense cells and PIN keypad.",
+      "expectedFiles": [
+        "src/app.js",
+        "src/ui/components.js",
+        "scripts/ui-contract-qa.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:ui",
+        "npm run qa:ui:overlays",
+        "npm run qa:functional"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P1",
+      "problem": "Overlay helpers and smoke probes exist, but many overlay implementations still use local markup/classes.",
+      "evidence": [
+        "modal class mentions: 136",
+        "modal backdrop mentions: 28",
+        "drawer mentions: 50",
+        "dropdown mentions: 10",
+        "renderUiModalFrame calls: 2",
+        "renderUiDropdownFrame calls: 1"
+      ],
+      "correctiveTask": "Create overlay inventory with standard/special classification and migrate live modal shells first, keeping content DOM stable.",
+      "expectedFiles": [
+        "src/app.js",
+        "src/ui/components.js",
+        "src/ui_regression_exceptions.js"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:overlays",
+        "npm run qa:functional"
+      ],
+      "risk": "high"
+    },
+    {
+      "priority": "P1",
+      "problem": "StatusToken exists but domain-specific status/chip classes continue to carry independent visual meaning.",
+      "evidence": [
+        "renderUiStatusToken calls: 57",
+        "status-pill occurrences: 39",
+        "mes-signal occurrences: 107",
+        "planning-order-state-token: 11",
+        "supply-status-pill: 11"
+      ],
+      "correctiveTask": "Separate semantic status data from visual tokens and migrate domain chips to StatusToken wrappers or named MES chip helpers.",
+      "expectedFiles": [
+        "src/ui/components.js",
+        "src/app.js",
+        "styles/ui/status.css"
+      ],
+      "expectedQa": [
+        "npm run qa:ui",
+        "npm run qa:ui-kit"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P1",
+      "problem": "Runtime registry says no partial modules, while browser coverage report still finds partial component coverage in several modules.",
+      "evidence": [
+        "ui-contract-coverage summary: 14 contract, 2 special-runtime, 4 partial",
+        "partial modules: dispatch, shiftWorkOrders, employees, timesheet"
+      ],
+      "correctiveTask": "Use browser coverage report as authoritative for nextMigration and align runtime registry status with measured component coverage.",
+      "expectedFiles": [
+        "src/ui/contracts/runtime-contracts.js",
+        "scripts/ui-contract-coverage-report.mjs",
+        "reports/ui-contract-coverage.json"
+      ],
+      "expectedQa": [
+        "npm run qa:ui-contract-coverage",
+        "npm run qa:ui"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P1",
+      "problem": "Table contract is real and guarded, but not universal; print/visual exceptions and local tree patterns remain.",
+      "evidence": [
+        "tables found: 34",
+        "tables under TableWrap: 24",
+        "documented exceptions: 10",
+        "renderUiTableWrap calls: 16"
+      ],
+      "correctiveTask": "Split production TableWrap from PrintTable/VisualSample exceptions and add TreeTable helper for hierarchy lines/selection.",
+      "expectedFiles": [
+        "src/ui/components.js",
+        "src/app.js",
+        "scripts/ui-table-contract-audit.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:tables",
+        "npm run qa:ui"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P2",
+      "problem": "Narrow support is smoke-tested, but warnings show it is not a complete product-ready mobile/tablet design guarantee.",
+      "evidence": [
+        "ui regression viewports include 430x932 and 390x844",
+        "warnings: 11",
+        "examples: gantt header bounds limited, timesheet action zone overflow"
+      ],
+      "correctiveTask": "Convert recurrent narrow warnings into either explicit limited-support exceptions or failing budgets for target tablet screens.",
+      "expectedFiles": [
+        "scripts/ui-module-regression-smoke.mjs",
+        "src/ui_regression_exceptions.js",
+        "docs/mobile-limited-support-map.md"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:regression",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P2",
+      "problem": "Polish layer is constrained, but global consistency still depends on many older module CSS rules.",
+      "evidence": [
+        "styles/ui/kit-polish.css is token-only and qa:ui-kit passes",
+        "duplicate selector groups remain 349",
+        "raw font/radius/spacing declarations remain high"
+      ],
+      "correctiveTask": "Define measurable typography/radius/spacing budgets and migrate high-pressure layers by component family.",
+      "expectedFiles": [
+        "styles/mes-ui-core.css",
+        "styles/ui/kit-polish.css",
+        "scripts/ui-raw-token-audit.mjs"
+      ],
+      "expectedQa": [
+        "npm run qa:ui-kit",
+        "npm run qa:css",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    },
+    {
+      "priority": "P2",
+      "problem": "Automated checks reduce manual review, but do not fully replace manual product/UX review after broad visual changes.",
+      "evidence": [
+        "build and all QA commands pass",
+        "visual QA covers 48/48 modules",
+        "ui regression reports 100 checks / 0 failed / 11 warnings",
+        "open states and semantics are not exhaustive"
+      ],
+      "correctiveTask": "Introduce per-component golden states for open overlays, selected table rows, filled forms, and Gantt slot states.",
+      "expectedFiles": [
+        "scripts/ui-module-regression-smoke.mjs",
+        "docs/ui-regression-strategy.md",
+        "reports/*.json"
+      ],
+      "expectedQa": [
+        "npm run qa:ui:regression",
+        "npm run qa:visual"
+      ],
+      "risk": "medium"
+    }
+  ]
+}

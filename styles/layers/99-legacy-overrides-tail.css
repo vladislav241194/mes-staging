@@ -1,5 +1,5 @@
 /* MES CSS layer: remaining late cascade overrides awaiting dedicated cleanup.
-   Cascade order is controlled by root styles.css; do not import this file directly. */
+   Cascade order is controlled by root styles.css;do not import this file directly. */
 main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-content{
   display: flex;
   flex-direction: column;
@@ -324,8 +324,7 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-met
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-detail-panel{
   grid-column: 1;
   grid-row: auto;
-}
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header{
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header{
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   gap: 8px;
@@ -333,19 +332,16 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section 
   min-width: 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   padding: 8px;
-}
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header div{
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header div{
   display: grid;
   gap: 2px;
   min-width: 0;
-}
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header strong{
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header strong{
   color: var(--mes-ui-text);
   font-size: 12px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 15px;
-}
-main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header span{
+}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-section header span{
   min-width: 0;
   overflow: visible;
   color: var(--mes-ui-muted);
@@ -804,10 +800,9 @@ b){
   }main.app-shell.shift-master-board-app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes-panel{
     grid-column: 1;
     grid-row: auto;
-  }
-}/* Planning table demo: alternative read-only Gantt interpretation.
+  }}/* Planning table demo: alternative read-only Gantt interpretation.
    Scroll rule: panels and table wrappers must not own vertical scrolling.
-   The workspace scrolls by Y; dense tables may scroll only by X on narrow screens. */
+   The workspace scrolls by Y;dense tables may scroll only by X on narrow screens. */
 main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-page{
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -1296,8 +1291,7 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table{
     width: 720px;
     min-width: 720px;
-  }
-}@media (max-width: 600px) {main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th:first-child,
+  }}@media (max-width: 600px) {main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th:first-child,
 main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register th:first-child{
     width: 148px;
   }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-grid{
@@ -1309,8 +1303,7 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
     grid-template-columns: auto minmax(0, 1fr);
   }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty span{
     grid-column: 2;
-  }
-}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button{
+  }}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button{
   width: 28px !important;
   min-width: 28px !important;
   height: 28px !important;
@@ -1352,7 +1345,7 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   background: #fff1f2 !important;
   color: #dc2626 !important;
 }/* Gantt vertical layout contract.
-   The Gantt block owns horizontal scrolling only; vertical scrolling belongs to the page/workspace
+   The Gantt block owns horizontal scrolling only;vertical scrolling belongs to the page/workspace
    so every operation row remains reachable and visible. */
 main.app-shell[data-layout-page="gantt"]{
   grid-template-rows: var(--mes-header-height, 60px) minmax(0, 1fr) !important;
@@ -1391,11 +1384,9 @@ body:has(main.app-shell[data-layout-page="timesheet"]) #app{
   height: auto !important;
   min-height: 100dvh !important;
   overflow-x: hidden !important;
-}
-body:has(main.app-shell[data-layout-page="timesheet"]){
+}body:has(main.app-shell[data-layout-page="timesheet"]){
   overflow-y: auto !important;
-}
-main.app-shell[data-layout-page="timesheet"]{
+}main.app-shell[data-layout-page="timesheet"]{
   grid-template-rows: var(--layout-header-height) auto;
   min-height: 100dvh;
   height: auto !important;
@@ -1944,96 +1935,64 @@ main.app-shell[data-layout-page="gantt"] .gantt-row.operation-row .operation-lab
 main.app-shell[data-layout-page="gantt"] .gantt-row.resource-row .resource-label .workcenter-name small{
   display: block;
   min-width: 0;
-}
-
-/* Stabilization guard: late UI-kit typography wins over legacy heavy <strong> defaults. */
+}/* Stabilization guard: late UI-kit typography wins over legacy heavy <strong> defaults. */
 main.app-shell[data-layout-page="shopMap"] .shop-map-widget strong{
   font-weight: var(--mes-ui-weight-semibold, 600) !important;
-}
-
-/* Focus-mode contracts that replace broad layout !important overrides. */
+}/* Focus-mode contracts that replace broad layout !important overrides. */
 main.app-shell[data-layout-page="shopMap"] .shop-map-panel-head.ui-panel-head{
   min-height: 42px;
   padding: 8px 10px;
-}
-
-main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-page,
+}main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-page,
 main.app-shell.is-focus-mode[data-layout-page="shopMap"] .shop-map-page{
   grid-template-columns: minmax(0, 1fr);
-}
-
-main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-sidebar{
+}main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-sidebar{
   display: none;
-}
-
-main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-workspace,
+}main.app-shell.is-focus-mode[data-layout-page="supply"] .supply-workspace,
 main.app-shell.is-focus-mode[data-layout-page="shopMap"] .shop-map-page .module-data-workspace{
   grid-column: 1;
   width: 100%;
-}
-
-main.app-shell.is-focus-mode[data-layout-page="shopMap"] .shop-map-page .shop-map-content{
+}main.app-shell.is-focus-mode[data-layout-page="shopMap"] .shop-map-page .shop-map-content{
   overflow: visible;
-}
-
-/* Production structure matrix is a separate full-width module without an inner sidebar. */
+}/* Production structure matrix is a separate full-width module without an inner sidebar. */
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-page{
   grid-template-columns: minmax(0, 1fr) !important;
   align-items: start;
-}
-
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-workspace{
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-workspace{
   grid-column: 1 / -1 !important;
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
-}
-
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-content,
+}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-content,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-panel,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table-wrap{
   width: 100% !important;
   min-width: 0 !important;
-}
-
-/* Roles module: working RBAC editor. */
+}/* Roles module: working RBAC editor. */
 main.app-shell[data-layout-page="roles"] .access-roles-page{
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   overflow: hidden;
-}
-
-main.app-shell.is-focus-mode[data-layout-page="roles"] .access-roles-page{
+}main.app-shell.is-focus-mode[data-layout-page="roles"] .access-roles-page{
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-}
-
-main.app-shell[data-layout-page="roles"] .access-roles-workspace,
+}main.app-shell[data-layout-page="roles"] .access-roles-workspace,
 main.app-shell[data-layout-page="roles"] .access-roles-content{
   min-width: 0;
   min-height: 0;
-}
-
-main.app-shell[data-layout-page="roles"] .access-roles-content{
+}main.app-shell[data-layout-page="roles"] .access-roles-content{
   display: grid;
   align-content: start;
   gap: 12px;
   overflow: auto;
   padding: 12px;
-}
-
-main.app-shell[data-layout-page="roles"] .access-roles-sidebar .ui-sidebar-item small{
+}main.app-shell[data-layout-page="roles"] .access-roles-sidebar .ui-sidebar-item small{
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
+}main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
   display: grid;
   grid-template-columns: repeat(4, minmax(160px, 1fr));
   gap: 10px;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-profile-grid :is(input, select),
+}main.app-shell[data-layout-page="roles"] .access-role-profile-grid :is(input, select),
 main.app-shell[data-layout-page="roles"] .access-role-assignment-table select{
   width: 100%;
   min-height: 32px;
@@ -2044,77 +2003,53 @@ main.app-shell[data-layout-page="roles"] .access-role-assignment-table select{
   font-size: 12px;
   font-weight: 600;
   line-height: 16px;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-permission-table-wrap,
+}main.app-shell[data-layout-page="roles"] .access-role-permission-table-wrap,
 main.app-shell[data-layout-page="roles"] .access-role-assignment-table-wrap{
   overflow-x: auto;
   overflow-y: visible;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-permission-table,
+}main.app-shell[data-layout-page="roles"] .access-role-permission-table,
 main.app-shell[data-layout-page="roles"] .access-role-assignment-table{
   min-width: 980px;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-permission-table th,
+}main.app-shell[data-layout-page="roles"] .access-role-permission-table th,
 main.app-shell[data-layout-page="roles"] .access-role-permission-table td,
 main.app-shell[data-layout-page="roles"] .access-role-assignment-table th,
 main.app-shell[data-layout-page="roles"] .access-role-assignment-table td{
   vertical-align: middle;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-check-cell{
+}main.app-shell[data-layout-page="roles"] .access-role-check-cell{
   width: 74px;
   text-align: center;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-check-cell label{
+}main.app-shell[data-layout-page="roles"] .access-role-check-cell label{
   display: inline-grid;
   place-items: center;
   width: 32px;
   height: 32px;
   margin: 0 auto;
   border-radius: 8px;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-check-cell input{
+}main.app-shell[data-layout-page="roles"] .access-role-check-cell input{
   width: 28px;
   height: 28px;
   margin: 0;
   accent-color: var(--mes-ui-primary, #2563eb);
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-assignment-table td:last-child{
+}main.app-shell[data-layout-page="roles"] .access-role-assignment-table td:last-child{
   min-width: 220px;
-}
-
-main.app-shell[data-layout-page="roles"] .access-role-assignment-table td:last-child small{
+}main.app-shell[data-layout-page="roles"] .access-role-assignment-table td:last-child small{
   display: block;
   margin-top: 4px;
   color: var(--mes-ui-muted, #64748b);
   font-size: 10px;
   line-height: 13px;
-}
-
-main.app-shell[data-layout="app-shell"] .module-tab span{
+}main.app-shell[data-layout="app-shell"] .module-tab span{
   min-width: 0;
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 12px;
-}
-
-main.app-shell[data-layout="app-shell"] :is(.module-tab, .mobile-module-tab):has(.module-menu-badge){
+}main.app-shell[data-layout="app-shell"] :is(.module-tab, .mobile-module-tab):has(.module-menu-badge){
   position: relative !important;
-}
-
-main.app-shell[data-layout="app-shell"] .module-tab:has(.module-menu-badge){
+}main.app-shell[data-layout="app-shell"] .module-tab:has(.module-menu-badge){
   padding-right: 24px !important;
-}
-
-main.app-shell[data-layout="app-shell"] .module-menu-badge{
+}main.app-shell[data-layout="app-shell"] .module-menu-badge{
   position: absolute;
   top: 2px;
   right: 3px;
@@ -2140,20 +2075,14 @@ main.app-shell[data-layout="app-shell"] .module-menu-badge{
   pointer-events: none;
   text-align: center;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"] .module-tab.is-active .module-menu-badge{
+}main.app-shell[data-layout="app-shell"] .module-tab.is-active .module-menu-badge{
   border: 0;
   background: #ff3b30;
   color: #ffffff;
-}
-
-main.app-shell[data-layout="app-shell"] .mobile-module-tab .module-menu-badge{
+}main.app-shell[data-layout="app-shell"] .mobile-module-tab .module-menu-badge{
   top: 1px;
   right: 2px;
-}
-
-main.app-shell[data-layout-page="products"] .speki-static-cell{
+}main.app-shell[data-layout-page="products"] .speki-static-cell{
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
@@ -2162,60 +2091,30 @@ main.app-shell[data-layout-page="products"] .speki-static-cell{
   line-height: 14px;
 }
 
-main.app-shell[data-layout-page="authPrototype"] .auth-prototype-qa-floating{
-  width: auto !important;
-  min-width: 54px !important;
-  max-width: none !important;
-  height: 34px !important;
-  min-height: 34px !important;
-  padding: 0 10px !important;
-}
-
-main.app-shell[data-layout-page="authPrototype"] .auth-prototype-qa-floating span{
-  display: inline !important;
-  font-size: 11px !important;
-  font-weight: 760 !important;
-  line-height: 1 !important;
-}
-
-@media (max-width: 1180px) {
-  main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
+@media (max-width: 1180px) {main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
     grid-template-columns: repeat(2, minmax(160px, 1fr));
-  }
-}
+  }}
 
-@media (max-width: 900px) {
-  main.app-shell[data-layout-page="roles"] .access-roles-page{
+@media (max-width: 900px) {main.app-shell[data-layout-page="roles"] .access-roles-page{
     grid-template-columns: minmax(0, 1fr);
     overflow: auto;
-  }
-
-  main.app-shell[data-layout-page="roles"] .access-roles-sidebar,
+  }main.app-shell[data-layout-page="roles"] .access-roles-sidebar,
 main.app-shell[data-layout-page="roles"] .access-roles-workspace{
     width: 100%;
     max-width: none;
-  }
-
-  main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
+  }main.app-shell[data-layout-page="roles"] .access-role-profile-grid{
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Main sidebar footer: UI presets,
+  }}/* Main sidebar footer: UI presets,
 active role and authenticated person. */
 main.app-shell[data-layout="app-shell"] .module-menu-footer{
   align-content: end;
   gap: 6px !important;
-}
-
-main.app-shell[data-layout="app-shell"] .module-menu-section{
+}main.app-shell[data-layout="app-shell"] .module-menu-section{
   display: grid;
   gap: 4px;
   min-width: 0;
   max-width: 100%;
-}
-
-main.app-shell[data-layout="app-shell"] .module-menu-section-title{
+}main.app-shell[data-layout="app-shell"] .module-menu-section-title{
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -2226,81 +2125,80 @@ main.app-shell[data-layout="app-shell"] .module-menu-section-title{
   text-transform: none;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"] .module-menu-ui-presets .module-menu-preset{
+}main.app-shell[data-layout="app-shell"] .module-menu-ui-presets .module-menu-preset{
   width: 100% !important;
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-summary{
+}main.app-shell[data-layout="app-shell"] > .app-topbar{
+  grid-template-columns: minmax(170px, 0.44fr) minmax(260px, 1fr) max-content !important;
+  grid-template-areas: "title annotation actions" !important;
+  align-items: center !important;
+  min-height: 64px !important;
+  height: 64px !important;
+  overflow: visible !important;
+}main.app-shell.is-focus-mode[data-layout="app-shell"] > .app-topbar{
+  grid-column: 1 / -1 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+}main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-title{
+  grid-area: title !important;
+}main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
+  grid-area: annotation !important;
+}main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
+  grid-area: actions !important;
+  justify-self: end !important;
+}main.app-shell[data-layout="app-shell"] .app-auth-session-summary{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px;
+  grid-template-columns: minmax(0, 1fr) var(--mes-ui-topbar-compact-action-size);
   grid-template-areas: "copy logout";
   align-items: center;
-  column-gap: 8px;
+  column-gap: 5px;
   margin-left: auto;
-  min-width: 190px;
-  max-width: 260px;
-  min-height: 42px;
+  width: 152px;
+  min-width: 152px;
+  max-width: 152px;
+  min-height: 32px;
   border: 1px solid var(--mes-ui-line);
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(255, 255, 255, 0.8);
   color: var(--mes-ui-text);
-  padding: 5px 7px;
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-copy{
+  padding: 3px 5px;
+}main.app-shell[data-layout="app-shell"] .app-auth-session-copy{
   grid-area: copy;
   display: grid;
-  gap: 1px;
+  gap: 0;
   min-width: 0;
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-copy :is(strong, small){
+}main.app-shell[data-layout="app-shell"] .app-auth-session-copy :is(strong, small){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-copy strong{
+}main.app-shell[data-layout="app-shell"] .app-auth-session-copy strong{
   color: var(--mes-ui-text);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 720;
-  line-height: 12px;
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-copy small{
-  color: var(--mes-ui-muted);
-  font-size: 8.5px;
-  font-weight: var(--mes-ui-weight-regular);
   line-height: 10px;
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-logout{
+}main.app-shell[data-layout="app-shell"] .app-auth-session-copy small{
+  color: var(--mes-ui-muted);
+  font-size: 8px;
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: 9px;
+}main.app-shell[data-layout="app-shell"] .app-auth-session-logout{
   grid-area: logout;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: var(--mes-ui-topbar-compact-action-size);
+  height: var(--mes-ui-topbar-compact-action-size);
   border: 1px solid var(--mes-ui-line);
   border-radius: var(--mes-ui-radius-xs);
   background: #fff;
   color: var(--mes-ui-muted);
   padding: 0;
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-logout:hover{
+}main.app-shell[data-layout="app-shell"] .app-auth-session-logout:hover{
   border-color: var(--mes-ui-line-strong);
   color: var(--mes-ui-text);
-}
-
-main.app-shell[data-layout="app-shell"] .app-auth-session-logout svg{
-  width: 13px;
-  height: 13px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-page{
+}main.app-shell[data-layout="app-shell"] .app-auth-session-logout svg{
+  width: 12px;
+  height: 12px;
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-page{
   --shift-work-orders-accent: var(--mes-ui-sidebar-bg, #10233c);
   --shift-work-orders-accent-text: #f8fafc;
   --shift-work-orders-accent-muted: #cbd5e1;
@@ -2310,37 +2208,27 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-page{
   grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   background: var(--mes-ui-page-bg);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-workspace{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-workspace{
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-content{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-content{
   display: grid;
   align-content: start;
   gap: 10px;
   min-width: 0;
   overflow: auto;
   padding: 10px 12px 16px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-main-grid{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-main-grid{
   display: grid;
   grid-template-columns: minmax(680px, 1.35fr) minmax(420px, 0.85fr);
   gap: 10px;
   min-width: 0;
   align-items: start;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel{
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel{
   --shift-work-orders-detail-strong: #172033;
   --shift-work-orders-detail-main: #334155;
   --shift-work-orders-detail-muted: #64748b;
@@ -2353,73 +2241,49 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-pan
   color: var(--shift-work-orders-detail-main);
   font-size: 11px;
   line-height: 15px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head{
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   background: var(--shift-work-orders-accent);
   color: var(--shift-work-orders-accent-text);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head strong{
   color: var(--shift-work-orders-accent-text);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head span{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head span{
   color: var(--shift-work-orders-accent-muted);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head strong{
   font-size: 12px;
   font-weight: 680;
   line-height: 15px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head span{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head span{
   font-size: 10px;
   font-weight: 500;
   line-height: 13px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head .ui-action-button{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel > .ui-panel-head .ui-action-button{
   min-height: 28px;
   font-size: 10px;
   font-weight: 620;
   line-height: 11px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"],
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"],
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button){
   border-color: rgba(255, 255, 255, 0.34) !important;
   background: rgba(255, 255, 255, 0.16) !important;
   color: var(--shift-work-orders-accent-text) !important;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"]:hover,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"]:hover,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button):hover{
   border-color: rgba(255, 255, 255, 0.48) !important;
   background: rgba(255, 255, 255, 0.24) !important;
   color: #ffffff !important;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"] :is(svg, path, line, polyline, circle, rect),
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"] :is(svg, path, line, polyline, circle, rect),
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button) :is(svg, path, line, polyline, circle, rect){
   color: currentColor !important;
   stroke: currentColor !important;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"] svg,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head [data-ui-component="ActionButton"] svg,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head :is(.secondary-button, .icon-button, .table-icon-button, .ui-action-button) svg{
   opacity: 1;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table-wrap{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table-wrap{
   overflow-x: hidden;
   overflow-y: hidden;
   border-radius: var(--mes-ui-radius-sm);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table{
   width: 100%;
   min-width: 0;
   table-layout: fixed;
@@ -2435,9 +2299,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table{
   --shift-work-orders-line-parent: 15px;
   --shift-work-orders-line-body: 15px;
   --shift-work-orders-line-meta: 12px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td){
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td){
   box-sizing: border-box;
   min-width: 0;
   padding: 6px 6px;
@@ -2446,41 +2308,25 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(
   font-weight: 500;
   line-height: var(--shift-work-orders-line-body);
   vertical-align: middle;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tbody td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tbody td{
   border-top: 0 !important;
   border-bottom: 0 !important;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tbody td:first-child{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tbody td:first-child{
   overflow: visible;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(1){
-  width: 29%;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(2){
-  width: 21%;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(3),
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(1){
+  width: 26%;
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(2){
+  width: 18%;
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(3),
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(4),
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(5),
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(6){
-  width: 7%;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(7){
+  width: 8.5%;
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(7){
   width: 9%;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(8){
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(8){
   width: 13%;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th{
   padding-top: 9px;
   padding-bottom: 9px;
   border-bottom: 1px solid var(--shift-work-orders-head-line);
@@ -2490,51 +2336,31 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th{
   font-weight: 720;
   line-height: 12px;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th + th{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th + th{
   border-left: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th:first-child{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th:first-child{
   border-top-left-radius: var(--mes-ui-radius-sm);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th:last-child{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th:last-child{
   border-top-right-radius: var(--mes-ui-radius-sm);
   padding-right: 10px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-parent td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-parent td{
   cursor: pointer;
   background: transparent;
   border-top: 0;
   border-bottom: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation td{
   cursor: pointer;
   background: transparent;
   border-bottom: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle]:hover td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle]:hover td{
   background: rgba(16, 35, 60, 0.035) !important;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] :is(.shift-work-orders-tree-parent, .shift-work-orders-tree-operation) td:nth-child(n + 3):not(.actions-cell){
+}main.app-shell[data-layout-page="shiftWorkOrders"] :is(.shift-work-orders-tree-parent, .shift-work-orders-tree-operation) td:nth-child(n + 3):not(.actions-cell){
   font-variant-numeric: tabular-nums;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-parent td:first-child{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-parent td:first-child{
   box-shadow: none;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation td:first-child{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-operation td:first-child{
   box-shadow: none;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] :is(.shift-work-orders-tree-parent, .shift-work-orders-tree-operation) .shift-work-orders-group-status{
+}main.app-shell[data-layout-page="shiftWorkOrders"] :is(.shift-work-orders-tree-parent, .shift-work-orders-tree-operation) .shift-work-orders-group-status{
   display: inline-flex;
   align-items: center;
   min-height: 0;
@@ -2545,9 +2371,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] :is(.shift-work-orders-tree-p
   font-size: 10px;
   font-weight: 500;
   line-height: 12px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell{
   --speki-tree-step: 30px;
   --shift-work-orders-tree-line: #94a3b8;
   --shift-work-orders-tree-active-dot: #0f172a;
@@ -2559,26 +2383,18 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .rou
   min-height: 100%;
   padding-top: 8px;
   padding-bottom: 8px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.is-shift-work-order-parent{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.is-shift-work-order-parent{
   padding-left: 20px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-child .route-tree-cell{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-child .route-tree-cell{
   --speki-tree-line-bleed-top: 24px;
   --speki-tree-line-bleed-bottom: 24px;
   height: auto;
   min-height: 36px;
   padding-top: 4px;
   padding-bottom: 4px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.has-children:not(.is-last) > .speki-tree-branch::before{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.has-children:not(.is-last) > .speki-tree-branch::before{
   bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell:is(.is-shift-work-order-parent, .is-shift-work-order-operation, .is-shift-work-order-child) > .speki-tree-start-dot{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell:is(.is-shift-work-order-parent, .is-shift-work-order-operation, .is-shift-work-order-child) > .speki-tree-start-dot{
   position: absolute;
   top: 50%;
   left: calc(var(--speki-level) * var(--speki-tree-step) + 7px);
@@ -2591,9 +2407,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .rou
   background: var(--shift-work-orders-tree-line, #94a3b8);
   box-shadow: none;
   transform: translate(-50%, -50%);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::before,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::before,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::after{
   position: absolute;
   top: 50%;
@@ -2602,94 +2416,55 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[d
   background: #fff;
   content: "";
   transform: translate(-50%, -50%);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::before{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::before{
   width: 5px;
   height: 1px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::after{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::after{
   width: 0;
   height: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot{
   background: #fff;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::before,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::before,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::after{
   background: var(--shift-work-orders-tree-line, #94a3b8);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::after{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::after{
   width: 1px;
   height: 5px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot{
   background: var(--shift-work-orders-tree-line, #94a3b8);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active .route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active .route-tree-cell.is-shift-work-order-child > .speki-tree-start-dot{
   border-color: var(--shift-work-orders-tree-active-dot, #0f172a);
   background: var(--shift-work-orders-tree-active-dot, #0f172a);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-copy{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-copy{
   display: grid;
   gap: 1px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-tree-muted-action{
-  color: var(--mes-ui-muted);
-  font-size: 11px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td:nth-child(n + 3):nth-child(-n + 6){
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td:nth-child(n + 3):nth-child(-n + 6){
   text-align: right;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(n + 3):nth-child(-n + 6){
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(n + 3):nth-child(-n + 6){
   box-sizing: border-box;
   padding-right: 7px;
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(8){
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(8){
   color: var(--shift-work-orders-text-muted);
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .actions-cell{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .actions-cell{
   text-align: center;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-row]{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-row]{
   cursor: pointer;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-row]:hover td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr[data-shift-work-order-row]:hover td{
   background: rgba(16, 35, 60, 0.045);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active td{
   background: #fff;
   box-shadow: none;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.is-active{
   outline: 1px solid var(--shift-work-orders-accent-line);
   outline-offset: -1px;
   filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
-}
-
-/* Shift work-order tree typography contract. */
+}/* Shift work-order tree typography contract. */
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td strong,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td small{
   display: block;
@@ -2697,123 +2472,85 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td s
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td small{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td small{
   color: var(--shift-work-orders-text-muted);
   font-size: var(--shift-work-orders-font-meta);
   font-weight: 500;
   line-height: var(--shift-work-orders-line-meta);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent td{
   color: var(--shift-work-orders-text-main);
   font-size: var(--shift-work-orders-font-body);
   font-weight: 500;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent td:first-child strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent td:first-child strong{
   color: var(--shift-work-orders-text-strong);
   font-size: 12px;
   font-weight: 680;
   line-height: var(--shift-work-orders-line-parent);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent td:nth-child(2) strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent td:nth-child(2) strong{
   color: var(--shift-work-orders-text-main);
   font-size: 11px;
   font-weight: 600;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent small{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-parent small{
   color: var(--shift-work-orders-text-muted);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation td{
   color: var(--shift-work-orders-text-main);
   font-size: var(--shift-work-orders-font-body);
   font-weight: 500;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation td:first-child strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation td:first-child strong{
   color: var(--shift-work-orders-text-main);
   font-size: 11px;
   font-weight: 620;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation td:nth-child(2) strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation td:nth-child(2) strong{
   color: var(--shift-work-orders-text-secondary);
   font-size: 11px;
   font-weight: 560;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation small{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-operation small{
   color: var(--shift-work-orders-text-muted);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child td{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child td{
   color: var(--shift-work-orders-text-main);
   font-size: var(--shift-work-orders-font-body);
   font-weight: 500;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child td:first-child strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child td:first-child strong{
   color: var(--shift-work-orders-text-strong);
   font-size: 11px;
   font-weight: 600;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child td:nth-child(2) strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child td:nth-child(2) strong{
   color: var(--shift-work-orders-text-secondary);
   font-size: 11px;
   font-weight: 560;
   line-height: var(--shift-work-orders-line-body);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child small{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table tr.shift-work-orders-tree-child small{
   color: var(--shift-work-orders-text-muted);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(.shift-work-orders-tree-parent, .shift-work-orders-tree-operation, .shift-work-orders-tree-child) td:nth-child(n + 3):nth-child(-n + 6){
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(.shift-work-orders-tree-parent, .shift-work-orders-tree-operation, .shift-work-orders-tree-child) td:nth-child(n + 3):nth-child(-n + 6){
   color: var(--shift-work-orders-text-secondary);
   font-size: var(--shift-work-orders-font-body);
   font-weight: 540;
   line-height: var(--shift-work-orders-line-body);
   font-variant-numeric: tabular-nums;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .shift-work-orders-group-status{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table .shift-work-orders-group-status{
   color: var(--shift-work-orders-text-muted);
   font-size: var(--shift-work-orders-font-meta);
   font-weight: 600;
   line-height: var(--shift-work-orders-line-meta);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer{
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary{
   grid-template-columns: repeat(3, minmax(120px, 1fr));
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer{
   grid-template-columns: minmax(112px, 1fr) 22px minmax(112px, 1fr) 22px minmax(112px, 1fr);
   align-items: stretch;
   gap: 6px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article{
   display: grid;
@@ -2823,9 +2560,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors 
   border-radius: var(--mes-ui-radius-sm);
   background: var(--mes-ui-surface);
   padding: 7px 8px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link{
   position: relative;
   display: flex;
   align-items: center;
@@ -2834,16 +2569,12 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-l
   align-self: center;
   height: 20px;
   pointer-events: none;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link::before{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link::before{
   width: 100%;
   height: 1px;
   background: var(--shift-work-orders-tree-line, #94a3b8);
   content: "";
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link::after{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-link::after{
   position: absolute;
   top: 50%;
   right: 1px;
@@ -2853,16 +2584,12 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer-l
   border-right: 1px solid var(--shift-work-orders-tree-line, #94a3b8);
   content: "";
   transform: translateY(-50%) rotate(45deg);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article:first-child{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article:first-child{
   position: relative;
   overflow: hidden;
   border-color: var(--shift-work-orders-detail-line);
   box-shadow: none;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary span,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary small,
@@ -2874,9 +2601,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors 
   font-weight: 500;
   line-height: var(--shift-work-orders-detail-label-line);
   overflow-wrap: anywhere;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article:first-child > span,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary article:first-child > span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article.is-current > span{
   justify-self: start;
   min-height: 18px;
@@ -2892,9 +2617,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer a
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary strong,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-summary strong,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer strong,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors strong{
   min-width: 0;
@@ -2903,15 +2626,11 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors 
   font-weight: 600;
   line-height: var(--shift-work-orders-detail-value-line);
   overflow-wrap: anywhere;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article.is-current{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer article.is-current{
   border-color: var(--shift-work-orders-accent-line);
   background: var(--mes-ui-surface);
   box-shadow: none;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume{
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -2919,23 +2638,17 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-vol
   border-radius: var(--mes-ui-radius-sm);
   background: var(--mes-ui-surface);
   padding: 10px 11px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume header{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume header{
   display: flex;
   align-items: end;
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume header div{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume header div{
   display: grid;
   gap: 1px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume span,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume small{
   min-width: 0;
   color: var(--shift-work-orders-detail-muted);
@@ -2945,9 +2658,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-vol
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume strong{
   min-width: 0;
   color: var(--shift-work-orders-detail-strong);
   font-size: var(--shift-work-orders-detail-value-size);
@@ -2956,114 +2667,78 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-vol
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress{
   position: relative;
   height: 10px;
   overflow: hidden;
   border-radius: var(--mes-ui-radius-xs);
   background: rgba(226, 232, 240, 0.95);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress i,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress i,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress b{
   position: absolute;
   inset: 0 auto 0 0;
   display: block;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress i{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress i{
   background: rgba(16, 35, 60, 0.34);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress b{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-progress b{
   background: rgba(22, 163, 74, 0.42);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid{
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article{
   display: grid;
   gap: 1px;
   min-width: 0;
   border-left: 0;
   padding-left: 6px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article:first-child{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article:first-child{
   padding-left: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article + article{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid article + article{
   border-left: 1px solid var(--shift-work-orders-detail-line);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel .ui-panel-body{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel .ui-panel-body{
   display: grid;
   gap: 8px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel .ui-panel-head-actions{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-panel .ui-panel-head-actions{
   flex-wrap: wrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors{
   display: grid;
   gap: 5px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header{
   display: flex;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors header strong{
   color: var(--shift-work-orders-detail-strong);
   font-size: var(--shift-work-orders-detail-value-size);
   font-weight: 600;
   line-height: var(--shift-work-orders-detail-value-line);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article{
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 5px 7px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article strong,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article strong,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article span{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article span{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors article span{
   color: var(--shift-work-orders-detail-main);
   font-size: var(--shift-work-orders-detail-value-size);
   font-weight: 600;
   line-height: var(--shift-work-orders-detail-value-line);
   font-variant-numeric: tabular-nums;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors p{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors p{
   margin: 0;
   color: var(--shift-work-orders-detail-muted);
   font-size: 10px;
   line-height: 13px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list{
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -3072,9 +2747,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list
   background: var(--mes-ui-surface);
   padding: 0;
   overflow: hidden;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3083,35 +2756,25 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list
   border-bottom: 1px solid var(--shift-work-orders-detail-line);
   background: transparent;
   padding: 8px 9px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header strong{
   min-width: 0;
   color: var(--shift-work-orders-detail-strong);
   font-size: var(--shift-work-orders-detail-value-size);
   font-weight: 600;
   line-height: var(--shift-work-orders-detail-value-line);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header span{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-list > header span{
   color: var(--shift-work-orders-detail-muted);
   font-size: var(--shift-work-orders-detail-label-size);
   font-weight: 500;
   line-height: var(--shift-work-orders-detail-label-line);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-empty{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-empty{
   color: var(--shift-work-orders-detail-muted);
   font-size: 10px;
   line-height: 13px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-empty{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-empty{
   margin: 0;
   padding: 9px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card{
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
   gap: 9px;
@@ -3121,13 +2784,9 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card
   background: #fff;
   margin: 0 9px 9px;
   padding: 8px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card:first-of-type{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-card:first-of-type{
   margin-top: 9px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo{
   position: relative;
   display: grid;
   place-items: center;
@@ -3139,28 +2798,18 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-phot
   background: rgba(241, 245, 249, 0.95);
   color: var(--mes-ui-muted);
   padding: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] button.shift-work-orders-issue-photo.has-photo{
+}main.app-shell[data-layout-page="shiftWorkOrders"] button.shift-work-orders-issue-photo.has-photo{
   cursor: zoom-in;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] button.shift-work-orders-issue-photo.has-photo:hover{
+}main.app-shell[data-layout-page="shiftWorkOrders"] button.shift-work-orders-issue-photo.has-photo:hover{
   filter: saturate(1.04) brightness(0.98);
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo img{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo img{
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo svg{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo svg{
   width: 22px;
   height: 22px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo-count{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-photo-count{
   position: absolute;
   right: 5px;
   bottom: 5px;
@@ -3176,77 +2825,55 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-phot
   font-size: 10px;
   font-weight: var(--mes-ui-weight-bold);
   line-height: 1;
-}
-
-.shift-work-orders-photo-backdrop{
+}.shift-work-orders-photo-backdrop{
   padding: 12px;
-}
-
-.shift-work-orders-photo-modal{
+}.shift-work-orders-photo-modal{
   width: min(1280px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
-}
-
-.shift-work-orders-photo-viewer{
+}.shift-work-orders-photo-viewer{
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   gap: 12px;
   padding: 12px;
   min-height: 0;
-}
-
-.shift-work-orders-photo-nav{
+}.shift-work-orders-photo-nav{
   width: 44px;
   height: 44px;
   min-width: 44px;
-}
-
-.shift-work-orders-photo-stage{
+}.shift-work-orders-photo-stage{
   display: grid;
   gap: 10px;
   min-width: 0;
   margin: 0;
-}
-
-.shift-work-orders-photo-stage img{
+}.shift-work-orders-photo-stage img{
   display: block;
   width: 100%;
   max-height: min(72dvh, 860px);
   object-fit: contain;
   border-radius: var(--mes-ui-radius-sm);
   background: #0f172a;
-}
-
-.shift-work-orders-photo-stage figcaption{
+}.shift-work-orders-photo-stage figcaption{
   display: grid;
   gap: 3px;
   color: var(--mes-ui-text);
   font-size: 12px;
   line-height: 16px;
-}
-
-.shift-work-orders-photo-stage figcaption span,
+}.shift-work-orders-photo-stage figcaption span,
 .shift-work-orders-photo-counter{
   color: var(--mes-ui-muted);
   font-size: 11px;
   line-height: 15px;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy{
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy header{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy header{
   display: flex;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy strong{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy strong{
   min-width: 0;
   overflow: hidden;
   color: var(--shift-work-orders-detail-strong);
@@ -3255,9 +2882,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
   line-height: var(--shift-work-orders-detail-value-line);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy span,
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy span,
 main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy small{
   min-width: 0;
   color: var(--shift-work-orders-detail-muted);
@@ -3265,116 +2890,72 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
   font-weight: 500;
   line-height: var(--shift-work-orders-detail-label-line);
   overflow-wrap: anywhere;
-}
-
-main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy p{
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy p{
   margin: 0;
   color: var(--shift-work-orders-detail-main);
   font-size: 11px;
   font-weight: 500;
   line-height: 14px;
   overflow-wrap: anywhere;
-}
-
-.shift-work-order-print-sheet .route-print-section{
+}.shift-work-order-print-sheet .route-print-section{
   min-width: 0;
-}
-
-.shift-work-order-print-backdrop.route-print-backdrop{
+}.shift-work-order-print-backdrop.route-print-backdrop{
   padding: 4px;
-}
-
-.shift-work-order-print-modal.route-print-modal{
+}.shift-work-order-print-modal.route-print-modal{
   width: min(1800px, calc(100vw - 8px));
   max-height: calc(100dvh - 8px);
-}
-
-.shift-work-order-print-modal .route-print-ui{
+}.shift-work-order-print-modal .route-print-ui{
   min-height: 0;
   padding: 7px 10px;
-}
-
-.shift-work-order-print-modal .route-print-ui h2{
+}.shift-work-order-print-modal .route-print-ui h2{
   font-size: 16px;
   line-height: 20px;
-}
-
-.shift-work-order-print-modal .route-print-scroll{
+}.shift-work-order-print-modal .route-print-scroll{
   padding: 6px;
-}
-
-.shift-work-order-print-info-table th{
+}.shift-work-order-print-info-table th{
   width: 34mm;
   background: #f8fafc;
   color: #334155;
-}
-
-.shift-work-order-print-info-table td{
+}.shift-work-order-print-info-table td{
   color: #0f172a;
   font-weight: 560;
-}
-
-.shift-work-order-print-quantity-table th,
+}.shift-work-order-print-quantity-table th,
 .shift-work-order-print-quantity-table td{
   text-align: center;
-}
-
-.shift-work-order-print-executors-table th:nth-child(1),
+}.shift-work-order-print-executors-table th:nth-child(1),
 .shift-work-order-print-executors-table td:nth-child(1){
   width: 12mm;
   text-align: center;
-}
-
-.shift-work-order-print-executors-table th:nth-child(3),
+}.shift-work-order-print-executors-table th:nth-child(3),
 .shift-work-order-print-executors-table td:nth-child(3){
   width: 30mm;
   text-align: center;
-}
-
-.shift-work-order-print-executors-table th:nth-child(4),
+}.shift-work-order-print-executors-table th:nth-child(4),
 .shift-work-order-print-executors-table td:nth-child(4){
   width: 55mm;
-}
-
-.work-order-print-backdrop.route-print-backdrop{
+}.work-order-print-backdrop.route-print-backdrop{
   padding: 4px;
-}
-
-.work-order-print-modal.route-print-modal{
+}.work-order-print-modal.route-print-modal{
   width: min(1880px, calc(100vw - 8px));
   max-height: calc(100dvh - 8px);
-}
-
-.work-order-print-modal .route-print-ui{
+}.work-order-print-modal .route-print-ui{
   min-height: 0;
   padding: 7px 10px;
-}
-
-.work-order-print-modal .route-print-ui h2{
+}.work-order-print-modal .route-print-ui h2{
   font-size: 16px;
   line-height: 20px;
-}
-
-.work-order-print-modal .route-print-scroll{
+}.work-order-print-modal .route-print-scroll{
   padding: 6px;
-}
-
-.work-order-print-sheet .route-print-section{
+}.work-order-print-sheet .route-print-section{
   min-width: 0;
-}
-
-.work-order-print-passport-table th{
+}.work-order-print-passport-table th{
   width: 40mm;
   background: #f8fafc;
   color: #334155;
-}
-
-.work-order-print-passport-table td{
+}.work-order-print-passport-table td{
   color: #0f172a;
   font-weight: 560;
-}
-
-.work-order-print-operations-table th,
+}.work-order-print-operations-table th,
 .work-order-print-operations-table td,
 .work-order-print-registry-table th,
 .work-order-print-registry-table td,
@@ -3385,15 +2966,11 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
   font-size: 8.5px;
   line-height: 12px;
   vertical-align: top;
-}
-
-.work-order-print-operations-table th:nth-child(1),
+}.work-order-print-operations-table th:nth-child(1),
 .work-order-print-operations-table td:nth-child(1){
   width: 10mm;
   text-align: center;
-}
-
-.work-order-print-operations-table th:nth-child(4),
+}.work-order-print-operations-table th:nth-child(4),
 .work-order-print-operations-table td:nth-child(4),
 .work-order-print-operations-table th:nth-child(6),
 .work-order-print-operations-table td:nth-child(6),
@@ -3403,9 +2980,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
 .work-order-print-operations-table td:nth-child(8){
   width: 20mm;
   text-align: center;
-}
-
-.work-order-print-operations-table th:nth-child(5),
+}.work-order-print-operations-table th:nth-child(5),
 .work-order-print-operations-table td:nth-child(5),
 .work-order-print-operations-table th:nth-child(9),
 .work-order-print-operations-table td:nth-child(9),
@@ -3413,19 +2988,13 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
 .work-order-print-operations-table td:nth-child(10){
   width: 17mm;
   text-align: center;
-}
-
-.work-order-print-registry-table th:nth-child(1),
+}.work-order-print-registry-table th:nth-child(1),
 .work-order-print-registry-table td:nth-child(1){
   width: 29mm;
-}
-
-.work-order-print-registry-table th:nth-child(2),
+}.work-order-print-registry-table th:nth-child(2),
 .work-order-print-registry-table td:nth-child(2){
   width: 22mm;
-}
-
-.work-order-print-registry-table th:nth-child(6),
+}.work-order-print-registry-table th:nth-child(6),
 .work-order-print-registry-table td:nth-child(6),
 .work-order-print-registry-table th:nth-child(7),
 .work-order-print-registry-table td:nth-child(7),
@@ -3435,15 +3004,11 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
 .work-order-print-registry-table td:nth-child(9){
   width: 18mm;
   text-align: center;
-}
-
-.work-order-print-registry-table th:nth-child(10),
+}.work-order-print-registry-table th:nth-child(10),
 .work-order-print-registry-table td:nth-child(10){
   width: 18mm;
   text-align: center;
-}
-
-.work-order-print-executors-table th:nth-child(2),
+}.work-order-print-executors-table th:nth-child(2),
 .work-order-print-executors-table td:nth-child(2),
 .work-order-print-executors-table th:nth-child(3),
 .work-order-print-executors-table td:nth-child(3),
@@ -3453,17 +3018,11 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
   text-align: center;
 }
 
-@media (max-width: 1500px) {
-  main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-main-grid{
+@media (max-width: 1500px) {main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-main-grid{
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid{
+  }main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* Gantt scroll contract: the chart itself owns both axes.
+  }}/* Gantt scroll contract: the chart itself owns both axes.
    Earlier compact layout passes accidentally hid vertical scrolling,
 so rows
    below the viewport became unreachable. */
@@ -3471,9 +3030,7 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell[data-gantt-shell]{
   overflow-x: auto !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
-}
-
-/* Interaction stability contract: clickable controls must not move under the
+}/* Interaction stability contract: clickable controls must not move under the
    pointer on hover/active. Even a 1px translate can create hover flicker and
    make the first click miss on dense MES screens. */
 main.app-shell[data-layout="app-shell"] :is(
@@ -3495,9 +3052,7 @@ main.app-shell[data-layout="app-shell"] :is(
   .dense-inline-select > summary
 ){
   transform: none !important;
-}
-
-main.app-shell[data-layout="app-shell"] :is(
+}main.app-shell[data-layout="app-shell"] :is(
   button:not(.shop-map-widget),
   a[href],
   summary,
@@ -3516,9 +3071,7 @@ main.app-shell[data-layout="app-shell"] :is(
   .dense-inline-select > summary
 ):is(:hover, :active, :focus, :focus-visible){
   transform: none !important;
-}
-
-main.app-shell[data-layout-page="authPrototype"] :is(
+}main.app-shell[data-layout-page="authPrototype"] :is(
   .auth-prototype-department-grid button,
   .auth-prototype-unit-grid button,
   .auth-prototype-people-grid button,
@@ -3536,16 +3089,14 @@ main.app-shell[data-layout-page="authPrototype"] :is(
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   transform: none !important;
-}
-
-main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel),
+}main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel),
 main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel):hover{
   transform: none;
 }
 
 /* Interaction flicker contract: controls in MES must react instantly and keep a
    stable paint state. Old CSS layers still attach color/shadow transitions to
-   buttons and menu items; under load this looks like blinking and can make a
+   buttons and menu items;under load this looks like blinking and can make a
    click land during a transient hover state. */
 main.app-shell[data-layout="app-shell"] :is(
   button:not(.shop-map-widget),
@@ -3590,9 +3141,7 @@ main.app-shell[data-layout="app-shell"] :is(
   transition-delay: 0s !important;
   transition-duration: 0s !important;
   will-change: auto !important;
-}
-
-main.app-shell[data-layout="app-shell"] :is(
+}main.app-shell[data-layout="app-shell"] :is(
   button:not(.shop-map-widget),
   a[href],
   summary,
@@ -3616,21 +3165,15 @@ main.app-shell[data-layout="app-shell"] :is(
   transition: none !important;
   transition-delay: 0s !important;
   transition-duration: 0s !important;
-}
-
-/* Gantt bar shape contract: operation bars are rectangular so split,
-   validation and fact overlays stay aligned. */
+}/* Gantt bar shape contract: operation bars are rectangular so split,
+validation and fact overlays stay aligned. */
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot{
   border-radius: 0 !important;
-}
-
-/* The live Gantt has highly specific segmented-state rules. Keep every visible
+}/* The live Gantt has highly specific segmented-state rules. Keep every visible
    piece of a bar square. */
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot :is(.slot-working-segment.is-slot-start, .slot-working-segment.is-slot-end, .slot-non-working-segment.is-slot-start, .slot-non-working-segment.is-slot-end, .slot-working-segment.is-continuation-start, .slot-working-segment.is-continuation-end, .slot-non-working-segment.is-continuation-start, .slot-non-working-segment.is-continuation-end, .slot-accent, .resize-handle){
   border-radius: 0 !important;
-}
-
-/* Auth session prototype: workshop-like post-login workspace. */
+}/* Auth session prototype: workshop-like post-login workspace. */
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-content{
   display: grid;
   align-content: start;
@@ -3638,33 +3181,23 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-content{
   min-width: 0;
   overflow: visible;
   padding: 12px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-header{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-header{
   margin: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-board-controls{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-board-controls{
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
   min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(255, 255, 255, 0.84);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
   padding: 6px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis article{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis article{
   display: grid;
   gap: 1px;
   min-width: 0;
@@ -3672,9 +3205,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis artic
   border-radius: var(--mes-ui-radius-xs);
   background: #fff;
   padding: 5px 6px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis :is(span, small){
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis :is(span, small){
   min-width: 0;
   overflow: hidden;
   color: var(--mes-ui-muted);
@@ -3682,9 +3213,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis :is(s
   line-height: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis strong{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis strong{
   min-width: 0;
   overflow: hidden;
   color: var(--mes-ui-text);
@@ -3693,29 +3222,21 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis stron
   line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
   display: grid;
   grid-template-columns: minmax(520px, 1.08fr) minmax(420px, 0.92fr);
   gap: 12px;
   align-items: start;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel{
   min-width: 0;
   overflow: visible;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-body{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-body{
   display: grid;
   gap: 12px;
   min-width: 0;
   padding: 10px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-context{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-context{
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -3723,16 +3244,12 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-conte
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(255, 255, 255, 0.88);
   padding: 8px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell{
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -3740,22 +3257,16 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-ce
   border-radius: var(--mes-ui-radius-sm);
   background: #fff;
   padding: 5px 6px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell :is(span, strong, small){
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell :is(span, strong, small){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell span{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell span{
   color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 9px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell.is-operation > span,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell.is-operation > span,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article.is-current > span{
   justify-self: start;
   min-height: 16px;
@@ -3771,78 +3282,56 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chai
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell strong{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell strong{
   color: var(--mes-ui-text);
   font-size: 10px;
   font-weight: var(--mes-ui-weight-medium);
   line-height: 12px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell.is-role strong{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell.is-role strong{
   font-weight: var(--mes-ui-weight-semibold);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell small{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell small{
   color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 10px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain{
   display: grid;
   gap: 6px;
   min-width: 0;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
   padding-top: 8px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header{
   grid-template-columns: minmax(0, 1fr);
   padding: 4px 4px 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header :is(strong, span),
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header :is(strong, span),
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header :is(strong, span){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header strong,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header strong,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header strong{
   color: var(--mes-ui-text);
   font-size: 11px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 14px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header span,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain header span,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header span{
   color: var(--mes-ui-muted);
   font-size: 9px;
   line-height: 12px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article{
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -3850,39 +3339,27 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chai
   border-radius: var(--mes-ui-radius-xs);
   background: #fff;
   padding: 6px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article.is-current{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article.is-current{
   border-color: rgba(37, 99, 235, 0.34);
   background: var(--mes-ui-selected);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article :is(span, strong, small){
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article :is(span, strong, small){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span{
   font-size: 8px;
   line-height: 10px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong{
   color: var(--mes-ui-text);
   font-size: 10px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 12px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small{
   color: var(--mes-ui-muted);
   font-size: 8px;
   line-height: 10px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -3892,34 +3369,21 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
   padding: 8px;
 }
 
-@media (max-width: 1500px) {
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+@media (max-width: 1500px) {main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+  }}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
   grid-template-columns: minmax(680px, 1.18fr) minmax(360px, 0.82fr);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select{
   display: grid;
   gap: 3px;
   min-width: 220px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select span{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select span{
   color: var(--mes-ui-muted);
   font-size: 9px;
   line-height: 11px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select select{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-select select{
   min-height: 34px;
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: var(--mes-ui-radius-xs);
@@ -3928,38 +3392,26 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-viewer-sel
   font-size: 11px;
   font-weight: var(--mes-ui-weight-semibold);
   padding: 0 28px 0 9px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-inline-summary{
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions > div{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions > div{
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions .ui-action-button{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions .ui-action-button{
   min-height: 54px;
   justify-content: center;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-modal{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-modal{
   display: grid;
   gap: 12px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context article{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context article{
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -3967,16 +3419,12 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-cont
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(248, 250, 252, 0.92);
   padding: 8px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context span,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context span,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text span{
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 13px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context strong{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-context strong{
   min-width: 0;
   overflow: hidden;
   color: var(--mes-ui-text);
@@ -3985,30 +3433,22 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-cont
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-pickers{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-pickers{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-pickers .ui-action-button{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-pickers .ui-action-button{
   min-height: 48px;
   justify-content: center;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-file-input{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-file-input{
   position: fixed;
   left: -9999px;
   width: 1px;
   height: 1px;
   opacity: 0;
   pointer-events: none;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview{
   display: grid;
   grid-template-columns: 128px minmax(0, 1fr);
   gap: 10px;
@@ -4019,74 +3459,52 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-prev
   border-radius: var(--mes-ui-radius-sm);
   background: rgba(248, 250, 252, 0.78);
   padding: 8px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview:not(.has-photo){
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview:not(.has-photo){
   grid-template-columns: minmax(0, 1fr);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview img,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview img,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview > div:first-child{
   width: 100%;
   min-height: 102px;
   border-radius: var(--mes-ui-radius-xs);
   background: #fff;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview img{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview img{
   height: 102px;
   object-fit: cover;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview > div:first-child{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview > div:first-child{
   display: grid;
   place-items: center;
   gap: 5px;
   color: var(--mes-ui-muted);
   font-size: 11px;
   line-height: 14px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview > div:first-child svg{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview > div:first-child svg{
   width: 26px;
   height: 26px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article{
   display: grid;
   align-content: center;
   gap: 4px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article strong,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article strong,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article small{
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article strong{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article strong{
   color: var(--mes-ui-text);
   font-size: 12px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 16px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article small{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-preview article small{
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 13px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text{
   display: grid;
   gap: 5px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text textarea{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text textarea{
   min-height: 112px;
   width: 100%;
   resize: vertical;
@@ -4096,30 +3514,22 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text
   color: var(--mes-ui-text);
   font: 500 13px/18px var(--font-ui);
   padding: 10px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text textarea:focus{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-issue-text textarea:focus{
   border-color: rgba(37, 99, 235, 0.5);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09);
   outline: none;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   gap: 10px;
   align-items: start;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-values{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-values{
   display: grid;
   grid-template-columns: repeat(3, minmax(112px, 1fr));
   gap: 6px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint{
   display: grid;
   gap: 3px;
@@ -4132,22 +3542,16 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint{
   color: var(--mes-ui-text);
   padding: 8px;
   text-align: left;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value.is-active{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value.is-active{
   border-color: rgba(37, 99, 235, 0.42);
   background: var(--mes-ui-selected);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value span,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value span,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint span{
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 13px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value strong,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value strong,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint strong{
   min-width: 0;
   overflow: hidden;
@@ -4157,28 +3561,20 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint 
   line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small{
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 13px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
   display: grid;
   grid-template-columns: repeat(3, 60px);
   gap: 6px;
   justify-content: end;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad span{
   width: 60px;
   height: 60px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button{
   display: grid;
   place-items: center;
   border: 1px solid rgba(148, 163, 184, 0.2);
@@ -4188,228 +3584,144 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad but
   font-size: 21px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 1;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button:active{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button:active{
   transform: translateY(1px);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete{
   background: rgba(241, 245, 249, 0.92) !important;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
   width: 23px;
   height: 23px;
 }
 
-@media (max-width: 1180px) {
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
+@media (max-width: 1180px) {main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
     justify-content: start;
-  }
-}
+  }}
 
-@media (min-width: 2400px) and (min-height: 1500px) {
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-content{
+@media (min-width: 2400px) and (min-height: 1500px) {main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-content{
     gap: 18px;
     padding: 18px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-main-grid{
     grid-template-columns: minmax(1180px, 1.18fr) minmax(820px, 0.82fr);
     gap: 18px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-body{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-body{
     gap: 16px;
     padding: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-context,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-context,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section{
     gap: 12px;
     padding: 14px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis article{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis article{
     padding: 10px 12px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell span,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis :is(span, small){
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis :is(span, small){
     font-size: 11px;
     line-height: 14px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell strong,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis strong{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-summary-cell strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis strong{
     font-size: 15px;
     line-height: 19px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain article small{
     font-size: 11px;
     line-height: 14px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chain > div{
     gap: 10px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header strong{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header strong{
     font-size: 15px;
     line-height: 19px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header span{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-section header span{
     font-size: 12px;
     line-height: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions > div{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions > div{
     gap: 12px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions .ui-action-button{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-actions .ui-action-button{
     min-height: 72px;
     font-size: 14px;
     line-height: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
     grid-template-columns: minmax(0, 1fr) max-content;
     gap: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-values{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-values{
     grid-template-columns: repeat(3, minmax(220px, 1fr));
     gap: 12px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint{
     min-height: 116px;
     padding: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value span,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint span{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value span,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint span{
     font-size: 13px;
     line-height: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value strong,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint strong{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value strong,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint strong{
     font-size: 30px;
     line-height: 36px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-note{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-note{
     font-size: 12px;
     line-height: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad{
     grid-template-columns: repeat(3, 88px);
     gap: 10px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad span{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad span{
     width: 88px;
     height: 88px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad button{
     font-size: 30px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
     width: 31px;
     height: 31px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-panel .ui-panel-footer{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-panel .ui-panel-footer{
     min-height: 48px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-board-controls{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-board-controls{
     gap: 12px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-kpis{
     gap: 8px;
     padding: 8px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-board{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-board{
     gap: 12px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card{
     grid-template-columns: minmax(0, 1fr) minmax(120px, auto) auto;
     gap: 14px;
     min-height: 98px;
     padding: 16px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card strong{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card strong{
     font-size: 17px;
     line-height: 21px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card small,
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card em{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card small,
+main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card em{
     font-size: 13px;
     line-height: 17px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route{
     gap: 4px;
     font-size: 12px;
     line-height: 15px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route > span{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route > span{
     grid-template-columns: 44px minmax(0, 1fr);
     gap: 6px;
-  }
-
-  main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route b{
+  }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route b{
     font-size: 12px;
     line-height: 15px;
-  }
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-panel .ui-panel-footer{
+  }}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-panel .ui-panel-footer{
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-note{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-note{
   min-width: 0;
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 14px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-board{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-board{
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
@@ -4422,103 +3734,73 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card{
   color: var(--mes-ui-text);
   padding: 10px;
   text-align: left;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card.is-current{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card.is-current{
   border-color: rgba(37, 99, 235, 0.4);
   background: var(--mes-ui-selected);
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card span{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card span{
   display: grid;
   gap: 2px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-main{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-main{
   display: grid;
   gap: 2px;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card :is(strong, small){
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card :is(strong, small){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card strong{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card strong{
   color: var(--mes-ui-text);
   font-size: 12px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 15px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card small,
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card small,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card em{
   color: var(--mes-ui-muted);
   font-size: 10px;
   font-style: normal;
   line-height: 13px;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route{
   display: grid;
   gap: 2px;
   color: #64748b;
   font-size: 9px;
   line-height: 11px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route > span{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route > span{
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 4px;
   align-items: baseline;
   min-width: 0;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route b{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route b{
   color: #475569;
   font-size: 9px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 11px;
-}
-
-main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route em{
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-route em{
   min-width: 0;
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
   word-break: normal;
-}
-
-.auth-session-modal{
+}.auth-session-modal{
   width: min(760px, calc(100vw - 48px));
-}
-
-.auth-session-modal .ui-modal-body{
+}.auth-session-modal .ui-modal-body{
   max-height: min(680px, calc(100vh - 180px));
   overflow: auto;
-}
-
-.auth-session-modal-structure,
+}.auth-session-modal-structure,
 .auth-session-modal-route,
 .auth-session-pdf-preview{
   display: grid;
   gap: 12px;
   min-width: 0;
-}
-
-.auth-session-modal-structure section{
+}.auth-session-modal-structure section{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-}
-
-.auth-session-modal-structure article{
+}.auth-session-modal-structure article{
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -4526,24 +3808,18 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-
   border-radius: var(--mes-ui-radius-sm);
   background: #fff;
   padding: 10px;
-}
-
-.auth-session-modal-structure :is(span, p),
+}.auth-session-modal-structure :is(span, p),
 .auth-session-pdf-toolbar small,
 .auth-session-pdf-page p,
 .auth-session-pdf-page span{
   color: var(--mes-ui-muted);
   font-size: 11px;
   line-height: 15px;
-}
-
-.auth-session-modal-structure strong{
+}.auth-session-modal-structure strong{
   color: var(--mes-ui-text);
   font-size: 13px;
   line-height: 17px;
-}
-
-.auth-session-pdf-toolbar{
+}.auth-session-pdf-toolbar{
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 10px;
@@ -4553,46 +3829,34 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-task-card-
   border-radius: var(--mes-ui-radius-sm);
   background: #fff;
   padding: 10px;
-}
-
-.auth-session-pdf-toolbar svg{
+}.auth-session-pdf-toolbar svg{
   width: 28px;
   height: 28px;
   color: var(--mes-ui-primary);
-}
-
-.auth-session-pdf-toolbar span,
+}.auth-session-pdf-toolbar span,
 .auth-session-pdf-page{
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-.auth-session-pdf-toolbar strong,
+}.auth-session-pdf-toolbar strong,
 .auth-session-pdf-page strong{
   color: var(--mes-ui-text);
   font-size: 14px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 18px;
-}
-
-.auth-session-pdf-page{
+}.auth-session-pdf-page{
   min-height: 420px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--mes-ui-radius-sm);
   background: linear-gradient(#fff, #fff) padding-box, linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(148, 163, 184, 0.12)) border-box;
   padding: 34px;
-}
-
-/* Auth v1.355: every login step uses the same tablet-card geometry. */
+}/* Auth v1.355: every login step uses the same tablet-card geometry. */
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"]{
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: minmax(0, 1fr) !important;
   min-height: 100dvh !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-page{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-page{
   grid-column: 1 / -1 !important;
   grid-row: 1 / -1 !important;
   grid-template-columns: minmax(0, 1fr) !important;
@@ -4602,9 +3866,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   height: 100dvh !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-workspace{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-workspace{
   display: grid !important;
   min-width: 0 !important;
   min-height: 0 !important;
@@ -4613,9 +3875,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   border-radius: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-content{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-content{
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
@@ -4627,18 +3887,14 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   height: 100% !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-header{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-header{
   justify-self: stretch !important;
   width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
   margin: 0 !important;
   padding: 14px 16px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step{
   display: grid !important;
   justify-self: stretch !important;
   justify-items: center !important;
@@ -4649,9 +3905,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   padding: clamp(12px, 1.2vw, 22px) !important;
   box-sizing: border-box !important;
   overflow: auto !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-panel{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-panel{
   display: grid !important;
   grid-template-rows: auto auto !important;
   justify-self: center !important;
@@ -4661,15 +3915,11 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   min-height: 0 !important;
   height: auto !important;
   overflow: visible !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-head{
   align-items: start !important;
   min-height: auto !important;
   padding: 14px 18px 16px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-body{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-panel > .ui-panel-body{
   display: grid !important;
   gap: 14px !important;
   min-width: 0 !important;
@@ -4677,22 +3927,16 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   height: auto !important;
   padding: 16px !important;
   overflow: visible !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-toolbar{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-toolbar{
   display: flex !important;
   flex-wrap: wrap !important;
   align-items: center !important;
   justify-content: flex-start !important;
   gap: 8px !important;
   min-width: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-toolbar .ui-status-token{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-step-toolbar .ui-status-token{
   margin-left: auto !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   .auth-prototype-department-grid,
   .auth-prototype-unit-grid,
   .auth-prototype-people-grid
@@ -4702,9 +3946,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   gap: 10px !important;
   align-items: stretch !important;
   min-width: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   .auth-prototype-department-grid button,
   .auth-prototype-unit-grid button,
   .auth-prototype-people-grid button
@@ -4721,32 +3963,24 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   padding: 12px !important;
   text-align: left !important;
   transform: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-grid button,
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-grid button,
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-grid button{
   grid-template-columns: 42px minmax(0, 1fr) !important;
   gap: 10px !important;
   align-items: center !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   .auth-prototype-unit-grid button,
   .auth-prototype-people-grid button
 ){
   gap: 6px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   .auth-prototype-department-copy,
   .auth-prototype-unit-copy,
   .auth-prototype-people-grid button,
   .auth-prototype-unit-grid button
 ){
   min-width: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   .auth-prototype-department-copy strong,
   .auth-prototype-unit-grid strong,
   .auth-prototype-people-grid strong
@@ -4760,18 +3994,12 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   overflow-wrap: anywhere !important;
   white-space: normal !important;
   -webkit-box-orient: vertical !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-copy strong,
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-copy strong,
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-grid strong{
-  -webkit-line-clamp: 3 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid strong{
+  -webkit-line-clamp: var(--mes-ui-auth-card-title-line-clamp) !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-people-grid strong{
   -webkit-line-clamp: 2 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   .auth-prototype-department-copy span,
   .auth-prototype-unit-copy span,
   .auth-prototype-unit-grid span,
@@ -4788,15 +4016,11 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
   white-space: normal !important;
   -webkit-box-orient: vertical !important;
   -webkit-line-clamp: 2 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-copy{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-copy{
   display: grid !important;
   gap: 4px !important;
   min-width: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon,
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon,
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon{
   display: grid !important;
   place-items: center !important;
@@ -4805,47 +4029,33 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   min-width: 42px !important;
   min-height: 42px !important;
   overflow: visible !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon svg,
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon svg,
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon svg{
   display: block !important;
   width: 22px !important;
   height: 22px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry{
   display: grid !important;
   justify-self: center !important;
   gap: 14px !important;
   width: min(100%, 380px) !important;
   min-width: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry .auth-prototype-selected-person{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry .auth-prototype-selected-person{
   grid-template-columns: 28px minmax(0, 1fr) !important;
   min-height: 58px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-display{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-display{
   grid-template-columns: repeat(5, 14px) !important;
   gap: 7px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-display span{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-display span{
   width: 14px !important;
   height: 14px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad{
   display: grid !important;
   grid-template-columns: repeat(3, 92px) !important;
   gap: 12px !important;
   justify-content: center !important;
   min-width: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad :is(button, .auth-prototype-keypad-clear){
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad :is(button, .auth-prototype-keypad-clear){
   display: grid !important;
   place-items: center !important;
   width: 92px !important;
@@ -4854,9 +4064,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   min-height: 92px !important;
   aspect-ratio: 1 !important;
   padding: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad button{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad button{
   border: 1px solid rgba(148, 163, 184, 0.2) !important;
   border-radius: var(--mes-ui-radius-sm) !important;
   background: #fff !important;
@@ -4864,34 +4072,26 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   font-size: 28px !important;
   font-weight: var(--mes-ui-weight-semibold) !important;
   line-height: 1 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-clear{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-clear{
   visibility: hidden !important;
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
   color: transparent !important;
   pointer-events: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-delete{
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-keypad .auth-prototype-keypad-delete{
   border-color: rgba(37, 99, 235, 0.2) !important;
   background: rgba(239, 246, 255, 0.96) !important;
   color: #1d4ed8 !important;
 }
 
-@media (max-width: 1320px) {
-  main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
+@media (max-width: 1320px) {main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] :is(
     .auth-prototype-department-grid,
     .auth-prototype-unit-grid,
     .auth-prototype-people-grid
   ){
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
-}
-
-/* Gantt v1.373: department/resource names in the frozen column should not read as bold headings. */
+  }}/* Gantt v1.373: department/resource names in the frozen column should not read as bold headings. */
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name,
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong,
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name,
@@ -4899,9 +4099,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shel
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name{
   font-weight: 400 !important;
-}
-
-/* Gantt v1.375: slot edit modal keeps QA accessible while backdrop covers the topbar. */
+}/* Gantt v1.375: slot edit modal keeps QA accessible while backdrop covers the topbar. */
 main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .slot-form-modal .modal-header-actions,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .slot-form-modal .modal-header-actions{
   display: flex;
@@ -4909,16 +4107,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .slot-form-
   justify-content: flex-end;
   gap: 8px;
   flex: 0 0 auto;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .slot-form-modal .slot-form-qa-button.is-qa-active,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .slot-form-modal .slot-form-qa-button.is-qa-active{
-  border-color: var(--mes-signal-test-border);
-  background: var(--mes-signal-test-soft);
-  color: var(--mes-signal-test);
-}
-
-/* Planning v1.491: work-order screen follows the document-tree/detail pattern from Shift Work Orders. */
+}/* Planning v1.491: work-order screen follows the document-tree/detail pattern from Shift Work Orders. */
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page{
   --planning-order-accent: var(--mes-ui-sidebar-bg, #10233c);
   --planning-order-accent-text: #f8fafc;
@@ -4933,26 +4122,20 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   --planning-order-text-muted: #64748b;
   --planning-order-detail-line: rgba(16, 35, 60, 0.16);
   --planning-order-detail-soft: #f8fafc;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
   display: grid;
   align-content: start;
   gap: 10px;
   min-width: 0;
   overflow: auto;
   padding: 10px 12px 16px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
   display: grid;
-  grid-template-columns: minmax(680px, 1.32fr) minmax(420px, 0.88fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   align-items: start;
   min-width: 0;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
@@ -4963,34 +4146,26 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   background: var(--mes-ui-surface);
   padding: 10px 12px;
   box-shadow: none;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header h2{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header h2{
   margin: 0;
   color: var(--planning-order-text-strong);
   font-size: 15px;
   font-weight: 680;
   line-height: 18px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header p{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header p{
   margin: 2px 0 0;
   color: var(--planning-order-text-muted);
   font-size: 11px;
   font-weight: 500;
   line-height: 14px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control{
   display: grid;
   gap: 3px;
   color: var(--planning-order-text-muted);
   font-size: 10px;
   font-weight: 600;
   line-height: 12px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control input{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control input{
   min-height: 30px;
   border: 1px solid rgba(16, 35, 60, 0.16);
   border-radius: var(--mes-ui-radius-sm);
@@ -5000,50 +4175,35 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   font-weight: 600;
   line-height: 14px;
   padding: 0 8px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel{
   min-width: 0;
   border-color: rgba(16, 35, 60, 0.12);
   box-shadow: none;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head{
   min-height: 42px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   background: var(--planning-order-accent);
   color: var(--planning-order-accent-text);
   padding: 8px 10px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head strong{
   color: var(--planning-order-accent-text);
   font-size: 12px;
   font-weight: 680;
   line-height: 15px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head span{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head span{
   color: var(--planning-order-accent-muted);
   font-size: 10px;
   font-weight: 500;
   line-height: 13px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head .ui-status-token{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head .ui-status-token{
   border-color: rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.14);
   color: var(--planning-order-accent-text);
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-map > .ui-panel-body,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-body{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-map > .ui-panel-body{
   display: grid;
   gap: 10px;
   padding: 10px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-strip{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-strip{
   display: grid !important;
   grid-template-columns: minmax(170px, 0.65fr) minmax(0, 1.35fr) !important;
   gap: 8px !important;
@@ -5053,18 +4213,14 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   background: var(--mes-ui-surface) !important;
   padding: 7px !important;
   box-shadow: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary{
   display: grid;
   align-content: center;
   gap: 2px;
   min-width: 0;
   border-right: 1px solid rgba(16, 35, 60, 0.12);
   padding: 2px 10px 2px 4px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary span,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary span,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary small,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric span,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric small{
@@ -5076,9 +4232,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   line-height: 12px !important;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary strong{
   min-width: 0;
   overflow: hidden;
   color: var(--planning-order-text-strong) !important;
@@ -5087,16 +4241,12 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   line-height: 14px !important;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metrics{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metrics{
   display: grid !important;
   grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   gap: 0 !important;
   min-width: 0;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric{
   display: grid !important;
   align-content: center !important;
   gap: 2px !important;
@@ -5109,22 +4259,14 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   padding: 2px 7px !important;
   box-shadow: none !important;
   text-align: left !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:first-child{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:first-child{
   border-left: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button){
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button){
   cursor: pointer;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button):hover,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button):hover,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric.is-active{
   background: rgba(16, 35, 60, 0.045) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric strong{
   min-width: 0;
   overflow: hidden;
   color: var(--planning-order-text-strong) !important;
@@ -5133,21 +4275,15 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   line-height: 14px !important;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table-wrap{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table-wrap{
   overflow-x: hidden !important;
   overflow-y: hidden !important;
   border-radius: var(--mes-ui-radius-sm);
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table{
   width: 100% !important;
   min-width: 0 !important;
   table-layout: fixed !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td){
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td){
   box-sizing: border-box;
   min-width: 0;
   padding: 6px 6px !important;
@@ -5156,40 +4292,24 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   font-weight: 500;
   line-height: 15px;
   vertical-align: middle;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td{
   border-top: 0 !important;
   border-bottom: 0 !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td:first-child{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td:first-child{
   overflow: visible;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
   width: 34%;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
   width: 33%;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
   width: 13%;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
   width: 9%;
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(5){
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(5){
   width: 11%;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th{
   padding-top: 9px !important;
   padding-bottom: 9px !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
@@ -5199,40 +4319,34 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   font-weight: 720 !important;
   line-height: 12px !important;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th + th{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th + th{
   border-left: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:first-child{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:first-child{
   border-top-left-radius: var(--mes-ui-radius-sm);
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:last-child{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:last-child{
   border-top-right-radius: var(--mes-ui-radius-sm);
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row){
+  padding-right: 10px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:last-child{
+  padding-right: 10px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row){
   cursor: pointer;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row):hover td{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row):hover td{
   background: rgba(16, 35, 60, 0.045) !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected td{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected td{
   background: #fff !important;
   box-shadow: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected{
   outline: 1px solid var(--planning-order-accent-line);
   outline-offset: -1px;
   filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(.planning-order-object-row.is-selected, .planning-order-step-row.is-selected) td{
+  background: #fff !important;
+  box-shadow: none !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(.planning-order-object-row.is-selected, .planning-order-step-row.is-selected){
+  outline: 1px solid var(--planning-order-accent-line);
+  outline-offset: -1px;
+  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell{
   --speki-tree-step: 30px;
   --speki-tree-line-color: var(--planning-order-tree-line);
   --speki-tree-line-bleed-top: 24px;
@@ -5242,9 +4356,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   height: 100%;
   padding-top: 5px;
   padding-bottom: 5px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell > .speki-tree-start-dot{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell > .speki-tree-start-dot{
   position: absolute;
   top: 50%;
   left: calc(var(--speki-level) * var(--speki-tree-step) + 7px);
@@ -5257,112 +4369,96 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   background: var(--planning-order-tree-line);
   box-shadow: none;
   transform: translate(-50%, -50%);
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected .route-tree-cell > .speki-tree-start-dot{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected .route-tree-cell > .speki-tree-start-dot{
   border-color: var(--planning-order-tree-active-dot);
   background: var(--planning-order-tree-active-dot);
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell.has-children:not(.is-last) > .speki-tree-branch::before{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell.has-children:not(.is-last) > .speki-tree-branch::before{
   bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell{
+  --speki-tree-line-bleed-top: 34px;
+  --speki-tree-line-bleed-bottom: 34px;
+  height: 100%;
+  min-height: 100%;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .planning-order-step-row .route-tree-cell{
+  --speki-tree-line-bleed-top: 34px;
+  --speki-tree-line-bleed-bottom: 34px;
+  height: auto;
+  min-height: 38px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell > .speki-tree-guide,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell > .speki-tree-branch::before{
+  top: calc(-1 * var(--speki-tree-line-bleed-top));
+  bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell{
   display: grid;
   gap: 1px;
   min-width: 0;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell :is(strong, small),
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell :is(strong, small),
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table td :is(strong, small){
   display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-object-row td:first-child strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-object-row td:first-child strong{
   color: var(--planning-order-text-strong);
   font-size: 12px;
   font-weight: 680;
   line-height: 15px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-step-row td:first-child strong{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-step-row td:first-child strong{
   color: var(--planning-order-text-strong);
   font-size: 11px;
   font-weight: 600;
   line-height: 15px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell small,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell small,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table td small{
   color: var(--planning-order-text-muted);
   font-size: 10px;
   font-weight: 500;
   line-height: 12px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-state-token,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-labor-note-field,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
   border-color: rgba(16, 35, 60, 0.14) !important;
   background: #fff !important;
   box-shadow: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell{
   display: grid;
   gap: 1px;
   min-height: 30px;
   padding: 4px 6px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell strong{
-  color: var(--planning-order-text-main) !important;
-  font-size: 10px !important;
-  font-weight: 650 !important;
-  line-height: 12px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell small{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell strong{
+  color: var(--planning-order-text-secondary) !important;
+  font-size: 11px !important;
+  font-weight: 560 !important;
+  line-height: 15px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell small{
   color: var(--planning-order-text-muted) !important;
-  font-size: 9px !important;
+  font-size: 10px !important;
   font-weight: 500 !important;
-  line-height: 11px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
+  line-height: 12px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
   padding: 6px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-head{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-head{
   display: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-grid{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-grid{
   display: grid !important;
   grid-template-columns: minmax(96px, 0.9fr) minmax(86px, 0.75fr) minmax(84px, 0.6fr) minmax(102px, 0.8fr) !important;
   gap: 6px !important;
   align-items: stretch !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-fields{
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-fields{
   display: contents !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result{
   min-width: 0 !important;
   min-height: 28px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field input,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field input,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode select,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference input{
   width: 100% !important;
@@ -5377,9 +4473,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-m
   line-height: 14px !important;
   padding: 0 7px !important;
   box-shadow: none !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference:not(.is-editable){
   display: grid !important;
   align-content: center !important;
@@ -5388,25 +4482,19 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-m
   border-radius: var(--mes-ui-radius-sm) !important;
   background: var(--planning-order-detail-soft) !important;
   padding: 4px 6px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result :is(span, strong),
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result :is(span, strong),
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference :is(span, strong){
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result span,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result span,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference span{
   color: var(--planning-order-text-muted) !important;
   font-size: 9px !important;
   font-weight: 500 !important;
   line-height: 11px !important;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result strong,
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result strong,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference strong{
   color: var(--planning-order-text-strong) !important;
   font-size: 10px !important;
@@ -5414,106 +4502,197 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-m
   line-height: 12px !important;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-stack{
+/* Planning work orders: full-width document workspace aligned with Shift Work Orders. */
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-full-width{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  flex-wrap: initial !important;
+  align-items: stretch !important;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main{
+  width: 100%;
+  min-width: 0;
+  flex: none !important;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
+  overflow: auto;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
+  grid-template-columns: minmax(680px, 1.35fr) minmax(420px, 0.85fr);
+  align-items: start;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-strip{
   display: grid;
-  align-content: start;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
   min-width: 0;
 }
-
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid rgba(16, 35, 60, 0.14);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--planning-order-text-main);
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip:hover{
+  background: rgba(16, 35, 60, 0.035);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip.is-active{
+  outline: 1px solid var(--planning-order-accent-line);
+  outline-offset: -1px;
+  background: #fff;
+  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.08));
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip small{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip span{
+  display: grid;
+  gap: 1px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip strong{
+  color: var(--planning-order-text-strong);
+  font-size: 11px;
+  font-weight: 640;
+  line-height: 14px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip small{
+  color: var(--planning-order-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
+  width: 36%;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
+  width: 22%;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
+  width: 16%;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
+  width: 11%;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(5){
+  width: 15%;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary{
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(16, 35, 60, 0.14);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--planning-order-text-main);
+  padding: 4px 6px;
+  text-align: left;
+  cursor: pointer;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary:hover,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary.is-active{
+  background: rgba(16, 35, 60, 0.045);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary small{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary span{
+  color: var(--planning-order-text-muted);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 11px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary strong{
+  color: var(--planning-order-text-strong);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 13px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary small{
+  color: var(--planning-order-text-muted);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 11px;
+}
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel{
   color: var(--planning-order-text-main);
   font-size: 11px;
   line-height: 15px;
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer{
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-head .ui-action-button,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-head .ui-status-token{
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--planning-order-accent-text);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel .ui-panel-body{
   display: grid;
+  gap: 8px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
   gap: 8px;
   min-width: 0;
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary{
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary.is-decision{
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume{
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  border: 1px solid var(--planning-order-detail-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface);
-  overflow: hidden;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer{
-  grid-template-columns: minmax(112px, 1fr) 22px minmax(112px, 1fr) 22px minmax(112px, 1fr);
-  align-items: stretch;
-  gap: 6px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer article{
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  border: 1px solid var(--planning-order-detail-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface);
-  padding: 7px 8px;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume article{
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article{
   display: grid;
   align-content: center;
   gap: 3px;
   min-width: 0;
-  min-height: 58px;
-  border-left: 1px solid var(--planning-order-detail-line);
+  border: 1px solid var(--planning-order-detail-line);
+  border-radius: var(--mes-ui-radius-sm);
   background: var(--mes-ui-surface);
   padding: 7px 8px;
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume article:first-child{
-  border-left: 0;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary small,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume small,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer small{
-  min-width: 0;
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article:first-child{
+  position: relative;
   overflow: hidden;
+  border-color: var(--planning-order-detail-line);
+  box-shadow: none;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary :is(span, small),
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list :is(span, small),
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer :is(span, small){
+  min-width: 0;
   color: var(--planning-order-text-muted);
   font-size: 10px;
   font-weight: 500;
   line-height: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-volume strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer strong{
-  min-width: 0;
-  overflow: hidden;
-  color: var(--planning-order-text-strong);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article.is-accent > span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer article.is-current > span{
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article:first-child > span,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article.is-current > span{
   justify-self: start;
   min-height: 18px;
   max-width: 100%;
+  overflow: hidden;
   border: 1px solid rgba(16, 35, 60, 0.18);
   border-radius: 999px;
   background: var(--planning-order-accent);
@@ -5522,26 +4701,92 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   font-weight: 720;
   line-height: 13px;
   padding: 2px 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer-link{
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer strong{
+  min-width: 0;
+  color: var(--planning-order-text-strong);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  overflow-wrap: anywhere;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list{
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--planning-order-detail-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  padding: 8px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list header{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list article{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, auto) minmax(72px, auto);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 28px;
+  border-top: 1px solid rgba(16, 35, 60, 0.08);
+  padding-top: 6px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list p{
+  margin: 0;
+  color: var(--planning-order-text-muted);
+  font-size: 11px;
+  line-height: 15px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer{
+  display: grid;
+  grid-template-columns: minmax(112px, 1fr) 22px minmax(112px, 1fr) 22px minmax(112px, 1fr);
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid var(--planning-order-detail-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: 7px 8px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article.is-current{
+  border-color: var(--planning-order-accent-line);
+  background: var(--mes-ui-surface);
+  box-shadow: none;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer-link{
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   align-self: center;
   height: 20px;
   pointer-events: none;
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer-link::before{
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer-link::before{
   width: 100%;
   height: 1px;
   background: var(--planning-order-tree-line);
   content: "";
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-transfer-link::after{
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer-link::after{
   position: absolute;
   top: 50%;
   right: 1px;
@@ -5552,20 +4797,24 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   content: "";
   transform: translateY(-50%) rotate(45deg);
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-extra{
-  display: grid;
-  gap: 10px;
-  min-width: 0;
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-grid{
+  grid-template-columns: minmax(92px, 0.9fr) minmax(92px, 0.9fr) minmax(96px, 0.9fr) minmax(92px, 0.8fr) !important;
 }
-
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-extra .planning-order-record{
-  border-color: rgba(16, 35, 60, 0.12);
-  box-shadow: none;
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-labor.is-detail-mode{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+  min-width: 0 !important;
 }
-
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-labor.is-detail-mode .planning-manual-inline-grid{
+  width: 100% !important;
+  min-width: 0 !important;
+}
 @media (max-width: 1540px) {
   main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
     grid-template-columns: minmax(0, 1fr);
+  }
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary.is-decision{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

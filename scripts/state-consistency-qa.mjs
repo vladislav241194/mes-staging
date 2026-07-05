@@ -207,12 +207,11 @@ async function assertRuntimeFactQuantityNormalizers() {
     : "";
   assert(durationFunctionSource, "calculateRequiredDurationMs() was not found for labor-source precedence QA.");
   const workOrderIndex = durationFunctionSource.indexOf("calculatePlanningOrderLaborDurationMs");
-  const componentIndex = durationFunctionSource.indexOf("calculateSmtOperationDurationMs");
   const manualIndex = durationFunctionSource.indexOf("calculateManualLaborDurationMs");
   const normativeIndex = durationFunctionSource.indexOf("calculateNormativeSerialDurationMs");
   const rateIndex = durationFunctionSource.indexOf("calculateRateDurationMs");
-  assert(workOrderIndex >= 0, "Gantt duration must read work-order labor before fallback calculators.");
-  [componentIndex, manualIndex, normativeIndex, rateIndex]
+  assert(workOrderIndex >= 0, "Gantt duration must read work-order labor before fallback duration models.");
+  [manualIndex, normativeIndex, rateIndex]
     .filter((index) => index >= 0)
     .forEach((fallbackIndex) => {
       assert(workOrderIndex < fallbackIndex, "Work-order labor must have higher priority than SMT/manual/normative/rate fallback duration.");
@@ -323,7 +322,7 @@ async function main() {
       const employeeIds = new Set(matrixEmployeeIds || []);
       const allowedSlotStatuses = new Set(statusContracts.ganttSlot || []);
       const allowedWorkOrderPlanningStatuses = new Set(statusContracts.workOrderPlanning || []);
-      const allowedLaborModes = new Set(["calculator", "fixed", "unit", "panel", "shift"]);
+      const allowedLaborModes = new Set(["fixed", "unit", "panel", "shift"]);
       const allowedAssignmentStatuses = new Set(statusContracts.shiftAssignment || []);
       const allowedFactStatuses = new Set(statusContracts.dispatchFact || []);
       const getSlotPlanningOrderId = (slot, step) => slot?.planningOrderId || slot?.routeId || step?.routeId || slot?.batchId || "";
@@ -370,7 +369,7 @@ async function main() {
         if (slot.planningLaborSource === "work_order") {
           if (!planningOrder?.planningLaborByStepId?.[slot.routeStepId]) errors.push(`slot ${slot.id} uses work-order labor without route planning labor setting`);
           if (!allowedLaborModes.has(slot.planningLaborMode)) errors.push(`slot ${slot.id} has invalid planning labor mode ${slot.planningLaborMode}`);
-          if (slot.planningLaborMode !== "calculator" && Number(slot.planningLaborDurationMs || 0) <= 0) errors.push(`slot ${slot.id} has work-order labor without duration`);
+          if (Number(slot.planningLaborDurationMs || 0) <= 0) errors.push(`slot ${slot.id} has work-order labor without duration`);
           if (slot.planningLaborMode === "unit" && Number(slot.planningLaborMinutesPerUnit || 0) <= 0) errors.push(`slot ${slot.id} has unit labor without minutesPerUnit`);
           if (slot.planningLaborMode === "panel" && Number(slot.planningLaborMinutesPerPanel || 0) <= 0) errors.push(`slot ${slot.id} has panel labor without minutesPerPanel`);
           if (slot.planningLaborMode === "fixed" && Number(slot.planningLaborFixedMinutes || 0) <= 0) errors.push(`slot ${slot.id} has fixed labor without fixedMinutes`);

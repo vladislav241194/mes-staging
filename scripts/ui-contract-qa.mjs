@@ -20,7 +20,7 @@ const paths = {
   uiCoreStyles: path.join(rootDir, "styles", "mes-ui-core.css"),
   build: path.join(rootDir, "scripts", "build.mjs"),
   localServerWrapper: path.join(rootDir, "scripts", "run-with-local-server.mjs"),
-  visualQa: path.join(rootDir, "scripts", "design-qa-snapshots.mjs"),
+  designSnapshots: path.join(rootDir, "scripts", "design-qa-snapshots.mjs"),
   package: path.join(rootDir, "package.json"),
   visualDocs: path.join(rootDir, "docs", "mes-visual-system-v1.md"),
   speedDocs: path.join(rootDir, "docs", "mes-prototyping-speed-v1.md"),
@@ -29,6 +29,10 @@ const paths = {
   hardRuntimeLegacyRoadmapDocs: path.join(rootDir, "docs", "hard-ui-runtime-legacy-roadmap-v2.md"),
   workflowPreset: path.join(rootDir, "workflow-preset.json"),
   uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.js"),
+  uiHtml: path.join(rootDir, "src", "ui", "html.js"),
+  uiComponents: path.join(rootDir, "src", "ui", "components.js"),
+  uiRuntimeCoverageContracts: path.join(rootDir, "src", "ui", "contracts", "runtime-contracts.js"),
+  uiHardeningPlanContracts: path.join(rootDir, "src", "ui", "contracts", "hardening-plan-contracts.js"),
   uiRuntimeCoverageQa: path.join(rootDir, "scripts", "ui-runtime-coverage-qa.mjs"),
   uiHardeningPlanQa: path.join(rootDir, "scripts", "ui-hardening-plan-qa.mjs"),
 };
@@ -66,14 +70,14 @@ const browserQaScriptFiles = [
   "scripts/shift-master-board-functional-qa.mjs",
 ];
 
-const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource, localServerWrapperSource, visualQaSource, packageSource, visualDocsSource, speedDocsSource, componentMapDocsSource, hardRuntimeCoverageDocsSource, hardRuntimeLegacyRoadmapDocsSource, workflowPresetSource, uiRuntimeContractsSource, uiRuntimeCoverageQaSource, uiHardeningPlanQaSource] = await Promise.all([
+const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource, localServerWrapperSource, designSnapshotsSource, packageSource, visualDocsSource, speedDocsSource, componentMapDocsSource, hardRuntimeCoverageDocsSource, hardRuntimeLegacyRoadmapDocsSource, workflowPresetSource, uiRuntimeContractsSource, uiRuntimeCoverageQaSource, uiHardeningPlanQaSource] = await Promise.all([
   fs.readFile(paths.app, "utf8"),
   fs.readFile(paths.index, "utf8"),
   fs.readFile(paths.styles, "utf8"),
   fs.readFile(paths.uiCoreStyles, "utf8"),
   fs.readFile(paths.build, "utf8"),
   fs.readFile(paths.localServerWrapper, "utf8"),
-  fs.readFile(paths.visualQa, "utf8"),
+  fs.readFile(paths.designSnapshots, "utf8"),
   fs.readFile(paths.package, "utf8"),
   fs.readFile(paths.visualDocs, "utf8"),
   fs.readFile(paths.speedDocs, "utf8").catch(() => ""),
@@ -90,12 +94,21 @@ const stylesSource = [
   ...await Promise.all(styleLayerFiles.filter((file) => file !== "styles.css").map((file) => fs.readFile(path.join(rootDir, file), "utf8"))),
 ].join("\n");
 const browserQaSources = await Promise.all(browserQaScriptFiles.map((file) => fs.readFile(path.join(rootDir, file), "utf8")));
+const [uiHtmlSource, uiComponentsSource, uiRuntimeCoverageContractsSource, uiHardeningPlanContractsSource] = await Promise.all([
+  fs.readFile(paths.uiHtml, "utf8"),
+  fs.readFile(paths.uiComponents, "utf8"),
+  fs.readFile(paths.uiRuntimeCoverageContracts, "utf8"),
+  fs.readFile(paths.uiHardeningPlanContracts, "utf8"),
+]);
+const uiRuntimeJsSource = [appSource, uiHtmlSource, uiComponentsSource].join("\n");
+const uiRuntimeContractsAllSource = [uiRuntimeContractsSource, uiRuntimeCoverageContractsSource, uiHardeningPlanContractsSource].join("\n");
+const uiAllCssSource = [stylesSource, uiCoreStylesSource].join("\n");
 
 const failures = [];
 const warnings = [];
 const removedReportDebugModulePattern = /reports-page|report-sidebar|report-workspace|report-(?:app-shell|content|main|chart-grid|chart-card|table-card|insights|dashboard-workspace|header|kpi|kpi-grid)|debug-(?:action-menu|app-shell|check-list|chip-select|combobox|command-input|content|dense-row|drawer|drawer-backdrop|dropdown-menu|dropdown-panel|error-tip|index|inline-options|inline-select|menu-panel|metric-popover|mini-list|modal-grid|popover|popover-stage|segment-label|select-button|spec-grid|status-select|stepper-card|stepper-grid|steps|tree-select|usage-grid|validation|wizard-modal)|debug-page|debug-sidebar|debug-workspace|debug-card|debug-section|data-layout-page="(?:reports|debug)"|module=(?:reports|debug)|id:\s*["'](?:reports|debug)["']|activeModule\s*={2,3}\s*["'](?:reports|debug)["']/;
 const removedDashboardLayoutPattern = /dashboard-app-shell|dashboard-page|dashboard-control-room|dashboard-header|dashboard-time|dashboard-grid|dashboard-status-grid|dashboard-workspace|data-layout-page="dashboard"|module=dashboard|id:\s*["']dashboard["']|activeModule\s*={2,3}\s*["']dashboard["']/;
-const removedStandaloneShellPattern = /(?:calculator|project|specification)-app-shell/;
+const removedStandaloneShellPattern = /(?:project|specification)-app-shell/;
 const removedProjectUiPattern = /project-(?:binding|list|card|row|panel|relation|route|main|name-line|meta|status|readiness|module-content|editor-panel)|projectBinding|projectList|director-project-|data-focus-project/;
 
 function fail(message) {
@@ -167,6 +180,8 @@ const requiredUiHelpers = [
   "function renderUiDemoBadge",
   "function renderUiActionButton",
   "function renderUiActionBar",
+  "function renderUiToolbar",
+  "function renderUiFilterBar",
   "function renderUiSidebarItem",
   "function renderUiModuleSidebar",
   "function renderUiModulePage",
@@ -185,7 +200,7 @@ const requiredUiHelpers = [
   "function applyUiRuntimeContracts",
 ];
 
-requiredUiHelpers.forEach((helper) => checkIncludes(`Нет UI Core helper: ${helper}`, appSource, helper));
+requiredUiHelpers.forEach((helper) => checkIncludes(`Нет UI Core helper: ${helper}`, uiRuntimeJsSource, helper));
 
 const requiredUiCss = [
   ".ui-panel",
@@ -199,6 +214,8 @@ const requiredUiCss = [
   ".ui-panel-head",
   ".ui-panel-head-copy",
   ".ui-action-bar",
+  ".ui-toolbar",
+  ".ui-filter-bar",
   ".ui-action-button",
   ".ui-form-field",
   ".ui-sidebar-list",
@@ -215,7 +232,7 @@ const requiredUiCss = [
   ".app-module-annotation",
 ];
 
-requiredUiCss.forEach((selector) => checkIncludes(`Нет CSS-контракта ${selector}`, uiCoreStylesSource, selector));
+requiredUiCss.forEach((selector) => checkIncludes(`Нет CSS-контракта ${selector}`, uiAllCssSource, selector));
 
 const requiredUiComponentMarkers = [
   "data-ui-component=\"AppShell\"",
@@ -230,6 +247,8 @@ const requiredUiComponentMarkers = [
   "data-ui-component=\"ModuleHeader\"",
   "data-ui-component=\"ActionButton\"",
   "data-ui-component=\"ActionBar\"",
+  "data-ui-component=\"Toolbar\"",
+  "data-ui-component=\"FilterBar\"",
   "data-ui-component=\"SidebarItem\"",
   "data-ui-component=\"TableWrap\"",
   "data-ui-component=\"FormField\"",
@@ -242,15 +261,15 @@ const requiredUiComponentMarkers = [
   "data-ui-component=\"DemoMarker\"",
 ];
 
-requiredUiComponentMarkers.forEach((marker) => checkIncludes(`Нет UI runtime marker ${marker}`, appSource, marker));
+requiredUiComponentMarkers.forEach((marker) => checkIncludes(`Нет UI runtime marker ${marker}`, uiRuntimeJsSource, marker));
 UI_RUNTIME_COMPONENT_CONTRACTS.forEach((contract) => {
-  checkIncludes(`Нет UI component contract ${contract.component} в ui_runtime_contracts`, uiRuntimeContractsSource, `component: "${contract.component}"`);
+  checkIncludes(`Нет UI component contract ${contract.component} в ui_runtime_contracts`, uiRuntimeContractsAllSource, `component: "${contract.component}"`);
   (contract.helperNames || []).forEach((helperName) => {
-    checkIncludes(`Контракт ${contract.component} ссылается на отсутствующий helper ${helperName}`, appSource, `function ${helperName}`);
+    checkIncludes(`Контракт ${contract.component} ссылается на отсутствующий helper ${helperName}`, uiRuntimeJsSource, `function ${helperName}`);
   });
   (contract.cssSelectors || []).forEach((selector) => {
     if (!selector.startsWith(".")) return;
-    checkIncludes(`Контракт ${contract.component} ссылается на отсутствующий CSS selector ${selector}`, uiCoreStylesSource, selector);
+    checkIncludes(`Контракт ${contract.component} ссылается на отсутствующий CSS selector ${selector}`, uiAllCssSource, selector);
   });
 });
 UI_RUNTIME_STYLE_TOKENS.forEach((token) => {
@@ -283,22 +302,22 @@ checkNoMatches("Runtime TableWrap должен явно фиксировать h
 checkNoMatches("Внутренний сайдбар должен использовать module-data-sidebar", appSource, /<aside\s+class="directory-sidebar(?! module-data-sidebar)/);
 checkIncludes("index.html не подключает физический UI Core CSS слой", indexSource, "./styles/mes-ui-core.css");
 checkIncludes("build.mjs не копирует/версирует физический UI Core CSS слой", buildSource, "mes-ui-core.css");
-checkIncludes("renderUiPanelHead должен держать текстовую часть в ui-panel-head-copy", appSource, "class=\"ui-panel-head-copy\"");
+checkIncludes("renderUiPanelHead должен держать текстовую часть в ui-panel-head-copy", uiRuntimeJsSource, "class=\"ui-panel-head-copy\"");
 checkNoMatches("Runtime не должен возвращать старый report-card-head; использовать ui-panel-head", appSource, /report-card-head/);
 checkIncludes("UI Core должен нормализовать вложенный текст заголовка панели", uiCoreStylesSource, ".ui-panel-head-copy > div");
 checkIncludes("UI Core должен задавать form field contract", uiCoreStylesSource, ".ui-form-field > :is(input, select, textarea)");
 checkIncludes("UI Core должен задавать viewport-safe dropdown menu", uiCoreStylesSource, "max-height: min(360px, calc(100vh - 96px))");
 checkIncludes("UI Core должен задавать GanttBar segment contract", uiCoreStylesSource, ".ui-gantt-bar-segment");
-checkIncludes("Visual QA не фиксирует раскрытую трудоемкость маршрутной карты", visualQaSource, "routes-labor-open");
-checkIncludes("Visual QA не фиксирует открытую карточку операции Ганта", visualQaSource, "gantt-slot-editor-open");
-checkIncludes("Visual QA не фиксирует открытый фильтр справочника", visualQaSource, "directories-filter-open");
-checkIncludes("Visual QA не фиксирует печатную форму маршрутной карты", visualQaSource, "routes-print-preview-open");
-checkIncludes("Visual QA не фиксирует модалку Табеля", visualQaSource, "timesheet-editor-open");
-checkIncludes("Visual QA не фиксирует сменный лист Мастерской", visualQaSource, "shift-master-sheet-open");
-checkIncludes("Visual QA не фиксирует экран выбора отдела авторизации", visualQaSource, "authPrototype-departments");
-checkIncludes("Visual QA не фиксирует экран ввода PIN авторизации", visualQaSource, "authPrototype-pin");
-checkIncludes("Visual QA авторизации должен удалять qa-auth-bypass", visualQaSource, "targetUrl.searchParams.delete(\"qa-auth-bypass\")");
-checkIncludes("Документация Visual System не упоминает Visual QA", visualDocsSource, "Visual QA");
+checkIncludes("Design snapshots не фиксируют раскрытую трудоемкость маршрутной карты", designSnapshotsSource, "routes-labor-open");
+checkIncludes("Design snapshots не фиксируют открытую карточку операции Ганта", designSnapshotsSource, "gantt-slot-editor-open");
+checkIncludes("Design snapshots не фиксируют открытый фильтр справочника", designSnapshotsSource, "directories-filter-open");
+checkIncludes("Design snapshots не фиксируют печатную форму маршрутной карты", designSnapshotsSource, "routes-print-preview-open");
+checkIncludes("Design snapshots не фиксируют модалку Табеля", designSnapshotsSource, "timesheet-editor-open");
+checkIncludes("Design snapshots не фиксируют сменный лист Мастерской", designSnapshotsSource, "shift-master-sheet-open");
+checkIncludes("Design snapshots не фиксируют экран выбора отдела авторизации", designSnapshotsSource, "authPrototype-departments");
+checkIncludes("Design snapshots не фиксируют экран ввода PIN авторизации", designSnapshotsSource, "authPrototype-pin");
+checkIncludes("Design snapshots авторизации должны удалять qa-auth-bypass", designSnapshotsSource, "targetUrl.searchParams.delete(\"qa-auth-bypass\")");
+checkIncludes("Документация Visual System должна направлять точечные визуальные замечания в аннотацию браузера", visualDocsSource, "аннотацию браузера Codex");
 checkIncludes("Нет документа MES Prototyping Speed Pass v1", speedDocsSource, "MES Prototyping Speed Pass v1");
 checkIncludes("Документ speed-pass не фиксирует шаблон нового модуля", speedDocsSource, "Шаблон нового модуля");
 checkIncludes("Документ speed-pass не фиксирует QA gate", speedDocsSource, "QA gate");
@@ -310,27 +329,27 @@ checkIncludes("Документ Hard UI Runtime Coverage v2 не фиксиру�
 checkIncludes("Нет документа Hard UI Runtime Legacy Roadmap v2", hardRuntimeLegacyRoadmapDocsSource, "Hard UI Runtime Legacy Roadmap v2");
 checkIncludes("Legacy roadmap не фиксирует отдельный GanttRuntime", hardRuntimeLegacyRoadmapDocsSource, "GanttRuntime");
 checkIncludes("Coverage doc не ссылается на legacy roadmap", hardRuntimeCoverageDocsSource, "hard-ui-runtime-legacy-roadmap-v2.md");
-checkIncludes("renderUiTableWrap не маркирует horizontal-only scroll contract", appSource, "data-scroll-contract=\"horizontal-only\"");
+checkIncludes("renderUiTableWrap не маркирует horizontal-only scroll contract", uiRuntimeJsSource, "data-scroll-contract=\"horizontal-only\"");
 checkIncludes("UI Core не фиксирует horizontal-only scroll contract", uiCoreStylesSource, ".ui-table-wrap[data-scroll-contract=\"horizontal-only\"]");
 checkIncludes("UI Core table-wrap должен запрещать внутренний vertical scroll", uiCoreStylesSource, "overflow-y: hidden !important");
 checkIncludes("Runtime не применяет UI contracts после каждого render()", appSource, "applyUiRuntimeContracts();");
-checkIncludes("Нет hard UI runtime marker data-ui-runtime=\"hard-v1\"", appSource, "data-ui-runtime=\"hard-v1\"");
-checkIncludes("Module Runtime должен поддерживать полноширинные страницы", appSource, "hasSidebar ? \"has-sidebar\" : \"is-full-width\"");
+checkIncludes("Нет hard UI runtime marker data-ui-runtime=\"hard-v1\"", uiRuntimeJsSource, "data-ui-runtime=\"hard-v1\"");
+checkIncludes("Module Runtime должен поддерживать полноширинные страницы", uiRuntimeJsSource, "hasSidebar ? \"has-sidebar\" : \"is-full-width\"");
 checkIncludes("UI Core не фиксирует полноширинный hard runtime layout", uiCoreStylesSource, ".ui-module-page.is-full-width");
 checkIncludes("UI Core не фиксирует workspace hard runtime layout", uiCoreStylesSource, ".ui-module-workspace");
 checkIncludes("UI Core не фиксирует hard-runtime ModuleContent как вертикальный поток", uiCoreStylesSource, "[data-ui-component=\"ModuleContent\"].ui-module-content");
 checkIncludes("UI Core не фиксирует flex-column для hard-runtime ModuleContent", uiCoreStylesSource, "flex-direction: column !important");
 checkIncludes("UI Core не фиксирует защиту hard-runtime Panel от схлопывания", uiCoreStylesSource, "[data-ui-component=\"Panel\"].ui-panel");
 checkIncludes("UI Core не фиксирует hard-runtime PanelBody height:auto", uiCoreStylesSource, "[data-ui-component=\"Panel\"] > [data-ui-component=\"PanelBody\"]");
-checkMatchCount("Hard runtime marker должен выпускаться только renderUiModulePage", appSource, /data-ui-runtime="hard-v1"/g, 1);
-checkMatchCount("ModulePage marker должен выпускаться только renderUiModulePage", appSource, /data-ui-component="ModulePage"/g, 1);
+checkMatchCount("Hard runtime marker должен выпускаться только renderUiModulePage", uiRuntimeJsSource, /data-ui-runtime="hard-v1"/g, 1);
+checkMatchCount("ModulePage marker должен выпускаться только renderUiModulePage", uiRuntimeJsSource, /data-ui-component="ModulePage"/g, 1);
 checkIncludes("Runtime normalizer не подключает общий UI_RUNTIME_DOM_NORMALIZER_CONTRACTS", appSource, "UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach");
 checkIncludes("Runtime normalizer не подключает общий UI_RUNTIME_TABLE_SCROLL_SELECTORS", appSource, "UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach");
 UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach(({ component, selector }) => {
-  checkIncludes(`Runtime normalizer contract missing ${component}: ${selector}`, uiRuntimeContractsSource, `component: "${component}", selector: "${selector}"`);
+  checkIncludes(`Runtime normalizer contract missing ${component}: ${selector}`, uiRuntimeContractsAllSource, `component: "${component}", selector: "${selector}"`);
 });
 UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach((selector) => {
-  checkIncludes(`Runtime table scroll contract missing ${selector}`, uiRuntimeContractsSource, `"${selector}"`);
+  checkIncludes(`Runtime table scroll contract missing ${selector}`, uiRuntimeContractsAllSource, `"${selector}"`);
 });
 checkIncludes("module-smoke не содержит список hard-runtime модулей", browserQaSources.join("\n"), "HARD_UI_RUNTIME_MODULES");
 checkIncludes("module-smoke не импортирует общий список hard-runtime модулей", browserQaSources.join("\n"), "HARD_UI_RUNTIME_MODULE_IDS");
@@ -382,31 +401,31 @@ checkIncludes("module-smoke не проверяет fact scenarios в UI-сос�
 checkIncludes("module-smoke не проверяет выход Gantt samples за колонки UI-состояний", browserQaSources.join("\n"), "Gantt samples escape their mode columns");
 checkIncludes("module-smoke должен использовать эталонный MacBook Air 15 viewport", browserQaSources.join("\n"), "macbook-air-15");
 ["authPrototype", "authSessionPrototype", "planningTable", "matrix", "shiftWorkOrders", "timesheet", "roles", "productionStructureMatrix", "employees", "dispatch", "shiftMasterBoard", "supply", "shopMap", "directories", "products", "nomenclature", "routes", "planning"].forEach((moduleId) => {
-  checkIncludes(`ui_runtime_contracts не содержит hard-runtime модуль ${moduleId}`, uiRuntimeContractsSource, `"${moduleId}"`);
-  checkIncludes(`design-qa-snapshots должен включать hard-runtime модуль ${moduleId}`, visualQaSource, `"${moduleId}"`);
+  checkIncludes(`ui_runtime_contracts не содержит hard-runtime модуль ${moduleId}`, uiRuntimeContractsAllSource, `"${moduleId}"`);
+  checkIncludes(`design-qa-snapshots должен включать hard-runtime модуль ${moduleId}`, designSnapshotsSource, `"${moduleId}"`);
 });
-checkIncludes("ui_runtime_contracts должен фиксировать отсутствие partial-модулей", uiRuntimeContractsSource, "export const PARTIAL_UI_RUNTIME_MODULE_IDS = [];");
-checkIncludes("ui_runtime_contracts должен фиксировать special runtime модули", uiRuntimeContractsSource, "export const SPECIAL_UI_RUNTIME_MODULE_IDS = [");
-checkIncludes("ui_runtime_contracts должен фиксировать special runtime contracts", uiRuntimeContractsSource, "export const SPECIAL_UI_RUNTIME_CONTRACTS = {");
-checkIncludes("ui_runtime_contracts должен фиксировать отсутствие legacy-модулей", uiRuntimeContractsSource, "export const LEGACY_UI_RUNTIME_MODULE_IDS = [];");
+checkIncludes("ui_runtime_contracts должен фиксировать отсутствие partial-модулей", uiRuntimeContractsAllSource, "export const PARTIAL_UI_RUNTIME_MODULE_IDS = [];");
+checkIncludes("ui_runtime_contracts должен фиксировать special runtime модули", uiRuntimeContractsAllSource, "export const SPECIAL_UI_RUNTIME_MODULE_IDS = [");
+checkIncludes("ui_runtime_contracts должен фиксировать special runtime contracts", uiRuntimeContractsAllSource, "export const SPECIAL_UI_RUNTIME_CONTRACTS = {");
+checkIncludes("ui_runtime_contracts должен фиксировать отсутствие legacy-модулей", uiRuntimeContractsAllSource, "export const LEGACY_UI_RUNTIME_MODULE_IDS = [];");
 checkIncludes("UI runtime coverage QA должен проверять special runtime contracts", uiRuntimeCoverageQaSource, "Special UI runtime modules are missing runtime contracts");
 checkIncludes("UI runtime coverage QA должен фейлить возврат legacy-модулей", uiRuntimeCoverageQaSource, "expects no legacy modules after special runtime gates");
 checkIncludes("UI runtime coverage QA не подключен к qa:ui", packageSource, "ui-runtime-coverage-qa.mjs");
 checkIncludes("UI runtime class audit не подключен к qa:ui/qa:syntax", packageSource, "ui-runtime-class-audit.mjs");
 checkIncludes("UI Core не фиксирует runtime marker CSS contract", uiCoreStylesSource, "[data-ui-component=\"FormField\"] :is(input, select, textarea)");
 checkNoMatches("QA-скрипты не должны использовать устаревший UI storage key v2", browserQaSources.join("\n"), /mes-planning-prototype-ui-v2/);
-checkIncludes("Visual QA не проверяет unmarked UI components", visualQaSource, "const unmarkedComponents = []");
-checkIncludes("Visual QA не фейлит unmarked UI components", visualQaSource, "audit.counts.unmarkedComponents > 0");
-checkIncludes("Visual QA не подключает hard-runtime список для жесткой типографики", visualQaSource, "HARD_UI_RUNTIME_MODULE_IDS");
-checkIncludes("Visual QA не подключает special-runtime список для покрытия specialized-модулей", visualQaSource, "SPECIAL_UI_RUNTIME_MODULE_IDS");
-checkIncludes("Visual QA должен падать, если runtime-модуль не попал в визуальный прогон", visualQaSource, "design-qa-snapshots is missing runtime modules");
-checkIncludes("Visual QA должен падать, если runtime-модуль не попал в focus-прогон", visualQaSource, "design-qa-snapshots focus mode is missing runtime modules");
-checkIncludes("Visual QA не фейлит typographyWarnings в hard-runtime модулях", visualQaSource, "hardUiRuntimeModules.has(audit.module) && audit.counts.typographyWarnings > 0");
+checkIncludes("Design snapshots не проверяют unmarked UI components", designSnapshotsSource, "const unmarkedComponents = []");
+checkIncludes("Design snapshots не фейлят unmarked UI components", designSnapshotsSource, "audit.counts.unmarkedComponents > 0");
+checkIncludes("Design snapshots не подключают hard-runtime список для жесткой типографики", designSnapshotsSource, "HARD_UI_RUNTIME_MODULE_IDS");
+checkIncludes("Design snapshots не подключают special-runtime список для покрытия specialized-модулей", designSnapshotsSource, "SPECIAL_UI_RUNTIME_MODULE_IDS");
+checkIncludes("Design snapshots должны падать, если runtime-модуль не попал в визуальный прогон", designSnapshotsSource, "design-qa-snapshots is missing runtime modules");
+checkIncludes("Design snapshots должны падать, если runtime-модуль не попал в focus-прогон", designSnapshotsSource, "design-qa-snapshots focus mode is missing runtime modules");
+checkIncludes("Design snapshots не фейлят typographyWarnings в hard-runtime модулях", designSnapshotsSource, "hardUiRuntimeModules.has(audit.module) && audit.counts.typographyWarnings > 0");
 checkIncludes("Документ speed-pass не фиксирует Scroll-contract", speedDocsSource, "Scroll-contract для новых модулей");
 checkIncludes("Документ speed-pass не фиксирует runtime normalizer", speedDocsSource, "applyUiRuntimeContracts()");
 checkIncludes("Документ speed-pass не фиксирует opened states visual QA", speedDocsSource, "opened states");
 checkIncludes("Документ component map не фиксирует runtime normalizer", componentMapDocsSource, "Runtime normalizer");
-checkIncludes("UI-состояния не показывают UI-kit marker QA", appSource, "UI-kit marker QA");
+checkIncludes("UI-состояния не показывают UI-kit runtime contracts", appSource, "UI-kit runtime contracts");
 checkIncludes("PlanningTable не фиксирует локальный scroll rule", stylesSource, "Scroll rule: panels and table wrappers must not own vertical scrolling");
 checkIncludes("Матрица ролей должна исключать системный экран authPrototype", appSource, "getModuleDefinitions().filter((moduleItem) => moduleItem.id !== \"authPrototype\")");
 checkIncludes("Главный сайдбар должен держать Рабочий стол в Оперативном управлении", appSource, "ids: [\"dispatch\", \"shiftMasterBoard\", \"authSessionPrototype\", \"shiftWorkOrders\", \"matrix\"]");
@@ -469,7 +488,7 @@ checkNoMatches("Запрещено возвращать runtime модуля С�
 checkNoMatches("Запрещено возвращать удаленный модуль РКД в runtime/CSS", `${indexSource}\n${appSource}\n${stylesSource}\n${uiCoreStylesSource}`, /\brkd\b|РКД|rkd-|data-layout-page="rkd"|module=rkd/i);
 checkNoMatches("Запрещено возвращать удаленные reports/debug модули в runtime/CSS", `${indexSource}\n${appSource}\n${stylesSource}\n${uiCoreStylesSource}`, removedReportDebugModulePattern);
 checkNoMatches("Запрещено возвращать старый dashboard layout в runtime/CSS", `${indexSource}\n${appSource}\n${stylesSource}\n${uiCoreStylesSource}`, removedDashboardLayoutPattern);
-checkNoMatches("Запрещено возвращать старые standalone shell классы calculator/project/specification", `${indexSource}\n${appSource}\n${stylesSource}\n${uiCoreStylesSource}`, removedStandaloneShellPattern);
+checkNoMatches("Запрещено возвращать старые standalone shell классы project/specification", `${indexSource}\n${appSource}\n${stylesSource}\n${uiCoreStylesSource}`, removedStandaloneShellPattern);
 checkNoMatches("Запрещено возвращать самостоятельный bomLists layout; платы живут внутри Номенклатуры", `${indexSource}\n${appSource}\n${stylesSource}\n${uiCoreStylesSource}`, /data-layout-page="bomLists"|bom-list-app-shell/);
 checkNoMatches("Module panels не должны владеть внутренним vertical scroll", stylesSource, /(?:^|\n)[^{]*\.module-panel[^{]*\{[^}]*overflow(?:-y)?\s*:\s*(?:auto|scroll)\b/);
 checkNoCssRule(
@@ -491,7 +510,7 @@ appLines.forEach((line, index) => {
   }
 });
 
-const visualViewportNames = Array.from(visualQaSource.matchAll(/\{\s*name:\s*"([^"]+)"/g)).map((match) => match[1]);
+const visualViewportNames = Array.from(designSnapshotsSource.matchAll(/\{\s*name:\s*"([^"]+)"/g)).map((match) => match[1]);
 if (visualViewportNames.length !== 1 || visualViewportNames[0] !== "macbook-air-15") {
   fail(`design-qa-snapshots должен проверять один эталонный viewport macbook-air-15, найдено: ${visualViewportNames.join(", ") || "нет"}`);
 }
@@ -499,7 +518,7 @@ if (visualViewportNames.length !== 1 || visualViewportNames[0] !== "macbook-air-
   "productionStructureMatrix",
   "roles",
 ].forEach((moduleId) => {
-  if (!visualQaSource.includes(`"${moduleId}"`)) {
+  if (!designSnapshotsSource.includes(`"${moduleId}"`)) {
     fail(`design-qa-snapshots должен включать системный модуль ${moduleId}`);
   }
 });
@@ -508,7 +527,7 @@ if (visualViewportNames.length !== 1 || visualViewportNames[0] !== "macbook-air-
   "authPrototype-pin",
   "production-structure-master-manual-open",
 ].forEach((stateId) => {
-  if (!visualQaSource.includes(stateId)) {
+  if (!designSnapshotsSource.includes(stateId)) {
     fail(`design-qa-snapshots должен проверять состояние ${stateId}`);
   }
 });

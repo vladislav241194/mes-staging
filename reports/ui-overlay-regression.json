@@ -1,0 +1,893 @@
+{
+  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "overlays": [
+    {
+      "moduleId": "shiftWorkOrders",
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "selector": "[data-shift-work-order-print-preview]:not([disabled])",
+      "status": "warn",
+      "warnings": [
+        "overlay probe target not present in current state"
+      ],
+      "failures": []
+    },
+    {
+      "moduleId": "routes",
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "selector": "[data-route-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop",
+          "width": 1440,
+          "height": 932,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 5,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 900,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 4,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "timesheet",
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "selector": "[data-timesheet-day-button]",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.timesheet-editor-backdrop",
+          "width": 1440,
+          "height": 932,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 3,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 502,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 2,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "shiftMasterBoard",
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "selector": "[data-shift-board-print]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.shift-master-board-sheet-backdrop",
+          "width": 1440,
+          "height": 932,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 8,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 560,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "authSessionPrototype",
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "selector": "[data-auth-session-modal='issue']:not([disabled])",
+      "status": "warn",
+      "warnings": [
+        "overlay probe target not present in current state"
+      ],
+      "failures": []
+    },
+    {
+      "moduleId": "shiftWorkOrders",
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "selector": "[data-shift-work-order-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop.shift-work-order-print-backdrop",
+          "width": 1180,
+          "height": 820,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 788,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 6,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "routes",
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "selector": "[data-route-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop",
+          "width": 1180,
+          "height": 820,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 5,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 788,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 4,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "timesheet",
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "selector": "[data-timesheet-day-button]",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.timesheet-editor-backdrop",
+          "width": 1180,
+          "height": 820,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 3,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 502,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 2,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "shiftMasterBoard",
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "selector": "[data-shift-board-print]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.shift-master-board-sheet-backdrop",
+          "width": 1180,
+          "height": 820,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 8,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 560,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "authSessionPrototype",
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "selector": "[data-auth-session-modal='issue']:not([disabled])",
+      "status": "warn",
+      "warnings": [
+        "overlay probe target not present in current state"
+      ],
+      "failures": []
+    },
+    {
+      "moduleId": "shiftWorkOrders",
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "selector": "[data-shift-work-order-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop.shift-work-order-print-backdrop",
+          "width": 1024,
+          "height": 768,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 736,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 6,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "routes",
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "selector": "[data-route-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop",
+          "width": 1024,
+          "height": 768,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 5,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 736,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 4,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "timesheet",
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "selector": "[data-timesheet-day-button]",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.timesheet-editor-backdrop",
+          "width": 1024,
+          "height": 768,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 3,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 502,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 2,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "shiftMasterBoard",
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "selector": "[data-shift-board-print]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.shift-master-board-sheet-backdrop",
+          "width": 1024,
+          "height": 768,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 8,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 920,
+          "height": 560,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "authSessionPrototype",
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "selector": "[data-auth-session-modal='issue']:not([disabled])",
+      "status": "warn",
+      "warnings": [
+        "overlay probe target not present in current state"
+      ],
+      "failures": []
+    },
+    {
+      "moduleId": "shiftWorkOrders",
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "selector": "[data-shift-work-order-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop.shift-work-order-print-backdrop",
+          "width": 430,
+          "height": 932,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 414,
+          "height": 916,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 6,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "routes",
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "selector": "[data-route-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop",
+          "width": 430,
+          "height": 932,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 5,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 414,
+          "height": 916,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 4,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "timesheet",
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "selector": "[data-timesheet-day-button]",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.timesheet-editor-backdrop",
+          "width": 430,
+          "height": 932,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 3,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 414,
+          "height": 916,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 2,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "shiftMasterBoard",
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "selector": "[data-shift-board-print]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.shift-master-board-sheet-backdrop",
+          "width": 430,
+          "height": 932,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 8,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 414,
+          "height": 916,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "authSessionPrototype",
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "selector": "[data-auth-session-modal='issue']:not([disabled])",
+      "status": "warn",
+      "warnings": [
+        "overlay probe target not present in current state"
+      ],
+      "failures": []
+    },
+    {
+      "moduleId": "shiftWorkOrders",
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "selector": "[data-shift-work-order-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop.shift-work-order-print-backdrop",
+          "width": 390,
+          "height": 844,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 374,
+          "height": 828,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 6,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "routes",
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "selector": "[data-route-print-preview]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.route-print-backdrop",
+          "width": 390,
+          "height": 844,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 5,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 374,
+          "height": 828,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 4,
+          "closeCount": 2,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "timesheet",
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "selector": "[data-timesheet-day-button]",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.timesheet-editor-backdrop",
+          "width": 390,
+          "height": 844,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 3,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 374,
+          "height": 828,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 2,
+          "closeCount": 2,
+          "actionCount": 5,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "shiftMasterBoard",
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "selector": "[data-shift-board-print]:not([disabled])",
+      "status": "ok",
+      "failures": [],
+      "warnings": [],
+      "overlayCount": 2,
+      "overlays": [
+        {
+          "selector": "div.modal-backdrop.shift-master-board-sheet-backdrop",
+          "width": 390,
+          "height": 844,
+          "display": "grid",
+          "visibility": "visible",
+          "bodyCount": 8,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        },
+        {
+          "selector": "section.modal.ui-modal.large-modal",
+          "width": 374,
+          "height": 828,
+          "display": "block",
+          "visibility": "visible",
+          "bodyCount": 7,
+          "closeCount": 3,
+          "actionCount": 3,
+          "overflowX": 0,
+          "overflowY": 0
+        }
+      ],
+      "bodyOverflowX": 0,
+      "overflowThreshold": 16
+    },
+    {
+      "moduleId": "authSessionPrototype",
+      "viewport": {
+        "id": "narrow-compact",
+        "width": 390,
+        "height": 844,
+        "category": "narrow"
+      },
+      "selector": "[data-auth-session-modal='issue']:not([disabled])",
+      "status": "warn",
+      "warnings": [
+        "overlay probe target not present in current state"
+      ],
+      "failures": []
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 /* MES CSS layer: tokens,
 reset,
 base browser primitives.
-   Cascade order is controlled by root styles.css; do not import this file directly. */
+   Cascade order is controlled by root styles.css;do not import this file directly. */
 :root{
   --bg: #eef3f8;
   --panel: #ffffff;
@@ -81,5 +81,4 @@ body,
   }to{
     opacity: 1;
     transform: translateY(0);
-  }
-}
+  }}

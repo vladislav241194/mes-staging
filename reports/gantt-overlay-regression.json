@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2026-07-05T04:58:19.180Z",
+  "checks": [
+    {
+      "viewport": {
+        "id": "desktop",
+        "width": 1440,
+        "height": 932,
+        "category": "desktop"
+      },
+      "editor": {
+        "opened": true,
+        "closed": true,
+        "selector": "section.modal.ui-modal.large-modal"
+      },
+      "optimization": {
+        "opened": true,
+        "closed": true,
+        "selector": "section.modal.ui-modal.large-modal"
+      },
+      "dependencyEdit": {
+        "enabled": true,
+        "controls": 41,
+        "disabled": true
+      },
+      "failures": [],
+      "warnings": [],
+      "status": "ok"
+    },
+    {
+      "viewport": {
+        "id": "desktop-wide",
+        "width": 1512,
+        "height": 982,
+        "category": "desktop"
+      },
+      "status": "skipped",
+      "reason": "interaction smoke runs only on desktop"
+    },
+    {
+      "viewport": {
+        "id": "tablet",
+        "width": 1180,
+        "height": 820,
+        "category": "tablet"
+      },
+      "status": "skipped",
+      "reason": "interaction smoke runs only on desktop"
+    },
+    {
+      "viewport": {
+        "id": "tablet-compact",
+        "width": 1024,
+        "height": 768,
+        "category": "tablet"
+      },
+      "status": "skipped",
+      "reason": "interaction smoke runs only on desktop"
+    },
+    {
+      "viewport": {
+        "id": "narrow",
+        "width": 430,
+        "height": 932,
+        "category": "narrow"
+      },
+      "status": "skipped",
+      "reason": "interaction smoke runs only on desktop"
+    }
+  ],
+  "summary": {
+    "checks": 5,
+    "failures": 0,
+    "warnings": 0
+  },
+  "overlayComponents": [
+    {
+      "id": "drawer",
+      "selector": ".slot-drawer[data-gantt-overlay='drawer']",
+      "marker": "GanttDrawer"
+    },
+    {
+      "id": "editor",
+      "selector": ".slot-form-modal[data-gantt-overlay='editor']",
+      "marker": "GanttEditorModal"
+    },
+    {
+      "id": "optimization",
+      "selector": ".gantt-optimization-modal[data-gantt-overlay='optimization']",
+      "marker": "GanttOptimizationModal"
+    },
+    {
+      "id": "split",
+      "selector": ".gantt-split-modal[data-gantt-overlay='split']",
+      "marker": "GanttSplitModal",
+      "optional": true
+    }
+  ]
+}
