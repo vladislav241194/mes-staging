@@ -1,11 +1,11 @@
 # Gantt Inline Style Classification
 
-Generated: 2026-07-05T04:50:15.435Z
+Generated: 2026-07-05T20:34:48.353Z
 
 ## Summary
 
-- inline style entries: 20
-- geometry entries: 20
+- inline style entries: 16
+- geometry entries: 16
 - geometry CSS variable entries: 0
 - visual inline violations: 0
 - unknown inline warnings: 0
@@ -16,26 +16,22 @@ Geometry inline styles are allowed because Gantt is an absolute-positioned timel
 
 | range | line | style keys | classification | status |
 | --- | ---: | --- | --- | --- |
-| toolbar | 33785 | `height` | geometry | ok |
-| toolbar | 33793 | `width`, `left` | geometry | ok |
-| toolbar | 33802 | `left`, `width` | geometry | ok |
-| toolbar | 33815 | `left`, `width` | geometry | ok |
-| toolbar | 33826 | `left`, `width` | geometry | ok |
-| toolbar | 33856 | `left` | geometry | ok |
-| timeline-rows | 34265 | `height` | geometry | ok |
-| timeline-rows | 34267 | `left`, `width` | geometry | ok |
-| timeline-rows | 34299 | `width` | geometry | ok |
-| timeline-rows | 34328 | `width` | geometry | ok |
-| slots | 35062 | `--segment-left`, `--segment-width` | geometry | ok |
-| slots | 35104 | `--slot-validation-progress`, `--slot-fact-progress` | geometry | ok |
+| slots | 35148 | `height` | geometry | ok |
+| slots | 35156 | `width`, `left` | geometry | ok |
+| slots | 35165 | `left`, `width` | geometry | ok |
 | slots | 35178 | `left`, `width` | geometry | ok |
-| slots | 35205 | `left`, `width` | geometry | ok |
-| slots | 35231 | `left`, `top`, `width`, `height`, `--slot-height`, `--slot-radius` | geometry | ok |
-| slots | 35247 | `left`, `top`, `width`, `height`, `--slot-height`, `--slot-radius` | geometry | ok |
-| dependencies | 35753 | `left`, `top`, `width`, `height`, `--cell-width`, `--snap-width`, `--dependency-clip-left` | geometry | ok |
-| dependencies | 35757 | `left`, `width` | geometry | ok |
-| dependencies | 35758 | `left`, `top`, `width`, `height` | geometry | ok |
-| dependencies | 35759 | `left` | geometry | ok |
+| slots | 35189 | `left`, `width` | geometry | ok |
+| slots | 35219 | `left` | geometry | ok |
+| slots | 35241 | `height`, `top` | geometry | ok |
+| slots | 35243 | `left`, `width`, `height`, `--cell-width` | geometry | ok |
+| dependencies | 35628 | `height` | geometry | ok |
+| dependencies | 35630 | `left`, `width` | geometry | ok |
+| dependencies | 35662 | `width` | geometry | ok |
+| dependencies | 35691 | `width` | geometry | ok |
+| overlays | 37126 | `left`, `top`, `width`, `height`, `--cell-width`, `--snap-width`, `--dependency-clip-left` | geometry | ok |
+| overlays | 37130 | `left`, `width` | geometry | ok |
+| overlays | 37131 | `left`, `top`, `width`, `height` | geometry | ok |
+| overlays | 37132 | `left` | geometry | ok |
 
 ## Allowed Geometry Keys
 

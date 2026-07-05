@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "generatedAt": "2026-07-05T20:39:35.455Z",
   "tables": [
     {
       "viewport": {
@@ -168,22 +168,6 @@
         "height": 932,
         "category": "desktop"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "tableCount": 1,
-      "tableWrapCount": 1,
-      "emptyStateCount": 0,
-      "treeToggleCount": 0,
-      "failures": [],
-      "warnings": []
-    },
-    {
-      "viewport": {
-        "id": "desktop",
-        "width": 1440,
-        "height": 932,
-        "category": "desktop"
-      },
       "moduleId": "supply",
       "status": "ok",
       "tableCount": 1,
@@ -218,9 +202,9 @@
       },
       "moduleId": "visualSystem",
       "status": "ok",
-      "tableCount": 14,
+      "tableCount": 3,
       "tableWrapCount": 2,
-      "emptyStateCount": 0,
+      "emptyStateCount": 1,
       "treeToggleCount": 0,
       "failures": [],
       "warnings": []
@@ -392,22 +376,6 @@
         "height": 820,
         "category": "tablet"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "tableCount": 1,
-      "tableWrapCount": 1,
-      "emptyStateCount": 0,
-      "treeToggleCount": 0,
-      "failures": [],
-      "warnings": []
-    },
-    {
-      "viewport": {
-        "id": "tablet",
-        "width": 1180,
-        "height": 820,
-        "category": "tablet"
-      },
       "moduleId": "supply",
       "status": "ok",
       "tableCount": 1,
@@ -442,9 +410,9 @@
       },
       "moduleId": "visualSystem",
       "status": "ok",
-      "tableCount": 14,
+      "tableCount": 3,
       "tableWrapCount": 2,
-      "emptyStateCount": 0,
+      "emptyStateCount": 1,
       "treeToggleCount": 0,
       "failures": [],
       "warnings": []
@@ -616,22 +584,6 @@
         "height": 768,
         "category": "tablet"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "tableCount": 1,
-      "tableWrapCount": 1,
-      "emptyStateCount": 0,
-      "treeToggleCount": 0,
-      "failures": [],
-      "warnings": []
-    },
-    {
-      "viewport": {
-        "id": "tablet-compact",
-        "width": 1024,
-        "height": 768,
-        "category": "tablet"
-      },
       "moduleId": "supply",
       "status": "ok",
       "tableCount": 1,
@@ -666,9 +618,9 @@
       },
       "moduleId": "visualSystem",
       "status": "ok",
-      "tableCount": 14,
+      "tableCount": 3,
       "tableWrapCount": 2,
-      "emptyStateCount": 0,
+      "emptyStateCount": 1,
       "treeToggleCount": 0,
       "failures": [],
       "warnings": []
@@ -840,22 +792,6 @@
         "height": 932,
         "category": "narrow"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "tableCount": 1,
-      "tableWrapCount": 1,
-      "emptyStateCount": 0,
-      "treeToggleCount": 0,
-      "failures": [],
-      "warnings": []
-    },
-    {
-      "viewport": {
-        "id": "narrow",
-        "width": 430,
-        "height": 932,
-        "category": "narrow"
-      },
       "moduleId": "supply",
       "status": "ok",
       "tableCount": 1,
@@ -890,9 +826,9 @@
       },
       "moduleId": "visualSystem",
       "status": "ok",
-      "tableCount": 14,
+      "tableCount": 3,
       "tableWrapCount": 2,
-      "emptyStateCount": 0,
+      "emptyStateCount": 1,
       "treeToggleCount": 0,
       "failures": [],
       "warnings": []
@@ -1064,22 +1000,6 @@
         "height": 844,
         "category": "narrow"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "tableCount": 1,
-      "tableWrapCount": 1,
-      "emptyStateCount": 0,
-      "treeToggleCount": 0,
-      "failures": [],
-      "warnings": []
-    },
-    {
-      "viewport": {
-        "id": "narrow-compact",
-        "width": 390,
-        "height": 844,
-        "category": "narrow"
-      },
       "moduleId": "supply",
       "status": "ok",
       "tableCount": 1,
@@ -1114,9 +1034,9 @@
       },
       "moduleId": "visualSystem",
       "status": "ok",
-      "tableCount": 14,
+      "tableCount": 3,
       "tableWrapCount": 2,
-      "emptyStateCount": 0,
+      "emptyStateCount": 1,
       "treeToggleCount": 0,
       "failures": [],
       "warnings": []

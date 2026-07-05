@@ -1,0 +1,116 @@
+{
+  "phase": "Corrective Phase A",
+  "generatedAt": "2026-07-05T08:55:45Z",
+  "baseline": {
+    "capturedAt": "2026-07-05 11:11:53 MSK",
+    "gitHead": "7286d0c",
+    "worktree": {
+      "trackedChangedFiles": 0,
+      "untrackedEntries": 0
+    },
+    "runtime": {
+      "srcAppJsLines": 39103,
+      "srcModulesJsFiles": 1,
+      "moduleImportsFromApp": 1
+    },
+    "css": {
+      "legacyTailLines": 4821,
+      "duplicateSelectorGroups": 349
+    },
+    "rawTokenAudit": {
+      "rawHexUsages": 1894,
+      "uniqueHexColors": 223,
+      "importantUsages": 3047,
+      "fontSizePxDeclarations": 779,
+      "fontWeightLiteralDeclarations": 484,
+      "lineHeightRawDeclarations": 609,
+      "borderRadiusPxDeclarations": 294,
+      "spacingPositionPxDeclarations": 2094
+    },
+    "runtimeCoverageRegistry": {
+      "hard": 18,
+      "special": 2,
+      "partial": 0,
+      "legacy": 0,
+      "browserObservedPartialModules": [
+        "dispatch",
+        "shiftWorkOrders",
+        "employees",
+        "timesheet"
+      ]
+    }
+  },
+  "after": {
+    "runtime": {
+      "srcAppJsLines": 39000,
+      "srcModulesJsFiles": 2,
+      "moduleImportsFromApp": 2,
+      "newExtractedModule": "src/modules/nomenclature/render.js",
+      "nomenclatureFormFieldsMigratedToRenderUiFormField": 9
+    },
+    "css": {
+      "legacyTailLines": 3961,
+      "planningOrderLayerLines": 715,
+      "runtimeSafetyLayerLines": 169,
+      "duplicateSelectorGroups": 349,
+      "newPlanningOrderLayer": "styles/ui/planning-order.css",
+      "newRuntimeSafetyLayer": "styles/ui/runtime-safety.css"
+    },
+    "rawTokenAudit": {
+      "rawHexUsages": 1875,
+      "uniqueHexColors": 223,
+      "importantUsages": 2905,
+      "fontSizePxDeclarations": 750,
+      "fontWeightLiteralDeclarations": 457,
+      "lineHeightRawDeclarations": 580,
+      "borderRadiusPxDeclarations": 199,
+      "spacingPositionPxDeclarations": 2023,
+      "budgetFile": "scripts/ui-raw-token-budgets.json"
+    },
+    "runtimeCoverageRegistry": {
+      "hard": 14,
+      "special": 2,
+      "partial": 4,
+      "legacy": 0,
+      "partialModules": [
+        "dispatch",
+        "shiftWorkOrders",
+        "employees",
+        "timesheet"
+      ]
+    }
+  },
+  "delta": {
+    "srcAppJsLines": -103,
+    "srcModulesJsFiles": 1,
+    "moduleImportsFromApp": 1,
+    "legacyTailLines": -860,
+    "importantUsages": -142,
+    "rawHexUsages": -19,
+    "fontSizePxDeclarations": -29,
+    "fontWeightLiteralDeclarations": -27,
+    "lineHeightRawDeclarations": -29,
+    "spacingPositionPxDeclarations": -71,
+    "borderRadiusPxDeclarations": -95,
+    "duplicateSelectorGroups": 0
+  },
+  "closedBlocks": [
+    "A. Runtime decomposition: nomenclature renderer extracted from src/app.js",
+    "B. CSS legacy pressure: runtime-safety and planning-order UI selectors moved out of legacy tail into styles/ui/runtime-safety.css and styles/ui/planning-order.css",
+    "C. Raw-token shrinking budget: border-radius px reduced and scripts/ui-raw-token-budgets.json added",
+    "D. Module coverage alignment: partial modules are now honest documented contracts",
+    "E. Form helper migration: nomenclature editor fields moved to renderUiFormField"
+  ],
+  "qa": {
+    "npm run qa:night": "pass",
+    "npm run qa:css": "pass",
+    "npm run qa:ui": "pass",
+    "npm run qa:visual": "pass",
+    "npm run qa:ui:regression": "pass",
+    "git diff --check": "pass",
+    "node scripts/ui-raw-token-audit.mjs": "pass",
+    "node scripts/ui-runtime-coverage-qa.mjs": "pass",
+    "node scripts/ui-hardening-plan-qa.mjs": "pass",
+    "node scripts/ui-contract-qa.mjs": "pass"
+  }
+}

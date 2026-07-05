@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "generatedAt": "2026-07-05T20:39:35.455Z",
   "modules": [
     "gantt",
     "planning",
@@ -15,7 +15,6 @@
     "authSessionPrototype",
     "roles",
     "planningTable",
-    "matrix",
     "supply",
     "shopMap",
     "visualSystem",
@@ -58,7 +57,7 @@
     "bodyOverflowX": 16
   },
   "summary": {
-    "checks": 100,
+    "checks": 95,
     "failed": 0,
     "warnings": 11,
     "overlayProbes": 25
@@ -74,7 +73,7 @@
       },
       "profileType": "special-runtime-protected",
       "layoutPage": "gantt",
-      "textLength": 1388,
+      "textLength": 1396,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -297,7 +296,7 @@
       },
       "profileType": "contract",
       "layoutPage": "planning",
-      "textLength": 4629,
+      "textLength": 4747,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -318,10 +317,10 @@
         "AppShell": 1,
         "ModulePage": 1,
         "ModuleHeader": 1,
-        "Panel": 2,
+        "Panel": 1,
         "TableWrap": 1,
-        "ActionButton": 81,
-        "StatusToken": 31,
+        "ActionButton": 55,
+        "StatusToken": 25,
         "ActionBar": 1,
         "Toolbar": 0,
         "FilterBar": 0,
@@ -340,8 +339,8 @@
         {
           "selector": "table.directory-table.speki-structure-table.route-object-table",
           "wrapper": "div.ui-table-wrap.speki-structure-table-wrap.route-object-table-wrap",
-          "width": 1164,
-          "height": 1551,
+          "width": 936,
+          "height": 1691,
           "headers": [
             "Объект / операция",
             "Трудозатраты",
@@ -350,38 +349,26 @@
             "Состояние"
           ],
           "rowCount": 25,
-          "actionButtonCount": 25,
+          "actionButtonCount": 5,
           "iconButtonSizes": [
             {
-              "width": 244,
+              "width": 344,
               "height": 48
             },
             {
-              "width": 244,
+              "width": 344,
               "height": 48
             },
             {
-              "width": 244,
+              "width": 344,
               "height": 48
             },
             {
-              "width": 244,
+              "width": 344,
               "height": 48
             },
             {
-              "width": 244,
-              "height": 48
-            },
-            {
-              "width": 244,
-              "height": 48
-            },
-            {
-              "width": 244,
-              "height": 48
-            },
-            {
-              "width": 244,
+              "width": 344,
               "height": 48
             }
           ],
@@ -392,7 +379,7 @@
       ],
       "overlayCount": 0,
       "overlayReports": [],
-      "actionButtonCount": 81,
+      "actionButtonCount": 55,
       "actionZones": [
         {
           "selector": "div.ui-action-bar.ui-module-header-actions",
@@ -412,62 +399,62 @@
         {
           "selector": "strong",
           "text": "Печатная плата BOM_для расчетттттта",
-          "right": 1114,
-          "width": 101,
-          "overflowRight": -326,
-          "scrollDelta": 123,
+          "right": 308,
+          "width": 108,
+          "overflowRight": -1132,
+          "scrollDelta": 137,
           "visible": true,
           "isAllowedContainer": false
         },
         {
           "selector": "small",
-          "text": "Главная карта · 1 000 шт.",
-          "right": 272,
-          "width": 72,
-          "overflowRight": -1168,
-          "scrollDelta": 56,
+          "text": "Произвести · Печатная плата BOM_для расчетттттта",
+          "right": 718,
+          "width": 189,
+          "overflowRight": -722,
+          "scrollDelta": 82,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
           "selector": "strong",
-          "text": "Печатная плата BOM_ELF",
-          "right": 1317,
-          "width": 101,
-          "overflowRight": -123,
-          "scrollDelta": 45,
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 718,
+          "width": 189,
+          "overflowRight": -722,
+          "scrollDelta": 55,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Дочерняя карта · 1 000 шт.",
-          "right": 504,
-          "width": 101,
-          "overflowRight": -936,
-          "scrollDelta": 36,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 1067,
+          "width": 332,
+          "overflowRight": -373,
+          "scrollDelta": 54,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Дочерняя карта · 1 000 шт.",
-          "right": 707,
-          "width": 101,
-          "overflowRight": -733,
-          "scrollDelta": 36,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 1067,
+          "width": 332,
+          "overflowRight": -373,
+          "scrollDelta": 54,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Дочерняя карта · 1 000 шт.",
-          "right": 911,
-          "width": 101,
-          "overflowRight": -529,
-          "scrollDelta": 36,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 1067,
+          "width": 332,
+          "overflowRight": -373,
+          "scrollDelta": 54,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         }
       ],
       "bodyRuntimeErrorText": false,
@@ -489,7 +476,7 @@
       },
       "profileType": "contract",
       "layoutPage": "shiftWorkOrders",
-      "textLength": 833,
+      "textLength": 841,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -565,7 +552,7 @@
       },
       "profileType": "contract",
       "layoutPage": "routes",
-      "textLength": 3672,
+      "textLength": 3680,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -766,7 +753,7 @@
       },
       "profileType": "contract",
       "layoutPage": "products",
-      "textLength": 879,
+      "textLength": 887,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -839,7 +826,7 @@
       },
       "profileType": "contract",
       "layoutPage": "nomenclature",
-      "textLength": 6947,
+      "textLength": 6955,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -1036,7 +1023,7 @@
       },
       "profileType": "contract",
       "layoutPage": "directories",
-      "textLength": 1958,
+      "textLength": 1966,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -1222,7 +1209,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "timesheet",
-      "textLength": 30002,
+      "textLength": 30010,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -1544,7 +1531,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "productionStructureMatrix",
-      "textLength": 406570,
+      "textLength": 406578,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -1907,7 +1894,7 @@
       },
       "profileType": "contract",
       "layoutPage": "shiftMasterBoard",
-      "textLength": 3833,
+      "textLength": 3841,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -2075,7 +2062,7 @@
       },
       "profileType": "contract",
       "layoutPage": "authSessionPrototype",
-      "textLength": 1053,
+      "textLength": 1061,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -2151,7 +2138,7 @@
       },
       "profileType": "contract",
       "layoutPage": "roles",
-      "textLength": 20176,
+      "textLength": 20252,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -2333,7 +2320,7 @@
       },
       "profileType": "contract",
       "layoutPage": "planningTable",
-      "textLength": 16705,
+      "textLength": 16713,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -2574,110 +2561,6 @@
       "status": "ok"
     },
     {
-      "moduleId": "matrix",
-      "viewport": {
-        "id": "desktop",
-        "width": 1440,
-        "height": 932,
-        "category": "desktop"
-      },
-      "profileType": "contract",
-      "layoutPage": "matrix",
-      "textLength": 2808,
-      "bodyOverflowX": 0,
-      "shell": {
-        "present": true,
-        "width": 1440,
-        "height": 932
-      },
-      "header": {
-        "present": true,
-        "width": 1286,
-        "height": 64
-      },
-      "main": {
-        "present": true,
-        "width": 1286,
-        "height": 872
-      },
-      "components": {
-        "AppShell": 1,
-        "ModulePage": 1,
-        "ModuleHeader": 1,
-        "Panel": 1,
-        "TableWrap": 1,
-        "ActionButton": 43,
-        "StatusToken": 1,
-        "ActionBar": 0,
-        "Toolbar": 0,
-        "FilterBar": 0,
-        "EmptyState": 0,
-        "Modal": 0,
-        "Drawer": 0,
-        "Dropdown": 1,
-        "GanttRuntime": 0,
-        "GanttDependencyLayer": 0,
-        "VisualSystemRuntime": 0
-      },
-      "tableWrapCount": 1,
-      "tableCount": 1,
-      "emptyStateCount": 0,
-      "tableReports": [
-        {
-          "selector": "table.planning-table-matrix",
-          "wrapper": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "width": 884,
-          "height": 1214,
-          "headers": [
-            "Ресурс / участок",
-            "22.06пн",
-            "23.06вт",
-            "24.06ср",
-            "25.06чт",
-            "26.06пт",
-            "27.06сб",
-            "28.06вс",
-            "29.06пн",
-            "30.06вт",
-            "01.07ср",
-            "02.07чт",
-            "03.07пт",
-            "04.07сб",
-            "05.07вс",
-            "Склад\n        10 сл. · 1 д 21 ч",
-            "Участок поверхностного монтажа 1\n        2 сл. · 1 д 9 ч",
-            "Отдел ручного монтажа\n        2 сл. · 18 ч 32 мин",
-            "Отдел нанесения влагозащитных покрытий\n        1 сл. · 16 ч 40 мин",
-            "Слесарный участок 1\n        1 сл. · 16 ч 40 мин",
-            "Отдел программной подготовки изделий\n        1 сл. · 13 ч 53 мин",
-            "Отдел технического контроля\n        1 сл. · 13 ч 53 мин",
-            "Участок упаковки и маркировки изделий\n        1 сл. · 8 ч 20 мин",
-            "Участок отмывки\n        1 сл. · 1 ч 18 мин"
-          ],
-          "rowCount": 9,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 0
-        }
-      ],
-      "overlayCount": 0,
-      "overlayReports": [],
-      "actionButtonCount": 43,
-      "actionZones": [],
-      "requiredSelectors": [],
-      "overflowElements": [],
-      "bodyRuntimeErrorText": false,
-      "gantt": null,
-      "exception": null,
-      "limitedSupport": "",
-      "consoleErrors": [],
-      "failures": [],
-      "warnings": [],
-      "status": "ok"
-    },
-    {
       "moduleId": "supply",
       "viewport": {
         "id": "desktop",
@@ -2687,7 +2570,7 @@
       },
       "profileType": "contract",
       "layoutPage": "supply",
-      "textLength": 22936,
+      "textLength": 22944,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -2855,7 +2738,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "shopMap",
-      "textLength": 6124,
+      "textLength": 6132,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -3010,7 +2893,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "visualSystem",
-      "textLength": 10934,
+      "textLength": 67004,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -3031,14 +2914,14 @@
         "AppShell": 1,
         "ModulePage": 0,
         "ModuleHeader": 0,
-        "Panel": 5,
+        "Panel": 16,
         "TableWrap": 2,
-        "ActionButton": 77,
-        "StatusToken": 29,
+        "ActionButton": 199,
+        "StatusToken": 21,
         "ActionBar": 1,
         "Toolbar": 1,
         "FilterBar": 1,
-        "EmptyState": 0,
+        "EmptyState": 1,
         "Modal": 1,
         "Drawer": 1,
         "Dropdown": 2,
@@ -3047,14 +2930,14 @@
         "VisualSystemRuntime": 1
       },
       "tableWrapCount": 2,
-      "tableCount": 14,
-      "emptyStateCount": 0,
+      "tableCount": 3,
+      "emptyStateCount": 1,
       "tableReports": [
         {
-          "selector": "table.ui-table.visual-ui-kit-table",
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
           "wrapper": "div.ui-table-wrap.visual-ui-kit-table-wrap",
-          "width": 1180,
-          "height": 158,
+          "width": 978,
+          "height": 162,
           "headers": [
             "Документ",
             "Состав",
@@ -3083,238 +2966,83 @@
           "selectedRowCount": 2
         },
         {
-          "selector": "table.visual-system-table",
-          "wrapper": "div.ui-table-wrap.visual-table-wrap",
-          "width": 720,
-          "height": 168,
+          "selector": "table",
+          "wrapper": "",
+          "width": 265,
+          "height": 98,
+          "headers": [],
+          "rowCount": 3,
+          "actionButtonCount": 0,
+          "iconButtonSizes": [],
+          "treeToggleCount": 0,
+          "levelMarkerCount": 0,
+          "selectedRowCount": 1
+        },
+        {
+          "selector": "table.ui-table.visual-icon-mapping-table",
+          "wrapper": "div.ui-table-wrap.visual-icon-mapping-table-wrap",
+          "width": 1016,
+          "height": 6230,
           "headers": [
-            "Дерево",
-            "Тип",
-            "Состояние",
-            "Поле",
-            "Действия"
+            "semanticSlug",
+            "iconName",
+            "runtime IDs",
+            "Группа",
+            "Статус",
+            "Где используется"
           ],
-          "rowCount": 3,
-          "actionButtonCount": 3,
-          "iconButtonSizes": [
-            {
-              "width": 30,
-              "height": 30
-            },
-            {
-              "width": 30,
-              "height": 30
-            },
-            {
-              "width": 30,
-              "height": 30
-            }
-          ],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
+          "rowCount": 129,
           "actionButtonCount": 0,
           "iconButtonSizes": [],
           "treeToggleCount": 0,
           "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 282,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
+          "selectedRowCount": 0
         }
       ],
       "overlayCount": 2,
       "overlayReports": [
         {
           "selector": "section.ui-modal.is-sample",
-          "width": 179,
-          "height": 196,
+          "width": 219,
+          "height": 166,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 2,
           "overflowX": 0,
-          "overflowY": 1750
+          "overflowY": 31017
         },
         {
           "selector": "aside.detail-drawer.ui-drawer.is-sample",
-          "width": 179,
+          "width": 219,
           "height": 113,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 0,
           "overflowX": 0,
-          "overflowY": 1867
+          "overflowY": 31134
         }
       ],
-      "actionButtonCount": 77,
+      "actionButtonCount": 199,
       "actionZones": [
         {
           "selector": "div.ui-toolbar.visual-ui-kit-toolbar",
-          "width": 179,
-          "height": 233,
+          "width": 219,
+          "height": 198,
           "actionButtons": 4,
           "overflowX": 0
         },
         {
           "selector": "div.ui-filter-bar.visual-ui-kit-filterbar",
-          "width": 179,
-          "height": 72,
+          "width": 212,
+          "height": 32,
           "actionButtons": 2,
           "overflowX": 0
         },
         {
           "selector": "div.ui-action-bar",
-          "width": 179,
+          "width": 219,
           "height": 72,
           "actionButtons": 2,
           "overflowX": 0
@@ -3332,62 +3060,62 @@
       ],
       "overflowElements": [
         {
-          "selector": "small",
-          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
-          "right": 450,
-          "width": 184,
-          "overflowRight": -990,
-          "scrollDelta": 272,
+          "selector": "b",
+          "text": "employeeHierarchyArrowMarker",
+          "right": 1138,
+          "width": 47,
+          "overflowRight": -302,
+          "scrollDelta": 106,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "small",
-          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
-          "right": 450,
-          "width": 167,
-          "overflowRight": -990,
-          "scrollDelta": 172,
+          "selector": "b",
+          "text": "employeeHierarchyArrowMarker",
+          "right": 1391,
+          "width": 47,
+          "overflowRight": -49,
+          "scrollDelta": 106,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 778,
-          "width": 599,
-          "overflowRight": -662,
-          "scrollDelta": 123,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "small",
-          "text": "образец круглого маркера, а не маркировка карточки стенда",
-          "right": 450,
-          "width": 235,
-          "overflowRight": -990,
-          "scrollDelta": 87,
+          "selector": "b",
+          "text": "transferBatchIndicatorCss",
+          "right": 795,
+          "width": 47,
+          "overflowRight": -645,
+          "scrollDelta": 78,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "article.ui-gantt-bar",
-          "text": "план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
-          "right": 1405,
-          "width": 179,
-          "overflowRight": -35,
-          "scrollDelta": 62,
+          "selector": "b",
+          "text": "transferBatchIndicatorCss",
+          "right": 1048,
+          "width": 47,
+          "overflowRight": -392,
+          "scrollDelta": 78,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "div.visual-rule-card",
-          "text": "GanttBar план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
-          "right": 1415,
-          "width": 199,
-          "overflowRight": -25,
-          "scrollDelta": 53,
+          "selector": "b",
+          "text": "visualGanttTransferArrow",
+          "right": 452,
+          "width": 47,
+          "overflowRight": -988,
+          "scrollDelta": 74,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "b",
+          "text": "visualGanttTransferArrow",
+          "right": 706,
+          "width": 47,
+          "overflowRight": -734,
+          "scrollDelta": 74,
           "visible": true,
           "isAllowedContainer": false
         }
@@ -3423,7 +3151,7 @@
       },
       "profileType": "placeholder",
       "layoutPage": "employees",
-      "textLength": 8091,
+      "textLength": 8099,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -3559,7 +3287,7 @@
       },
       "profileType": "placeholder",
       "layoutPage": "dispatch",
-      "textLength": 1016,
+      "textLength": 1024,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -3868,7 +3596,7 @@
       },
       "profileType": "contract",
       "layoutPage": "planning",
-      "textLength": 4362,
+      "textLength": 4472,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -3889,10 +3617,10 @@
         "AppShell": 1,
         "ModulePage": 1,
         "ModuleHeader": 1,
-        "Panel": 2,
+        "Panel": 1,
         "TableWrap": 1,
-        "ActionButton": 81,
-        "StatusToken": 31,
+        "ActionButton": 55,
+        "StatusToken": 25,
         "ActionBar": 1,
         "Toolbar": 0,
         "FilterBar": 0,
@@ -3912,7 +3640,7 @@
           "selector": "table.directory-table.speki-structure-table.route-object-table",
           "wrapper": "div.ui-table-wrap.speki-structure-table-wrap.route-object-table-wrap",
           "width": 904,
-          "height": 1551,
+          "height": 1691,
           "headers": [
             "Объект / операция",
             "Трудозатраты",
@@ -3921,38 +3649,26 @@
             "Состояние"
           ],
           "rowCount": 25,
-          "actionButtonCount": 25,
+          "actionButtonCount": 5,
           "iconButtonSizes": [
             {
-              "width": 187,
+              "width": 332,
               "height": 48
             },
             {
-              "width": 187,
+              "width": 332,
               "height": 48
             },
             {
-              "width": 187,
+              "width": 332,
               "height": 48
             },
             {
-              "width": 187,
+              "width": 332,
               "height": 48
             },
             {
-              "width": 187,
-              "height": 48
-            },
-            {
-              "width": 187,
-              "height": 48
-            },
-            {
-              "width": 187,
-              "height": 48
-            },
-            {
-              "width": 187,
+              "width": 332,
               "height": 48
             }
           ],
@@ -3963,7 +3679,7 @@
       ],
       "overlayCount": 0,
       "overlayReports": [],
-      "actionButtonCount": 81,
+      "actionButtonCount": 55,
       "actionZones": [
         {
           "selector": "div.ui-action-bar.ui-module-header-actions",
@@ -3993,32 +3709,52 @@
         {
           "selector": "strong",
           "text": "Печатная плата BOM_для расчетттттта",
-          "right": 337,
-          "width": 137,
-          "overflowRight": -843,
-          "scrollDelta": 87,
+          "right": 308,
+          "width": 108,
+          "overflowRight": -872,
+          "scrollDelta": 137,
           "visible": true,
           "isAllowedContainer": false
         },
         {
           "selector": "small",
           "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 534,
-          "width": 233,
-          "overflowRight": -646,
-          "scrollDelta": 38,
+          "right": 480,
+          "width": 179,
+          "overflowRight": -700,
+          "scrollDelta": 92,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Главная карта · 1 000 шт.",
-          "right": 308,
-          "width": 108,
-          "overflowRight": -872,
-          "scrollDelta": 20,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 818,
+          "width": 320,
+          "overflowRight": -362,
+          "scrollDelta": 66,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 818,
+          "width": 320,
+          "overflowRight": -362,
+          "scrollDelta": 66,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 818,
+          "width": 320,
+          "overflowRight": -362,
+          "scrollDelta": 66,
+          "visible": true,
+          "isAllowedContainer": true
         }
       ],
       "bodyRuntimeErrorText": false,
@@ -5815,7 +5551,7 @@
       },
       "profileType": "contract",
       "layoutPage": "roles",
-      "textLength": 19909,
+      "textLength": 19977,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -6269,121 +6005,6 @@
       "status": "ok"
     },
     {
-      "moduleId": "matrix",
-      "viewport": {
-        "id": "tablet",
-        "width": 1180,
-        "height": 820,
-        "category": "tablet"
-      },
-      "profileType": "contract",
-      "layoutPage": "matrix",
-      "textLength": 2541,
-      "bodyOverflowX": 0,
-      "shell": {
-        "present": true,
-        "width": 1180,
-        "height": 820
-      },
-      "header": {
-        "present": true,
-        "width": 1026,
-        "height": 64
-      },
-      "main": {
-        "present": true,
-        "width": 1026,
-        "height": 760
-      },
-      "components": {
-        "AppShell": 1,
-        "ModulePage": 1,
-        "ModuleHeader": 1,
-        "Panel": 1,
-        "TableWrap": 1,
-        "ActionButton": 43,
-        "StatusToken": 1,
-        "ActionBar": 0,
-        "Toolbar": 0,
-        "FilterBar": 0,
-        "EmptyState": 0,
-        "Modal": 0,
-        "Drawer": 0,
-        "Dropdown": 1,
-        "GanttRuntime": 0,
-        "GanttDependencyLayer": 0,
-        "VisualSystemRuntime": 0
-      },
-      "tableWrapCount": 1,
-      "tableCount": 1,
-      "emptyStateCount": 0,
-      "tableReports": [
-        {
-          "selector": "table.planning-table-matrix",
-          "wrapper": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "width": 624,
-          "height": 3376,
-          "headers": [
-            "Ресурс / участок",
-            "22.06пн",
-            "23.06вт",
-            "24.06ср",
-            "25.06чт",
-            "26.06пт",
-            "27.06сб",
-            "28.06вс",
-            "29.06пн",
-            "30.06вт",
-            "01.07ср",
-            "02.07чт",
-            "03.07пт",
-            "04.07сб",
-            "05.07вс",
-            "Склад\n        10 сл. · 1 д 21 ч",
-            "Участок поверхностного монтажа 1\n        2 сл. · 1 д 9 ч",
-            "Отдел ручного монтажа\n        2 сл. · 18 ч 32 мин",
-            "Отдел нанесения влагозащитных покрытий\n        1 сл. · 16 ч 40 мин",
-            "Слесарный участок 1\n        1 сл. · 16 ч 40 мин",
-            "Отдел программной подготовки изделий\n        1 сл. · 13 ч 53 мин",
-            "Отдел технического контроля\n        1 сл. · 13 ч 53 мин",
-            "Участок упаковки и маркировки изделий\n        1 сл. · 8 ч 20 мин",
-            "Участок отмывки\n        1 сл. · 1 ч 18 мин"
-          ],
-          "rowCount": 9,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 0
-        }
-      ],
-      "overlayCount": 0,
-      "overlayReports": [],
-      "actionButtonCount": 43,
-      "actionZones": [],
-      "requiredSelectors": [],
-      "overflowElements": [
-        {
-          "selector": "span",
-          "text": "Read-only матрица загрузки ресурсов по дням на основе текущих слотов Gantt.",
-          "right": 803,
-          "width": 384,
-          "overflowRight": -377,
-          "scrollDelta": 65,
-          "visible": true,
-          "isAllowedContainer": false
-        }
-      ],
-      "bodyRuntimeErrorText": false,
-      "gantt": null,
-      "exception": null,
-      "limitedSupport": "",
-      "consoleErrors": [],
-      "failures": [],
-      "warnings": [],
-      "status": "ok"
-    },
-    {
       "moduleId": "supply",
       "viewport": {
         "id": "tablet",
@@ -6716,7 +6337,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "visualSystem",
-      "textLength": 10667,
+      "textLength": 66729,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -6737,14 +6358,14 @@
         "AppShell": 1,
         "ModulePage": 0,
         "ModuleHeader": 0,
-        "Panel": 5,
+        "Panel": 16,
         "TableWrap": 2,
-        "ActionButton": 77,
-        "StatusToken": 29,
+        "ActionButton": 199,
+        "StatusToken": 21,
         "ActionBar": 1,
         "Toolbar": 1,
         "FilterBar": 1,
-        "EmptyState": 0,
+        "EmptyState": 1,
         "Modal": 1,
         "Drawer": 1,
         "Dropdown": 2,
@@ -6753,14 +6374,14 @@
         "VisualSystemRuntime": 1
       },
       "tableWrapCount": 2,
-      "tableCount": 14,
-      "emptyStateCount": 0,
+      "tableCount": 3,
+      "emptyStateCount": 1,
       "tableReports": [
         {
-          "selector": "table.ui-table.visual-ui-kit-table",
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
           "wrapper": "div.ui-table-wrap.visual-ui-kit-table-wrap",
-          "width": 920,
-          "height": 158,
+          "width": 720,
+          "height": 162,
           "headers": [
             "Документ",
             "Состав",
@@ -6789,225 +6410,70 @@
           "selectedRowCount": 2
         },
         {
-          "selector": "table.visual-system-table",
-          "wrapper": "div.ui-table-wrap.visual-table-wrap",
-          "width": 720,
-          "height": 168,
+          "selector": "table",
+          "wrapper": "",
+          "width": 309,
+          "height": 98,
+          "headers": [],
+          "rowCount": 3,
+          "actionButtonCount": 0,
+          "iconButtonSizes": [],
+          "treeToggleCount": 0,
+          "levelMarkerCount": 0,
+          "selectedRowCount": 1
+        },
+        {
+          "selector": "table.ui-table.visual-icon-mapping-table",
+          "wrapper": "div.ui-table-wrap.visual-icon-mapping-table-wrap",
+          "width": 756,
+          "height": 6824,
           "headers": [
-            "Дерево",
-            "Тип",
-            "Состояние",
-            "Поле",
-            "Действия"
+            "semanticSlug",
+            "iconName",
+            "runtime IDs",
+            "Группа",
+            "Статус",
+            "Где используется"
           ],
-          "rowCount": 3,
-          "actionButtonCount": 3,
-          "iconButtonSizes": [
-            {
-              "width": 30,
-              "height": 30
-            },
-            {
-              "width": 30,
-              "height": 30
-            },
-            {
-              "width": 30,
-              "height": 30
-            }
-          ],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
+          "rowCount": 129,
           "actionButtonCount": 0,
           "iconButtonSizes": [],
           "treeToggleCount": 0,
           "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 299,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
+          "selectedRowCount": 0
         }
       ],
       "overlayCount": 2,
       "overlayReports": [
         {
           "selector": "section.ui-modal.is-sample",
-          "width": 218,
+          "width": 215,
           "height": 166,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 2,
           "overflowX": 0,
-          "overflowY": 2704
+          "overflowY": 42113
         },
         {
           "selector": "aside.detail-drawer.ui-drawer.is-sample",
-          "width": 218,
+          "width": 215,
           "height": 113,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 0,
           "overflowX": 0,
-          "overflowY": 2821
+          "overflowY": 42230
         }
       ],
-      "actionButtonCount": 77,
+      "actionButtonCount": 199,
       "actionZones": [
         {
           "selector": "div.ui-toolbar.visual-ui-kit-toolbar",
-          "width": 218,
-          "height": 178,
+          "width": 215,
+          "height": 198,
           "actionButtons": 4,
           "overflowX": 0
         },
@@ -7020,7 +6486,7 @@
         },
         {
           "selector": "div.ui-action-bar",
-          "width": 218,
+          "width": 215,
           "height": 72,
           "actionButtons": 2,
           "overflowX": 0
@@ -7038,64 +6504,64 @@
       ],
       "overflowElements": [
         {
-          "selector": "small",
-          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
-          "right": 469,
-          "width": 203,
-          "overflowRight": -711,
-          "scrollDelta": 253,
+          "selector": "div.visual-icon-filterbar",
+          "text": "Поиск Группа Все ОтделыФункциональные направленияСкладские зоныSystem Lucide Ico",
+          "right": 1147,
+          "width": 758,
+          "overflowRight": -33,
+          "scrollDelta": 158,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "small",
-          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
-          "right": 469,
-          "width": 186,
-          "overflowRight": -711,
-          "scrollDelta": 153,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "selector": "article.visual-system-panel.is-full.visual-icons-panel",
+          "text": "Иконки MESMixed registry: custom MES SVG, Lucide React для системных действий и ",
           "right": 1155,
-          "width": 638,
+          "width": 774,
           "overflowRight": -25,
-          "scrollDelta": 84,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "small",
-          "text": "образец круглого маркера, а не маркировка карточки стенда",
-          "right": 469,
-          "width": 254,
-          "overflowRight": -711,
-          "scrollDelta": 68,
+          "scrollDelta": 150,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "table.visual-system-table",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 1238,
-          "width": 720,
-          "overflowRight": 58,
-          "scrollDelta": 0,
+          "selector": "#visual-icons",
+          "text": "Иконки MESMixed registry: custom MES SVG, Lucide React для системных действий и ",
+          "right": 1168,
+          "width": 800,
+          "overflowRight": -12,
+          "scrollDelta": 138,
           "visible": true,
-          "isAllowedContainer": true
+          "isAllowedContainer": false
         },
         {
-          "selector": "thead",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 1238,
-          "width": 720,
-          "overflowRight": 58,
-          "scrollDelta": 0,
+          "selector": "div.visual-system-layout",
+          "text": "Темы UI Основы tokens Layout shell Actions controls Таблицы data Gantt planning ",
+          "right": 1168,
+          "width": 1002,
+          "overflowRight": -12,
+          "scrollDelta": 137,
           "visible": true,
-          "isAllowedContainer": true
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.visual-system-content",
+          "text": "UI-kit · применяемый стенд MES Visual System Справочник только по применяемым ко",
+          "right": 1168,
+          "width": 800,
+          "overflowRight": -12,
+          "scrollDelta": 137,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.visual-system-page",
+          "text": "Темы UI Основы tokens Layout shell Actions controls Таблицы data Gantt planning ",
+          "right": 1180,
+          "width": 1026,
+          "overflowRight": 0,
+          "scrollDelta": 125,
+          "visible": true,
+          "isAllowedContainer": false
         }
       ],
       "bodyRuntimeErrorText": false,
@@ -7574,7 +7040,7 @@
       },
       "profileType": "contract",
       "layoutPage": "planning",
-      "textLength": 4362,
+      "textLength": 4472,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -7595,10 +7061,10 @@
         "AppShell": 1,
         "ModulePage": 1,
         "ModuleHeader": 1,
-        "Panel": 2,
+        "Panel": 1,
         "TableWrap": 1,
-        "ActionButton": 81,
-        "StatusToken": 31,
+        "ActionButton": 55,
+        "StatusToken": 25,
         "ActionBar": 1,
         "Toolbar": 0,
         "FilterBar": 0,
@@ -7618,7 +7084,7 @@
           "selector": "table.directory-table.speki-structure-table.route-object-table",
           "wrapper": "div.ui-table-wrap.speki-structure-table-wrap.route-object-table-wrap",
           "width": 748,
-          "height": 1551,
+          "height": 1691,
           "headers": [
             "Объект / операция",
             "Трудозатраты",
@@ -7627,38 +7093,26 @@
             "Состояние"
           ],
           "rowCount": 25,
-          "actionButtonCount": 25,
+          "actionButtonCount": 5,
           "iconButtonSizes": [
             {
-              "width": 153,
+              "width": 272,
               "height": 48
             },
             {
-              "width": 153,
+              "width": 272,
               "height": 48
             },
             {
-              "width": 153,
+              "width": 272,
               "height": 48
             },
             {
-              "width": 153,
+              "width": 272,
               "height": 48
             },
             {
-              "width": 153,
-              "height": 48
-            },
-            {
-              "width": 153,
-              "height": 48
-            },
-            {
-              "width": 153,
-              "height": 48
-            },
-            {
-              "width": 153,
+              "width": 272,
               "height": 48
             }
           ],
@@ -7669,7 +7123,7 @@
       ],
       "overlayCount": 0,
       "overlayReports": [],
-      "actionButtonCount": 81,
+      "actionButtonCount": 55,
       "actionZones": [
         {
           "selector": "div.ui-action-bar.ui-module-header-actions",
@@ -7697,54 +7151,54 @@
           "isAllowedContainer": false
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_для расчетттттта",
-          "right": 298,
-          "width": 98,
-          "overflowRight": -726,
-          "scrollDelta": 126,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
           "selector": "small",
           "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 478,
-          "width": 177,
-          "overflowRight": -546,
-          "scrollDelta": 94,
+          "right": 433,
+          "width": 132,
+          "overflowRight": -591,
+          "scrollDelta": 139,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "strong",
           "text": "Печатная плата BOM_для расчетттттта",
-          "right": 478,
-          "width": 177,
-          "overflowRight": -546,
-          "scrollDelta": 67,
+          "right": 308,
+          "width": 108,
+          "overflowRight": -716,
+          "scrollDelta": 137,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 712,
+          "width": 260,
+          "overflowRight": -312,
+          "scrollDelta": 126,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Главная карта · 1 000 шт.",
-          "right": 269,
-          "width": 69,
-          "overflowRight": -755,
-          "scrollDelta": 59,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 712,
+          "width": 260,
+          "overflowRight": -312,
+          "scrollDelta": 126,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_ELF",
-          "right": 499,
-          "width": 98,
-          "overflowRight": -525,
-          "scrollDelta": 48,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 712,
+          "width": 260,
+          "overflowRight": -312,
+          "scrollDelta": 126,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         }
       ],
       "bodyRuntimeErrorText": false,
@@ -7810,7 +7264,7 @@
           "selector": "table.directory-table.shift-work-orders-table.ui-table",
           "wrapper": "div.ui-table-wrap.shift-work-orders-table-wrap",
           "width": 736,
-          "height": 197,
+          "height": 203,
           "headers": [
             "Документы",
             "Состав",
@@ -9562,7 +9016,7 @@
       },
       "profileType": "contract",
       "layoutPage": "roles",
-      "textLength": 19909,
+      "textLength": 19977,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -10046,121 +9500,6 @@
       "status": "ok"
     },
     {
-      "moduleId": "matrix",
-      "viewport": {
-        "id": "tablet-compact",
-        "width": 1024,
-        "height": 768,
-        "category": "tablet"
-      },
-      "profileType": "contract",
-      "layoutPage": "matrix",
-      "textLength": 2541,
-      "bodyOverflowX": 0,
-      "shell": {
-        "present": true,
-        "width": 1024,
-        "height": 768
-      },
-      "header": {
-        "present": true,
-        "width": 870,
-        "height": 64
-      },
-      "main": {
-        "present": true,
-        "width": 870,
-        "height": 708
-      },
-      "components": {
-        "AppShell": 1,
-        "ModulePage": 1,
-        "ModuleHeader": 1,
-        "Panel": 1,
-        "TableWrap": 1,
-        "ActionButton": 43,
-        "StatusToken": 1,
-        "ActionBar": 0,
-        "Toolbar": 0,
-        "FilterBar": 0,
-        "EmptyState": 0,
-        "Modal": 0,
-        "Drawer": 0,
-        "Dropdown": 1,
-        "GanttRuntime": 0,
-        "GanttDependencyLayer": 0,
-        "VisualSystemRuntime": 0
-      },
-      "tableWrapCount": 1,
-      "tableCount": 1,
-      "emptyStateCount": 0,
-      "tableReports": [
-        {
-          "selector": "table.planning-table-matrix",
-          "wrapper": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "width": 468,
-          "height": 3412,
-          "headers": [
-            "Ресурс / участок",
-            "22.06пн",
-            "23.06вт",
-            "24.06ср",
-            "25.06чт",
-            "26.06пт",
-            "27.06сб",
-            "28.06вс",
-            "29.06пн",
-            "30.06вт",
-            "01.07ср",
-            "02.07чт",
-            "03.07пт",
-            "04.07сб",
-            "05.07вс",
-            "Склад\n        10 сл. · 1 д 21 ч",
-            "Участок поверхностного монтажа 1\n        2 сл. · 1 д 9 ч",
-            "Отдел ручного монтажа\n        2 сл. · 18 ч 32 мин",
-            "Отдел нанесения влагозащитных покрытий\n        1 сл. · 16 ч 40 мин",
-            "Слесарный участок 1\n        1 сл. · 16 ч 40 мин",
-            "Отдел программной подготовки изделий\n        1 сл. · 13 ч 53 мин",
-            "Отдел технического контроля\n        1 сл. · 13 ч 53 мин",
-            "Участок упаковки и маркировки изделий\n        1 сл. · 8 ч 20 мин",
-            "Участок отмывки\n        1 сл. · 1 ч 18 мин"
-          ],
-          "rowCount": 9,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 0
-        }
-      ],
-      "overlayCount": 0,
-      "overlayReports": [],
-      "actionButtonCount": 43,
-      "actionZones": [],
-      "requiredSelectors": [],
-      "overflowElements": [
-        {
-          "selector": "span",
-          "text": "Read-only матрица загрузки ресурсов по дням на основе текущих слотов Gantt.",
-          "right": 648,
-          "width": 265,
-          "overflowRight": -376,
-          "scrollDelta": 184,
-          "visible": true,
-          "isAllowedContainer": false
-        }
-      ],
-      "bodyRuntimeErrorText": false,
-      "gantt": null,
-      "exception": null,
-      "limitedSupport": "",
-      "consoleErrors": [],
-      "failures": [],
-      "warnings": [],
-      "status": "ok"
-    },
-    {
       "moduleId": "supply",
       "viewport": {
         "id": "tablet-compact",
@@ -10493,7 +9832,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "visualSystem",
-      "textLength": 10667,
+      "textLength": 66729,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -10514,14 +9853,14 @@
         "AppShell": 1,
         "ModulePage": 0,
         "ModuleHeader": 0,
-        "Panel": 5,
+        "Panel": 16,
         "TableWrap": 2,
-        "ActionButton": 77,
-        "StatusToken": 29,
+        "ActionButton": 199,
+        "StatusToken": 21,
         "ActionBar": 1,
         "Toolbar": 1,
         "FilterBar": 1,
-        "EmptyState": 0,
+        "EmptyState": 1,
         "Modal": 1,
         "Drawer": 1,
         "Dropdown": 2,
@@ -10530,14 +9869,14 @@
         "VisualSystemRuntime": 1
       },
       "tableWrapCount": 2,
-      "tableCount": 14,
-      "emptyStateCount": 0,
+      "tableCount": 3,
+      "emptyStateCount": 1,
       "tableReports": [
         {
-          "selector": "table.ui-table.visual-ui-kit-table",
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
           "wrapper": "div.ui-table-wrap.visual-ui-kit-table-wrap",
           "width": 764,
-          "height": 158,
+          "height": 162,
           "headers": [
             "Документ",
             "Состав",
@@ -10566,238 +9905,83 @@
           "selectedRowCount": 2
         },
         {
-          "selector": "table.visual-system-table",
-          "wrapper": "div.ui-table-wrap.visual-table-wrap",
-          "width": 818,
-          "height": 168,
+          "selector": "table",
+          "wrapper": "",
+          "width": 332,
+          "height": 98,
+          "headers": [],
+          "rowCount": 3,
+          "actionButtonCount": 0,
+          "iconButtonSizes": [],
+          "treeToggleCount": 0,
+          "levelMarkerCount": 0,
+          "selectedRowCount": 1
+        },
+        {
+          "selector": "table.ui-table.visual-icon-mapping-table",
+          "wrapper": "div.ui-table-wrap.visual-icon-mapping-table-wrap",
+          "width": 802,
+          "height": 6614,
           "headers": [
-            "Дерево",
-            "Тип",
-            "Состояние",
-            "Поле",
-            "Действия"
+            "semanticSlug",
+            "iconName",
+            "runtime IDs",
+            "Группа",
+            "Статус",
+            "Где используется"
           ],
-          "rowCount": 3,
-          "actionButtonCount": 3,
-          "iconButtonSizes": [
-            {
-              "width": 30,
-              "height": 30
-            },
-            {
-              "width": 30,
-              "height": 30
-            },
-            {
-              "width": 30,
-              "height": 30
-            }
-          ],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
+          "rowCount": 129,
           "actionButtonCount": 0,
           "iconButtonSizes": [],
           "treeToggleCount": 0,
           "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 247,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
+          "selectedRowCount": 0
         }
       ],
       "overlayCount": 2,
       "overlayReports": [
         {
           "selector": "section.ui-modal.is-sample",
-          "width": 179,
-          "height": 196,
+          "width": 230,
+          "height": 166,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 2,
           "overflowX": 0,
-          "overflowY": 3067
+          "overflowY": 48285
         },
         {
           "selector": "aside.detail-drawer.ui-drawer.is-sample",
-          "width": 179,
+          "width": 230,
           "height": 113,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 0,
           "overflowX": 0,
-          "overflowY": 3184
+          "overflowY": 48402
         }
       ],
-      "actionButtonCount": 77,
+      "actionButtonCount": 199,
       "actionZones": [
         {
           "selector": "div.ui-toolbar.visual-ui-kit-toolbar",
-          "width": 179,
+          "width": 230,
           "height": 198,
           "actionButtons": 4,
           "overflowX": 0
         },
         {
           "selector": "div.ui-filter-bar.visual-ui-kit-filterbar",
-          "width": 179,
-          "height": 72,
+          "width": 212,
+          "height": 32,
           "actionButtons": 2,
           "overflowX": 0
         },
         {
           "selector": "div.ui-action-bar",
-          "width": 179,
+          "width": 230,
           "height": 72,
           "actionButtons": 2,
           "overflowX": 0
@@ -10815,62 +9999,12 @@
       ],
       "overflowElements": [
         {
-          "selector": "small",
-          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
-          "right": 560,
-          "width": 294,
-          "overflowRight": -464,
-          "scrollDelta": 162,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
           "selector": "span",
           "text": "Витрина UI-kit, сигналов, Gantt-состояний и визуальных правил прототипа.",
           "right": 648,
           "width": 265,
           "overflowRight": -376,
           "scrollDelta": 159,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "article.ui-gantt-bar",
-          "text": "план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
-          "right": 575,
-          "width": 179,
-          "overflowRight": -449,
-          "scrollDelta": 62,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "small",
-          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
-          "right": 560,
-          "width": 277,
-          "overflowRight": -464,
-          "scrollDelta": 62,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "td",
-          "text": "Выводной монтаж",
-          "right": 356,
-          "width": 59,
-          "overflowRight": -668,
-          "scrollDelta": 54,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "td",
-          "text": "Выводной монтаж",
-          "right": 633,
-          "width": 59,
-          "overflowRight": -391,
-          "scrollDelta": 54,
           "visible": true,
           "isAllowedContainer": false
         }
@@ -11353,7 +10487,7 @@
       },
       "profileType": "contract",
       "layoutPage": "planning",
-      "textLength": 4172,
+      "textLength": 4282,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -11374,10 +10508,10 @@
         "AppShell": 1,
         "ModulePage": 1,
         "ModuleHeader": 1,
-        "Panel": 2,
+        "Panel": 1,
         "TableWrap": 1,
-        "ActionButton": 81,
-        "StatusToken": 31,
+        "ActionButton": 55,
+        "StatusToken": 25,
         "ActionBar": 1,
         "Toolbar": 0,
         "FilterBar": 0,
@@ -11397,7 +10531,7 @@
           "selector": "table.directory-table.speki-structure-table.route-object-table",
           "wrapper": "div.ui-table-wrap.speki-structure-table-wrap.route-object-table-wrap",
           "width": 308,
-          "height": 1551,
+          "height": 1851,
           "headers": [
             "Объект / операция",
             "Трудозатраты",
@@ -11406,38 +10540,26 @@
             "Состояние"
           ],
           "rowCount": 25,
-          "actionButtonCount": 25,
+          "actionButtonCount": 5,
           "iconButtonSizes": [
             {
-              "width": 56,
+              "width": 105,
               "height": 48
             },
             {
-              "width": 56,
+              "width": 105,
               "height": 48
             },
             {
-              "width": 56,
+              "width": 105,
               "height": 48
             },
             {
-              "width": 56,
+              "width": 105,
               "height": 48
             },
             {
-              "width": 56,
-              "height": 48
-            },
-            {
-              "width": 56,
-              "height": 48
-            },
-            {
-              "width": 56,
-              "height": 48
-            },
-            {
-              "width": 56,
+              "width": 105,
               "height": 48
             }
           ],
@@ -11448,7 +10570,7 @@
       ],
       "overlayCount": 0,
       "overlayReports": [],
-      "actionButtonCount": 81,
+      "actionButtonCount": 55,
       "actionZones": [
         {
           "selector": "div.ui-action-bar.ui-module-header-actions",
@@ -11466,62 +10588,62 @@
       ],
       "overflowElements": [
         {
-          "selector": "small",
-          "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 252,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_для расчетттттта",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 225,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small.route-task-output-hint",
-          "text": "Выход: Печатная плата BOM_для расчетттттта",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 200,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Технический контроль промежуточный",
-          "right": 166,
-          "width": 49,
-          "overflowRight": -264,
-          "scrollDelta": 177,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.125 576/см 2 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Отдел нанесения влагозащитных покрытий",
-          "right": 166,
-          "width": 49,
-          "overflowRight": -264,
-          "scrollDelta": 176,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.089 576/см 2 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Произвести · Производимая позиция",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 173,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.15 480/см 3 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         }
@@ -11589,7 +10711,7 @@
           "selector": "table.directory-table.shift-work-orders-table.ui-table",
           "wrapper": "div.ui-table-wrap.shift-work-orders-table-wrap",
           "width": 296,
-          "height": 327,
+          "height": 357,
           "headers": [
             "Документы",
             "Состав",
@@ -13403,7 +12525,7 @@
       },
       "profileType": "contract",
       "layoutPage": "roles",
-      "textLength": 19705,
+      "textLength": 19773,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -13887,171 +13009,6 @@
       "status": "ok"
     },
     {
-      "moduleId": "matrix",
-      "viewport": {
-        "id": "narrow",
-        "width": 430,
-        "height": 932,
-        "category": "narrow"
-      },
-      "profileType": "contract",
-      "layoutPage": "matrix",
-      "textLength": 2365,
-      "bodyOverflowX": 0,
-      "shell": {
-        "present": true,
-        "width": 430,
-        "height": 932
-      },
-      "header": {
-        "present": true,
-        "width": 430,
-        "height": 64
-      },
-      "main": {
-        "present": true,
-        "width": 430,
-        "height": 811
-      },
-      "components": {
-        "AppShell": 1,
-        "ModulePage": 1,
-        "ModuleHeader": 1,
-        "Panel": 1,
-        "TableWrap": 1,
-        "ActionButton": 43,
-        "StatusToken": 1,
-        "ActionBar": 0,
-        "Toolbar": 0,
-        "FilterBar": 0,
-        "EmptyState": 0,
-        "Modal": 0,
-        "Drawer": 0,
-        "Dropdown": 1,
-        "GanttRuntime": 0,
-        "GanttDependencyLayer": 0,
-        "VisualSystemRuntime": 0
-      },
-      "tableWrapCount": 1,
-      "tableCount": 1,
-      "emptyStateCount": 0,
-      "tableReports": [
-        {
-          "selector": "table.planning-table-matrix",
-          "wrapper": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "width": 980,
-          "height": 1032,
-          "headers": [
-            "Ресурс / участок",
-            "22.06пн",
-            "23.06вт",
-            "24.06ср",
-            "25.06чт",
-            "26.06пт",
-            "27.06сб",
-            "28.06вс",
-            "29.06пн",
-            "30.06вт",
-            "01.07ср",
-            "02.07чт",
-            "03.07пт",
-            "04.07сб",
-            "05.07вс",
-            "Склад\n        10 сл. · 1 д 21 ч",
-            "Участок поверхностного монтажа 1\n        2 сл. · 1 д 9 ч",
-            "Отдел ручного монтажа\n        2 сл. · 18 ч 32 мин",
-            "Отдел нанесения влагозащитных покрытий\n        1 сл. · 16 ч 40 мин",
-            "Слесарный участок 1\n        1 сл. · 16 ч 40 мин",
-            "Отдел программной подготовки изделий\n        1 сл. · 13 ч 53 мин",
-            "Отдел технического контроля\n        1 сл. · 13 ч 53 мин",
-            "Участок упаковки и маркировки изделий\n        1 сл. · 8 ч 20 мин",
-            "Участок отмывки\n        1 сл. · 1 ч 18 мин"
-          ],
-          "rowCount": 9,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 0
-        }
-      ],
-      "overlayCount": 0,
-      "overlayReports": [],
-      "actionButtonCount": 43,
-      "actionZones": [],
-      "requiredSelectors": [],
-      "overflowElements": [
-        {
-          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 364,
-          "width": 30,
-          "overflowRight": -66,
-          "scrollDelta": 952,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "table.planning-table-matrix",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "thead",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tr",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "th.is-weekend",
-          "text": "05.07вс",
-          "right": 1315,
-          "width": 60,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tbody",
-          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        }
-      ],
-      "bodyRuntimeErrorText": false,
-      "gantt": null,
-      "exception": null,
-      "limitedSupport": "",
-      "consoleErrors": [],
-      "failures": [],
-      "warnings": [],
-      "status": "ok"
-    },
-    {
       "moduleId": "supply",
       "viewport": {
         "id": "narrow",
@@ -14384,7 +13341,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "visualSystem",
-      "textLength": 10507,
+      "textLength": 66569,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -14405,14 +13362,14 @@
         "AppShell": 1,
         "ModulePage": 0,
         "ModuleHeader": 0,
-        "Panel": 5,
+        "Panel": 16,
         "TableWrap": 2,
-        "ActionButton": 77,
-        "StatusToken": 29,
+        "ActionButton": 199,
+        "StatusToken": 21,
         "ActionBar": 1,
         "Toolbar": 1,
         "FilterBar": 1,
-        "EmptyState": 0,
+        "EmptyState": 1,
         "Modal": 1,
         "Drawer": 1,
         "Dropdown": 2,
@@ -14421,14 +13378,14 @@
         "VisualSystemRuntime": 1
       },
       "tableWrapCount": 2,
-      "tableCount": 14,
-      "emptyStateCount": 0,
+      "tableCount": 3,
+      "emptyStateCount": 1,
       "tableReports": [
         {
-          "selector": "table.ui-table.visual-ui-kit-table",
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
           "wrapper": "div.ui-table-wrap.visual-ui-kit-table-wrap",
-          "width": 389,
-          "height": 176,
+          "width": 720,
+          "height": 180,
           "headers": [
             "Документ",
             "Состав",
@@ -14457,206 +13414,51 @@
           "selectedRowCount": 2
         },
         {
-          "selector": "table.visual-system-table",
-          "wrapper": "div.ui-table-wrap.visual-table-wrap",
-          "width": 720,
-          "height": 180,
+          "selector": "table",
+          "wrapper": "",
+          "width": 314,
+          "height": 98,
+          "headers": [],
+          "rowCount": 3,
+          "actionButtonCount": 0,
+          "iconButtonSizes": [],
+          "treeToggleCount": 0,
+          "levelMarkerCount": 0,
+          "selectedRowCount": 1
+        },
+        {
+          "selector": "table.ui-table.visual-icon-mapping-table",
+          "wrapper": "div.ui-table-wrap.visual-icon-mapping-table-wrap",
+          "width": 616,
+          "height": 7732,
           "headers": [
-            "Дерево",
-            "Тип",
-            "Состояние",
-            "Поле",
-            "Действия"
+            "semanticSlug",
+            "iconName",
+            "runtime IDs",
+            "Группа",
+            "Статус",
+            "Где используется"
           ],
-          "rowCount": 3,
-          "actionButtonCount": 3,
-          "iconButtonSizes": [
-            {
-              "width": 36,
-              "height": 36
-            },
-            {
-              "width": 36,
-              "height": 36
-            },
-            {
-              "width": 36,
-              "height": 36
-            }
-          ],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
+          "rowCount": 129,
           "actionButtonCount": 0,
           "iconButtonSizes": [],
           "treeToggleCount": 0,
           "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 368,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
+          "selectedRowCount": 0
         }
       ],
       "overlayCount": 2,
       "overlayReports": [
         {
           "selector": "section.ui-modal.is-sample",
-          "width": 170,
-          "height": 200,
+          "width": 314,
+          "height": 170,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 2,
           "overflowX": 0,
-          "overflowY": 3840
+          "overflowY": 88999
         },
         {
           "selector": "aside.detail-drawer.ui-drawer.is-sample",
@@ -14670,26 +13472,26 @@
           "overflowY": 0
         }
       ],
-      "actionButtonCount": 77,
+      "actionButtonCount": 199,
       "actionZones": [
         {
           "selector": "div.ui-toolbar.visual-ui-kit-toolbar",
-          "width": 170,
-          "height": 168,
+          "width": 314,
+          "height": 80,
           "actionButtons": 4,
           "overflowX": 0
         },
         {
           "selector": "div.ui-filter-bar.visual-ui-kit-filterbar",
-          "width": 170,
-          "height": 80,
+          "width": 188,
+          "height": 36,
           "actionButtons": 2,
           "overflowX": 0
         },
         {
           "selector": "div.ui-action-bar",
-          "width": 170,
-          "height": 80,
+          "width": 246,
+          "height": 36,
           "actionButtons": 2,
           "overflowX": 0
         }
@@ -14706,41 +13508,41 @@
       ],
       "overflowElements": [
         {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 409,
-          "width": 388,
-          "overflowRight": -21,
-          "scrollDelta": 334,
+          "selector": "div.ui-table-wrap.visual-ui-kit-table-wrap",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 382,
+          "width": 334,
+          "overflowRight": -48,
+          "scrollDelta": 388,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "table.visual-system-table",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 742,
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "thead",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tr",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
@@ -14748,19 +13550,19 @@
         {
           "selector": "th",
           "text": "Действия",
-          "right": 742,
+          "right": 769,
           "width": 76,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tbody",
-          "text": "Финальная сборка узел готово Плата BOM_ELF расчет ожидание SMT монтаж UX риск",
-          "right": 742,
+          "text": "Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-20260502-D5-07Выводной монтаж700готово ",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
@@ -15172,7 +13974,7 @@
       },
       "profileType": "contract",
       "layoutPage": "planning",
-      "textLength": 4172,
+      "textLength": 4282,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -15193,10 +13995,10 @@
         "AppShell": 1,
         "ModulePage": 1,
         "ModuleHeader": 1,
-        "Panel": 2,
+        "Panel": 1,
         "TableWrap": 1,
-        "ActionButton": 81,
-        "StatusToken": 31,
+        "ActionButton": 55,
+        "StatusToken": 25,
         "ActionBar": 1,
         "Toolbar": 0,
         "FilterBar": 0,
@@ -15216,7 +14018,7 @@
           "selector": "table.directory-table.speki-structure-table.route-object-table",
           "wrapper": "div.ui-table-wrap.speki-structure-table-wrap.route-object-table-wrap",
           "width": 268,
-          "height": 1551,
+          "height": 1851,
           "headers": [
             "Объект / операция",
             "Трудозатраты",
@@ -15225,38 +14027,26 @@
             "Состояние"
           ],
           "rowCount": 25,
-          "actionButtonCount": 25,
+          "actionButtonCount": 5,
           "iconButtonSizes": [
             {
-              "width": 47,
+              "width": 90,
               "height": 48
             },
             {
-              "width": 47,
+              "width": 90,
               "height": 48
             },
             {
-              "width": 47,
+              "width": 90,
               "height": 48
             },
             {
-              "width": 47,
+              "width": 90,
               "height": 48
             },
             {
-              "width": 47,
-              "height": 48
-            },
-            {
-              "width": 47,
-              "height": 48
-            },
-            {
-              "width": 47,
-              "height": 48
-            },
-            {
-              "width": 47,
+              "width": 90,
               "height": 48
             }
           ],
@@ -15267,7 +14057,7 @@
       ],
       "overlayCount": 0,
       "overlayReports": [],
-      "actionButtonCount": 81,
+      "actionButtonCount": 55,
       "actionZones": [
         {
           "selector": "div.ui-action-bar.ui-module-header-actions",
@@ -15285,62 +14075,62 @@
       ],
       "overflowElements": [
         {
-          "selector": "small",
-          "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 267,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_для расчетттттта",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 240,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small.route-task-output-hint",
-          "text": "Выход: Печатная плата BOM_для расчетттттта",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 215,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Технический контроль промежуточный",
-          "right": 151,
-          "width": 34,
-          "overflowRight": -239,
-          "scrollDelta": 192,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.125 576/см 2 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Отдел нанесения влагозащитных покрытий",
-          "right": 151,
-          "width": 34,
-          "overflowRight": -239,
-          "scrollDelta": 191,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.089 576/см 2 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Произвести · Производимая позиция",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 188,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.15 480/см 3 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         }
@@ -17254,7 +16044,7 @@
       },
       "profileType": "contract",
       "layoutPage": "roles",
-      "textLength": 19705,
+      "textLength": 19773,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -17738,171 +16528,6 @@
       "status": "ok"
     },
     {
-      "moduleId": "matrix",
-      "viewport": {
-        "id": "narrow-compact",
-        "width": 390,
-        "height": 844,
-        "category": "narrow"
-      },
-      "profileType": "contract",
-      "layoutPage": "matrix",
-      "textLength": 2365,
-      "bodyOverflowX": 0,
-      "shell": {
-        "present": true,
-        "width": 390,
-        "height": 844
-      },
-      "header": {
-        "present": true,
-        "width": 390,
-        "height": 64
-      },
-      "main": {
-        "present": true,
-        "width": 390,
-        "height": 723
-      },
-      "components": {
-        "AppShell": 1,
-        "ModulePage": 1,
-        "ModuleHeader": 1,
-        "Panel": 1,
-        "TableWrap": 1,
-        "ActionButton": 43,
-        "StatusToken": 1,
-        "ActionBar": 0,
-        "Toolbar": 0,
-        "FilterBar": 0,
-        "EmptyState": 0,
-        "Modal": 0,
-        "Drawer": 0,
-        "Dropdown": 1,
-        "GanttRuntime": 0,
-        "GanttDependencyLayer": 0,
-        "VisualSystemRuntime": 0
-      },
-      "tableWrapCount": 1,
-      "tableCount": 1,
-      "emptyStateCount": 0,
-      "tableReports": [
-        {
-          "selector": "table.planning-table-matrix",
-          "wrapper": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "width": 980,
-          "height": 1032,
-          "headers": [
-            "Ресурс / участок",
-            "22.06пн",
-            "23.06вт",
-            "24.06ср",
-            "25.06чт",
-            "26.06пт",
-            "27.06сб",
-            "28.06вс",
-            "29.06пн",
-            "30.06вт",
-            "01.07ср",
-            "02.07чт",
-            "03.07пт",
-            "04.07сб",
-            "05.07вс",
-            "Склад\n        10 сл. · 1 д 21 ч",
-            "Участок поверхностного монтажа 1\n        2 сл. · 1 д 9 ч",
-            "Отдел ручного монтажа\n        2 сл. · 18 ч 32 мин",
-            "Отдел нанесения влагозащитных покрытий\n        1 сл. · 16 ч 40 мин",
-            "Слесарный участок 1\n        1 сл. · 16 ч 40 мин",
-            "Отдел программной подготовки изделий\n        1 сл. · 13 ч 53 мин",
-            "Отдел технического контроля\n        1 сл. · 13 ч 53 мин",
-            "Участок упаковки и маркировки изделий\n        1 сл. · 8 ч 20 мин",
-            "Участок отмывки\n        1 сл. · 1 ч 18 мин"
-          ],
-          "rowCount": 9,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 0
-        }
-      ],
-      "overlayCount": 0,
-      "overlayReports": [],
-      "actionButtonCount": 43,
-      "actionZones": [],
-      "requiredSelectors": [],
-      "overflowElements": [
-        {
-          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 336,
-          "width": 2,
-          "overflowRight": -54,
-          "scrollDelta": 980,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "table.planning-table-matrix",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "thead",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tr",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "th.is-weekend",
-          "text": "05.07вс",
-          "right": 1315,
-          "width": 60,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tbody",
-          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        }
-      ],
-      "bodyRuntimeErrorText": false,
-      "gantt": null,
-      "exception": null,
-      "limitedSupport": "",
-      "consoleErrors": [],
-      "failures": [],
-      "warnings": [],
-      "status": "ok"
-    },
-    {
       "moduleId": "supply",
       "viewport": {
         "id": "narrow-compact",
@@ -18235,7 +16860,7 @@
       },
       "profileType": "special-runtime",
       "layoutPage": "visualSystem",
-      "textLength": 10507,
+      "textLength": 66569,
       "bodyOverflowX": 0,
       "shell": {
         "present": true,
@@ -18256,14 +16881,14 @@
         "AppShell": 1,
         "ModulePage": 0,
         "ModuleHeader": 0,
-        "Panel": 5,
+        "Panel": 16,
         "TableWrap": 2,
-        "ActionButton": 77,
-        "StatusToken": 29,
+        "ActionButton": 199,
+        "StatusToken": 21,
         "ActionBar": 1,
         "Toolbar": 1,
         "FilterBar": 1,
-        "EmptyState": 0,
+        "EmptyState": 1,
         "Modal": 1,
         "Drawer": 1,
         "Dropdown": 2,
@@ -18272,14 +16897,14 @@
         "VisualSystemRuntime": 1
       },
       "tableWrapCount": 2,
-      "tableCount": 14,
-      "emptyStateCount": 0,
+      "tableCount": 3,
+      "emptyStateCount": 1,
       "tableReports": [
         {
-          "selector": "table.ui-table.visual-ui-kit-table",
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
           "wrapper": "div.ui-table-wrap.visual-ui-kit-table-wrap",
-          "width": 389,
-          "height": 176,
+          "width": 720,
+          "height": 180,
           "headers": [
             "Документ",
             "Состав",
@@ -18308,206 +16933,51 @@
           "selectedRowCount": 2
         },
         {
-          "selector": "table.visual-system-table",
-          "wrapper": "div.ui-table-wrap.visual-table-wrap",
-          "width": 720,
-          "height": 180,
+          "selector": "table",
+          "wrapper": "",
+          "width": 274,
+          "height": 98,
+          "headers": [],
+          "rowCount": 3,
+          "actionButtonCount": 0,
+          "iconButtonSizes": [],
+          "treeToggleCount": 0,
+          "levelMarkerCount": 0,
+          "selectedRowCount": 1
+        },
+        {
+          "selector": "table.ui-table.visual-icon-mapping-table",
+          "wrapper": "div.ui-table-wrap.visual-icon-mapping-table-wrap",
+          "width": 616,
+          "height": 7732,
           "headers": [
-            "Дерево",
-            "Тип",
-            "Состояние",
-            "Поле",
-            "Действия"
+            "semanticSlug",
+            "iconName",
+            "runtime IDs",
+            "Группа",
+            "Статус",
+            "Где используется"
           ],
-          "rowCount": 3,
-          "actionButtonCount": 3,
-          "iconButtonSizes": [
-            {
-              "width": 36,
-              "height": 36
-            },
-            {
-              "width": 36,
-              "height": 36
-            },
-            {
-              "width": 36,
-              "height": 36
-            }
-          ],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
+          "rowCount": 129,
           "actionButtonCount": 0,
           "iconButtonSizes": [],
           "treeToggleCount": 0,
           "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
-        },
-        {
-          "selector": "table",
-          "wrapper": "",
-          "width": 328,
-          "height": 119,
-          "headers": [],
-          "rowCount": 3,
-          "actionButtonCount": 0,
-          "iconButtonSizes": [],
-          "treeToggleCount": 0,
-          "levelMarkerCount": 0,
-          "selectedRowCount": 1
+          "selectedRowCount": 0
         }
       ],
       "overlayCount": 2,
       "overlayReports": [
         {
           "selector": "section.ui-modal.is-sample",
-          "width": 328,
+          "width": 274,
           "height": 170,
           "visible": true,
           "closeActions": 0,
           "bodyCount": 1,
           "footerActions": 2,
           "overflowX": 0,
-          "overflowY": 4318
+          "overflowY": 90424
         },
         {
           "selector": "aside.detail-drawer.ui-drawer.is-sample",
@@ -18521,11 +16991,11 @@
           "overflowY": 0
         }
       ],
-      "actionButtonCount": 77,
+      "actionButtonCount": 199,
       "actionZones": [
         {
           "selector": "div.ui-toolbar.visual-ui-kit-toolbar",
-          "width": 328,
+          "width": 274,
           "height": 80,
           "actionButtons": 4,
           "overflowX": 0
@@ -18557,41 +17027,41 @@
       ],
       "overflowElements": [
         {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 369,
-          "width": 348,
-          "overflowRight": -21,
-          "scrollDelta": 374,
+          "selector": "div.ui-table-wrap.visual-ui-kit-table-wrap",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 342,
+          "width": 294,
+          "overflowRight": -48,
+          "scrollDelta": 428,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "table.visual-system-table",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 742,
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "thead",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tr",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
@@ -18599,19 +17069,19 @@
         {
           "selector": "th",
           "text": "Действия",
-          "right": 742,
+          "right": 769,
           "width": 76,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tbody",
-          "text": "Финальная сборка узел готово Плата BOM_ELF расчет ожидание SMT монтаж UX риск",
-          "right": 742,
+          "text": "Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-20260502-D5-07Выводной монтаж700готово ",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true

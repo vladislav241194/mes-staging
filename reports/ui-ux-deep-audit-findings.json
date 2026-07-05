@@ -1,0 +1,622 @@
+[
+  {
+    "id": "UIUX-001",
+    "severity": "critical",
+    "area": "qa",
+    "module": "shared",
+    "title": "Current UI stabilization baseline is not green",
+    "description": "The current build passes, but qa:ui, qa:css, qa:architecture, qa:visual, qa:functional, and git diff --check fail in the live audit run.",
+    "evidence": [
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "qa.commandsRun",
+        "selectorOrFunction": "qa.commandsRun",
+        "note": "Current command results collected during this audit."
+      },
+      {
+        "file": "scripts/design-qa-snapshots.mjs",
+        "lines": "21-24",
+        "selectorOrFunction": "missingVisualRuntimeModuleIds",
+        "note": "Visual QA fails when runtime module registry contains a module not listed in visual snapshot module IDs."
+      },
+      {
+        "file": "scripts/module-smoke-qa.mjs",
+        "lines": "1806-1810",
+        "selectorOrFunction": "visualSystem panelCount",
+        "note": "Functional smoke expects visualSystem >= 8 panels, current smoke observed 1."
+      }
+    ],
+    "impact": "Previous pass claims cannot be used as current proof. Any UI refactor has to start from a failing baseline.",
+    "recommendedAction": "Separate current baseline failures into explicit repair tasks before treating guardrails as reliable release gates.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-002",
+    "severity": "critical",
+    "area": "css",
+    "module": "shared",
+    "title": "CSS cascade remains large and high-risk",
+    "description": "Source CSS has 29154 lines, 3070 !important usages, 1847 raw hex values, 7309 raw px values, and 1300 duplicate selector groups by audit parser.",
+    "evidence": [
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "css",
+        "selectorOrFunction": "css metrics",
+        "note": "Current CSS counters."
+      },
+      {
+        "file": "styles/layers/80-visual-system-ui-states.css",
+        "lines": "1-4244",
+        "selectorOrFunction": "visual system CSS layer",
+        "note": "Top risky CSS file by current audit: high important/raw value pressure."
+      },
+      {
+        "file": "styles/layers/70-planning-table-and-matrix.css",
+        "lines": "1-3601",
+        "selectorOrFunction": "planning/table CSS layer",
+        "note": "Second-highest risk CSS file and current weekly/planning/table concentration."
+      }
+    ],
+    "impact": "Changing a visual rule globally is still risky because selector families and raw declarations compete across layers.",
+    "recommendedAction": "Treat CSS debt as budgets per family, not only per file: actions/buttons, tables, shell/sidebar, visualSystem, Gantt.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-003",
+    "severity": "high",
+    "area": "css",
+    "module": "planning",
+    "title": "Planning CSS has an exact duplicate rule budget failure",
+    "description": "qa:css fails because an exact duplicate selector exists in styles/ui/planning-order.css for the fifth planning table column.",
+    "evidence": [
+      {
+        "file": "styles/ui/planning-order.css",
+        "lines": "219-220",
+        "selectorOrFunction": "planning-order-table nth-child(5)",
+        "note": "First width declaration for fifth column."
+      },
+      {
+        "file": "styles/ui/planning-order.css",
+        "lines": "503-504",
+        "selectorOrFunction": "planning-order-table nth-child(5)",
+        "note": "Second exact duplicate width declaration."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "qa.commandsRun qa:css",
+        "selectorOrFunction": "qa:css",
+        "note": "qa:css failure reason records the duplicate rule."
+      }
+    ],
+    "impact": "The table redesign work reintroduced a simple duplicate despite previous duplicate budgets.",
+    "recommendedAction": "Make duplicate selector budget fail before final reports are accepted, then collapse planning-order duplicate families.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-004",
+    "severity": "high",
+    "area": "components",
+    "module": "shared",
+    "title": "Runtime is still dominated by src/app.js",
+    "description": "src/app.js is 40436 lines with 293 render helper functions in the monolith; only 2 module renderer files are extracted.",
+    "evidence": [
+      {
+        "file": "src/app.js",
+        "lines": "6490-6788",
+        "selectorOrFunction": "render(options)",
+        "note": "Main render switch still owns module routing/render binding."
+      },
+      {
+        "file": "src/modules/dispatch/render.js",
+        "lines": "1-15",
+        "selectorOrFunction": "renderDispatchModulePage",
+        "note": "One small extracted module renderer exists."
+      },
+      {
+        "file": "src/modules/nomenclature/render.js",
+        "lines": "1-185",
+        "selectorOrFunction": "renderNomenclatureModulePage",
+        "note": "Second extracted module renderer exists."
+      }
+    ],
+    "impact": "UI changes often require editing the monolith, so local fixes can easily affect unrelated modules.",
+    "recommendedAction": "Continue runtime decomposition by extracting high-churn UI modules after audit baseline is green.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-005",
+    "severity": "high",
+    "area": "tokens",
+    "module": "shared",
+    "title": "Token layer exists but adoption is partial",
+    "description": "295 mes tokens exist and 2875 token references were counted, but 9156 raw visual values remain and multiple density/typography aliases have zero references.",
+    "evidence": [
+      {
+        "file": "src/ui_runtime_contracts.js",
+        "lines": "176-220",
+        "selectorOrFunction": "UI_RUNTIME_STYLE_TOKENS",
+        "note": "Token registry exists."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "tokens.lowUseTokens",
+        "selectorOrFunction": "lowUseTokens",
+        "note": "Control/density/font aliases with zero references are listed."
+      },
+      {
+        "file": "styles/layers/80-visual-system-ui-states.css",
+        "lines": "3318-3339",
+        "selectorOrFunction": ".visual-system-section-head",
+        "note": "Current qa:ui raw-token failure lines use local px/rgba values."
+      }
+    ],
+    "impact": "A request like changing spacing or typography globally still reaches only part of the system.",
+    "recommendedAction": "Move from token declaration to adoption budgets: density, typography, control, table, and icon tokens should have minimum usage and raw-value ceilings.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-006",
+    "severity": "high",
+    "area": "tables",
+    "module": "shared",
+    "title": "Table contract is present but not universal",
+    "description": "Audit found 38 raw table tags, 23 of 33 classified tables under TableWrap, and 2448 table-related CSS selectors.",
+    "evidence": [
+      {
+        "file": "src/ui/components.js",
+        "lines": "201-206",
+        "selectorOrFunction": "renderUiTableWrap",
+        "note": "Shared TableWrap helper exists."
+      },
+      {
+        "file": "reports/corrective-phase-b-metrics.json",
+        "lines": "metrics.table",
+        "selectorOrFunction": "table audit metrics",
+        "note": "Prior table budget reports 33 tables and 23 under TableWrap."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "tables",
+        "selectorOrFunction": "tables metrics",
+        "note": "Current raw table and selector counts."
+      }
+    ],
+    "impact": "Density, selected row, hover, sticky, and overflow behavior can still differ by module.",
+    "recommendedAction": "Prioritize planning, shiftWorkOrders, routes/products, timesheet, and productionStructureMatrix table families for one table-density contract.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-007",
+    "severity": "high",
+    "area": "buttons",
+    "module": "shared",
+    "title": "Button contract wraps legacy classes instead of replacing them",
+    "description": "renderUiActionButton exists, but its base class still emits primary-button/secondary-button/icon-button/table-icon-button, and source/runtime still contain 60 secondary-button and 15 primary-button occurrences.",
+    "evidence": [
+      {
+        "file": "src/ui/components.js",
+        "lines": "82-99",
+        "selectorOrFunction": "renderUiActionButton",
+        "note": "Shared ActionButton maps tone to legacy button classes."
+      },
+      {
+        "file": "src/ui_runtime_contracts.js",
+        "lines": "85-88",
+        "selectorOrFunction": "ActionButton contract",
+        "note": "Contract itself includes legacy class selectors."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "components.helperMetrics",
+        "selectorOrFunction": "raw button occurrences",
+        "note": "Current direct class counts."
+      }
+    ],
+    "impact": "Fixing a button bug may still require touching legacy and new selectors together.",
+    "recommendedAction": "Split semantic button API from legacy compatibility classes and shrink direct primary/secondary usage budget.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-008",
+    "severity": "high",
+    "area": "icons",
+    "module": "shared",
+    "title": "Icon pipeline is richer than runtime adoption",
+    "description": "Icon assets include 129 semantic slugs, 47 custom SVGs, 82 open-source mappings and 1 fallback SVG, but runtime still uses a generic icon(name) helper 213 times and runtime mixed registry has 3 entries.",
+    "evidence": [
+      {
+        "file": "src/icons/mes-mixed/source/reports/mixed-icon-manifest.json",
+        "lines": "1-20",
+        "selectorOrFunction": "mixed-icon-manifest",
+        "note": "Manifest declares custom/open-source/fallback policy and entries."
+      },
+      {
+        "file": "src/app.js",
+        "lines": "40289-40295",
+        "selectorOrFunction": "icon(name)",
+        "note": "Runtime icon rendering is still a generic helper path."
+      },
+      {
+        "file": "src/icons/custom-mes/registry.js",
+        "lines": "14-24",
+        "selectorOrFunction": "MES_CUSTOM_ICON_*",
+        "note": "Custom icon registry exists."
+      }
+    ],
+    "impact": "Approved icon semantics can drift when runtime calls are still name-based instead of semantic-source validated.",
+    "recommendedAction": "Audit all icon(name) calls into semantic/system/fallback categories and gate unmapped names.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-009",
+    "severity": "high",
+    "area": "gantt",
+    "module": "gantt",
+    "title": "Gantt remains a special runtime outside normal UI primitives",
+    "description": "Gantt slots, timeline cells, week boundaries and segmented slot geometry are built with inline style geometry and specialized functions, not normal component primitives.",
+    "evidence": [
+      {
+        "file": "src/app.js",
+        "lines": "35175-35190",
+        "selectorOrFunction": "renderGanttTimelineWeekGroup/renderGanttTimelineDayCell",
+        "note": "Timeline geometry is inline left/width px."
+      },
+      {
+        "file": "src/app.js",
+        "lines": "36505-36620",
+        "selectorOrFunction": "renderSlot",
+        "note": "Slot geometry uses inline left/top/width/height and CSS vars."
+      },
+      {
+        "file": "src/ui/components.js",
+        "lines": "266-279",
+        "selectorOrFunction": "renderUiGanttBar",
+        "note": "Shared GanttBar is a demo/contract sample, not the live Gantt renderer."
+      }
+    ],
+    "impact": "Mass CSS changes can break geometry/hit areas; Gantt needs its own contract and visual guardrails.",
+    "recommendedAction": "Keep Gantt under special-runtime budget and do not migrate geometry through broad CSS cleanup.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-010",
+    "severity": "high",
+    "area": "visualSystem",
+    "module": "visualSystem",
+    "title": "Visual system page and smoke expectations are out of sync",
+    "description": "qa:functional fails because the visualSystem smoke expects >=8 panels, but current runtime returns 1. This means UI-state docs/tests are not aligned with the active UI state module.",
+    "evidence": [
+      {
+        "file": "scripts/module-smoke-qa.mjs",
+        "lines": "1806-1814",
+        "selectorOrFunction": "runModuleSpecificSmokeChecks visualSystem",
+        "note": "Smoke expectations for visual system page."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "qa.commandsRun qa:functional",
+        "selectorOrFunction": "qa:functional",
+        "note": "Current failure reason: visualSystem expected panels got 1."
+      },
+      {
+        "file": "src/app.js",
+        "lines": "21149-21153",
+        "selectorOrFunction": "renderVisualSystemPage/renderVisualSystemPageV2",
+        "note": "Active visualSystem route delegates to V2 page."
+      }
+    ],
+    "impact": "The internal UI-kit reference cannot be trusted as a complete visual acceptance surface until smoke and page match.",
+    "recommendedAction": "Decide whether visualSystem V2 is intentionally compact, then update smoke or rebuild the sections to the stated contract.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-011",
+    "severity": "medium",
+    "area": "forms",
+    "module": "shared",
+    "title": "FormField adoption is low compared with raw controls",
+    "description": "renderUiFormField is called 9 times, while raw input/select/textarea tags total 129.",
+    "evidence": [
+      {
+        "file": "src/ui/components.js",
+        "lines": "209-216",
+        "selectorOrFunction": "renderUiFormField",
+        "note": "Shared form helper exists."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "components.helperMetrics",
+        "selectorOrFunction": "rawInputTags/rawSelectTags/rawTextareaTags",
+        "note": "Current raw control counts."
+      },
+      {
+        "file": "src/app.js",
+        "lines": "15147-15251",
+        "selectorOrFunction": "renderTimesheetEditorModal",
+        "note": "Example of modal form controls/actions assembled locally."
+      }
+    ],
+    "impact": "Control height, label alignment, focus, disabled and validation states remain fragmented.",
+    "recommendedAction": "Introduce form-control coverage budgets per module and migrate high-touch forms first: auth, timesheet, planning labor, roles.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-012",
+    "severity": "medium",
+    "area": "accessibility",
+    "module": "shared",
+    "title": "Accessibility coverage is opportunistic, not systematic",
+    "description": "Helpers include some roles/aria attributes, but raw button/input/modal markup and icon-only actions are still widespread and not all checked by a dedicated accessibility audit.",
+    "evidence": [
+      {
+        "file": "src/ui/components.js",
+        "lines": "94-98",
+        "selectorOrFunction": "renderUiActionButton",
+        "note": "Button helper has data-ui-component but no required aria-label policy for icon-only labels."
+      },
+      {
+        "file": "src/ui/components.js",
+        "lines": "228-242",
+        "selectorOrFunction": "renderUiModalFrame/renderUiModalShell",
+        "note": "Modal helper sets role/dialog but no focus trap evidence."
+      },
+      {
+        "file": "package.json",
+        "lines": "scripts",
+        "selectorOrFunction": "scripts",
+        "note": "No lint/a11y script is available in current package scripts."
+      }
+    ],
+    "impact": "Keyboard and screen-reader regressions can pass current QA.",
+    "recommendedAction": "Add non-invasive a11y audit coverage: focusable controls, icon-button labels, modal focus, form labels, contrast token checks.",
+    "confidence": "medium"
+  },
+  {
+    "id": "UIUX-013",
+    "severity": "medium",
+    "area": "responsiveness",
+    "module": "shared",
+    "title": "Responsive QA exists but does not cover all current runtime modules",
+    "description": "qa:ui:regression passes across 19 modules and 5 viewports, but visual QA fails due to missing weeklyProductionControl in its module list and table regression report still records overflow/warnings.",
+    "evidence": [
+      {
+        "file": "scripts/design-qa-snapshots.mjs",
+        "lines": "17-24",
+        "selectorOrFunction": "moduleIds/missingVisualRuntimeModuleIds",
+        "note": "weeklyProductionControl is missing from visual snapshot module IDs."
+      },
+      {
+        "file": "docs/ui-table-regression-report.md",
+        "lines": "20-23",
+        "selectorOrFunction": "tablet rows",
+        "note": "Tablet report rows record overflow values for planning/routes and products missing tables."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "qa.commandsRun qa:ui:regression",
+        "selectorOrFunction": "qa:ui:regression",
+        "note": "Regression smoke passes but visual QA fails separately."
+      }
+    ],
+    "impact": "A green regression smoke does not prove full visual stability for newly added modules.",
+    "recommendedAction": "Require runtime module registry and visual snapshot module list to be generated from the same source.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-014",
+    "severity": "medium",
+    "area": "status",
+    "module": "shared",
+    "title": "Status/badge cleanup is incomplete",
+    "description": "renderUiStatusToken is used 63 times, but status-pill and local status/badge/chip classes remain in code/CSS.",
+    "evidence": [
+      {
+        "file": "src/ui/components.js",
+        "lines": "56-59",
+        "selectorOrFunction": "renderUiStatusToken",
+        "note": "Shared status token helper exists."
+      },
+      {
+        "file": "src/app.js",
+        "lines": "34966-34970",
+        "selectorOrFunction": "status-strip",
+        "note": "Gantt combines StatusToken with legacy status-pill class names."
+      },
+      {
+        "file": "docs/corrective-phase-b-result.md",
+        "lines": "68-84",
+        "selectorOrFunction": "Phase B metrics",
+        "note": "Previous report still listed 107 raw local status colors."
+      }
+    ],
+    "impact": "Status tone and badge styling can diverge across Gantt, tables, supply, auth, workshop and visual samples.",
+    "recommendedAction": "Continue status migration but track semantic status state, not just class tokenization.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-015",
+    "severity": "medium",
+    "area": "layout",
+    "module": "shared",
+    "title": "Shell/sidebar/topbar selectors are repeated across many layers",
+    "description": "Core layout selectors such as .module-tab, .directory-sidebar, .topbar, .module-data-page and .directory-workspace are duplicated across multiple CSS layers.",
+    "evidence": [
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "css.largestDuplicateSelectorGroups",
+        "selectorOrFunction": "largestDuplicateSelectorGroups",
+        "note": "Shows repeated layout selectors and files."
+      },
+      {
+        "file": "styles/layers/30-module-shell-ui-foundations.css",
+        "lines": "1-2660",
+        "selectorOrFunction": "module shell CSS",
+        "note": "Primary shell layer."
+      },
+      {
+        "file": "styles/layers/50-nomenclature-routes-directories.css",
+        "lines": "1279-1519",
+        "selectorOrFunction": "legacy sidebar variables/selectors",
+        "note": "Older sidebar layout variables coexist with newer shell tokens."
+      }
+    ],
+    "impact": "Sidebar/topbar fixes can still create per-module drift, as seen in recent manual QA loops.",
+    "recommendedAction": "Move app sidebar/topbar/sidebar-item to a single locked CSS family and block page-specific overrides except explicit contracts.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-016",
+    "severity": "medium",
+    "area": "docs",
+    "module": "shared",
+    "title": "Previous pass claims are stale against current command results",
+    "description": "docs/ui-stabilization-master-plan.md and docs/ui-global-forensic-audit.md claim multiple QA passes, but the current audit run shows failures in those same command families.",
+    "evidence": [
+      {
+        "file": "docs/ui-stabilization-master-plan.md",
+        "lines": "112-119",
+        "selectorOrFunction": "Итоговые проверки",
+        "note": "Previous report claims qa:ui/css/architecture/functional/git diff pass."
+      },
+      {
+        "file": "docs/ui-global-forensic-audit.md",
+        "lines": "21-36",
+        "selectorOrFunction": "Commands executed",
+        "note": "Previous forensic report claims qa:visual and others pass."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "qa.commandsRun",
+        "selectorOrFunction": "current command results",
+        "note": "Current live run contradicts those claims."
+      }
+    ],
+    "impact": "Old docs are useful context but cannot be used as acceptance proof.",
+    "recommendedAction": "Stamp every future report with current git commit, dirty-state, and machine-readable command output.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-017",
+    "severity": "medium",
+    "area": "legacy",
+    "module": "authPrototype",
+    "title": "Legacy tail is still used for new high-specificity fixes",
+    "description": "The legacy override layer contains authPrototype icon readability rules with many !important declarations and raw rgba/px values.",
+    "evidence": [
+      {
+        "file": "styles/layers/99-legacy-overrides-tail.css",
+        "lines": "3911-3944",
+        "selectorOrFunction": "auth-prototype icon overrides",
+        "note": "Recent auth icon fixes live in legacy tail with !important."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "css.cssByFile 99-legacy-overrides-tail.css",
+        "selectorOrFunction": "legacy tail metrics",
+        "note": "Legacy tail has 4019 lines, 344 !important, 1070 raw px."
+      },
+      {
+        "file": "docs/ui-stabilization-master-plan.md",
+        "lines": "121-127",
+        "selectorOrFunction": "remaining debt",
+        "note": "Previous plan already identified legacy tail as risky."
+      }
+    ],
+    "impact": "The compatibility layer is still acting as a patch surface, not only a containment layer.",
+    "recommendedAction": "Freeze new writes to legacy tail except documented compatibility, and migrate recent auth/sidebar fixes into tokenized module CSS.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-018",
+    "severity": "medium",
+    "area": "typography",
+    "module": "shared",
+    "title": "Typography is not globally controllable",
+    "description": "CSS contains 963 font-size declarations, 796 raw px font-size declarations, 700 font-weight declarations, and 501 numeric font weights.",
+    "evidence": [
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "typography",
+        "selectorOrFunction": "typography metrics",
+        "note": "Current typography counters."
+      },
+      {
+        "file": "styles/layers/80-visual-system-ui-states.css",
+        "lines": "3340-3344",
+        "selectorOrFunction": ".visual-system-section-head h2",
+        "note": "Local font-size/font-weight values in visualSystem."
+      },
+      {
+        "file": "styles/ui/planning-order.css",
+        "lines": "221-229",
+        "selectorOrFunction": "planning-order-table th",
+        "note": "Local table header typography with !important."
+      }
+    ],
+    "impact": "Changing type scale globally will only partially affect dense screens.",
+    "recommendedAction": "Create typography budgets by component: topbar/sidebar, table, card, panel, form, gantt.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-019",
+    "severity": "medium",
+    "area": "inline-style",
+    "module": "gantt",
+    "title": "Inline style usage is extensive and partly intentional",
+    "description": "Audit found 117 style attributes and 19 direct style API calls. Some are necessary for Gantt geometry, but others belong to visual samples and module layouts.",
+    "evidence": [
+      {
+        "file": "src/app.js",
+        "lines": "35175-35190",
+        "selectorOrFunction": "timeline inline styles",
+        "note": "Gantt timeline uses inline geometry."
+      },
+      {
+        "file": "src/app.js",
+        "lines": "36551-36620",
+        "selectorOrFunction": "slot inline styles",
+        "note": "Gantt slot segments use inline geometry."
+      },
+      {
+        "file": "src/app.js",
+        "lines": "21457-21459",
+        "selectorOrFunction": "visual tree sample",
+        "note": "Visual samples use inline --level styles."
+      }
+    ],
+    "impact": "Inline styles are not all bad, but without classification they weaken token audits and CSS guardrails.",
+    "recommendedAction": "Classify inline styles as geometry-required, CSS-var-only, demo-only, or debt; fail only unclassified usage.",
+    "confidence": "high"
+  },
+  {
+    "id": "UIUX-020",
+    "severity": "medium",
+    "area": "git",
+    "module": "shared",
+    "title": "Working tree is too dirty for clean acceptance",
+    "description": "Current git status contains 90 changed/untracked entries, including docs, reports, scripts, src and styles. git diff --check also fails on trailing whitespace in docs/ui-table-regression-report.md.",
+    "evidence": [
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "git.statusShort",
+        "selectorOrFunction": "git status",
+        "note": "Current dirty worktree count and files."
+      },
+      {
+        "file": "docs/ui-table-regression-report.md",
+        "lines": "19,32,45,58,71",
+        "selectorOrFunction": "trailing whitespace",
+        "note": "git diff --check failure lines."
+      },
+      {
+        "file": "reports/ui-ux-deep-audit-metrics.json",
+        "lines": "qa.commandsRun git diff --check",
+        "selectorOrFunction": "git diff --check",
+        "note": "Current failure output."
+      }
+    ],
+    "impact": "It is hard to distinguish user edits, generated artifacts, and audit changes; acceptance evidence can be contaminated.",
+    "recommendedAction": "Before major UI refactors, create a clean checkpoint or branch, then keep audit/report output isolated.",
+    "confidence": "high"
+  }
+]

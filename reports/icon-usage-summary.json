@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-07-05T10:05:55.257Z",
+  "projectRoot": "/Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes",
+  "totalInventoryEntries": 82,
+  "uniqueIcons": 82,
+  "helperIconDefinitions": 54,
+  "helperStaticUsageLocations": 324,
+  "inlineSvgGroups": 8,
+  "cssIconGroups": 9,
+  "emojiSymbolGroups": 3,
+  "assetSvgFiles": 4,
+  "unknownMissingHelperNames": 4,
+  "bySourceType": {
+    "helper": 54,
+    "inline-svg": 8,
+    "css": 9,
+    "emoji": 3,
+    "asset": 4,
+    "unknown": 4
+  },
+  "byUsageContext": {
+    "status": 8,
+    "button": 9,
+    "other": 24,
+    "visual-system": 8,
+    "form": 5,
+    "gantt": 9,
+    "topbar": 4,
+    "sidebar": 2,
+    "table-action": 7,
+    "operations-resources": 5,
+    "department-auth": 1
+  },
+  "byModule": {
+    "gantt": 17,
+    "directories": 2,
+    "shared": 25,
+    "shopMap": 2,
+    "visualSystem": 3,
+    "authSessionPrototype": 3,
+    "nomenclature": 1,
+    "routes": 5,
+    "supply": 1,
+    "authPrototype": 4,
+    "timesheet": 2,
+    "products": 6,
+    "planning": 4,
+    "shiftWorkOrders": 2,
+    "employees": 3,
+    "global-shell": 1,
+    "products/routes/planning": 1
+  },
+  "unknownIconRefs": {
+    "departments": 1,
+    "open": 2,
+    "print": 1,
+    "users": 1
+  }
+}

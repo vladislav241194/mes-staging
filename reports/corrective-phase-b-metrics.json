@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-07-05T10:42:31.269Z",
+  "scope": "all",
+  "before": {
+    "duplicateSelectorGroups": 349,
+    "largestDuplicateSelectorGroup": 12,
+    "legacyTailLines": 3961,
+    "importantUsages": 2905,
+    "rawHexUsages": 1875,
+    "borderRadiusPxDeclarations": 199,
+    "tableExceptions": 10,
+    "productionTableExceptions": 0,
+    "nonProductionTableExceptions": 0,
+    "printTableExceptions": 0,
+    "visualSampleTableExceptions": 0,
+    "renderUiStatusTokenCalls": 56
+  },
+  "after": {
+    "duplicateSelectorGroups": 347,
+    "largestDuplicateSelectorGroup": 12,
+    "legacyTailLines": 3961,
+    "importantUsages": 2905,
+    "rawHexUsages": 1830,
+    "borderRadiusPxDeclarations": 199,
+    "tableExceptions": 0,
+    "productionTableExceptions": 0,
+    "nonProductionTableExceptions": 10,
+    "printTableExceptions": 9,
+    "visualSampleTableExceptions": 1,
+    "renderUiStatusTokenCalls": 56,
+    "tokenizedStatusBadgeChipPatterns": 14,
+    "rawLocalStatusColors": 107
+  },
+  "delta": {
+    "duplicateSelectorGroups": -2,
+    "largestDuplicateSelectorGroup": 0,
+    "legacyTailLines": 0,
+    "importantUsages": 0,
+    "rawHexUsages": -45,
+    "borderRadiusPxDeclarations": 0,
+    "tableExceptions": -10,
+    "productionTableExceptions": 0,
+    "nonProductionTableExceptions": 10,
+    "printTableExceptions": 9,
+    "visualSampleTableExceptions": 1,
+    "renderUiStatusTokenCalls": 0,
+    "tokenizedStatusBadgeChipPatterns": null,
+    "rawLocalStatusColors": null
+  },
+  "metrics": {
+    "duplicate": {
+      "duplicateSelectorGroups": 347,
+      "largestDuplicateSelectorGroup": 12,
+      "exactDuplicateRuleGroups": 0
+    },
+    "table": {
+      "tablesFound": 33,
+      "tablesUnderTableWrap": 23,
+      "productionTableExceptions": 0,
+      "nonProductionTableExceptions": 10,
+      "printTableExceptions": 9,
+      "visualSampleTableExceptions": 1,
+      "unclassifiedTableExceptions": 0,
+      "specialRuntimeTables": 0,
+      "tableContractViolations": 0
+    },
+    "status": {
+      "statusPillOccurrences": 40,
+      "deadlineBadgeOccurrences": 6,
+      "mesSignalOccurrences": 109,
+      "statusStateTokenOccurrences": 69,
+      "renderUiStatusTokenCalls": 56,
+      "statusBadgeChipPatternsTracked": 14,
+      "tokenizedStatusBadgeChipPatterns": 14,
+      "rawLocalStatusColors": 107
+    },
+    "visualDebt": {
+      "legacyTailLines": 3961,
+      "importantUsages": 2905,
+      "rawHexUsages": 1830,
+      "borderRadiusPxDeclarations": 199
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "generatedAt": "2026-07-05T20:39:35.455Z",
   "threshold": 16,
   "checks": [
     {
@@ -91,62 +91,62 @@
         {
           "selector": "strong",
           "text": "Печатная плата BOM_для расчетттттта",
-          "right": 1114,
-          "width": 101,
-          "overflowRight": -326,
-          "scrollDelta": 123,
+          "right": 308,
+          "width": 108,
+          "overflowRight": -1132,
+          "scrollDelta": 137,
           "visible": true,
           "isAllowedContainer": false
         },
         {
           "selector": "small",
-          "text": "Главная карта · 1 000 шт.",
-          "right": 272,
-          "width": 72,
-          "overflowRight": -1168,
-          "scrollDelta": 56,
+          "text": "Произвести · Печатная плата BOM_для расчетттттта",
+          "right": 718,
+          "width": 189,
+          "overflowRight": -722,
+          "scrollDelta": 82,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
           "selector": "strong",
-          "text": "Печатная плата BOM_ELF",
-          "right": 1317,
-          "width": 101,
-          "overflowRight": -123,
-          "scrollDelta": 45,
+          "text": "Печатная плата BOM_для расчетттттта",
+          "right": 718,
+          "width": 189,
+          "overflowRight": -722,
+          "scrollDelta": 55,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Дочерняя карта · 1 000 шт.",
-          "right": 504,
-          "width": 101,
-          "overflowRight": -936,
-          "scrollDelta": 36,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 1067,
+          "width": 332,
+          "overflowRight": -373,
+          "scrollDelta": 54,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Дочерняя карта · 1 000 шт.",
-          "right": 707,
-          "width": 101,
-          "overflowRight": -733,
-          "scrollDelta": 36,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 1067,
+          "width": 332,
+          "overflowRight": -373,
+          "scrollDelta": 54,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Дочерняя карта · 1 000 шт.",
-          "right": 911,
-          "width": 101,
-          "overflowRight": -529,
-          "scrollDelta": 36,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 1067,
+          "width": 332,
+          "overflowRight": -373,
+          "scrollDelta": 54,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         }
       ]
     },
@@ -722,19 +722,6 @@
         "height": 932,
         "category": "desktop"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "bodyOverflowX": 0,
-      "limitedSupport": "",
-      "candidates": []
-    },
-    {
-      "viewport": {
-        "id": "desktop",
-        "width": 1440,
-        "height": 932,
-        "category": "desktop"
-      },
       "moduleId": "supply",
       "status": "ok",
       "bodyOverflowX": 0,
@@ -889,62 +876,62 @@
       "limitedSupport": "",
       "candidates": [
         {
-          "selector": "small",
-          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
-          "right": 450,
-          "width": 184,
-          "overflowRight": -990,
-          "scrollDelta": 272,
+          "selector": "b",
+          "text": "employeeHierarchyArrowMarker",
+          "right": 1138,
+          "width": 47,
+          "overflowRight": -302,
+          "scrollDelta": 106,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "small",
-          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
-          "right": 450,
-          "width": 167,
-          "overflowRight": -990,
-          "scrollDelta": 172,
+          "selector": "b",
+          "text": "employeeHierarchyArrowMarker",
+          "right": 1391,
+          "width": 47,
+          "overflowRight": -49,
+          "scrollDelta": 106,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 778,
-          "width": 599,
-          "overflowRight": -662,
-          "scrollDelta": 123,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "small",
-          "text": "образец круглого маркера, а не маркировка карточки стенда",
-          "right": 450,
-          "width": 235,
-          "overflowRight": -990,
-          "scrollDelta": 87,
+          "selector": "b",
+          "text": "transferBatchIndicatorCss",
+          "right": 795,
+          "width": 47,
+          "overflowRight": -645,
+          "scrollDelta": 78,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "article.ui-gantt-bar",
-          "text": "план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
-          "right": 1405,
-          "width": 179,
-          "overflowRight": -35,
-          "scrollDelta": 62,
+          "selector": "b",
+          "text": "transferBatchIndicatorCss",
+          "right": 1048,
+          "width": 47,
+          "overflowRight": -392,
+          "scrollDelta": 78,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "div.visual-rule-card",
-          "text": "GanttBar план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
-          "right": 1415,
-          "width": 199,
-          "overflowRight": -25,
-          "scrollDelta": 53,
+          "selector": "b",
+          "text": "visualGanttTransferArrow",
+          "right": 452,
+          "width": 47,
+          "overflowRight": -988,
+          "scrollDelta": 74,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "b",
+          "text": "visualGanttTransferArrow",
+          "right": 706,
+          "width": 47,
+          "overflowRight": -734,
+          "scrollDelta": 74,
           "visible": true,
           "isAllowedContainer": false
         }
@@ -1147,32 +1134,52 @@
         {
           "selector": "strong",
           "text": "Печатная плата BOM_для расчетттттта",
-          "right": 337,
-          "width": 137,
-          "overflowRight": -843,
-          "scrollDelta": 87,
+          "right": 308,
+          "width": 108,
+          "overflowRight": -872,
+          "scrollDelta": 137,
           "visible": true,
           "isAllowedContainer": false
         },
         {
           "selector": "small",
           "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 534,
-          "width": 233,
-          "overflowRight": -646,
-          "scrollDelta": 38,
+          "right": 480,
+          "width": 179,
+          "overflowRight": -700,
+          "scrollDelta": 92,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Главная карта · 1 000 шт.",
-          "right": 308,
-          "width": 108,
-          "overflowRight": -872,
-          "scrollDelta": 20,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 818,
+          "width": 320,
+          "overflowRight": -362,
+          "scrollDelta": 66,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 818,
+          "width": 320,
+          "overflowRight": -362,
+          "scrollDelta": 66,
+          "visible": true,
+          "isAllowedContainer": true
+        },
+        {
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 818,
+          "width": 320,
+          "overflowRight": -362,
+          "scrollDelta": 66,
+          "visible": true,
+          "isAllowedContainer": true
         }
       ]
     },
@@ -1869,30 +1876,6 @@
         "height": 820,
         "category": "tablet"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "bodyOverflowX": 0,
-      "limitedSupport": "",
-      "candidates": [
-        {
-          "selector": "span",
-          "text": "Read-only матрица загрузки ресурсов по дням на основе текущих слотов Gantt.",
-          "right": 803,
-          "width": 384,
-          "overflowRight": -377,
-          "scrollDelta": 65,
-          "visible": true,
-          "isAllowedContainer": false
-        }
-      ]
-    },
-    {
-      "viewport": {
-        "id": "tablet",
-        "width": 1180,
-        "height": 820,
-        "category": "tablet"
-      },
       "moduleId": "supply",
       "status": "ok",
       "bodyOverflowX": 0,
@@ -2047,64 +2030,64 @@
       "limitedSupport": "",
       "candidates": [
         {
-          "selector": "small",
-          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
-          "right": 469,
-          "width": 203,
-          "overflowRight": -711,
-          "scrollDelta": 253,
+          "selector": "div.visual-icon-filterbar",
+          "text": "Поиск Группа Все ОтделыФункциональные направленияСкладские зоныSystem Lucide Ico",
+          "right": 1147,
+          "width": 758,
+          "overflowRight": -33,
+          "scrollDelta": 158,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "small",
-          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
-          "right": 469,
-          "width": 186,
-          "overflowRight": -711,
-          "scrollDelta": 153,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
+          "selector": "article.visual-system-panel.is-full.visual-icons-panel",
+          "text": "Иконки MESMixed registry: custom MES SVG, Lucide React для системных действий и ",
           "right": 1155,
-          "width": 638,
+          "width": 774,
           "overflowRight": -25,
-          "scrollDelta": 84,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "small",
-          "text": "образец круглого маркера, а не маркировка карточки стенда",
-          "right": 469,
-          "width": 254,
-          "overflowRight": -711,
-          "scrollDelta": 68,
+          "scrollDelta": 150,
           "visible": true,
           "isAllowedContainer": false
         },
         {
-          "selector": "table.visual-system-table",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 1238,
-          "width": 720,
-          "overflowRight": 58,
-          "scrollDelta": 0,
+          "selector": "#visual-icons",
+          "text": "Иконки MESMixed registry: custom MES SVG, Lucide React для системных действий и ",
+          "right": 1168,
+          "width": 800,
+          "overflowRight": -12,
+          "scrollDelta": 138,
           "visible": true,
-          "isAllowedContainer": true
+          "isAllowedContainer": false
         },
         {
-          "selector": "thead",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 1238,
-          "width": 720,
-          "overflowRight": 58,
-          "scrollDelta": 0,
+          "selector": "div.visual-system-layout",
+          "text": "Темы UI Основы tokens Layout shell Actions controls Таблицы data Gantt planning ",
+          "right": 1168,
+          "width": 1002,
+          "overflowRight": -12,
+          "scrollDelta": 137,
           "visible": true,
-          "isAllowedContainer": true
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.visual-system-content",
+          "text": "UI-kit · применяемый стенд MES Visual System Справочник только по применяемым ко",
+          "right": 1168,
+          "width": 800,
+          "overflowRight": -12,
+          "scrollDelta": 137,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "section.visual-system-page",
+          "text": "Темы UI Основы tokens Layout shell Actions controls Таблицы data Gantt planning ",
+          "right": 1180,
+          "width": 1026,
+          "overflowRight": 0,
+          "scrollDelta": 125,
+          "visible": true,
+          "isAllowedContainer": false
         }
       ]
     },
@@ -2303,54 +2286,54 @@
           "isAllowedContainer": false
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_для расчетттттта",
-          "right": 298,
-          "width": 98,
-          "overflowRight": -726,
-          "scrollDelta": 126,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
           "selector": "small",
           "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 478,
-          "width": 177,
-          "overflowRight": -546,
-          "scrollDelta": 94,
+          "right": 433,
+          "width": 132,
+          "overflowRight": -591,
+          "scrollDelta": 139,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "strong",
           "text": "Печатная плата BOM_для расчетттттта",
-          "right": 478,
-          "width": 177,
-          "overflowRight": -546,
-          "scrollDelta": 67,
+          "right": 308,
+          "width": 108,
+          "overflowRight": -716,
+          "scrollDelta": 137,
+          "visible": true,
+          "isAllowedContainer": false
+        },
+        {
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 712,
+          "width": 260,
+          "overflowRight": -312,
+          "scrollDelta": 126,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Главная карта · 1 000 шт.",
-          "right": 269,
-          "width": 69,
-          "overflowRight": -755,
-          "scrollDelta": 59,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 712,
+          "width": 260,
+          "overflowRight": -312,
+          "scrollDelta": 126,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_ELF",
-          "right": 499,
-          "width": 98,
-          "overflowRight": -525,
-          "scrollDelta": 48,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 712,
+          "width": 260,
+          "overflowRight": -312,
+          "scrollDelta": 126,
           "visible": true,
-          "isAllowedContainer": false
+          "isAllowedContainer": true
         }
       ]
     },
@@ -3098,30 +3081,6 @@
         "height": 768,
         "category": "tablet"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "bodyOverflowX": 0,
-      "limitedSupport": "",
-      "candidates": [
-        {
-          "selector": "span",
-          "text": "Read-only матрица загрузки ресурсов по дням на основе текущих слотов Gantt.",
-          "right": 648,
-          "width": 265,
-          "overflowRight": -376,
-          "scrollDelta": 184,
-          "visible": true,
-          "isAllowedContainer": false
-        }
-      ]
-    },
-    {
-      "viewport": {
-        "id": "tablet-compact",
-        "width": 1024,
-        "height": 768,
-        "category": "tablet"
-      },
       "moduleId": "supply",
       "status": "ok",
       "bodyOverflowX": 0,
@@ -3276,62 +3235,12 @@
       "limitedSupport": "",
       "candidates": [
         {
-          "selector": "small",
-          "text": "на рабочих UI-заглушках, которые выглядят функциональными, но не пишут в систему",
-          "right": 560,
-          "width": 294,
-          "overflowRight": -464,
-          "scrollDelta": 162,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
           "selector": "span",
           "text": "Витрина UI-kit, сигналов, Gantt-состояний и визуальных правил прототипа.",
           "right": 648,
           "width": 265,
           "overflowRight": -376,
           "scrollDelta": 159,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "article.ui-gantt-bar",
-          "text": "план 1000 · распределено 700 · факт 400 400 300 -300 400 / 700 / 1000",
-          "right": 575,
-          "width": 179,
-          "overflowRight": -449,
-          "scrollDelta": 62,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "small",
-          "text": "на справочных карточках UI-kit и обычных визуальных образцах",
-          "right": 560,
-          "width": 277,
-          "overflowRight": -464,
-          "scrollDelta": 62,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "td",
-          "text": "Выводной монтаж",
-          "right": 356,
-          "width": 59,
-          "overflowRight": -668,
-          "scrollDelta": 54,
-          "visible": true,
-          "isAllowedContainer": false
-        },
-        {
-          "selector": "td",
-          "text": "Выводной монтаж",
-          "right": 633,
-          "width": 59,
-          "overflowRight": -391,
-          "scrollDelta": 54,
           "visible": true,
           "isAllowedContainer": false
         }
@@ -3522,62 +3431,62 @@
       "limitedSupport": "Planning order labor table is data-dense; narrow smoke allows internal table scroll.",
       "candidates": [
         {
-          "selector": "small",
-          "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 252,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_для расчетттттта",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 225,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small.route-task-output-hint",
-          "text": "Выход: Печатная плата BOM_для расчетттттта",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 200,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Технический контроль промежуточный",
-          "right": 166,
-          "width": 49,
-          "overflowRight": -264,
-          "scrollDelta": 177,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.125 576/см 2 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Отдел нанесения влагозащитных покрытий",
-          "right": 166,
-          "width": 49,
-          "overflowRight": -264,
-          "scrollDelta": 176,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.089 576/см 2 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Произвести · Производимая позиция",
-          "right": 166,
-          "width": 19,
-          "overflowRight": -264,
-          "scrollDelta": 173,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.15 480/см 3 см",
+          "right": 258,
+          "width": 93,
+          "overflowRight": -172,
+          "scrollDelta": 293,
           "visible": true,
           "isAllowedContainer": true
         }
@@ -4387,80 +4296,6 @@
         "height": 932,
         "category": "narrow"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "bodyOverflowX": 0,
-      "limitedSupport": "",
-      "candidates": [
-        {
-          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 364,
-          "width": 30,
-          "overflowRight": -66,
-          "scrollDelta": 952,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "table.planning-table-matrix",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "thead",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tr",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "th.is-weekend",
-          "text": "05.07вс",
-          "right": 1315,
-          "width": 60,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tbody",
-          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 885,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        }
-      ]
-    },
-    {
-      "viewport": {
-        "id": "narrow",
-        "width": 430,
-        "height": 932,
-        "category": "narrow"
-      },
       "moduleId": "supply",
       "status": "ok",
       "bodyOverflowX": 0,
@@ -4615,41 +4450,41 @@
       "limitedSupport": "",
       "candidates": [
         {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 409,
-          "width": 388,
-          "overflowRight": -21,
-          "scrollDelta": 334,
+          "selector": "div.ui-table-wrap.visual-ui-kit-table-wrap",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 382,
+          "width": 334,
+          "overflowRight": -48,
+          "scrollDelta": 388,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "table.visual-system-table",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 742,
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "thead",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tr",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
@@ -4657,19 +4492,19 @@
         {
           "selector": "th",
           "text": "Действия",
-          "right": 742,
+          "right": 769,
           "width": 76,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tbody",
-          "text": "Финальная сборка узел готово Плата BOM_ELF расчет ожидание SMT монтаж UX риск",
-          "right": 742,
+          "text": "Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-20260502-D5-07Выводной монтаж700готово ",
+          "right": 769,
           "width": 720,
-          "overflowRight": 312,
+          "overflowRight": 339,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
@@ -4789,62 +4624,62 @@
       "limitedSupport": "Planning order labor table is data-dense; narrow smoke allows internal table scroll.",
       "candidates": [
         {
-          "selector": "small",
-          "text": "Произвести · Печатная плата BOM_для расчетттттта",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 267,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин База 20.83 1 000/см 1 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Печатная плата BOM_для расчетттттта",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 240,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.079 8 461/см 1 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small.route-task-output-hint",
-          "text": "Выход: Печатная плата BOM_для расчетттттта",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 215,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.082 480/см 3 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "strong",
-          "text": "Технический контроль промежуточный",
-          "right": 151,
-          "width": 34,
-          "overflowRight": -239,
-          "scrollDelta": 192,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.125 576/см 2 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Отдел нанесения влагозащитных покрытий",
-          "right": 151,
-          "width": 34,
-          "overflowRight": -239,
-          "scrollDelta": 191,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.089 576/см 2 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "small",
-          "text": "Произвести · Производимая позиция",
-          "right": 151,
-          "width": 4,
-          "overflowRight": -239,
-          "scrollDelta": 188,
+          "selector": "div.planning-manual-inline-grid",
+          "text": "фикс. ед мульт. смена мин/ед База 0.15 480/см 3 см",
+          "right": 231,
+          "width": 78,
+          "overflowRight": -159,
+          "scrollDelta": 308,
           "visible": true,
           "isAllowedContainer": true
         }
@@ -5684,80 +5519,6 @@
         "height": 844,
         "category": "narrow"
       },
-      "moduleId": "matrix",
-      "status": "ok",
-      "bodyOverflowX": 0,
-      "limitedSupport": "",
-      "candidates": [
-        {
-          "selector": "div.ui-table-wrap.planning-table-matrix-wrap",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 336,
-          "width": 2,
-          "overflowRight": -54,
-          "scrollDelta": 980,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "table.planning-table-matrix",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "thead",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tr",
-          "text": "Ресурс / участок 22.06пн23.06вт24.06ср25.06чт26.06пт27.06сб28.06вс29.06пн30.06вт",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "th.is-weekend",
-          "text": "05.07вс",
-          "right": 1315,
-          "width": 60,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        },
-        {
-          "selector": "tbody",
-          "text": "Склад 10 сл. · 1 д 21 ч Выдача в производство 1 000 узел Выдача в производство 1",
-          "right": 1315,
-          "width": 980,
-          "overflowRight": 925,
-          "scrollDelta": 0,
-          "visible": true,
-          "isAllowedContainer": true
-        }
-      ]
-    },
-    {
-      "viewport": {
-        "id": "narrow-compact",
-        "width": 390,
-        "height": 844,
-        "category": "narrow"
-      },
       "moduleId": "supply",
       "status": "ok",
       "bodyOverflowX": 0,
@@ -5912,41 +5673,41 @@
       "limitedSupport": "",
       "candidates": [
         {
-          "selector": "div.ui-table-wrap.visual-table-wrap",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 369,
-          "width": 348,
-          "overflowRight": -21,
-          "scrollDelta": 374,
+          "selector": "div.ui-table-wrap.visual-ui-kit-table-wrap",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 342,
+          "width": 294,
+          "overflowRight": -48,
+          "scrollDelta": 428,
           "visible": true,
           "isAllowedContainer": true
         },
         {
-          "selector": "table.visual-system-table",
-          "text": "ДеревоТипСостояниеПолеДействия Финальная сборка узел готово Плата BOM_ELF расчет",
-          "right": 742,
+          "selector": "table.ui-table.visual-ui-kit-table.visual-system-table",
+          "text": "ДокументСоставПланСтатусДействия Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-202605",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "thead",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tr",
-          "text": "ДеревоТипСостояниеПолеДействия",
-          "right": 742,
+          "text": "ДокументСоставПланСтатусДействия",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
@@ -5954,19 +5715,19 @@
         {
           "selector": "th",
           "text": "Действия",
-          "right": 742,
+          "right": 769,
           "width": 76,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true
         },
         {
           "selector": "tbody",
-          "text": "Финальная сборка узел готово Плата BOM_ELF расчет ожидание SMT монтаж UX риск",
-          "right": 742,
+          "text": "Заказ-нарядизд. \"Хуета\"1 000в работе СЗН-20260502-D5-07Выводной монтаж700готово ",
+          "right": 769,
           "width": 720,
-          "overflowRight": 352,
+          "overflowRight": 379,
           "scrollDelta": 0,
           "visible": true,
           "isAllowedContainer": true

@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-07-05T13:12:27",
+  "assetsEmbedded": 10,
+  "note": "Use reports/mes_icon_visual_references_embedded.html. It is self-contained and does not need relative asset paths.",
+  "items": [
+    {
+      "slug": "set-01-industrial-dashboard",
+      "filename": "icônes_de_tableau_de_bord_industriel.png",
+      "note": "Первая удачная пачка: SMT, установщик, прошивка, ОТК, склад, технология",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-01-industrial-dashboard.png"
+    },
+    {
+      "slug": "set-02-technical-services",
+      "filename": "icônes_de_services_techniques_en_ligne.png",
+      "note": "Вторая удачная пачка: маркировка, сервис, техдок, AOI, паяльник",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-02-technical-services.png"
+    },
+    {
+      "slug": "set-03-departments",
+      "filename": "инфографика_отделов_компании.png",
+      "note": "Пачка отделов, до замечаний по ручному/слесарному/SMT",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-03-departments.png"
+    },
+    {
+      "slug": "set-04-production-process",
+      "filename": "icônes_du_processus_de_production.png",
+      "note": "Пачка участков: прошивка, тестирование, упаковка, складские зоны",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-04-production-process.png"
+    },
+    {
+      "slug": "set-05-pcb-processes",
+      "filename": "схема_процессов_монтажа_печатных_плат.png",
+      "note": "Пачка оборудования: AOI, принтер, установщик, печь, паяльник, отмывка",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-05-pcb-processes.png"
+    },
+    {
+      "slug": "set-06-planning-lines",
+      "filename": "interface_des_processus_de_production.png",
+      "note": "Пачка функциональных направлений и линий",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-06-planning-lines.png"
+    },
+    {
+      "slug": "set-07-strict-preview",
+      "filename": "предпросмотр_кастомных_иконок_в_mes.png",
+      "note": "Более строгая версия, но уже частично потеряла детализацию",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-07-strict-preview.png"
+    },
+    {
+      "slug": "set-08-corrected-departments",
+      "filename": "icônes_des_départements_en_gris_et_noir.png",
+      "note": "Попытка исправить SMT/ручной/слесарный, не все исправлено",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/set-08-corrected-departments.png"
+    },
+    {
+      "slug": "single-manual-solder-wrench",
+      "filename": "icône_croisée_de_fer_à_souder_et_clé.png",
+      "note": "Отдельная удачная иконка: паяльник + ключ",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/single-manual-solder-wrench.png"
+    },
+    {
+      "slug": "single-coating-nozzle-drop",
+      "filename": "jet_de_liquide_sur_circuit_imprimé.png",
+      "note": "Отдельная удачная иконка: сопло/капля лака",
+      "sourcePath": "/mnt/data/mes_icon_visual_references_recovered/assets/single-coating-nozzle-drop.png"
+    }
+  ],
+  "guidance": [
+    {
+      "semanticSlug": "department-smt",
+      "displayNameRu": "Отдел поверхностного монтажа",
+      "reference": "set-01 + corrected",
+      "instruction": "Один nozzle, на nozzle должен быть SMD/РЭА-компонент, снизу плата. Не multi-nozzle."
+    },
+    {
+      "semanticSlug": "department-manual-assembly",
+      "displayNameRu": "Отдел ручного монтажа",
+      "reference": "single-manual-solder-wrench",
+      "instruction": "Взять удачную отдельную иконку паяльник+ключ. Убрать галлюцинации."
+    },
+    {
+      "semanticSlug": "unit-soldering-workplace",
+      "displayNameRu": "Рабочее место монтажника",
+      "reference": "set-02 / set-05",
+      "instruction": "Паяльник-only, без ключа."
+    },
+    {
+      "semanticSlug": "department-mechanical-assembly",
+      "displayNameRu": "Слесарно-сборочный отдел",
+      "reference": "перерисовать заново",
+      "instruction": "Строгая механическая сборка: корпусной узел + отвертка/ключ, без штангенциркуля и мусора."
+    },
+    {
+      "semanticSlug": "department-coating",
+      "displayNameRu": "Влагозащитные покрытия",
+      "reference": "single-coating-nozzle-drop",
+      "instruction": "Сопло/голова станка, капля лака, плата снизу."
+    },
+    {
+      "semanticSlug": "department-qc",
+      "displayNameRu": "ОТК",
+      "reference": "set-01 / set-02",
+      "instruction": "Микроскоп над платой, без медицинского контекста."
+    },
+    {
+      "semanticSlug": "department-warehouse",
+      "displayNameRu": "Склад",
+      "reference": "set-01 / set-04",
+      "instruction": "Коробки/паллеты/рохля."
+    },
+    {
+      "semanticSlug": "unit-aoi",
+      "displayNameRu": "AOI",
+      "reference": "set-02 / set-05",
+      "instruction": "Камера/оптическая голова над платой, рамка сканирования. Без глаза, без AI."
+    }
+  ]
+}

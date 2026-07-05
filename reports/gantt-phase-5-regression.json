@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-07-05T04:58:19.180Z",
+  "generatedAt": "2026-07-05T20:40:15.236Z",
   "runtimeMap": {
-    "generatedAt": "2026-07-05T04:58:19.180Z",
+    "generatedAt": "2026-07-05T20:40:15.236Z",
     "zones": [
       {
         "id": "shell",
@@ -69,7 +69,7 @@
     ]
   },
   "domContract": {
-    "generatedAt": "2026-07-05T04:58:19.180Z",
+    "generatedAt": "2026-07-05T20:40:15.236Z",
     "requiredSelectors": [
       ".gantt-shell[data-gantt-shell][data-ui-component='GanttRuntime']",
       ".gantt-canvas[data-ui-component='GanttCanvas']",
@@ -2789,7 +2789,7 @@
     ]
   },
   "geometry": {
-    "generatedAt": "2026-07-05T04:58:19.180Z",
+    "generatedAt": "2026-07-05T20:40:15.236Z",
     "viewports": [
       {
         "id": "desktop",
@@ -20206,7 +20206,7 @@
     ]
   },
   "tokenUsage": {
-    "generatedAt": "2026-07-05T04:58:19.179Z",
+    "generatedAt": "2026-07-05T20:40:15.235Z",
     "tokens": [
       {
         "token": "--mes-ui-gantt-row-height",
@@ -20392,7 +20392,7 @@
     ]
   },
   "slotContract": {
-    "generatedAt": "2026-07-05T04:58:19.180Z",
+    "generatedAt": "2026-07-05T20:40:15.236Z",
     "states": [
       "planned",
       "distributed",
@@ -20442,7 +20442,7 @@
     ]
   },
   "dependencyContract": {
-    "generatedAt": "2026-07-05T04:58:19.180Z",
+    "generatedAt": "2026-07-05T20:40:15.236Z",
     "classes": [
       "dependency-path",
       "dependency-path-underlay",
@@ -20474,7 +20474,7 @@
     ]
   },
   "overlay": {
-    "generatedAt": "2026-07-05T04:58:19.180Z",
+    "generatedAt": "2026-07-05T20:40:15.236Z",
     "checks": [
       {
         "viewport": {
@@ -20573,7 +20573,7 @@
     ]
   },
   "scale": {
-    "generatedAt": "2026-07-05T04:58:19.180Z",
+    "generatedAt": "2026-07-05T20:40:15.236Z",
     "scaleChecks": [
       {
         "viewport": {

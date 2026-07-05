@@ -1,0 +1,112 @@
+{
+  "generatedAt": "2026-07-05T09:38:05Z",
+  "phase": "Corrective Phase A.5",
+  "scope": "visual-regression-repair-before-phase-b",
+  "codeChanges": {
+    "visualStyleChanges": 0,
+    "businessLogicChanges": 0,
+    "ganttGeometryChanges": 0,
+    "regressionGuardrailChanges": 1,
+    "changedFilesFromA5": [
+      "scripts/css-layer-audit.mjs",
+      "docs/visual-regression-repair-baseline.md",
+      "docs/visual-regression-repair-result.md",
+      "reports/visual-regression-repair-metrics.json"
+    ]
+  },
+  "cssMetrics": {
+    "rules": 5185,
+    "duplicateSelectorGroups": 349,
+    "largestDuplicateSelectorGroup": 12,
+    "exactDuplicateRuleGroups": 0,
+    "legacyTailLines": 3961,
+    "planningOrderLayerLines": 715,
+    "runtimeSafetyLayerLines": 169,
+    "rawHexUsages": 1875,
+    "uniqueHexColors": 223,
+    "importantUsages": 2905,
+    "fontSizePxDeclarations": 750,
+    "fontWeightLiteralDeclarations": 457,
+    "lineHeightRawDeclarations": 580,
+    "borderRadiusPxDeclarations": 199,
+    "spacingPositionPxDeclarations": 2023,
+    "broadImportantLayoutRules": 0,
+    "riskyModulePanelOverflowRules": 0,
+    "planningRulesInWorkshopLayer": 0
+  },
+  "uiRegression": {
+    "modules": 20,
+    "checks": 100,
+    "overlayProbes": 25,
+    "failed": 0,
+    "warnings": 11,
+    "warningGroups": [
+      {
+        "module": "gantt",
+        "viewports": [
+          "narrow",
+          "narrow-compact"
+        ],
+        "warning": "header bounds limited on narrow viewport"
+      },
+      {
+        "module": "timesheet",
+        "viewports": [
+          "narrow",
+          "narrow-compact"
+        ],
+        "warning": "action zone overflow div.timesheet-controls.ui-toolbar"
+      },
+      {
+        "module": "routes",
+        "viewports": [
+          "narrow-compact"
+        ],
+        "warning": "action zone overflow div.module-form-actions.full.ui-action-bar"
+      },
+      {
+        "module": "authSessionPrototype",
+        "viewports": [
+          "desktop",
+          "tablet",
+          "tablet-compact",
+          "narrow",
+          "narrow-compact"
+        ],
+        "warning": "overlay probe target not present in current state"
+      }
+    ]
+  },
+  "visualSnapshots": {
+    "viewport": "macbook-air-15",
+    "passed": 48,
+    "total": 48,
+    "latestReport": "tmp/design-qa-snapshots-1783244220440/report.md"
+  },
+  "guardrailsAdded": [
+    {
+      "file": "scripts/css-layer-audit.mjs",
+      "name": "assertCriticalLayerContracts",
+      "guards": [
+        "styles/ui/planning-order.css contains the Planning v1.491 marker",
+        "styles/ui/planning-order.css contains the planning-order page shell selector",
+        "styles/layers/99-legacy-overrides-tail.css does not contain the Planning v1.491 marker",
+        "styles/ui/runtime-safety.css contains the interaction stability selector"
+      ]
+    }
+  ],
+  "finalQa": {
+    "npm run build": "pass",
+    "npm run qa:ui": "pass",
+    "npm run qa:css": "pass",
+    "npm run qa:architecture": "pass",
+    "npm run qa:functional": "pass",
+    "npm run qa:ui:regression": "pass",
+    "npm run qa:ui:tables": "pass",
+    "npm run qa:ui:overlays": "pass",
+    "npm run qa:visual": "pass",
+    "npm run qa:ui-kit": "pass",
+    "git diff --check": "pass"
+  },
+  "phaseBReady": true
+}

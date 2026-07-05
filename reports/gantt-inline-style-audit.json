@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T04:50:15.435Z",
+  "generatedAt": "2026-07-05T20:34:48.353Z",
   "sourcePath": "src/app.js",
   "ranges": [
     {
@@ -34,16 +34,16 @@
     }
   ],
   "summary": {
-    "entries": 20,
-    "geometry": 20,
+    "entries": 16,
+    "geometry": 16,
     "geometryCssVariable": 0,
     "visualViolations": 0,
     "unknownWarnings": 0
   },
   "entries": [
     {
-      "rangeId": "toolbar",
-      "line": 33785,
+      "rangeId": "slots",
+      "line": 35148,
       "style": "height:${TIMELINE_HEIGHT}px;",
       "keys": [
         "height"
@@ -58,8 +58,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "toolbar",
-      "line": 33793,
+      "rangeId": "slots",
+      "line": 35156,
       "style": "width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;",
       "keys": [
         "width",
@@ -79,8 +79,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "toolbar",
-      "line": 33802,
+      "rangeId": "slots",
+      "line": 35165,
       "style": "left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;",
       "keys": [
         "left",
@@ -100,8 +100,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "toolbar",
-      "line": 33815,
+      "rangeId": "slots",
+      "line": 35178,
       "style": "left:${group.startIndex * scaleInfo.cellWidth}px; width:${group.dayCount * scaleInfo.cellWidth}px;",
       "keys": [
         "left",
@@ -121,8 +121,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "toolbar",
-      "line": 33826,
+      "rangeId": "slots",
+      "line": 35189,
       "style": "left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;",
       "keys": [
         "left",
@@ -142,8 +142,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "toolbar",
-      "line": 33856,
+      "rangeId": "slots",
+      "line": 35219,
       "style": "left:${round(boundary.left)}px;",
       "keys": [
         "left"
@@ -158,8 +158,60 @@
       "status": "ok"
     },
     {
-      "rangeId": "timeline-rows",
-      "line": 34265,
+      "rangeId": "slots",
+      "line": 35241,
+      "style": "height:${height}px; top:${layout.top}px;",
+      "keys": [
+        "height",
+        "top"
+      ],
+      "keyClassifications": [
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "slots",
+      "line": 35243,
+      "style": "left:${LEFT_WIDTH}px; width:${scaleInfo.width}px; height:${height}px; --cell-width:${scaleInfo.cellWidth}px;",
+      "keys": [
+        "left",
+        "width",
+        "height",
+        "--cell-width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--cell-width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "dependencies",
+      "line": 35628,
       "style": "height:${height}px;",
       "keys": [
         "height"
@@ -174,8 +226,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "timeline-rows",
-      "line": 34267,
+      "rangeId": "dependencies",
+      "line": 35630,
       "style": "left:${round(segment.left)}px; width:${round(segment.width)}px;",
       "keys": [
         "left",
@@ -195,8 +247,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "timeline-rows",
-      "line": 34299,
+      "rangeId": "dependencies",
+      "line": 35662,
       "style": "width:${progress}%",
       "keys": [
         "width"
@@ -204,188 +256,6 @@
       "keyClassifications": [
         {
           "key": "width",
-          "classification": "geometry"
-        }
-      ],
-      "classification": "geometry",
-      "status": "ok"
-    },
-    {
-      "rangeId": "timeline-rows",
-      "line": 34328,
-      "style": "width:${progress}%",
-      "keys": [
-        "width"
-      ],
-      "keyClassifications": [
-        {
-          "key": "width",
-          "classification": "geometry"
-        }
-      ],
-      "classification": "geometry",
-      "status": "ok"
-    },
-    {
-      "rangeId": "slots",
-      "line": 35062,
-      "style": "--segment-left:${round(segment.left)}%; --segment-width:${round(segment.width)}%;",
-      "keys": [
-        "--segment-left",
-        "--segment-width"
-      ],
-      "keyClassifications": [
-        {
-          "key": "--segment-left",
-          "classification": "geometry"
-        },
-        {
-          "key": "--segment-width",
-          "classification": "geometry"
-        }
-      ],
-      "classification": "geometry",
-      "status": "ok"
-    },
-    {
-      "rangeId": "slots",
-      "line": 35104,
-      "style": "--slot-validation-progress:${Math.round(state.validationPercent || 0)}%; --slot-fact-progress:${Math.round(state.factPercent || 0)}%;",
-      "keys": [
-        "--slot-validation-progress",
-        "--slot-fact-progress"
-      ],
-      "keyClassifications": [
-        {
-          "key": "--slot-validation-progress",
-          "classification": "geometry"
-        },
-        {
-          "key": "--slot-fact-progress",
-          "classification": "geometry"
-        }
-      ],
-      "classification": "geometry",
-      "status": "ok"
-    },
-    {
-      "rangeId": "slots",
-      "line": 35178,
-      "style": "left:${segment.offset}px; width:${segment.width}px;",
-      "keys": [
-        "left",
-        "width"
-      ],
-      "keyClassifications": [
-        {
-          "key": "left",
-          "classification": "geometry"
-        },
-        {
-          "key": "width",
-          "classification": "geometry"
-        }
-      ],
-      "classification": "geometry",
-      "status": "ok"
-    },
-    {
-      "rangeId": "slots",
-      "line": 35205,
-      "style": "left:${segment.offset}px; width:${segment.width}px;",
-      "keys": [
-        "left",
-        "width"
-      ],
-      "keyClassifications": [
-        {
-          "key": "left",
-          "classification": "geometry"
-        },
-        {
-          "key": "width",
-          "classification": "geometry"
-        }
-      ],
-      "classification": "geometry",
-      "status": "ok"
-    },
-    {
-      "rangeId": "slots",
-      "line": 35231,
-      "style": "left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;",
-      "keys": [
-        "left",
-        "top",
-        "width",
-        "height",
-        "--slot-height",
-        "--slot-radius"
-      ],
-      "keyClassifications": [
-        {
-          "key": "left",
-          "classification": "geometry"
-        },
-        {
-          "key": "top",
-          "classification": "geometry"
-        },
-        {
-          "key": "width",
-          "classification": "geometry"
-        },
-        {
-          "key": "height",
-          "classification": "geometry"
-        },
-        {
-          "key": "--slot-height",
-          "classification": "geometry"
-        },
-        {
-          "key": "--slot-radius",
-          "classification": "geometry"
-        }
-      ],
-      "classification": "geometry",
-      "status": "ok"
-    },
-    {
-      "rangeId": "slots",
-      "line": 35247,
-      "style": "left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;",
-      "keys": [
-        "left",
-        "top",
-        "width",
-        "height",
-        "--slot-height",
-        "--slot-radius"
-      ],
-      "keyClassifications": [
-        {
-          "key": "left",
-          "classification": "geometry"
-        },
-        {
-          "key": "top",
-          "classification": "geometry"
-        },
-        {
-          "key": "width",
-          "classification": "geometry"
-        },
-        {
-          "key": "height",
-          "classification": "geometry"
-        },
-        {
-          "key": "--slot-height",
-          "classification": "geometry"
-        },
-        {
-          "key": "--slot-radius",
           "classification": "geometry"
         }
       ],
@@ -394,7 +264,23 @@
     },
     {
       "rangeId": "dependencies",
-      "line": 35753,
+      "line": 35691,
+      "style": "width:${progress}%",
+      "keys": [
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "rangeId": "overlays",
+      "line": 37126,
       "style": "left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --cell-width:${scaleInfo.cellWidth}px; --snap-width:${round(snapWidth)}px; --dependency-clip-left:${ui.scrollLeft}px;",
       "keys": [
         "left",
@@ -439,8 +325,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "dependencies",
-      "line": 35757,
+      "rangeId": "overlays",
+      "line": 37130,
       "style": "left:${round(columnLeft)}px; width:${round(columnWidth)}px;",
       "keys": [
         "left",
@@ -460,8 +346,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "dependencies",
-      "line": 35758,
+      "rangeId": "overlays",
+      "line": 37131,
       "style": "left:${round(rect.x)}px; top:${round(top)}px; width:${round(rect.width)}px; height:${round(height)}px;",
       "keys": [
         "left",
@@ -491,8 +377,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "dependencies",
-      "line": 35759,
+      "rangeId": "overlays",
+      "line": 37132,
       "style": "left:${round(guideX)}px;",
       "keys": [
         "left"

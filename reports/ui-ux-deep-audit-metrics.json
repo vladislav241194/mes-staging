@@ -1,0 +1,1503 @@
+{
+  "generatedAt": "2026-07-05T17:49:38.834Z",
+  "git": {
+    "branch": "main",
+    "commit": "7286d0c",
+    "statusShort": [
+      "M docs/gantt-geometry-invariants-report.md",
+      " M docs/gantt-inline-style-classification.md",
+      " M docs/gantt-scale-regression-report.md",
+      " M docs/gantt-ui-regression-report.md",
+      " M docs/ui-contract-coverage-report.md",
+      " M docs/ui-module-regression-smoke-report.md",
+      " M docs/ui-overlay-regression-report.md",
+      " M docs/ui-table-regression-report.md",
+      " M package.json",
+      " M reports/gantt-dependency-contract.json",
+      " M reports/gantt-dom-contract.json",
+      " M reports/gantt-geometry-invariants.json",
+      " M reports/gantt-inline-style-audit.json",
+      " M reports/gantt-overlay-regression.json",
+      " M reports/gantt-phase-5-regression.json",
+      " M reports/gantt-runtime-map.json",
+      " M reports/gantt-scale-regression.json",
+      " M reports/gantt-slot-contract.json",
+      " M reports/gantt-token-usage.json",
+      " M reports/gantt-ui-regression.json",
+      " M reports/ui-console-errors.json",
+      " M reports/ui-contract-coverage.json",
+      " M reports/ui-module-coverage.json",
+      " M reports/ui-overflow-report.json",
+      " M reports/ui-overlay-regression.json",
+      " M reports/ui-regression-summary.json",
+      " M reports/ui-table-regression.json",
+      " M scripts/css-layer-audit.mjs",
+      " M scripts/design-qa-snapshots.mjs",
+      " M scripts/flow-contract-qa.mjs",
+      " M scripts/module-smoke-qa.mjs",
+      " M scripts/ui-contract-coverage-report.mjs",
+      " M scripts/ui-contract-qa.mjs",
+      " M scripts/ui-hardening-plan-qa.mjs",
+      " M scripts/ui-module-regression-smoke.mjs",
+      " M scripts/ui-raw-token-audit.mjs",
+      " M scripts/ui-runtime-coverage-qa.mjs",
+      " M scripts/ui-table-contract-audit.mjs",
+      " M src/app.js",
+      " M src/mes_contracts.js",
+      " M src/ui/contracts/hardening-plan-contracts.js",
+      " M src/ui/contracts/runtime-contracts.js",
+      " M src/ui_regression_exceptions.js",
+      " M src/ui_runtime_contracts.js",
+      " M styles.css",
+      " M styles/layers/10-shell-directory-gantt-base.css",
+      " M styles/layers/20-technology-specifications.css",
+      " M styles/layers/30-module-shell-ui-foundations.css",
+      " M styles/layers/40-gantt-planning-routes.css",
+      " M styles/layers/50-nomenclature-routes-directories.css",
+      " M styles/layers/60-operational-modules.css",
+      " M styles/layers/70-planning-table-and-matrix.css",
+      " M styles/layers/80-visual-system-ui-states.css",
+      " M styles/layers/90-shift-master-board.css",
+      " M styles/layers/99-legacy-overrides-tail.css",
+      " M styles/mes-ui-core.css",
+      " M styles/ui/status.css",
+      "?? assets/icon-references/",
+      "?? docs/corrective-phase-a-baseline.md",
+      "?? docs/corrective-phase-a-result.md",
+      "?? docs/corrective-phase-b-baseline.md",
+      "?? docs/corrective-phase-b-result.md",
+      "?? docs/icon-system-inventory.md",
+      "?? docs/visual-regression-repair-baseline.md",
+      "?? docs/visual-regression-repair-result.md",
+      "?? package-lock.json",
+      "?? reports/corrective-phase-a-metrics.json",
+      "?? reports/corrective-phase-b-metrics.json",
+      "?? reports/custom-icons-ui-states-result.md",
+      "?? reports/icon-gallery.html",
+      "?? reports/icon-replacement-final-report.md",
+      "?? reports/icon-replacement-keywords.csv",
+      "?? reports/icon-system-inventory.csv",
+      "?? reports/icon-system-inventory.json",
+      "?? reports/icon-usage-summary.json",
+      "?? reports/mes_icon_visual_references_embedded.html",
+      "?? reports/ui-ux-deep-audit-metrics.json",
+      "?? reports/visual-reference-manifest-embedded.json",
+      "?? reports/visual-regression-repair-metrics.json",
+      "?? scripts/css-duplicate-selector-budget.json",
+      "?? scripts/generate-mes-icon-registry.mjs",
+      "?? scripts/icon-system-qa.mjs",
+      "?? scripts/ui-corrective-phase-b-budget.mjs",
+      "?? scripts/ui-raw-token-budgets.json",
+      "?? scripts/ui-status-badge-budget.json",
+      "?? scripts/ui-table-exception-budget.json",
+      "?? src/icons/",
+      "?? src/modules/nomenclature/",
+      "?? styles/ui/planning-order.css",
+      "?? styles/ui/runtime-safety.css"
+    ]
+  },
+  "stack": {
+    "packageName": "mes-planning-prototype",
+    "type": "module",
+    "dependencies": {
+      "lucide-react": "^1.23.0",
+      "react": "^19.2.7",
+      "react-dom": "^19.2.7"
+    },
+    "hasTailwindConfig": false,
+    "hasComponentsJson": false,
+    "hasCssModules": false
+  },
+  "files": {
+    "cssFiles": [
+      "styles.css",
+      "styles/layers/00-foundation-base.css",
+      "styles/layers/10-shell-directory-gantt-base.css",
+      "styles/layers/20-technology-specifications.css",
+      "styles/layers/30-module-shell-ui-foundations.css",
+      "styles/layers/40-gantt-planning-routes.css",
+      "styles/layers/50-nomenclature-routes-directories.css",
+      "styles/layers/60-operational-modules.css",
+      "styles/layers/70-planning-table-and-matrix.css",
+      "styles/layers/80-visual-system-ui-states.css",
+      "styles/layers/90-shift-master-board.css",
+      "styles/layers/99-legacy-overrides-tail.css",
+      "styles/mes-ui-core.css",
+      "styles/ui/actions.css",
+      "styles/ui/kit-polish.css",
+      "styles/ui/planning-order.css",
+      "styles/ui/runtime-safety.css",
+      "styles/ui/status.css"
+    ],
+    "jsFiles": [
+      "src/app.js",
+      "src/data.js",
+      "src/gantt_ui_contracts.js",
+      "src/icons/custom-mes/registry.js",
+      "src/icons/registry.js",
+      "src/mes_contracts.js",
+      "src/mes_org_model.js",
+      "src/modules/dispatch/render.js",
+      "src/modules/nomenclature/render.js",
+      "src/production_structure_matrix_data.js",
+      "src/production_structure_service.js",
+      "src/time.js",
+      "src/types.js",
+      "src/ui/components.js",
+      "src/ui/contracts/hardening-plan-contracts.js",
+      "src/ui/contracts/runtime-contracts.js",
+      "src/ui/html.js",
+      "src/ui_regression_exceptions.js",
+      "src/ui_runtime_contracts.js",
+      "src/validation.js"
+    ],
+    "scriptFiles": [
+      "scripts/app-runtime-map.mjs",
+      "scripts/auth-functional-qa.mjs",
+      "scripts/boot-performance-qa.mjs",
+      "scripts/build.mjs",
+      "scripts/css-layer-audit.mjs",
+      "scripts/design-qa-snapshots.mjs",
+      "scripts/extracted-module-render-smoke.mjs",
+      "scripts/flow-contract-qa.mjs",
+      "scripts/gantt-inline-style-audit.mjs",
+      "scripts/gantt-operational-layer-qa.mjs",
+      "scripts/gantt-runtime-guardrails-qa.mjs",
+      "scripts/gantt-ui-regression-smoke.mjs",
+      "scripts/generate-mes-icon-registry.mjs",
+      "scripts/icon-system-qa.mjs",
+      "scripts/legacy-inventory.mjs",
+      "scripts/mobile-qa.mjs",
+      "scripts/module-boundary-audit.mjs",
+      "scripts/module-smoke-qa.mjs",
+      "scripts/planning-labor-functional-qa.mjs",
+      "scripts/preview-dist.mjs",
+      "scripts/production-structure-matrix-qa.mjs",
+      "scripts/roles-functional-qa.mjs",
+      "scripts/run-with-local-server.mjs",
+      "scripts/scroll-dropdown-qa.mjs",
+      "scripts/shared-state-endpoint.mjs",
+      "scripts/shared-state-functional-qa.mjs",
+      "scripts/shift-master-board-functional-qa.mjs",
+      "scripts/shift-operational-flow-functional-qa.mjs",
+      "scripts/state-consistency-qa.mjs",
+      "scripts/timesheet-functional-qa.mjs",
+      "scripts/ui-contract-coverage-report.mjs",
+      "scripts/ui-contract-qa.mjs",
+      "scripts/ui-corrective-phase-b-budget.mjs",
+      "scripts/ui-hardening-plan-qa.mjs",
+      "scripts/ui-kit-guard-qa.mjs",
+      "scripts/ui-module-regression-smoke.mjs",
+      "scripts/ui-raw-token-audit.mjs",
+      "scripts/ui-render-helper-smoke.mjs",
+      "scripts/ui-runtime-class-audit.mjs",
+      "scripts/ui-runtime-coverage-qa.mjs",
+      "scripts/ui-table-contract-audit.mjs",
+      "scripts/workflow-preset-endpoint.mjs"
+    ],
+    "docCount": 70,
+    "reportCount": 33
+  },
+  "css": {
+    "files": 18,
+    "totalLines": 29154,
+    "importantCount": 3070,
+    "rawHexCount": 1847,
+    "rawPxCount": 7309,
+    "duplicateSelectorGroups": 1300,
+    "exactDuplicateRuleGroups": 147,
+    "legacyLayerLines": 4019,
+    "borderRadiusPxDeclarations": 260,
+    "fontSizeDeclarations": 963,
+    "fontWeightDeclarations": 700,
+    "lineHeightDeclarations": 753,
+    "mediaQueries": 113,
+    "cssByFile": [
+      {
+        "file": "styles/layers/80-visual-system-ui-states.css",
+        "lines": 4244,
+        "importantCount": 963,
+        "rawHexCount": 169,
+        "rawPxCount": 966,
+        "borderRadiusPxCount": 28,
+        "selectors": 1097
+      },
+      {
+        "file": "styles/layers/70-planning-table-and-matrix.css",
+        "lines": 3601,
+        "importantCount": 753,
+        "rawHexCount": 222,
+        "rawPxCount": 984,
+        "borderRadiusPxCount": 22,
+        "selectors": 1083
+      },
+      {
+        "file": "styles/layers/90-shift-master-board.css",
+        "lines": 2840,
+        "importantCount": 413,
+        "rawHexCount": 158,
+        "rawPxCount": 782,
+        "borderRadiusPxCount": 33,
+        "selectors": 765
+      },
+      {
+        "file": "styles/layers/99-legacy-overrides-tail.css",
+        "lines": 4019,
+        "importantCount": 344,
+        "rawHexCount": 142,
+        "rawPxCount": 1070,
+        "borderRadiusPxCount": 13,
+        "selectors": 1054
+      },
+      {
+        "file": "styles/layers/60-operational-modules.css",
+        "lines": 2472,
+        "importantCount": 234,
+        "rawHexCount": 154,
+        "rawPxCount": 611,
+        "borderRadiusPxCount": 28,
+        "selectors": 707
+      },
+      {
+        "file": "styles/mes-ui-core.css",
+        "lines": 1261,
+        "importantCount": 149,
+        "rawHexCount": 73,
+        "rawPxCount": 219,
+        "borderRadiusPxCount": 1,
+        "selectors": 327
+      },
+      {
+        "file": "styles/ui/planning-order.css",
+        "lines": 734,
+        "importantCount": 128,
+        "rawHexCount": 19,
+        "rawPxCount": 210,
+        "borderRadiusPxCount": 0,
+        "selectors": 178
+      },
+      {
+        "file": "styles/layers/40-gantt-planning-routes.css",
+        "lines": 1639,
+        "importantCount": 38,
+        "rawHexCount": 126,
+        "rawPxCount": 515,
+        "borderRadiusPxCount": 35,
+        "selectors": 399
+      },
+      {
+        "file": "styles/layers/30-module-shell-ui-foundations.css",
+        "lines": 2660,
+        "importantCount": 22,
+        "rawHexCount": 168,
+        "rawPxCount": 621,
+        "borderRadiusPxCount": 32,
+        "selectors": 832
+      },
+      {
+        "file": "styles/ui/runtime-safety.css",
+        "lines": 170,
+        "importantCount": 21,
+        "rawHexCount": 0,
+        "rawPxCount": 1,
+        "borderRadiusPxCount": 0,
+        "selectors": 125
+      },
+      {
+        "file": "styles/layers/50-nomenclature-routes-directories.css",
+        "lines": 2444,
+        "importantCount": 4,
+        "rawHexCount": 205,
+        "rawPxCount": 600,
+        "borderRadiusPxCount": 22,
+        "selectors": 616
+      },
+      {
+        "file": "styles/layers/10-shell-directory-gantt-base.css",
+        "lines": 1847,
+        "importantCount": 1,
+        "rawHexCount": 297,
+        "rawPxCount": 524,
+        "borderRadiusPxCount": 33,
+        "selectors": 462
+      },
+      {
+        "file": "styles/layers/20-technology-specifications.css",
+        "lines": 628,
+        "importantCount": 0,
+        "rawHexCount": 95,
+        "rawPxCount": 179,
+        "borderRadiusPxCount": 12,
+        "selectors": 187
+      },
+      {
+        "file": "styles/layers/00-foundation-base.css",
+        "lines": 85,
+        "importantCount": 0,
+        "rawHexCount": 18,
+        "rawPxCount": 22,
+        "borderRadiusPxCount": 1,
+        "selectors": 14
+      },
+      {
+        "file": "styles/ui/actions.css",
+        "lines": 67,
+        "importantCount": 0,
+        "rawHexCount": 1,
+        "rawPxCount": 2,
+        "borderRadiusPxCount": 0,
+        "selectors": 19
+      },
+      {
+        "file": "styles/ui/kit-polish.css",
+        "lines": 317,
+        "importantCount": 0,
+        "rawHexCount": 0,
+        "rawPxCount": 3,
+        "borderRadiusPxCount": 0,
+        "selectors": 84
+      },
+      {
+        "file": "styles/ui/status.css",
+        "lines": 107,
+        "importantCount": 0,
+        "rawHexCount": 0,
+        "rawPxCount": 0,
+        "borderRadiusPxCount": 0,
+        "selectors": 44
+      },
+      {
+        "file": "styles.css",
+        "lines": 19,
+        "importantCount": 0,
+        "rawHexCount": 0,
+        "rawPxCount": 0,
+        "borderRadiusPxCount": 0,
+        "selectors": 0
+      }
+    ],
+    "topRiskyCssFiles": [
+      {
+        "file": "styles/layers/80-visual-system-ui-states.css",
+        "lines": 4244,
+        "importantCount": 963,
+        "rawHexCount": 169,
+        "rawPxCount": 966,
+        "borderRadiusPxCount": 28,
+        "selectors": 1097
+      },
+      {
+        "file": "styles/layers/70-planning-table-and-matrix.css",
+        "lines": 3601,
+        "importantCount": 753,
+        "rawHexCount": 222,
+        "rawPxCount": 984,
+        "borderRadiusPxCount": 22,
+        "selectors": 1083
+      },
+      {
+        "file": "styles/layers/90-shift-master-board.css",
+        "lines": 2840,
+        "importantCount": 413,
+        "rawHexCount": 158,
+        "rawPxCount": 782,
+        "borderRadiusPxCount": 33,
+        "selectors": 765
+      },
+      {
+        "file": "styles/layers/99-legacy-overrides-tail.css",
+        "lines": 4019,
+        "importantCount": 344,
+        "rawHexCount": 142,
+        "rawPxCount": 1070,
+        "borderRadiusPxCount": 13,
+        "selectors": 1054
+      },
+      {
+        "file": "styles/layers/60-operational-modules.css",
+        "lines": 2472,
+        "importantCount": 234,
+        "rawHexCount": 154,
+        "rawPxCount": 611,
+        "borderRadiusPxCount": 28,
+        "selectors": 707
+      },
+      {
+        "file": "styles/mes-ui-core.css",
+        "lines": 1261,
+        "importantCount": 149,
+        "rawHexCount": 73,
+        "rawPxCount": 219,
+        "borderRadiusPxCount": 1,
+        "selectors": 327
+      },
+      {
+        "file": "styles/ui/planning-order.css",
+        "lines": 734,
+        "importantCount": 128,
+        "rawHexCount": 19,
+        "rawPxCount": 210,
+        "borderRadiusPxCount": 0,
+        "selectors": 178
+      },
+      {
+        "file": "styles/layers/40-gantt-planning-routes.css",
+        "lines": 1639,
+        "importantCount": 38,
+        "rawHexCount": 126,
+        "rawPxCount": 515,
+        "borderRadiusPxCount": 35,
+        "selectors": 399
+      },
+      {
+        "file": "styles/layers/30-module-shell-ui-foundations.css",
+        "lines": 2660,
+        "importantCount": 22,
+        "rawHexCount": 168,
+        "rawPxCount": 621,
+        "borderRadiusPxCount": 32,
+        "selectors": 832
+      },
+      {
+        "file": "styles/ui/runtime-safety.css",
+        "lines": 170,
+        "importantCount": 21,
+        "rawHexCount": 0,
+        "rawPxCount": 1,
+        "borderRadiusPxCount": 0,
+        "selectors": 125
+      },
+      {
+        "file": "styles/layers/50-nomenclature-routes-directories.css",
+        "lines": 2444,
+        "importantCount": 4,
+        "rawHexCount": 205,
+        "rawPxCount": 600,
+        "borderRadiusPxCount": 22,
+        "selectors": 616
+      },
+      {
+        "file": "styles/layers/10-shell-directory-gantt-base.css",
+        "lines": 1847,
+        "importantCount": 1,
+        "rawHexCount": 297,
+        "rawPxCount": 524,
+        "borderRadiusPxCount": 33,
+        "selectors": 462
+      },
+      {
+        "file": "styles/layers/20-technology-specifications.css",
+        "lines": 628,
+        "importantCount": 0,
+        "rawHexCount": 95,
+        "rawPxCount": 179,
+        "borderRadiusPxCount": 12,
+        "selectors": 187
+      },
+      {
+        "file": "styles/layers/00-foundation-base.css",
+        "lines": 85,
+        "importantCount": 0,
+        "rawHexCount": 18,
+        "rawPxCount": 22,
+        "borderRadiusPxCount": 1,
+        "selectors": 14
+      },
+      {
+        "file": "styles/ui/actions.css",
+        "lines": 67,
+        "importantCount": 0,
+        "rawHexCount": 1,
+        "rawPxCount": 2,
+        "borderRadiusPxCount": 0,
+        "selectors": 19
+      },
+      {
+        "file": "styles/ui/kit-polish.css",
+        "lines": 317,
+        "importantCount": 0,
+        "rawHexCount": 0,
+        "rawPxCount": 3,
+        "borderRadiusPxCount": 0,
+        "selectors": 84
+      },
+      {
+        "file": "styles/ui/status.css",
+        "lines": 107,
+        "importantCount": 0,
+        "rawHexCount": 0,
+        "rawPxCount": 0,
+        "borderRadiusPxCount": 0,
+        "selectors": 44
+      },
+      {
+        "file": "styles.css",
+        "lines": 19,
+        "importantCount": 0,
+        "rawHexCount": 0,
+        "rawPxCount": 0,
+        "borderRadiusPxCount": 0,
+        "selectors": 0
+      }
+    ],
+    "topRiskySelectors": [
+      {
+        "selector": ".icon-button",
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css",
+          "styles/layers/99-legacy-overrides-tail.css",
+          "styles/mes-ui-core.css",
+          "styles/ui/runtime-safety.css"
+        ],
+        "occurrences": 33,
+        "score": 34.6
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell > .speki-tree-branch::before",
+        "files": [
+          "styles/ui/planning-order.css"
+        ],
+        "occurrences": 1,
+        "score": 33.8
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 33.75
+      },
+      {
+        "selector": "main.app-shell[data-layout-page=\"shiftWorkOrders\"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::after",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 2,
+        "score": 33.7
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"gantt\"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name strong",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 33.6
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 33.6
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-page.is-route-structure .planning-order-table .planning-order-step-row .route-tree-cell",
+        "files": [
+          "styles/ui/planning-order.css"
+        ],
+        "occurrences": 1,
+        "score": 33.6
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"gantt\"] .gantt-shell .gantt-row.workCenter-row .row-label.department-label .workcenter-name",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 33.45
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 33.4
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell > .speki-tree-guide",
+        "files": [
+          "styles/ui/planning-order.css"
+        ],
+        "occurrences": 1,
+        "score": 33.35
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"gantt\"] .gantt-shell .gantt-row.resource-row .row-label.resource-label .workcenter-name",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 33.25
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-table .route-tree-cell.has-children:not(.is-last) > .speki-tree-branch::before",
+        "files": [
+          "styles/ui/planning-order.css"
+        ],
+        "occurrences": 1,
+        "score": 33.15
+      },
+      {
+        "selector": "main.app-shell[data-layout-page=\"shiftWorkOrders\"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot::before",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 32.75
+      },
+      {
+        "selector": "main.app-shell[data-layout-page=\"shiftWorkOrders\"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle].is-collapsed .route-tree-cell > .speki-tree-start-dot",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 1,
+        "score": 32.35
+      },
+      {
+        "selector": "main.app-shell[data-layout-page=\"shiftWorkOrders\"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::before",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 2,
+        "score": 32.1
+      },
+      {
+        "selector": "main.app-shell[data-layout-page=\"shiftWorkOrders\"] .shift-work-orders-table tr[data-shift-work-order-tree-toggle] .route-tree-cell > .speki-tree-start-dot::after",
+        "files": [
+          "styles/layers/99-legacy-overrides-tail.css"
+        ],
+        "occurrences": 2,
+        "score": 32.05
+      },
+      {
+        "selector": ".secondary-button",
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css",
+          "styles/mes-ui-core.css",
+          "styles/ui/runtime-safety.css"
+        ],
+        "occurrences": 30,
+        "score": 31.85
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"authPrototype\"].is-auth-standalone .auth-prototype-panel > .ui-panel-head .ui-panel-head-copy > div",
+        "files": [
+          "styles/mes-ui-core.css"
+        ],
+        "occurrences": 1,
+        "score": 31.85
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-table :is(th",
+        "files": [
+          "styles/ui/planning-order.css"
+        ],
+        "occurrences": 11,
+        "score": 31.85
+      },
+      {
+        "selector": "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"authPrototype\"].is-auth-standalone [data-layout=\"main-content\"] .auth-prototype-department-grid button[data-ui-component=\"ActionButton\"]",
+        "files": [
+          "styles/mes-ui-core.css"
+        ],
+        "occurrences": 1,
+        "score": 31.7
+      }
+    ],
+    "largestDuplicateSelectorGroups": [
+      {
+        "selector": ".icon-button",
+        "occurrences": 33,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css",
+          "styles/layers/99-legacy-overrides-tail.css",
+          "styles/mes-ui-core.css",
+          "styles/ui/runtime-safety.css"
+        ]
+      },
+      {
+        "selector": ".secondary-button",
+        "occurrences": 30,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css",
+          "styles/mes-ui-core.css",
+          "styles/ui/runtime-safety.css"
+        ]
+      },
+      {
+        "selector": "small)",
+        "occurrences": 29,
+        "files": [
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css",
+          "styles/layers/99-legacy-overrides-tail.css",
+          "styles/mes-ui-core.css",
+          "styles/ui/actions.css",
+          "styles/ui/kit-polish.css",
+          "styles/ui/planning-order.css"
+        ]
+      },
+      {
+        "selector": ".directories-page",
+        "occurrences": 28,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css"
+        ]
+      },
+      {
+        "selector": ".module-data-page",
+        "occurrences": 26,
+        "files": [
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css"
+        ]
+      },
+      {
+        "selector": ".primary-button",
+        "occurrences": 25,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css",
+          "styles/mes-ui-core.css",
+          "styles/ui/runtime-safety.css"
+        ]
+      },
+      {
+        "selector": "select",
+        "occurrences": 21,
+        "files": [
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/99-legacy-overrides-tail.css",
+          "styles/mes-ui-core.css",
+          "styles/ui/kit-polish.css"
+        ]
+      },
+      {
+        "selector": ".table-icon-button",
+        "occurrences": 20,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css",
+          "styles/layers/99-legacy-overrides-tail.css",
+          "styles/ui/runtime-safety.css"
+        ]
+      },
+      {
+        "selector": ".planner-workspace",
+        "occurrences": 20,
+        "files": [
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css"
+        ]
+      },
+      {
+        "selector": ":root",
+        "occurrences": 19,
+        "files": [
+          "styles/layers/00-foundation-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css"
+        ]
+      },
+      {
+        "selector": "body",
+        "occurrences": 18,
+        "files": [
+          "styles/layers/00-foundation-base.css",
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css",
+          "styles/layers/80-visual-system-ui-states.css",
+          "styles/layers/90-shift-master-board.css"
+        ]
+      },
+      {
+        "selector": ".module-tab",
+        "occurrences": 18,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/ui/runtime-safety.css"
+        ]
+      },
+      {
+        "selector": ".directory-table th",
+        "occurrences": 18,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css",
+          "styles/layers/70-planning-table-and-matrix.css"
+        ]
+      },
+      {
+        "selector": ".module-data-workspace",
+        "occurrences": 18,
+        "files": [
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css",
+          "styles/layers/70-planning-table-and-matrix.css"
+        ]
+      },
+      {
+        "selector": ".directory-workspace",
+        "occurrences": 17,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css",
+          "styles/layers/70-planning-table-and-matrix.css"
+        ]
+      },
+      {
+        "selector": ".directory-table-card",
+        "occurrences": 17,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css",
+          "styles/layers/70-planning-table-and-matrix.css"
+        ]
+      },
+      {
+        "selector": ".planning-app-shell",
+        "occurrences": 16,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css"
+        ]
+      },
+      {
+        "selector": ".directory-sidebar",
+        "occurrences": 16,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css"
+        ]
+      },
+      {
+        "selector": ".topbar",
+        "occurrences": 15,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/20-technology-specifications.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/70-planning-table-and-matrix.css"
+        ]
+      },
+      {
+        "selector": ".directory-table td",
+        "occurrences": 15,
+        "files": [
+          "styles/layers/10-shell-directory-gantt-base.css",
+          "styles/layers/30-module-shell-ui-foundations.css",
+          "styles/layers/50-nomenclature-routes-directories.css",
+          "styles/layers/60-operational-modules.css",
+          "styles/layers/70-planning-table-and-matrix.css",
+          "styles/layers/80-visual-system-ui-states.css"
+        ]
+      }
+    ]
+  },
+  "tokens": {
+    "tokenFiles": 1,
+    "tokenDefinitions": 295,
+    "estimatedTokenUsage": 2875,
+    "rawValueViolations": 9156,
+    "lowUseTokens": [
+      {
+        "token": "--mes-control-gap",
+        "references": 0
+      },
+      {
+        "token": "--mes-control-height-compact",
+        "references": 0
+      },
+      {
+        "token": "--mes-control-height-default",
+        "references": 0
+      },
+      {
+        "token": "--mes-control-height-touch",
+        "references": 0
+      },
+      {
+        "token": "--mes-control-padding-x",
+        "references": 0
+      },
+      {
+        "token": "--mes-density-card-gap",
+        "references": 0
+      },
+      {
+        "token": "--mes-density-page-gap",
+        "references": 0
+      },
+      {
+        "token": "--mes-density-panel-gap",
+        "references": 0
+      },
+      {
+        "token": "--mes-density-table-row-default",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-size-body",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-size-caption",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-size-section",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-size-section-title",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-size-table",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-size-title",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-weight-bold",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-weight-medium",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-weight-regular",
+        "references": 0
+      },
+      {
+        "token": "--mes-font-weight-semibold",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-dependency-color",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-left-width",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-non-working-bg",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-row-height",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-slot-active-bg",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-slot-border",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-slot-planned-bg",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-slot-problem-bg",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-slot-radius",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-slot-warning-bg",
+        "references": 0
+      },
+      {
+        "token": "--mes-gantt-timeline-height",
+        "references": 0
+      },
+      {
+        "token": "--mes-icon-button-size",
+        "references": 0
+      },
+      {
+        "token": "--mes-line-height-body",
+        "references": 0
+      },
+      {
+        "token": "--mes-line-height-caption",
+        "references": 0
+      },
+      {
+        "token": "--mes-line-height-section-title",
+        "references": 0
+      },
+      {
+        "token": "--mes-line-height-table",
+        "references": 0
+      },
+      {
+        "token": "--mes-space-0",
+        "references": 0
+      },
+      {
+        "token": "--mes-space-10",
+        "references": 0
+      },
+      {
+        "token": "--mes-space-12",
+        "references": 0
+      },
+      {
+        "token": "--mes-space-6",
+        "references": 0
+      },
+      {
+        "token": "--mes-status-active-accent",
+        "references": 0
+      }
+    ]
+  },
+  "typography": {
+    "fontSizeDeclarations": 963,
+    "rawFontSizePxDeclarations": 796,
+    "fontWeightDeclarations": 700,
+    "rawNumericFontWeights": 501,
+    "lineHeightDeclarations": 753,
+    "rawLineHeightPxDeclarations": 505
+  },
+  "components": {
+    "renderHelpers": 319,
+    "buttonRenderers": 59,
+    "tableRenderers": 19,
+    "statusRenderers": 63,
+    "iconRenderers": 213,
+    "formRenderers": 9,
+    "modalRenderers": 15,
+    "helperMetrics": {
+      "renderHelpersInApp": 293,
+      "renderHelpersInUiComponents": 26,
+      "renderUiActionButtonCalls": 59,
+      "rawPrimaryButtonOccurrences": 15,
+      "rawSecondaryButtonOccurrences": 60,
+      "renderUiTableWrapCalls": 19,
+      "rawTableWrapOccurrences": 41,
+      "renderUiStatusTokenCalls": 63,
+      "statusPillOccurrences": 22,
+      "renderUiFormFieldCalls": 9,
+      "rawInputTags": 92,
+      "rawSelectTags": 32,
+      "rawTextareaTags": 5,
+      "renderUiModalCalls": 15,
+      "rawModalClassOccurrences": 138,
+      "iconHelperCalls": 213,
+      "inlineStyleAttributes": 117,
+      "directStyleApiCalls": 19,
+      "inlineSvgOccurrences": 7
+    }
+  },
+  "tables": {
+    "rawTableTags": 38,
+    "directoryTableOccurrences": 197,
+    "uiTableOccurrences": 44,
+    "tableSpecificCssSelectors": 2448,
+    "tableExceptions": {
+      "tablesFound": 33,
+      "tablesUnderTableWrap": 23,
+      "productionTableExceptions": 0,
+      "nonProductionTableExceptions": 10,
+      "printTableExceptions": 9,
+      "visualSampleTableExceptions": 1,
+      "unclassifiedTableExceptions": 0,
+      "specialRuntimeTables": 0,
+      "tableContractViolations": 0
+    }
+  },
+  "icons": {
+    "semanticSlugs": 129,
+    "customSvgCount": 47,
+    "lucideMappedCount": 82,
+    "localFallbackCount": 1,
+    "runtimeMixedRegistryEntries": 3,
+    "legacyIconUsages": 213,
+    "unmappedIconUsages": 0
+  },
+  "modules": {
+    "moduleIds": [
+      "gantt",
+      "planning",
+      "weeklyProductionControl",
+      "dispatch",
+      "shiftMasterBoard",
+      "shiftWorkOrders",
+      "routes",
+      "products",
+      "nomenclature",
+      "productionStructureMatrix",
+      "employees",
+      "timesheet",
+      "roles",
+      "directories",
+      "authPrototype",
+      "authSessionPrototype"
+    ],
+    "renderPageFunctions": 22,
+    "appJsLines": 40436,
+    "extractedModuleFiles": [
+      "src/modules/dispatch/render.js",
+      "src/modules/nomenclature/render.js"
+    ]
+  },
+  "docsClaims": [
+    {
+      "file": "docs/ui-stabilization-master-plan.md",
+      "exists": true,
+      "lines": 128
+    },
+    {
+      "file": "docs/ui-runtime-contract.md",
+      "exists": true,
+      "lines": 83
+    },
+    {
+      "file": "docs/ui-token-contract.md",
+      "exists": true,
+      "lines": 52
+    },
+    {
+      "file": "docs/ui-table-contract.md",
+      "exists": true,
+      "lines": 91
+    },
+    {
+      "file": "docs/ui-legacy-layer-map.md",
+      "exists": true,
+      "lines": 76
+    },
+    {
+      "file": "docs/gantt-ui-stabilization-map.md",
+      "exists": true,
+      "lines": 43
+    },
+    {
+      "file": "docs/ui-guardrails-report.md",
+      "exists": true,
+      "lines": 61
+    },
+    {
+      "file": "docs/ui-stabilization-result.md",
+      "exists": true,
+      "lines": 89
+    },
+    {
+      "file": "docs/corrective-phase-a-result.md",
+      "exists": true,
+      "lines": 91
+    },
+    {
+      "file": "reports/corrective-phase-a-metrics.json",
+      "exists": true,
+      "lines": 117
+    },
+    {
+      "file": "docs/corrective-phase-b-result.md",
+      "exists": true,
+      "lines": 103
+    },
+    {
+      "file": "reports/corrective-phase-b-metrics.json",
+      "exists": true,
+      "lines": 85
+    },
+    {
+      "file": "docs/ui-system-diagnostic.md",
+      "exists": true,
+      "lines": 983
+    },
+    {
+      "file": "docs/ui-global-forensic-audit.md",
+      "exists": true,
+      "lines": 669
+    },
+    {
+      "file": "reports/ui-global-forensic-metrics.json",
+      "exists": true,
+      "lines": 21921
+    }
+  ],
+  "qa": {
+    "scriptsAvailable": [
+      "build",
+      "qa:architecture",
+      "qa:auth",
+      "qa:auth:inner",
+      "qa:boot",
+      "qa:boot:inner",
+      "qa:boundaries",
+      "qa:css",
+      "qa:css:duplicate-budget",
+      "qa:flow",
+      "qa:functional",
+      "qa:functional:inner",
+      "qa:gantt",
+      "qa:gantt-guardrails",
+      "qa:gantt-guardrails:inner",
+      "qa:gantt-operational",
+      "qa:gantt-operational:inner",
+      "qa:gantt:geometry",
+      "qa:gantt:inline",
+      "qa:gantt:inner",
+      "qa:gantt:interactions",
+      "qa:gantt:scale",
+      "qa:gantt:slow",
+      "qa:icons",
+      "qa:legacy",
+      "qa:mobile",
+      "qa:module-smoke",
+      "qa:module-smoke:inner",
+      "qa:modules:extracted",
+      "qa:night",
+      "qa:nonvisual",
+      "qa:phase-b-budget",
+      "qa:planning-labor",
+      "qa:planning-labor:inner",
+      "qa:roles",
+      "qa:roles:inner",
+      "qa:shared-state",
+      "qa:shift-flow",
+      "qa:shift-flow:inner",
+      "qa:shift-master-board",
+      "qa:shift-master-board:inner",
+      "qa:stabilize",
+      "qa:state",
+      "qa:state:inner",
+      "qa:structure",
+      "qa:syntax",
+      "qa:timesheet",
+      "qa:timesheet:inner",
+      "qa:ui",
+      "qa:ui-contract-coverage",
+      "qa:ui-contract-coverage:inner",
+      "qa:ui-kit",
+      "qa:ui-regression",
+      "qa:ui-regression:inner",
+      "qa:ui:gantt",
+      "qa:ui:gantt:inner",
+      "qa:ui:helpers",
+      "qa:ui:overlays",
+      "qa:ui:overlays:inner",
+      "qa:ui:regression",
+      "qa:ui:regression:inner",
+      "qa:ui:status-budget",
+      "qa:ui:table-budget",
+      "qa:ui:tables",
+      "qa:ui:tables:inner",
+      "qa:visual"
+    ],
+    "commandsRun": [
+      {
+        "name": "build",
+        "status": "pass",
+        "exitCode": 0,
+        "seconds": 0,
+        "output": "Static staging build created:\n- /Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/dist\n- styles.css?v=9ac1c2945f6a-v.1.491\n- styles/mes-ui-core.css?v=d0cae4d90286-v.1.491\n- src/app.js?v=f94806fa73b4-v.1.491\n- favicon.svg?v=cad5712c21dc-v.1.491\n"
+      },
+      {
+        "name": "lint",
+        "status": "not available",
+        "exitCode": null,
+        "seconds": 0,
+        "output": ""
+      },
+      {
+        "name": "typecheck",
+        "status": "not available",
+        "exitCode": null,
+        "seconds": 0,
+        "output": ""
+      },
+      {
+        "name": "qa",
+        "status": "not available",
+        "exitCode": null,
+        "seconds": 0,
+        "output": ""
+      },
+      {
+        "name": "qa:ui",
+        "status": "fail",
+        "exitCode": 1,
+        "seconds": 3,
+        "output": "ers/80-visual-system-ui-states.css:2994 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3045 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3246 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3239 font-size px: font-size: 15px;\n- styles/layers/80-visual-system-ui-states.css:3304 font-size px: font-size: 9px;\n- styles/layers/80-visual-system-ui-states.css:2995 font-weight literal: font-weight: 760;\n- styles/layers/80-visual-system-ui-states.css:3247 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3305 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3274 font-weight literal: font-weight: 780;\n- styles/layers/80-visual-system-ui-states.css:3297 font-weight literal: font-weight: 680;\n- styles/layers/80-visual-system-ui-states.css:185 line-height raw: line-height: 12px;\n- styles/layers/80-visual-system-ui-states.css:1034 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3099 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3241 line-height raw: line-height: 20px;\n- styles/layers/80-visual-system-ui-states.css:3248 line-height raw: line-height: 16px;\n- styles/layers/80-visual-system-ui-states.css:3336 border-radius px: border-radius: 10px;\n- styles/layers/80-visual-system-ui-states.css:443 spacing/position px: padding: 7px 8px;\n- styles/layers/80-visual-system-ui-states.css:501 spacing/position px: margin: 2px 0 0;\n- styles/layers/80-visual-system-ui-states.css:510 spacing/position px: gap: 5px;\n- styles/layers/80-visual-system-ui-states.css:611 spacing/position px: gap: 8px;\n- styles/layers/80-visual-system-ui-states.css:711 spacing/position px: gap: 1px;\n- styles/layers/80-visual-system-ui-states.css:1292 spacing/position px: padding: 12px;\n- styles/layers/80-visual-system-ui-states.css:1300 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3209 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3256 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3020 spacing/position px: top: 12px;\n- styles/layers/80-visual-system-ui-states.css:3270 spacing/position px: padding: 10px;\n- styles/layers/80-visual-system-ui-states.css:3318 spacing/position px: scroll-margin-top: 14px;\n- styles/layers/80-visual-system-ui-states.css:3327 spacing/position px: gap: 9px;\n- styles/layers/80-visual-system-ui-states.css:3330 spacing/position px: border-bottom: 1px solid rgba(226, 232, 240, 0.72);\n- styles/layers/80-visual-system-ui-states.css:3331 spacing/position px: padding-bottom: 10px;\n- styles/layers/80-visual-system-ui-states.css:3339 spacing/position px: padding: 6px;\n- styles/layers/99-legacy-overrides-tail.css:53 !important: width: 28px !important;\n- styles/layers/99-legacy-overrides-tail.css:3919 !important: border-color: transparent !important;\n- styles/layers/99-legacy-overrides-tail.css:3921 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3928 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3944 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3926 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3933 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3927 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3934 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3929 !important: stroke: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3930 !important: stroke-width: 1.45px !important;\n- ...and 5 more\n\nMove the value to styles/mes-ui-core.css token layer, reuse an existing token, or intentionally update the baseline after review."
+      },
+      {
+        "name": "qa:css",
+        "status": "fail",
+        "exitCode": 1,
+        "seconds": 0,
+        "output": "layers/10-shell-directory-gantt-base.css:522, styles/layers/10-shell-directory-gantt-base.css:1708, styles/layers/20-technology-specifications.css:530, styles/layers/30-module-shell-ui-foundations.css:861, styles/layers/30-module-shell-ui-foundations.css:1696, ...\n- 6x body\n  styles/layers/00-foundation-base.css:32, styles/layers/10-shell-directory-gantt-base.css:1495, styles/layers/30-module-shell-ui-foundations.css:630, styles/layers/30-module-shell-ui-foundations.css:2217, styles/layers/50-nomenclature-routes-directories.css:1338, ...\n- 6x .planning-app-shell\n  styles/layers/10-shell-directory-gantt-base.css:10, styles/layers/20-technology-specifications.css:135, styles/layers/20-technology-specifications.css:358, styles/layers/30-module-shell-ui-foundations.css:662, styles/layers/30-module-shell-ui-foundations.css:1129, ...\n- 6x .module-menu\n  styles/layers/10-shell-directory-gantt-base.css:14, styles/layers/10-shell-directory-gantt-base.css:1501, styles/layers/30-module-shell-ui-foundations.css:664, styles/layers/30-module-shell-ui-foundations.css:1131, styles/layers/50-nomenclature-routes-directories.css:1370, ...\n- 6x .module-menu-brand span\n  styles/layers/10-shell-directory-gantt-base.css:32, styles/layers/10-shell-directory-gantt-base.css:1509, styles/layers/30-module-shell-ui-foundations.css:704, styles/layers/30-module-shell-ui-foundations.css:1172, styles/layers/50-nomenclature-routes-directories.css:1423, ...\n- 6x .module-tab\n  styles/layers/10-shell-directory-gantt-base.css:42, styles/layers/10-shell-directory-gantt-base.css:1511, styles/layers/30-module-shell-ui-foundations.css:717, styles/layers/30-module-shell-ui-foundations.css:1192, styles/layers/50-nomenclature-routes-directories.css:1454, ...\n- 6x .module-tab:hover\n  styles/layers/10-shell-directory-gantt-base.css:53, styles/layers/10-shell-directory-gantt-base.css:1515, styles/layers/30-module-shell-ui-foundations.css:728, styles/layers/30-module-shell-ui-foundations.css:1209, styles/layers/50-nomenclature-routes-directories.css:1475, ...\n- 6x .module-tab.is-active\n  styles/layers/10-shell-directory-gantt-base.css:56, styles/layers/10-shell-directory-gantt-base.css:1518, styles/layers/30-module-shell-ui-foundations.css:733, styles/layers/30-module-shell-ui-foundations.css:1213, styles/layers/50-nomenclature-routes-directories.css:1480, ...\n- 6x .segmented\n  styles/layers/10-shell-directory-gantt-base.css:161, styles/layers/10-shell-directory-gantt-base.css:1584, styles/layers/30-module-shell-ui-foundations.css:779, styles/layers/30-module-shell-ui-foundations.css:1414, styles/layers/30-module-shell-ui-foundations.css:2480, ...\n- 6x .segment\n  styles/layers/10-shell-directory-gantt-base.css:171, styles/layers/10-shell-directory-gantt-base.css:1588, styles/layers/30-module-shell-ui-foundations.css:784, styles/layers/30-module-shell-ui-foundations.css:1422, styles/layers/30-module-shell-ui-foundations.css:2483, ...\n\nExact duplicate CSS rules\n- 2x main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-table :is(th, td):nth-child(5)\n  styles/ui/planning-order.css:219, styles/ui/planning-order.css:503\n\nRisky module-panel overflow rules\n- none\n\nBroad !important layout rules\n- 0\n- by file:\n\nLegacy selector pressure\n- 0 rules mention module-entity legacy selectors\n\nRemoved project UI selector pressure\n- 0 rules mention removed project UI selectors\n\nRemoved reports/debug selector pressure\n- 0 rules mention removed reports/debug module selectors\n\nRemoved dashboard selector pressure\n- 0 rules mention removed dashboard module selectors\n\nRemoved standalone shell selector pressure\n- 0 rules mention removed project/specification app shells\n\nRemoved standalone bomLists layout selector pressure\n- 0 rules mention removed bomLists layout selectors\n\nPotential insetless panel/header text\n- 0 rules set vertical-only padding on panel headers\n\nPlanning rules in workshop layer\n- 0\n\n\nFailures:\n- Exact duplicate CSS rule groups grew above budget: 1 > 0"
+      },
+      {
+        "name": "qa:architecture",
+        "status": "fail",
+        "exitCode": 1,
+        "seconds": 3,
+        "output": "ers/80-visual-system-ui-states.css:2994 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3045 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3246 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3239 font-size px: font-size: 15px;\n- styles/layers/80-visual-system-ui-states.css:3304 font-size px: font-size: 9px;\n- styles/layers/80-visual-system-ui-states.css:2995 font-weight literal: font-weight: 760;\n- styles/layers/80-visual-system-ui-states.css:3247 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3305 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3274 font-weight literal: font-weight: 780;\n- styles/layers/80-visual-system-ui-states.css:3297 font-weight literal: font-weight: 680;\n- styles/layers/80-visual-system-ui-states.css:185 line-height raw: line-height: 12px;\n- styles/layers/80-visual-system-ui-states.css:1034 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3099 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3241 line-height raw: line-height: 20px;\n- styles/layers/80-visual-system-ui-states.css:3248 line-height raw: line-height: 16px;\n- styles/layers/80-visual-system-ui-states.css:3336 border-radius px: border-radius: 10px;\n- styles/layers/80-visual-system-ui-states.css:443 spacing/position px: padding: 7px 8px;\n- styles/layers/80-visual-system-ui-states.css:501 spacing/position px: margin: 2px 0 0;\n- styles/layers/80-visual-system-ui-states.css:510 spacing/position px: gap: 5px;\n- styles/layers/80-visual-system-ui-states.css:611 spacing/position px: gap: 8px;\n- styles/layers/80-visual-system-ui-states.css:711 spacing/position px: gap: 1px;\n- styles/layers/80-visual-system-ui-states.css:1292 spacing/position px: padding: 12px;\n- styles/layers/80-visual-system-ui-states.css:1300 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3209 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3256 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3020 spacing/position px: top: 12px;\n- styles/layers/80-visual-system-ui-states.css:3270 spacing/position px: padding: 10px;\n- styles/layers/80-visual-system-ui-states.css:3318 spacing/position px: scroll-margin-top: 14px;\n- styles/layers/80-visual-system-ui-states.css:3327 spacing/position px: gap: 9px;\n- styles/layers/80-visual-system-ui-states.css:3330 spacing/position px: border-bottom: 1px solid rgba(226, 232, 240, 0.72);\n- styles/layers/80-visual-system-ui-states.css:3331 spacing/position px: padding-bottom: 10px;\n- styles/layers/80-visual-system-ui-states.css:3339 spacing/position px: padding: 6px;\n- styles/layers/99-legacy-overrides-tail.css:53 !important: width: 28px !important;\n- styles/layers/99-legacy-overrides-tail.css:3919 !important: border-color: transparent !important;\n- styles/layers/99-legacy-overrides-tail.css:3921 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3928 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3944 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3926 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3933 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3927 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3934 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3929 !important: stroke: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3930 !important: stroke-width: 1.45px !important;\n- ...and 5 more\n\nMove the value to styles/mes-ui-core.css token layer, reuse an existing token, or intentionally update the baseline after review."
+      },
+      {
+        "name": "qa:visual",
+        "status": "fail",
+        "exitCode": 1,
+        "seconds": 0,
+        "output": "Static staging build created:\n- /Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/dist\n- styles.css?v=9ac1c2945f6a-v.1.491\n- styles/mes-ui-core.css?v=d0cae4d90286-v.1.491\n- src/app.js?v=f94806fa73b4-v.1.491\n- favicon.svg?v=cad5712c21dc-v.1.491\n\nfile:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/design-qa-snapshots.mjs:24\n  throw new Error(`design-qa-snapshots is missing runtime modules: ${missingVisualRuntimeModuleIds.join(\", \")}`);\n        ^\n\nError: design-qa-snapshots is missing runtime modules: weeklyProductionControl\n    at file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/design-qa-snapshots.mjs:24:9\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:646:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v26.3.0"
+      },
+      {
+        "name": "qa:ui:regression",
+        "status": "pass",
+        "exitCode": 0,
+        "seconds": 62,
+        "output": "MES UI Phase 4 Regression Smoke\n- modules: 19\n- viewports: desktop 1440x932, tablet 1180x820, tablet-compact 1024x768, narrow 430x932, narrow-compact 390x844\n- checks: 95\n- overlay probes: 25\n- failed: 0\n- warnings: 11\n- report: docs/ui-module-regression-smoke-report.md\n- json: reports/ui-regression-summary.json\nOK: UI Phase 4 regression smoke passed.\n"
+      },
+      {
+        "name": "qa:functional",
+        "status": "fail",
+        "exitCode": 1,
+        "seconds": 37,
+        "output": "MES State Consistency QA\n- routes: 6\n- route steps: 40\n- slots: 20\n- shift assignments: 1\n- dispatch facts: 0\n- planning corrections: 0\nOK: state references and calculation fields are consistent.\nShared State Functional QA\n- empty snapshot: pass\n- value whitelist: pass\n- supply control persistence: pass\n- optional key preservation: pass\n- optional shared UI preservation: pass\n- shared UI whitelist: pass\n- production matrix sharing: pass\n- timesheet sharing: pass\n- shift master board sharing: pass\n- access roles sharing: pass\n- version conflict: pass\nOK: shared-state endpoint preserves whitelisted collaborative data.\n\nError: visualSystem: expected visual system panels, got 1\n    at assert (file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/module-smoke-qa.mjs:259:25)\n    at runModuleSpecificSmokeChecks (file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/module-smoke-qa.mjs:1809:5)\n    at async main (file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/module-smoke-qa.mjs:2827:7)"
+      },
+      {
+        "name": "git diff --check",
+        "status": "fail",
+        "exitCode": 2,
+        "seconds": 0,
+        "output": "docs/ui-table-regression-report.md:19: trailing whitespace.\n+desktop | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:32: trailing whitespace.\n+tablet | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:45: trailing whitespace.\n+tablet-compact | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:58: trailing whitespace.\n+narrow | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:71: trailing whitespace.\n+narrow-compact | visualSystem | ok | 3 | 2 | 1 | 0 |"
+      }
+    ],
+    "passes": [
+      "build",
+      "qa:ui:regression"
+    ],
+    "failures": [
+      {
+        "name": "qa:ui",
+        "status": "fail",
+        "output": "ers/80-visual-system-ui-states.css:2994 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3045 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3246 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3239 font-size px: font-size: 15px;\n- styles/layers/80-visual-system-ui-states.css:3304 font-size px: font-size: 9px;\n- styles/layers/80-visual-system-ui-states.css:2995 font-weight literal: font-weight: 760;\n- styles/layers/80-visual-system-ui-states.css:3247 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3305 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3274 font-weight literal: font-weight: 780;\n- styles/layers/80-visual-system-ui-states.css:3297 font-weight literal: font-weight: 680;\n- styles/layers/80-visual-system-ui-states.css:185 line-height raw: line-height: 12px;\n- styles/layers/80-visual-system-ui-states.css:1034 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3099 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3241 line-height raw: line-height: 20px;\n- styles/layers/80-visual-system-ui-states.css:3248 line-height raw: line-height: 16px;\n- styles/layers/80-visual-system-ui-states.css:3336 border-radius px: border-radius: 10px;\n- styles/layers/80-visual-system-ui-states.css:443 spacing/position px: padding: 7px 8px;\n- styles/layers/80-visual-system-ui-states.css:501 spacing/position px: margin: 2px 0 0;\n- styles/layers/80-visual-system-ui-states.css:510 spacing/position px: gap: 5px;\n- styles/layers/80-visual-system-ui-states.css:611 spacing/position px: gap: 8px;\n- styles/layers/80-visual-system-ui-states.css:711 spacing/position px: gap: 1px;\n- styles/layers/80-visual-system-ui-states.css:1292 spacing/position px: padding: 12px;\n- styles/layers/80-visual-system-ui-states.css:1300 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3209 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3256 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3020 spacing/position px: top: 12px;\n- styles/layers/80-visual-system-ui-states.css:3270 spacing/position px: padding: 10px;\n- styles/layers/80-visual-system-ui-states.css:3318 spacing/position px: scroll-margin-top: 14px;\n- styles/layers/80-visual-system-ui-states.css:3327 spacing/position px: gap: 9px;\n- styles/layers/80-visual-system-ui-states.css:3330 spacing/position px: border-bottom: 1px solid rgba(226, 232, 240, 0.72);\n- styles/layers/80-visual-system-ui-states.css:3331 spacing/position px: padding-bottom: 10px;\n- styles/layers/80-visual-system-ui-states.css:3339 spacing/position px: padding: 6px;\n- styles/layers/99-legacy-overrides-tail.css:53 !important: width: 28px !important;\n- styles/layers/99-legacy-overrides-tail.css:3919 !important: border-color: transparent !important;\n- styles/layers/99-legacy-overrides-tail.css:3921 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3928 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3944 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3926 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3933 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3927 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3934 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3929 !important: stroke: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3930 !important: stroke-width: 1.45px !important;\n- ...and 5 more\n\nMove the value to styles/mes-ui-core.css token layer, reuse an existing token, or intentionally update the baseline after review."
+      },
+      {
+        "name": "qa:css",
+        "status": "fail",
+        "output": "layers/10-shell-directory-gantt-base.css:522, styles/layers/10-shell-directory-gantt-base.css:1708, styles/layers/20-technology-specifications.css:530, styles/layers/30-module-shell-ui-foundations.css:861, styles/layers/30-module-shell-ui-foundations.css:1696, ...\n- 6x body\n  styles/layers/00-foundation-base.css:32, styles/layers/10-shell-directory-gantt-base.css:1495, styles/layers/30-module-shell-ui-foundations.css:630, styles/layers/30-module-shell-ui-foundations.css:2217, styles/layers/50-nomenclature-routes-directories.css:1338, ...\n- 6x .planning-app-shell\n  styles/layers/10-shell-directory-gantt-base.css:10, styles/layers/20-technology-specifications.css:135, styles/layers/20-technology-specifications.css:358, styles/layers/30-module-shell-ui-foundations.css:662, styles/layers/30-module-shell-ui-foundations.css:1129, ...\n- 6x .module-menu\n  styles/layers/10-shell-directory-gantt-base.css:14, styles/layers/10-shell-directory-gantt-base.css:1501, styles/layers/30-module-shell-ui-foundations.css:664, styles/layers/30-module-shell-ui-foundations.css:1131, styles/layers/50-nomenclature-routes-directories.css:1370, ...\n- 6x .module-menu-brand span\n  styles/layers/10-shell-directory-gantt-base.css:32, styles/layers/10-shell-directory-gantt-base.css:1509, styles/layers/30-module-shell-ui-foundations.css:704, styles/layers/30-module-shell-ui-foundations.css:1172, styles/layers/50-nomenclature-routes-directories.css:1423, ...\n- 6x .module-tab\n  styles/layers/10-shell-directory-gantt-base.css:42, styles/layers/10-shell-directory-gantt-base.css:1511, styles/layers/30-module-shell-ui-foundations.css:717, styles/layers/30-module-shell-ui-foundations.css:1192, styles/layers/50-nomenclature-routes-directories.css:1454, ...\n- 6x .module-tab:hover\n  styles/layers/10-shell-directory-gantt-base.css:53, styles/layers/10-shell-directory-gantt-base.css:1515, styles/layers/30-module-shell-ui-foundations.css:728, styles/layers/30-module-shell-ui-foundations.css:1209, styles/layers/50-nomenclature-routes-directories.css:1475, ...\n- 6x .module-tab.is-active\n  styles/layers/10-shell-directory-gantt-base.css:56, styles/layers/10-shell-directory-gantt-base.css:1518, styles/layers/30-module-shell-ui-foundations.css:733, styles/layers/30-module-shell-ui-foundations.css:1213, styles/layers/50-nomenclature-routes-directories.css:1480, ...\n- 6x .segmented\n  styles/layers/10-shell-directory-gantt-base.css:161, styles/layers/10-shell-directory-gantt-base.css:1584, styles/layers/30-module-shell-ui-foundations.css:779, styles/layers/30-module-shell-ui-foundations.css:1414, styles/layers/30-module-shell-ui-foundations.css:2480, ...\n- 6x .segment\n  styles/layers/10-shell-directory-gantt-base.css:171, styles/layers/10-shell-directory-gantt-base.css:1588, styles/layers/30-module-shell-ui-foundations.css:784, styles/layers/30-module-shell-ui-foundations.css:1422, styles/layers/30-module-shell-ui-foundations.css:2483, ...\n\nExact duplicate CSS rules\n- 2x main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-table :is(th, td):nth-child(5)\n  styles/ui/planning-order.css:219, styles/ui/planning-order.css:503\n\nRisky module-panel overflow rules\n- none\n\nBroad !important layout rules\n- 0\n- by file:\n\nLegacy selector pressure\n- 0 rules mention module-entity legacy selectors\n\nRemoved project UI selector pressure\n- 0 rules mention removed project UI selectors\n\nRemoved reports/debug selector pressure\n- 0 rules mention removed reports/debug module selectors\n\nRemoved dashboard selector pressure\n- 0 rules mention removed dashboard module selectors\n\nRemoved standalone shell selector pressure\n- 0 rules mention removed project/specification app shells\n\nRemoved standalone bomLists layout selector pressure\n- 0 rules mention removed bomLists layout selectors\n\nPotential insetless panel/header text\n- 0 rules set vertical-only padding on panel headers\n\nPlanning rules in workshop layer\n- 0\n\n\nFailures:\n- Exact duplicate CSS rule groups grew above budget: 1 > 0"
+      },
+      {
+        "name": "qa:architecture",
+        "status": "fail",
+        "output": "ers/80-visual-system-ui-states.css:2994 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3045 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3246 font-size px: font-size: 11px;\n- styles/layers/80-visual-system-ui-states.css:3239 font-size px: font-size: 15px;\n- styles/layers/80-visual-system-ui-states.css:3304 font-size px: font-size: 9px;\n- styles/layers/80-visual-system-ui-states.css:2995 font-weight literal: font-weight: 760;\n- styles/layers/80-visual-system-ui-states.css:3247 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3305 font-weight literal: font-weight: 560;\n- styles/layers/80-visual-system-ui-states.css:3274 font-weight literal: font-weight: 780;\n- styles/layers/80-visual-system-ui-states.css:3297 font-weight literal: font-weight: 680;\n- styles/layers/80-visual-system-ui-states.css:185 line-height raw: line-height: 12px;\n- styles/layers/80-visual-system-ui-states.css:1034 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3099 line-height raw: line-height: 14px;\n- styles/layers/80-visual-system-ui-states.css:3241 line-height raw: line-height: 20px;\n- styles/layers/80-visual-system-ui-states.css:3248 line-height raw: line-height: 16px;\n- styles/layers/80-visual-system-ui-states.css:3336 border-radius px: border-radius: 10px;\n- styles/layers/80-visual-system-ui-states.css:443 spacing/position px: padding: 7px 8px;\n- styles/layers/80-visual-system-ui-states.css:501 spacing/position px: margin: 2px 0 0;\n- styles/layers/80-visual-system-ui-states.css:510 spacing/position px: gap: 5px;\n- styles/layers/80-visual-system-ui-states.css:611 spacing/position px: gap: 8px;\n- styles/layers/80-visual-system-ui-states.css:711 spacing/position px: gap: 1px;\n- styles/layers/80-visual-system-ui-states.css:1292 spacing/position px: padding: 12px;\n- styles/layers/80-visual-system-ui-states.css:1300 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3209 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3256 spacing/position px: gap: 12px;\n- styles/layers/80-visual-system-ui-states.css:3020 spacing/position px: top: 12px;\n- styles/layers/80-visual-system-ui-states.css:3270 spacing/position px: padding: 10px;\n- styles/layers/80-visual-system-ui-states.css:3318 spacing/position px: scroll-margin-top: 14px;\n- styles/layers/80-visual-system-ui-states.css:3327 spacing/position px: gap: 9px;\n- styles/layers/80-visual-system-ui-states.css:3330 spacing/position px: border-bottom: 1px solid rgba(226, 232, 240, 0.72);\n- styles/layers/80-visual-system-ui-states.css:3331 spacing/position px: padding-bottom: 10px;\n- styles/layers/80-visual-system-ui-states.css:3339 spacing/position px: padding: 6px;\n- styles/layers/99-legacy-overrides-tail.css:53 !important: width: 28px !important;\n- styles/layers/99-legacy-overrides-tail.css:3919 !important: border-color: transparent !important;\n- styles/layers/99-legacy-overrides-tail.css:3921 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3928 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3944 !important: color: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3926 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3933 !important: width: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3927 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3934 !important: height: 20px !important;\n- styles/layers/99-legacy-overrides-tail.css:3929 !important: stroke: rgba(16, 35, 60, 0.58) !important;\n- styles/layers/99-legacy-overrides-tail.css:3930 !important: stroke-width: 1.45px !important;\n- ...and 5 more\n\nMove the value to styles/mes-ui-core.css token layer, reuse an existing token, or intentionally update the baseline after review."
+      },
+      {
+        "name": "qa:visual",
+        "status": "fail",
+        "output": "Static staging build created:\n- /Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/dist\n- styles.css?v=9ac1c2945f6a-v.1.491\n- styles/mes-ui-core.css?v=d0cae4d90286-v.1.491\n- src/app.js?v=f94806fa73b4-v.1.491\n- favicon.svg?v=cad5712c21dc-v.1.491\n\nfile:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/design-qa-snapshots.mjs:24\n  throw new Error(`design-qa-snapshots is missing runtime modules: ${missingVisualRuntimeModuleIds.join(\", \")}`);\n        ^\n\nError: design-qa-snapshots is missing runtime modules: weeklyProductionControl\n    at file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/design-qa-snapshots.mjs:24:9\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:646:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v26.3.0"
+      },
+      {
+        "name": "qa:functional",
+        "status": "fail",
+        "output": "MES State Consistency QA\n- routes: 6\n- route steps: 40\n- slots: 20\n- shift assignments: 1\n- dispatch facts: 0\n- planning corrections: 0\nOK: state references and calculation fields are consistent.\nShared State Functional QA\n- empty snapshot: pass\n- value whitelist: pass\n- supply control persistence: pass\n- optional key preservation: pass\n- optional shared UI preservation: pass\n- shared UI whitelist: pass\n- production matrix sharing: pass\n- timesheet sharing: pass\n- shift master board sharing: pass\n- access roles sharing: pass\n- version conflict: pass\nOK: shared-state endpoint preserves whitelisted collaborative data.\n\nError: visualSystem: expected visual system panels, got 1\n    at assert (file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/module-smoke-qa.mjs:259:25)\n    at runModuleSpecificSmokeChecks (file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/module-smoke-qa.mjs:1809:5)\n    at async main (file:///Users/vladislav/Documents/Codex/2026-05-30/files-mentioned-by-the-user-mes/scripts/module-smoke-qa.mjs:2827:7)"
+      },
+      {
+        "name": "git diff --check",
+        "status": "fail",
+        "output": "docs/ui-table-regression-report.md:19: trailing whitespace.\n+desktop | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:32: trailing whitespace.\n+tablet | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:45: trailing whitespace.\n+tablet-compact | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:58: trailing whitespace.\n+narrow | visualSystem | ok | 3 | 2 | 1 | 0 | \ndocs/ui-table-regression-report.md:71: trailing whitespace.\n+narrow-compact | visualSystem | ok | 3 | 2 | 1 | 0 |"
+      }
+    ],
+    "missingCommands": [
+      "lint",
+      "typecheck",
+      "qa"
+    ]
+  },
+  "evidenceLines": {
+    "renderUiActionButton": 82,
+    "renderUiTableWrap": 201,
+    "renderUiStatusToken": 56,
+    "renderUiFormField": 209,
+    "renderUiModalFrame": 228,
+    "renderUiGanttBar": 266,
+    "appRenderSwitch": 6490,
+    "ganttRender": null,
+    "planningWorkbench": 7078,
+    "shiftWorkOrders": 11837,
+    "weeklyProductionControl": 23690,
+    "visualSystem": 21153,
+    "iconRegistry": null,
+    "runtimeContracts": null
+  }
+}

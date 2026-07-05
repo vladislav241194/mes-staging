@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T04:57:40.467Z",
+  "generatedAt": "2026-07-05T20:39:35.455Z",
   "modules": [
     {
       "moduleId": "gantt",
@@ -469,37 +469,6 @@
     },
     {
       "moduleId": "planningTable",
-      "profile": {
-        "type": "contract",
-        "hasTable": true,
-        "hasActions": true
-      },
-      "exception": null,
-      "checks": [
-        {
-          "viewport": "desktop",
-          "status": "ok"
-        },
-        {
-          "viewport": "tablet",
-          "status": "ok"
-        },
-        {
-          "viewport": "tablet-compact",
-          "status": "ok"
-        },
-        {
-          "viewport": "narrow",
-          "status": "ok"
-        },
-        {
-          "viewport": "narrow-compact",
-          "status": "ok"
-        }
-      ]
-    },
-    {
-      "moduleId": "matrix",
       "profile": {
         "type": "contract",
         "hasTable": true,
