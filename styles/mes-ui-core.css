@@ -178,6 +178,9 @@ html{
   --mes-ui-weight-medium: 560;
   --mes-ui-weight-semibold: 680;
   --mes-ui-weight-bold: 820;
+  --mes-ui-sidebar-tab-weight: var(--mes-ui-weight-regular);
+  --mes-ui-sidebar-tab-active-weight: var(--mes-ui-weight-medium);
+  --mes-ui-sidebar-group-weight: var(--mes-ui-weight-medium);
   --mes-font-weight-regular: var(--mes-ui-weight-regular);
   --mes-font-weight-medium: var(--mes-ui-weight-medium);
   --mes-font-weight-semibold: var(--mes-ui-weight-semibold);
@@ -457,6 +460,10 @@ but its body must never collapse and leak into the next block. */
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}main.app-shell[data-layout="app-shell"] :is(.ui-action-button, .primary-button, .secondary-button, .icon-button, .table-icon-button) > :is(span, strong, small){
+  color: inherit;
+}main.app-shell[data-layout="app-shell"] :is(.ui-action-button, .primary-button, .secondary-button, .icon-button, .table-icon-button) > :is(svg, .mes-icon){
+  color: currentColor;
 }.ui-form-field{
   display: grid;
   align-content: start;
@@ -552,7 +559,7 @@ never by Y. */
   width: 18px;
   height: 18px;
   border: 1px solid rgba(15, 35, 60, 0.24);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-ui-sidebar-bg, #10233c);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
   color: #ffffff;
@@ -575,9 +582,9 @@ never by Y. */
   width: 14px;
   height: 14px;
   margin-left: 4px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-ui-sidebar-bg, #10233c);
-  color: #ffffff !important;
+  color: #ffffff;
   font-size: 8px !important;
   font-style: normal !important;
   font-weight: 820 !important;
@@ -666,7 +673,7 @@ label.ui-demo-marker-host{
   min-width: 0;
   height: 26px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(226, 232, 240, 0.78);
 }.ui-gantt-bar-segment{
   position: relative;
@@ -884,11 +891,11 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
 }main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master{
   position: relative !important;
   padding-right: 72px !important;
-  border-color: var(--mes-ui-line, #e2e8f0) !important;
-  background: #fff !important;
+  border-color: var(--mes-ui-line) !important;
+  background: var(--mes-ui-surface) !important;
   box-shadow: none !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-people-grid button.is-auth-master strong{
-  color: var(--mes-ui-text, #0f172a) !important;
+  color: var(--mes-ui-text) !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-role-marker{
   position: absolute !important;
   top: 10px !important;
@@ -898,10 +905,10 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   min-width: 48px !important;
   height: 20px !important;
   padding: 0 8px !important;
-  border: 1px solid rgba(15, 23, 42, 0.14) !important;
-  border-radius: 999px !important;
-  background: rgba(15, 23, 42, 0.06) !important;
-  color: rgba(15, 23, 42, 0.72) !important;
+  border: 1px solid var(--mes-ui-status-neutral-border) !important;
+  border-radius: var(--mes-ui-pill) !important;
+  background: var(--mes-ui-status-neutral-bg) !important;
+  color: var(--mes-ui-status-neutral-text) !important;
   font-size: 9px !important;
   font-style: normal !important;
   font-weight: 760 !important;
@@ -1133,6 +1140,44 @@ main.app-shell[data-layout="app-shell"] .slot-drawer[data-ui-component="Drawer"]
 main.app-shell[data-layout="app-shell"] .ui-gantt-bar[data-ui-component="GanttBar"]{
   min-width: 0;
   box-sizing: border-box;
+}
+
+/* Main sidebar tab contract. The app navigation is not an ActionButton surface:
+   keep it inside the dark sidebar palette even when older global button/tab
+   layers are loaded before UI Core. */
+main.app-shell[data-layout="app-shell"] > .module-menu .module-tab{
+  border-color: transparent;
+  background: transparent;
+  color: var(--mes-ui-sidebar-text);
+  box-shadow: none;
+  font-weight: var(--mes-ui-sidebar-tab-weight);
+}
+main.app-shell[data-layout="app-shell"] > .module-menu .module-tab span{
+  font-weight: var(--mes-ui-sidebar-tab-weight);
+}
+main.app-shell[data-layout="app-shell"] > .module-menu .module-group-title{
+  font-weight: var(--mes-ui-sidebar-group-weight) !important;
+}
+main.app-shell[data-layout="app-shell"] > .module-menu .module-tab:hover{
+  border-color: var(--mes-ui-sidebar-line);
+  background: var(--mes-ui-sidebar-hover);
+  color: var(--mes-ui-text-inverse);
+}
+main.app-shell[data-layout="app-shell"] > .module-menu .module-tab.is-active{
+  border-color: var(--mes-ui-sidebar-active);
+  background: linear-gradient(135deg, var(--mes-ui-sidebar-active), var(--mes-ui-primary-hover));
+  color: var(--mes-ui-text-inverse);
+  box-shadow: var(--mes-ui-shadow-xs);
+  font-weight: var(--mes-ui-sidebar-tab-active-weight);
+}
+main.app-shell[data-layout="app-shell"] > .module-menu .module-tab.is-active span{
+  font-weight: var(--mes-ui-sidebar-tab-active-weight);
+}
+main.app-shell[data-layout="app-shell"] > .module-menu .module-tab :is(svg, .mes-icon){
+  color: currentColor;
+}
+main.app-shell[data-layout="app-shell"] > .module-menu .module-group.is-test-group .module-tab{
+  color: var(--mes-ui-status-demo-border);
 }
 
 /* Radius normalization contract.

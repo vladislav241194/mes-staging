@@ -393,15 +393,15 @@ small){
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--mes-ui-muted);
-  font-size: 8px;
-  line-height: 9px;
+  font-size: var(--shift-master-summary-font-xs, 8px);
+  line-height: var(--shift-master-summary-line-xs, 9px);
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-summary-cell.is-operation > span:not(.ui-status-token),
 main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-chain article.is-current > span{
   justify-self: start;
   min-height: 18px;
   max-width: 100%;
   border: 1px solid rgba(16, 35, 60, 0.18);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-ui-sidebar-bg, #10233c);
   color: #f8fafc;
   font-size: 9px;
@@ -465,7 +465,7 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-route-ch
   width: 100%;
   height: 4px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(226, 232, 240, 0.86);
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-coverage b{
   display: block;
@@ -803,28 +803,28 @@ b){
   }}/* Planning table demo: alternative read-only Gantt interpretation.
    Scroll rule: panels and table wrappers must not own vertical scrolling.
    The workspace scrolls by Y;dense tables may scroll only by X on narrow screens. */
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-page{
+main.app-shell[data-layout-page="planningTable"] .planning-table-page{
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-sidebar{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-sidebar{
   align-self: stretch;
   grid-template-rows: auto auto auto !important;
   align-content: start;
   overflow: auto !important;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-sidebar-stack,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-list{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-sidebar-stack,
+main.app-shell[data-layout-page="planningTable"] .planning-table-status-list{
   display: grid;
   gap: 6px;
   min-width: 0;
   align-content: start;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-muted{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-muted{
   min-width: 0;
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 13px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-row{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-status-row{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -833,10 +833,10 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: var(--mes-ui-radius-sm);
   padding: 5px 6px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-row strong{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-status-row strong{
   font-size: 11px;
   line-height: 14px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-status-row small{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-status-row small{
   min-width: 0;
   overflow: visible;
   text-overflow: clip;
@@ -844,7 +844,7 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   overflow-wrap: anywhere;
   font-size: 9px;
   line-height: 12px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-item .ui-sidebar-item-body small{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-item .ui-sidebar-item-body small{
   min-width: 0;
   overflow: visible;
   text-overflow: clip;
@@ -852,36 +852,36 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   overflow-wrap: anywhere;
   font-size: 9px;
   line-height: 12px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-workspace{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-workspace{
   min-width: 0;
   min-height: 0;
   overflow-x: hidden !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-content{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-content{
   min-width: 0;
   min-height: 0;
   overflow: visible !important;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-content{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-content{
   display: grid;
   grid-auto-rows: max-content;
   grid-template-rows: none !important;
   align-items: start;
   gap: 8px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-header{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-header{
   align-items: center;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-panel{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-panel{
   grid-template-rows: auto auto !important;
   min-height: max-content;
   overflow: visible !important;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-content > .module-panel,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix-panel,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register-panel,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-panel{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-content > .module-panel,
+main.app-shell[data-layout-page="planningTable"] .planning-table-matrix-panel,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register-panel,
+main.app-shell[data-layout-page="planningTable"] .planning-table-compact-panel{
   overflow: visible;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix-wrap,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register-wrap,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-wrap{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix-wrap,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register-wrap,
+main.app-shell[data-layout-page="planningTable"] .planning-table-compact-wrap{
   max-width: 100%;
   overflow-x: auto !important;
   overflow-y: hidden !important;
@@ -889,17 +889,17 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register{
   width: 100%;
   min-width: 0;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register th,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix th,
+main.app-shell[data-layout-page="planningTable"] .planning-table-matrix td,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register th,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register td{
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
   border-right: 1px solid rgba(148, 163, 184, 0.1);
   padding: 6px 7px;
@@ -909,8 +909,8 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   line-height: 13px;
   text-align: left;
   vertical-align: top;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix thead th,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register thead th{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix thead th,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register thead th{
   position: static !important;
   top: auto !important;
   z-index: auto !important;
@@ -919,49 +919,49 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   font-size: 10px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 12px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th:first-child,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register th:first-child{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix th:first-child,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register th:first-child{
   position: static;
   z-index: 4;
   width: 176px;
   min-width: 0;
   max-width: none;
   background: var(--mes-ui-surface);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix tbody th{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix tbody th{
   background: var(--mes-ui-surface-raised);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th span,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix th strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-matrix th span,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register td strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register td span{
   display: block;
   min-width: 0;
   max-width: 100%;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td strong{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix th strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register td strong{
   overflow-wrap: anywhere;
   font-weight: var(--mes-ui-weight-semibold);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th span,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix th span,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register td span{
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 12px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix thead th:not(:first-child){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix thead th:not(:first-child){
   width: auto;
   min-width: 0;
   max-width: none;
   text-align: center;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix td{
   width: auto;
   min-width: 0;
   max-width: none;
   height: 42px;
   background: #fff;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix :is(th,
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix :is(th,
 td).is-weekend{
   background: rgba(248, 250, 252, 0.86);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td.has-slots{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-matrix td.has-slots{
   background: rgba(239, 246, 255, 0.64);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot{
   display: grid;
   gap: 1px;
   min-width: 0;
@@ -970,26 +970,26 @@ td).is-weekend{
   border-radius: var(--mes-ui-radius-xs);
   background: rgba(255, 255, 255, 0.84);
   padding: 3px 4px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-warning,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-risk,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-blocked,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot.is-critical{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot.is-warning,
+main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot.is-risk,
+main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot.is-blocked,
+main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot.is-critical{
   border-color: rgba(245, 158, 11, 0.46);
   background: rgba(255, 251, 235, 0.86);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot small{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot small{
   min-width: 0;
   overflow: hidden;
   overflow-wrap: anywhere;
   text-overflow: clip;
   white-space: normal;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot strong{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot strong{
   color: var(--mes-ui-text);
   font-size: 9px;
   font-weight: 560;
   line-height: 11px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-mini-slot small,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix td em{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-mini-slot small,
+main.app-shell[data-layout-page="planningTable"] .planning-table-matrix td em{
   color: var(--mes-ui-muted);
   font-size: 9px;
   font-style: normal;
@@ -1017,14 +1017,14 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   max-height: none !important;
   overflow: hidden !important;
   margin-bottom: 0 !important;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-grid{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-grid{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 6px;
   min-width: 0;
   padding-top: 8px;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card{
   display: grid;
   gap: 7px;
   min-width: 0;
@@ -1032,60 +1032,60 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   border-radius: var(--mes-ui-radius-sm);
   background: var(--mes-ui-surface-soft);
   padding: 8px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card header,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card footer{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card header,
+main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card footer{
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card header > div{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card header > div{
   display: grid;
   gap: 1px;
   min-width: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card span,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dd{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card span,
+main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card dd{
   min-width: 0;
   overflow-wrap: anywhere;
   white-space: normal;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card strong{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card strong{
   color: var(--mes-ui-text);
   font-size: 11px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 14px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card span,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dt{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card span,
+main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card dt{
   color: var(--mes-ui-muted);
   font-size: 9.5px;
   font-weight: var(--mes-ui-weight-regular);
   line-height: 12px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dl{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card dl{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
   min-width: 0;
   margin: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dl div{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card dl div{
   display: grid;
   gap: 1px;
   min-width: 0;
   border-radius: var(--mes-ui-radius-xs);
   background: rgba(255, 255, 255, 0.7);
   padding: 5px 6px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dt,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dd{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card dt,
+main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card dd{
   margin: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-card dd{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-summary-card dd{
   color: var(--mes-ui-text);
   font-size: 10.5px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 13px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-panel{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-panel{
   grid-template-rows: auto auto !important;
   min-height: max-content;
   overflow: visible !important;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-wrap{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-wrap{
   max-width: 100%;
   overflow-x: auto !important;
   overflow-y: hidden !important;
@@ -1093,14 +1093,14 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table{
   width: 100%;
   min-width: 0;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table th,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table th,
+main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table td{
   min-width: 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   border-right: 1px solid rgba(148, 163, 184, 0.08);
@@ -1113,24 +1113,24 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   vertical-align: top;
   white-space: normal;
   overflow-wrap: anywhere;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table th{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table th{
   color: var(--mes-ui-muted);
   font-size: 10px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 12px;
   background: var(--mes-ui-surface);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table td strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table td span{
   display: block;
   min-width: 0;
   max-width: 100%;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td strong{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table td strong{
   font-weight: var(--mes-ui-weight-semibold);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table td span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table td span{
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 12px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty{
   display: grid;
   grid-template-columns: auto minmax(0, 0.42fr) minmax(0, 1fr);
   align-items: center;
@@ -1138,38 +1138,38 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   min-width: 0;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
   padding: 10px 2px 2px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty svg{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty svg{
   width: 16px;
   height: 16px;
   color: var(--mes-ui-success);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty span{
   min-width: 0;
   overflow-wrap: anywhere;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty strong{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty strong{
   color: var(--mes-ui-text);
   font-size: 11px;
   line-height: 14px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty span{
   color: var(--mes-ui-muted);
   font-size: 10px;
   line-height: 13px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-grid{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-grid{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 6px;
   min-width: 0;
   padding-top: 8px;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-grid{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-density-grid{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 6px;
   min-width: 0;
   padding-top: 8px;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day{
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -1177,131 +1177,131 @@ main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"
   border-radius: var(--mes-ui-radius-sm);
   background: var(--mes-ui-surface-soft);
   padding: 7px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card.is-weekend,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day.is-neutral{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card.is-weekend,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day.is-neutral{
   background: rgba(248, 250, 252, 0.86);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card header,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card footer,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day header,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day footer{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card header,
+main.app-shell[data-layout-page="planningTable"] .planning-table-day-card footer,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day header,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day footer{
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
   min-width: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card span,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dd,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-day-card span,
+main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dd,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day span{
   min-width: 0;
   overflow-wrap: anywhere;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card strong,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day strong{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card strong,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day strong{
   color: var(--mes-ui-text);
   font-size: 10.5px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 13px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card span,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dt,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card span,
+main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dt,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-day span{
   color: var(--mes-ui-muted);
   font-size: 9px;
   line-height: 11px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dl{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   min-width: 0;
   margin: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dl div{
   display: grid;
   gap: 1px;
   min-width: 0;
   border-radius: var(--mes-ui-radius-xs);
   background: rgba(255, 255, 255, 0.68);
   padding: 4px 5px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(1){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dl div:nth-child(1){
   grid-column: 1;
   grid-row: 1;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(2){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dl div:nth-child(2){
   grid-column: 1 / -1;
   grid-row: 2;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   column-gap: 6px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(3){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dl div:nth-child(3){
   grid-column: 2;
   grid-row: 1;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dt,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dd{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dt,
+main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dd{
   margin: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dd{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dd{
   color: var(--mes-ui-text);
   font-size: 10px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 12px;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-card dl div:nth-child(2) dd{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-day-card dl div:nth-child(2) dd{
   justify-self: end;
   white-space: nowrap;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day > div{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-density-day > div{
   height: 7px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(148, 163, 184, 0.16);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day > div span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-density-day > div span{
   display: block;
   width: var(--planning-table-density, 0%);
   height: 100%;
   border-radius: inherit;
   background: rgba(37, 99, 235, 0.44);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day.is-warning > div span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-density-day.is-warning > div span{
   background: rgba(245, 158, 11, 0.58);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-day.is-risk > div span{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-density-day.is-risk > div span{
   background: rgba(239, 68, 68, 0.58);
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td{
+}main.app-shell[data-layout-page="planningTable"] .planning-table-register td{
   max-width: none;
   white-space: normal;
   overflow-wrap: anywhere;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(1){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-register td:nth-child(1){
   width: 120px;
   min-width: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(2){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-register td:nth-child(2){
   width: 17%;
   min-width: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(3),
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(4),
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(5){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-register td:nth-child(3),
+main.app-shell[data-layout-page="planningTable"] .planning-table-register td:nth-child(4),
+main.app-shell[data-layout-page="planningTable"] .planning-table-register td:nth-child(5){
   width: 15%;
   min-width: 0;
-}main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register td:nth-child(n + 6){
+}main.app-shell[data-layout-page="planningTable"] .planning-table-register td:nth-child(n + 6){
   width: 8%;
   min-width: 0;
   white-space: normal;
-}@media (max-width: 900px) {main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-page{
+}@media (max-width: 900px) {main.app-shell[data-layout-page="planningTable"] .planning-table-page{
     grid-template-columns: minmax(0, 1fr);
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-sidebar{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-sidebar{
     position: static;
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-matrix{
     width: 980px;
     min-width: 980px;
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-register{
     width: 780px;
     min-width: 780px;
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-compact-table{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-compact-table{
     width: 720px;
     min-width: 720px;
-  }}@media (max-width: 600px) {main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-matrix th:first-child,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-register th:first-child{
+  }}@media (max-width: 600px) {main.app-shell[data-layout-page="planningTable"] .planning-table-matrix th:first-child,
+main.app-shell[data-layout-page="planningTable"] .planning-table-register th:first-child{
     width: 148px;
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-summary-grid{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-summary-grid{
     grid-template-columns: minmax(0, 1fr);
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-day-grid,
-main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-density-grid{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-day-grid,
+main.app-shell[data-layout-page="planningTable"] .planning-table-density-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty{
     grid-template-columns: auto minmax(0, 1fr);
-  }main.app-shell:is([data-layout-page="planningTable"], [data-layout-page="matrix"]) .planning-table-inline-empty span{
+  }main.app-shell[data-layout-page="planningTable"] .planning-table-inline-empty span{
     grid-column: 2;
   }}main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button{
   width: 28px !important;
@@ -1664,6 +1664,10 @@ main.app-shell[data-layout-page="timesheet"] .timesheet-role-cell,
 main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell{
   text-align: left !important;
   vertical-align: middle;
+}main.app-shell[data-layout-page="timesheet"] tbody .timesheet-person-cell{
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-text);
+  padding-inline: var(--mes-ui-density-gap);
 }main.app-shell[data-layout-page="timesheet"] .timesheet-person-cell strong,
 main.app-shell[data-layout-page="timesheet"] .timesheet-person-cell small,
 main.app-shell[data-layout-page="timesheet"] .timesheet-role-cell span,
@@ -1688,7 +1692,7 @@ main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell small{
 main.app-shell[data-layout-page="timesheet"] .timesheet-role-cell span,
 main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell small{
   color: var(--mes-ui-muted, #64748b);
-  font-size: 7px;
+  font-size: 8px;
   line-height: 10px;
 }main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell strong{
   color: #1d4ed8;
@@ -1785,7 +1789,7 @@ main.app-shell[data-layout-page="timesheet"] .timesheet-schedule-cell small{
   justify-content: center;
   min-width: 12px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f97316;
   color: #ffffff;
   font-size: 6px;
@@ -2061,7 +2065,7 @@ main.app-shell[data-layout-page="roles"] .access-role-assignment-table td{
   height: 18px;
   padding: 0 5px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #ff3b30;
   color: #ffffff;
   box-shadow:
@@ -2326,6 +2330,12 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(
   width: 9%;
 }main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(th, td):nth-child(8){
   width: 13%;
+}main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table td:nth-child(7) .ui-status-token[data-ui-component="StatusToken"]{
+  justify-content: center;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table th{
   padding-top: 9px;
   padding-bottom: 9px;
@@ -2403,7 +2413,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-table :is(
   width: 7px;
   height: 7px;
   border: 1px solid var(--shift-work-orders-tree-line, #94a3b8);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--shift-work-orders-tree-line, #94a3b8);
   box-shadow: none;
   transform: translate(-50%, -50%);
@@ -2607,7 +2617,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-transfer a
   min-height: 18px;
   max-width: 100%;
   border: 1px solid rgba(16, 35, 60, 0.18);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--shift-work-orders-accent);
   color: var(--shift-work-orders-accent-text);
   font-size: var(--shift-work-orders-detail-label-size);
@@ -2819,7 +2829,7 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-executors 
   min-width: 19px;
   height: 19px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(15, 23, 42, 0.82);
   color: #fff;
   font-size: 10px;
@@ -3022,158 +3032,9 @@ main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-issue-copy
     grid-template-columns: minmax(0, 1fr);
   }main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-detail-volume-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }}/* Gantt scroll contract: the chart itself owns both axes.
-   Earlier compact layout passes accidentally hid vertical scrolling,
-so rows
-   below the viewport became unreachable. */
-main.app-shell[data-layout-page="gantt"] .gantt-shell[data-gantt-shell]{
-  overflow-x: auto !important;
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-}/* Interaction stability contract: clickable controls must not move under the
-   pointer on hover/active. Even a 1px translate can create hover flicker and
-   make the first click miss on dense MES screens. */
-main.app-shell[data-layout="app-shell"] :is(
-  button:not(.shop-map-widget),
-  a[href],
-  summary,
-  .module-tab,
-  .mobile-module-tab,
-  .module-menu-preset-main,
-  .module-menu-preset-save,
-  .ui-sidebar-item,
-  .directory-nav-item,
-  .planning-order-route-item,
-  .primary-button,
-  .secondary-button,
-  .icon-button,
-  .table-icon-button,
-  .app-topbar-action,
-  .dense-inline-select > summary
-){
-  transform: none !important;
-}main.app-shell[data-layout="app-shell"] :is(
-  button:not(.shop-map-widget),
-  a[href],
-  summary,
-  .module-tab,
-  .mobile-module-tab,
-  .module-menu-preset-main,
-  .module-menu-preset-save,
-  .ui-sidebar-item,
-  .directory-nav-item,
-  .planning-order-route-item,
-  .primary-button,
-  .secondary-button,
-  .icon-button,
-  .table-icon-button,
-  .app-topbar-action,
-  .dense-inline-select > summary
-):is(:hover, :active, :focus, :focus-visible){
-  transform: none !important;
-}main.app-shell[data-layout-page="authPrototype"] :is(
-  .auth-prototype-department-grid button,
-  .auth-prototype-unit-grid button,
-  .auth-prototype-people-grid button,
-  .auth-prototype-keypad button
-),
-main.app-shell[data-layout-page="authPrototype"] :is(
-  .auth-prototype-department-grid button,
-  .auth-prototype-unit-grid button,
-  .auth-prototype-people-grid button,
-  .auth-prototype-keypad button
-):is(:hover, :active, :focus, :focus-visible){
-  position: relative !important;
-  top: auto !important;
-  bottom: auto !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  transform: none !important;
-}main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel),
-main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel):hover{
-  transform: none;
-}
+  }}
 
-/* Interaction flicker contract: controls in MES must react instantly and keep a
-   stable paint state. Old CSS layers still attach color/shadow transitions to
-   buttons and menu items;under load this looks like blinking and can make a
-   click land during a transient hover state. */
-main.app-shell[data-layout="app-shell"] :is(
-  button:not(.shop-map-widget),
-  button:not(.shop-map-widget) *,
-  a[href],
-  a[href] *,
-  summary,
-  summary *,
-  [role="button"],
-  [role="button"] *,
-  .module-tab,
-  .module-tab *,
-  .mobile-module-tab,
-  .mobile-module-tab *,
-  .module-menu-preset-main,
-  .module-menu-preset-main *,
-  .module-menu-preset-save,
-  .module-menu-preset-save *,
-  .ui-sidebar-item,
-  .ui-sidebar-item *,
-  .directory-nav-item,
-  .directory-nav-item *,
-  .planning-order-route-item,
-  .planning-order-route-item *,
-  .primary-button,
-  .primary-button *,
-  .secondary-button,
-  .secondary-button *,
-  .icon-button,
-  .icon-button *,
-  .table-icon-button,
-  .table-icon-button *,
-  .app-topbar-action,
-  .app-topbar-action *,
-  .dense-inline-select > summary,
-  .dense-inline-select > summary *,
-  .operation-slot,
-  .operation-slot *
-){
-  animation: none !important;
-  transition: none !important;
-  transition-delay: 0s !important;
-  transition-duration: 0s !important;
-  will-change: auto !important;
-}main.app-shell[data-layout="app-shell"] :is(
-  button:not(.shop-map-widget),
-  a[href],
-  summary,
-  [role="button"],
-  .module-tab,
-  .mobile-module-tab,
-  .module-menu-preset-main,
-  .module-menu-preset-save,
-  .ui-sidebar-item,
-  .directory-nav-item,
-  .planning-order-route-item,
-  .primary-button,
-  .secondary-button,
-  .icon-button,
-  .table-icon-button,
-  .app-topbar-action,
-  .dense-inline-select > summary,
-  .operation-slot
-):is(:hover, :active, :focus, :focus-visible){
-  animation: none !important;
-  transition: none !important;
-  transition-delay: 0s !important;
-  transition-duration: 0s !important;
-}/* Gantt bar shape contract: operation bars are rectangular so split,
-validation and fact overlays stay aligned. */
-main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot{
-  border-radius: 0 !important;
-}/* The live Gantt has highly specific segmented-state rules. Keep every visible
-   piece of a bar square. */
-main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot :is(.slot-working-segment.is-slot-start, .slot-working-segment.is-slot-end, .slot-non-working-segment.is-slot-start, .slot-non-working-segment.is-slot-end, .slot-working-segment.is-continuation-start, .slot-working-segment.is-continuation-end, .slot-non-working-segment.is-continuation-start, .slot-non-working-segment.is-continuation-end, .slot-accent, .resize-handle){
-  border-radius: 0 !important;
-}/* Auth session prototype: workshop-like post-login workspace. */
+/* Auth session prototype: workshop-like post-login workspace. */
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-content{
   display: grid;
   align-content: start;
@@ -3272,7 +3133,7 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-route-chai
   min-height: 16px;
   max-width: 100%;
   border: 1px solid rgba(16, 35, 60, 0.16);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-ui-sidebar-bg, #10233c);
   color: #f8fafc;
   font-size: 8px;
@@ -3556,9 +3417,9 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint 
   min-width: 0;
   overflow: hidden;
   color: var(--mes-ui-text);
-  font-size: 18px;
+  font-size: var(--mes-font-size-section-title);
   font-weight: var(--mes-ui-weight-semibold);
-  line-height: 22px;
+  line-height: var(--mes-ui-line-section-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small{
@@ -3591,6 +3452,39 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad spa
 }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-keypad-delete svg{
   width: 23px;
   height: 23px;
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-deviation-comment{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-radius: var(--mes-ui-radius-sm);
+  background: rgba(255, 251, 235, 0.72);
+  padding: 10px;
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-deviation-comment span{
+  color: var(--mes-ui-text);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-deviation-comment textarea{
+  min-height: 78px;
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fff;
+  color: var(--mes-ui-text);
+  font: 500 13px/18px var(--font-ui);
+  padding: 10px;
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-deviation-comment textarea:focus{
+  border-color: rgba(245, 158, 11, 0.58);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+  outline: none;
+}main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-deviation-comment small{
+  color: var(--mes-ui-muted);
+  font-size: 10px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 14px;
 }
 
 @media (max-width: 1180px) {main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-grid{
@@ -3659,8 +3553,8 @@ main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint 
     line-height: 16px;
   }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-value strong,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint strong{
-    font-size: 30px;
-    line-height: 36px;
+    font-size: var(--mes-font-size-section-title);
+    line-height: var(--mes-ui-line-section-title);
   }main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-hint small,
 main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-fact-note{
     font-size: 12px;
@@ -4028,12 +3922,32 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-
   height: 42px !important;
   min-width: 42px !important;
   min-height: 42px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: rgba(16, 35, 60, 0.58) !important;
   overflow: visible !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon svg,
 main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon svg{
   display: block !important;
-  width: 22px !important;
-  height: 22px !important;
+  width: 20px !important;
+  height: 20px !important;
+  color: rgba(16, 35, 60, 0.58) !important;
+  stroke: rgba(16, 35, 60, 0.58) !important;
+  stroke-width: 1.45px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon svg.mes-icon-source-custom-svg,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-unit-icon svg.mes-icon-source-custom-svg{
+  width: 20px !important;
+  height: 20px !important;
+  color: rgba(16, 35, 60, 0.5) !important;
+  stroke: rgba(16, 35, 60, 0.5) !important;
+  opacity: 0.68 !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-department-icon[data-icon="department-service"] svg{
+  width: 28px !important;
+  height: 28px !important;
+  stroke-width: 1.85px !important;
+}main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-department-icon,
+main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-icon{
+  color: rgba(16, 35, 60, 0.58) !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"] .auth-prototype-pin-entry{
   display: grid !important;
   justify-self: center !important;
@@ -4107,714 +4021,4 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .slot-form-
   justify-content: flex-end;
   gap: 8px;
   flex: 0 0 auto;
-}/* Planning v1.491: work-order screen follows the document-tree/detail pattern from Shift Work Orders. */
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page{
-  --planning-order-accent: var(--mes-ui-sidebar-bg, #10233c);
-  --planning-order-accent-text: #f8fafc;
-  --planning-order-accent-muted: #cbd5e1;
-  --planning-order-accent-soft: rgba(16, 35, 60, 0.075);
-  --planning-order-accent-line: rgba(16, 35, 60, 0.24);
-  --planning-order-tree-line: #94a3b8;
-  --planning-order-tree-active-dot: #0f172a;
-  --planning-order-text-strong: #172033;
-  --planning-order-text-main: #334155;
-  --planning-order-text-secondary: #475569;
-  --planning-order-text-muted: #64748b;
-  --planning-order-detail-line: rgba(16, 35, 60, 0.16);
-  --planning-order-detail-soft: #f8fafc;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-  overflow: auto;
-  padding: 10px 12px 16px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  min-width: 0;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid rgba(16, 35, 60, 0.12);
-  border-radius: var(--mes-ui-radius-md);
-  background: var(--mes-ui-surface);
-  padding: 10px 12px;
-  box-shadow: none;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header h2{
-  margin: 0;
-  color: var(--planning-order-text-strong);
-  font-size: 15px;
-  font-weight: 680;
-  line-height: 18px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header p{
-  margin: 2px 0 0;
-  color: var(--planning-order-text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 14px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control{
-  display: grid;
-  gap: 3px;
-  color: var(--planning-order-text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 12px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control input{
-  min-height: 30px;
-  border: 1px solid rgba(16, 35, 60, 0.16);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  color: var(--planning-order-text-main);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 14px;
-  padding: 0 8px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel{
-  min-width: 0;
-  border-color: rgba(16, 35, 60, 0.12);
-  box-shadow: none;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head{
-  min-height: 42px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--planning-order-accent);
-  color: var(--planning-order-accent-text);
-  padding: 8px 10px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head strong{
-  color: var(--planning-order-accent-text);
-  font-size: 12px;
-  font-weight: 680;
-  line-height: 15px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head span{
-  color: var(--planning-order-accent-muted);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 13px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head .ui-status-token{
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--planning-order-accent-text);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-map > .ui-panel-body{
-  display: grid;
-  gap: 10px;
-  padding: 10px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-strip{
-  display: grid !important;
-  grid-template-columns: minmax(170px, 0.65fr) minmax(0, 1.35fr) !important;
-  gap: 8px !important;
-  align-items: stretch !important;
-  border: 1px solid var(--planning-order-detail-line) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: var(--mes-ui-surface) !important;
-  padding: 7px !important;
-  box-shadow: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary{
-  display: grid;
-  align-content: center;
-  gap: 2px;
-  min-width: 0;
-  border-right: 1px solid rgba(16, 35, 60, 0.12);
-  padding: 2px 10px 2px 4px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary small,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric small{
-  min-width: 0;
-  overflow: hidden;
-  color: var(--planning-order-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 500 !important;
-  line-height: 12px !important;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary strong{
-  min-width: 0;
-  overflow: hidden;
-  color: var(--planning-order-text-strong) !important;
-  font-size: 11px !important;
-  font-weight: 650 !important;
-  line-height: 14px !important;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metrics{
-  display: grid !important;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-  gap: 0 !important;
-  min-width: 0;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric{
-  display: grid !important;
-  align-content: center !important;
-  gap: 2px !important;
-  min-width: 0 !important;
-  min-height: 44px !important;
-  border: 0 !important;
-  border-left: 1px solid rgba(16, 35, 60, 0.10) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 2px 7px !important;
-  box-shadow: none !important;
-  text-align: left !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:first-child{
-  border-left: 0 !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button){
-  cursor: pointer;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button):hover,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric.is-active{
-  background: rgba(16, 35, 60, 0.045) !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric strong{
-  min-width: 0;
-  overflow: hidden;
-  color: var(--planning-order-text-strong) !important;
-  font-size: 11px !important;
-  font-weight: 650 !important;
-  line-height: 14px !important;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table-wrap{
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
-  border-radius: var(--mes-ui-radius-sm);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  table-layout: fixed !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td){
-  box-sizing: border-box;
-  min-width: 0;
-  padding: 6px 6px !important;
-  color: var(--planning-order-text-main);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 15px;
-  vertical-align: middle;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td{
-  border-top: 0 !important;
-  border-bottom: 0 !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td:first-child{
-  overflow: visible;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
-  width: 34%;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
-  width: 33%;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
-  width: 13%;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
-  width: 9%;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(5){
-  width: 11%;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th{
-  padding-top: 9px !important;
-  padding-bottom: 9px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background: var(--planning-order-accent) !important;
-  color: var(--planning-order-accent-text) !important;
-  font-size: 10px !important;
-  font-weight: 720 !important;
-  line-height: 12px !important;
-  white-space: nowrap;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th + th{
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:first-child{
-  border-top-left-radius: var(--mes-ui-radius-sm);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:last-child{
-  border-top-right-radius: var(--mes-ui-radius-sm);
-  padding-right: 10px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:last-child{
-  padding-right: 10px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row){
-  cursor: pointer;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row):hover td{
-  background: rgba(16, 35, 60, 0.045) !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected td{
-  background: #fff !important;
-  box-shadow: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected{
-  outline: 1px solid var(--planning-order-accent-line);
-  outline-offset: -1px;
-  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(.planning-order-object-row.is-selected, .planning-order-step-row.is-selected) td{
-  background: #fff !important;
-  box-shadow: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(.planning-order-object-row.is-selected, .planning-order-step-row.is-selected){
-  outline: 1px solid var(--planning-order-accent-line);
-  outline-offset: -1px;
-  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell{
-  --speki-tree-step: 30px;
-  --speki-tree-line-color: var(--planning-order-tree-line);
-  --speki-tree-line-bleed-top: 24px;
-  --speki-tree-line-bleed-bottom: 24px;
-  box-sizing: border-box;
-  min-height: 38px;
-  height: 100%;
-  padding-top: 5px;
-  padding-bottom: 5px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell > .speki-tree-start-dot{
-  position: absolute;
-  top: 50%;
-  left: calc(var(--speki-level) * var(--speki-tree-step) + 7px);
-  z-index: 2;
-  display: block;
-  width: 7px;
-  height: 7px;
-  border: 1px solid var(--planning-order-tree-line);
-  border-radius: 999px;
-  background: var(--planning-order-tree-line);
-  box-shadow: none;
-  transform: translate(-50%, -50%);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected .route-tree-cell > .speki-tree-start-dot{
-  border-color: var(--planning-order-tree-active-dot);
-  background: var(--planning-order-tree-active-dot);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell.has-children:not(.is-last) > .speki-tree-branch::before{
-  bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell{
-  --speki-tree-line-bleed-top: 34px;
-  --speki-tree-line-bleed-bottom: 34px;
-  height: 100%;
-  min-height: 100%;
-  padding-top: 6px;
-  padding-bottom: 6px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .planning-order-step-row .route-tree-cell{
-  --speki-tree-line-bleed-top: 34px;
-  --speki-tree-line-bleed-bottom: 34px;
-  height: auto;
-  min-height: 38px;
-  padding-top: 5px;
-  padding-bottom: 5px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell > .speki-tree-guide,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell > .speki-tree-branch::before{
-  top: calc(-1 * var(--speki-tree-line-bleed-top));
-  bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell{
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell :is(strong, small),
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table td :is(strong, small){
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-object-row td:first-child strong{
-  color: var(--planning-order-text-strong);
-  font-size: 12px;
-  font-weight: 680;
-  line-height: 15px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-step-row td:first-child strong{
-  color: var(--planning-order-text-strong);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 15px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell small,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table td small{
-  color: var(--planning-order-text-muted);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 12px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-state-token,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-labor-note-field,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
-  border-color: rgba(16, 35, 60, 0.14) !important;
-  background: #fff !important;
-  box-shadow: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell{
-  display: grid;
-  gap: 1px;
-  min-height: 30px;
-  padding: 4px 6px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell strong{
-  color: var(--planning-order-text-secondary) !important;
-  font-size: 11px !important;
-  font-weight: 560 !important;
-  line-height: 15px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell small{
-  color: var(--planning-order-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 500 !important;
-  line-height: 12px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
-  padding: 6px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-head{
-  display: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-grid{
-  display: grid !important;
-  grid-template-columns: minmax(96px, 0.9fr) minmax(86px, 0.75fr) minmax(84px, 0.6fr) minmax(102px, 0.8fr) !important;
-  gap: 6px !important;
-  align-items: stretch !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-fields{
-  display: contents !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result{
-  min-width: 0 !important;
-  min-height: 28px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field input,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode select,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference input{
-  width: 100% !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  border: 1px solid rgba(16, 35, 60, 0.16) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: #fff !important;
-  color: var(--planning-order-text-main) !important;
-  font-size: 10px !important;
-  font-weight: 600 !important;
-  line-height: 14px !important;
-  padding: 0 7px !important;
-  box-shadow: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference:not(.is-editable){
-  display: grid !important;
-  align-content: center !important;
-  gap: 1px !important;
-  border: 1px solid rgba(16, 35, 60, 0.14) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: var(--planning-order-detail-soft) !important;
-  padding: 4px 6px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result :is(span, strong),
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference :is(span, strong){
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference span{
-  color: var(--planning-order-text-muted) !important;
-  font-size: 9px !important;
-  font-weight: 500 !important;
-  line-height: 11px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference strong{
-  color: var(--planning-order-text-strong) !important;
-  font-size: 10px !important;
-  font-weight: 650 !important;
-  line-height: 12px !important;
-}
-
-/* Planning work orders: full-width document workspace aligned with Shift Work Orders. */
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-full-width{
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  flex-wrap: initial !important;
-  align-items: stretch !important;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main{
-  width: 100%;
-  min-width: 0;
-  flex: none !important;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
-  overflow: auto;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
-  grid-template-columns: minmax(680px, 1.35fr) minmax(420px, 0.85fr);
-  align-items: start;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-strip{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: 46px;
-  border: 1px solid rgba(16, 35, 60, 0.14);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  color: var(--planning-order-text-main);
-  padding: 6px 8px;
-  text-align: left;
-  cursor: pointer;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip:hover{
-  background: rgba(16, 35, 60, 0.035);
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip.is-active{
-  outline: 1px solid var(--planning-order-accent-line);
-  outline-offset: -1px;
-  background: #fff;
-  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.08));
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip small{
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip span{
-  display: grid;
-  gap: 1px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip strong{
-  color: var(--planning-order-text-strong);
-  font-size: 11px;
-  font-weight: 640;
-  line-height: 14px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip small{
-  color: var(--planning-order-text-muted);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 12px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
-  width: 36%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
-  width: 22%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
-  width: 16%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
-  width: 11%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(5){
-  width: 15%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary{
-  display: grid;
-  align-content: center;
-  gap: 1px;
-  width: 100%;
-  min-width: 0;
-  min-height: 34px;
-  border: 1px solid rgba(16, 35, 60, 0.14);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  color: var(--planning-order-text-main);
-  padding: 4px 6px;
-  text-align: left;
-  cursor: pointer;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary:hover,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary.is-active{
-  background: rgba(16, 35, 60, 0.045);
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary small{
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary span{
-  color: var(--planning-order-text-muted);
-  font-size: 9px;
-  font-weight: 500;
-  line-height: 11px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary strong{
-  color: var(--planning-order-text-strong);
-  font-size: 11px;
-  font-weight: 650;
-  line-height: 13px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary small{
-  color: var(--planning-order-text-muted);
-  font-size: 9px;
-  font-weight: 500;
-  line-height: 11px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel{
-  color: var(--planning-order-text-main);
-  font-size: 11px;
-  line-height: 15px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-head .ui-action-button,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-head .ui-status-token{
-  border-color: rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--planning-order-accent-text);
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel .ui-panel-body{
-  display: grid;
-  gap: 8px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary{
-  display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary.is-decision{
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article{
-  display: grid;
-  align-content: center;
-  gap: 3px;
-  min-width: 0;
-  border: 1px solid var(--planning-order-detail-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface);
-  padding: 7px 8px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article:first-child{
-  position: relative;
-  overflow: hidden;
-  border-color: var(--planning-order-detail-line);
-  box-shadow: none;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary :is(span, small),
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list :is(span, small),
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer :is(span, small){
-  min-width: 0;
-  color: var(--planning-order-text-muted);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 13px;
-  overflow-wrap: anywhere;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article:first-child > span,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article.is-current > span{
-  justify-self: start;
-  min-height: 18px;
-  max-width: 100%;
-  overflow: hidden;
-  border: 1px solid rgba(16, 35, 60, 0.18);
-  border-radius: 999px;
-  background: var(--planning-order-accent);
-  color: var(--planning-order-accent-text);
-  font-size: 10px;
-  font-weight: 720;
-  line-height: 13px;
-  padding: 2px 6px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header strong,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer strong{
-  min-width: 0;
-  color: var(--planning-order-text-strong);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 14px;
-  overflow-wrap: anywhere;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list{
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  border: 1px solid var(--planning-order-detail-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
-  padding: 8px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header,
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list header{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list article{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(72px, auto) minmax(72px, auto);
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-  min-height: 28px;
-  border-top: 1px solid rgba(16, 35, 60, 0.08);
-  padding-top: 6px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list p{
-  margin: 0;
-  color: var(--planning-order-text-muted);
-  font-size: 11px;
-  line-height: 15px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer{
-  display: grid;
-  grid-template-columns: minmax(112px, 1fr) 22px minmax(112px, 1fr) 22px minmax(112px, 1fr);
-  align-items: stretch;
-  gap: 6px;
-  min-width: 0;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article{
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  border: 1px solid var(--planning-order-detail-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface);
-  padding: 7px 8px;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article.is-current{
-  border-color: var(--planning-order-accent-line);
-  background: var(--mes-ui-surface);
-  box-shadow: none;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer-link{
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  align-self: center;
-  height: 20px;
-  pointer-events: none;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer-link::before{
-  width: 100%;
-  height: 1px;
-  background: var(--planning-order-tree-line);
-  content: "";
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer-link::after{
-  position: absolute;
-  top: 50%;
-  right: 1px;
-  width: 6px;
-  height: 6px;
-  border-top: 1px solid var(--planning-order-tree-line);
-  border-right: 1px solid var(--planning-order-tree-line);
-  content: "";
-  transform: translateY(-50%) rotate(45deg);
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-grid{
-  grid-template-columns: minmax(92px, 0.9fr) minmax(92px, 0.9fr) minmax(96px, 0.9fr) minmax(92px, 0.8fr) !important;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-labor.is-detail-mode{
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  width: 100% !important;
-  min-width: 0 !important;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-labor.is-detail-mode .planning-manual-inline-grid{
-  width: 100% !important;
-  min-width: 0 !important;
-}
-@media (max-width: 1540px) {
-  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
-    grid-template-columns: minmax(0, 1fr);
-  }
-  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary.is-decision{
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }

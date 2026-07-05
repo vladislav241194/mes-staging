@@ -326,7 +326,7 @@ with a stable badge at every scale. */
   height: 18px;
   padding: 0 6px;
   border: 1px solid rgba(148, 163, 184, 0.45);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(255, 255, 255, 0.92);
   color: #334155;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
@@ -528,7 +528,7 @@ with a stable badge at every scale. */
   bottom: 0;
   width: 2px;
   transform: translateX(-1px);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(37, 99, 235, 0.78);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }.gantt-snap-guide.is-resize{
@@ -581,7 +581,7 @@ with a stable badge at every scale. */
   position: relative;
   width: 32px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #d7e0ea;
   transition: background 0.16s ease;
 }.toggle-switch-knob::after{
@@ -590,7 +590,7 @@ with a stable badge at every scale. */
   left: 3px;
   width: 12px;
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
   content: "";
@@ -650,7 +650,7 @@ with a stable badge at every scale. */
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-accent-soft, #eff6ff);
   color: var(--mes-accent, #2563eb);
   font-size: 11px;
@@ -746,7 +746,7 @@ with a stable badge at every scale. */
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-accent-soft, #eff6ff);
   color: var(--mes-accent, #2563eb);
   font-size: 10px;
@@ -1044,7 +1044,7 @@ main.app-shell[data-layout-page="routes"] .route-step-labor-field .dense-inline-
 }main.app-shell[data-layout-page="routes"] .route-step-labor-strip-head em{
   flex: 0 0 auto;
   border: 1px solid rgba(245, 158, 11, 0.32);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(245, 158, 11, 0.12);
   color: #92400e;
   padding: 0 5px;

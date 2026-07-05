@@ -92,7 +92,7 @@ employee and planning-order foundations.
   justify-content: center;
   min-width: 28px;
   min-height: 22px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #eef2f6;
   color: #475569;
   padding: 0 6px;
@@ -201,7 +201,7 @@ employee and planning-order foundations.
   align-items: center;
   justify-content: center;
   min-height: 22px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: color-mix(in srgb, var(--employee-tone, #64748b) 10%, #ffffff);
   color: var(--employee-tone, #475569);
   padding: 0 7px;
@@ -290,7 +290,7 @@ employee and planning-order foundations.
   justify-content: center;
   min-height: 28px;
   border: 1px solid color-mix(in srgb, var(--employee-tone, #64748b) 24%, #dbe3ec);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: color-mix(in srgb, var(--employee-tone, #64748b) 6%, #ffffff);
   color: color-mix(in srgb, var(--employee-tone, #64748b) 78%, #0f172a);
   padding: 0 8px;
@@ -808,10 +808,9 @@ employee and planning-order foundations.
   color: #344054;
 }.status-strip{
   grid-column: 2 / 4;
-}.status-pill,
-.clock{
+}.clock{
   border: 1px solid var(--line-soft);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #ffffff;
   color: #475467;
   box-shadow: none;
@@ -902,9 +901,8 @@ employee and planning-order foundations.
 }.production-meta,
 .workcenter-code{
   color: #667085;
-}.production-status,
-.deadline-badge{
-  border-radius: 999px;
+}.production-status{
+  border-radius: var(--mes-ui-pill);
 }.lane{
   border-color: rgba(15, 23, 42, 0.055);
   background-image:
@@ -914,7 +912,7 @@ employee and planning-order foundations.
   background-color: rgba(37, 99, 235, 0.025);
 }.today-marker{
   width: 2px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #ef4444;
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08);
 }.operation-slot{
@@ -931,7 +929,7 @@ employee and planning-order foundations.
 }.slot-accent{
   border-radius: 16px 0 0 16px;
 }.week-slot-line b{
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
 }.planner-workspace .planning-assistant-dock{
   gap: 12px;
 }.assistant-dock-head,
@@ -1484,9 +1482,7 @@ textarea:focus,
   border-color: var(--mes-danger);
   background: var(--mes-danger);
   color: #ffffff;
-}.status-pill,
-.production-status,
-.deadline-badge,
+}.production-status,
 .outside-route,
 .ui-sidebar-item em,
 .week-slot-line b{
@@ -1495,31 +1491,25 @@ textarea:focus,
   justify-content: center;
   min-height: 22px;
   border: 1px solid var(--mes-neutral-border);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-neutral-soft);
   color: var(--mes-neutral);
   padding: 0 8px;
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
-}.status-pill.ok,
-.production-status.status-completed,
-.status-completed,
-.deadline-badge.ok{
+}.production-status.status-completed,
+.status-completed{
   border-color: var(--mes-success-border);
   background: var(--mes-success-soft);
   color: var(--mes-success);
-}.status-pill.warning,
-.production-status.status-problem,
-.status-problem,
-.deadline-badge.warning{
+}.production-status.status-problem,
+.status-problem{
   border-color: var(--mes-warning-border);
   background: var(--mes-warning-soft);
   color: var(--mes-warning);
-}.status-pill.critical,
-.production-status.status-overdue,
-.status-overdue,
-.deadline-badge.critical{
+}.production-status.status-overdue,
+.status-overdue{
   border-color: var(--mes-danger-border);
   background: var(--mes-danger-soft);
   color: var(--mes-danger);
@@ -1752,7 +1742,7 @@ textarea:focus,
 }.today-marker{
   width: 2px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-accent);
   box-shadow: none;
 }.operation-slot{
@@ -1853,7 +1843,7 @@ textarea:focus,
   background: var(--mes-surface);
   box-shadow: var(--mes-shadow-sm);
 }.progress span{
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-accent);
 }.modal-backdrop{
   background: rgba(15, 23, 42, 0.32);

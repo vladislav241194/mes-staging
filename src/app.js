@@ -70,6 +70,19 @@ import {
   normalizeUiTone,
 } from "./ui/html.js";
 import { renderDispatchModulePage } from "./modules/dispatch/render.js";
+import { renderNomenclatureModulePage } from "./modules/nomenclature/render.js";
+import {
+  MES_CUSTOM_ICON_GROUPS,
+  MES_CUSTOM_ICON_SOURCES,
+  MES_CUSTOM_ICON_STATUSES,
+  getMesCustomIconEntryBySemanticSlug,
+  getMesCustomIconEntries,
+  getMesCustomIconName,
+  getMesCustomIconNameForRuntimeId,
+  getMesCustomIconReferenceAssetPath,
+  getMesCustomIconSummary,
+  getMesCustomIconSvg,
+} from "./icons/custom-mes/registry.js";
 
 const {
   renderUiPanelHead,
@@ -118,6 +131,7 @@ const SHARED_STATE_DISABLED_RECHECK_MS = 5 * 60 * 1000;
 const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
 const APP_VERSION = "v.1.491";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
+const AUTH_PIN_TEMPORARILY_DISABLED = true;
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
 const DIRECTORY_BACKUP_STORAGE_KEY = "mes-planning-prototype-directories-backup-v1";
@@ -326,16 +340,18 @@ const AUTH_DEPARTMENT_ICON_BY_ID = {
   D3: "bom",
   D3_CC: "package",
   D4: "check",
-  D5: "operation",
+  D5: "worker",
   D6: "keyboard",
-  D_SERVICE: "document",
+  D9: "settings",
+  D11: "package",
+  D_SERVICE: "settings",
 };
 const AUTH_UNIT_ICON_BY_ID = {
   D3_L1: "gantt",
   D3_L2: "gantt",
-  D3_AOI: "check",
+  D3_AOI: "search",
   D3_UW: "package",
-  D3_MANUAL_CC: "operation",
+  D3_MANUAL_CC: "package",
   D5_L1: "worker",
   D5_L2: "worker",
   D5_L3: "worker",
@@ -626,6 +642,7 @@ const defaultUiState = {
   routeBindingMode: "product",
   supplyCollapsedGroups: {},
   planningWorkItem: "",
+  weeklyProductionControlWeekAnchor: "2026-06-01",
   planningLaborNoteByRow: {},
   planningLegacyManualLaborByStep: {},
   activeShopMapWidgetId: "",
@@ -1247,16 +1264,16 @@ const SHOP_FLOOR_WIDGET_LAYOUTS = [
   { match: "warehouse", x: 88, y: 72, tone: "slate" },
 ];
 const PRODUCTION_FLOW_STAGE_DEFINITIONS = [
-  { id: "warehouse", label: "Склад", caption: "выдача и возврат", workCenterIds: ["D1"], iconName: "warehouse", tone: "slate" },
-  { id: "smt", label: "SMT", caption: "поверхностный монтаж", workCenterIds: ["D3", "D3_L1", "D3_L2"], iconName: "bom", tone: "blue" },
-  { id: "aoi", label: "AOI", caption: "оптическая инспекция", workCenterIds: ["D3_AOI"], iconName: "search", tone: "cyan" },
+  { id: "warehouse", label: "Склад", caption: "выдача и возврат", workCenterIds: ["D1"], iconName: getMesCustomIconName("department-warehouse") || "warehouse", tone: "slate" },
+  { id: "smt", label: "SMT", caption: "поверхностный монтаж", workCenterIds: ["D3", "D3_L1", "D3_L2"], iconName: getMesCustomIconName("department-smt") || "bom", tone: "blue" },
+  { id: "aoi", label: "AOI", caption: "оптическая инспекция", workCenterIds: ["D3_AOI"], iconName: getMesCustomIconName("unit-aoi") || "search", tone: "cyan" },
   { id: "wash", label: "Отмывка", caption: "ультразвук", workCenterIds: ["D3_UW"], iconName: "refresh", tone: "green" },
-  { id: "coating", label: "Влагозащита", caption: "ручная и селективная", workCenterIds: ["D3_CC"], iconName: "package", tone: "green" },
-  { id: "manual", label: "Ручной монтаж", caption: "THT и пайка", workCenterIds: ["D5"], iconName: "operation", tone: "amber" },
-  { id: "quality", label: "ОТК", caption: "контроль", workCenterIds: ["D4"], iconName: "check", tone: "violet" },
-  { id: "programming", label: "Прошивка", caption: "подготовка изделий", workCenterIds: ["D6"], iconName: "settings", tone: "blue" },
-  { id: "assembly", label: "Сборка", caption: "слесарно-сборочный отдел", workCenterIds: ["D9"], iconName: "tree", tone: "violet" },
-  { id: "packing", label: "Упаковка", caption: "маркировка и упаковка", workCenterIds: ["D11"], iconName: "package", tone: "slate" },
+  { id: "coating", label: "Влагозащита", caption: "ручная и селективная", workCenterIds: ["D3_CC"], iconName: getMesCustomIconName("department-coating") || "package", tone: "green" },
+  { id: "manual", label: "Ручной монтаж", caption: "THT и пайка", workCenterIds: ["D5"], iconName: getMesCustomIconName("department-manual-assembly") || "operation", tone: "amber" },
+  { id: "quality", label: "ОТК", caption: "контроль", workCenterIds: ["D4"], iconName: getMesCustomIconName("department-qc") || "check", tone: "violet" },
+  { id: "programming", label: "Прошивка", caption: "подготовка изделий", workCenterIds: ["D6"], iconName: getMesCustomIconName("department-firmware") || "settings", tone: "blue" },
+  { id: "assembly", label: "Сборка", caption: "слесарно-сборочный отдел", workCenterIds: ["D9"], iconName: getMesCustomIconName("department-mechanical-assembly") || "tree", tone: "violet" },
+  { id: "packing", label: "Упаковка", caption: "маркировка и упаковка", workCenterIds: ["D11"], iconName: getMesCustomIconName("department-marking-packaging") || "package", tone: "slate" },
 ];
 const SHOP_MAP_COORDINATE_MIN = 2;
 const SHOP_MAP_COORDINATE_MAX = 98;
@@ -4094,6 +4111,7 @@ function loadUiState() {
       supplyCollapsedGroups: normalizeSupplyCollapsedGroups(parsed.supplyCollapsedGroups),
       routeBindingMode: parsed.routeBindingMode === "bom" ? "bom" : "product",
       planningWorkItem: String(parsed.planningWorkItem || ""),
+      weeklyProductionControlWeekAnchor: normalizeDateInput(parsed.weeklyProductionControlWeekAnchor || defaultUiState.weeklyProductionControlWeekAnchor) || defaultUiState.weeklyProductionControlWeekAnchor,
       planningLaborNoteByRow: normalizePlanningLaborNoteByRow({
         ...(parsed.planningDemoLaborByRow || {}),
         ...(parsed.planningLaborNoteByRow || {}),
@@ -4205,6 +4223,7 @@ function persistUiState(options = {}) {
       supplyCollapsedGroups: normalizeSupplyCollapsedGroups(ui.supplyCollapsedGroups),
       routeBindingMode: ui.routeBindingMode,
       planningWorkItem: ui.planningWorkItem,
+      weeklyProductionControlWeekAnchor: normalizeDateInput(ui.weeklyProductionControlWeekAnchor || defaultUiState.weeklyProductionControlWeekAnchor) || defaultUiState.weeklyProductionControlWeekAnchor,
       planningLaborNoteByRow: normalizePlanningLaborNoteByRow(ui.planningLaborNoteByRow),
       planningLegacyManualLaborByStep: {},
       shiftMasterScope: ui.shiftMasterScope === "master" ? "master" : "all",
@@ -6539,6 +6558,7 @@ function render(options = {}) {
         modals: renderConfirmModal(),
       });
       bindGlobalNavigation();
+      bindVisualSystemIconFilters();
       bindConfirmEvents();
       return;
     }
@@ -6582,14 +6602,15 @@ function render(options = {}) {
       return;
     }
 
-    if (ui.activeModule === "matrix") {
+    if (ui.activeModule === "weeklyProductionControl") {
       app.innerHTML = renderUiAppShell({
-        pageId: "matrix",
-        className: "planning-table-app-shell matrix-app-shell",
-        body: renderMatrixPage(),
+        pageId: "weeklyProductionControl",
+        className: "weekly-production-control-app-shell",
+        body: renderWeeklyProductionControlPage(),
         modals: renderConfirmModal(),
       });
       bindGlobalNavigation();
+      bindWeeklyProductionControlEvents();
       bindConfirmEvents();
       return;
     }
@@ -7085,7 +7106,8 @@ function renderPlanningWorkbenchPage() {
 
   return renderUiModulePage({
     ariaLabel: WORK_ORDERS_MODULE_LABEL,
-    className: "planning-page planning-order-page is-heroui is-flat-workbench is-route-structure is-full-width",
+    className: "planning-page planning-order-page is-heroui is-flat-workbench is-route-structure",
+    sidebar: renderPlanningWorkbenchQueue(routes, activeRoute),
     workspaceClassName: "planning-order-main",
     header: renderUiModuleHeader({
       eyebrow: "Планирование",
@@ -7115,10 +7137,8 @@ function renderPlanningWorkbenchPage() {
     }),
     contentClassName: "planning-order-workspace",
     content: activeRoute ? `
-          ${renderPlanningWorkbenchRouteStrip(routes, activeRoute)}
           <section class="planning-order-main-grid" data-visual-qa-target="planning-order-main-grid">
             ${renderPlanningWorkbenchRouteMap(activeRoute, transferSummary, tasks, routeSteps, selectedItem)}
-            ${renderPlanningWorkbenchSelectedDetail(activeRoute, transferSummary, tasks, routeSteps, selectedItem)}
           </section>
         ` : `
           <section class="module-panel planning-order-route-map" data-ui-component="Panel">
@@ -7126,7 +7146,7 @@ function renderPlanningWorkbenchPage() {
             ${renderModulePreviewEmpty({
               iconName: "calendar",
               title: "Заказ-наряд не выбран",
-              text: "Выберите заказ-наряд в ленте сверху.",
+              text: "Выберите заказ-наряд в сайдбаре слева.",
             })}
             ` })}
           </section>
@@ -7161,13 +7181,14 @@ function renderPlanningWorkbenchRouteStrip(routes, activeRoute) {
 }
 
 function renderPlanningWorkbenchQueue(routes, activeRoute) {
-  return `
-    <aside class="directory-sidebar module-data-sidebar planning-order-queue" data-layout="sidebar" data-visual-qa-target="planning-work-order-sidebar" aria-label="Список заказ-нарядов">
-      <div class="directory-sidebar-head">
-        <span class="eyebrow">Планирование</span>
-        <h1>Заказ-наряды</h1>
-      </div>
+  return renderUiModuleSidebar({
+    eyebrow: "Планирование",
+    title: "Заказ-наряды",
+    className: "planning-order-queue",
+    attributes: `data-visual-qa-target="planning-work-order-sidebar" aria-label="Список заказ-нарядов"`,
+    body: `
       <div class="ui-sidebar-list planning-order-route-list">
+        <div class="ui-sidebar-label">${routes.length.toLocaleString("ru-RU")} заказ-нарядов</div>
         ${routes.map((route) => {
           const workOrderView = getWorkOrderViewModel(route);
           const state = workOrderView.status;
@@ -7183,8 +7204,8 @@ function renderPlanningWorkbenchQueue(routes, activeRoute) {
           });
         }).join("")}
       </div>
-    </aside>
-  `;
+    `,
+  });
 }
 
 function renderPlanningWorkbenchSelectedDetail(route, transferSummary, tasks, routeSteps, selectedItem) {
@@ -8159,7 +8180,11 @@ function renderPlanningOrderStepRow(route, task, step, index, taskSteps = [], se
     routeQuantity: planningQuantity,
     quantity: stepQuantity,
   });
-  const laborCell = renderPlanningOrderStepLaborSummary(route, step, itemId, selectedItem, planningQuantity);
+  const laborCell = renderPlanningManualInlineLaborCell(route, step, {
+    routeQuantity: planningQuantity,
+    quantity: stepQuantity,
+    contextLabel: stepContext.label,
+  });
   const stepReadinessTone = tone === "warning" || !laborCalc.isConfirmed ? "warning" : "ok";
   const stepReadinessLabel = tone === "warning"
     ? "проверьте"
@@ -10295,6 +10320,8 @@ function getShiftMasterBoardFact(row = {}) {
     executorCount: normalizeDispatchExecutorCount(stored.executorCount || row.masterExecutorCount || 0),
     comment: typeof stored.comment === "string" ? stored.comment : row.masterFactComment || "",
     updatedAt: stored.updatedAt || row.masterFactUpdatedAt || "",
+    deviationComment: typeof stored.deviationComment === "string" ? stored.deviationComment : "",
+    deviationNotes: Array.isArray(stored.deviationNotes) ? stored.deviationNotes : [],
     transferContract: stored.transferContract || null,
   };
 }
@@ -12072,7 +12099,7 @@ function formatShiftWorkOrderExecutorList(executors = []) {
 
 function renderShiftWorkOrderPrintInfoTable(rows = [], className = "") {
   return `
-    <table class="route-print-table shift-work-order-print-info-table ${escapeAttribute(className)}">
+    <table data-ui-component="PrintTable" class="route-print-table shift-work-order-print-info-table ${escapeAttribute(className)}">
       <tbody>
         ${rows.map(([label, value]) => `
           <tr>
@@ -12095,7 +12122,7 @@ function renderShiftWorkOrderPrintQuantityTable(row) {
     ["Остаток", row.remainingQuantity],
   ];
   return `
-    <table class="route-print-table shift-work-order-print-quantity-table">
+    <table data-ui-component="PrintTable" class="route-print-table shift-work-order-print-quantity-table">
       <thead>
         <tr>
           ${items.map(([label]) => `<th>${escapeHtml(label)}</th>`).join("")}
@@ -12123,7 +12150,7 @@ function renderShiftWorkOrderPrintExecutorsTable(row) {
     `;
   }
   return `
-    <table class="route-print-table shift-work-order-print-executors-table">
+    <table data-ui-component="PrintTable" class="route-print-table shift-work-order-print-executors-table">
       <thead>
         <tr>
           <th>П/п</th>
@@ -14629,12 +14656,9 @@ function schedulePlanningRouteStructureSidebarSync() {
 function syncPlanningRouteStructureSidebarHeight() {
   const page = app.querySelector(".planning-order-page.is-route-structure");
   const sidebar = page?.querySelector(":scope > .planning-order-queue");
-  const main = page?.querySelector(":scope > .planning-order-main");
-  if (!page || !sidebar || !main) return;
+  if (!page || !sidebar) return;
 
   sidebar.style.removeProperty("min-height");
-  const contentHeight = Math.max(main.scrollHeight, main.clientHeight, sidebar.scrollHeight);
-  sidebar.style.setProperty("min-height", `${Math.ceil(contentHeight)}px`, "important");
 }
 
 function scheduleEmployeeHierarchyConnectorRender() {
@@ -15752,6 +15776,8 @@ function getEmployeeWorkCenterTone(center = {}) {
 }
 
 function getEmployeeWorkCenterIcon(center = {}) {
+  const customIconName = getMesCustomIconNameForRuntimeId(center.id);
+  if (customIconName) return customIconName;
   if (center.unitType === "warehouse") return "warehouse";
   if (center.unitType === "quality") return "monitor";
   if (center.unitType === "administrative") return "settings";
@@ -15774,9 +15800,10 @@ function renderEmployeePersonCard(person = {}, kind = "employee") {
 
 function renderEmployeeResourceCard(resource = {}) {
   const typeLabel = PRODUCTION_RESOURCE_TYPE_LABELS[resource.type] || resource.type || "Ресурс";
+  const resourceWorkCenterIconName = getMesCustomIconNameForRuntimeId(getProductionResourceWorkCenterId(resource));
   return `
     <article class="employee-resource-card is-${escapeAttribute(resource.type || "resource")}">
-      <span class="employee-node-icon">${icon(resource.type === "staff" ? "worker" : "settings")}</span>
+      <span class="employee-node-icon">${icon(resourceWorkCenterIconName || (resource.type === "staff" ? "worker" : "settings"))}</span>
       <div>
         <strong>${escapeHtml(resource.name || "Ресурс без названия")}</strong>
         <small>${escapeHtml(typeLabel)} · ${escapeHtml(resource.capacity || resource.inventory || "параметр не задан")}</small>
@@ -16123,7 +16150,7 @@ function getDefaultAccessRoleProfiles() {
       scope: "factory",
       defaultModule: "gantt",
       modulePermissions: {
-        ...createAccessPermissionMap(["gantt", "planning", "matrix", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "timesheet", "productionStructureMatrix", "employees"], ["view", "edit", "print", "assign", "approve"]),
+        ...createAccessPermissionMap(["gantt", "planning", "weeklyProductionControl", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "timesheet", "productionStructureMatrix", "employees"], ["view", "edit", "print", "assign", "approve"]),
         ...createAccessPermissionMap(["routes", "products", "nomenclature", "directories"], readOnlyActions),
         roles: createAccessPermissionRecord(["view"]),
       },
@@ -16137,7 +16164,7 @@ function getDefaultAccessRoleProfiles() {
       defaultModule: "planning",
       modulePermissions: {
         ...createAccessPermissionMap(["gantt", "planning"], planningActions),
-        ...createAccessPermissionMap(["matrix", "shiftWorkOrders", "timesheet", "productionStructureMatrix", "employees"], readOnlyActions),
+        ...createAccessPermissionMap(["weeklyProductionControl", "shiftWorkOrders", "timesheet", "productionStructureMatrix", "employees"], readOnlyActions),
       },
     },
     {
@@ -16149,7 +16176,7 @@ function getDefaultAccessRoleProfiles() {
       defaultModule: "routes",
       modulePermissions: {
         ...createAccessPermissionMap(["routes", "products", "nomenclature", "directories"], techActions),
-        ...createAccessPermissionMap(["planning", "gantt", "productionStructureMatrix", "employees"], readOnlyActions),
+        ...createAccessPermissionMap(["planning", "gantt", "weeklyProductionControl", "productionStructureMatrix", "employees"], readOnlyActions),
       },
     },
     {
@@ -16163,7 +16190,7 @@ function getDefaultAccessRoleProfiles() {
         ...createAccessPermissionMap(["shiftMasterBoard", "authSessionPrototype"], operationalActions),
         ...createAccessPermissionMap(["shiftWorkOrders"], ["view", "print"]),
         ...createAccessPermissionMap(["timesheet"], ["view", "edit"]),
-        ...createAccessPermissionMap(["gantt", "planning", "matrix", "productionStructureMatrix", "employees"], readOnlyActions),
+        ...createAccessPermissionMap(["gantt", "planning", "weeklyProductionControl", "productionStructureMatrix", "employees"], readOnlyActions),
       },
     },
     {
@@ -16172,9 +16199,9 @@ function getDefaultAccessRoleProfiles() {
       caption: "аналитика плана, факта и отклонений без настройки структуры",
       icon: "chart",
       scope: "factory",
-      defaultModule: "matrix",
+      defaultModule: "weeklyProductionControl",
       modulePermissions: {
-        ...createAccessPermissionMap(["gantt", "planning", "matrix", "shiftMasterBoard", "shiftWorkOrders", "timesheet", "employees"], readOnlyActions),
+        ...createAccessPermissionMap(["gantt", "planning", "weeklyProductionControl", "shiftMasterBoard", "shiftWorkOrders", "timesheet", "employees"], readOnlyActions),
         dispatch: createAccessPermissionRecord(["view"]),
       },
     },
@@ -16300,10 +16327,10 @@ function getModuleDefinitions() {
   return [
 	    { id: "gantt", label: "Планирование", icon: "gantt" },
 	    { id: "planning", label: WORK_ORDERS_MODULE_LABEL, icon: "calendar" },
+	    { id: "weeklyProductionControl", label: "Контроль недели", icon: "chart" },
 	    { id: "dispatch", label: "Диспетчерская", icon: "monitor" },
 	    { id: "shiftMasterBoard", label: "Мастерская", icon: "worker" },
 	    { id: "shiftWorkOrders", label: "Журнал СЗН", icon: "document" },
-	    { id: "matrix", label: "Матрица", icon: "chart" },
 	    { id: "routes", label: "Маршрутная карта", icon: "split" },
 	    { id: "products", label: PRODUCT_COMPOSITION_LIST_TERM, icon: "tree" },
     { id: "nomenclature", label: "Номенклатура", icon: "package" },
@@ -16322,6 +16349,9 @@ function getModuleDefinitions() {
 }
 
 function getModuleAnnotation(moduleId = "") {
+  if (moduleId === "weeklyProductionControl") {
+    return "Недельный план-факт по участкам и оборудованию: читает заказ-наряды, факт рабочего места и report, но не меняет систему.";
+  }
   if (moduleId === "authSessionPrototype") {
     return "Рабочий стол исполнителя: назначенные сменные задания, инструкции, маршрут, ввод факта и брака с планшета.";
   }
@@ -16332,8 +16362,8 @@ function getModuleAnnotation(moduleId = "") {
 
 function getModuleGroups(modules) {
   const groupMap = [
-	    { label: "Планирование нагрузки", ids: ["gantt", "planning"] },
-	    { label: "Оперативное управление", ids: ["dispatch", "shiftMasterBoard", "authSessionPrototype", "shiftWorkOrders", "matrix"] },
+	    { label: "Планирование нагрузки", ids: ["gantt", "planning", "weeklyProductionControl"] },
+		    { label: "Оперативное управление", ids: ["dispatch", "shiftMasterBoard", "authSessionPrototype", "shiftWorkOrders"] },
 	    { label: "Технологии", ids: ["routes", "products", "nomenclature"] },
 	    { label: "Система", ids: ["productionStructureMatrix", "employees", "timesheet", "roles", "directories"] },
 	    { label: "UX-макеты", ids: ["visualSystem", "planningTable", "supply", "shopMap"], tone: "test" },
@@ -19450,7 +19480,9 @@ function renderAuthPrototypeDepartmentStep(people) {
         body: renderUiPanelBody({ body: `
           <div class="auth-prototype-department-grid">
             ${departments.map((department) => {
-              const departmentIcon = AUTH_DEPARTMENT_ICON_BY_ID[department.id] || (department.isFallback ? "lock" : "directory");
+              const departmentIcon = AUTH_DEPARTMENT_ICON_BY_ID[department.id]
+                || getMesCustomIconNameForRuntimeId(department.id)
+                || (department.isFallback ? "lock" : "directory");
               return `
               <button data-auth-department="${escapeAttribute(department.id)}" type="button">
                 <span class="auth-prototype-department-icon" data-icon="${escapeAttribute(departmentIcon)}" aria-hidden="true">${icon(departmentIcon)}</span>
@@ -19824,6 +19856,7 @@ function getAuthSessionFactDraft(taskId = "") {
   return {
     actualQuantity: normalizeShiftMasterBoardQuantity(draft.actualQuantity || 0),
     defectQuantity: normalizeShiftMasterBoardQuantity(draft.defectQuantity || 0),
+    deviationComment: String(draft.deviationComment || "").trim(),
     status: String(draft.status || ""),
     updatedAt: String(draft.updatedAt || ""),
   };
@@ -19842,6 +19875,24 @@ function setAuthSessionFactDraft(taskId = "", patch = {}) {
     [taskId]: next,
   };
   return next;
+}
+
+function getAuthSessionTaskGoodQuantity(task = {}, draft = getAuthSessionFactDraft(task.id)) {
+  const actualQuantity = normalizeShiftMasterBoardQuantity(draft.actualQuantity || task.actualQuantity || 0);
+  const defectQuantity = Math.min(actualQuantity, normalizeShiftMasterBoardQuantity(draft.defectQuantity || task.defectQuantity || 0));
+  return Math.max(0, actualQuantity - defectQuantity);
+}
+
+function getAuthSessionFactDeviationPercent(task = {}, draft = getAuthSessionFactDraft(task.id)) {
+  const assignedQuantity = normalizeShiftMasterBoardQuantity(task.assignedQuantity || 0);
+  if (assignedQuantity <= 0) return 0;
+  return ((getAuthSessionTaskGoodQuantity(task, draft) - assignedQuantity) / assignedQuantity) * 100;
+}
+
+function doesAuthSessionFactNeedDeviationComment(task = {}, draft = getAuthSessionFactDraft(task.id)) {
+  const assignedQuantity = normalizeShiftMasterBoardQuantity(task.assignedQuantity || 0);
+  if (assignedQuantity <= 0) return false;
+  return getAuthSessionTaskGoodQuantity(task, draft) < assignedQuantity * 0.95;
 }
 
 function normalizeShiftWorkOrderIssueReports(value = {}) {
@@ -20216,6 +20267,7 @@ function getAuthSessionAllTasks(boardModel = getShiftMasterBoardModel()) {
           actualQuantity,
           defectQuantity,
           goodQuantity,
+          deviationComment: draft.deviationComment || "",
           unit: row.unit || assignment.unit || "шт.",
           minutesPerUnit,
           laborLabel: minutesPerUnit > 0 ? `${formatReportNumber(minutesPerUnit)} мин/ед.` : "трудозатраты не заданы",
@@ -20487,6 +20539,9 @@ function renderAuthSessionFactPanel(model) {
   const editDisabled = model.canEditSelectedTask ? "" : "disabled";
   const siblingTasks = model.allTasks.filter((item) => item.rowId === task.rowId);
   const doneSiblings = siblingTasks.filter((item) => item.isDone).length;
+  const draft = getAuthSessionFactDraft(task.id);
+  const needsDeviationComment = doesAuthSessionFactNeedDeviationComment(task, draft);
+  const deviationPercent = getAuthSessionFactDeviationPercent(task, draft);
   return `
     <section class="auth-session-section auth-session-fact-panel" data-visual-qa-target="auth-session-fact-panel">
       <header data-visual-qa-target="auth-session-fact-header">
@@ -20508,6 +20563,20 @@ function renderAuthSessionFactPanel(model) {
         </div>
         ${renderAuthSessionKeypad(editDisabled)}
       </div>
+      ${needsDeviationComment || task.deviationComment ? `
+        <label class="auth-session-deviation-comment" data-visual-qa-target="auth-session-deviation-comment">
+          <span data-visual-qa-target="auth-session-deviation-comment-label">Причина отклонения</span>
+          <textarea
+            data-auth-session-deviation-comment="${escapeAttribute(task.id)}"
+            data-visual-qa-target="auth-session-deviation-comment-field"
+            rows="3"
+            maxlength="500"
+            placeholder="Почему факт ниже плана больше чем на 5%"
+            ${editDisabled}
+          >${escapeHtml(task.deviationComment || "")}</textarea>
+          <small data-visual-qa-target="auth-session-deviation-comment-meta">Отклонение ${escapeHtml(formatWeeklyProductionControlPercent(deviationPercent))} · заметка попадет в контроль недели</small>
+        </label>
+      ` : ""}
       ${renderUiPanelFooter({ body: `
         ${renderUiActionButton({
           label: "Записать факт",
@@ -20810,7 +20879,734 @@ function renderAuthSessionPrototypePage() {
   });
 }
 
+function renderVisualIconOptionList(values, activeValue = "") {
+  return values.map((value) => `<option value="${escapeAttribute(value)}" ${selected(activeValue, value)}>${escapeHtml(value)}</option>`).join("");
+}
+
+function getVisualIconUsageMode(entry = {}) {
+  const usage = String(entry.usage || "");
+  if (entry.status === "applied" || entry.status === "approved" || /\bauth\b|\bstructure\b|\bproduction-flow\b|\bUI\b/i.test(usage)) return "applied";
+  if (/\bfuture\b/i.test(usage)) return "future";
+  return "reference";
+}
+
+function renderVisualIconChip(label, tone = "neutral") {
+  return `<span class="visual-icon-chip is-${escapeAttribute(tone)}">${escapeHtml(label)}</span>`;
+}
+
+function renderVisualIconSizePreview(entry) {
+  return `
+    <div class="visual-icon-size-stack" aria-label="Размеры иконки">
+      ${[32, 24, 20, 18, 16].map((size) => `
+        <span class="visual-icon-size-sample is-${size}">
+          ${icon(entry.iconName)}
+          <small>${size}</small>
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderVisualIconStatePreview(entry) {
+  const states = [
+    ["default", "default"],
+    ["muted", "muted"],
+    ["active", "active"],
+    ["warning", "warning"],
+    ["danger", "danger"],
+  ];
+  return `
+    <div class="visual-icon-state-stack" aria-label="Состояния иконки">
+      ${states.map(([state, label]) => `
+        <span class="visual-icon-state-sample is-${escapeAttribute(state)}">
+          ${icon(entry.iconName)}
+          <small>${escapeHtml(label)}</small>
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderVisualIconContextPreview(entry) {
+  return `
+    <div class="visual-icon-context-preview" aria-label="Контекстный просмотр ${escapeAttribute(entry.semanticSlug)}">
+      <span class="visual-icon-context-sidebar">${icon(entry.iconName)}<b>${escapeHtml(entry.title)}</b></span>
+      <button class="visual-icon-context-button" type="button">${icon(entry.iconName)}<span>Действие</span></button>
+      <span class="visual-icon-context-cell"><i>${icon(entry.iconName)}</i><b>${escapeHtml(entry.semanticSlug)}</b></span>
+      <span class="visual-icon-context-badge">${icon(entry.iconName)}<b>${escapeHtml(entry.status)}</b></span>
+      <span class="visual-icon-context-tile">
+        ${icon(entry.iconName)}
+        <b>${escapeHtml(entry.title)}</b>
+        <small>${escapeHtml(entry.group)}</small>
+      </span>
+    </div>
+  `;
+}
+
+function getVisualIconSearchText(entry = {}) {
+  return [
+    entry.semanticSlug,
+    entry.iconName,
+    entry.title,
+    entry.group,
+    entry.status,
+    entry.source,
+    entry.usage,
+    entry.note,
+    entry.runtimeIds?.join(" "),
+  ].join(" ").toLowerCase();
+}
+
+function renderVisualIconRecordAttributes(entry) {
+  return `
+    data-mes-icon-record
+    data-icon-search="${escapeAttribute(getVisualIconSearchText(entry))}"
+    data-icon-group="${escapeAttribute(entry.group)}"
+    data-icon-status="${escapeAttribute(entry.status)}"
+    data-icon-source="${escapeAttribute(entry.source)}"
+    data-icon-usage="${escapeAttribute(getVisualIconUsageMode(entry))}"
+  `;
+}
+
+function renderVisualIconCard(entry) {
+  return `
+    <article class="visual-icon-card" ${renderVisualIconRecordAttributes(entry)}>
+      <header>
+        <span class="visual-icon-card-mark">${icon(entry.iconName)}</span>
+        <div>
+          <strong>${escapeHtml(entry.title)}</strong>
+          <code>${escapeHtml(entry.semanticSlug)}</code>
+        </div>
+      </header>
+      <div class="visual-icon-card-meta">
+        ${renderVisualIconChip(entry.group, "group")}
+        ${renderVisualIconChip(entry.status, entry.status === "applied" ? "applied" : "neutral")}
+        ${renderVisualIconChip(entry.source, "source")}
+      </div>
+      ${renderVisualIconSizePreview(entry)}
+      ${renderVisualIconStatePreview(entry)}
+      <p>${escapeHtml(entry.note)}</p>
+      <small class="visual-icon-card-usage">iconName: ${escapeHtml(entry.iconName)} · ${escapeHtml(entry.sourceLabel || entry.source)}${entry.lucideComponent ? ` · Lucide ${escapeHtml(entry.lucideComponent)}` : ""}</small>
+      ${renderVisualIconContextPreview(entry)}
+    </article>
+  `;
+}
+
+function renderVisualIconReference(entry) {
+  const referencePath = getMesCustomIconReferenceAssetPath(entry);
+  if (!referencePath) return "";
+  return `
+    <article class="visual-icon-reference-card">
+      <header>
+        <strong>${escapeHtml(entry.semanticSlug)}</strong>
+        <span>${escapeHtml(entry.iconName)}</span>
+      </header>
+      <div class="visual-icon-reference-pair">
+        <figure>
+          <img src="${escapeAttribute(referencePath)}" alt="Visual reference ${escapeAttribute(entry.semanticSlug)}" loading="lazy" />
+          <figcaption>PNG reference</figcaption>
+        </figure>
+        <figure class="is-svg">
+          ${icon(entry.iconName)}
+          <figcaption>Current SVG</figcaption>
+        </figure>
+      </div>
+      <dl>
+        <div><dt>Статус</dt><dd>${escapeHtml(entry.status)}</dd></div>
+        <div><dt>Источник</dt><dd>${escapeHtml(entry.sourceLabel || entry.source)}</dd></div>
+        <div><dt>Заметка</dt><dd>${escapeHtml(entry.note)}</dd></div>
+      </dl>
+    </article>
+  `;
+}
+
+function renderVisualIconMappingTable(entries) {
+  return renderUiTableWrap({
+    className: "visual-icon-mapping-table-wrap",
+    body: `
+      <table class="ui-table visual-icon-mapping-table" aria-label="Mapping custom MES icons">
+        <thead>
+          <tr>
+            <th>semanticSlug</th>
+            <th>iconName</th>
+            <th>runtime IDs</th>
+            <th>Группа</th>
+            <th>Статус</th>
+            <th>Где используется</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${entries.map((entry) => `
+            <tr ${renderVisualIconRecordAttributes(entry)}>
+              <td><span class="visual-icon-table-name">${icon(entry.iconName)}<b>${escapeHtml(entry.semanticSlug)}</b></span></td>
+              <td><code>${escapeHtml(entry.iconName)}</code></td>
+              <td>${entry.runtimeIds?.length ? entry.runtimeIds.map((id) => `<code>${escapeHtml(id)}</code>`).join(" ") : "—"}</td>
+              <td>${escapeHtml(entry.group)}</td>
+              <td>${renderVisualIconChip(entry.status, entry.status === "applied" ? "applied" : "neutral")}</td>
+              <td>${escapeHtml(entry.usage)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `,
+  });
+}
+
+function renderVisualIconSystemSection() {
+  const entries = getMesCustomIconEntries();
+  const summary = getMesCustomIconSummary();
+  const referenceEntries = entries.filter((entry, index, array) => (
+    array.findIndex((candidate) => candidate.iconName === entry.iconName) === index
+  ));
+  return `
+    <article class="visual-system-panel is-full visual-icons-panel" data-mes-icon-section data-visual-qa-target="visual-system-icons">
+      <div class="visual-system-panel-title">
+        ${icon("palette")}
+        <div><h3>Иконки MES</h3><p>Mixed registry: custom MES SVG, Lucide React для системных действий и локальный fallback для карты цеха.</p></div>
+      </div>
+      <div class="visual-icon-summary">
+        ${renderVisualIconChip(`Всего semanticSlug ${summary.semanticCount}`, "summary")}
+        ${renderVisualIconChip(`Уникальных SVG ${summary.uniqueSvgCount}`, "summary")}
+        ${renderVisualIconChip(`Custom ${summary.customCount}`, "summary")}
+        ${renderVisualIconChip(`Lucide ${summary.lucideCount}`, "summary")}
+        ${renderVisualIconChip(`Fallback ${summary.fallbackCount}`, "summary")}
+        ${renderVisualIconChip(`Готово ${summary.readyCount}`, "summary")}
+        ${renderVisualIconChip(`Требует проверки ${summary.reviewCount}`, "summary")}
+        ${renderVisualIconChip(`Используется в UI ${summary.appliedCount}`, "summary")}
+      </div>
+      <div class="visual-icon-filterbar">
+        <label>
+          <span>Поиск</span>
+          <input data-mes-icon-search type="text" placeholder="semanticSlug, отдел, участок, iconName" />
+        </label>
+        <label>
+          <span>Группа</span>
+          <select data-mes-icon-filter="group">
+            <option value="">Все</option>
+            ${renderVisualIconOptionList(MES_CUSTOM_ICON_GROUPS)}
+          </select>
+        </label>
+        <label>
+          <span>Статус</span>
+          <select data-mes-icon-filter="status">
+            <option value="">Все</option>
+            ${renderVisualIconOptionList(MES_CUSTOM_ICON_STATUSES)}
+          </select>
+        </label>
+        <label>
+          <span>Источник</span>
+          <select data-mes-icon-filter="source">
+            <option value="">Все</option>
+            ${renderVisualIconOptionList(MES_CUSTOM_ICON_SOURCES)}
+          </select>
+        </label>
+        <label>
+          <span>Использование</span>
+          <select data-mes-icon-filter="usage">
+            <option value="">Все</option>
+            <option value="applied">Используется в UI</option>
+            <option value="future">Подготовлено на будущее</option>
+            <option value="reference">Только reference</option>
+          </select>
+        </label>
+        <output data-mes-icon-filter-count>${entries.length.toLocaleString("ru-RU")} строк</output>
+      </div>
+      <div class="visual-icon-grid">
+        ${entries.map(renderVisualIconCard).join("")}
+      </div>
+      <div class="visual-icon-empty" data-mes-icon-empty hidden>
+        ${renderUiEmptyState({ iconName: "search", title: "Иконки не найдены", text: "Сбросьте фильтр или уточните semanticSlug." })}
+      </div>
+      <section class="visual-icon-reference-section" aria-label="Reference vs SVG">
+        <header>
+          <strong>Reference vs SVG</strong>
+          <span>PNG только для ревью, production UI использует SVG из registry.</span>
+        </header>
+        <div class="visual-icon-reference-grid">
+          ${referenceEntries.map(renderVisualIconReference).join("")}
+        </div>
+      </section>
+      <section class="visual-icon-mapping-section" aria-label="Semantic mapping">
+        <header>
+          <strong>Mapping table</strong>
+          <span>Единая структура для замены иконки через кодовый registry, а не через локальный хардкод.</span>
+        </header>
+        ${renderVisualIconMappingTable(entries)}
+      </section>
+      <section class="visual-icon-review-notes">
+        <strong>Правила ревью</strong>
+        <ul>
+          <li>PNG-референсы не используются как production-иконки.</li>
+          <li>Новая иконка сначала получает semanticSlug и runtime alias в registry.</li>
+          <li>Проверка обязательна в размерах 32, 24, 20, 18 и 16, а также в sidebar/button/table/badge/tile контекстах.</li>
+          <li>Иконки Gantt row label пока не применяются, чтобы не менять геометрию диаграммы.</li>
+        </ul>
+      </section>
+    </article>
+  `;
+}
+
 function renderVisualSystemPage() {
+  return renderVisualSystemPageV2();
+}
+
+function renderVisualSystemPageV2() {
+  const signalRows = Object.entries(MES_SIGNAL_TYPES).map(([id, meta]) => ({
+    id,
+    label: meta.label,
+    tone: meta.tone,
+  }));
+  const topicRows = [
+    ["visual-foundations", "Основы", "tokens"],
+    ["visual-layout", "Layout", "shell"],
+    ["visual-actions", "Actions", "controls"],
+    ["visual-data", "Таблицы", "data"],
+    ["visual-gantt", "Gantt", "planning"],
+    ["visual-icons", "Иконки", "registry"],
+    ["visual-qa", "QA", "contracts"],
+  ];
+  const foundationRows = [
+    ["Surface", "page / panel / raised", "--mes-ui-surface-*"],
+    ["Text", "body / muted / inverse", "--mes-ui-text-*"],
+    ["Border", "soft / default / strong", "--mes-ui-border-*"],
+    ["Spacing", "page / panel / control", "--mes-space-* + density"],
+    ["Radius", "xs / sm / md / lg / pill", "--mes-ui-radius-*"],
+    ["Density", "compact / default / touch", "--mes-density-*"],
+    ["Overlay", "modal / drawer / dropdown", "--mes-ui-overlay-*"],
+    ["Gantt", "slot / row / dependency", "--mes-ui-gantt-*"],
+  ];
+  const densityRows = [
+    ["compact", "таблицы, справочники", "строка плотная, действия компактные"],
+    ["default", "рабочие модули MES", "баланс данных и читаемости"],
+    ["touch", "авторизация, рабочий стол, факт", "крупные зоны для планшета"],
+  ];
+  const buttonToneRows = [
+    ["primary", "главное действие", "save"],
+    ["secondary", "обычное действие", "refresh"],
+    ["ghost", "тихое действие", "filter"],
+    ["danger", "опасное действие", "trash"],
+    ["compact", "панель фильтров", "directory"],
+    ["touch", "планшетная зона", "check"],
+    ["icon", "иконка", "focus"],
+    ["table-icon", "таблица", "open"],
+  ];
+  const statusToneRows = [
+    ["neutral", "нейтрально"],
+    ["ready", "готово"],
+    ["active", "в работе"],
+    ["warning", "предупреждение"],
+    ["blocked", "заблокировано"],
+    ["problem", "проблема"],
+    ["manual", "ручной ввод"],
+    ["calculated", "расчет"],
+    ["demo", "демо"],
+  ];
+  const stateRows = [
+    { id: "normal", label: "Normal", text: "базовое состояние" },
+    { id: "hover", label: "Hover", text: "без скачка размера" },
+    { id: "focus", label: "Focus", text: "focus-visible ring" },
+    { id: "disabled", label: "Disabled", text: "читаемо, но недоступно" },
+    { id: "error", label: "Error", text: "рядом с объектом" },
+    { id: "selected", label: "Selected", text: "выбранная строка" },
+  ];
+  const stabilizationRows = [
+    ["Сайдбары", "единый shell", "Только module-data-sidebar и ui-sidebar-item, без локальных ширин."],
+    ["Панели", "ui-panel", "Заголовок, body и footer идут через UI-kit helpers."],
+    ["Таблицы", "MES dense", "Внутренний scroll только у table-wrap или временной шкалы."],
+    ["Dropdown", "viewport-safe", "Список не должен выходить за viewport и перекрывать shell."],
+    ["Touch", "планшет", "Крупные зоны только в auth/рабочем столе/fact-flow."],
+    ["Focus Mode", "без потерь", "Скрывает вторичное, но не меняет данные и доступные действия."],
+  ];
+  const scrollZoneRows = [
+    ["Разрешено", "таблицы", "directory-table-wrap, ui-table-wrap"],
+    ["Разрешено", "временная шкала", "gantt-shell, supply-gantt-shell"],
+    ["Разрешено", "карта производства", "production-flow-lane как canvas"],
+    ["Запрещено", "страница", "body/app-shell/main-content без горизонтального scroll"],
+  ];
+  const legacyGuardRows = [
+    ["Ручные кнопки", "не использовать", "Новые действия собираются через renderUiActionButton."],
+    ["Ручные table-wrap", "не использовать", "Табличные зоны идут через renderUiTableWrap."],
+    ["Дубли паспорта", "удалять", "Если поле уже есть в документе или карточке, второй summary-блок не нужен."],
+    ["Демо-функция", "изолировать", "Демо-маркер допустим только на UX-макетах без влияния на данные."],
+  ];
+  const renderTopicSidebar = () => `
+    <aside class="visual-system-topic-sidebar" aria-label="Темы UI">
+      <strong>Темы UI</strong>
+      <nav>
+        ${topicRows.map(([href, label, meta]) => `
+          <a href="#${escapeAttribute(href)}">
+            <span>${escapeHtml(label)}</span>
+            <small>${escapeHtml(meta)}</small>
+          </a>
+        `).join("")}
+      </nav>
+    </aside>
+  `;
+  const renderSection = ({ id, iconName, title, text, body, className = "" }) => `
+    <section id="${escapeAttribute(id)}" class="visual-system-section ${escapeAttribute(className)}" data-visual-section="${escapeAttribute(id)}">
+      <header class="visual-system-section-head">
+        ${icon(iconName)}
+        <div>
+          <h2>${escapeHtml(title)}</h2>
+          <p>${escapeHtml(text)}</p>
+        </div>
+      </header>
+      ${body}
+    </section>
+  `;
+
+  return `
+    <section class="visual-system-page" data-layout="main-content" data-ui-component="VisualSystemRuntime" data-ui-runtime="visual-system-v1" aria-label="MES Visual System">
+      <div class="visual-system-layout">
+        ${renderTopicSidebar()}
+        <div class="visual-system-content">
+          <header class="visual-system-hero">
+            <span class="eyebrow">UI-kit · применяемый стенд</span>
+            <div>
+              <h2>MES Visual System</h2>
+              <p>Справочник только по применяемым контрактам: foundations, layout, actions/status, таблицы, Gantt, custom icons и QA-защита.</p>
+            </div>
+            <div class="visual-system-hero-actions">
+              <button class="secondary-button ui-action-button" data-toggle-focus-mode type="button">${icon("focus")}<span>Фокус</span></button>
+            </div>
+          </header>
+
+          ${renderSection({
+            id: "visual-foundations",
+            iconName: "settings",
+            title: "Основы UI-kit",
+            text: "Семантические токены и плотность, от которых должны наследоваться новые модули.",
+            className: "visual-internal-ui-kit-panel",
+            body: `
+              <div class="visual-ui-kit-foundations">
+                ${foundationRows.map((row) => `
+                  <article class="visual-ui-kit-foundation-card">
+                    <strong>${escapeHtml(row[0])}</strong>
+                    <span>${escapeHtml(row[1])}</span>
+                    <code>${escapeHtml(row[2])}</code>
+                  </article>
+                `).join("")}
+              </div>
+              <div class="visual-ui-kit-production-grid">
+                ${renderUiPanel({
+                  title: "Density",
+                  meta: "compact / default / touch",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-ui-kit-density-grid">
+                      ${densityRows.map((row) => `
+                        <article class="visual-ui-kit-density-card is-${escapeAttribute(row[0])}">
+                          <strong>${escapeHtml(row[0])}</strong>
+                          <span>${escapeHtml(row[1])}</span>
+                          <small>${escapeHtml(row[2])}</small>
+                        </article>
+                      `).join("")}
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "System signals",
+                  meta: "MES_SIGNAL_TYPES",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-ui-kit-status-grid">
+                      ${signalRows.map((signal) => renderUiStatusToken(signal.label, signal.tone)).join("")}
+                    </div>
+                  ` }),
+                })}
+              </div>
+            `,
+          })}
+
+          ${renderSection({
+            id: "visual-layout",
+            iconName: "directory",
+            title: "Layout и shell",
+            text: "Единые правила для сайдбара, рабочей области, панелей и ownership scroll.",
+            body: `
+              <div class="visual-stabilization-grid">
+                ${stabilizationRows.map((row) => `
+                  <div class="visual-rule-card">
+                    <strong>${escapeHtml(row[0])}</strong>
+                    <span>${escapeHtml(row[1])}</span>
+                    <small>${escapeHtml(row[2])}</small>
+                  </div>
+                `).join("")}
+              </div>
+              <div class="visual-ui-kit-production-grid">
+                ${renderUiPanel({
+                  title: "Panel contract",
+                  meta: "renderUiPanel",
+                  className: "visual-ui-kit-production-panel",
+                  body: `${renderUiPanelBody({ body: "Панель растет по содержимому, отступы не задаются локально, footer отделен контрактом." })}${renderUiPanelFooter({ body: renderUiActionButton({ label: "Действие", iconName: "check" }) })}`,
+                })}
+                ${renderUiPanel({
+                  title: "Scroll ownership",
+                  meta: "страница без X-scroll",
+                  className: "visual-ui-kit-production-panel is-wide",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-scroll-zone-grid">
+                      ${scrollZoneRows.map((row) => `
+                        <div class="${row[0] === "Запрещено" ? "is-forbidden" : "is-allowed"}">
+                          <strong>${escapeHtml(row[0])}</strong>
+                          <span>${escapeHtml(row[1])}</span>
+                          <small>${escapeHtml(row[2])}</small>
+                        </div>
+                      `).join("")}
+                    </div>
+                  ` }),
+                })}
+              </div>
+            `,
+          })}
+
+          ${renderSection({
+            id: "visual-actions",
+            iconName: "target",
+            title: "Actions, forms, states",
+            text: "Кнопки, статусы, поля и служебные состояния, которые уже должны идти через runtime helpers.",
+            body: `
+              <div class="visual-ui-kit-production-grid">
+                ${renderUiPanel({
+                  title: "Buttons / actions",
+                  meta: "renderUiActionButton",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-ui-kit-button-grid">
+                      ${buttonToneRows.map((row) => renderUiActionButton({
+                        label: row[0] === "icon" || row[0] === "table-icon" ? "" : row[1],
+                        iconName: row[2],
+                        tone: row[0],
+                        attributes: `type="button" aria-label="${escapeAttribute(`${row[0]}: ${row[1]}`)}"`,
+                      })).join("")}
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Status tokens",
+                  meta: "renderUiStatusToken",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-ui-kit-status-grid">
+                      ${statusToneRows.map((row) => renderUiStatusToken(row[1], row[0])).join("")}
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Form fields",
+                  meta: "renderUiFormField",
+                  className: "visual-ui-kit-production-panel is-wide",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-form-grid">
+                      ${renderUiFormField({ label: "Поле формы", control: "<input value=\"единая высота\" />", hint: "input/select/textarea идут через один контракт" })}
+                      ${renderUiFormField({ label: "Select", control: "<select><option>viewport-safe</option></select>" })}
+                      ${renderUiFormField({ label: "Readonly", control: "<input value=\"расчетное поле\" readonly />" })}
+                      <label class="visual-checkbox-row"><input type="checkbox" checked /><span>Крупная touch-зона</span></label>
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Interaction states",
+                  meta: "focus / disabled / error",
+                  className: "visual-ui-kit-production-panel is-wide",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-state-grid">
+                      ${stateRows.map((state) => `
+                        <button class="visual-state-card is-${escapeAttribute(state.id)}" type="button" ${state.id === "disabled" ? "disabled" : ""}>
+                          <strong>${escapeHtml(state.label)}</strong>
+                          <span>${escapeHtml(state.text)}</span>
+                        </button>
+                      `).join("")}
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Empty / Loading / Error",
+                  meta: "служебные состояния",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-state-stack">
+                      <div class="empty-state">${icon("search")}<span>Нет данных по текущему фильтру</span></div>
+                      <div class="visual-loading-line is-loading"><span>Локальная загрузка строки</span></div>
+                      <div class="visual-error-line">${icon("alert")}<span>Ошибка рядом с объектом</span></div>
+                    </div>
+                  ` }),
+                })}
+              </div>
+            `,
+          })}
+
+          ${renderSection({
+            id: "visual-data",
+            iconName: "directory",
+            title: "Таблицы и карточки",
+            text: "Оставлены применяемые паттерны: плотная таблица, дерево, выбранная строка через подъем и акцент компактной карточки через label pill.",
+            body: `
+              <div class="visual-ui-kit-production-grid">
+                ${renderUiPanel({
+                  title: "DataTable / TreeTable",
+                  meta: "renderUiTableWrap",
+                  className: "visual-ui-kit-production-panel is-wide",
+                  body: renderUiPanelBody({
+                    body: renderUiTableWrap({
+                      className: "visual-ui-kit-table-wrap",
+                      body: `
+                        <table class="ui-table visual-ui-kit-table visual-system-table" aria-label="Applied MES table sample">
+                          <thead><tr><th>Документ</th><th>Состав</th><th>План</th><th>Статус</th><th>Действия</th></tr></thead>
+                          <tbody>
+                            <tr class="is-group"><td><span class="visual-tree-cell" style="--level:0">${icon("tree")} Заказ-наряд</span></td><td>изд. "Хуета"</td><td>1 000</td><td>${renderUiStatusToken("в работе", "active")}</td><td class="actions-cell">${renderUiActionButton({ label: "", iconName: "open", tone: "table-icon", attributes: "type=\"button\" aria-label=\"Открыть группу\"" })}</td></tr>
+                            <tr class="is-selected"><td><span class="visual-tree-cell" style="--level:1">${icon("document")} СЗН-20260502-D5-07</span></td><td>Выводной монтаж</td><td>700</td><td>${renderUiStatusToken("готово", "ready")}</td><td class="actions-cell">${renderUiActionButton({ label: "", iconName: "print", tone: "table-icon", attributes: "type=\"button\" aria-label=\"Печать\"" })}</td></tr>
+                            <tr><td><span class="visual-tree-cell" style="--level:1">${icon("document")} СЗН-20260502-D5-08</span></td><td>Отмывка</td><td>300</td><td>${renderUiStatusToken("риск", "warning")}</td><td class="actions-cell">${renderUiActionButton({ label: "", iconName: "open", tone: "table-icon", attributes: "type=\"button\" aria-label=\"Открыть\"" })}</td></tr>
+                          </tbody>
+                        </table>
+                      `,
+                    }),
+                  }),
+                })}
+                ${renderUiPanel({
+                  title: "Selected row",
+                  meta: "применяемый вариант",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-selected-row-option is-lift is-applied-only" data-visual-qa-target="visual-selected-row-option">
+                      <table data-ui-component="VisualSampleTable" aria-label="Applied selected row">
+                        <tbody>
+                          <tr><td><span>СЗН-20260701-D5-06</span></td><td>Выводной монтаж</td><td>закрыт</td></tr>
+                          <tr class="is-active"><td><span>СЗН-20260702-D5-07</span></td><td>Отмывка</td><td>в работе</td></tr>
+                          <tr><td><span>СЗН-20260703-D5-08</span></td><td>Контроль</td><td>план</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Compact card accent",
+                  meta: "применяемый вариант",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <article class="visual-card-accent-option is-label-pill is-applied-only" data-visual-qa-target="visual-card-accent-option">
+                      <div class="visual-card-accent-preview" aria-label="Applied compact card accent">
+                        <span>Заказ-наряд</span>
+                        <strong>изд. "Хуета"</strong>
+                        <small>Сборка в заготовку</small>
+                      </div>
+                    </article>
+                  ` }),
+                })}
+              </div>
+            `,
+          })}
+
+          ${renderSection({
+            id: "visual-gantt",
+            iconName: "gantt",
+            title: "Gantt Design System",
+            text: "Применяемый язык план / распределено / факт / передача для часов, дней и недель.",
+            className: "visual-gantt-system-panel",
+            body: `
+              <div class="visual-gantt-mode-grid" aria-label="Режимы отображения Gantt-колбасок">
+                <article class="visual-gantt-mode-column is-hours">
+                  <header class="visual-gantt-mode-head"><strong>Часы</strong><span>смена и короткие операции</span></header>
+                  <div class="visual-gantt-row"><span>План</span><i class="visual-gantt-bar is-plan" style="--bar-width:100%"><b class="visual-gantt-resource-label">1000</b></i></div>
+                  <div class="visual-gantt-row is-scenarios">
+                    <span>Распределено</span>
+                    <span class="visual-gantt-scenario-stack">
+                      <span class="visual-gantt-bar-stack"><em class="visual-gantt-bar-meta">План 1000 шт. · Распределено 1000 шт. · откл. 0</em><i class="visual-gantt-bar is-resource-capacity is-resource-match" style="--bar-width:83.33%; --resource-progress:100%"><b class="visual-gantt-resource-fill"><span>1000</span></b></i></span>
+                      <span class="visual-gantt-bar-stack"><em class="visual-gantt-bar-meta">План 1000 шт. · Распределено 700 шт. · -300</em><i class="visual-gantt-bar is-resource-capacity is-resource-negative" style="--bar-width:83.33%; --resource-progress:70%; --resource-rest-left:70%; --resource-rest-width:30%"><b class="visual-gantt-resource-fill"><span>700</span></b><b class="visual-gantt-resource-rest-fill"><span>-300</span></b></i></span>
+                    </span>
+                  </div>
+                  <div class="visual-gantt-row"><span>Факт</span><i class="visual-gantt-bar is-fact-capacity is-fact-scenario" style="--bar-width:83.33%"><b class="visual-gantt-fact-slice is-done" style="--slice-left:0%; --slice-width:70%"><span>700</span></b><b class="visual-gantt-fact-slice is-negative" style="--slice-left:70%; --slice-width:30%"><span>-300</span></b></i></div>
+                  <div class="visual-gantt-row"><span>Передача</span><i class="visual-gantt-transfer-stack" style="--bar-width:100%"><b class="visual-gantt-bar is-transfer-main"><span class="visual-gantt-transfer-total">смена</span></b><b class="visual-gantt-transfer-batches"><em style="--batch-width:22%; --batch-left:0%"><span>120</span></em><em style="--batch-width:28%; --batch-left:30%"><span>160</span></em><em style="--batch-width:18%; --batch-left:70%"><span>90</span></em></b></i></div>
+                </article>
+                <article class="visual-gantt-mode-column is-days">
+                  <header class="visual-gantt-mode-head"><strong>Дни</strong><span>операции, разрывы и выходные</span></header>
+                  <div class="visual-gantt-row"><span>План</span><i class="visual-gantt-bar is-plan" style="--bar-left:4%; --bar-width:82%"><b class="visual-gantt-quantity">17-23.06</b></i></div>
+                  <div class="visual-gantt-row"><span>Разрыв</span><i class="visual-gantt-segmented" style="--bar-left:4%; --bar-width:82%"><b class="visual-gantt-segment is-start"><span class="visual-gantt-quantity">пн-пт</span></b><b class="visual-gantt-segment is-break"></b><b class="visual-gantt-segment is-end"></b></i></div>
+                  <div class="visual-gantt-row"><span>Факт</span><i class="visual-gantt-bar is-combined is-fact-mismatch" style="--bar-left:4%; --bar-width:82%; --validation-progress:100%; --fact-progress:64%"><b class="visual-gantt-validation-fill"></b><b class="visual-gantt-fact-fill"></b><b class="visual-gantt-mismatch-label">-360</b></i></div>
+                </article>
+                <article class="visual-gantt-mode-column is-weeks">
+                  <header class="visual-gantt-mode-head"><strong>Недели</strong><span>длинные окна и поток партий</span></header>
+                  <div class="visual-gantt-row"><span>План</span><i class="visual-gantt-bar is-plan" style="--bar-left:10%; --bar-width:74%"><b class="visual-gantt-quantity">25-28 нед.</b></i></div>
+                  <div class="visual-gantt-row"><span>Риск</span><i class="visual-gantt-bar is-combined is-validation-mismatch" style="--bar-left:10%; --bar-width:74%; --validation-progress:82%; --fact-progress:0%"><b class="visual-gantt-validation-fill"></b><b class="visual-gantt-mismatch-marker"></b><b class="visual-gantt-mismatch-label">82%</b></i></div>
+                  <div class="visual-gantt-row"><span>Порции</span><i class="visual-gantt-transfer-stack" style="--bar-left:10%; --bar-width:74%"><b class="visual-gantt-bar is-transfer-main"><span class="visual-gantt-transfer-total">1000 план</span></b><b class="visual-gantt-transfer-batches"><em style="--batch-width:18%; --batch-left:0%"><span>180</span></em><em style="--batch-width:22%; --batch-left:20%"><span>220</span></em><em style="--batch-width:14%; --batch-left:45%"><span>140</span></em></b></i></div>
+                </article>
+              </div>
+            `,
+          })}
+
+          <section id="visual-icons" class="visual-system-section visual-system-icons-section" data-visual-section="visual-icons">
+            ${renderVisualIconSystemSection()}
+          </section>
+
+          ${renderSection({
+            id: "visual-qa",
+            iconName: "copy",
+            title: "QA и runtime contracts",
+            text: "Проверки, запреты старого UI и воспроизводимые сценарии визуального контроля.",
+            body: `
+              <div class="visual-ui-kit-production-grid">
+                ${renderUiPanel({
+                  title: "UI-kit runtime contracts",
+                  meta: "helpers only",
+                  className: "visual-ui-kit-production-panel is-wide",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-stabilization-grid">
+                      <div class="visual-rule-card"><strong>Toolbar / FilterBar / ActionBar</strong>${renderUiToolbar({ className: "visual-ui-kit-toolbar", attributes: "aria-label=\"Пример панели инструментов\"", body: `${renderUiFilterBar({ className: "visual-ui-kit-filterbar", attributes: "role=\"group\" aria-label=\"Фильтры\"", body: `${renderUiActionButton({ label: "Все", iconName: "directory", tone: "compact" })}${renderUiActionButton({ label: "Риски", iconName: "alert", tone: "compact" })}` })}${renderUiActionBar(`${renderUiActionButton({ label: "Обновить", iconName: "refresh" })}${renderUiActionButton({ label: "Сохранить", iconName: "save", tone: "primary" })}`)}` })}</div>
+                      <div class="visual-rule-card"><strong>Dropdown</strong>${renderUiDropdownFrame({ trigger: `${icon("filter")}<span>Открыть список</span>`, body: `<button class="secondary-button ui-action-button" type="button">Нормально</button><button class="secondary-button ui-action-button" type="button">Предупреждение</button><button class="secondary-button ui-action-button" type="button">Ошибка</button>` })}</div>
+                      <div class="visual-rule-card"><strong>Modal / Drawer</strong>${renderUiModalFrame({ title: "Модальное окно", meta: "не шире viewport", body: "Содержимое должно помещаться без горизонтального выпадения.", actions: renderUiActionButton({ label: "Закрыть", iconName: "close" }), className: "is-sample" })}${renderUiDrawerFrame({ title: "Drawer", meta: "панель деталей", body: "Правая панель использует тот же head/body/footer.", className: "is-sample" })}</div>
+                      <div class="visual-rule-card"><strong>GanttBar helper</strong>${renderUiGanttBar({ label: "План / распределено / факт", meta: "план 1000 · распределено 700 · факт 400", value: "400 / 700 / 1000", segments: [{ tone: "is-fact", width: "40%", label: "400" }, { tone: "is-assigned", width: "30%", label: "300" }, { tone: "is-gap", width: "30%", label: "-300" }] })}</div>
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Запрет старого UI",
+                  meta: "guardrails",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-legacy-guard-list">
+                      ${legacyGuardRows.map((row) => `
+                        <div>
+                          <strong>${escapeHtml(row[0])}</strong>
+                          <span>${escapeHtml(row[1])}</span>
+                          <small>${escapeHtml(row[2])}</small>
+                        </div>
+                      `).join("")}
+                    </div>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Design QA Snapshots",
+                  meta: "viewport",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-snapshot-table">
+                      <div><strong>macbook-air-15</strong><span>1710x1112</span><small>эталонный viewport для регулярной проверки</small></div>
+                    </div>
+                    <code>node scripts/design-qa-snapshots.mjs --url=http://localhost:4174/</code>
+                  ` }),
+                })}
+                ${renderUiPanel({
+                  title: "Keyboard UX",
+                  meta: "accessibility",
+                  className: "visual-ui-kit-production-panel",
+                  body: renderUiPanelBody({ body: `
+                    <div class="visual-keyboard-list">
+                      <span><kbd>Tab</kbd> видимый focus ring</span>
+                      <span><kbd>Esc</kbd> закрытие dropdown/modal</span>
+                      <span><kbd>Cmd</kbd><kbd>Shift</kbd><kbd>F</kbd> Focus Mode</span>
+                    </div>
+                  ` }),
+                })}
+              </div>
+            `,
+          })}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderVisualSystemLegacyPage() {
   const signalRows = Object.entries(MES_SIGNAL_TYPES).map(([id, meta]) => ({
     id,
     label: meta.label,
@@ -21154,6 +21950,8 @@ function renderVisualSystemPage() {
           </div>
         </article>
 
+        ${renderVisualIconSystemSection()}
+
         <article class="visual-system-panel is-full">
           <div class="visual-system-panel-title">
             ${icon("directory")}
@@ -21392,7 +22190,7 @@ function renderVisualSystemPage() {
                   <strong>${escapeHtml(variant.title)}</strong>
                   <small>${escapeHtml(variant.meta)}</small>
                 </header>
-                <table aria-label="${escapeAttribute(`Вариант выделения строки: ${variant.title}`)}">
+                <table data-ui-component="VisualSampleTable" aria-label="${escapeAttribute(`Вариант выделения строки: ${variant.title}`)}">
                   <tbody>
                     <tr>
                       <td><span>СЗН-20260701-D5-06</span></td>
@@ -22547,6 +23345,651 @@ function renderPlanningTableSidebarCard(label, value, meta) {
   });
 }
 
+function getWeeklyProductionControlWeekStart() {
+  return startOfWeek(new Date());
+}
+
+function getWeeklyProductionControlDays(weekStart = getWeeklyProductionControlWeekStart()) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addMs(weekStart, index * DAY_MS);
+    return {
+      id: toDateInput(date),
+      date,
+      end: addMs(date, DAY_MS),
+      label: formatShortDate(date),
+      weekday: date.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", ""),
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+    };
+  });
+}
+
+function getWeeklyProductionControlPlanShare(row = {}, day = {}) {
+  const slotStart = toDate(row.plannedStart);
+  const slotEnd = toDate(row.plannedEnd);
+  if (!Number.isFinite(slotStart.getTime()) || !Number.isFinite(slotEnd.getTime()) || !day?.date || !day?.end) return 0;
+  if (slotEnd <= slotStart) return toDateInput(slotStart) === day.id ? normalizeShiftMasterBoardQuantity(row.quantity || 0) : 0;
+  const overlapStart = Math.max(slotStart.getTime(), day.date.getTime());
+  const overlapEnd = Math.min(slotEnd.getTime(), day.end.getTime());
+  if (overlapEnd <= overlapStart) return 0;
+  return normalizeShiftMasterBoardQuantity(row.quantity || 0) * ((overlapEnd - overlapStart) / Math.max(1, slotEnd.getTime() - slotStart.getTime()));
+}
+
+function getWeeklyProductionControlFactRecordsForSlot(slot = {}) {
+  if (!slot?.id) return [];
+  const masterEntries = getGanttLinkedRecordEntries(planningState.shiftMasterAssignments || {}, slot.id);
+  const boardEntries = getShiftMasterBoardFactEntriesForGanttSlot(slot.id);
+  const boardKeys = new Set(boardEntries.map(([key]) => key));
+  const hasBoardEntries = boardEntries.length > 0;
+  const authSessionEntries = hasBoardEntries ? [] : getAuthSessionFactEntriesForGanttSlot(slot.id);
+  return [
+    ...masterEntries
+      .filter(([key]) => !boardKeys.has(key) && !(hasBoardEntries && key === slot.id))
+      .map(([, record]) => record),
+    ...boardEntries.map(([, record]) => record),
+    ...authSessionEntries.map(([, record]) => record),
+  ].filter(isGanttFactRecordReported);
+}
+
+function getWeeklyProductionControlFactDateKey(record = {}, row = {}) {
+  const value = record.updatedAt || record.factUpdatedAt || row.plannedEnd || row.plannedStart || ui.weeklyProductionControlWeekAnchor;
+  return toDateInput(startOfDay(toDate(value)));
+}
+
+function getWeeklyProductionControlReportKey(report = {}) {
+  return String(report.id || `${report.rowId || ""}:${report.taskId || ""}:${report.createdAt || ""}:${report.text || ""}`).trim();
+}
+
+function getWeeklyProductionControlReportsForRow(row = {}) {
+  const targets = [{
+    id: row.id,
+    rowId: row.id,
+    sourceRowId: row.id,
+    slotId: row.id,
+    sheetContract: {
+      rowId: row.id,
+      sourceRowId: row.id,
+      sourceSlotId: row.id,
+    },
+  }];
+  getShiftMasterAssignmentsForGanttSlot(row.id).forEach((assignment) => {
+    const sheetContract = normalizePlainRecord(assignment.sheetContract);
+    const transferContract = normalizePlainRecord(assignment.transferContract || sheetContract.transferContract);
+    const sourceRowId = String(assignment.sourceRowId || sheetContract.rowId || transferContract.sourceRowId || assignment.slotId || row.id || "").trim();
+    targets.push({
+      id: sourceRowId || row.id,
+      rowId: sourceRowId || row.id,
+      sourceRowId: sourceRowId || row.id,
+      slotId: assignment.slotId || sheetContract.sourceSlotId || transferContract.sourceSlotId || row.id,
+      sheetContract,
+      transfer: transferContract,
+    });
+  });
+  const seen = new Set();
+  return targets.flatMap((target) => getShiftWorkOrderIssueReports(target))
+    .filter((report) => {
+      const key = getWeeklyProductionControlReportKey(report);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function getWeeklyProductionControlReportDayKey(report = {}, row = {}) {
+  const value = report.createdAt || row.plannedEnd || row.plannedStart || ui.weeklyProductionControlWeekAnchor;
+  return toDateInput(startOfDay(toDate(value)));
+}
+
+function getWeeklyProductionControlFactDeviationNotes(record = {}) {
+  const notes = Array.isArray(record.deviationNotes) ? record.deviationNotes : [];
+  const normalizedNotes = notes
+    .map((note) => {
+      const normalized = normalizePlainRecord(note);
+      const text = String(normalized.text || normalized.comment || "").trim();
+      if (!text) return null;
+      return {
+        employeeName: String(normalized.employeeName || "Исполнитель").trim(),
+        text,
+        createdAt: String(normalized.createdAt || record.updatedAt || record.factUpdatedAt || "").trim(),
+        deviationPercent: Number(normalized.deviationPercent || 0) || 0,
+      };
+    })
+    .filter(Boolean);
+  const singleComment = String(record.deviationComment || record.deviationReason || "").trim();
+  if (singleComment && !normalizedNotes.some((note) => note.text === singleComment)) {
+    normalizedNotes.push({
+      employeeName: "Рабочее место",
+      text: singleComment,
+      createdAt: String(record.updatedAt || record.factUpdatedAt || "").trim(),
+      deviationPercent: 0,
+    });
+  }
+  return normalizedNotes;
+}
+
+function getWeeklyProductionControlDeviationPercent(factQuantity = 0, planQuantity = 0) {
+  const plan = Number(planQuantity || 0);
+  const fact = Number(factQuantity || 0);
+  if (plan <= 0) return fact > 0 ? 100 : 0;
+  return ((fact - plan) / plan) * 100;
+}
+
+function getWeeklyProductionControlDayTone(day = {}) {
+  if (day.isDeviation) return day.factQuantity < day.planQuantity ? "risk" : "warning";
+  if (day.planQuantity <= 0 && day.factQuantity <= 0) return "neutral";
+  if (day.factQuantity >= day.planQuantity && day.planQuantity > 0) return "ok";
+  if (day.factQuantity > 0) return "active";
+  return "neutral";
+}
+
+function formatWeeklyProductionControlQuantity(value = 0, unit = "шт.") {
+  return `${Math.round(Number(value || 0)).toLocaleString("ru-RU")} ${unit || "шт."}`;
+}
+
+function formatWeeklyProductionControlPercent(value = 0) {
+  const rounded = Math.round(Number(value || 0));
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
+}
+
+function getWeeklyProductionControlBaseRows() {
+  const overrides = getProductionStructureMatrixRuntimeOverrides();
+  const workCenters = getProductionStructureWorkCenters(overrides)
+    .filter((center) => center?.isActive !== false && center?.showInGantt !== false);
+  const workCentersById = new Map(workCenters.map((center) => [mapLegacyWorkCenterId(center.id), center]));
+  const resources = getProductionStructureResources(overrides)
+    .filter((resource) => normalizeLookupText(resource?.participatesInPlanning || "yes") !== "no");
+  const seen = new Set();
+  const baseRows = [];
+
+  const addBaseRow = (row = {}) => {
+    const key = [
+      row.workCenterId || row.workCenterLabel || "work-center",
+      row.resourceLabel || row.workCenterLabel || "resource",
+    ].join("::");
+    if (seen.has(key)) return;
+    seen.add(key);
+    baseRows.push({
+      ...row,
+      isWeeklyControlStructureRow: true,
+      unit: row.unit || "шт.",
+    });
+  };
+
+  resources.forEach((resource, index) => {
+    const workCenterId = mapLegacyWorkCenterId(resource.workCenterId || resource.id || "");
+    const workCenter = workCentersById.get(workCenterId) || null;
+    addBaseRow({
+      id: `weekly-control-resource-${resource.id || index}`,
+      workCenterId,
+      parentWorkCenterId: workCenter?.parentWorkCenterId || "",
+      workCenterLabel: workCenter?.name || resource.workCenter || resource.name || "Участок не задан",
+      resourceLabel: resource.name || workCenter?.name || "Ресурс не задан",
+      sourceKind: resource.sourceKind || "structureResource",
+      sortIndex: index,
+    });
+  });
+
+  workCenters.forEach((center, index) => {
+    addBaseRow({
+      id: `weekly-control-work-center-${center.id || index}`,
+      workCenterId: mapLegacyWorkCenterId(center.id || ""),
+      parentWorkCenterId: center.parentWorkCenterId || "",
+      workCenterLabel: center.name || "Участок не задан",
+      resourceLabel: center.name || "Ресурс не задан",
+      sourceKind: "structureWorkCenter",
+      sortIndex: resources.length + index,
+    });
+  });
+
+  return baseRows;
+}
+
+function getWeeklyProductionControlModel() {
+  const allRows = getPlanningTableSlotRows();
+  const weekStart = getWeeklyProductionControlWeekStart();
+  const weekEnd = addMs(weekStart, 7 * DAY_MS);
+  const rows = allRows.filter((row) => row.plannedStart < weekEnd && row.plannedEnd > weekStart);
+  const days = getWeeklyProductionControlDays(weekStart);
+  const dayIndexById = new Map(days.map((day, index) => [day.id, index]));
+  const groupsByKey = new Map();
+
+  const getGroup = (row) => {
+    const groupKey = [
+      row.workCenterId || row.workCenterLabel || "work-center",
+      row.resourceLabel || row.workCenterLabel || "resource",
+    ].join("::");
+    if (!groupsByKey.has(groupKey)) {
+      groupsByKey.set(groupKey, {
+        id: groupKey,
+        workCenterLabel: row.workCenterLabel || "Участок не задан",
+        resourceLabel: row.resourceLabel || "Оборудование не задано",
+        unit: row.unit || "шт.",
+        rows: [],
+        reports: [],
+        reportKeys: new Set(),
+        isStructureRow: Boolean(row.isWeeklyControlStructureRow),
+        sourceKind: row.sourceKind || "",
+        sortIndex: Number.isFinite(row.sortIndex) ? row.sortIndex : Number.MAX_SAFE_INTEGER,
+        days: days.map((day) => ({
+          ...day,
+          planQuantity: 0,
+          factQuantity: 0,
+          defectQuantity: 0,
+          rows: [],
+          reports: [],
+          deviationNotes: [],
+          reportKeys: new Set(),
+          deviationPercent: 0,
+          isDeviation: false,
+          tone: "neutral",
+        })),
+      });
+    }
+    const group = groupsByKey.get(groupKey);
+    if (row.isWeeklyControlStructureRow) group.isStructureRow = true;
+    if (row.sourceKind && !group.sourceKind) group.sourceKind = row.sourceKind;
+    if (Number.isFinite(row.sortIndex)) group.sortIndex = Math.min(group.sortIndex, row.sortIndex);
+    return group;
+  };
+
+  getWeeklyProductionControlBaseRows().forEach((row) => {
+    getGroup(row);
+  });
+
+  rows.forEach((row) => {
+    const group = getGroup(row);
+    group.rows.push(row);
+
+    days.forEach((day, index) => {
+      const planShare = getWeeklyProductionControlPlanShare(row, day);
+      if (planShare <= 0) return;
+      group.days[index].planQuantity += planShare;
+      group.days[index].rows.push(row);
+    });
+
+    getWeeklyProductionControlFactRecordsForSlot(row.slot).forEach((record) => {
+      const dayIndex = dayIndexById.get(getWeeklyProductionControlFactDateKey(record, row));
+      if (typeof dayIndex !== "number") return;
+      group.days[dayIndex].factQuantity += normalizeShiftMasterFactQuantity(record.actualQuantity || 0);
+      group.days[dayIndex].defectQuantity += normalizeShiftMasterFactQuantity(record.defectQuantity || 0);
+      group.days[dayIndex].deviationNotes.push(...getWeeklyProductionControlFactDeviationNotes(record));
+    });
+
+    getWeeklyProductionControlReportsForRow(row).forEach((report) => {
+      const reportKey = getWeeklyProductionControlReportKey(report);
+      if (!reportKey || group.reportKeys.has(reportKey)) return;
+      group.reportKeys.add(reportKey);
+      group.reports.push(report);
+      const dayIndex = dayIndexById.get(getWeeklyProductionControlReportDayKey(report, row));
+      if (typeof dayIndex === "number" && !group.days[dayIndex].reportKeys.has(reportKey)) {
+        group.days[dayIndex].reportKeys.add(reportKey);
+        group.days[dayIndex].reports.push(report);
+      }
+    });
+  });
+
+  const groups = [...groupsByKey.values()].map((group) => {
+    group.totalPlan = group.days.reduce((sum, day) => sum + day.planQuantity, 0);
+    group.totalFact = group.days.reduce((sum, day) => sum + day.factQuantity, 0);
+    group.totalDefect = group.days.reduce((sum, day) => sum + day.defectQuantity, 0);
+    group.days = group.days.map((day) => {
+      const deviationPercent = getWeeklyProductionControlDeviationPercent(day.factQuantity, day.planQuantity);
+      const isDeviation = (day.planQuantity > 0 || day.factQuantity > 0) && Math.abs(deviationPercent) > 5;
+      return {
+        ...day,
+        deviationPercent,
+        isDeviation,
+        tone: getWeeklyProductionControlDayTone({ ...day, deviationPercent, isDeviation }),
+      };
+    });
+    group.deviationPercent = getWeeklyProductionControlDeviationPercent(group.totalFact, group.totalPlan);
+    group.deviationCount = group.days.filter((day) => day.isDeviation).length;
+    group.statusTone = group.deviationCount ? "risk" : group.totalFact >= group.totalPlan && group.totalPlan > 0 ? "ok" : "neutral";
+    delete group.reportKeys;
+    group.days.forEach((day) => {
+      delete day.reportKeys;
+    });
+    return group;
+  }).sort((left, right) => (
+    right.deviationCount - left.deviationCount
+    || right.totalPlan - left.totalPlan
+    || left.sortIndex - right.sortIndex
+    || left.workCenterLabel.localeCompare(right.workCenterLabel, "ru")
+    || left.resourceLabel.localeCompare(right.resourceLabel, "ru")
+  ));
+
+  const totals = groups.reduce((acc, group) => {
+    acc.plan += group.totalPlan;
+    acc.fact += group.totalFact;
+    acc.defect += group.totalDefect;
+    acc.deviationCount += group.deviationCount;
+    acc.reportCount += group.reports.length;
+    return acc;
+  }, { plan: 0, fact: 0, defect: 0, deviationCount: 0, reportCount: 0 });
+  totals.deviationPercent = getWeeklyProductionControlDeviationPercent(totals.fact, totals.plan);
+
+  const deviationRows = groups.flatMap((group) => group.days
+    .filter((day) => day.isDeviation)
+    .map((day) => ({
+      group,
+      day,
+      reports: day.reports.length ? day.reports : group.reports,
+    })));
+
+  return {
+    rows,
+    groups,
+    days,
+    weekStart,
+    weekEnd,
+    weekLabel: `${formatDate(weekStart)}-${formatDate(addMs(weekEnd, -DAY_MS))}`,
+    totals,
+    deviationRows,
+  };
+}
+
+function renderWeeklyProductionControlPage() {
+  const model = getWeeklyProductionControlModel();
+  const actions = `
+    ${renderUiStatusToken(`Текущая неделя ${getWeekNumber(model.weekStart)}`, "primary")}
+  `;
+  return renderUiModulePage({
+    ariaLabel: "Недельный контроль плана и факта",
+    className: "weekly-production-control-page",
+    workspaceClassName: "weekly-production-control-workspace",
+    contentClassName: "weekly-production-control-content",
+    header: renderUiModuleHeader({
+      eyebrow: "Планирование нагрузки",
+      title: "Контроль недели",
+      description: "Read-only срез для начальника производства: план из заказ-нарядов, факт из рабочего места, report при отклонении больше 5%.",
+      actions,
+      className: "directory-header weekly-production-control-header",
+    }),
+    content: model.groups.length ? `
+      ${renderWeeklyProductionControlSummary(model)}
+      ${renderWeeklyProductionControlMatrix(model)}
+    ` : renderUiPanel({
+      title: "Нет данных недели",
+      meta: model.weekLabel,
+      className: "weekly-production-control-panel",
+      body: renderUiPanelBody({
+        body: renderUiEmptyState({
+          iconName: "chart",
+          title: "В выбранной неделе нет плановых операций",
+          text: "Проверь дату недели или передай заказ-наряды в планирование.",
+        }),
+      }),
+    }),
+  });
+}
+
+function renderWeeklyProductionControlSummary(model) {
+  const summaryItems = [
+    ["Неделя", model.weekLabel, `${model.groups.length.toLocaleString("ru-RU")} участков / ресурсов`],
+    ["План", formatWeeklyProductionControlQuantity(model.totals.plan), `${model.rows.length.toLocaleString("ru-RU")} операций`],
+    ["Факт", formatWeeklyProductionControlQuantity(model.totals.fact), `${formatWeeklyProductionControlPercent(model.totals.deviationPercent)} к плану`],
+    ["Отклонения >5%", model.totals.deviationCount.toLocaleString("ru-RU"), `${model.totals.reportCount.toLocaleString("ru-RU")} report из рабочего места`],
+  ];
+  return renderUiPanel({
+    title: "Сводка недельного контроля",
+    meta: "информативно · без записи в систему",
+    className: "weekly-production-control-panel weekly-production-control-summary-panel",
+    body: renderUiPanelBody({
+      body: `
+        <div class="weekly-production-control-summary-grid">
+          ${summaryItems.map(([label, value, meta]) => `
+            <article class="weekly-production-control-summary-card">
+              <span>${escapeHtml(label)}</span>
+              <strong>${escapeHtml(value)}</strong>
+              <small>${escapeHtml(meta)}</small>
+            </article>
+          `).join("")}
+        </div>
+      `,
+    }),
+  });
+}
+
+function getWeeklyProductionControlDayNoteData(day, unit = "шт.") {
+  const deviationNote = day.deviationNotes[0] || null;
+  const report = day.reports[0] || null;
+  const noteTitle = deviationNote
+    ? [
+      formatShiftWorkOrderPersonName(deviationNote.employeeName || "Исполнитель"),
+      deviationNote.createdAt ? formatDateTimeShort(deviationNote.createdAt) : "",
+    ].filter(Boolean).join(" · ")
+    : "Заметка отклонения не заполнена";
+  const noteText = deviationNote?.text || "При закрытии смены исполнитель должен указать причину, если факт ниже плана больше чем на 5%.";
+  const reportText = report?.text || "";
+  const extraReports = day.reports.length > 1 ? `Еще report: ${day.reports.length - 1}` : "";
+  const extraNotes = day.deviationNotes.length > 1 ? `Еще заметок: ${day.deviationNotes.length - 1}` : "";
+  return {
+    title: `Отклонение ${formatWeeklyProductionControlPercent(day.deviationPercent)}`,
+    plan: `План: ${formatWeeklyProductionControlQuantity(day.planQuantity, unit)}`,
+    fact: `Факт: ${formatWeeklyProductionControlQuantity(day.factQuantity, unit)}`,
+    author: noteTitle,
+    text: noteText,
+    extraNotes,
+    reportText,
+    extraReports,
+  };
+}
+
+function getWeeklyProductionControlDayMarkers(day = {}) {
+  const noteCount = Array.isArray(day.deviationNotes) ? day.deviationNotes.length : 0;
+  const reportCount = Array.isArray(day.reports) ? day.reports.length : 0;
+  if (!noteCount && !reportCount) return "";
+  const markers = [];
+  if (noteCount) {
+    const label = `${noteCount.toLocaleString("ru-RU")} заметок отклонения из рабочего стола`;
+    markers.push(`<span class="weekly-production-control-day-marker is-note" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}"></span>`);
+  }
+  if (reportCount) {
+    const photoCount = day.reports.reduce((sum, report) => sum + (normalizePlainRecord(report.photo).dataUrl ? 1 : 0), 0);
+    const label = `${reportCount.toLocaleString("ru-RU")} report${photoCount ? ` · ${photoCount.toLocaleString("ru-RU")} фото` : ""}`;
+    markers.push(`<span class="weekly-production-control-day-marker is-report" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}"></span>`);
+  }
+  return `
+    <span class="weekly-production-control-day-markers" data-visual-qa-target="weekly-production-control-day-markers">
+      ${markers.join("")}
+    </span>
+  `;
+}
+
+function renderWeeklyProductionControlDayCell(day, unit = "шт.") {
+  const noteCount = Array.isArray(day.deviationNotes) ? day.deviationNotes.length : 0;
+  const reportCount = Array.isArray(day.reports) ? day.reports.length : 0;
+  const hasCellNoteContext = day.isDeviation || noteCount || reportCount;
+  const note = hasCellNoteContext ? getWeeklyProductionControlDayNoteData(day, unit) : null;
+  const noteAttributes = note ? [
+    'tabindex="0"',
+    'data-weekly-production-note="yes"',
+    `aria-label="${escapeAttribute(`${note.title}. ${note.plan}. ${note.fact}. ${note.text}`)}"`,
+    `data-weekly-note-title="${escapeAttribute(note.title)}"`,
+    `data-weekly-note-plan="${escapeAttribute(note.plan)}"`,
+    `data-weekly-note-fact="${escapeAttribute(note.fact)}"`,
+    `data-weekly-note-author="${escapeAttribute(note.author)}"`,
+    `data-weekly-note-text="${escapeAttribute(note.text)}"`,
+    `data-weekly-note-extra-notes="${escapeAttribute(note.extraNotes)}"`,
+    `data-weekly-note-report="${escapeAttribute(note.reportText)}"`,
+    `data-weekly-note-extra-reports="${escapeAttribute(note.extraReports)}"`,
+  ].join(" ") : "";
+  return `
+    <td class="weekly-production-control-day-cell is-${escapeAttribute(day.tone)} ${day.isWeekend ? "is-weekend" : ""} ${day.isDeviation ? "has-deviation" : ""}" ${noteAttributes}>
+      <span class="weekly-production-control-day-grid">
+        <span class="weekly-production-control-day-metric is-plan">
+          <small>План</small>
+          <strong>${Math.round(day.planQuantity).toLocaleString("ru-RU")}</strong>
+        </span>
+        <span class="weekly-production-control-day-metric is-fact">
+          <small>Факт</small>
+          <strong>${Math.round(day.factQuantity).toLocaleString("ru-RU")}</strong>
+        </span>
+      </span>
+      ${getWeeklyProductionControlDayMarkers(day)}
+    </td>
+  `;
+}
+
+function renderWeeklyProductionControlMatrix(model) {
+  return renderUiPanel({
+    title: "План / факт по дням",
+    meta: `${model.days.length} дней · отклонение считается от плана дня`,
+    className: "weekly-production-control-panel weekly-production-control-matrix-panel",
+    body: renderUiPanelBody({
+      body: renderUiTableWrap({
+        className: "weekly-production-control-table-wrap",
+        body: `
+          <table class="directory-table ui-table weekly-production-control-table">
+            <thead>
+              <tr>
+                <th>Участок / оборудование</th>
+                ${model.days.map((day) => `<th><strong>${escapeHtml(day.weekday)}</strong><span>${escapeHtml(day.label)}</span></th>`).join("")}
+                <th>Итого</th>
+                <th>Откл.</th>
+                <th>Report</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${model.groups.map((group) => {
+                const showResourceLabel = normalizeLookupText(group.resourceLabel) !== normalizeLookupText(group.workCenterLabel);
+                return `
+                <tr class="${group.deviationCount ? "has-deviation" : ""}">
+                  <td class="weekly-production-control-resource-cell">
+                    <strong>${escapeHtml(group.workCenterLabel)}</strong>
+                    ${showResourceLabel ? `<small>${escapeHtml(group.resourceLabel || "Оборудование не задано")}</small>` : ""}
+                  </td>
+                  ${group.days.map((day) => renderWeeklyProductionControlDayCell(day, group.unit)).join("")}
+                  <td><strong>${escapeHtml(formatWeeklyProductionControlQuantity(group.totalPlan, group.unit))}</strong><span>факт ${escapeHtml(formatWeeklyProductionControlQuantity(group.totalFact, group.unit))}</span></td>
+                  <td>${renderUiStatusToken(formatWeeklyProductionControlPercent(group.deviationPercent), group.statusTone)}</td>
+                  <td><strong>${group.reports.length.toLocaleString("ru-RU")} report</strong><span>${group.deviationCount ? `${group.deviationCount} откл.` : "без отклонений"}</span></td>
+                </tr>
+              `;
+              }).join("")}
+            </tbody>
+          </table>
+        `,
+      }),
+    }),
+  });
+}
+
+function renderWeeklyProductionControlDeviationPanel(model) {
+  return renderUiPanel({
+    title: "Отклонения и объяснения",
+    meta: model.deviationRows.length ? `${model.deviationRows.length.toLocaleString("ru-RU")} дней с отклонением больше 5%` : "отклонений больше 5% нет",
+    className: "weekly-production-control-panel weekly-production-control-deviation-panel",
+    body: renderUiPanelBody({
+      body: model.deviationRows.length ? renderUiTableWrap({
+        className: "weekly-production-control-deviation-wrap",
+        body: `
+          <table class="directory-table ui-table weekly-production-control-deviation-table">
+            <thead>
+              <tr>
+                <th>День</th>
+                <th>Участок / оборудование</th>
+                <th>План</th>
+                <th>Факт</th>
+                <th>Откл.</th>
+                <th>Report рабочего места</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${model.deviationRows.map(({ group, day, reports }) => {
+                const report = reports[0] || null;
+                return `
+                  <tr>
+                    <td><strong>${escapeHtml(day.weekday)}</strong><span>${escapeHtml(day.label)}</span></td>
+                    <td><strong>${escapeHtml(group.workCenterLabel)}</strong><span>${escapeHtml(group.resourceLabel)}</span></td>
+                    <td>${escapeHtml(formatWeeklyProductionControlQuantity(day.planQuantity, group.unit))}</td>
+                    <td>${escapeHtml(formatWeeklyProductionControlQuantity(day.factQuantity, group.unit))}</td>
+                    <td>${renderUiStatusToken(formatWeeklyProductionControlPercent(day.deviationPercent), day.tone)}</td>
+                    <td class="weekly-production-control-report-cell">
+                      ${report ? `
+                        <strong>${escapeHtml(formatShiftWorkOrderPersonName(report.employeeName || "Исполнитель"))}${report.createdAt ? ` · ${escapeHtml(formatDateTimeShort(report.createdAt))}` : ""}</strong>
+                        <span>${escapeHtml(report.text || "Описание не заполнено.")}</span>
+                      ` : `
+                        <strong>Report не найден</strong>
+                        <span>Отклонение требует объяснения с рабочего места.</span>
+                      `}
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `,
+      }) : renderPlanningTableInlineEmpty("Неделя без существенных отклонений", "Факт не отличается от плана больше чем на 5% по участкам и оборудованию.", "check"),
+    }),
+  });
+}
+
+function getWeeklyProductionControlNotePopover() {
+  let popover = document.querySelector(".weekly-production-control-note-popover");
+  if (popover) return popover;
+  popover = document.createElement("section");
+  popover.className = "weekly-production-control-note-popover";
+  popover.setAttribute("role", "note");
+  popover.hidden = true;
+  document.body.appendChild(popover);
+  return popover;
+}
+
+function positionWeeklyProductionControlNotePopover(popover, target) {
+  if (!popover || !target) return;
+  const rect = target.getBoundingClientRect();
+  const margin = 14;
+  popover.style.visibility = "hidden";
+  popover.hidden = false;
+  popover.style.left = "0px";
+  popover.style.top = "0px";
+  const width = popover.offsetWidth || 360;
+  const height = popover.offsetHeight || 180;
+  let left = rect.left;
+  let top = rect.bottom + 10;
+  if (left + width > window.innerWidth - margin) left = window.innerWidth - width - margin;
+  if (top + height > window.innerHeight - margin) top = rect.top - height - 10;
+  left = Math.max(margin, left);
+  top = Math.max(margin, top);
+  popover.style.left = `${Math.round(left)}px`;
+  popover.style.top = `${Math.round(top)}px`;
+  popover.style.visibility = "visible";
+}
+
+function showWeeklyProductionControlNote(target) {
+  if (!target?.dataset?.weeklyProductionNote) return;
+  const popover = getWeeklyProductionControlNotePopover();
+  popover.innerHTML = `
+    <header>
+      <strong>${escapeHtml(target.dataset.weeklyNoteTitle || "Отклонение")}</strong>
+      <span>${escapeHtml([target.dataset.weeklyNotePlan, target.dataset.weeklyNoteFact].filter(Boolean).join(" · "))}</span>
+    </header>
+    <div>
+      <em>${escapeHtml(target.dataset.weeklyNoteAuthor || "Заметка отклонения")}</em>
+      <p>${escapeHtml(target.dataset.weeklyNoteText || "Заметка не заполнена.")}</p>
+      ${target.dataset.weeklyNoteExtraNotes ? `<small>${escapeHtml(target.dataset.weeklyNoteExtraNotes)}</small>` : ""}
+      ${target.dataset.weeklyNoteReport ? `<small>Report: ${escapeHtml(target.dataset.weeklyNoteReport)}</small>` : ""}
+      ${target.dataset.weeklyNoteExtraReports ? `<small>${escapeHtml(target.dataset.weeklyNoteExtraReports)}</small>` : ""}
+    </div>
+  `;
+  positionWeeklyProductionControlNotePopover(popover, target);
+}
+
+function hideWeeklyProductionControlNote() {
+  const popover = document.querySelector(".weekly-production-control-note-popover");
+  if (!popover) return;
+  popover.hidden = true;
+}
+
+function bindWeeklyProductionControlEvents() {
+  app.querySelectorAll("[data-weekly-production-note]").forEach((cell) => {
+    cell.addEventListener("mouseenter", () => showWeeklyProductionControlNote(cell));
+    cell.addEventListener("mousemove", () => positionWeeklyProductionControlNotePopover(getWeeklyProductionControlNotePopover(), cell));
+    cell.addEventListener("mouseleave", hideWeeklyProductionControlNote);
+    cell.addEventListener("focus", () => showWeeklyProductionControlNote(cell));
+    cell.addEventListener("blur", hideWeeklyProductionControlNote);
+  });
+}
+
 function getProductionStructureMatrixOptionsForField(key = "", value = "") {
   if (!Array.isArray(PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS[key])) return [];
   const options = [...PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS[key]];
@@ -22866,65 +24309,6 @@ function renderProductionStructureMatrixPage() {
             }),
           })}
     `,
-  });
-}
-
-function renderMatrixPage() {
-  const model = getPlanningTableViewModel();
-  const sidebar = renderUiModuleSidebar({
-    eyebrow: "Оперативное управление",
-    title: "Матрица",
-    className: "planning-table-sidebar matrix-sidebar",
-    cornerMarker: renderUiDemoCornerMarker("Матрица: read-only срез планирования"),
-    body: `
-      <div class="ui-sidebar-list planning-table-sidebar-stack">
-        ${renderPlanningTableSidebarCard("Слотов Gantt", model.rows.length.toLocaleString("ru-RU"), "операции текущего плана")}
-        ${renderPlanningTableSidebarCard("Ресурсов", model.resourceGroups.length.toLocaleString("ru-RU"), "по участкам и линиям")}
-        ${renderPlanningTableSidebarCard("Рабочее время", formatDuration(model.totalWorkingMs), "с учетом календарей ресурсов")}
-        ${renderPlanningTableSidebarCard("Сигналов", model.warningCount.toLocaleString("ru-RU"), "конфликты и предупреждения")}
-      </div>
-      <div class="planning-table-status-list">
-        <div class="ui-sidebar-label">Статусы слотов</div>
-        ${model.statusGroups.length ? model.statusGroups.map(({ status, count }) => `
-          <div class="planning-table-status-row">
-            ${renderUiStatusToken(status.label, status.tone)}
-            <strong>${count.toLocaleString("ru-RU")}</strong>
-          </div>
-        `).join("") : `<span class="planning-table-muted">Нет слотов</span>`}
-      </div>
-    `,
-  });
-
-  return renderUiModulePage({
-    ariaLabel: "Матрица ресурсов",
-    className: "planning-table-page matrix-page",
-    sidebar,
-    workspaceClassName: "planning-table-workspace matrix-workspace",
-    contentClassName: "planning-table-content matrix-content",
-    header: renderUiModuleHeader({
-      eyebrow: "Оперативная матрица",
-      title: "Матрица ресурсов по дням",
-      description: "Read-only срез планирования: какие ресурсы заняты по дням и какими слотами Gantt.",
-      className: "directory-header planning-table-header matrix-header",
-      cornerMarker: renderUiDemoCornerMarker("Матрица: читает Gantt, не меняет план"),
-    }),
-    content: model.rows.length ? renderPlanningTableMatrix(model, {
-      title: "Матрица ресурсов по дням",
-      meta: "читает Gantt, не меняет план",
-      className: "matrix-resource-panel",
-    }) : renderUiPanel({
-      title: "Матрица пока пустая",
-      meta: "нет размещенных слотов Gantt",
-      className: "planning-table-empty-panel matrix-empty-panel",
-      cornerMarker: renderUiDemoCornerMarker("Демо-панель: пустое состояние Матрицы"),
-      body: renderUiPanelBody({
-        body: renderUiEmptyState({
-          iconName: "gantt",
-          title: "Нет данных для матрицы",
-          text: "Передай заказ-наряд в планирование, чтобы увидеть загрузку ресурсов по дням.",
-        }),
-      }),
-    }),
   });
 }
 
@@ -23636,137 +25020,34 @@ function renderModulePreviewEmpty({ iconName = "info", title, text, action = "" 
 }
 
 function renderNomenclaturePage() {
-  const activePane = getActiveNomenclaturePane();
-  if (activePane === "boards") return renderBomListsPage({ embeddedInNomenclature: true });
-
-  const allItems = directoryState.nomenclature || [];
-  const items = getFilteredNomenclatureItems(allItems);
-  const typeOptions = getNomenclatureTypeOptions(allItems);
-  const typeCounts = getNomenclatureTypeCounts(allItems);
-  const activeFilter = getNomenclatureTypeFilterValue(allItems);
-  const activeItem = getActiveNomenclatureItem();
-  const isNewItem = ui.activeNomenclatureId === "__new__";
-  const hasPreviewObject = isNewItem || Boolean(activeItem);
-  const rawItemType = normalizeNomenclatureType(activeItem?.type || NOMENCLATURE_REA_COMPONENT_TYPE);
-  const itemType = typeOptions.some((type) => type.value === rawItemType)
-    ? rawItemType
-    : typeOptions[0]?.value || rawItemType;
-  const item = activeItem || {
-    id: "",
-    name: "",
-    article: "",
-    type: NOMENCLATURE_REA_COMPONENT_TYPE,
-    package: "",
-    unit: "шт.",
-    manufacturer: "",
-    description: "",
-    status: "Активен",
-  };
-
-  return renderUiModulePage({
-    ariaLabel: "Номенклатура",
-    className: "nomenclature-page",
-    sidebar: renderUiModuleSidebar({
-      eyebrow: "Материалы и компоненты",
-      title: "Номенклатура",
-      actions: renderUiActionButton({
-        label: "Новая позиция",
-        iconName: "plus",
-        tone: "primary",
-        attributes: "data-nomenclature-create type=\"button\"",
-      }),
-      body: `
-        ${renderNomenclatureSectionFilter({ activePane, activeFilter, typeOptions, typeCounts, allCount: allItems.length })}
-      `,
-    }),
-    header: renderUiModuleHeader({
-      eyebrow: "Список компонентов",
-      title: hasPreviewObject ? (isNewItem ? "Новая позиция номенклатуры" : item.name || "Позиция без названия") : "Объект не выбран",
-      description: hasPreviewObject ? "Номенклатура разделяется по типам: РЭА для BOM, платы, механика, кабели, расходники и другие производственные позиции." : "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактирования.",
-    }),
-    contentClassName: "nomenclature-module-content",
-    content: `
-      ${hasPreviewObject ? renderUiPanel({
-        title: "Предпросмотр позиции",
-        meta: isNewItem ? "создание новой позиции" : "редактирование номенклатуры",
-        className: "nomenclature-editor-panel",
-        body: renderUiPanelBody({
-          body: `
-            <form id="nomenclatureForm" class="module-form">
-              <input type="hidden" name="itemId" value="${escapeAttribute(item.id)}" />
-              <input type="hidden" name="isNew" value="${isNewItem ? "yes" : "no"}" />
-              <input type="hidden" name="type" value="${escapeAttribute(itemType)}" data-nomenclature-type-hidden />
-              <label class="form-field full ui-form-field"><span>Наименование</span><input name="name" value="${escapeAttribute(item.name)}" placeholder="Например: Резистор 10 кОм 0603 1%" /></label>
-              <label class="form-field ui-form-field"><span>Артикул</span><input name="article" value="${escapeAttribute(item.article)}" placeholder="PN / MPN / внутренний код" /></label>
-              <label class="form-field ui-form-field"><span>Раздел</span>${renderDenseInlineSelect("type", itemType, typeOptions, { type: "nomenclatureType" })}</label>
-              <label class="form-field ui-form-field"><span>Новый раздел</span><input name="customType" value="" placeholder="если нужен отдельный тип" /></label>
-              <label class="form-field ui-form-field"><span>Корпус / размер</span><input name="package" value="${escapeAttribute(item.package)}" placeholder="0603, QFN-32, PCB" /></label>
-              <label class="form-field ui-form-field"><span>Ед. изм.</span><input name="unit" value="${escapeAttribute(item.unit)}" placeholder="шт." /></label>
-              <label class="form-field ui-form-field"><span>Производитель</span><input name="manufacturer" value="${escapeAttribute(item.manufacturer)}" placeholder="Yageo, Murata, TI..." /></label>
-              <label class="form-field ui-form-field"><span>Статус</span><input name="status" value="${escapeAttribute(item.status)}" placeholder="Активен" /></label>
-              <label class="form-field full ui-form-field"><span>Описание</span><textarea name="description" rows="3" placeholder="Параметры, допуски, замены, комментарии">${escapeHtml(item.description)}</textarea></label>
-              <div class="module-form-actions full ui-action-bar" data-ui-component="ActionBar">
-                ${isNewItem ? "" : `<button class="secondary-button danger ui-action-button" data-nomenclature-delete="${escapeAttribute(item.id)}" type="button">${icon("trash")}<span>Удалить</span></button>`}
-                <button class="primary-button ui-action-button" type="submit">${icon("save")}<span>${isNewItem ? "Создать позицию" : "Сохранить позицию"}</span></button>
-              </div>
-            </form>
-          `,
-        }),
-      }) : ""}
-
-      ${renderUiPanel({
-        title: `${hasPreviewObject ? "02" : "01"} · Список номенклатуры`,
-        meta: items.length ? `${items.length} из ${allItems.length} позиций` : "список пуст",
-        className: "nomenclature-list-panel",
-        body: renderUiPanelBody({ body: renderNomenclatureTable(items, activeItem) }),
-      })}
-    `,
-  });
-}
-
-function renderNomenclatureTable(items, activeItem) {
-  if (!items.length) {
-    return renderUiEmptyState({
-      iconName: "book",
-      title: "Позиций пока нет",
-      text: "Нажмите «Новая позиция», заполните карточку и сохраните номенклатуру.",
-    });
-  }
-
-  return renderUiTableWrap({
-    className: "directory-table-wrap nomenclature-table-wrap",
-    body: `
-      <table class="directory-table nomenclature-table ui-table">
-        <thead>
-          <tr class="ui-table-header">
-            <th>Наименование</th>
-            <th>Артикул</th>
-            <th>Раздел</th>
-            <th>Корпус</th>
-            <th>Ед.</th>
-            <th>Производитель</th>
-            <th>Статус</th>
-            <th class="actions-cell">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${items.map((entry) => `
-            <tr class="ui-table-row ${entry.id === activeItem?.id ? "is-selected" : ""}" data-nomenclature-row-open="${escapeAttribute(entry.id)}">
-              <td class="primary-cell" title="${escapeAttribute(entry.name || "Позиция без названия")}">${escapeHtml(entry.name || "Позиция без названия")}</td>
-              <td title="${escapeAttribute(entry.article || "-")}">${escapeHtml(entry.article || "-")}</td>
-              <td title="${escapeAttribute(entry.type || "-")}">${escapeHtml(entry.type || "-")}</td>
-              <td title="${escapeAttribute(entry.package || "-")}">${escapeHtml(entry.package || "-")}</td>
-              <td>${escapeHtml(entry.unit || "шт.")}</td>
-              <td title="${escapeAttribute(entry.manufacturer || "-")}">${escapeHtml(entry.manufacturer || "-")}</td>
-              <td>${renderUiStatusToken(entry.status || "Активен", String(entry.status || "Активен").toLowerCase().includes("актив") ? "ok" : "neutral")}</td>
-              <td class="actions-cell ui-table-actions">
-                <button class="table-icon-button danger-soft ui-action-button" data-nomenclature-row-delete="${escapeAttribute(entry.id)}" type="button" title="Удалить позицию">${icon("trash")}</button>
-              </td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    `,
+  // CORRECTIVE-A-COMPAT: thin wrapper for render switch compatibility.
+  return renderNomenclatureModulePage({
+    NOMENCLATURE_REA_COMPONENT_TYPE,
+    directoryState,
+    escapeAttribute,
+    escapeHtml,
+    getActiveNomenclatureItem,
+    getActiveNomenclaturePane,
+    getFilteredNomenclatureItems,
+    getNomenclatureTypeCounts,
+    getNomenclatureTypeFilterValue,
+    getNomenclatureTypeOptions,
+    icon,
+    normalizeNomenclatureType,
+    renderBomListsPage,
+    renderDenseInlineSelect,
+    renderNomenclatureSectionFilter,
+    renderUiActionButton,
+    renderUiEmptyState,
+    renderUiFormField,
+    renderUiModuleHeader,
+    renderUiModulePage,
+    renderUiModuleSidebar,
+    renderUiPanel,
+    renderUiPanelBody,
+    renderUiStatusToken,
+    renderUiTableWrap,
+    ui,
   });
 }
 
@@ -27053,7 +28334,7 @@ function renderRoutePrintCompositionTree(route) {
   }
 
   return `
-    <table class="route-print-table route-print-composition-table">
+    <table data-ui-component="PrintTable" class="route-print-table route-print-composition-table">
       <thead>
         <tr>
           <th>П/п</th>
@@ -27128,7 +28409,7 @@ function renderRoutePrintOperationsTable(route) {
   }
 
   return `
-    <table class="route-print-table route-print-operations-table">
+    <table data-ui-component="PrintTable" class="route-print-table route-print-operations-table">
       <thead>
         <tr>
           <th>П/п</th>
@@ -27481,7 +28762,7 @@ function renderWorkOrderPrintPackageOperationsTable(model) {
     `;
   }
   return `
-    <table class="route-print-table work-order-print-operations-table">
+    <table data-ui-component="PrintTable" class="route-print-table work-order-print-operations-table">
       <thead>
         <tr>
           <th>П/п</th>
@@ -27526,7 +28807,7 @@ function renderWorkOrderPrintPackageRegistryTable(model) {
     `;
   }
   return `
-    <table class="route-print-table work-order-print-registry-table">
+    <table data-ui-component="PrintTable" class="route-print-table work-order-print-registry-table">
       <thead>
         <tr>
           <th>СЗН</th>
@@ -27571,7 +28852,7 @@ function renderWorkOrderPrintPackageExecutorsTable(model) {
     `;
   }
   return `
-    <table class="route-print-table work-order-print-executors-table">
+    <table data-ui-component="PrintTable" class="route-print-table work-order-print-executors-table">
       <thead>
         <tr>
           <th>Исполнитель</th>
@@ -27614,7 +28895,7 @@ function renderWorkOrderPrintPackageTransferTable(model) {
     `;
   }
   return `
-    <table class="route-print-table work-order-print-transfer-table">
+    <table data-ui-component="PrintTable" class="route-print-table work-order-print-transfer-table">
       <thead>
         <tr>
           <th>Документ</th>
@@ -29823,6 +31104,44 @@ function bindDenseInlineSelectViewportEvents() {
   });
 }
 
+function applyVisualSystemIconFilters(section) {
+  if (!section) return;
+  const search = normalizeLookupText(section.querySelector("[data-mes-icon-search]")?.value || "");
+  const group = section.querySelector("[data-mes-icon-filter=\"group\"]")?.value || "";
+  const status = section.querySelector("[data-mes-icon-filter=\"status\"]")?.value || "";
+  const source = section.querySelector("[data-mes-icon-filter=\"source\"]")?.value || "";
+  const usage = section.querySelector("[data-mes-icon-filter=\"usage\"]")?.value || "";
+  const records = Array.from(section.querySelectorAll("[data-mes-icon-record]"));
+  let visibleCount = 0;
+
+  records.forEach((record) => {
+    const matchesSearch = !search || normalizeLookupText(record.dataset.iconSearch || "").includes(search);
+    const matchesGroup = !group || record.dataset.iconGroup === group;
+    const matchesStatus = !status || record.dataset.iconStatus === status;
+    const matchesSource = !source || record.dataset.iconSource === source;
+    const matchesUsage = !usage || record.dataset.iconUsage === usage;
+    const isVisible = matchesSearch && matchesGroup && matchesStatus && matchesSource && matchesUsage;
+    record.hidden = !isVisible;
+    if (isVisible && record.matches(".visual-icon-card")) visibleCount += 1;
+  });
+
+  const countLabel = section.querySelector("[data-mes-icon-filter-count]");
+  if (countLabel) countLabel.textContent = `${visibleCount.toLocaleString("ru-RU")} строк`;
+  const empty = section.querySelector("[data-mes-icon-empty]");
+  if (empty) empty.hidden = visibleCount > 0;
+}
+
+function bindVisualSystemIconFilters() {
+  const section = app.querySelector("[data-mes-icon-section]");
+  if (!section) return;
+  const update = () => applyVisualSystemIconFilters(section);
+  section.querySelectorAll("[data-mes-icon-search], [data-mes-icon-filter]").forEach((field) => {
+    field.addEventListener("input", update);
+    field.addEventListener("change", update);
+  });
+  update();
+}
+
 function bindGlobalNavigation() {
   bindModuleMenuNavigation();
   bindAuthLogoutNavigation();
@@ -31244,6 +32563,10 @@ function bindAuthPrototypeEvents() {
       ui.authPrototypeResult = "";
       resetAuthPrototypePinEntry();
       resetAuthPrototypeAttempts();
+      if (AUTH_PIN_TEMPORARILY_DISABLED && ui.authPrototypePersonId) {
+        completeAuthPrototypeLogin("pin-ok", { personId: ui.authPrototypePersonId });
+        return;
+      }
       persistUiState();
       render();
     });
@@ -31334,10 +32657,16 @@ function saveAuthSessionTaskFact(taskId = "") {
   const task = model.allTasks.find((item) => item.id === taskId) || model.selectedTask || null;
   if (!task) return;
   const current = getAuthSessionFactDraft(task.id);
+  const deviationComment = String(current.deviationComment || "").trim();
+  if (doesAuthSessionFactNeedDeviationComment(task, current) && !deviationComment) {
+    notifySaveSuccess("Нужно указать причину отклонения: факт ниже плана больше чем на 5%.");
+    return;
+  }
   const now = new Date().toISOString();
   setAuthSessionFactDraft(task.id, {
     actualQuantity: current.actualQuantity,
     defectQuantity: current.defectQuantity,
+    deviationComment,
     status: "done",
     updatedAt: now,
   });
@@ -31357,12 +32686,36 @@ function saveAuthSessionTaskFact(taskId = "") {
       const draft = normalizePlainRecord(nextStore[item.id]);
       return sum + normalizeShiftMasterBoardQuantity(draft.actualQuantity || 0) * normalizePlanningLaborPositiveNumber(item.minutesPerUnit || 0);
     }, 0);
+    const deviationNotes = rowTasksWithCurrent
+      .map((item) => {
+        const draft = getAuthSessionFactDraft(item.id);
+        const note = String(draft.deviationComment || "").trim();
+        if (!note) return null;
+        return {
+          taskId: item.id,
+          employeeId: item.employeeId,
+          employeeName: item.employeeName,
+          assignedQuantity: normalizeShiftMasterBoardQuantity(item.assignedQuantity || 0),
+          actualQuantity: normalizeShiftMasterBoardQuantity(draft.actualQuantity || 0),
+          defectQuantity: normalizeShiftMasterBoardQuantity(draft.defectQuantity || 0),
+          goodQuantity: getAuthSessionTaskGoodQuantity(item, draft),
+          deviationPercent: getAuthSessionFactDeviationPercent(item, draft),
+          text: note,
+          createdAt: String(draft.updatedAt || now),
+        };
+      })
+      .filter(Boolean);
+    const deviationCommentText = deviationNotes.map((note) => (
+      `${formatShiftWorkOrderPersonName(note.employeeName)}: ${note.text}`
+    )).join("; ");
     saveShiftMasterBoardFact(task.rowId, {
       actualQuantity,
       defectQuantity,
       laborMinutes,
       executorCount: rowTasksWithCurrent.length,
-      comment: `Факт внесен с рабочих столов исполнителей: ${rowTasksWithCurrent.length}`,
+      comment: deviationCommentText || `Факт внесен с рабочих столов исполнителей: ${rowTasksWithCurrent.length}`,
+      deviationComment: deviationCommentText,
+      deviationNotes,
       updatedAt: now,
     });
     notifySaveSuccess("Факт операции закрыт по всем исполнителям и отражен в Ганте.");
@@ -31436,6 +32789,16 @@ function bindAuthSessionEvents() {
     button.addEventListener("click", () => {
       saveAuthSessionTaskFact(button.dataset.authSessionSaveFact || ui.authSessionSelectedTaskId || "");
     });
+  });
+
+  app.querySelector("[data-auth-session-deviation-comment]")?.addEventListener("input", (event) => {
+    const taskId = event.currentTarget.dataset.authSessionDeviationComment || ui.authSessionSelectedTaskId || "";
+    if (!taskId) return;
+    setAuthSessionFactDraft(taskId, {
+      deviationComment: String(event.currentTarget.value || "").slice(0, 500),
+      status: getAuthSessionFactDraft(taskId).updatedAt ? "done" : "in_progress",
+    });
+    persistUiState();
   });
 
   app.querySelectorAll("[data-auth-session-report-trigger]").forEach((button) => {
@@ -34499,6 +35862,8 @@ function getShiftMasterBoardFactEntriesForGanttSlot(slotId = "") {
         executorCount: normalizeDispatchExecutorCount(record?.executorCount || 0),
         status: goodQuantity > 0 ? "accepted" : "not_reported",
         comment: String(record?.comment || ""),
+        deviationComment: String(record?.deviationComment || ""),
+        deviationNotes: Array.isArray(record?.deviationNotes) ? record.deviationNotes : [],
         updatedAt: String(record?.updatedAt || ""),
       }];
     });
@@ -34555,6 +35920,14 @@ function getAuthSessionFactEntriesForGanttSlot(slotId = "") {
       executorCount: 1,
       status: "accepted",
       comment: "Факт внесен с рабочего стола исполнителя",
+      deviationComment: String(normalizedDraft.deviationComment || ""),
+      deviationNotes: String(normalizedDraft.deviationComment || "").trim() ? [{
+        taskId,
+        employeeName: "Исполнитель",
+        text: String(normalizedDraft.deviationComment || "").trim(),
+        createdAt: String(normalizedDraft.updatedAt || ""),
+        deviationPercent: 0,
+      }] : [],
       updatedAt: String(normalizedDraft.updatedAt || ""),
     }];
   }).filter(Boolean);
@@ -38897,68 +40270,28 @@ function makeId(prefix) {
 }
 
 
+function renderMesIconSvg(svg, name, sourceKind) {
+  const safeName = escapeAttribute(name || "info");
+  const safeSource = escapeAttribute(sourceKind || "unknown");
+  return String(svg || "").replace(/^<svg\b([^>]*)>/, (match, rawAttributes = "") => {
+    const attributes = rawAttributes
+      .replace(/\sclass="[^"]*"/g, "")
+      .replace(/\sdata-icon="[^"]*"/g, "")
+      .replace(/\sdata-icon-source="[^"]*"/g, "")
+      .replace(/\saria-hidden="[^"]*"/g, "")
+      .replace(/\sfocusable="[^"]*"/g, "")
+      .trim();
+    const normalizedAttributes = attributes ? " " + attributes : "";
+    return `<svg${normalizedAttributes} class="mes-icon mes-icon-${safeName} mes-icon-source-${safeSource}" data-icon="${safeName}" data-icon-source="${safeSource}" aria-hidden="true" focusable="false">`;
+  });
+}
+
 function icon(name) {
-  const icons = {
-    search: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>`,
-    filter: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7Z"></path></svg>`,
-    bug: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2l1.5 2.5M16 2l-1.5 2.5"></path><rect x="7" y="5" width="10" height="14" rx="5"></rect><path d="M3 9h4M17 9h4M3 14h4M17 14h4M12 5v14M8 19l-2 3M16 19l2 3"></path></svg>`,
-    monitor: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path><path d="M7 10h3l2-3 2 6 2-3h1"></path></svg>`,
-    map: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18-6 3V6l6-3 6 3 6-3v15l-6 3Z"></path><path d="M9 3v15M15 6v15"></path></svg>`,
-    palette: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.7H17a4 4 0 0 0 4-4.1C20.8 6.6 16.9 3 12 3Z"></path><circle cx="7.5" cy="10" r="1"></circle><circle cx="10" cy="7.5" r="1"></circle><circle cx="14" cy="7.5" r="1"></circle><circle cx="16.5" cy="10.5" r="1"></circle></svg>`,
-    target: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>`,
-    selection: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="4" rx="1.5"></rect><rect x="4" y="10" width="16" height="4" rx="1.5"></rect><rect x="4" y="15" width="16" height="4" rx="1.5"></rect><path d="M2.5 12h2M19.5 12h2"></path></svg>`,
-    keyboard: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M7 9h.01M11 9h.01M15 9h.01M19 9h.01M7 13h.01M11 13h.01M15 13h.01M7 17h10"></path></svg>`,
-    book: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z"></path><path d="M8 7h8M8 11h8"></path></svg>`,
-    document: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M14 3v6h6M8 13h8M8 17h6"></path></svg>`,
-    bom: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z"></path><path d="M2 8h2M2 12h2M2 16h2M20 8h2M20 12h2M20 16h2M8 2v2M12 2v2M16 2v2M8 20v2M12 20v2M16 20v2"></path></svg>`,
-    package: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"></path><path d="M4 7.5 12 12l8-4.5M12 12v9"></path><path d="m8 5.2 8 4.5"></path></svg>`,
-	    supply: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3Z"></path><path d="M14 10h4l3 3v3h-7Z"></path><circle cx="7" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle><path d="M5 11h5M5 14h3"></path></svg>`,
-	    worker: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10a6 6 0 0 1 12 0"></path><path d="M5 10h14"></path><circle cx="12" cy="13" r="3"></circle><path d="M4 21a8 8 0 0 1 16 0"></path><path d="M9 6.5V4h6v2.5"></path></svg>`,
-	    warehouse: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"></path><path d="M7 21V11h10v10"></path><path d="M7 15h10M7 18h10M12 11v10"></path><path d="M3 8h18"></path></svg>`,
-    directory: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M7 12h10M7 16h7"></path></svg>`,
-    operation: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.6"></circle><circle cx="18" cy="6" r="2.6"></circle><circle cx="18" cy="18" r="2.6"></circle><path d="M8.4 10.9 15.6 7.1M8.4 13.1l7.2 3.8"></path></svg>`,
-    settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2.1.2l-.2.1-3.2-1.8-.1-.3a1.7 1.7 0 0 0-1.6-1.1H10l-2.1-3.6.1-.2a1.7 1.7 0 0 0-.3-1.9L7.6 12l2.1-3.6.2.1a1.7 1.7 0 0 0 2.1-.2l.2-.1 3.2 1.8.1.3a1.7 1.7 0 0 0 1.6 1.1h.3l2.1 3.6Z"></path></svg>`,
-    calendar: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path></svg>`,
-    camera: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4l2-3h4l2 3h4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"></path><circle cx="12" cy="14" r="4"></circle><path d="M18 11h.01"></path></svg>`,
-    today: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path><circle cx="12" cy="15" r="2.3"></circle></svg>`,
-    gantt: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v14M4 19h16"></path><path d="M8 7h9M8 12h5M12 17h8"></path><path d="M7 7h1M7 12h1M11 17h1"></path></svg>`,
-    routeEdit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5a3 3 0 0 1 3 3v4a3 3 0 0 0 3 3h5"></path><circle cx="4" cy="7" r="1.7"></circle><circle cx="20" cy="17" r="1.7"></circle><path d="M15.5 5.5a1.8 1.8 0 0 1 2.5 2.5l-6.7 6.7-3.1.8.8-3.1Z"></path></svg>`,
-    route: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5a3 3 0 0 1 3 3v4a3 3 0 0 0 3 3h5"></path><circle cx="4" cy="7" r="1.7"></circle><circle cx="20" cy="17" r="1.7"></circle><path d="M15.5 5.5a1.8 1.8 0 0 1 2.5 2.5l-6.7 6.7-3.1.8.8-3.1Z"></path></svg>`,
-    tree: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="7" height="5" rx="1.5"></rect><rect x="13" y="10" width="7" height="5" rx="1.5"></rect><rect x="13" y="17" width="7" height="4" rx="1.5"></rect><path d="M7.5 8v7a2 2 0 0 0 2 2H13M11 12h2M7.5 12H13"></path></svg>`,
-    refresh: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14-5l-2 2"></path><path d="M4 4v4h4"></path><path d="M4 13a8 8 0 0 0 14 5l2-2"></path><path d="M20 20v-4h-4"></path></svg>`,
-    reset: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 3v6h6"></path></svg>`,
-    plus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>`,
-    minus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg>`,
-    clock: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>`,
-    chevronDown: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>`,
-    chevronUp: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>`,
-    chevronRight: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>`,
-    alert: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.2 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></svg>`,
-    info: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>`,
-    check: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>`,
-    close: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>`,
-    arrowLeft: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>`,
-    backspaceApple: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 5.5H9.2L3.5 12l5.7 6.5h11.3a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2Z"></path><path d="m11 9.2 5.6 5.6M16.6 9.2 11 14.8"></path></svg>`,
-    arrowRight: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>`,
-    edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`,
-    play: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z"></path></svg>`,
-    split: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h6a4 4 0 0 1 4 4v8"></path><path d="M14 14a4 4 0 0 1 4-4h2"></path><path d="m18 6 2 4-2 4"></path><path d="m12 16 2 2 2-2"></path></svg>`,
-    trash: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="m19 6-1 14H6L5 6"></path><path d="M10 11v5M14 11v5"></path></svg>`,
-    trashSoft: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h8"></path><path d="M10 8V6h4v2"></path><rect x="7" y="8" width="10" height="11" rx="2"></rect><path d="M10.5 12v3.5M13.5 12v3.5"></path></svg>`,
-    save: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>`,
-    chart: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"></path><rect x="7" y="12" width="3" height="5" rx="1"></rect><rect x="12" y="8" width="3" height="9" rx="1"></rect><rect x="17" y="5" width="3" height="12" rx="1"></rect></svg>`,
-    upload: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9"></path><path d="m7 14 5-5 5 5"></path><path d="M5 3h14"></path></svg>`,
-    download: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>`,
-    copy: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>`,
-    focus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>`,
-    lock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>`,
-    unlock: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M15 10V7a4 4 0 0 0-7-2.6"></path></svg>`,
-  };
-  const normalizedName = icons[name] ? name : "info";
-  const svg = icons[normalizedName] || "";
+  const iconName = getMesCustomIconName(name) || getMesCustomIconName("info");
+  const svg = getMesCustomIconSvg(iconName) || getMesCustomIconSvg("info");
   if (!svg) return "";
-  const safeName = escapeAttribute(normalizedName);
-  return svg.replace("<svg ", `<svg class="mes-icon mes-icon-${safeName}" data-icon="${safeName}" `);
+  const entry = getMesCustomIconEntryBySemanticSlug(iconName);
+  return renderMesIconSvg(svg, iconName || "info", entry?.source || "registry");
 }
 
 function getMesFullscreenElement() {

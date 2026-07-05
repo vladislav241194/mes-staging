@@ -1,6 +1,7 @@
 import {
   HARD_UI_RUNTIME_MODULE_IDS,
   LEGACY_UI_RUNTIME_MODULE_IDS,
+  PARTIAL_UI_RUNTIME_CONTRACTS,
   PARTIAL_UI_RUNTIME_MODULE_IDS,
   SPECIAL_UI_RUNTIME_CONTRACTS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
@@ -11,6 +12,7 @@ import { UI_HARDENING_PLAN_STAGES } from "./ui/contracts/hardening-plan-contract
 export {
   HARD_UI_RUNTIME_MODULE_IDS,
   LEGACY_UI_RUNTIME_MODULE_IDS,
+  PARTIAL_UI_RUNTIME_CONTRACTS,
   PARTIAL_UI_RUNTIME_MODULE_IDS,
   SPECIAL_UI_RUNTIME_CONTRACTS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
@@ -489,8 +491,8 @@ export const UI_RUNTIME_CONTROLLED_CLASS_PREFIXES = [
   "timesheet-",
   "roles-",
   "production-structure-",
+  "weekly-production-control-",
   "planning-table-",
-  "matrix-",
   "planning-order-",
   "route-",
   "routes-",
@@ -518,6 +520,7 @@ export const UI_RUNTIME_CONTROLLED_CLASS_PREFIXES = [
   "row-",
   "bar-",
   "modal-",
+  "mes-icon-",
   "app-",
 ];
 
@@ -525,6 +528,7 @@ export const UI_RUNTIME_DYNAMIC_CSS_ONLY_PREFIXES = [
   "is-",
   "status-",
   "dense-select-",
+  "mes-icon-source-",
 ];
 
 export const UI_RUNTIME_DYNAMIC_CSS_ONLY_CLASSES = [

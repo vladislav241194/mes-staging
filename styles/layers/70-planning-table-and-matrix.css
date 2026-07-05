@@ -77,9 +77,7 @@ input[type="radio"]{
   border-radius: var(--mes-radius-panel) 0 0 var(--mes-radius-panel) !important;
 }.module-menu-brand::before{
   border-radius: var(--mes-radius-control) !important;
-}.status-pill,
-.production-status,
-.deadline-badge,
+}.production-status,
 .clock,
 .route-sequence-mini span,
 .route-module-sequence b,
@@ -1949,7 +1947,7 @@ main.app-shell[data-layout-page="routes"] .route-object-table td{
   align-items: center;
   max-width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f8fafc;
   color: #475569;
   padding: 1px 5px;
@@ -1991,7 +1989,7 @@ main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-shift{
   align-items: center;
   min-height: 18px;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f8fafc;
   color: #475569;
   padding: 0 6px;
@@ -3068,9 +3066,9 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   display: grid;
   gap: 1px;
   max-width: 180px;
-  border: 1px solid #dbeafe;
-  border-radius: 999px;
-  background: #eff6ff;
+  border: 1px solid var(--mes-ui-status-info-border);
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-status-info-bg);
   padding: 4px 8px;
 }main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong,
 main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
@@ -3079,16 +3077,16 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assig
   text-overflow: ellipsis;
   white-space: nowrap;
 }main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong{
-  color: #1e3a8a;
+  color: var(--mes-ui-status-info-text);
   font-size: 10px;
   font-weight: 760;
 }main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
-  color: #64748b;
+  color: var(--mes-ui-muted);
   font-size: 8px;
 }main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview em{
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-status-neutral-bg);
+  color: var(--mes-ui-status-neutral-text);
   padding: 5px 8px;
   font-size: 10px;
   font-style: normal;
@@ -3253,4 +3251,350 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   color: var(--mes-ui-muted, #64748b);
 }main.app-shell[data-layout-page="roles"] :is(.access-role-permission-table, .access-role-assignment-table) .primary-cell strong{
   font-weight: 700;
+}main.app-shell[data-layout-page="weeklyProductionControl"]{
+  --weekly-control-line: rgba(148, 163, 184, 0.26);
+  --weekly-control-line-strong: rgba(15, 23, 42, 0.16);
+  --weekly-control-soft: var(--mes-ui-surface-soft);
+  --weekly-control-surface: var(--mes-ui-surface-raised);
+  --weekly-control-text: var(--mes-ui-text);
+  --weekly-control-muted: var(--mes-ui-muted);
+  --weekly-control-blue: var(--mes-ui-sidebar-bg);
+  --weekly-control-inverse: var(--mes-ui-text-inverse);
+  --weekly-control-success-bg: var(--mes-ui-status-success-bg);
+  --weekly-control-info-bg: var(--mes-ui-status-info-bg);
+  --weekly-control-warning-bg: var(--mes-ui-status-warning-bg);
+  --weekly-control-danger-bg: var(--mes-ui-status-danger-bg);
+  --weekly-control-warning-accent: var(--mes-ui-warning);
+  --weekly-control-danger-accent: var(--mes-ui-danger);
+  --weekly-control-font-xs: var(--mes-ui-ops-font-xs, 10px);
+  --weekly-control-font-sm: var(--mes-ui-ops-font-sm, 11px);
+  --weekly-control-font-md: var(--mes-ui-ops-font-md, 12px);
+  --weekly-control-font-lg: var(--mes-ui-ops-font-lg, 14px);
+  --weekly-control-font-xl: var(--mes-font-size-section-title);
+  --weekly-control-gap-xs: 3px;
+  --weekly-control-gap-sm: var(--mes-ui-density-gap);
+  --weekly-control-gap-md: var(--mes-ui-density-page);
+  --weekly-control-header-pad: 12px 14px;
+  --weekly-control-panel-pad: 8px 10px;
+  --weekly-control-cell-pad: 7px 8px;
+  --weekly-control-card-pad: 9px 10px;
+  background:
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-page{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--weekly-control-gap-md);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: var(--weekly-control-gap-md);
+  overflow: hidden;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-workspace{
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--weekly-control-line);
+  border-radius: var(--mes-ui-radius-xl);
+  background: var(--weekly-control-surface);
+  box-shadow: var(--mes-ui-shadow-md);
+  overflow: hidden;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-header{
+  min-height: 64px;
+  border-block-end: var(--mes-ui-border-width) solid var(--weekly-control-line);
+  background: linear-gradient(180deg, var(--mes-ui-surface), var(--weekly-control-soft));
+  padding: var(--weekly-control-header-pad);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-header h2{
+  color: var(--weekly-control-text);
+  font-size: var(--weekly-control-font-xl);
+  line-height: var(--mes-ui-line-section-title);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-header p{
+  max-width: 760px;
+  margin-top: var(--weekly-control-gap-xs);
+  color: var(--weekly-control-muted);
+  font-size: var(--weekly-control-font-sm);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-header .ui-module-header-actions{
+  align-items: center;
+  gap: var(--weekly-control-gap-sm);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-content{
+  display: grid;
+  align-content: start;
+  gap: var(--weekly-control-gap-md);
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--weekly-control-gap-md);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-panel{
+  border: 1px solid var(--weekly-control-line);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--weekly-control-surface);
+  box-shadow: none;
+  overflow: hidden;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-panel > .ui-panel-head{
+  min-height: 42px;
+  border-block-end: var(--mes-ui-border-width) solid var(--weekly-control-line);
+  background: var(--weekly-control-soft);
+  padding: var(--weekly-control-panel-pad);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-panel > .ui-panel-head strong{
+  color: var(--weekly-control-text);
+  font-size: var(--weekly-control-font-md);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-body);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-panel > .ui-panel-head span{
+  color: var(--weekly-control-muted);
+  font-size: var(--weekly-control-font-xs);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-summary-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--weekly-control-gap-sm);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-summary-card{
+  display: grid;
+  gap: var(--weekly-control-gap-xs);
+  min-width: 0;
+  border: 1px solid var(--weekly-control-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: var(--weekly-control-card-pad);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-summary-card span,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-summary-card small{
+  color: var(--weekly-control-muted);
+  font-size: var(--weekly-control-font-xs);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-summary-card strong{
+  color: var(--weekly-control-text);
+  font-size: var(--weekly-control-font-xl);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-section-title);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table-wrap,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-wrap{
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table{
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table th,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table td{
+  border-block-end: var(--mes-ui-border-width) solid var(--weekly-control-line);
+  border-inline-end: var(--mes-ui-border-width) solid rgba(226, 232, 240, 0.72);
+  color: var(--weekly-control-text);
+  padding: var(--weekly-control-cell-pad);
+  font-size: var(--weekly-control-font-sm);
+  line-height: var(--mes-ui-line-caption);
+  vertical-align: top;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table th{
+  background: var(--weekly-control-blue);
+  color: var(--weekly-control-inverse);
+  font-size: var(--weekly-control-font-xs);
+  font-weight: var(--mes-ui-weight-bold);
+  letter-spacing: 0;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th span,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table th span{
+  display: block;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--weekly-control-font-xs);
+  font-weight: var(--mes-ui-weight-semibold);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th:first-child{
+  width: 220px;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th:nth-last-child(3){
+  width: 148px;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th:nth-last-child(2){
+  width: 76px;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th:last-child{
+  width: 104px;
+  border-right: 0;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td:last-child,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table td:last-child,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table th:last-child{
+  border-right: 0;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-resource-cell strong,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-resource-cell small,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td strong,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td span,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td small,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td em{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-resource-cell strong,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td strong{
+  font-weight: var(--mes-ui-weight-semibold);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-resource-cell small,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td span,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table td small{
+  color: var(--weekly-control-muted);
+  font-size: var(--weekly-control-font-xs);
+  font-weight: var(--mes-ui-weight-medium);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell{
+  position: relative;
+  background: var(--mes-ui-surface);
+  padding: 0;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  min-height: 44px;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 6px;
+  min-width: 0;
+  padding: 5px 18px 5px 8px;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric + .weekly-production-control-day-metric{
+  border-block-start: var(--mes-ui-border-width) solid rgba(148, 163, 184, 0.24);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric small,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric strong{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--mes-ui-line-caption);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric small{
+  color: var(--weekly-control-muted);
+  font-size: var(--weekly-control-font-xs);
+  font-weight: var(--mes-ui-weight-semibold);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric strong{
+  color: var(--weekly-control-text);
+  font-size: var(--weekly-control-font-sm);
+  font-weight: var(--mes-ui-weight-bold);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric.is-fact{
+  text-align: left;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-markers{
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-marker{
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--mes-ui-surface), 0 0 0 2px rgba(15, 23, 42, 0.12);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-marker.is-note{
+  background: var(--mes-ui-sidebar-bg, #10233c);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-marker.is-report{
+  background: var(--weekly-control-danger-accent);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-weekend{
+  background: var(--mes-ui-surface-soft);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-ok{
+  background: var(--weekly-control-success-bg);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-active{
+  background: var(--weekly-control-info-bg);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.has-deviation{
+  background: var(--weekly-control-warning-bg);
+  box-shadow: inset 3px 0 0 var(--weekly-control-warning-accent);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-risk.has-deviation{
+  background: var(--weekly-control-danger-bg);
+  box-shadow: inset 3px 0 0 var(--weekly-control-danger-accent);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.has-deviation:hover,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.has-deviation:focus-within{
+  z-index: 8;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell em{
+  margin-top: var(--weekly-control-gap-xs);
+  color: var(--weekly-control-danger-accent);
+  font-size: var(--weekly-control-font-xs);
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-bold);
+}.weekly-production-control-note-popover{
+  position: fixed;
+  z-index: 10020;
+  display: grid;
+  gap: 10px;
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(360px, calc(100vh - 28px));
+  overflow: auto;
+  border: 1px solid rgba(15, 23, 42, 0.20);
+  border-radius: var(--mes-ui-radius-sm);
+  background: #fffef7;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
+  color: var(--weekly-control-text, #0f172a);
+  padding: 12px;
+  pointer-events: none;
+}.weekly-production-control-note-popover[hidden]{
+  display: none;
+}.weekly-production-control-note-popover header,
+.weekly-production-control-note-popover div{
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}.weekly-production-control-note-popover header{
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  padding-bottom: 8px;
+}.weekly-production-control-note-popover strong,
+.weekly-production-control-note-popover span,
+.weekly-production-control-note-popover em,
+.weekly-production-control-note-popover p,
+.weekly-production-control-note-popover small{
+  display: block;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}.weekly-production-control-note-popover strong{
+  color: var(--weekly-control-text, #0f172a);
+  font-size: 13px;
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: 17px;
+}.weekly-production-control-note-popover span{
+  color: var(--weekly-control-muted, #64748b);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}.weekly-production-control-note-popover em{
+  color: var(--weekly-control-danger-accent, #dc2626);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: 15px;
+}.weekly-production-control-note-popover p{
+  color: var(--weekly-control-text, #0f172a);
+  font-size: 12px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 17px;
+}.weekly-production-control-note-popover small{
+  color: var(--weekly-control-muted, #64748b);
+  font-size: 11px;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: 15px;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-report-cell{
+  white-space: normal;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-report-cell strong,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-report-cell span,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table td strong,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table td span{
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-report-cell strong,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table td strong{
+  color: var(--weekly-control-text);
+  font-size: var(--weekly-control-font-sm);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-report-cell span,
+main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table td span{
+  color: var(--weekly-control-muted);
+  font-size: var(--weekly-control-font-xs);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
 }

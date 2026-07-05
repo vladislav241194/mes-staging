@@ -52,3 +52,55 @@ main.app-shell[data-layout="app-shell"] [data-ui-component="StatusToken"].is-dem
   background: var(--mes-ui-status-demo-bg);
   color: var(--mes-ui-status-demo-text);
 }
+
+/* Legacy status/badge aliases kept alive through the same semantic tokens.
+   Gantt-specific status and deadline geometry stays in the Gantt layers. */
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) :is(
+  .status-pill,
+  .deadline-badge,
+  .supply-status-pill,
+  .supply-readonly-badge,
+  .shop-map-readonly-badge,
+  .auth-prototype-role-marker,
+  .shift-master-assignment-chip
+){
+  border-color: var(--mes-ui-status-neutral-border);
+  background: var(--mes-ui-status-neutral-bg);
+  color: var(--mes-ui-status-neutral-text);
+}
+
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) :is(
+  .status-pill.ok,
+  .status-pill.is-ok,
+  .status-pill.is-ready,
+  .supply-status-pill.is-ok,
+  .supply-status-pill.is-delivered
+){
+  border-color: var(--mes-ui-status-success-border);
+  background: var(--mes-ui-status-success-bg);
+  color: var(--mes-ui-status-success-text);
+}
+
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) :is(
+  .status-pill.warning,
+  .status-pill.is-warning,
+  .supply-status-pill.is-warning,
+  .supply-status-pill.is-partial,
+  .supply-status-pill.is-not_purchased
+){
+  border-color: var(--mes-ui-status-warning-border);
+  background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
+}
+
+main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) :is(
+  .status-pill.critical,
+  .status-pill.is-critical,
+  .status-pill.is-danger,
+  .supply-status-pill.is-danger,
+  .supply-status-pill.is-blocked
+){
+  border-color: var(--mes-ui-status-danger-border);
+  background: var(--mes-ui-status-danger-bg);
+  color: var(--mes-ui-status-danger-text);
+}

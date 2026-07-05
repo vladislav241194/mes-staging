@@ -60,7 +60,7 @@ export const UI_HARDENING_PLAN_STAGES = [
     id: "key-module-migration",
     title: "Миграция ключевых модулей",
     status: "closed",
-    requiredEvidence: ["key-modules-hard-runtime", "no-partial-runtime-modules", "no-legacy-runtime-modules"],
+    requiredEvidence: ["key-modules-explicit-runtime", "partial-runtime-modules-documented", "no-legacy-runtime-modules"],
   },
   {
     order: 10,

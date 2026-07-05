@@ -410,7 +410,7 @@ body,
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #e7eef7;
   color: #41546a;
   font-size: 10px;
@@ -433,7 +433,7 @@ body,
   font-weight: 720;
 }.director-flow-step em{
   min-width: 34px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f1f5f9;
   color: #334155;
   padding: 5px 8px;
@@ -471,15 +471,15 @@ body,
   gap: 2px 8px;
   align-items: center;
   min-width: 0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--mes-ui-status-neutral-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--mes-ui-surface);
   padding: 7px 8px;
-  color: #0f172a;
+  color: var(--mes-ui-text);
   text-align: left;
 }.director-order-chip:hover{
-  border-color: #93c5fd;
-  background: #f8fbff;
+  border-color: var(--mes-ui-status-info-border);
+  background: var(--mes-ui-status-info-bg);
 }.director-order-chip strong,
 .director-order-chip span{
   min-width: 0;
@@ -491,28 +491,28 @@ body,
   font-weight: 850;
 }.director-order-chip span{
   grid-column: 1;
-  color: #64748b;
+  color: var(--mes-ui-muted);
   font-size: 10px;
   font-weight: 700;
 }.director-order-chip em{
   grid-column: 2;
   grid-row: 1 / span 2;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #334155;
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-status-neutral-bg);
+  color: var(--mes-ui-status-neutral-text);
   padding: 4px 7px;
   font-size: 9px;
   font-style: normal;
   font-weight: 850;
   white-space: nowrap;
 }.director-order-chip.warning em{
-  background: #fff7ed;
-  color: #b26b00;
+  background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
 }.director-order-chip.critical{
-  border-color: #fecaca;
+  border-color: var(--mes-ui-status-danger-border);
 }.director-order-chip.critical em{
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--mes-ui-status-danger-bg);
+  color: var(--mes-ui-status-danger-text);
 }.toolbar-grid .dense-inline-select{
   min-width: 0;
 }.toolbar-grid .dense-inline-select summary{
@@ -603,7 +603,7 @@ body,
   flex: 0 0 auto;
   min-width: 28px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(255, 255, 255, 0.66);
   color: color-mix(in srgb, var(--slot-text), #000000 14%);
   font-size: 9px;

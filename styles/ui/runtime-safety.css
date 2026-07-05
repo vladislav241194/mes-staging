@@ -1,0 +1,169 @@
+/* Runtime safety layer.
+   Shared behavioral contracts live here instead of the legacy tail. Keep this
+   file focused on stability invariants, not on page-specific visual design. */
+
+/* Gantt scroll contract: the chart itself owns both axes.
+   Earlier compact layout passes accidentally hid vertical scrolling, so rows
+   below the viewport became unreachable. */
+main.app-shell[data-layout-page="gantt"] .gantt-shell[data-gantt-shell]{
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+/* Interaction stability contract: clickable controls must not move under the
+   pointer on hover/active. Even a 1px translate can create hover flicker and
+   make the first click miss on dense MES screens. */
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  a[href],
+  summary,
+  .module-tab,
+  .mobile-module-tab,
+  .module-menu-preset-main,
+  .module-menu-preset-save,
+  .ui-sidebar-item,
+  .directory-nav-item,
+  .planning-order-route-item,
+  .primary-button,
+  .secondary-button,
+  .icon-button,
+  .table-icon-button,
+  .app-topbar-action,
+  .dense-inline-select > summary
+){
+  transform: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  a[href],
+  summary,
+  .module-tab,
+  .mobile-module-tab,
+  .module-menu-preset-main,
+  .module-menu-preset-save,
+  .ui-sidebar-item,
+  .directory-nav-item,
+  .planning-order-route-item,
+  .primary-button,
+  .secondary-button,
+  .icon-button,
+  .table-icon-button,
+  .app-topbar-action,
+  .dense-inline-select > summary
+):is(:hover, :active, :focus, :focus-visible){
+  transform: none !important;
+}
+
+main.app-shell[data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-grid button,
+  .auth-prototype-unit-grid button,
+  .auth-prototype-people-grid button,
+  .auth-prototype-keypad button
+),
+main.app-shell[data-layout-page="authPrototype"] :is(
+  .auth-prototype-department-grid button,
+  .auth-prototype-unit-grid button,
+  .auth-prototype-people-grid button,
+  .auth-prototype-keypad button
+):is(:hover, :active, :focus, :focus-visible){
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  transform: none !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel),
+main.app-shell[data-layout="app-shell"] :is(.module-panel, .ui-panel, .kpi-card, .detail-card, .assistant-panel):hover{
+  transform: none;
+}
+
+/* Interaction flicker contract: controls in MES must react instantly and keep a
+   stable paint state. Old CSS layers still attach color/shadow transitions to
+   buttons and menu items; under load this looks like blinking and can make a
+   click land during a transient hover state. */
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  button:not(.shop-map-widget) *,
+  a[href],
+  a[href] *,
+  summary,
+  summary *,
+  [role="button"],
+  [role="button"] *,
+  .module-tab,
+  .module-tab *,
+  .mobile-module-tab,
+  .mobile-module-tab *,
+  .module-menu-preset-main,
+  .module-menu-preset-main *,
+  .module-menu-preset-save,
+  .module-menu-preset-save *,
+  .ui-sidebar-item,
+  .ui-sidebar-item *,
+  .directory-nav-item,
+  .directory-nav-item *,
+  .planning-order-route-item,
+  .planning-order-route-item *,
+  .primary-button,
+  .primary-button *,
+  .secondary-button,
+  .secondary-button *,
+  .icon-button,
+  .icon-button *,
+  .table-icon-button,
+  .table-icon-button *,
+  .app-topbar-action,
+  .app-topbar-action *,
+  .dense-inline-select > summary,
+  .dense-inline-select > summary *,
+  .operation-slot,
+  .operation-slot *
+){
+  animation: none !important;
+  transition: none !important;
+  transition-delay: 0s !important;
+  transition-duration: 0s !important;
+  will-change: auto !important;
+}
+
+main.app-shell[data-layout="app-shell"] :is(
+  button:not(.shop-map-widget),
+  a[href],
+  summary,
+  [role="button"],
+  .module-tab,
+  .mobile-module-tab,
+  .module-menu-preset-main,
+  .module-menu-preset-save,
+  .ui-sidebar-item,
+  .directory-nav-item,
+  .planning-order-route-item,
+  .primary-button,
+  .secondary-button,
+  .icon-button,
+  .table-icon-button,
+  .app-topbar-action,
+  .dense-inline-select > summary,
+  .operation-slot
+):is(:hover, :active, :focus, :focus-visible){
+  animation: none !important;
+  transition: none !important;
+  transition-delay: 0s !important;
+  transition-duration: 0s !important;
+}
+
+/* Gantt bar shape contract: operation bars are rectangular so split,
+   validation and fact overlays stay aligned. */
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot{
+  border-radius: 0 !important;
+}
+
+/* The live Gantt has highly specific segmented-state rules. Keep every visible
+   piece of a bar square. */
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] .gantt-shell[data-gantt-shell] .operation-slot :is(.slot-working-segment.is-slot-start, .slot-working-segment.is-slot-end, .slot-non-working-segment.is-slot-start, .slot-non-working-segment.is-slot-end, .slot-working-segment.is-continuation-start, .slot-working-segment.is-continuation-end, .slot-non-working-segment.is-continuation-start, .slot-non-working-segment.is-continuation-end, .slot-accent, .resize-handle){
+  border-radius: 0 !important;
+}

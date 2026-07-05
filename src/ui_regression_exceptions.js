@@ -45,7 +45,6 @@ export const UI_REGRESSION_MODULE_PROFILES = {
   authSessionPrototype: { type: "contract", hasTable: false, hasActions: true, hasOverlayProbe: true },
   roles: { type: "contract", hasTable: true, hasActions: true },
   planningTable: { type: "contract", hasTable: true, hasActions: true },
-  matrix: { type: "contract", hasTable: true, hasActions: true },
   supply: { type: "contract", hasTable: true, hasActions: true },
   shopMap: { type: "special-runtime", hasTable: true, hasActions: true },
   visualSystem: {

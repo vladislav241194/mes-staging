@@ -175,7 +175,7 @@ shop map and operational module CSS.
   align-items: center;
   min-height: 32px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--surface-soft);
   color: var(--text);
   padding: 0 12px;
@@ -342,7 +342,7 @@ shop map and operational module CSS.
   width: fit-content;
   max-width: 100%;
   min-height: 18px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(37, 99, 235, 0.1);
   color: #1d4ed8;
   padding: 0 7px;
@@ -356,7 +356,7 @@ shop map and operational module CSS.
   bottom: -19px;
   min-height: 16px;
   border: 1px solid rgba(37, 99, 235, 0.24);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(255, 255, 255, 0.94);
   color: #1d4ed8;
   padding: 1px 6px;
@@ -431,7 +431,7 @@ shop map and operational module CSS.
   align-items: center;
   min-height: 24px;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f8fafc;
   color: #475569;
   padding: 2px 8px;
@@ -514,7 +514,7 @@ shop map and operational module CSS.
 }.production-flow-load{
   overflow: hidden;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #e2e8f0;
 }.production-flow-load span{
   display: block;
@@ -553,7 +553,7 @@ shop map and operational module CSS.
   gap: 4px;
   min-width: 0;
 }.production-flow-node-foot em{
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f1f5f9;
   color: #475569;
   padding: 2px 6px;
@@ -711,7 +711,7 @@ shop map and operational module CSS.
 }.production-flow-legend i{
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #94a3b8;
 }.production-flow-legend i.is-active{
   background: #2563eb;
@@ -823,7 +823,7 @@ shop map and operational module CSS.
   justify-self: end;
   max-width: 150px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: rgba(37, 99, 235, 0.1);
   color: #1d4ed8;
   padding: 4px 8px;
@@ -851,7 +851,7 @@ shop map and operational module CSS.
     min-height: 18px;
     gap: 0;
     border-width: 2px;
-    border-radius: 999px;
+    border-radius: var(--mes-ui-pill);
     background: rgba(37, 99, 235, 0.78);
     box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.88), 0 8px 18px rgba(15, 23, 42, 0.18);
     padding: 0;
@@ -1154,7 +1154,7 @@ body,
     content: "";
     position: absolute;
     inset: 7px;
-    border-radius: 999px;
+    border-radius: var(--mes-ui-pill);
     background: rgba(255, 255, 255, 0.72);
   }}@media (max-width: 480px) {.app-topbar{
     min-width: 0;
@@ -1322,7 +1322,7 @@ body,
   max-width: 100%;
   min-height: 26px;
   border: 1px solid #d7dee8;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f8fafc;
   color: #475569;
   padding: 4px 10px;
@@ -1584,7 +1584,7 @@ not the operations block. */
   max-width: calc(100% - 2px);
   height: 6px;
   border: 1px solid rgba(37, 99, 235, 0.36);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: linear-gradient(90deg, rgba(37, 99, 235, 0.92), rgba(96, 165, 250, 0.74));
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.18);
   transform: translateX(-50%);
@@ -1918,7 +1918,7 @@ not the operations block. */
 }.app-shell[data-layout-page="planning"] .planning-flow-wip-bar{
   height: 5px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #e2e8f0;
 }.app-shell[data-layout-page="planning"] .planning-flow-wip-bar i{
   display: block;
@@ -2099,8 +2099,8 @@ not the operations block. */
 }.auth-prototype-app-shell .auth-prototype-people-grid button{
   position: relative;
 }.auth-prototype-app-shell .auth-prototype-people-grid button.is-auth-master{
-  border-color: var(--mes-ui-line, #e2e8f0);
-  background: #fff;
+  border-color: var(--mes-ui-line);
+  background: var(--mes-ui-surface);
   box-shadow: none;
   padding-right: 72px;
 }.auth-prototype-app-shell .auth-prototype-role-marker{
@@ -2112,10 +2112,10 @@ not the operations block. */
   min-width: 48px;
   height: 20px;
   padding: 0 8px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
-  color: rgba(15, 23, 42, 0.72);
+  border: 1px solid var(--mes-ui-status-neutral-border);
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-status-neutral-bg);
+  color: var(--mes-ui-status-neutral-text);
   font-size: 9px;
   font-style: normal;
   font-weight: 760;
@@ -2288,7 +2288,7 @@ not the operations block. */
   width: 16px;
   height: 16px;
   border: 1px solid rgba(148, 163, 184, 0.26);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #fff;
 }.auth-prototype-app-shell .auth-prototype-pin-display span.is-filled{
   border-color: rgba(37, 99, 235, 0.36);

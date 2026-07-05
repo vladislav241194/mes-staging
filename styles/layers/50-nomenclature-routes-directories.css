@@ -473,7 +473,7 @@ directories and table refinements.
   min-width: 0;
   min-height: 26px;
   border: 1px solid #dbe3ec;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f8fafc;
   color: #475569;
   padding: 0 8px;
@@ -512,7 +512,7 @@ directories and table refinements.
   right: 6px;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #dc2626;
   content: "";
 }.speki-structure-table td.is-speki-field-missing .dense-inline-select > summary,
@@ -536,7 +536,7 @@ directories and table refinements.
   right: 6px;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f59e0b;
   content: "";
 }.speki-structure-table td.is-speki-field-stale .dense-inline-select > summary,
@@ -560,7 +560,7 @@ directories and table refinements.
   right: 6px;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f97316;
   content: "";
 }.speki-structure-table td.is-speki-field-duplicate .dense-inline-select > summary,
@@ -594,7 +594,7 @@ directories and table refinements.
   min-height: 24px;
   padding: 0 8px;
   border: 1px solid #dbe3ec;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: #f8fafc;
   color: #64748b;
   font-size: 11px;
@@ -660,7 +660,7 @@ directories and table refinements.
 }.speki-structure-table .dense-select-spekiStructureType > summary{
   grid-template-columns: minmax(0, 1fr) auto;
   min-height: 26px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   padding: 2px 6px 2px 8px;
 }.speki-structure-table .dense-select-spekiStructureNomenclatureType > summary{
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1115,7 +1115,7 @@ directories and table refinements.
   max-width: 72px;
   min-height: 22px;
   border: 1px solid var(--mes-neutral-border);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-neutral-soft);
   color: var(--mes-neutral);
   padding: 1px 8px;
@@ -1802,13 +1802,11 @@ textarea:focus,
 }.segment.is-active{
   background: var(--mes-surface);
   color: var(--mes-primary);
-}.status-pill,
-.production-status,
-.deadline-badge,
+}.production-status,
 .outside-route{
   min-height: 22px;
   border: 1px solid var(--mes-neutral-border);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-neutral-soft);
   color: var(--mes-neutral);
   padding: 1px 8px;
@@ -1867,7 +1865,7 @@ textarea:focus,
   min-width: 24px;
   min-height: 20px;
   border: 1px solid var(--mes-neutral-border);
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-neutral-soft);
   color: var(--mes-neutral);
   padding: 1px 7px;
@@ -2397,7 +2395,7 @@ body,
   justify-content: center;
   min-width: 24px;
   min-height: 20px;
-  border-radius: 999px;
+  border-radius: var(--mes-ui-pill);
   background: var(--mes-surface);
   color: currentColor;
   font-size: 11px;
