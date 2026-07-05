@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { HARD_UI_RUNTIME_MODULE_IDS, SPECIAL_UI_RUNTIME_MODULE_IDS } from "../src/ui_runtime_contracts.js";
+import { HARD_UI_RUNTIME_MODULE_IDS, PARTIAL_UI_RUNTIME_MODULE_IDS, SPECIAL_UI_RUNTIME_MODULE_IDS } from "../src/ui_runtime_contracts.js";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultUrl = new URL("/", process.env.MES_QA_URL || "http://localhost:4174/").toString();
@@ -14,11 +14,11 @@ const uiStorageKey = "mes-planning-prototype-ui-v1";
 const viewports = [
   { name: "macbook-air-15", width: 1710, height: 1112, mobile: false },
 ];
-const moduleIds = ["visualSystem", "gantt", "planning", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "matrix", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "supply", "shopMap", "directories"];
-const focusModuleIds = ["gantt", "planning", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "matrix", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "supply", "shopMap", "directories"];
+const moduleIds = ["visualSystem", "gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "supply", "shopMap", "directories"];
+const focusModuleIds = ["gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "supply", "shopMap", "directories"];
 const authVisualModuleIds = ["authPrototype"];
 const visualRuntimeModuleIds = [...moduleIds, ...authVisualModuleIds];
-const expectedVisualRuntimeModuleIds = [...SPECIAL_UI_RUNTIME_MODULE_IDS, ...HARD_UI_RUNTIME_MODULE_IDS];
+const expectedVisualRuntimeModuleIds = [...SPECIAL_UI_RUNTIME_MODULE_IDS, ...HARD_UI_RUNTIME_MODULE_IDS, ...PARTIAL_UI_RUNTIME_MODULE_IDS];
 const missingVisualRuntimeModuleIds = expectedVisualRuntimeModuleIds.filter((moduleId) => !visualRuntimeModuleIds.includes(moduleId));
 if (missingVisualRuntimeModuleIds.length) {
   throw new Error(`design-qa-snapshots is missing runtime modules: ${missingVisualRuntimeModuleIds.join(", ")}`);

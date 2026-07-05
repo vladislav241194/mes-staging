@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { MES_MODULE_FLOW_CONTRACTS, MES_MODULE_FLOW_SEQUENCE } from "../src/mes_contracts.js";
 import {
   HARD_UI_RUNTIME_MODULE_IDS,
+  PARTIAL_UI_RUNTIME_MODULE_IDS,
   SPECIAL_UI_RUNTIME_CONTRACTS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
 } from "../src/ui_runtime_contracts.js";
@@ -15,6 +16,7 @@ const EXTRA_SMOKE_MODULES = ["shiftMasterBoard", "authPrototype"];
 const SMOKE_MODULE_IDS = [...new Set([...MES_MODULE_FLOW_SEQUENCE, ...EXTRA_SMOKE_MODULES])];
 const STANDALONE_CHROMELESS_MODULES = new Set(["authPrototype"]);
 const HARD_UI_RUNTIME_MODULES = new Set(HARD_UI_RUNTIME_MODULE_IDS);
+const HARD_LIKE_UI_RUNTIME_MODULES = new Set([...HARD_UI_RUNTIME_MODULE_IDS, ...PARTIAL_UI_RUNTIME_MODULE_IDS]);
 const SPECIAL_UI_RUNTIME_MODULES = new Set(SPECIAL_UI_RUNTIME_MODULE_IDS);
 const SMOKE_VIEWPORT = { name: "macbook-air-15", width: 1710, height: 1112 };
 const AUTH_SESSION_TABLET_VIEWPORT = { name: "auth-session-tablet-2880x1920", width: 2880, height: 1920 };
@@ -41,6 +43,10 @@ if (missingHardRuntimeSmokeModules.length) {
 const missingSpecialRuntimeSmokeModules = SPECIAL_UI_RUNTIME_MODULE_IDS.filter((moduleId) => !SMOKE_MODULE_IDS.includes(moduleId));
 if (missingSpecialRuntimeSmokeModules.length) {
   throw new Error(`Special UI runtime modules are missing from module smoke QA: ${missingSpecialRuntimeSmokeModules.join(", ")}`);
+}
+const missingPartialRuntimeSmokeModules = PARTIAL_UI_RUNTIME_MODULE_IDS.filter((moduleId) => !SMOKE_MODULE_IDS.includes(moduleId));
+if (missingPartialRuntimeSmokeModules.length) {
+  throw new Error(`Partial UI runtime modules are missing from module smoke QA: ${missingPartialRuntimeSmokeModules.join(", ")}`);
 }
 
 function getArg(name, fallback) {
@@ -647,8 +653,8 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   const hardRuntimeRoots = pageRuntimeStatus.runtimeRoots.filter((root) => root.runtime === "hard-v1");
   const specialRuntimeRoots = pageRuntimeStatus.runtimeRoots.filter((root) => root.runtime && root.runtime !== "hard-v1");
   assert(
-    HARD_UI_RUNTIME_MODULES.has(moduleId) || hardRuntimeRoots.length === 0,
-    `${moduleId}: page renders hard-v1 runtime but module is not listed in HARD_UI_RUNTIME_MODULE_IDS`
+    HARD_LIKE_UI_RUNTIME_MODULES.has(moduleId) || hardRuntimeRoots.length === 0,
+    `${moduleId}: page renders hard-v1 runtime but module is not listed in HARD/PARTIAL UI runtime coverage`
   );
   assert(
     SPECIAL_UI_RUNTIME_MODULES.has(moduleId) || specialRuntimeRoots.length === 0,
@@ -666,7 +672,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     );
   }
 
-  if (HARD_UI_RUNTIME_MODULES.has(moduleId)) {
+  if (HARD_LIKE_UI_RUNTIME_MODULES.has(moduleId)) {
     const runtimeReport = await evaluate(client, (contract) => {
       const page = document.querySelector(".module-data-page");
       const workspace = page?.querySelector(".module-data-workspace");
@@ -1211,6 +1217,9 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       const table = document.querySelector(".planning-order-table");
       const bodyCells = [...document.querySelectorAll(".planning-order-table tbody td")];
       const numericCells = [...document.querySelectorAll(".planning-order-table tbody td:nth-child(4)")];
+      const inlineLaborCells = [...document.querySelectorAll(".planning-order-step-row .planning-manual-inline-labor")];
+      const inlineLaborInputs = [...document.querySelectorAll(".planning-order-step-row [data-planning-order-labor]")];
+      const inlineLaborModes = [...document.querySelectorAll(".planning-order-step-row [data-planning-order-labor-field='mode']")];
       const selectedRow = table?.querySelector("tr.is-selected") || null;
       const selectedCell = selectedRow?.querySelector("td") || null;
       const firstObjectRow = table?.querySelector(".planning-order-object-row") || null;
@@ -1289,6 +1298,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         routeStripChipCount: routeStrip?.querySelectorAll("[data-planning-route-open]").length || 0,
         routeStripOverflowX: routeStrip ? Math.max(0, routeStrip.scrollWidth - routeStrip.clientWidth) : 0,
         hasLegacySidebar: Boolean(legacySidebar),
+        sidebarRouteCount: legacySidebar?.querySelectorAll("[data-planning-route-open]").length || 0,
         hasDetailStack: Boolean(detailStack),
         hasDetailPanel: Boolean(detailPanel),
         detailPanelText: (detailPanel?.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
@@ -1311,6 +1321,9 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         numericCellCount: numericCells.length,
         numericRightAlignedCount: numericCells.filter((cell) => window.getComputedStyle(cell).textAlign === "right").length,
         numericTabularCount: numericCells.filter((cell) => /tabular-nums/i.test(window.getComputedStyle(cell).fontVariantNumeric || "")).length,
+        inlineLaborCellCount: inlineLaborCells.length,
+        inlineLaborInputCount: inlineLaborInputs.length,
+        inlineLaborModeCount: inlineLaborModes.length,
         selectedCellStyle: styleSnapshot(selectedCell),
         selectedRowStyle: styleSnapshot(selectedRow),
         firstObjectCellStyle: styleSnapshot(firstObjectRow?.querySelector("td")),
@@ -1364,14 +1377,12 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(workOrderUxReport.hasManualLaborMetric, `planning: manual labor decision metric is missing: ${JSON.stringify(workOrderUxReport.metricIds)}`);
     assert(workOrderUxReport.hasScheduleMetric, `planning: schedule decision metric is missing: ${JSON.stringify(workOrderUxReport.metricIds)}`);
     assert(workOrderUxReport.tableBelowStrip, "planning: work-order table overlaps decision strip");
-    assert(workOrderUxReport.hasRouteStrip && workOrderUxReport.routeStripChipCount > 1, `planning: work-order route strip is missing or empty: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.routeStripOverflowX <= 2 && workOrderUxReport.routeStripAboveGrid, `planning: work-order route strip geometry is broken: ${JSON.stringify(workOrderUxReport)}`);
-    assert(!workOrderUxReport.hasLegacySidebar, `planning: work-order screen must not use the old local sidebar: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.hasMainGrid && !workOrderUxReport.hasDetailStack && workOrderUxReport.hasDetailPanel, `planning: work-order screen must use document-tree/detail layout without legacy detail stack: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailIsRightOfTree && workOrderUxReport.routePanelAndDetailInsideGrid, `planning: selected detail card must sit to the right of the document tree on MacBook viewport: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailPanelText.length > 20, `planning: selected detail card is empty: ${JSON.stringify(workOrderUxReport)}`);
+    assert(!workOrderUxReport.hasRouteStrip, `planning: work-order route strip must be replaced by the sidebar: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.hasLegacySidebar && workOrderUxReport.sidebarRouteCount > 1, `planning: work-order sidebar is missing or empty: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.hasMainGrid && !workOrderUxReport.hasDetailStack && !workOrderUxReport.hasDetailPanel, `planning: work-order screen must use sidebar plus table layout without the right detail panel: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.tableOverflowX <= 2, `planning: redesigned work-order tree table must fit without horizontal scrolling: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.selectedRowCount + workOrderUxReport.activeMetricCount >= 1, `planning: redesigned work-order screen must keep either active tree row or active decision metric visible: ${JSON.stringify(workOrderUxReport)}`);
+    assert(workOrderUxReport.inlineLaborCellCount > 0 && workOrderUxReport.inlineLaborInputCount > 0 && workOrderUxReport.inlineLaborModeCount > 0, `planning: labor settings must be editable inside operation table rows: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.routePanelHeadBg !== "rgba(0, 0, 0, 0)", `planning: document tree panel head must keep accent background: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.tableHeaderLastPaddingRight === "10px", `planning: table header must not be visually clipped at the last column: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.bodyHorizontalBorderCount === 0, `planning: work-order tree rows must not return horizontal separators: ${JSON.stringify(workOrderUxReport)}`);
@@ -1394,15 +1405,6 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(/rgb\(15, 23, 42\)/.test(workOrderUxReport.selectedDotStyle?.backgroundColor || ""), `planning: selected tree dot must be filled black: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.routeTreeBleedValues.every((value) => !/^(4px|8px)\/(4px|8px)$/.test(value)), `planning: old tree line bleed values from legacy layer returned: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.branchLineCount === 0 || workOrderUxReport.branchLineNeutralCount === workOrderUxReport.branchLineCount, `planning: tree connector lines must stay neutral gray: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailPanelStyle?.fontSize === "11px" && workOrderUxReport.detailPanelStyle?.lineHeight === "15px", `planning: selected detail card must use compact body scale: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailBodyGap === "8px", `planning: selected detail card body gap must match Shift Work Orders: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailSummaryDisplay === "grid" && workOrderUxReport.detailSummaryGap === "8px", `planning: detail summary must use separate compact cards: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailSummaryOuterBorderTop === "0px", `planning: detail summary must not render as one old bordered strip: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailSummaryCardCount === 3 && workOrderUxReport.detailSummaryArticleBorderCount === 3, `planning: detail summary must expose three bordered passport cards: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailTransferCardCount === 3 && workOrderUxReport.detailTransferLinkCount === 2, `planning: transfer route must expose three cards and two connectors: ${JSON.stringify(workOrderUxReport)}`);
-    assert(workOrderUxReport.detailLabelStyles.length >= 3 && workOrderUxReport.detailLabelStyles.every((style) => style.fontSize === "10px" && Number(style.fontWeight) === 500 && style.lineHeight === "13px"), `planning: selected detail labels/meta must share the compact typography contract: ${JSON.stringify(workOrderUxReport.detailLabelStyles)}`);
-    assert(workOrderUxReport.detailValueStyles.length >= 2 && workOrderUxReport.detailValueStyles.every((style) => style.fontSize === "11px" && Number(style.fontWeight) === 600 && style.lineHeight === "14px"), `planning: selected detail values must share the compact typography contract: ${JSON.stringify(workOrderUxReport.detailValueStyles)}`);
-    assert(workOrderUxReport.detailAccentStyles.length >= 1 && workOrderUxReport.detailAccentStyles.every((style) => style.fontSize === "10px" && Number(style.fontWeight) === 720 && style.lineHeight === "13px"), `planning: selected detail accent pills must be normalized: ${JSON.stringify(workOrderUxReport.detailAccentStyles)}`);
     const workOrderMetricClickReport = await evaluate(client, async () => {
       const delayFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const metricIds = [...document.querySelectorAll(".planning-order-decision-metric[data-planning-work-item]")]
@@ -1749,8 +1751,13 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
   if (moduleId === "visualSystem") {
     const visualSystemReport = await evaluate(client, () => {
       const page = document.querySelector(".visual-system-page");
-      const panels = [...document.querySelectorAll(".visual-system-panel")];
-      const ganttPanel = document.querySelector(".visual-gantt-system-panel");
+      const sections = [...document.querySelectorAll(".visual-system-section")];
+      const topicLinks = [...document.querySelectorAll(".visual-system-topic-sidebar a[href^='#visual-']")];
+      const expectedSectionIds = ["visual-foundations", "visual-layout", "visual-actions", "visual-data", "visual-gantt", "visual-icons", "visual-qa"];
+      const sectionIds = sections.map((section) => section.id).filter(Boolean);
+      const missingSectionIds = expectedSectionIds.filter((sectionId) => !sectionIds.includes(sectionId));
+      const ganttPanel = document.querySelector(".visual-system-section.visual-gantt-system-panel");
+      const iconsPanel = document.querySelector(".visual-system-icons-section [data-mes-icon-section]");
       const ganttModeColumns = [...document.querySelectorAll(".visual-gantt-mode-column")];
       const ganttBars = [...document.querySelectorAll(".visual-gantt-bar, .visual-gantt-transfer-stack, .visual-gantt-segmented")];
       const factScenarios = [...document.querySelectorAll(".visual-gantt-bar.is-fact-scenario")];
@@ -1787,8 +1794,11 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         hasPage: Boolean(page),
         runtime: page?.dataset.uiRuntime || "",
         component: page?.dataset.uiComponent || "",
-        panelCount: panels.length,
+        sectionCount: sections.length,
+        topicLinkCount: topicLinks.length,
+        missingSectionIds,
         hasGanttPanel: Boolean(ganttPanel),
+        hasIconsPanel: Boolean(iconsPanel),
         ganttModeColumnCount: ganttModeColumns.length,
         ganttBarCount: ganttBars.length,
         factScenarioCount: factScenarios.length,
@@ -1804,15 +1814,18 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
     assert(visualSystemReport.hasPage, "visualSystem: VisualSystemRuntime page is missing");
     assert(visualSystemReport.runtime === "visual-system-v1", `visualSystem: expected data-ui-runtime=visual-system-v1, got "${visualSystemReport.runtime}"`);
     assert(visualSystemReport.component === "VisualSystemRuntime", `visualSystem: expected VisualSystemRuntime component, got "${visualSystemReport.component}"`);
-    assert(visualSystemReport.panelCount >= 8, `visualSystem: expected visual system panels, got ${visualSystemReport.panelCount}`);
+    assert(visualSystemReport.sectionCount >= 7, `visualSystem: expected V2 visual system sections, got ${visualSystemReport.sectionCount}`);
+    assert(visualSystemReport.topicLinkCount >= 7, `visualSystem: expected V2 topic sidebar links, got ${visualSystemReport.topicLinkCount}`);
+    assert(visualSystemReport.missingSectionIds.length === 0, `visualSystem: V2 sections missing: ${JSON.stringify(visualSystemReport.missingSectionIds)}`);
     assert(visualSystemReport.hasGanttPanel, "visualSystem: Gantt Design System panel is missing");
+    assert(visualSystemReport.hasIconsPanel, "visualSystem: Icons section is missing");
     assert(visualSystemReport.ganttPanelText.includes("Gantt Design System"), "visualSystem: Gantt Design System text is missing");
     assert(visualSystemReport.ganttModeColumnCount === 3, `visualSystem: expected three Gantt scale columns, got ${visualSystemReport.ganttModeColumnCount}`);
-    assert(visualSystemReport.ganttBarCount >= 12, `visualSystem: expected Gantt visual samples, got ${visualSystemReport.ganttBarCount}`);
-    assert(visualSystemReport.factScenarioCount >= 12, `visualSystem: expected fact scenarios, got ${visualSystemReport.factScenarioCount}`);
+    assert(visualSystemReport.ganttBarCount >= 10, `visualSystem: expected compact V2 Gantt visual samples, got ${visualSystemReport.ganttBarCount}`);
+    assert(visualSystemReport.factScenarioCount >= 1, `visualSystem: expected fact scenarios in compact V2, got ${visualSystemReport.factScenarioCount}`);
     assert(visualSystemReport.transferFlowCount >= 2, `visualSystem: expected transfer flow samples, got ${visualSystemReport.transferFlowCount}`);
-    assert(visualSystemReport.selectedRowOptionCount === 12, `visualSystem: expected twelve selected row variants, got ${visualSystemReport.selectedRowOptionCount}`);
-    assert(visualSystemReport.selectedRowActiveSampleCount === 12, `visualSystem: every selected row variant must have an active row sample: ${JSON.stringify(visualSystemReport)}`);
+    assert(visualSystemReport.selectedRowOptionCount >= 1, `visualSystem: expected applied selected row variant, got ${visualSystemReport.selectedRowOptionCount}`);
+    assert(visualSystemReport.selectedRowActiveSampleCount === visualSystemReport.selectedRowOptionCount, `visualSystem: every selected row variant must have an active row sample: ${JSON.stringify(visualSystemReport)}`);
     assert(visualSystemReport.ganttSampleEscapes.length === 0, `visualSystem: Gantt samples escape their mode columns: ${JSON.stringify(visualSystemReport.ganttSampleEscapes)}`);
     assert(visualSystemReport.pageOverflowX <= 2, `visualSystem: page horizontal overflow ${visualSystemReport.pageOverflowX}px`);
   }

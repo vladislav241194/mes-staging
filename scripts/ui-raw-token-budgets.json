@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "mode": "raw-token-budget",
+  "generatedAt": "2026-07-05T18:24:51.430Z",
+  "budgets": {
+    "rawHexUsages": 1845,
+    "uniqueHexColors": 223,
+    "importantUsages": 2920,
+    "fontSizePxDeclarations": 758,
+    "fontWeightLiteralDeclarations": 459,
+    "lineHeightRawDeclarations": 588,
+    "borderRadiusPxDeclarations": 199,
+    "spacingPositionPxDeclarations": 2040
+  }
+}

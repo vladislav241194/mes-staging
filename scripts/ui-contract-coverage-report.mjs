@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 
 import { MES_MODULE_FLOW_CONTRACTS } from "../src/mes_contracts.js";
 import {
+  PARTIAL_UI_RUNTIME_CONTRACTS,
   SPECIAL_UI_RUNTIME_CONTRACTS,
   getUiRuntimeCoverageStatus,
 } from "../src/ui_runtime_contracts.js";
@@ -17,7 +18,6 @@ const coverageModules = [
   "shiftMasterBoard",
   "authSessionPrototype",
   "shiftWorkOrders",
-  "matrix",
   "routes",
   "products",
   "nomenclature",
@@ -247,6 +247,7 @@ function getRegistryStatus(moduleId) {
 function resolveDomStatus(moduleId, report) {
   const registryStatus = getRegistryStatus(moduleId);
   if (registryStatus === "special-runtime") return registryStatus;
+  if (registryStatus === "partial") return registryStatus;
   if (registryStatus === "unknown") return "unknown";
   if (!report.appShell || !report.components.ModulePage) return "legacy";
   if (!report.components.ModuleHeader || !report.components.Panel) return "partial";
@@ -258,6 +259,9 @@ function getExceptionReason(moduleId, status, components) {
     const contract = SPECIAL_UI_RUNTIME_CONTRACTS[moduleId];
     return contract?.component ? `${contract.runtime}: ${contract.component}` : "special runtime";
   }
+  if (status === "partial") {
+    return PARTIAL_UI_RUNTIME_CONTRACTS[moduleId]?.reason || "partial runtime contract";
+  }
   if (!components.TableWrap && ["authPrototype", "authSessionPrototype", "shopMap", "timesheet", "productionStructureMatrix"].includes(moduleId)) {
     return "layout/data-dense module: TableWrap may be absent or specialized on some states";
   }
@@ -265,12 +269,15 @@ function getExceptionReason(moduleId, status, components) {
 }
 
 function getNextMigration(moduleId, components) {
+  if (PARTIAL_UI_RUNTIME_CONTRACTS[moduleId]?.nextMigration) {
+    return PARTIAL_UI_RUNTIME_CONTRACTS[moduleId].nextMigration;
+  }
   const missing = [];
   if (!components.ModulePage) missing.push("ModulePage");
   if (!components.ModuleHeader) missing.push("ModuleHeader");
   if (!components.Panel) missing.push("Panel");
   if (!components.ActionBar) missing.push("ActionBar/Toolbar");
-  if (!components.TableWrap && ["planning", "shiftWorkOrders", "routes", "products", "nomenclature", "directories", "planningTable", "matrix", "roles"].includes(moduleId)) {
+  if (!components.TableWrap && ["planning", "shiftWorkOrders", "routes", "products", "nomenclature", "directories", "planningTable", "roles"].includes(moduleId)) {
     missing.push("TableWrap");
   }
   if (!components.StatusToken && ["planning", "shiftWorkOrders", "routes", "supply", "roles"].includes(moduleId)) {

@@ -499,11 +499,24 @@ async function closeFactFromWorkDesk(client, scenario) {
     await wait(120);
     const startClicked = clickByAttribute("[data-auth-session-start-task]", "data-auth-session-start-task", taskId);
     await wait(120);
-    await typeNumber("actual", actualQuantity);
-    await typeNumber("defect", 0);
-    const saveClicked = clickByAttribute("[data-auth-session-save-fact]", "data-auth-session-save-fact", taskId);
-    await wait(220);
-    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+	    await typeNumber("actual", actualQuantity);
+	    await typeNumber("defect", 0);
+	    const deviationComment = actualQuantity < assignedQuantity * 0.95
+	      ? "QA: факт ниже плана, проверка переноса остатка."
+	      : "";
+	    let deviationCommentFilled = false;
+	    if (deviationComment) {
+	      const commentField = document.querySelector(`[data-auth-session-deviation-comment="${CSS.escape(taskId)}"]`);
+	      if (commentField) {
+	        commentField.value = deviationComment;
+	        commentField.dispatchEvent(new Event("input", { bubbles: true }));
+	        deviationCommentFilled = true;
+	        await wait(80);
+	      }
+	    }
+	    const saveClicked = clickByAttribute("[data-auth-session-save-fact]", "data-auth-session-save-fact", taskId);
+	    await wait(220);
+	    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
     const storedFact = ui.shiftMasterBoardFacts?.[rowId] || null;
     const carryovers = Object.values(ui.shiftMasterBoardCarryovers || {}).filter((item) => item?.sourceRowId === rowId);
     const draft = ui.authSessionFactDrafts?.[taskId] || null;
@@ -511,10 +524,11 @@ async function closeFactFromWorkDesk(client, scenario) {
       taskId,
       taskSelected,
       startClicked,
-      saveClicked,
-      assignedQuantity,
-      actualQuantity,
-      draft,
+	      saveClicked,
+	      deviationCommentFilled,
+	      assignedQuantity,
+	      actualQuantity,
+	      draft,
       fact: storedFact,
       carryovers,
       visibleTaskCount: document.querySelectorAll("[data-auth-session-task]").length,

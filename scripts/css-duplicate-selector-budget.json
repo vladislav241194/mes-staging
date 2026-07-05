@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "mode": "corrective-phase-b-duplicate-budget",
+  "maxDuplicateSelectorGroups": 347,
+  "maxLargestDuplicateSelectorGroup": 12,
+  "maxExactDuplicateRuleGroups": 0,
+  "collapsedSelectorFamilies": [
+    {
+      "id": "generic-status-pill",
+      "match": "status-pill",
+      "exclude": "gantt|mes-signal",
+      "maxDuplicateGroups": 0
+    },
+    {
+      "id": "generic-deadline-badge",
+      "match": "deadline-badge",
+      "exclude": "gantt|mes-signal",
+      "maxDuplicateGroups": 0
+    }
+  ]
+}

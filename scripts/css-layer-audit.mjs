@@ -21,6 +21,8 @@ const expectedLayerImports = [
   "./styles/layers/80-visual-system-ui-states.css",
   "./styles/layers/90-shift-master-board.css",
   "./styles/layers/99-legacy-overrides-tail.css",
+  "./styles/ui/planning-order.css",
+  "./styles/ui/runtime-safety.css",
   "./styles/ui/actions.css",
   "./styles/ui/status.css",
   "./styles/ui/kit-polish.css",
@@ -177,6 +179,28 @@ function assertManifestOnlyStylesheet(source, file) {
   }
 }
 
+function assertCriticalLayerContracts(sourceMap) {
+  const legacyTail = sourceMap.get("styles/layers/99-legacy-overrides-tail.css")?.source || "";
+  const planningOrder = sourceMap.get("styles/ui/planning-order.css")?.source || "";
+  const runtimeSafety = sourceMap.get("styles/ui/runtime-safety.css")?.source || "";
+  const planningMarker = "Planning v1.491";
+  const planningShellSelector = "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-page";
+  const runtimeSafetySelector = "button:not(.shop-map-widget)";
+
+  if (!planningOrder.includes(planningMarker)) {
+    fail("styles/ui/planning-order.css: missing Planning v1.491 marker; planning order CSS may have moved or been partially dropped.");
+  }
+  if (!planningOrder.includes(planningShellSelector)) {
+    fail("styles/ui/planning-order.css: missing planning page shell selector; planning order layout contract is not guarded.");
+  }
+  if (legacyTail.includes(planningMarker)) {
+    fail("styles/layers/99-legacy-overrides-tail.css: Planning v1.491 rules returned to legacy tail; keep them in styles/ui/planning-order.css.");
+  }
+  if (!runtimeSafety.includes(runtimeSafetySelector)) {
+    fail("styles/ui/runtime-safety.css: missing interaction stability guard; runtime safety layer may have been dropped.");
+  }
+}
+
 async function collectCssSources(file, seen = new Set()) {
   const normalizedFile = toPosixPath(file);
   if (seen.has(normalizedFile)) return [];
@@ -201,6 +225,7 @@ for (const file of entryFiles) {
 const sources = [...cssSourceMap.values()];
 
 assertManifestOnlyStylesheet((await fs.readFile(path.join(rootDir, "styles.css"), "utf8")), "styles.css");
+assertCriticalLayerContracts(cssSourceMap);
 sources.forEach(({ file, source }) => assertBalancedCssBlocks(source, file));
 
 const rules = sources.flatMap(({ file, source }) => collectRules(source, file));

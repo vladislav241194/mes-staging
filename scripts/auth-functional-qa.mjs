@@ -3,7 +3,7 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const defaultUrl = new URL("/?module=gantt&qa=auth-functional", process.env.MES_QA_URL || "http://localhost:4174/").toString();
+const defaultUrl = new URL("/?module=authPrototype&qa=auth-functional", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const authStorageKey = "mes-planning-prototype-auth-session-v1";
 const uiStorageKey = "mes-planning-prototype-ui-v1";
 
@@ -276,7 +276,24 @@ async function completeAuthSelection(client) {
   await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-person]")));
   await verifyAuthMasterRoleMarker(client);
   await clickByText(client, "[data-auth-person]", "Алексеев Егор Максимович");
-  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-pin-digit]")));
+  return await waitForPinOrUnlocked(client);
+}
+
+async function waitForPinOrUnlocked(client) {
+  return await waitForCondition(client, () => {
+    const shell = document.querySelector("main.app-shell");
+    const pageId = shell?.dataset?.layoutPage || "";
+    const sessionRaw = localStorage.getItem("mes-planning-prototype-auth-session-v1");
+    let session = null;
+    try {
+      session = sessionRaw ? JSON.parse(sessionRaw) : null;
+    } catch {
+      session = null;
+    }
+    if (document.querySelector("[data-auth-pin-digit]")) return { mode: "pin", pageId, sessionUnlocked: Boolean(session?.unlocked) };
+    if (pageId !== "authPrototype" && session?.unlocked) return { mode: "unlocked", pageId, sessionUnlocked: true };
+    return null;
+  });
 }
 
 async function readAuthBackNavigation(client) {
@@ -319,7 +336,11 @@ async function verifyAuthOneStepBackFlow(client) {
   await assertAuthSingleBack(client, "person", "units");
 
   await clickFirst(client, "[data-auth-person]");
-  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-pin-digit]")));
+  const terminalStep = await waitForPinOrUnlocked(client);
+  if (terminalStep.mode === "unlocked") {
+    assert(terminalStep.sessionUnlocked, "Temporary PIN bypass must unlock the auth session after person selection.");
+    return;
+  }
   await assertAuthSingleBack(client, "pin", "people");
 
   await clickFirst(client, "[data-auth-back-people]");
@@ -443,6 +464,54 @@ async function verifyPinPanelGeometry(client) {
   return geometry;
 }
 
+async function waitForUnlockedAuthReport(client) {
+  return await waitForCondition(client, () => {
+    const shell = document.querySelector("main.app-shell");
+    const pageId = shell?.dataset?.layoutPage || "";
+    const sessionRaw = localStorage.getItem("mes-planning-prototype-auth-session-v1");
+    let session = null;
+    try {
+      session = sessionRaw ? JSON.parse(sessionRaw) : null;
+    } catch {
+      session = null;
+    }
+    if (pageId === "authPrototype") return null;
+    const authSummaryText = document.querySelector("[data-visual-qa-target='app-auth-session-summary']")?.innerText || "";
+    return {
+      pageId,
+      activeModule: window.__MES_ACTIVE_MODULE__ || "",
+      hasMenu: Boolean(document.querySelector(".module-menu")),
+      hasTopbar: Boolean(document.querySelector(".app-topbar")),
+      hasLogout: Boolean(document.querySelector("[data-auth-logout]")),
+      hasSidebarRoleCard: Boolean(document.querySelector(".access-role-card")),
+      hasSidebarSessionCard: Boolean(document.querySelector(".access-session-card")),
+      authSummaryText,
+      sessionUnlocked: Boolean(session?.unlocked),
+      sessionUserId: session?.userId || "",
+      sessionRoleId: session?.roleId || "",
+    };
+  }, 10000);
+}
+
+function assertUnlockedAuthReport(report, contextLabel = "Auth") {
+  assert(report.hasMenu, `${contextLabel}: standard module menu must be visible.`);
+  assert(report.hasTopbar, `${contextLabel}: standard topbar must be visible.`);
+  assert(report.hasLogout, `${contextLabel}: logout button must be visible in the topbar auth summary.`);
+  assert(report.sessionUnlocked, `${contextLabel}: auth session must be persisted.`);
+  assert(report.sessionUserId, `${contextLabel}: auth session must store selected person id.`);
+  assert(report.sessionRoleId, `${contextLabel}: auth session must store interface role id.`);
+  assert(!report.hasSidebarRoleCard, `${contextLabel}: sidebar role card must be removed after moving auth context to the topbar.`);
+  assert(!report.hasSidebarSessionCard, `${contextLabel}: sidebar auth card must be removed after moving auth context to the topbar.`);
+  assert(report.authSummaryText.includes("Алексеев Егор Максимович"), `${contextLabel}: topbar auth summary must show the selected employee name.`);
+  assert(
+    report.authSummaryText.split("\n").filter(Boolean).length >= 2
+      && !/(?:Сеанс не выбран|отдел не выбран|сотрудник не выбран)/.test(report.authSummaryText)
+      && !report.authSummaryText.includes("Директор производства"),
+    `${contextLabel}: topbar auth summary must show selected employee name and department without the job title.`,
+  );
+  assert(report.authSummaryText.includes("Административный отдел"), `${contextLabel}: production director auth summary must show the virtual administrative department.`);
+}
+
 async function main() {
   const url = getArg("--url", defaultUrl);
   const chrome = await launchChrome();
@@ -463,88 +532,55 @@ async function main() {
     await client.send("Page.navigate", { url });
     await new Promise((resolve) => client.on("Page.loadEventFired", resolve));
 
-    await completeAuthSelection(client);
-    const pinPanelGeometry = await verifyPinPanelGeometry(client);
-    const wrongKeyboard = await readPinKeyboard(client);
-    assert(wrongKeyboard.digits.length === 10 && wrongKeyboard.uniqueDigits === 10, "PIN keypad must render ten unique digit buttons.");
-    assert(!wrongKeyboard.hasClearC, "PIN keypad must not render a C/С clear button.");
-    assert(wrongKeyboard.hasBackspace, "PIN keypad must render a dedicated backspace button.");
-    assertPinKeyboardVisualContract(wrongKeyboard, "Wrong PIN keyboard");
-    await submitPin(client, [1, 1, 1, 1, 1]);
-    await delay(700);
-    const failedReport = await evaluate(client, () => {
-      const shell = document.querySelector("main.app-shell");
-      const sessionRaw = localStorage.getItem("mes-planning-prototype-auth-session-v1");
-      let session = null;
-      try {
-        session = sessionRaw ? JSON.parse(sessionRaw) : null;
-      } catch {
-        session = null;
-      }
-      return {
-        pageId: shell?.dataset?.layoutPage || "",
-        resultText: document.querySelector(".auth-prototype-pin-panel")?.innerText || "",
-        sessionUnlocked: Boolean(session?.unlocked),
-      };
-    });
-    assert(failedReport.pageId === "authPrototype", "Wrong PIN must keep the user on auth screen.");
-    assert(!failedReport.sessionUnlocked, "Wrong PIN must not create an unlocked auth session.");
+    const firstAuthResult = await completeAuthSelection(client);
+    let pinPanelGeometry = null;
+    let wrongKeyboard = null;
+    let failedReport = null;
+    let correctKeyboard = null;
+    let report = null;
 
-    await resetAuthStorage(client);
-    await client.send("Page.navigate", { url });
-    await new Promise((resolve) => client.on("Page.loadEventFired", resolve));
+    if (firstAuthResult.mode === "pin") {
+      pinPanelGeometry = await verifyPinPanelGeometry(client);
+      wrongKeyboard = await readPinKeyboard(client);
+      assert(wrongKeyboard.digits.length === 10 && wrongKeyboard.uniqueDigits === 10, "PIN keypad must render ten unique digit buttons.");
+      assert(!wrongKeyboard.hasClearC, "PIN keypad must not render a C/С clear button.");
+      assert(wrongKeyboard.hasBackspace, "PIN keypad must render a dedicated backspace button.");
+      assertPinKeyboardVisualContract(wrongKeyboard, "Wrong PIN keyboard");
+      await submitPin(client, [1, 1, 1, 1, 1]);
+      await delay(700);
+      failedReport = await evaluate(client, () => {
+        const shell = document.querySelector("main.app-shell");
+        const sessionRaw = localStorage.getItem("mes-planning-prototype-auth-session-v1");
+        let session = null;
+        try {
+          session = sessionRaw ? JSON.parse(sessionRaw) : null;
+        } catch {
+          session = null;
+        }
+        return {
+          pageId: shell?.dataset?.layoutPage || "",
+          resultText: document.querySelector(".auth-prototype-pin-panel")?.innerText || "",
+          sessionUnlocked: Boolean(session?.unlocked),
+        };
+      });
+      assert(failedReport.pageId === "authPrototype", "Wrong PIN must keep the user on auth screen.");
+      assert(!failedReport.sessionUnlocked, "Wrong PIN must not create an unlocked auth session.");
 
-    await completeAuthSelection(client);
-    const correctKeyboard = await readPinKeyboard(client);
-    assert(correctKeyboard.digits.length === 10 && correctKeyboard.uniqueDigits === 10, "PIN keypad must render ten unique digit buttons after reset.");
-    assert(!correctKeyboard.hasClearC, "PIN keypad must not restore a C/С clear button after reset.");
-    assert(correctKeyboard.hasBackspace, "PIN keypad must render a dedicated backspace button after reset.");
-    assertPinKeyboardVisualContract(correctKeyboard, "Correct PIN keyboard");
-    await submitPin(client, [5, 5, 5, 5, 5]);
+      await resetAuthStorage(client);
+      await client.send("Page.navigate", { url });
+      await new Promise((resolve) => client.on("Page.loadEventFired", resolve));
 
-    const report = await waitForCondition(client, () => {
-      const shell = document.querySelector("main.app-shell");
-      const pageId = shell?.dataset?.layoutPage || "";
-      const sessionRaw = localStorage.getItem("mes-planning-prototype-auth-session-v1");
-      let session = null;
-      try {
-        session = sessionRaw ? JSON.parse(sessionRaw) : null;
-      } catch {
-        session = null;
-      }
-      if (pageId === "authPrototype") return null;
-      const authSummaryText = document.querySelector("[data-visual-qa-target='app-auth-session-summary']")?.innerText || "";
-      return {
-        pageId,
-        activeModule: window.__MES_ACTIVE_MODULE__ || "",
-        hasMenu: Boolean(document.querySelector(".module-menu")),
-        hasTopbar: Boolean(document.querySelector(".app-topbar")),
-        hasLogout: Boolean(document.querySelector("[data-auth-logout]")),
-        hasSidebarRoleCard: Boolean(document.querySelector(".access-role-card")),
-        hasSidebarSessionCard: Boolean(document.querySelector(".access-session-card")),
-        authSummaryText,
-        sessionUnlocked: Boolean(session?.unlocked),
-        sessionUserId: session?.userId || "",
-        sessionRoleId: session?.roleId || "",
-      };
-    }, 10000);
+      await completeAuthSelection(client);
+      correctKeyboard = await readPinKeyboard(client);
+      assert(correctKeyboard.digits.length === 10 && correctKeyboard.uniqueDigits === 10, "PIN keypad must render ten unique digit buttons after reset.");
+      assert(!correctKeyboard.hasClearC, "PIN keypad must not restore a C/С clear button after reset.");
+      assert(correctKeyboard.hasBackspace, "PIN keypad must render a dedicated backspace button after reset.");
+      assertPinKeyboardVisualContract(correctKeyboard, "Correct PIN keyboard");
+      await submitPin(client, [5, 5, 5, 5, 5]);
+    }
 
-    assert(report.hasMenu, "After PIN auth the standard module menu must be visible.");
-    assert(report.hasTopbar, "After PIN auth the standard topbar must be visible.");
-    assert(report.hasLogout, "After PIN auth the logout button must be visible in the topbar auth summary.");
-    assert(report.sessionUnlocked, "Auth session must be persisted after successful PIN.");
-    assert(report.sessionUserId, "Auth session must store selected person id.");
-    assert(report.sessionRoleId, "Auth session must store interface role id.");
-    assert(!report.hasSidebarRoleCard, "Sidebar role card must be removed after moving auth context to the topbar.");
-    assert(!report.hasSidebarSessionCard, "Sidebar auth card must be removed after moving auth context to the topbar.");
-    assert(report.authSummaryText.includes("Алексеев Егор Максимович"), "Topbar auth summary must show the selected employee name.");
-    assert(
-      report.authSummaryText.split("\n").filter(Boolean).length >= 2
-        && !/(?:Сеанс не выбран|отдел не выбран|сотрудник не выбран)/.test(report.authSummaryText)
-        && !report.authSummaryText.includes("Директор производства"),
-      "Topbar auth summary must show selected employee name and department without the job title.",
-    );
-    assert(report.authSummaryText.includes("Административный отдел"), "Production director auth summary must show the virtual administrative department.");
+    report = await waitForUnlockedAuthReport(client);
+    assertUnlockedAuthReport(report, firstAuthResult.mode === "pin" ? "After PIN auth" : "Temporary PIN bypass auth");
 
     const reloadPromise = new Promise((resolve) => client.on("Page.loadEventFired", resolve));
     await client.send("Page.reload");

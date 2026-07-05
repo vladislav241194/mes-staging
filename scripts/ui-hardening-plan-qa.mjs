@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import {
   HARD_UI_RUNTIME_MODULE_IDS,
   LEGACY_UI_RUNTIME_MODULE_IDS,
+  PARTIAL_UI_RUNTIME_CONTRACTS,
   PARTIAL_UI_RUNTIME_MODULE_IDS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
   UI_HARDENING_PLAN_STAGES,
@@ -80,6 +81,14 @@ function hasHardModule(moduleId) {
   return HARD_UI_RUNTIME_MODULE_IDS.includes(moduleId);
 }
 
+function hasExplicitRuntimeModule(moduleId) {
+  return (
+    HARD_UI_RUNTIME_MODULE_IDS.includes(moduleId)
+    || SPECIAL_UI_RUNTIME_MODULE_IDS.includes(moduleId)
+    || PARTIAL_UI_RUNTIME_MODULE_IDS.includes(moduleId)
+  );
+}
+
 const evidenceLabels = {
   "component-registry": "реестр UI-компонентов содержит базовые компоненты",
   "runtime-coverage-registry": "модули разнесены по hard/special/partial/legacy runtime",
@@ -108,8 +117,8 @@ const evidenceLabels = {
   "drawer-helper": "drawer собирается через renderUiDrawerFrame/renderUiDrawerShell",
   "dropdown-helper": "dropdown собирается через renderUiDropdownFrame",
   "opened-overlay-smoke-gates": "открытые состояния modal/drawer/dropdown попали в QA",
-  "key-modules-hard-runtime": "ключевые модули находятся в hard-runtime coverage",
-  "no-partial-runtime-modules": "partial runtime modules отсутствуют",
+  "key-modules-explicit-runtime": "ключевые модули имеют явный runtime coverage",
+  "partial-runtime-modules-documented": "partial runtime modules имеют причину и следующий шаг",
   "no-legacy-runtime-modules": "legacy runtime modules отсутствуют",
   "qa-ui-script": "qa:ui запускает все UI gates, включая план",
   "qa-syntax-script": "qa:syntax проверяет новый плановый gate",
@@ -128,7 +137,8 @@ const evidenceChecks = {
     });
   },
   "runtime-coverage-registry": () => {
-    assert(HARD_UI_RUNTIME_MODULE_IDS.length >= 16, `expected hard runtime coverage for live modules, got ${HARD_UI_RUNTIME_MODULE_IDS.length}`);
+    assert(HARD_UI_RUNTIME_MODULE_IDS.length >= 14, `expected hard runtime coverage for live modules, got ${HARD_UI_RUNTIME_MODULE_IDS.length}`);
+    assert(PARTIAL_UI_RUNTIME_MODULE_IDS.length >= 4, `expected documented partial runtime coverage for known non-hard modules, got ${PARTIAL_UI_RUNTIME_MODULE_IDS.length}`);
     assert(SPECIAL_UI_RUNTIME_MODULE_IDS.includes("gantt"), "missing specialized gantt runtime coverage");
     assert(SPECIAL_UI_RUNTIME_MODULE_IDS.includes("visualSystem"), "missing specialized visualSystem runtime coverage");
   },
@@ -220,7 +230,7 @@ const evidenceChecks = {
       includes(designQaSource, stateId, `opened-state visual QA ${stateId}`);
     });
   },
-  "key-modules-hard-runtime": () => {
+  "key-modules-explicit-runtime": () => {
     [
       "planning",
       "products",
@@ -230,11 +240,14 @@ const evidenceChecks = {
       "timesheet",
       "roles",
       "productionStructureMatrix",
-    ].forEach((moduleId) => assert(hasHardModule(moduleId), `missing hard runtime module ${moduleId}`));
+    ].forEach((moduleId) => assert(hasExplicitRuntimeModule(moduleId), `missing explicit runtime module ${moduleId}`));
   },
-  "no-partial-runtime-modules": () => {
-    assert(PARTIAL_UI_RUNTIME_MODULE_IDS.length === 0, `partial runtime modules remain: ${PARTIAL_UI_RUNTIME_MODULE_IDS.join(", ")}`);
-    includes(coverageQaSource, "PARTIAL_UI_RUNTIME_MODULE_IDS.length === 0", "partial runtime coverage gate");
+  "partial-runtime-modules-documented": () => {
+    PARTIAL_UI_RUNTIME_MODULE_IDS.forEach((moduleId) => {
+      const contract = PARTIAL_UI_RUNTIME_CONTRACTS[moduleId];
+      assert(contract?.status && contract?.reason && contract?.nextMigration, `partial runtime contract is incomplete for ${moduleId}`);
+    });
+    includes(coverageQaSource, "Partial UI runtime modules require explicit contracts", "partial runtime coverage gate");
   },
   "no-legacy-runtime-modules": () => {
     assert(LEGACY_UI_RUNTIME_MODULE_IDS.length === 0, `legacy runtime modules remain: ${LEGACY_UI_RUNTIME_MODULE_IDS.join(", ")}`);

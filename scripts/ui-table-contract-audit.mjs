@@ -23,13 +23,17 @@ function normalizeSnippet(value = "") {
 const documentedExceptions = [
   {
     id: "print-table",
+    component: "PrintTable",
+    kind: "print-table",
     reason: "Print forms use isolated route-print-table markup outside runtime TableWrap.",
-    test: (context) => /route-print-table|print-(?:info|quantity|executors|composition|operations|registry|transfer)-table|work-order-print/.test(context),
+    test: (context) => /data-ui-component=["']PrintTable["']|route-print-table|print-(?:info|quantity|executors|composition|operations|registry|transfer)-table|work-order-print/.test(context),
   },
   {
     id: "visual-system-sample",
+    component: "VisualSampleTable",
+    kind: "visual-sample-table",
     reason: "UI states page contains tiny comparison sample tables, not production data tables.",
-    test: (context) => /visual-selected-row-option|visual-snapshot-table|Вариант выделения строки/.test(context),
+    test: (context) => /data-ui-component=["']VisualSampleTable["']|visual-selected-row-option|visual-snapshot-table|Вариант выделения строки/.test(context),
   },
 ];
 
@@ -39,7 +43,7 @@ function classifyTable(index) {
   const hasMarker = /data-ui-component=["']TableWrap["']/.test(context);
   if (hasHelper || hasMarker) return { status: "contract", reason: hasHelper ? "renderUiTableWrap" : "data-ui-component=TableWrap" };
   const exception = documentedExceptions.find((item) => item.test(context));
-  if (exception) return { status: "exception", reason: exception.id };
+  if (exception) return { status: "non-production-exception", reason: exception.id, component: exception.component, kind: exception.kind };
   return { status: "violation", reason: "missing TableWrap contract" };
 }
 
@@ -69,7 +73,7 @@ const tableLikeClassMatches = [...source.matchAll(/class(?:Name)?\s*[:=]\s*["'`]
     const status = hasHelper || hasMarker
       ? "contract"
       : exception
-        ? "exception"
+        ? "non-production-exception"
         : isTableWrapClass || isPlainTableClass
           ? "violation"
           : "class-only";
@@ -78,26 +82,36 @@ const tableLikeClassMatches = [...source.matchAll(/class(?:Name)?\s*[:=]\s*["'`]
       className,
       status,
       reason: hasHelper ? "renderUiTableWrap" : hasMarker ? "data-ui-component=TableWrap" : exception?.id || "missing TableWrap contract",
+      component: exception?.component || "",
+      kind: exception?.kind || "",
     };
   });
 
 const contractTables = tables.filter((item) => item.status === "contract");
-const exceptionTables = tables.filter((item) => item.status === "exception");
+const nonProductionExceptionTables = tables.filter((item) => item.status === "non-production-exception");
 const violatingTables = tables.filter((item) => item.status === "violation");
 const violatingClassPatterns = tableLikeClassMatches.filter((item) => item.status === "violation");
+const exceptionsByKind = nonProductionExceptionTables.reduce((accumulator, item) => {
+  const key = item.kind || item.reason || "unknown";
+  accumulator[key] = (accumulator[key] || 0) + 1;
+  return accumulator;
+}, {});
 
 console.log("MES UI Table Contract Audit");
 console.log(`Tables found: ${tables.length}`);
 console.log(`Tables under TableWrap: ${contractTables.length}`);
-console.log(`Documented table exceptions: ${exceptionTables.length}`);
+console.log(`Production table exceptions: ${violatingTables.length}`);
+console.log(`Documented non-production exceptions: ${nonProductionExceptionTables.length}`);
+console.log(`PrintTable exceptions: ${exceptionsByKind["print-table"] || 0}`);
+console.log(`VisualSampleTable exceptions: ${exceptionsByKind["visual-sample-table"] || 0}`);
 console.log(`Table contract violations: ${violatingTables.length}`);
 console.log(`Table-like class patterns checked: ${tableLikeClassMatches.length}`);
 console.log(`Table-like class violations: ${violatingClassPatterns.length}`);
 
-if (exceptionTables.length) {
-  console.log("\nDocumented exceptions:");
-  exceptionTables.forEach((item) => {
-    console.log(`- src/app.js:${item.line} ${item.reason} ${item.className || ""}`.trim());
+if (nonProductionExceptionTables.length) {
+  console.log("\nDocumented non-production exceptions:");
+  nonProductionExceptionTables.forEach((item) => {
+    console.log(`- src/app.js:${item.line} ${item.component || item.reason} ${item.className || ""}`.trim());
   });
 }
 
@@ -112,4 +126,4 @@ if (violatingTables.length || violatingClassPatterns.length) {
   process.exit(1);
 }
 
-console.log("\nOK: production table literals are wrapped by TableWrap or documented as print/visual exceptions.");
+console.log("\nOK: production table literals are wrapped by TableWrap; print/visual tables are explicitly classified.");

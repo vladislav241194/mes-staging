@@ -365,7 +365,7 @@ checkIncludes("module-smoke не проверяет наложение прям�
 checkIncludes("module-smoke не проверяет наложение прямых блоков внутри PanelBody", browserQaSources.join("\n"), "PanelBody direct blocks overlap");
 checkIncludes("module-smoke не проверяет выпадение hard-runtime модулей из smoke-списка", browserQaSources.join("\n"), "Hard UI runtime modules are missing from module smoke QA");
 checkIncludes("module-smoke не проверяет выпадение special-runtime модулей из smoke-списка", browserQaSources.join("\n"), "Special UI runtime modules are missing from module smoke QA");
-checkIncludes("module-smoke не запрещает hard-v1 marker вне hard-runtime списка", browserQaSources.join("\n"), "page renders hard-v1 runtime but module is not listed in HARD_UI_RUNTIME_MODULE_IDS");
+checkIncludes("module-smoke не запрещает hard-v1 marker вне runtime coverage списка", browserQaSources.join("\n"), "page renders hard-v1 runtime but module is not listed in HARD/PARTIAL UI runtime coverage");
 checkIncludes("module-smoke не запрещает special runtime marker вне special-runtime списка", browserQaSources.join("\n"), "page renders special runtime but module is not listed in SPECIAL_UI_RUNTIME_MODULE_IDS");
 checkIncludes("module-smoke не применяет hard-runtime проверки к alias-страницам", browserQaSources.join("\n"), "await runModuleSpecificSmokeChecks(client, alias.target);");
 checkIncludes("module-smoke не проверяет специализированный GanttRuntime", browserQaSources.join("\n"), "expected data-ui-runtime=gantt-v1");
@@ -400,15 +400,17 @@ checkIncludes("module-smoke не проверяет три Gantt scale columns �
 checkIncludes("module-smoke не проверяет fact scenarios в UI-состояниях", browserQaSources.join("\n"), "expected fact scenarios");
 checkIncludes("module-smoke не проверяет выход Gantt samples за колонки UI-состояний", browserQaSources.join("\n"), "Gantt samples escape their mode columns");
 checkIncludes("module-smoke должен использовать эталонный MacBook Air 15 viewport", browserQaSources.join("\n"), "macbook-air-15");
-["authPrototype", "authSessionPrototype", "planningTable", "matrix", "shiftWorkOrders", "timesheet", "roles", "productionStructureMatrix", "employees", "dispatch", "shiftMasterBoard", "supply", "shopMap", "directories", "products", "nomenclature", "routes", "planning"].forEach((moduleId) => {
-  checkIncludes(`ui_runtime_contracts не содержит hard-runtime модуль ${moduleId}`, uiRuntimeContractsAllSource, `"${moduleId}"`);
-  checkIncludes(`design-qa-snapshots должен включать hard-runtime модуль ${moduleId}`, designSnapshotsSource, `"${moduleId}"`);
+["authPrototype", "authSessionPrototype", "planningTable", "shiftWorkOrders", "timesheet", "roles", "productionStructureMatrix", "employees", "dispatch", "shiftMasterBoard", "supply", "shopMap", "directories", "products", "nomenclature", "routes", "planning"].forEach((moduleId) => {
+  checkIncludes(`ui_runtime_contracts не содержит runtime-модуль ${moduleId}`, uiRuntimeContractsAllSource, `"${moduleId}"`);
+  checkIncludes(`design-qa-snapshots должен включать runtime-модуль ${moduleId}`, designSnapshotsSource, `"${moduleId}"`);
 });
-checkIncludes("ui_runtime_contracts должен фиксировать отсутствие partial-модулей", uiRuntimeContractsAllSource, "export const PARTIAL_UI_RUNTIME_MODULE_IDS = [];");
+checkIncludes("ui_runtime_contracts должен фиксировать partial runtime модули", uiRuntimeContractsAllSource, "export const PARTIAL_UI_RUNTIME_MODULE_IDS = [");
+checkIncludes("ui_runtime_contracts должен фиксировать partial runtime contracts", uiRuntimeContractsAllSource, "export const PARTIAL_UI_RUNTIME_CONTRACTS = {");
 checkIncludes("ui_runtime_contracts должен фиксировать special runtime модули", uiRuntimeContractsAllSource, "export const SPECIAL_UI_RUNTIME_MODULE_IDS = [");
 checkIncludes("ui_runtime_contracts должен фиксировать special runtime contracts", uiRuntimeContractsAllSource, "export const SPECIAL_UI_RUNTIME_CONTRACTS = {");
 checkIncludes("ui_runtime_contracts должен фиксировать отсутствие legacy-модулей", uiRuntimeContractsAllSource, "export const LEGACY_UI_RUNTIME_MODULE_IDS = [];");
 checkIncludes("UI runtime coverage QA должен проверять special runtime contracts", uiRuntimeCoverageQaSource, "Special UI runtime modules are missing runtime contracts");
+checkIncludes("UI runtime coverage QA должен проверять partial runtime contracts", uiRuntimeCoverageQaSource, "Partial UI runtime modules require explicit contracts");
 checkIncludes("UI runtime coverage QA должен фейлить возврат legacy-модулей", uiRuntimeCoverageQaSource, "expects no legacy modules after special runtime gates");
 checkIncludes("UI runtime coverage QA не подключен к qa:ui", packageSource, "ui-runtime-coverage-qa.mjs");
 checkIncludes("UI runtime class audit не подключен к qa:ui/qa:syntax", packageSource, "ui-runtime-class-audit.mjs");
@@ -418,6 +420,7 @@ checkIncludes("Design snapshots не проверяют unmarked UI components",
 checkIncludes("Design snapshots не фейлят unmarked UI components", designSnapshotsSource, "audit.counts.unmarkedComponents > 0");
 checkIncludes("Design snapshots не подключают hard-runtime список для жесткой типографики", designSnapshotsSource, "HARD_UI_RUNTIME_MODULE_IDS");
 checkIncludes("Design snapshots не подключают special-runtime список для покрытия specialized-модулей", designSnapshotsSource, "SPECIAL_UI_RUNTIME_MODULE_IDS");
+checkIncludes("Design snapshots не подключают partial-runtime список для обязательного покрытия", designSnapshotsSource, "PARTIAL_UI_RUNTIME_MODULE_IDS");
 checkIncludes("Design snapshots должны падать, если runtime-модуль не попал в визуальный прогон", designSnapshotsSource, "design-qa-snapshots is missing runtime modules");
 checkIncludes("Design snapshots должны падать, если runtime-модуль не попал в focus-прогон", designSnapshotsSource, "design-qa-snapshots focus mode is missing runtime modules");
 checkIncludes("Design snapshots не фейлят typographyWarnings в hard-runtime модулях", designSnapshotsSource, "hardUiRuntimeModules.has(audit.module) && audit.counts.typographyWarnings > 0");
@@ -428,7 +431,7 @@ checkIncludes("Документ component map не фиксирует runtime no
 checkIncludes("UI-состояния не показывают UI-kit runtime contracts", appSource, "UI-kit runtime contracts");
 checkIncludes("PlanningTable не фиксирует локальный scroll rule", stylesSource, "Scroll rule: panels and table wrappers must not own vertical scrolling");
 checkIncludes("Матрица ролей должна исключать системный экран authPrototype", appSource, "getModuleDefinitions().filter((moduleItem) => moduleItem.id !== \"authPrototype\")");
-checkIncludes("Главный сайдбар должен держать Рабочий стол в Оперативном управлении", appSource, "ids: [\"dispatch\", \"shiftMasterBoard\", \"authSessionPrototype\", \"shiftWorkOrders\", \"matrix\"]");
+checkIncludes("Главный сайдбар должен держать Рабочий стол в Оперативном управлении", appSource, "ids: [\"dispatch\", \"shiftMasterBoard\", \"authSessionPrototype\", \"shiftWorkOrders\"]");
 checkIncludes("Главный сайдбар не должен возвращать Рабочий стол в UX-макеты", appSource, "ids: [\"visualSystem\", \"planningTable\", \"supply\", \"shopMap\"]");
 checkNoMatches("authPrototype нельзя возвращать в группы главного меню", appSource, /ids:\s*\[[^\]]*"authPrototype"[^\]]*\]/);
 checkNoMatches("Запрещено возвращать старую route/admin/staff авторизацию", appSource, /AUTH_PROTOTYPE_ADMIN_ROLES|authPrototype(?:Route|AdminRole|AdminPersonId|Staff)|data-auth-(?:route|admin|staff)|renderAuthPrototype(?:Admin|Staff)|normalizeAuthPrototype(?:Route|Admin)/);

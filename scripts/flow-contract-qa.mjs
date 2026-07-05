@@ -141,7 +141,6 @@ const requiredModuleFlow = [
   "routes",
   "planning",
   "gantt",
-  "matrix",
   "shiftMasterBoard",
   "shiftWorkOrders",
   "dispatch",
@@ -160,8 +159,8 @@ const requiredModuleFlow = [
 const allowedModuleGroups = new Set(["Технологии", "Планирование нагрузки", "Оперативное управление", "Система", "UX-макеты", "Авторизация"]);
 const runtimeModulesHiddenFromSidebar = new Set(["authPrototype"]);
 const expectedSidebarGroups = [
-  { label: "Планирование нагрузки", ids: ["gantt", "planning"] },
-  { label: "Оперативное управление", ids: ["dispatch", "shiftMasterBoard", "authSessionPrototype", "shiftWorkOrders", "matrix"] },
+  { label: "Планирование нагрузки", ids: ["gantt", "planning", "weeklyProductionControl"] },
+  { label: "Оперативное управление", ids: ["dispatch", "shiftMasterBoard", "authSessionPrototype", "shiftWorkOrders"] },
   { label: "Технологии", ids: ["routes", "products", "nomenclature"] },
   { label: "Система", ids: ["productionStructureMatrix", "employees", "timesheet", "roles", "directories"] },
   { label: "UX-макеты", ids: ["visualSystem", "planningTable", "supply", "shopMap"] },

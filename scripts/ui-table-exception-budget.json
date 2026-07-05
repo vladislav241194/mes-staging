@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "mode": "corrective-phase-b-table-budget",
+  "maxProductionTableExceptions": 0,
+  "maxUnclassifiedTableExceptions": 0,
+  "maxTableContractViolations": 0,
+  "minNonProductionTableExceptions": 10,
+  "minPrintTableExceptions": 9,
+  "minVisualSampleTableExceptions": 1
+}

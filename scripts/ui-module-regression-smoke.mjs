@@ -38,7 +38,6 @@ const smokeModules = [
   "authSessionPrototype",
   "roles",
   "planningTable",
-  "matrix",
   "supply",
   "shopMap",
   "visualSystem",
@@ -620,7 +619,7 @@ async function runOverlayProbe(client, moduleId, viewport) {
 }
 
 function buildMarkdownTable(headers, rows) {
-  return `${headers.join(" | ")}\n${headers.map(() => "---").join(" | ")}\n${rows.map((row) => row.join(" | ")).join("\n")}`;
+  return `${headers.join(" | ")}\n${headers.map(() => "---").join(" | ")}\n${rows.map((row) => row.join(" | ").trimEnd()).join("\n")}`;
 }
 
 function buildSummaryMarkdown(result) {

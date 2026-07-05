@@ -243,14 +243,44 @@ async function setLaborField(client, key, fieldName, value) {
 }
 
 async function selectPlanningStepWorkItem(client, stepId) {
-  const ok = await evaluate(client, (id) => {
+  const result = await evaluate(client, (id) => {
     const workItem = `step:${id}`;
-    const button = document.querySelector(`[data-planning-work-item="${CSS.escape(workItem)}"]`);
-    if (!button) return false;
-    button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-    return true;
+    const selectors = [
+      { contract: "planning-work-item", selector: `[data-planning-work-item="${CSS.escape(workItem)}"]` },
+      { contract: "planning-order-row", selector: `[data-planning-order-row="${CSS.escape(workItem)}"]` },
+    ];
+    let target = null;
+    let matched = null;
+    for (const item of selectors) {
+      target = document.querySelector(item.selector);
+      if (target) {
+        matched = item;
+        break;
+      }
+    }
+    if (!target || !matched) {
+      return {
+        ok: false,
+        selectors: selectors.map((item) => item.selector),
+        counts: {
+          workItems: document.querySelectorAll("[data-planning-work-item]").length,
+          orderRows: document.querySelectorAll("[data-planning-order-row]").length,
+        },
+        availableWorkItems: Array.from(document.querySelectorAll("[data-planning-work-item]"))
+          .map((item) => item.getAttribute("data-planning-work-item"))
+          .filter(Boolean)
+          .slice(0, 16),
+        availableOrderRows: Array.from(document.querySelectorAll("[data-planning-order-row]"))
+          .map((item) => item.getAttribute("data-planning-order-row"))
+          .filter(Boolean)
+          .slice(0, 16),
+      };
+    }
+    target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+    return { ok: true, contract: matched.contract, selector: matched.selector };
   }, stepId);
-  assert(ok, `Не найден UI-элемент заказ-наряда для шага ${stepId}`);
+  assert(result?.ok, `Не найден UI-элемент заказ-наряда для шага ${stepId}. Diagnostic: ${JSON.stringify(result)}`);
+  logStep(`selected planning order UI via ${result.contract}`);
   await delay(360);
 }
 

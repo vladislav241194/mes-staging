@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const baselinePath = path.join(rootDir, "scripts", "ui-raw-token-baseline.json");
+const budgetPath = path.join(rootDir, "scripts", "ui-raw-token-budgets.json");
 const updateBaseline = process.argv.includes("--update-baseline");
+const updateBudget = process.argv.includes("--update-budget");
 
 const cssLayerDir = path.join(rootDir, "styles", "layers");
 const tokenLayerFiles = new Set(["styles/mes-ui-core.css"]);
@@ -70,6 +72,36 @@ function summarizeFindings(findings) {
     uniqueHex: uniqueHex.size,
     byFile: Object.fromEntries([...byFile.entries()].sort(([left], [right]) => left.localeCompare(right))),
   };
+}
+
+function buildBudgetPayload(summary) {
+  return {
+    version: 1,
+    mode: "raw-token-budget",
+    generatedAt: new Date().toISOString(),
+    budgets: {
+      rawHexUsages: summary.totals.hex,
+      uniqueHexColors: summary.uniqueHex,
+      importantUsages: summary.totals.important,
+      fontSizePxDeclarations: summary.totals.fontSizePx,
+      fontWeightLiteralDeclarations: summary.totals.fontWeightLiteral,
+      lineHeightRawDeclarations: summary.totals.lineHeightRaw,
+      borderRadiusPxDeclarations: summary.totals.borderRadiusPx,
+      spacingPositionPxDeclarations: summary.totals.rawSpacingPx,
+    },
+  };
+}
+
+async function readBudget() {
+  try {
+    return JSON.parse(await fs.readFile(budgetPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function formatBudgetValue(value) {
+  return Number.isFinite(value) ? String(value) : "missing";
 }
 
 async function collectFindings() {
@@ -144,11 +176,32 @@ if (updateBaseline) {
   process.exit(0);
 }
 
+const budgetPayload = buildBudgetPayload(summary);
+if (updateBudget) {
+  await fs.writeFile(budgetPath, `${JSON.stringify(budgetPayload, null, 2)}\n`);
+  console.log("MES UI Raw Token Audit");
+  console.log("Mode: update-budget");
+  console.log(`Budget: ${path.relative(rootDir, budgetPath)}`);
+  console.log(`Files scanned: ${files.length}`);
+  Object.entries(budgetPayload.budgets).forEach(([name, value]) => {
+    console.log(`${name}: ${value}`);
+  });
+  process.exit(0);
+}
+
 const baseline = await readBaseline();
 if (!baseline?.entries) {
   console.error("MES UI Raw Token Audit");
   console.error(`Baseline file is missing: ${path.relative(rootDir, baselinePath)}`);
   console.error("Run: node scripts/ui-raw-token-audit.mjs --update-baseline");
+  process.exit(1);
+}
+
+const budget = await readBudget();
+if (!budget?.budgets) {
+  console.error("MES UI Raw Token Audit");
+  console.error(`Budget file is missing: ${path.relative(rootDir, budgetPath)}`);
+  console.error("Run: node scripts/ui-raw-token-audit.mjs --update-budget");
   process.exit(1);
 }
 
@@ -181,9 +234,19 @@ const topRows = Object.entries(summary.byFile)
   ))
   .slice(0, 10);
 
+const currentBudgets = budgetPayload.budgets;
+const budgetFailures = Object.entries(currentBudgets)
+  .map(([name, currentValue]) => ({
+    name,
+    currentValue,
+    allowedValue: budget.budgets[name],
+  }))
+  .filter(({ currentValue, allowedValue }) => !Number.isFinite(allowedValue) || currentValue > allowedValue);
+
 console.log("MES UI Raw Token Audit");
 console.log("Mode: baseline-aware");
 console.log(`Baseline: ${path.relative(rootDir, baselinePath)}`);
+console.log(`Budget: ${path.relative(rootDir, budgetPath)}`);
 console.log(`Files scanned: ${files.length}`);
 console.log(`Raw hex usages: ${summary.totals.hex}`);
 console.log(`Unique hex colors: ${summary.uniqueHex}`);
@@ -211,4 +274,13 @@ if (newViolations.length) {
   process.exit(1);
 }
 
-console.log("\nOK: no new raw visual values outside the recorded baseline.");
+if (budgetFailures.length) {
+  console.error("\nRaw visual token budget exceeded:");
+  budgetFailures.forEach(({ name, currentValue, allowedValue }) => {
+    console.error(`- ${name}: ${currentValue} > ${formatBudgetValue(allowedValue)}`);
+  });
+  console.error("\nReduce raw values or intentionally update the reviewed budget after a corrective pass.");
+  process.exit(1);
+}
+
+console.log("\nOK: no new raw visual values outside the recorded baseline and budget.");
