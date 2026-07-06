@@ -148,6 +148,7 @@ const requiredModuleFlow = [
   "employees",
   "timesheet",
   "roles",
+  "contourAdmin",
   "directories",
   "visualSystem",
   "authPrototype",
@@ -162,7 +163,7 @@ const expectedSidebarGroups = [
   { label: "Планирование нагрузки", ids: ["gantt", "planning", "weeklyProductionControl"] },
   { label: "Оперативное управление", ids: ["dispatch", "shiftMasterBoard", "authSessionPrototype", "shiftWorkOrders"] },
   { label: "Технологии", ids: ["routes", "products", "nomenclature"] },
-  { label: "Система", ids: ["productionStructureMatrix", "employees", "timesheet", "roles", "directories"] },
+  { label: "Система", ids: ["productionStructureMatrix", "employees", "timesheet", "roles", "contourAdmin", "directories"] },
   { label: "UX-макеты", ids: ["visualSystem", "planningTable", "supply", "shopMap"] },
 ];
 const allowedGanttImpacts = new Set([

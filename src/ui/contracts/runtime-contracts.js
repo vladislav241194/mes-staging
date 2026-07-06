@@ -3,6 +3,7 @@ export const HARD_UI_RUNTIME_MODULE_IDS = [
   "authSessionPrototype",
   "planningTable",
   "roles",
+  "contourAdmin",
   "productionStructureMatrix",
   "shiftMasterBoard",
   "supply",

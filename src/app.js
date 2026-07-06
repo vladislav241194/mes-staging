@@ -6698,6 +6698,19 @@ function render(options = {}) {
       return;
     }
 
+    if (ui.activeModule === "contourAdmin") {
+      app.innerHTML = renderUiAppShell({
+        pageId: "contourAdmin",
+        className: "contour-admin-app-shell",
+        body: renderContourAdminPage(),
+        modals: renderConfirmModal(),
+      });
+      bindGlobalNavigation();
+      bindContourAdminEvents();
+      bindConfirmEvents();
+      return;
+    }
+
     if (ui.activeModule === "nomenclature") {
       app.innerHTML = renderUiAppShell({
         pageId: "nomenclature",
@@ -16168,6 +16181,360 @@ function renderAccessRoleAssignmentsPanel(employees, roles) {
   });
 }
 
+function getContourAdminContours() {
+  return [
+    {
+      id: "pilot",
+      label: "Pilot",
+      title: "Рабочий контур Codex",
+      domain: "pilot.mes-line.ru",
+      targetDomain: "mes-pilot.ru",
+      service: "mes-user-testing.service",
+      port: "4175",
+      dataPolicy: "Берет копию данных stage по ручному сценарию. Обратно данные не пишет.",
+      releasePolicy: "Кодекс и разработка могут обновлять этот контур первыми.",
+      statusLabel: "рабочий",
+      statusTone: "primary",
+    },
+    {
+      id: "stage",
+      label: "Stage",
+      title: "Тестирование пользователями",
+      domain: "staging.mes-line.ru",
+      targetDomain: "stage.mes-line.ru",
+      service: "mes-dev.service",
+      port: "4174",
+      dataPolicy: "Источник данных для тестировщиков. Перед опасными операциями обязателен backup.",
+      releasePolicy: "Обновляется только после проверки pilot и ручного подтверждения.",
+      statusLabel: "пользователи",
+      statusTone: "ok",
+    },
+    {
+      id: "prod",
+      label: "Prod",
+      title: "Будущий промышленный контур",
+      domain: "не подключен",
+      targetDomain: "mes-line.ru",
+      service: "будет отдельный сервис",
+      port: "будет отдельный порт",
+      dataPolicy: "Нельзя создавать до стабилизации stage, ролей, бэкапов и регламента релизов.",
+      releasePolicy: "Только через отдельный release-gate после пользовательского тестирования.",
+      statusLabel: "позже",
+      statusTone: "neutral",
+    },
+  ];
+}
+
+function getContourAdminScenarios() {
+  return [
+    {
+      id: "backup-stage",
+      label: "Сделать backup stage",
+      source: "stage",
+      target: "backup",
+      owner: "Админ",
+      risk: "низкий",
+      status: "нужен Ops API",
+      tone: "warning",
+      result: "Архив shared-state и метаданные версии перед изменениями.",
+    },
+    {
+      id: "sync-stage-to-pilot",
+      label: "Забрать БД из stage в pilot",
+      source: "stage",
+      target: "pilot",
+      owner: "Codex / админ",
+      risk: "средний",
+      status: "только в одну сторону",
+      tone: "primary",
+      result: "Pilot получает свежую копию данных тестировщиков без обратной синхронизации.",
+    },
+    {
+      id: "deploy-to-pilot",
+      label: "Залить изменения в pilot",
+      source: "git main",
+      target: "pilot",
+      owner: "Codex",
+      risk: "средний",
+      status: "основной путь",
+      tone: "ok",
+      result: "Pilot обновлен, stage остается стабильным для пользователей.",
+    },
+    {
+      id: "promote-pilot-to-stage",
+      label: "Перенести проверенный pilot в stage",
+      source: "pilot commit",
+      target: "stage",
+      owner: "Админ",
+      risk: "высокий",
+      status: "после ручного QA",
+      tone: "warning",
+      result: "Stage получает проверенный код без потери пользовательских данных.",
+    },
+    {
+      id: "rollback-stage",
+      label: "Откатить stage",
+      source: "backup / commit",
+      target: "stage",
+      owner: "Админ",
+      risk: "высокий",
+      status: "аварийный сценарий",
+      tone: "critical",
+      result: "Stage возвращается к последней стабильной версии после инцидента.",
+    },
+  ];
+}
+
+function getContourAdminGuardrails() {
+  return [
+    "Pilot можно ломать и быстро обновлять; stage нельзя ломать во время пользовательского тестирования.",
+    "Данные stage копируются в pilot только в одну сторону: pilot никогда не перезаписывает stage своими тестовыми данными.",
+    "Перед копированием данных, промоутом или откатом stage нужен backup с понятной меткой версии.",
+    "Промоут pilot в stage делается только после ручного QA и фиксации проверенного commit.",
+    "Prod появится отдельным контуром после стабилизации stage и регламента релизов.",
+  ];
+}
+
+function renderContourAdminPage() {
+  const contours = getContourAdminContours();
+  const scenarios = getContourAdminScenarios();
+  const sidebar = renderUiModuleSidebar({
+    eyebrow: "Ops",
+    title: "Контуры",
+    body: `
+      <div class="ui-sidebar-list contour-admin-sidebar-list">
+        <div class="ui-sidebar-label">Контуры</div>
+        ${contours.map((contour) => renderUiSidebarItem({
+          title: `${contour.label} · ${contour.title}`,
+          meta: contour.id === "pilot"
+            ? "наша работа и прототипирование"
+            : contour.id === "stage"
+              ? "реальные пользователи тестирования"
+              : "будущий промышленный контур",
+          badge: contour.statusLabel,
+          badgeTone: contour.statusTone,
+          active: contour.id === "pilot",
+          tag: "article",
+        })).join("")}
+        <div class="ui-sidebar-label">Сценарии</div>
+        ${scenarios.map((scenario) => renderUiSidebarItem({
+          title: scenario.label,
+          meta: `${scenario.source} -> ${scenario.target}`,
+          badge: scenario.risk,
+          badgeTone: scenario.tone,
+          tag: "article",
+        })).join("")}
+      </div>
+    `,
+  });
+
+  return renderUiModulePage({
+    ariaLabel: "Админ-панель контуров",
+    className: "contour-admin-page",
+    sidebar,
+    workspaceClassName: "contour-admin-workspace",
+    contentClassName: "contour-admin-content",
+    header: renderUiModuleHeader({
+      eyebrow: "Система",
+      title: "Контуры",
+      description: "Админ-панель для управления моделью pilot -> stage -> prod: разработка, пользовательское тестирование и будущий промышленный контур.",
+      className: "directory-header contour-admin-header",
+      actions: `
+        ${renderUiStatusToken("pilot: Codex", "primary")}
+        ${renderUiStatusToken("stage: пользователи", "ok")}
+        ${renderUiStatusToken("prod: позже", "neutral")}
+      `,
+    }),
+    content: `
+      ${renderContourAdminOverview()}
+      ${renderContourAdminFlowPanel()}
+      ${renderContourAdminScenarioPanel()}
+      ${renderContourAdminGuardrailsPanel()}
+      ${renderContourAdminOpsApiPanel()}
+    `,
+  });
+}
+
+function renderContourAdminOverview() {
+  const contours = getContourAdminContours();
+  return renderUiPanel({
+    title: "Карта контуров",
+    meta: "текущее подключение и целевая схема",
+    className: "contour-admin-panel contour-admin-overview-panel",
+    body: renderUiPanelBody({
+      body: `
+        <div class="contour-admin-card-grid">
+          ${contours.map((contour) => `
+            <article class="contour-admin-card is-${escapeAttribute(contour.id)}">
+              <header>
+                <span>${escapeHtml(contour.label)}</span>
+                ${renderUiStatusToken(contour.statusLabel, contour.statusTone)}
+              </header>
+              <strong>${escapeHtml(contour.title)}</strong>
+              <dl>
+                <div><dt>Сейчас</dt><dd>${escapeHtml(contour.domain)}</dd></div>
+                <div><dt>Цель</dt><dd>${escapeHtml(contour.targetDomain)}</dd></div>
+                <div><dt>Сервис</dt><dd>${escapeHtml(contour.service)}</dd></div>
+                <div><dt>Порт</dt><dd>${escapeHtml(contour.port)}</dd></div>
+              </dl>
+              <p>${escapeHtml(contour.dataPolicy)}</p>
+              <small>${escapeHtml(contour.releasePolicy)}</small>
+            </article>
+          `).join("")}
+        </div>
+      `,
+    }),
+  });
+}
+
+function renderContourAdminFlowPanel() {
+  return renderUiPanel({
+    title: "Рабочий поток",
+    meta: "данные и код движутся по разным правилам",
+    className: "contour-admin-panel contour-admin-flow-panel",
+    body: renderUiPanelBody({
+      body: `
+        <div class="contour-admin-flow">
+          <article>
+            <span>Данные</span>
+            <strong>Stage -> Pilot</strong>
+            <small>односторонняя копия для отладки, без обратной синхронизации</small>
+          </article>
+          <i aria-hidden="true"></i>
+          <article>
+            <span>Код</span>
+            <strong>Git -> Pilot -> Stage</strong>
+            <small>Codex обновляет pilot; stage получает только проверенную версию</small>
+          </article>
+          <i aria-hidden="true"></i>
+          <article>
+            <span>Будущее</span>
+            <strong>Stage -> Prod</strong>
+            <small>после тестирования, регламента релизов и отдельного production-gate</small>
+          </article>
+        </div>
+      `,
+    }),
+  });
+}
+
+function renderContourAdminScenarioPanel() {
+  const scenarios = getContourAdminScenarios();
+  return renderUiPanel({
+    title: "Сценарии управления",
+    meta: "v1 фиксирует заявки; прямое выполнение появится после защищенного Ops API",
+    className: "contour-admin-panel contour-admin-scenarios-panel",
+    body: renderUiPanelBody({
+      body: renderUiTableWrap({
+        className: "contour-admin-scenarios-table-wrap",
+        body: `
+          <table class="directory-table contour-admin-scenarios-table">
+            <thead>
+              <tr>
+                <th>Сценарий</th>
+                <th>Направление</th>
+                <th>Ответственный</th>
+                <th>Риск</th>
+                <th>Статус</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scenarios.map((scenario) => `
+                <tr>
+                  <td class="primary-cell">
+                    <strong>${escapeHtml(scenario.label)}</strong>
+                    <span>${escapeHtml(scenario.result)}</span>
+                  </td>
+                  <td>${escapeHtml(`${scenario.source} -> ${scenario.target}`)}</td>
+                  <td>${escapeHtml(scenario.owner)}</td>
+                  <td>${renderUiStatusToken(scenario.risk, scenario.tone)}</td>
+                  <td>${escapeHtml(scenario.status)}</td>
+                  <td class="actions-cell">
+                    ${renderUiActionButton({
+                      label: "Создать заявку",
+                      iconName: "settings",
+                      tone: "secondary",
+                      attributes: `data-contour-admin-action="${escapeAttribute(scenario.id)}" type="button"`,
+                    })}
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `,
+      }),
+    }),
+  });
+}
+
+function renderContourAdminGuardrailsPanel() {
+  const guardrails = getContourAdminGuardrails();
+  return renderUiPanel({
+    title: "Правила безопасности",
+    meta: "что нельзя нарушать при пользовательском тестировании",
+    className: "contour-admin-panel contour-admin-guardrails-panel",
+    body: renderUiPanelBody({
+      body: `
+        <ol class="contour-admin-rule-list">
+          ${guardrails.map((rule) => `<li>${escapeHtml(rule)}</li>`).join("")}
+        </ol>
+      `,
+    }),
+  });
+}
+
+function renderContourAdminOpsApiPanel() {
+  const endpoints = [
+    "POST /ops/backup/stage",
+    "POST /ops/sync-data/stage-to-pilot",
+    "POST /ops/deploy/pilot",
+    "POST /ops/promote/pilot-to-stage",
+    "POST /ops/rollback/stage",
+  ];
+  return renderUiPanel({
+    title: "Следующий слой: защищенный Ops API",
+    meta: "браузерная панель не должна сама выполнять SSH-команды",
+    className: "contour-admin-panel contour-admin-ops-panel",
+    actions: renderUiStatusToken("исполнение отключено", "warning"),
+    body: renderUiPanelBody({
+      body: `
+        <div class="contour-admin-ops-grid">
+          <article>
+            <strong>Что уже можно делать</strong>
+            <span>Согласовать модель контуров, видеть сценарии, фиксировать заявку на операцию в audit-журнале прототипа.</span>
+          </article>
+          <article>
+            <strong>Что нужно добавить сервером</strong>
+            <span>Отдельный API с токеном, backup-before-action, журналом действий, подтверждением и запретом destructive-операций без флага.</span>
+          </article>
+        </div>
+        <ul class="contour-admin-endpoint-list">
+          ${endpoints.map((endpoint) => `<li><code>${escapeHtml(endpoint)}</code></li>`).join("")}
+        </ul>
+      `,
+    }),
+  });
+}
+
+function bindContourAdminEvents() {
+  app.querySelectorAll("[data-contour-admin-action]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const actionId = button.dataset.contourAdminAction || "";
+      const scenario = getContourAdminScenarios().find((item) => item.id === actionId);
+      appendLocalDataSafetyAudit("contourAdminActionRequest", {
+        status: "requested",
+        actionId,
+        label: scenario?.label || actionId,
+        source: scenario?.source || "",
+        target: scenario?.target || "",
+      });
+      notifySaveSuccess(`Заявка создана: ${scenario?.label || actionId}. Выполнение подключим через защищенный Ops API.`);
+    });
+  });
+}
+
 function formatDateTimeShort(value) {
   const date = toDate(value);
   return date.toLocaleString("ru-RU", {
@@ -16214,6 +16581,7 @@ function getDefaultAccessRoleProfiles() {
       modulePermissions: {
         ...createAccessPermissionMap(["gantt", "planning", "weeklyProductionControl", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "timesheet", "productionStructureMatrix", "employees"], ["view", "edit", "print", "assign", "approve"]),
         ...createAccessPermissionMap(["routes", "products", "nomenclature", "directories"], readOnlyActions),
+        contourAdmin: createAccessPermissionRecord(["view"]),
         roles: createAccessPermissionRecord(["view"]),
       },
     },
@@ -16400,6 +16768,7 @@ function getModuleDefinitions() {
     { id: "employees", label: "Структура", icon: "worker" },
     { id: "timesheet", label: "Табель", icon: "calendar" },
     { id: "roles", label: "Роли", icon: "lock" },
+    { id: "contourAdmin", label: "Контуры", icon: "settings" },
 	    { id: "directories", label: "Справочники", icon: "directory" },
 	    { id: "visualSystem", label: "UI-состояния", icon: "palette" },
 	    { id: "authPrototype", label: "Авторизация", icon: "lock" },
@@ -16411,6 +16780,9 @@ function getModuleDefinitions() {
 }
 
 function getModuleAnnotation(moduleId = "") {
+  if (moduleId === "contourAdmin") {
+    return "Админ-панель контуров: pilot для Codex-работы, stage для пользовательского тестирования, prod будет добавлен после стабилизации.";
+  }
   if (moduleId === "weeklyProductionControl") {
     return "Недельный план-факт по участкам и оборудованию: читает заказ-наряды, факт рабочего места и report, но не меняет систему.";
   }
@@ -16427,7 +16799,7 @@ function getModuleGroups(modules) {
 	    { label: "Планирование нагрузки", ids: ["gantt", "planning", "weeklyProductionControl"] },
 		    { label: "Оперативное управление", ids: ["dispatch", "shiftMasterBoard", "authSessionPrototype", "shiftWorkOrders"] },
 	    { label: "Технологии", ids: ["routes", "products", "nomenclature"] },
-	    { label: "Система", ids: ["productionStructureMatrix", "employees", "timesheet", "roles", "directories"] },
+	    { label: "Система", ids: ["productionStructureMatrix", "employees", "timesheet", "roles", "contourAdmin", "directories"] },
 	    { label: "UX-макеты", ids: ["visualSystem", "planningTable", "supply", "shopMap"], tone: "test" },
   ];
 

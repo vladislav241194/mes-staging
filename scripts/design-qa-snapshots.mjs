@@ -14,8 +14,8 @@ const uiStorageKey = "mes-planning-prototype-ui-v1";
 const viewports = [
   { name: "macbook-air-15", width: 1710, height: 1112, mobile: false },
 ];
-const moduleIds = ["visualSystem", "gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "supply", "shopMap", "directories"];
-const focusModuleIds = ["gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "supply", "shopMap", "directories"];
+const moduleIds = ["visualSystem", "gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "contourAdmin", "supply", "shopMap", "directories"];
+const focusModuleIds = ["gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "contourAdmin", "supply", "shopMap", "directories"];
 const authVisualModuleIds = ["authPrototype"];
 const visualRuntimeModuleIds = [...moduleIds, ...authVisualModuleIds];
 const expectedVisualRuntimeModuleIds = [...SPECIAL_UI_RUNTIME_MODULE_IDS, ...HARD_UI_RUNTIME_MODULE_IDS, ...PARTIAL_UI_RUNTIME_MODULE_IDS];
