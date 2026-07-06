@@ -7,16 +7,18 @@
 Рекомендуемая схема на одной виртуальной машине:
 
 - `dev` - внутренний контур без пользователей, можно чаще обновлять и ломать.
-- `user-testing` - контур для начальника производства, мастеров и исполнителей. Данные сохраняются между релизами.
+- `pilot` - рабочий контур Codex и прототипирования. Берет данные из `stage` только по ручному сценарию и не пишет их обратно.
+- `stage` - контур тестирования реальными пользователями. Данные сохраняются между релизами.
+- `prod` - будущий промышленный контур после стабилизации `stage`.
 
 Минимальные переменные окружения для каждого процесса:
 
 Готовые шаблоны:
 
 - `deploy/env/mes-dev.env.example`;
-- `deploy/env/mes-user-testing.env.example`;
+- `deploy/env/mes-pilot.env.example`;
 - `deploy/systemd/mes-dev.service`;
-- `deploy/systemd/mes-user-testing.service`;
+- `deploy/systemd/mes-pilot.service`;
 - `deploy/caddy/Caddyfile.example`;
 - `deploy/nginx/mes-two-contours.conf.example`.
 
@@ -33,12 +35,12 @@ APP_BASE_URL=https://staging.mes-line.ru
 ```
 
 ```bash
-APP_ENV=user-testing
+APP_ENV=pilot
 PORT=4175
 HOST=127.0.0.1
-MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state
-MES_BACKUP_DIR=/srv/mes/user-testing/backups
-MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log
+MES_SHARED_STATE_DIR=/srv/mes/pilot/shared-state
+MES_BACKUP_DIR=/srv/mes/pilot/backups
+MES_AUDIT_LOG_PATH=/srv/mes/pilot/audit/audit.log
 APP_BASE_URL=https://pilot.mes-line.ru
 MES_ALLOW_DESTRUCTIVE_ACTIONS=false
 MES_ENABLE_WORKFLOW_PRESET_RESTORE=false
@@ -51,7 +53,7 @@ MES_ENABLE_WORKFLOW_PRESET_RESTORE=false
 
 ```bash
 sudo mkdir -p /srv/mes/dev/shared-state /srv/mes/dev/backups /srv/mes/dev/audit
-sudo mkdir -p /srv/mes/user-testing/shared-state /srv/mes/user-testing/backups /srv/mes/user-testing/audit
+sudo mkdir -p /srv/mes/pilot/shared-state /srv/mes/pilot/backups /srv/mes/pilot/audit
 sudo chown -R mes:mes /srv/mes
 ```
 
@@ -60,13 +62,13 @@ sudo chown -R mes:mes /srv/mes
 5. Проверить env до запуска:
 
 ```bash
-APP_ENV=user-testing \
+APP_ENV=pilot \
 PORT=4175 \
 HOST=127.0.0.1 \
 APP_BASE_URL=https://pilot.mes-line.ru \
-MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state \
-MES_BACKUP_DIR=/srv/mes/user-testing/backups \
-MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log \
+MES_SHARED_STATE_DIR=/srv/mes/pilot/shared-state \
+MES_BACKUP_DIR=/srv/mes/pilot/backups \
+MES_AUDIT_LOG_PATH=/srv/mes/pilot/audit/audit.log \
 MES_ALLOW_DESTRUCTIVE_ACTIONS=false \
 MES_ENABLE_WORKFLOW_PRESET_RESTORE=false \
 npm run server:preflight -- --create-dirs
@@ -93,21 +95,21 @@ git diff --check
 
 ## Backup перед обновлением
 
-Для контура `user-testing`:
+Для контура `pilot`:
 
 ```bash
-APP_ENV=user-testing \
-MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state \
-MES_BACKUP_DIR=/srv/mes/user-testing/backups \
-MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log \
+APP_ENV=pilot \
+MES_SHARED_STATE_DIR=/srv/mes/pilot/shared-state \
+MES_BACKUP_DIR=/srv/mes/pilot/backups \
+MES_AUDIT_LOG_PATH=/srv/mes/pilot/audit/audit.log \
 npm run backup:shared-state -- --reason=before-deploy --actor=deploy
 ```
 
 Проверить список backup:
 
 ```bash
-APP_ENV=user-testing \
-MES_BACKUP_DIR=/srv/mes/user-testing/backups \
+APP_ENV=pilot \
+MES_BACKUP_DIR=/srv/mes/pilot/backups \
 npm run list:shared-state-backups
 ```
 
@@ -119,13 +121,13 @@ npm run list:shared-state-backups
 4. Запустить нужный процесс:
 
 ```bash
-APP_ENV=user-testing \
+APP_ENV=pilot \
 PORT=4175 \
 HOST=127.0.0.1 \
 APP_BASE_URL=https://pilot.mes-line.ru \
-MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state \
-MES_BACKUP_DIR=/srv/mes/user-testing/backups \
-MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log \
+MES_SHARED_STATE_DIR=/srv/mes/pilot/shared-state \
+MES_BACKUP_DIR=/srv/mes/pilot/backups \
+MES_AUDIT_LOG_PATH=/srv/mes/pilot/audit/audit.log \
 MES_ALLOW_DESTRUCTIVE_ACTIONS=false \
 MES_ENABLE_WORKFLOW_PRESET_RESTORE=false \
 npm run preview
@@ -139,7 +141,7 @@ npm run preview
 2. Проверить вход под тестовым пользователем.
 3. Проверить чтение/сохранение shared-state на безопасной тестовой операции.
 4. Проверить, что старые пользовательские данные не пропали.
-5. Проверить, что кнопки сброса/восстановления пресета в `user-testing` не выполняют destructive action без явного разрешения.
+5. Проверить, что кнопки сброса/восстановления пресета в `pilot` не выполняют destructive action без явного разрешения.
 
 ## Rollback к предыдущему коду
 
@@ -153,20 +155,20 @@ npm run preview
 Использовать только если shared-state действительно поврежден.
 
 ```bash
-APP_ENV=user-testing \
-MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state \
-MES_BACKUP_DIR=/srv/mes/user-testing/backups \
-MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log \
+APP_ENV=pilot \
+MES_SHARED_STATE_DIR=/srv/mes/pilot/shared-state \
+MES_BACKUP_DIR=/srv/mes/pilot/backups \
+MES_AUDIT_LOG_PATH=/srv/mes/pilot/audit/audit.log \
 MES_RESTORE_CONFIRM=RESTORE_SHARED_STATE \
-npm run restore:shared-state -- --backup=/srv/mes/user-testing/backups/<backup-file>.json --actor=operator
+npm run restore:shared-state -- --backup=/srv/mes/pilot/backups/<backup-file>.json --actor=operator
 ```
 
 Restore автоматически делает backup текущего состояния перед заменой.
 
 ## Запрещенные действия на пользовательском контуре
 
-- Удалять `/srv/mes/user-testing/shared-state`.
-- Удалять `/srv/mes/user-testing/backups`.
+- Удалять `/srv/mes/pilot/shared-state`.
+- Удалять `/srv/mes/pilot/backups`.
 - Включать `MES_ALLOW_DESTRUCTIVE_ACTIONS=true` без отдельного окна обслуживания.
 - Запускать seed/reset/import, который перезаписывает shared-state.
 - Пересоздавать процесс с другим `MES_SHARED_STATE_DIR` без миграции данных.

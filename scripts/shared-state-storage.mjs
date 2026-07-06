@@ -1,7 +1,7 @@
 import { appendFile, copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
-const PROTECTED_APP_ENVS = new Set(["staging", "user-testing", "production"]);
+const PROTECTED_APP_ENVS = new Set(["pilot", "staging", "user-testing", "production"]);
 const DESTRUCTIVE_ACTION_RE = /\b(reset|restore|seed|preset|wipe|clear|delete|destructive|initial-state|initial-preset)\b/i;
 
 function normalizeEnvValue(value = "") {

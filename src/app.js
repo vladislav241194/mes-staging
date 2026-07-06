@@ -136,7 +136,7 @@ const MES_RUNTIME_CONFIG = (typeof window !== "undefined" && window.MES_APP_CONF
   ? window.MES_APP_CONFIG
   : {};
 const MES_APP_ENV = String(MES_RUNTIME_CONFIG.APP_ENV || "local").trim().toLowerCase() || "local";
-const MES_PROTECTED_APP_ENVS = new Set(["staging", "user-testing", "production"]);
+const MES_PROTECTED_APP_ENVS = new Set(["pilot", "staging", "user-testing", "production"]);
 const MES_IS_PROTECTED_APP_ENV = MES_PROTECTED_APP_ENVS.has(MES_APP_ENV);
 const MES_DESTRUCTIVE_ACTIONS_ALLOWED = MES_RUNTIME_CONFIG.MES_ALLOW_DESTRUCTIVE_ACTIONS === true;
 const WORKFLOW_PRESET_RESTORE_ENABLED = MES_RUNTIME_CONFIG.MES_ENABLE_WORKFLOW_PRESET_RESTORE !== false
@@ -16189,7 +16189,7 @@ function getContourAdminContours() {
       title: "Рабочий контур Codex",
       domain: "pilot.mes-line.ru",
       targetDomain: "mes-pilot.ru",
-      service: "mes-user-testing.service",
+      service: "mes-pilot.service",
       port: "4175",
       dataPolicy: "Берет копию данных stage по ручному сценарию. Обратно данные не пишет.",
       releasePolicy: "Кодекс и разработка могут обновлять этот контур первыми.",
