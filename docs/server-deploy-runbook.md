@@ -11,6 +11,14 @@
 
 Минимальные переменные окружения для каждого процесса:
 
+Готовые шаблоны:
+
+- `deploy/env/mes-dev.env.example`;
+- `deploy/env/mes-user-testing.env.example`;
+- `deploy/systemd/mes-dev.service`;
+- `deploy/systemd/mes-user-testing.service`;
+- `deploy/nginx/mes-two-contours.conf.example`.
+
 ```bash
 APP_ENV=dev
 PORT=4174
@@ -44,6 +52,18 @@ sudo chown -R mes:mes /srv/mes
 
 3. Не хранить пользовательский shared-state внутри git checkout.
 4. Не использовать `rm -rf` для shared-state, backup или audit директорий.
+5. Проверить env до запуска:
+
+```bash
+APP_ENV=user-testing \
+PORT=4175 \
+MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state \
+MES_BACKUP_DIR=/srv/mes/user-testing/backups \
+MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log \
+MES_ALLOW_DESTRUCTIVE_ACTIONS=false \
+MES_ENABLE_WORKFLOW_PRESET_RESTORE=false \
+npm run server:preflight -- --create-dirs
+```
 
 ## Pre-deploy checklist
 
@@ -150,3 +170,9 @@ curl -s https://mes-test.example.ru/api/shared-state | head
 ```
 
 Для закрытого контура endpoint может быть защищен reverse proxy; тогда healthcheck выполняется с сервера через `localhost`.
+
+Автоматизированная проверка:
+
+```bash
+APP_BASE_URL=https://mes-test.example.ru npm run server:healthcheck
+```

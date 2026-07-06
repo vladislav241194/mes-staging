@@ -1,0 +1,22 @@
+[Unit]
+Description=MES prototype dev contour
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mes
+Group=mes
+WorkingDirectory=/opt/mes/current
+EnvironmentFile=/etc/mes/mes-dev.env
+ExecStartPre=/usr/bin/npm run server:preflight
+ExecStart=/usr/bin/npm run preview
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/mes/dev /opt/mes/current
+
+[Install]
+WantedBy=multi-user.target
