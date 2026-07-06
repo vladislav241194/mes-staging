@@ -16346,11 +16346,34 @@ function renderContourAdminPage() {
       `,
     }),
     content: `
-      ${renderContourAdminOverview()}
-      ${renderContourAdminFlowPanel()}
-      ${renderContourAdminScenarioPanel()}
-      ${renderContourAdminGuardrailsPanel()}
-      ${renderContourAdminOpsApiPanel()}
+      <section class="contour-admin-hero">
+        <article>
+          <span>Текущий рабочий контур</span>
+          <strong>pilot.mes-line.ru</strong>
+          <small>Codex, прототипирование, быстрые проверки</small>
+        </article>
+        <article>
+          <span>Пользовательское тестирование</span>
+          <strong>staging.mes-line.ru</strong>
+          <small>реальные данные, только проверенные обновления</small>
+        </article>
+        <article>
+          <span>Ключевое правило</span>
+          <strong>Stage -> Pilot</strong>
+          <small>копия данных только в одну сторону</small>
+        </article>
+      </section>
+      <div class="contour-admin-main-grid">
+        <div class="contour-admin-left-stack">
+          ${renderContourAdminOverview()}
+          ${renderContourAdminFlowPanel()}
+        </div>
+        <div class="contour-admin-right-stack">
+          ${renderContourAdminScenarioPanel()}
+          ${renderContourAdminGuardrailsPanel()}
+          ${renderContourAdminOpsApiPanel()}
+        </div>
+      </div>
     `,
   });
 }
