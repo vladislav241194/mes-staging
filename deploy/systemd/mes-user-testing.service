@@ -1,13 +1,13 @@
 [Unit]
-Description=MES prototype user-testing contour
+Description=MES User Testing Preview
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=mes
-Group=mes
-WorkingDirectory=/opt/mes/current
+User=deploy
+Group=deploy
+WorkingDirectory=/srv/mes/user-testing/app
 EnvironmentFile=/etc/mes/mes-user-testing.env
 ExecStartPre=/usr/bin/npm run server:preflight
 ExecStart=/usr/bin/npm run preview
@@ -16,7 +16,7 @@ RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-ReadWritePaths=/srv/mes/user-testing /opt/mes/current
+ReadWritePaths=/srv/mes/user-testing
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,7 @@
+staging.mes-line.ru {
+  reverse_proxy 127.0.0.1:4174
+}
+
+pilot.mes-line.ru {
+  reverse_proxy 127.0.0.1:4175
+}

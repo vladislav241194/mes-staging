@@ -17,24 +17,29 @@
 - `deploy/env/mes-user-testing.env.example`;
 - `deploy/systemd/mes-dev.service`;
 - `deploy/systemd/mes-user-testing.service`;
+- `deploy/caddy/Caddyfile.example`;
 - `deploy/nginx/mes-two-contours.conf.example`.
+
+Фактический текущий сервер использует Caddy. Nginx-шаблон оставлен как альтернативный пример, но не должен запускаться одновременно с Caddy на портах `80/443`.
 
 ```bash
 APP_ENV=dev
 PORT=4174
+HOST=127.0.0.1
 MES_SHARED_STATE_DIR=/srv/mes/dev/shared-state
 MES_BACKUP_DIR=/srv/mes/dev/backups
 MES_AUDIT_LOG_PATH=/srv/mes/dev/audit/audit.log
-APP_BASE_URL=https://dev.example.ru
+APP_BASE_URL=https://staging.mes-line.ru
 ```
 
 ```bash
 APP_ENV=user-testing
 PORT=4175
+HOST=127.0.0.1
 MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state
 MES_BACKUP_DIR=/srv/mes/user-testing/backups
 MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log
-APP_BASE_URL=https://mes-test.example.ru
+APP_BASE_URL=https://pilot.mes-line.ru
 MES_ALLOW_DESTRUCTIVE_ACTIONS=false
 MES_ENABLE_WORKFLOW_PRESET_RESTORE=false
 ```
@@ -57,6 +62,8 @@ sudo chown -R mes:mes /srv/mes
 ```bash
 APP_ENV=user-testing \
 PORT=4175 \
+HOST=127.0.0.1 \
+APP_BASE_URL=https://pilot.mes-line.ru \
 MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state \
 MES_BACKUP_DIR=/srv/mes/user-testing/backups \
 MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log \
@@ -114,6 +121,8 @@ npm run list:shared-state-backups
 ```bash
 APP_ENV=user-testing \
 PORT=4175 \
+HOST=127.0.0.1 \
+APP_BASE_URL=https://pilot.mes-line.ru \
 MES_SHARED_STATE_DIR=/srv/mes/user-testing/shared-state \
 MES_BACKUP_DIR=/srv/mes/user-testing/backups \
 MES_AUDIT_LOG_PATH=/srv/mes/user-testing/audit/audit.log \
@@ -165,8 +174,8 @@ Restore автоматически делает backup текущего сост
 ## Минимальный healthcheck
 
 ```bash
-curl -I https://mes-test.example.ru/
-curl -s https://mes-test.example.ru/api/shared-state | head
+curl -I https://pilot.mes-line.ru/
+curl -s https://pilot.mes-line.ru/api/shared-state | head
 ```
 
 Для закрытого контура endpoint может быть защищен reverse proxy; тогда healthcheck выполняется с сервера через `localhost`.
@@ -174,5 +183,5 @@ curl -s https://mes-test.example.ru/api/shared-state | head
 Автоматизированная проверка:
 
 ```bash
-APP_BASE_URL=https://mes-test.example.ru npm run server:healthcheck
+APP_BASE_URL=https://pilot.mes-line.ru npm run server:healthcheck
 ```
