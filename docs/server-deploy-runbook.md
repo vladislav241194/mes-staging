@@ -115,7 +115,45 @@ npm run list:shared-state-backups
 
 ## Deploy
 
-1. Обновить код через безопасный способ, например `git pull --ff-only`.
+### Git-доступ на сервере
+
+Код на сервере обновляется от Linux-пользователя `deploy`, а не от `root`.
+У `deploy` должен быть отдельный GitHub deploy key:
+
+```bash
+/home/deploy/.ssh/mes_deploy_ed25519
+```
+
+SSH config пользователя `deploy` должен явно использовать этот ключ:
+
+```sshconfig
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/mes_deploy_ed25519
+  IdentitiesOnly yes
+```
+
+Проверка доступа:
+
+```bash
+sudo -u deploy ssh -o BatchMode=yes -T git@github.com
+```
+
+Ожидаемый результат - успешная GitHub-аутентификация без shell-доступа.
+
+Обновлять checkout нужно так:
+
+```bash
+sudo -u deploy git -C /srv/mes/dev/app pull --ff-only origin main
+sudo -u deploy git -C /srv/mes/pilot/app pull --ff-only origin main
+```
+
+Не выполнять `git pull` из-под `root`: у root может не быть deploy key, а файлы checkout после этого могут получить неправильного владельца.
+
+### Последовательность обновления
+
+1. Обновить код через безопасный способ, например `sudo -u deploy git pull --ff-only`.
 2. Установить зависимости: `npm ci`.
 3. Собрать приложение: `npm run build`.
 4. Запустить нужный процесс:
