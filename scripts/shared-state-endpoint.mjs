@@ -1,5 +1,13 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import {
+  appendSharedStateAudit,
+  backupSharedStateFile,
+  isDestructiveActionsAllowed,
+  isProtectedAppEnv,
+  isSharedStateActionDestructive,
+  resolveSharedStateBackupDir,
+} from "./shared-state-storage.mjs";
 
 const MAX_SHARED_STATE_BODY_BYTES = 20 * 1024 * 1024;
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
@@ -172,6 +180,8 @@ function createEmptySnapshot() {
 
 function createFileStore(filePath) {
   return {
+    kind: "file",
+    filePath,
     configured: Boolean(filePath),
     async read() {
       if (!filePath) return createEmptySnapshot();
@@ -193,6 +203,7 @@ function createFileStore(filePath) {
 
 function createKvStore(config) {
   return {
+    kind: "kv",
     configured: Boolean(config),
     async read() {
       if (!config) return createEmptySnapshot();
@@ -252,7 +263,13 @@ function buildClientSnapshot(current, payload) {
   };
 }
 
-export async function handleSharedStateRequest(req, res, { headers, filePath, env = process.env } = {}) {
+export async function handleSharedStateRequest(req, res, {
+  headers,
+  filePath,
+  env = process.env,
+  backupDir = "",
+  auditLogPath = "",
+} = {}) {
   const store = createStore({ env, filePath });
 
   if (!store.configured) {
@@ -277,8 +294,32 @@ export async function handleSharedStateRequest(req, res, { headers, filePath, en
   }
 
   try {
-    const current = await store.read();
     const payload = JSON.parse(await readRequestBody(req) || "{}");
+    const action = normalizeAction(payload.action);
+    const destructiveAction = isSharedStateActionDestructive(action);
+
+    if (isProtectedAppEnv(env) && destructiveAction && !isDestructiveActionsAllowed(env)) {
+      await appendSharedStateAudit({
+        auditLogPath,
+        event: {
+          action,
+          status: "denied",
+          reason: "destructive-action-disabled",
+          appEnv: env.APP_ENV || env.MES_APP_ENV || "",
+          clientId: normalizeActor(payload.clientId),
+          actor: normalizeActor(payload.actor),
+        },
+      }).catch(() => {});
+      sendJson(res, headers, 403, {
+        ok: false,
+        configured: true,
+        destructiveAction: true,
+        error: "Destructive shared-state action is disabled for this environment",
+      });
+      return;
+    }
+
+    const current = await store.read();
     const baseVersion = Number(payload.baseVersion);
     const currentVersion = Number(current.version || 0);
 
@@ -294,7 +335,28 @@ export async function handleSharedStateRequest(req, res, { headers, filePath, en
     }
 
     const snapshot = buildClientSnapshot(current, payload);
+    if (store.kind === "file" && store.filePath && (destructiveAction || env.MES_BACKUP_BEFORE_SHARED_STATE_WRITE === "true")) {
+      await backupSharedStateFile({
+        filePath: store.filePath,
+        backupDir: backupDir || resolveSharedStateBackupDir({ sharedStateFile: store.filePath, env }),
+        reason: destructiveAction ? `before-${action}` : "before-shared-state-write",
+        actor: normalizeActor(payload.actor),
+        env,
+        allowMissing: true,
+      });
+    }
     await store.write(snapshot);
+    await appendSharedStateAudit({
+      auditLogPath,
+      event: {
+        action,
+        status: "saved",
+        destructiveAction,
+        version: snapshot.version,
+        clientId: normalizeActor(payload.clientId),
+        actor: normalizeActor(payload.actor),
+      },
+    }).catch(() => {});
     sendJson(res, headers, 200, { ok: true, configured: true, ...snapshot });
   } catch (error) {
     sendJson(res, headers, 500, {

@@ -2,11 +2,19 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { handleSharedStateRequest } from "./scripts/shared-state-endpoint.mjs";
+import {
+  getSharedStateServerPaths,
+  renderRuntimeConfigScript,
+} from "./scripts/shared-state-storage.mjs";
 import { saveWorkflowPreset } from "./scripts/workflow-preset-endpoint.mjs";
 
 const root = new URL(".", import.meta.url).pathname;
 const host = process.env.HOST || "localhost";
 const port = Number(process.env.PORT || 4174);
+const sharedStatePaths = getSharedStateServerPaths({
+  projectRoot: root,
+  fallbackFile: join(root, ".mes-shared-state.json"),
+});
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -57,6 +65,7 @@ async function renderIndexHtml() {
   ]);
 
   return html
+    .replace("</head>", `${renderRuntimeConfigScript(process.env)}\n  </head>`)
     .replace(/\.\/styles\.css(?:\?v=[^"]*)?/, `./styles.css?v=${stylesVersion}`)
     .replace(/\.\/src\/app\.js(?:\?v=[^"]*)?/, `./src/app.js?v=${appVersion}`);
 }
@@ -73,7 +82,9 @@ createServer(async (req, res) => {
 
   if (url.pathname === "/api/shared-state") {
     await handleSharedStateRequest(req, res, {
-      filePath: join(root, ".mes-shared-state.json"),
+      filePath: sharedStatePaths.filePath,
+      backupDir: sharedStatePaths.backupDir,
+      auditLogPath: sharedStatePaths.auditLogPath,
       headers: noCacheHeaders,
     });
     return;

@@ -51,9 +51,14 @@ function makeRes() {
   };
 }
 
-async function callSharedState(filePath, method, body = null) {
+async function callSharedState(filePath, method, body = null, options = {}) {
   const res = makeRes();
-  await handleSharedStateRequest(makeReq(method, body), res, { filePath });
+  await handleSharedStateRequest(makeReq(method, body), res, {
+    filePath,
+    auditLogPath: options.auditLogPath,
+    backupDir: options.backupDir,
+    env: options.env || process.env,
+  });
   const json = JSON.parse(res.body || "{}");
   return {
     statusCode: res.statusCode,
@@ -184,6 +189,24 @@ async function main() {
     assert(conflict.statusCode === 409, "Stale POST should return conflict");
     assert(conflict.json.current?.values?.[SHARED_STATE_KEYS.supplyControl], "Conflict payload should include current supply control");
 
+    const deniedDestructiveAction = await callSharedState(filePath, "POST", {
+      baseVersion: 2,
+      clientId: "protected-env-client",
+      actor: "QA",
+      action: "initial-preset",
+      values,
+    }, {
+      env: {
+        ...process.env,
+        APP_ENV: "user-testing",
+        MES_ALLOW_DESTRUCTIVE_ACTIONS: "false",
+      },
+      auditLogPath: join(dir, "audit.log"),
+      backupDir: join(dir, "backups"),
+    });
+    assert(deniedDestructiveAction.statusCode === 403, "Protected env destructive action should be denied");
+    assert(deniedDestructiveAction.json.destructiveAction === true, "Denied destructive action should be explicit");
+
     const fetched = await callSharedState(filePath, "GET");
     assert(fetched.json.version === 2, "GET should keep stored version");
     assert(fetched.json.values[SHARED_STATE_KEYS.supplyControl] === posted.json.values[SHARED_STATE_KEYS.supplyControl], "GET should return stored supply control");
@@ -207,6 +230,7 @@ async function main() {
     console.log("- shift master board sharing: pass");
     console.log("- access roles sharing: pass");
     console.log("- version conflict: pass");
+    console.log("- protected destructive action guard: pass");
     console.log("OK: shared-state endpoint preserves whitelisted collaborative data.");
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});

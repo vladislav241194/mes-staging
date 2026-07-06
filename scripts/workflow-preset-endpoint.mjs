@@ -1,4 +1,8 @@
 import { writeFile } from "node:fs/promises";
+import {
+  isDestructiveActionsAllowed,
+  isProtectedAppEnv,
+} from "./shared-state-storage.mjs";
 
 const MAX_PRESET_BODY_BYTES = 12 * 1024 * 1024;
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
@@ -27,7 +31,7 @@ function sendJson(res, headers, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
-export async function saveWorkflowPreset(req, res, { targetPaths, headers }) {
+export async function saveWorkflowPreset(req, res, { targetPaths, headers, env = process.env }) {
   try {
     const raw = await readRequestBody(req);
     const preset = JSON.parse(raw || "{}");
@@ -39,6 +43,14 @@ export async function saveWorkflowPreset(req, res, { targetPaths, headers }) {
 
     if (preset.source !== "sidebar-button") {
       sendJson(res, headers, 403, { ok: false, error: "Manual preset save is required" });
+      return;
+    }
+
+    if (isProtectedAppEnv(env) && !isDestructiveActionsAllowed(env)) {
+      sendJson(res, headers, 403, {
+        ok: false,
+        error: "Workflow preset save is disabled for this environment",
+      });
       return;
     }
 

@@ -132,6 +132,16 @@ const SHARED_UI_LOCAL_DIRTY_TTL_MS = 24 * 60 * 60 * 1000;
 const APP_VERSION = "v.1.491";
 const AUTH_GATE_SESSION_STORAGE_KEY = "mes-planning-prototype-auth-session-v1";
 const AUTH_PIN_TEMPORARILY_DISABLED = true;
+const MES_RUNTIME_CONFIG = (typeof window !== "undefined" && window.MES_APP_CONFIG && typeof window.MES_APP_CONFIG === "object")
+  ? window.MES_APP_CONFIG
+  : {};
+const MES_APP_ENV = String(MES_RUNTIME_CONFIG.APP_ENV || "local").trim().toLowerCase() || "local";
+const MES_PROTECTED_APP_ENVS = new Set(["staging", "user-testing", "production"]);
+const MES_IS_PROTECTED_APP_ENV = MES_PROTECTED_APP_ENVS.has(MES_APP_ENV);
+const MES_DESTRUCTIVE_ACTIONS_ALLOWED = MES_RUNTIME_CONFIG.MES_ALLOW_DESTRUCTIVE_ACTIONS === true;
+const WORKFLOW_PRESET_RESTORE_ENABLED = MES_RUNTIME_CONFIG.MES_ENABLE_WORKFLOW_PRESET_RESTORE !== false
+  && (!MES_IS_PROTECTED_APP_ENV || MES_RUNTIME_CONFIG.MES_ENABLE_WORKFLOW_PRESET_RESTORE === true);
+const DATA_SAFETY_AUDIT_STORAGE_KEY = "mes-planning-prototype-data-safety-audit-v1";
 const STATE_RESET_BACKUP_STORAGE_KEY = "mes-planning-prototype-state-reset-backup-v1";
 const PLANNING_BACKUP_STORAGE_KEY = "mes-planning-prototype-planning-backup-v1";
 const DIRECTORY_BACKUP_STORAGE_KEY = "mes-planning-prototype-directories-backup-v1";
@@ -164,6 +174,30 @@ const SHARED_STATE_VALUE_KEYS = [
   SUPPLY_CONTROL_STORAGE_KEY,
   WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY,
 ];
+
+function appendLocalDataSafetyAudit(action = "", details = {}) {
+  try {
+    const current = JSON.parse(localStorage.getItem(DATA_SAFETY_AUDIT_STORAGE_KEY) || "[]");
+    const events = Array.isArray(current) ? current : [];
+    events.push({
+      createdAt: new Date().toISOString(),
+      appEnv: MES_APP_ENV,
+      action,
+      ...details,
+    });
+    localStorage.setItem(DATA_SAFETY_AUDIT_STORAGE_KEY, JSON.stringify(events.slice(-100)));
+  } catch {
+    // Local audit is best-effort and must never block the operator.
+  }
+}
+
+function blockProtectedDestructiveAction(action = "", message = "Действие заблокировано для защиты данных пользователей") {
+  if (!MES_IS_PROTECTED_APP_ENV || MES_DESTRUCTIVE_ACTIONS_ALLOWED) return false;
+  appendLocalDataSafetyAudit(action, { status: "denied" });
+  notifySaveSuccess(message);
+  return true;
+}
+
 const CRITICAL_DIRECTORY_SECTION_IDS = ["bomLists", "specifications"];
 const DEFAULT_INTERFACE_ROLE_ID = "admin";
 const INTERFACE_ROLES = [
@@ -2014,11 +2048,21 @@ function applyWorkflowPresetValues(preset, options = {}) {
 }
 
 function restoreWorkflowPresetIfCurrentPlanningEmpty(preset) {
+  if (!WORKFLOW_PRESET_RESTORE_ENABLED) {
+    appendLocalDataSafetyAudit("restoreWorkflowPresetIfCurrentPlanningEmpty", { status: "skipped" });
+    return false;
+  }
   if (!preset || localStorage.getItem(STORAGE_KEY) || hasMeaningfulPlanningState()) return false;
   return applyWorkflowPresetValues(preset, { backup: false, silent: true });
 }
 
 function restoreWorkflowPreset() {
+  if (blockProtectedDestructiveAction(
+    "restoreWorkflowPreset",
+    "Восстановление пресета отключено в этом окружении для защиты данных пользователей",
+  )) {
+    return;
+  }
   const preset = getWorkflowPreset();
   if (!preset) {
     notifySaveSuccess("Пресет еще не сохранен");
@@ -15469,6 +15513,12 @@ function saveTimesheetEditor(form) {
 }
 
 function resetTimesheetEditorCell() {
+  if (blockProtectedDestructiveAction(
+    "resetTimesheetEditorCell",
+    "Сброс ячейки табеля отключен в этом окружении для защиты данных пользователей",
+  )) {
+    return;
+  }
   const editor = ui.timesheetEditor || {};
   const employeeId = String(editor.employeeId || "").trim();
   const dateKey = normalizeDateInput(editor.dateKey);
@@ -15481,6 +15531,12 @@ function resetTimesheetEditorCell() {
 }
 
 function resetTimesheetEditorSchedule() {
+  if (blockProtectedDestructiveAction(
+    "resetTimesheetEditorSchedule",
+    "Сброс графика отключен в этом окружении для защиты данных пользователей",
+  )) {
+    return;
+  }
   const employeeId = String(ui.timesheetEditor?.employeeId || "").trim();
   if (!employeeId) return;
   const store = { ...normalizePlainRecord(ui.timesheetScheduleOverrides) };
@@ -15915,6 +15971,12 @@ function setAccessRoleAssignment(employeeId = "", roleId = "") {
 }
 
 function resetAccessRoleConfiguration() {
+  if (blockProtectedDestructiveAction(
+    "resetAccessRoleConfiguration",
+    "Сброс ролей отключен в этом окружении для защиты данных пользователей",
+  )) {
+    return;
+  }
   ui.accessRoleProfiles = [];
   ui.accessRoleAssignments = {};
   ui.accessRolesSelectedRoleId = DEFAULT_INTERFACE_ROLE_ID;

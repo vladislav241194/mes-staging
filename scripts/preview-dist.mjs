@@ -3,12 +3,20 @@ import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleSharedStateRequest } from "./shared-state-endpoint.mjs";
+import {
+  getSharedStateServerPaths,
+  renderRuntimeConfigScript,
+} from "./shared-state-storage.mjs";
 import { saveWorkflowPreset } from "./workflow-preset-endpoint.mjs";
 
 const projectRoot = join(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = join(projectRoot, "dist");
 const host = process.env.HOST || "localhost";
 const port = Number(process.env.PORT || 4174);
+const sharedStatePaths = getSharedStateServerPaths({
+  projectRoot,
+  fallbackFile: join(projectRoot, ".mes-shared-state.json"),
+});
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -52,6 +60,11 @@ async function ensureDistExists() {
   }
 }
 
+async function renderPreviewIndexHtml() {
+  const html = await readFile(join(distDir, "index.html"), "utf-8");
+  return html.replace("</head>", `${renderRuntimeConfigScript(process.env)}\n  </head>`);
+}
+
 if (!(await ensureDistExists())) {
   console.error("dist/index.html not found. Run npm run build first.");
   process.exit(1);
@@ -72,7 +85,9 @@ createServer(async (req, res) => {
 
   if (url.pathname === "/api/shared-state") {
     await handleSharedStateRequest(req, res, {
-      filePath: join(projectRoot, ".mes-shared-state.json"),
+      filePath: sharedStatePaths.filePath,
+      backupDir: sharedStatePaths.backupDir,
+      auditLogPath: sharedStatePaths.auditLogPath,
       headers: responseHeaders,
     });
     return;
@@ -82,7 +97,8 @@ createServer(async (req, res) => {
   const contentType = mimeTypes[extname(filePath)] || "application/octet-stream";
 
   try {
-    const body = await readFile(filePath);
+    const isIndex = extname(filePath) === ".html";
+    const body = isIndex ? await renderPreviewIndexHtml() : await readFile(filePath);
     res.writeHead(200, responseHeaders(contentType));
     res.end(body);
   } catch {
@@ -91,7 +107,7 @@ createServer(async (req, res) => {
       res.end("");
       return;
     }
-    const body = await readFile(join(distDir, "index.html"));
+    const body = await renderPreviewIndexHtml();
     res.writeHead(200, responseHeaders(mimeTypes[".html"]));
     res.end(body);
   }

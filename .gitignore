@@ -6,3 +6,6 @@ tmp/
 .env.local
 .vercel/
 .mes-shared-state.json
+.mes-data/
+.mes-backups/
+.mes-audit.log
