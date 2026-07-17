@@ -16,6 +16,8 @@
     "deploy:pilot:dist": "node scripts/deploy-contour.mjs --contour=pilot --mode=dist-only",
     "deploy:staging": "node scripts/deploy-contour.mjs --contour=staging",
     "deploy:staging:dist": "node scripts/deploy-contour.mjs --contour=staging --mode=dist-only",
+    "release:stage:pilot": "node scripts/release-stage.mjs --contour=pilot",
+    "release:stage:staging": "node scripts/release-stage.mjs --contour=staging",
     "promote:pilot-to-staging": "node scripts/promote-contour.mjs --action=promote --from=pilot --to=staging",
     "promote:pilot-to-staging:dry": "node scripts/promote-contour.mjs --action=promote --from=pilot --to=staging --dry-run",
     "rollback:staging:last-dist": "node scripts/promote-contour.mjs --action=rollback --to=staging",
