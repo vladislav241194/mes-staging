@@ -12,6 +12,12 @@ Operational data remains outside a release:
 - audit logs;
 - `/etc/mes` environment files and credentials.
 
+The recovery `bootstrap-snapshot.json` is also operational compatibility data.
+It is preserved once per contour at `runtime/bootstrap-snapshot.json`, checked
+as JSON, hashed in the release manifest, and copied into the staged app and
+its `dist/` folder. It is never committed to Git and staging never overwrites
+the preserved operational copy.
+
 ## Stage a release
 
 Use a fresh Git worktree at the exact commit that is to be released. From that
@@ -38,13 +44,30 @@ and does not modify production data.
 
 ## Activation and rollback
 
-Activation must be introduced as a separate reviewed step. It will make
-`/srv/mes/pilot/app` a pointer to a verified staged release, restart the
-service, run health checks, and preserve the previous target for rollback.
-The initial directory-to-pointer conversion is intentionally not hidden in
-the staging command because it is the only cutover that changes the active
-filesystem topology.
+Activate only a staged release that has passed manifest verification:
 
-Until activation is implemented, the legacy `deploy-contour` path is reserved
-for emergency recovery only. Each emergency change needs an explicit source
-backup, build, restart, and live browser verification before it is accepted.
+```bash
+npm run release:activate:pilot -- --release-id=<version-and-commit>
+```
+
+The activation command performs these gates in order:
+
+1. validates the manifest, code tree, built tree and compatibility artifacts
+   on the server immediately before changing the active target;
+2. preserves the current app as a named legacy release on the first cutover,
+   or records the previous release pointer on later cutovers;
+3. switches `/srv/mes/pilot/app` to the immutable staged artifact and restarts
+   the service;
+4. requires local and public `GET /healthz` to return a ready shared-state
+   status; and
+5. records the active release only after both health checks pass.
+
+If restart or either health check fails, it restores the previous directory or
+release pointer, restarts the service again, and retains both failed and
+previous artifacts for diagnosis. Use `--dry-run` to validate a candidate
+without changing the active target.
+
+`deploy-contour` is now intentionally refused once an app path is a release
+pointer: direct `rsync` would mutate an immutable artifact and invalidate
+rollback. Emergency recovery must activate a known staged release or first
+explicitly restore a legacy runtime under a reviewed incident procedure.

@@ -191,6 +191,21 @@ function sshCommandArgs(remote, remoteCommand) {
   return [...sshOptions, remote, remoteCommand];
 }
 
+async function assertLegacyLiveWriteTarget(remote, contour) {
+  const result = await runCommand(
+    "verify legacy live-write target",
+    "ssh",
+    sshCommandArgs(remote, `test ! -L ${shellQuote(contour.appPath)}`),
+    { allowFailure: true },
+  );
+  if (result.code !== 0) {
+    throw new Error(
+      `Refusing direct rsync deployment: ${contour.appPath} is an immutable release pointer. `
+      + "Stage a clean Git release and use the release activation workflow instead.",
+    );
+  }
+}
+
 function rsyncSshTransport() {
   return ["ssh", ...sshOptions.map((option) => shellQuote(option))].join(" ");
 }
@@ -277,6 +292,11 @@ async function main() {
   console.log(`- target: ${args.remote}:${contour.appPath}`);
   console.log(`- verify: ${verifyUrl}`);
   console.log(`- expect status: ${expectStatus}`);
+
+  // Direct writes are only retained for the pre-migration emergency path.
+  // Once app points at a staged release, an rsync would mutate that immutable
+  // artifact and make rollback/reproducibility impossible.
+  await assertLegacyLiveWriteTarget(args.remote, contour);
 
   if (args.build) {
     steps.push(await runCommand("local build", "npm", ["run", "build"]));

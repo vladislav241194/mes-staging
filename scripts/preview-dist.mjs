@@ -159,6 +159,28 @@ async function renderPreviewIndexHtml() {
   return html.replace("</head>", `${renderRuntimeConfigScript(process.env)}\n  </head>`);
 }
 
+async function writeRuntimeHealth(res) {
+  let statusCode = 200;
+  let sharedState = "ready";
+  try {
+    const sharedStateStat = await stat(sharedStatePaths.filePath);
+    if (!sharedStateStat.isFile() || sharedStateStat.size <= 0) throw new Error("shared state is unavailable");
+  } catch {
+    statusCode = 503;
+    sharedState = "unavailable";
+  }
+
+  let version = "unknown";
+  try {
+    version = String(JSON.parse(await readFile(join(projectRoot, "app-version.json"), "utf8")).version || version);
+  } catch {
+    // A health response must stay safe even if an optional display file is absent.
+  }
+
+  res.writeHead(statusCode, noCacheHeaders("application/json; charset=utf-8"));
+  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState }));
+}
+
 if (!(await ensureDistExists())) {
   console.error("dist/index.html not found. Run npm run build first.");
   process.exit(1);
@@ -169,6 +191,10 @@ createServer(async (req, res) => {
   // Keep it on the response because the domain handler is shared with server.js.
   res.__mesAcceptEncoding = String(req.headers?.["accept-encoding"] || "");
   const url = new URL(req.url || "/", `http://${host}:${port}`);
+  if (url.pathname === "/healthz") {
+    await writeRuntimeHealth(res);
+    return;
+  }
   if (url.pathname === "/favicon.svg") {
     writeContourFavicon(req, res, (contentType) => responseHeadersForUrl(url, contentType));
     return;

@@ -26,6 +26,7 @@ const CONTOURS = {
     sharedStateDir: "/srv/mes/pilot/shared-state",
     backupDir: "/srv/mes/pilot/backups",
     auditLogPath: "/srv/mes/pilot/audit/audit.log",
+    bootstrapSnapshotPath: "/srv/mes/pilot/runtime/bootstrap-snapshot.json",
   },
   staging: {
     appEnv: "staging",
@@ -37,6 +38,7 @@ const CONTOURS = {
     sharedStateDir: "/srv/mes/dev/shared-state",
     backupDir: "/srv/mes/dev/backups",
     auditLogPath: "/srv/mes/dev/audit/audit.log",
+    bootstrapSnapshotPath: "/srv/mes/dev/runtime/bootstrap-snapshot.json",
   },
 };
 
@@ -145,8 +147,12 @@ async function assertCleanGitWorktree() {
   if (status) throw new Error("Refusing release staging from a dirty Git worktree");
 }
 
-async function treeSha(includes) {
-  const args = ["scripts/release-tree-sha.mjs", ...includes.map((value) => `--include=${value}`)];
+async function treeSha(includes, { excludes = [] } = {}) {
+  const args = [
+    "scripts/release-tree-sha.mjs",
+    ...includes.map((value) => `--include=${value}`),
+    ...excludes.map((value) => `--exclude=${value}`),
+  ];
   return (await run("node", args)).stdout.trim();
 }
 
@@ -160,6 +166,55 @@ async function stagePath(remote, sourcePaths, target, { deleteTarget = false, dr
   if (dryRun) args.push("--dry-run");
   args.push(...sourcePaths, target);
   return await run("rsync", args);
+}
+
+async function ensureBootstrapSnapshotArtifact({ contour, remote }) {
+  const externalPath = contour.bootstrapSnapshotPath;
+  const activePath = `${contour.appPath}/bootstrap-snapshot.json`;
+  const activeDistPath = `${contour.appPath}/dist/bootstrap-snapshot.json`;
+  const remoteCommand = [
+    "set -euo pipefail",
+    `artifact=${shellQuote(externalPath)}`,
+    `active_artifact=${shellQuote(activePath)}`,
+    `active_dist_artifact=${shellQuote(activeDistPath)}`,
+    "if [ ! -f \"$artifact\" ]; then",
+    `  mkdir -p ${shellQuote(dirname(externalPath))}`,
+    "  if [ -f \"$active_artifact\" ]; then",
+    "    cp -p \"$active_artifact\" \"$artifact\"",
+    "  elif [ -f \"$active_dist_artifact\" ]; then",
+    "    cp -p \"$active_dist_artifact\" \"$artifact\"",
+    "  else",
+    "    echo 'bootstrap snapshot is absent in both operational and active runtime paths' >&2",
+    "    exit 1",
+    "  fi",
+    "fi",
+    "node --input-type=module -e 'JSON.parse(await (await import(\"node:fs/promises\")).readFile(process.argv[1], \"utf8\"));' \"$artifact\"",
+    "sha256sum \"$artifact\" | awk '{print $1}'",
+  ].join("\n");
+  const result = await run("ssh", sshArgs(remote, remoteCommand));
+  const sha256 = result.stdout.trim().split(/\r?\n/).find((line) => /^[a-f0-9]{64}$/i.test(line));
+  if (!sha256) throw new Error("Unable to calculate the operational bootstrap snapshot digest");
+  return {
+    id: "bootstrap-snapshot",
+    sha256,
+    operationalPath: externalPath,
+    stagedPaths: ["bootstrap-snapshot.json", "dist/bootstrap-snapshot.json"],
+  };
+}
+
+async function installBootstrapSnapshotArtifact({ contour, remote, releaseAppPath }) {
+  const externalPath = contour.bootstrapSnapshotPath;
+  const remoteCommand = [
+    "set -euo pipefail",
+    `artifact=${shellQuote(externalPath)}`,
+    `release_app=${shellQuote(releaseAppPath)}`,
+    "test -f \"$artifact\"",
+    "cp -p \"$artifact\" \"$release_app/bootstrap-snapshot.json\"",
+    "cp -p \"$artifact\" \"$release_app/dist/bootstrap-snapshot.json\"",
+    "cmp -s \"$artifact\" \"$release_app/bootstrap-snapshot.json\"",
+    "cmp -s \"$artifact\" \"$release_app/dist/bootstrap-snapshot.json\"",
+  ].join("\n");
+  await run("ssh", sshArgs(remote, remoteCommand));
 }
 
 async function main() {
@@ -186,6 +241,7 @@ async function main() {
 
   if (args.dryRun) {
     console.log(`- would build clean worktree and upload ${SOURCE_INCLUDES.join(", ")} plus dist/`);
+    console.log(`- would preserve the external bootstrap snapshot at ${contour.bootstrapSnapshotPath}`);
     console.log(`- would stage into ${releaseAppPath} without changing ${contour.appPath}`);
     return;
   }
@@ -201,6 +257,7 @@ async function main() {
   const sourceTreeSha256 = await treeSha(SOURCE_INCLUDES);
   const distTreeSha256 = secondDistTreeSha256;
   const packageLockSha256 = await sha256(join(projectRoot, "package-lock.json"));
+  const bootstrapSnapshotArtifact = await ensureBootstrapSnapshotArtifact({ contour, remote: args.remote });
   const manifest = {
     schemaVersion: 1,
     releaseId,
@@ -212,6 +269,7 @@ async function main() {
     sourceTreeSha256,
     distTreeSha256,
     packageLockSha256,
+    compatibilityArtifacts: [bootstrapSnapshotArtifact],
     verification: {
       localBuild: "npm ci && npm run build twice with matching dist digest",
       remotePreflight: "npm ci --omit=dev && npm run server:preflight",
@@ -229,20 +287,15 @@ async function main() {
   await stagePath(args.remote, SOURCE_INCLUDES, `${args.remote}:${releaseAppPath}/`, { deleteTarget: true });
   await stagePath(args.remote, ["dist/"], `${args.remote}:${releaseAppPath}/dist/`, { deleteTarget: true });
   await stagePath(args.remote, [manifestPath], `${args.remote}:${releasePath}/release-manifest.json`);
+  await installBootstrapSnapshotArtifact({ contour, remote: args.remote, releaseAppPath });
 
   const remotePreflight = [
     `cd ${shellQuote(releaseAppPath)}`,
     "npm ci --omit=dev",
     `env ${preflightEnvironment(contour)} npm run server:preflight`,
-    `node scripts/release-tree-sha.mjs ${SOURCE_INCLUDES.map((value) => shellQuote(`--include=${value}`)).join(" ")}`,
-    "node scripts/release-tree-sha.mjs --include=dist",
+    `node scripts/release-verify.mjs --manifest=${shellQuote(`${releasePath}/release-manifest.json`)} --expected-release-id=${shellQuote(releaseId)} --json`,
   ].join(" && ");
-  const remoteResult = await run("ssh", sshArgs(args.remote, remotePreflight));
-  const remoteDigests = remoteResult.stdout.trim().split(/\r?\n/).filter((line) => /^[a-f0-9]{64}$/i.test(line));
-  const [remoteSourceTreeSha256, remoteDistTreeSha256] = remoteDigests.slice(-2);
-  if (remoteSourceTreeSha256 !== sourceTreeSha256 || remoteDistTreeSha256 !== distTreeSha256) {
-    throw new Error(`Staged artifact hash mismatch: source ${remoteSourceTreeSha256 || "missing"}, dist ${remoteDistTreeSha256 || "missing"}`);
-  }
+  await run("ssh", sshArgs(args.remote, remotePreflight));
 
   console.log(`- source sha256: ${sourceTreeSha256}`);
   console.log(`- dist sha256: ${distTreeSha256}`);

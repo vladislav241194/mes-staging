@@ -145,9 +145,35 @@ async function renderIndexHtml() {
     .replace(/\.\/src\/app\.js(?:\?v=[^"]*)?/, `./src/app.js?v=${appVersion}`);
 }
 
+async function writeRuntimeHealth(res) {
+  let statusCode = 200;
+  let sharedState = "ready";
+  try {
+    const sharedStateStat = await stat(sharedStatePaths.filePath);
+    if (!sharedStateStat.isFile() || sharedStateStat.size <= 0) throw new Error("shared state is unavailable");
+  } catch {
+    statusCode = 503;
+    sharedState = "unavailable";
+  }
+
+  let version = "unknown";
+  try {
+    version = String(JSON.parse(await readFile(join(root, "app-version.json"), "utf8")).version || version);
+  } catch {
+    // Health must not reveal filesystem details or fail because of display metadata.
+  }
+
+  res.writeHead(statusCode, noCacheHeaders("application/json; charset=utf-8"));
+  res.end(JSON.stringify({ status: statusCode === 200 ? "ok" : "degraded", version, sharedState }));
+}
+
 createServer(async (req, res) => {
   res.__mesAcceptEncoding = String(req.headers?.["accept-encoding"] || "");
   const url = new URL(req.url || "/", `http://${host}:${port}`);
+  if (url.pathname === "/healthz") {
+    await writeRuntimeHealth(res);
+    return;
+  }
   if (url.pathname === "/favicon.svg") {
     writeContourFavicon(req, res, (contentType) => responseHeadersForUrl(url, contentType));
     return;
