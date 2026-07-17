@@ -11,6 +11,7 @@ import { getPublicAuthPrincipal } from "./public-auth-guard.mjs";
 
 const API_PREFIX = "/api/v1";
 const SYSTEM_DOMAINS_COMMAND_SURFACES = new Set(["production-structure", "timesheet", "access-control"]);
+const MAX_PLANNING_PERIOD_DAYS = 31;
 
 function getEnabledSystemDomainsCommandSurfaces(env = process.env) {
   if (String(env.MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS || "") !== "1") return [];
@@ -237,6 +238,76 @@ function buildPlanningRuntimeProjection(items = []) {
   return { routes, routeSteps, slots };
 }
 
+function compareStableText(left, right) {
+  const a = String(left || "");
+  const b = String(right || "");
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function parsePlanningPeriodDate(value) {
+  const date = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const instant = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(instant.getTime()) || instant.toISOString().slice(0, 10) !== date) return null;
+  return { date, time: instant.getTime() };
+}
+
+function readPlanningPeriod(url) {
+  const from = parsePlanningPeriodDate(url.searchParams.get("from"));
+  const to = parsePlanningPeriodDate(url.searchParams.get("to"));
+  if (!from || !to) {
+    return { error: "from and to must be ISO calendar dates in YYYY-MM-DD format" };
+  }
+  if (to.time <= from.time) return { error: "to must be after from" };
+  if (to.time - from.time > MAX_PLANNING_PERIOD_DAYS * 24 * 60 * 60 * 1000) {
+    return { error: `planning period must not exceed ${MAX_PLANNING_PERIOD_DAYS} days` };
+  }
+  return { from, to };
+}
+
+function getPlanningSlotInterval(slot = {}) {
+  const start = Date.parse(String(slot?.plannedStart || ""));
+  const end = Date.parse(String(slot?.plannedEnd || ""));
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  return { start, end };
+}
+
+function sortPlanningPeriodOperations(left, right) {
+  const leftInterval = getPlanningSlotInterval(left?.slot) || { start: Number.MAX_SAFE_INTEGER };
+  const rightInterval = getPlanningSlotInterval(right?.slot) || { start: Number.MAX_SAFE_INTEGER };
+  return leftInterval.start - rightInterval.start
+    || Number(left?.metadata?.stepOrder ?? left?.metadata?.sequenceNo ?? 0) - Number(right?.metadata?.stepOrder ?? right?.metadata?.sequenceNo ?? 0)
+    || compareStableText(left?.id, right?.id);
+}
+
+// Weekly control needs only scheduled operations that overlap the requested
+// calendar range.  Keep the established runtime projection field names so a
+// consumer can replace its full shared-state projection incrementally, while
+// making the network representation proportional to the displayed period.
+function buildPlanningPeriodProjection(items = [], period = {}) {
+  const selected = [];
+  for (const item of items) {
+    const operations = (item?.operations || [])
+      .filter((operation) => {
+        const interval = getPlanningSlotInterval(operation?.slot);
+        return Boolean(interval && interval.start < period.to.time && interval.end > period.from.time);
+      })
+      .sort(sortPlanningPeriodOperations);
+    if (!operations.length) continue;
+    const firstInterval = getPlanningSlotInterval(operations[0]?.slot) || { start: Number.MAX_SAFE_INTEGER };
+    // Labour norm maps belong to an order/workbench detail. They are not read
+    // by weekly control and can be substantially larger than the period data,
+    // so never copy them into this bounded transport projection.
+    const metadata = item?.metadata && typeof item.metadata === "object" ? item.metadata : {};
+    const { planningLaborByStepId: _planningLaborByStepId, ...periodMetadata } = metadata;
+    selected.push({ item: { ...item, metadata: periodMetadata, operations }, firstStart: firstInterval.start });
+  }
+  selected.sort((left, right) => left.firstStart - right.firstStart
+    || compareStableText(left.item?.number, right.item?.number)
+    || compareStableText(left.item?.id, right.item?.id));
+  return buildPlanningRuntimeProjection(selected.map((entry) => entry.item));
+}
+
 // The Planning workbench shows operation data and a compact schedule hint for
 // one selected order. The full slot metadata is only consumed by the Gantt
 // projection, where it is still returned through the dedicated endpoint.
@@ -301,9 +372,16 @@ export async function handleDomainApiRequest(req, res, url, {
   const isShiftExecutionFactCommand = req.method === "POST" && Boolean(shiftFactMatch);
   const isOrderPatch = req.method === "PATCH" && Boolean(orderMatch);
   const isSlotPatch = req.method === "PATCH" && Boolean(slotMatch);
+  const isPlanningPeriodRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/period`;
   const isSpecifications2WorkOrderCommand = req.method === "POST" && Boolean(specifications2WorkOrderCommandMatch);
   if (req.method !== "GET" && !isOrderPatch && !isSlotPatch && !isSpecifications2WorkOrderCommand && !isSpecifications2PublishCommand && !isSpecifications2AttachmentCommand && !isSystemDomainsWrite && !isShiftExecutionAssignmentCommand && !isShiftExecutionAssignmentUpdate && !isShiftExecutionFactCommand && !isShiftExecutionCarryoverCommand) {
     sendJson(res, headers, 405, { ok: false, error: "Method is not allowed" });
+    return true;
+  }
+
+  const planningPeriod = isPlanningPeriodRead ? readPlanningPeriod(url) : null;
+  if (planningPeriod?.error) {
+    sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: planningPeriod.error });
     return true;
   }
 
@@ -931,6 +1009,30 @@ export async function handleDomainApiRequest(req, res, url, {
       return true;
     }
     sendJson(res, headers, 200, { ok: true, apiVersion: "v1", storageMode: listed.storageMode, storageBackend: listed.storageBackend, revision: listed.revision, updatedAt: listed.updatedAt, projection }, { ETag: etag });
+    return true;
+  }
+
+  if (isPlanningPeriodRead) {
+    const listed = await workOrders.list();
+    // List rows expose a scheduled-operation count, so do not fetch an
+    // aggregate that cannot possibly contribute to this calendar slice.
+    const scheduled = listed.items.filter((item) => Number(item?.scheduledOperationCount || 0) > 0);
+    const details = await Promise.all(scheduled.map(async (item) => (await workOrders.get(item.id)).item));
+    const projection = buildPlanningPeriodProjection(details.filter(Boolean), planningPeriod);
+    const payload = {
+      ok: true,
+      apiVersion: "v1",
+      storageMode: listed.storageMode,
+      storageBackend: listed.storageBackend,
+      period: { from: planningPeriod.from.date, to: planningPeriod.to.date },
+      projection,
+    };
+    const etag = getPayloadEtag(payload);
+    if (matchesEtag(req, etag)) {
+      sendNotModified(res, headers, etag);
+      return true;
+    }
+    sendJson(res, headers, 200, payload, { ETag: etag });
     return true;
   }
 
