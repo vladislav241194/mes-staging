@@ -17,16 +17,26 @@ const sshOptions = [
 
 const CONTOURS = {
   pilot: {
+    appEnv: "pilot",
     appPath: "/srv/mes/pilot/app",
     releasesPath: "/srv/mes/pilot/releases",
     service: "mes-pilot",
     url: "https://pilot.mes-line.ru",
+    port: "4175",
+    sharedStateDir: "/srv/mes/pilot/shared-state",
+    backupDir: "/srv/mes/pilot/backups",
+    auditLogPath: "/srv/mes/pilot/audit/audit.log",
   },
   staging: {
+    appEnv: "staging",
     appPath: "/srv/mes/dev/app",
     releasesPath: "/srv/mes/dev/releases",
     service: "mes-dev",
     url: "https://staging.mes-line.ru",
+    port: "4174",
+    sharedStateDir: "/srv/mes/dev/shared-state",
+    backupDir: "/srv/mes/dev/backups",
+    auditLogPath: "/srv/mes/dev/audit/audit.log",
   },
 };
 
@@ -107,6 +117,22 @@ function sshArgs(remote, command) {
 
 function rsyncSshTransport() {
   return ["ssh", ...sshOptions.map(shellQuote)].join(" ");
+}
+
+function preflightEnvironment(contour) {
+  const values = {
+    APP_ENV: contour.appEnv,
+    PORT: contour.port,
+    APP_BASE_URL: contour.url,
+    MES_SHARED_STATE_DIR: contour.sharedStateDir,
+    MES_BACKUP_DIR: contour.backupDir,
+    MES_AUDIT_LOG_PATH: contour.auditLogPath,
+    MES_ALLOW_DESTRUCTIVE_ACTIONS: "false",
+    MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE: "false",
+  };
+  return Object.entries(values)
+    .map(([key, value]) => `${key}=${shellQuote(value)}`)
+    .join(" ");
 }
 
 async function gitText(args) {
@@ -201,7 +227,7 @@ async function main() {
   const remotePreflight = [
     `cd ${shellQuote(releaseAppPath)}`,
     "npm ci --omit=dev",
-    "npm run server:preflight",
+    `env ${preflightEnvironment(contour)} npm run server:preflight`,
     `node scripts/release-tree-sha.mjs ${SOURCE_INCLUDES.map((value) => shellQuote(`--include=${value}`)).join(" ")}`,
     "node scripts/release-tree-sha.mjs --include=dist",
   ].join(" && ");
