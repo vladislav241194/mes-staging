@@ -218,7 +218,7 @@ check_health() {
   return 1
 }
 
-if ! check_health "http://127.0.0.1:$port/healthz"; then
+if ! check_health "http://localhost:$port/healthz"; then
   rollback
   exit 1
 fi
