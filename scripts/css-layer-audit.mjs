@@ -18,17 +18,23 @@ const expectedLayerImports = [
   "./styles/layers/50-nomenclature-routes-directories.css",
   "./styles/layers/60-operational-modules.css",
   "./styles/layers/70-planning-table-and-matrix.css",
-  "./styles/layers/80-visual-system-ui-states.css",
+  "./styles/layers/80-runtime-ui-states.css",
   "./styles/layers/90-shift-master-board.css",
   "./styles/layers/99-legacy-overrides-tail.css",
   "./styles/ui/planning-order.css",
   "./styles/ui/runtime-safety.css",
-  "./styles/ui/actions.css",
   "./styles/ui/status.css",
   "./styles/ui/kit-polish.css",
+  "./styles/ui/actions.css",
+  "./styles/ui/app-navigation.css",
+  "./styles/ui/module-system.css",
+  "./styles/ui/module-blueprints.css",
+  "./styles/ui/gantt-visual-system.css",
+  "./styles/ui/long-task-overlay.css",
 ];
 const budgets = {
   duplicateSelectorGroups: 470,
+  actionableDuplicateSelectorGroups: 0,
   maxDuplicateSelectorGroupSize: 12,
   exactDuplicateRuleGroups: 0,
   broadImportantRules: 0,
@@ -47,6 +53,48 @@ const removedReportDebugModulePattern = /reports-page|report-sidebar|report-work
 const removedDashboardLayoutPattern = /dashboard-app-shell|dashboard-page|dashboard-control-room|dashboard-header|dashboard-time|dashboard-grid|dashboard-status-grid|dashboard-workspace|data-layout-page="dashboard"|activeModule\s*={2,3}\s*["']dashboard["']/;
 const removedStandaloneShellPattern = /(?:project|specification)-app-shell/;
 const removedStandaloneBomLayoutPattern = /data-layout-page="bomLists"|bom-list-app-shell/;
+const duplicateSelectorClassifiers = [
+  {
+    id: "root-token-overrides",
+    test: (items) => items[0]?.selector === ":root",
+  },
+  {
+    id: "global-shell-reset",
+    test: (items) => /^(?:body|svg|html,\s*body,\s*#app|\[data-layout=["']app-shell["']\]|main\.app-shell\[data-layout=["']app-shell["']\](?:\s|$|:)|main\[data-layout=["']app-shell["']\](?:\s|$|>))/.test(items[0]?.selector || ""),
+  },
+  {
+    id: "gantt-geometry",
+    test: (items) => /\b(?:gantt|timeline|slot|lane|row-label|dependency|dependencies-layer|resize-handle|today-marker|production-label|production-status|workcenter-label|workcenter-code|progress|bar-track|status-planned|status-in_progress|status-paused|status-completed|planner-workspace|planning-app-shell|planning-gantt|planner-frame|planning-assistant-dock|assistant-panel|director-command|director-flow-step|director-order-chip)\b/i.test(`${items[0]?.selector || ""} ${items[0]?.context || ""}`),
+  },
+  {
+    id: "print-auth-modal-popover",
+    test: (items) => /\b(?:print|route-print|auth|auth-prototype|modal|drawer|popover|toast|tooltip|calendar|focus|collapsed|dense-popover|specifications2-diagram)\b/i.test(`${items[0]?.selector || ""} ${items[0]?.context || ""}`),
+  },
+  {
+    id: "responsive-compat",
+    test: (items) => /@(?:media|container)\b/i.test(items[0]?.context || ""),
+  },
+  {
+    id: "module-shell-contract",
+    test: (items) => /\b(?:module-menu|module-tab|app-topbar|topbar|toolbar-grid|status-strip|clock|brand-block|directories-page|module-data-page|directory-workspace|module-data-workspace|module-data-content|directory-sidebar|module-data-sidebar|directory-nav|ui-sidebar-item|module-panel|ui-panel|module-form|brand-title|brand-subtitle|eyebrow|planning-controls|directory-header|detail-card|table-wrap|directory-table|ui-table|dense-inline|dense-select|FormField)\b/i.test(items[0]?.selector || ""),
+  },
+  {
+    id: "domain-table-specialization",
+    test: (items) => /\b(?:speki|nomenclature|bom-import-table|bom-module-content|route-step|route-object|route-tree|planning-order|planning-flow|planning-supply|shift-master|shift-work-orders)\b/i.test(items[0]?.selector || ""),
+  },
+  {
+    id: "admin-contour-shell",
+    test: (items) => /\b(?:contourAdmin|admin-standalone)\b/i.test(items[0]?.selector || ""),
+  },
+  {
+    id: "runtime-safety-layer",
+    test: (items) => items.some((item) => /styles\/ui\/runtime-safety\.css|styles\/layers\/80-runtime-ui-states\.css/.test(item.file)),
+  },
+  {
+    id: "legacy-tail-compat",
+    test: (items) => items.some((item) => /styles\/layers\/99-legacy-overrides-tail\.css/.test(item.file)),
+  },
+];
 
 function fail(message) {
   failures.push(message);
@@ -155,6 +203,10 @@ function printTopGroups(title, groups, limit = 12) {
   });
 }
 
+function classifyDuplicateSelectorGroup(items = []) {
+  return duplicateSelectorClassifiers.find((classifier) => classifier.test(items))?.id || "";
+}
+
 function toPosixPath(value) {
   return value.split(path.sep).join("/");
 }
@@ -185,7 +237,7 @@ function assertCriticalLayerContracts(sourceMap) {
   const runtimeSafety = sourceMap.get("styles/ui/runtime-safety.css")?.source || "";
   const planningMarker = "Planning v1.491";
   const planningShellSelector = "main.app-shell[data-layout=\"app-shell\"][data-layout-page=\"planning\"] .planning-order-page";
-  const runtimeSafetySelector = "button:not(.shop-map-widget)";
+  const runtimeSafetySelector = ".auth-prototype-keypad button";
 
   if (!planningOrder.includes(planningMarker)) {
     fail("styles/ui/planning-order.css: missing Planning v1.491 marker; planning order CSS may have moved or been partially dropped.");
@@ -234,6 +286,8 @@ const exactRuleGroups = groupBy(rules, (rule) => `${rule.context}\n${rule.select
 const duplicateSelectorGroups = [...selectorGroups.values()].filter((items) => items.length > 1);
 const exactDuplicateRuleGroups = [...exactRuleGroups.values()].filter((items) => items.length > 1);
 const maxDuplicateSelectorGroupSize = duplicateSelectorGroups.reduce((max, items) => Math.max(max, items.length), 0);
+const duplicateSelectorGroupsByClass = groupBy(duplicateSelectorGroups, (items) => classifyDuplicateSelectorGroup(items) || "actionable-unclassified");
+const actionableDuplicateSelectorGroups = duplicateSelectorGroupsByClass.get("actionable-unclassified") || [];
 const riskyOverflowRules = rules.filter((rule) => (
   /(?:^|[\s,.])module-panel(?:[\s,.#:>\[]|$)/.test(rule.selector)
   && /overflow(?:-y)?\s*:\s*(?:auto|scroll)\b/i.test(rule.body)
@@ -275,6 +329,9 @@ if (riskyOverflowRules.length) {
 }
 if (duplicateSelectorGroups.length > budgets.duplicateSelectorGroups) {
   fail(`Duplicate selector groups grew above budget: ${duplicateSelectorGroups.length} > ${budgets.duplicateSelectorGroups}`);
+}
+if (actionableDuplicateSelectorGroups.length > budgets.actionableDuplicateSelectorGroups) {
+  fail(`Actionable duplicate selector groups remain unclassified: ${actionableDuplicateSelectorGroups.length} > ${budgets.actionableDuplicateSelectorGroups}`);
 }
 if (maxDuplicateSelectorGroupSize > budgets.maxDuplicateSelectorGroupSize) {
   fail(`Largest duplicate selector group grew above budget: ${maxDuplicateSelectorGroupSize} > ${budgets.maxDuplicateSelectorGroupSize}`);
@@ -326,11 +383,30 @@ console.log(`Rules: ${rules.length}`);
 console.log(`Files: ${sources.map((item) => item.file).join(", ")}`);
 console.log(`Root manifest imports: ${expectedLayerImports.length}; styles.css is manifest-only`);
 console.log(`Duplicate selector groups: ${duplicateSelectorGroups.length}`);
+console.log(`Actionable duplicate selector groups: ${actionableDuplicateSelectorGroups.length}`);
 console.log(`Largest duplicate selector group: ${maxDuplicateSelectorGroupSize}`);
 console.log(`Exact duplicate rule groups: ${exactDuplicateRuleGroups.length}`);
 
 printTopGroups("Duplicate exact selector lists", selectorGroups);
 printTopGroups("Exact duplicate CSS rules", exactRuleGroups, 8);
+
+console.log("\nDuplicate selector classification");
+[...duplicateSelectorGroupsByClass.entries()]
+  .sort(([leftClass, leftItems], [rightClass, rightItems]) => (
+    rightItems.length - leftItems.length || leftClass.localeCompare(rightClass)
+  ))
+  .forEach(([classId, items]) => console.log(`- ${classId}: ${items.length}`));
+
+console.log("\nActionable duplicate selector groups");
+if (actionableDuplicateSelectorGroups.length) {
+  actionableDuplicateSelectorGroups.slice(0, 20).forEach((items) => {
+    const locations = items.slice(0, 5).map((item) => `${item.file}:${item.line}`).join(", ");
+    console.log(`- ${items.length}x ${items[0]?.selector || "unknown selector"} [${items[0]?.context || "root"}]`);
+    console.log(`  ${locations}${items.length > 5 ? ", ..." : ""}`);
+  });
+} else {
+  console.log("- none");
+}
 
 console.log("\nRisky module-panel overflow rules");
 if (riskyOverflowRules.length) {

@@ -153,14 +153,17 @@ async function evaluate(client, pageFunction, arg, timeoutMs = 45000) {
   return result.result?.value;
 }
 
-async function waitForApp(client) {
+async function waitForApp(client, consoleProblems = []) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 12000) {
     const ok = await evaluate(client, () => Boolean(document.querySelector("main.app-shell")));
     if (ok) return;
     await delay(120);
   }
-  throw new Error("App shell did not render.");
+  const details = consoleProblems.length
+    ? ` Runtime problems:\n${consoleProblems.map((problem) => `- ${problem.type}: ${problem.args}`).join("\n")}`
+    : "";
+  throw new Error(`App shell did not render.${details}`);
 }
 
 function assert(condition, message) {
@@ -169,6 +172,8 @@ function assert(condition, message) {
 
 async function assertRuntimeFactQuantityNormalizers() {
   const source = await readFile("src/app.js", "utf8");
+  const planningCoreSource = await readFile("src/modules/planning_core/service.js", "utf8");
+  const runtimeSource = [source, planningCoreSource].join("\n");
   const forbiddenPatterns = [
     {
       pattern: /\bactualQuantity\s*:\s*normalizeQuantity\s*\(/,
@@ -196,14 +201,14 @@ async function assertRuntimeFactQuantityNormalizers() {
     },
   ];
   const failures = forbiddenPatterns
-    .filter((entry) => entry.pattern.test(source))
+    .filter((entry) => entry.pattern.test(runtimeSource))
     .map((entry) => `- ${entry.message}`);
   assert(!failures.length, `Unsafe fact quantity normalization found:\n${failures.join("\n")}`);
 
-  const durationFunctionStart = source.indexOf("function calculateRequiredDurationMs(");
-  const durationFunctionEnd = source.indexOf("function calculatePlannedEndByQuantity(", durationFunctionStart);
+  const durationFunctionStart = planningCoreSource.indexOf("function calculateRequiredDurationMs(");
+  const durationFunctionEnd = planningCoreSource.indexOf("function calculatePlannedEndByQuantity(", durationFunctionStart);
   const durationFunctionSource = durationFunctionStart >= 0 && durationFunctionEnd > durationFunctionStart
-    ? source.slice(durationFunctionStart, durationFunctionEnd)
+    ? planningCoreSource.slice(durationFunctionStart, durationFunctionEnd)
     : "";
   assert(durationFunctionSource, "calculateRequiredDurationMs() was not found for labor-source precedence QA.");
   const workOrderIndex = durationFunctionSource.indexOf("calculatePlanningOrderLaborDurationMs");
@@ -216,6 +221,18 @@ async function assertRuntimeFactQuantityNormalizers() {
     .forEach((fallbackIndex) => {
       assert(workOrderIndex < fallbackIndex, "Work-order labor must have higher priority than SMT/manual/normative/rate fallback duration.");
     });
+}
+
+async function assertDirectoryStatusDefaultsContract() {
+  const source = await readFile("src/app.js", "utf8");
+  const start = source.indexOf("const DEFAULT_STATUSES = [");
+  const end = source.indexOf("const DEFAULT_NOMENCLATURE_TYPES", start);
+  assert(start >= 0 && end > start, "DEFAULT_STATUSES block was not found.");
+  const defaultsSource = source.slice(start, end);
+  assert(
+    !defaultsSource.includes("DISPATCH_FACT_STATUS_OPTIONS"),
+    "DEFAULT_STATUSES must not reintroduce dispatch-* rows filtered by REMOVED_DIRECTORY_STATUS_ID_PREFIXES; this would create a shared-state write loop."
+  );
 }
 
 async function launchChrome() {
@@ -275,6 +292,7 @@ function summarizeIssues(issues) {
 async function main() {
   const url = getArg("--url", defaultUrl);
   await assertRuntimeFactQuantityNormalizers();
+  await assertDirectoryStatusDefaultsContract();
   const chrome = await launchChrome();
   const consoleProblems = [];
   const dialogs = [];
@@ -285,6 +303,10 @@ async function main() {
       consoleProblems.push({
         type: params.type,
         args: (params.args || []).map((arg) => arg.value || arg.description || "").join(" "),
+        stack: (params.stackTrace?.callFrames || [])
+          .slice(0, 10)
+          .map((frame) => `${frame.functionName || "<anonymous>"} (${frame.url}:${frame.lineNumber + 1})`)
+          .join(" <- "),
       });
     });
     client.on("Runtime.exceptionThrown", (params) => {
@@ -300,15 +322,19 @@ async function main() {
     await client.send("Page.enable");
     await client.send("Runtime.enable");
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: "sessionStorage.setItem('mes-planning-prototype-shared-disabled-until-v1', String(Date.now() + 60 * 60 * 1000));",
+      // The CDP target starts on about:blank, where storage access is denied.
+      // Guard the setup so that only the application document receives it.
+      source: "try { sessionStorage.setItem('mes-planning-prototype-shared-disabled-until-v1', String(Date.now() + 60 * 60 * 1000)); } catch {}",
     });
     await client.send("Page.navigate", { url });
     await delay(900);
-    await waitForApp(client);
+    await waitForApp(client, consoleProblems);
 
     const report = await evaluate(client, ({ statusContracts, matrixResourceIds, matrixEmployeeIds }) => {
       const state = JSON.parse(localStorage.getItem("mes-planning-prototype-state-v2") || "{}");
       const directory = JSON.parse(localStorage.getItem("mes-planning-prototype-directories-v2") || "{}");
+      const systemDomains = JSON.parse(localStorage.getItem("mes-planning-prototype-system-domains-v1") || "{}");
+      const registries = systemDomains.registries || {};
       const errors = [];
       const warnings = [];
       const routeIds = new Set((state.routes || []).map((route) => route.id));
@@ -326,6 +352,50 @@ async function main() {
       const allowedAssignmentStatuses = new Set(statusContracts.shiftAssignment || []);
       const allowedFactStatuses = new Set(statusContracts.dispatchFact || []);
       const getSlotPlanningOrderId = (slot, step) => slot?.planningOrderId || slot?.routeId || step?.routeId || slot?.batchId || "";
+
+      const domainIds = (registryName) => new Set((registries[registryName] || []).map((entity) => entity?.id).filter(Boolean));
+      const assertUniqueDomainIds = (registryName) => {
+        const ids = (registries[registryName] || []).map((entity) => entity?.id).filter(Boolean);
+        if (ids.length !== new Set(ids).size) errors.push(`System Domains ${registryName} has duplicate ids`);
+      };
+      [
+        "orgUnits", "workCenters", "positions", "employees", "employmentAssignments", "equipment",
+        "scheduleTemplates", "scheduleAssignments", "attendanceEvents", "accessRoles", "grants",
+        "roleAssignments", "responsibilityPolicies",
+      ].forEach(assertUniqueDomainIds);
+      const domainEmployeeIds = domainIds("employees");
+      const domainPositionIds = domainIds("positions");
+      const domainOrgUnitIds = domainIds("orgUnits");
+      const domainWorkCenterIds = domainIds("workCenters");
+      const domainScheduleTemplateIds = domainIds("scheduleTemplates");
+      const domainAccessRoleIds = domainIds("accessRoles");
+      if (domainEmployeeIds.size !== employeeIds.size) errors.push(`System Domains employee count ${domainEmployeeIds.size} differs from runtime matrix ${employeeIds.size}`);
+      employeeIds.forEach((employeeId) => {
+        if (!domainEmployeeIds.has(employeeId)) errors.push(`System Domains is missing runtime employee ${employeeId}`);
+      });
+      if (domainAccessRoleIds.size !== 7) errors.push(`System Domains must contain 7 access roles, got ${domainAccessRoleIds.size}`);
+      if (!(registries.grants || []).length) errors.push("System Domains grants registry is empty");
+      if (!(registries.roleAssignments || []).length) errors.push("System Domains roleAssignments registry is empty");
+      (registries.employmentAssignments || []).forEach((assignment) => {
+        if (!domainEmployeeIds.has(assignment.employeeId)) errors.push(`employmentAssignment ${assignment.id} points to missing employee ${assignment.employeeId}`);
+        if (assignment.positionId && !domainPositionIds.has(assignment.positionId)) errors.push(`employmentAssignment ${assignment.id} points to missing position ${assignment.positionId}`);
+        if (assignment.orgUnitId && !domainOrgUnitIds.has(assignment.orgUnitId)) errors.push(`employmentAssignment ${assignment.id} points to missing orgUnit ${assignment.orgUnitId}`);
+        if (assignment.workCenterId && !domainWorkCenterIds.has(assignment.workCenterId)) errors.push(`employmentAssignment ${assignment.id} points to missing workCenter ${assignment.workCenterId}`);
+      });
+      (registries.scheduleAssignments || []).forEach((assignment) => {
+        if (!domainEmployeeIds.has(assignment.employeeId)) errors.push(`scheduleAssignment ${assignment.id} points to missing employee ${assignment.employeeId}`);
+        if (!domainScheduleTemplateIds.has(assignment.scheduleTemplateId)) errors.push(`scheduleAssignment ${assignment.id} points to missing template ${assignment.scheduleTemplateId}`);
+      });
+      (registries.attendanceEvents || []).forEach((attendanceEvent) => {
+        if (!domainEmployeeIds.has(attendanceEvent.employeeId)) errors.push(`attendanceEvent ${attendanceEvent.id} points to missing employee ${attendanceEvent.employeeId}`);
+      });
+      (registries.grants || []).forEach((grant) => {
+        if (!domainAccessRoleIds.has(grant.roleId)) errors.push(`grant ${grant.id} points to missing access role ${grant.roleId}`);
+      });
+      (registries.roleAssignments || []).forEach((assignment) => {
+        if (!domainEmployeeIds.has(assignment.employeeId)) errors.push(`roleAssignment ${assignment.id} points to missing employee ${assignment.employeeId}`);
+        if (!domainAccessRoleIds.has(assignment.roleId)) errors.push(`roleAssignment ${assignment.id} points to missing role ${assignment.roleId}`);
+      });
 
       (state.routeSteps || []).forEach((step) => {
         if (!routeIds.has(step.routeId)) errors.push(`routeStep ${step.id} points to missing route ${step.routeId}`);
@@ -429,6 +499,9 @@ async function main() {
           assignments: Object.keys(state.shiftMasterAssignments || {}).length,
           facts: Object.keys(state.dispatchFacts || {}).length,
           corrections: Object.keys(state.planningCorrections || {}).length,
+          systemDomainEmployees: domainEmployeeIds.size,
+          systemDomainRoles: domainAccessRoleIds.size,
+          systemDomainGrants: (registries.grants || []).length,
         },
         errors,
         warnings,
@@ -436,7 +509,7 @@ async function main() {
     }, { statusContracts: statusValuesByScope, matrixResourceIds, matrixEmployeeIds }, 90000);
 
     assert(!dialogs.length, `Browser dialogs blocked the flow:\n${dialogs.join("\n")}`);
-    assert(!consoleProblems.length, `Console problems:\n${consoleProblems.map((item) => `${item.type}: ${item.args}`).join("\n")}`);
+    assert(!consoleProblems.length, `Console problems:\n${consoleProblems.map((item) => `${item.type}: ${item.args}${item.stack ? ` [${item.stack}]` : ""}`).join("\n")}`);
     assert(!report.errors.length, `State consistency errors:\n${summarizeIssues(report.errors)}`);
 
     const injected = await evaluate(client, () => {
@@ -486,7 +559,7 @@ async function main() {
     if (injected) {
       await client.send("Page.navigate", { url: `${url}${url.includes("?") ? "&" : "?"}state-prune=1` });
       await delay(900);
-      await waitForApp(client);
+      await waitForApp(client, consoleProblems);
       const pruneProbe = await evaluate(client, () => {
         const state = JSON.parse(localStorage.getItem("mes-planning-prototype-state-v2") || "{}");
         return {
@@ -515,6 +588,8 @@ async function main() {
     console.log(`- shift assignments: ${report.counts.assignments}`);
     console.log(`- dispatch facts: ${report.counts.facts}`);
     console.log(`- planning corrections: ${report.counts.corrections}`);
+    console.log(`- System Domains employees: ${report.counts.systemDomainEmployees}`);
+    console.log(`- System Domains access roles / grants: ${report.counts.systemDomainRoles} / ${report.counts.systemDomainGrants}`);
     if (report.warnings.length) {
       console.log("Warnings:");
       console.log(summarizeIssues(report.warnings));

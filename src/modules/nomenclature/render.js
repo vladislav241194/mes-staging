@@ -14,13 +14,13 @@ export function renderNomenclatureModulePage(deps) {
     normalizeNomenclatureType,
     renderBomListsPage,
     renderDenseInlineSelect,
+    renderMesModulePatternPage,
     renderNomenclatureSectionFilter,
     renderUiActionButton,
     renderUiEmptyState,
+    renderUiFormActions,
     renderUiFormField,
-    renderUiModuleHeader,
-    renderUiModulePage,
-    renderUiModuleSidebar,
+    renderUiFormGrid,
     renderUiPanel,
     renderUiPanelBody,
     renderUiStatusToken,
@@ -60,12 +60,12 @@ export function renderNomenclatureModulePage(deps) {
     className: ["form-field", className].filter(Boolean).join(" "),
   });
 
-  return renderUiModulePage({
-    ariaLabel: "Номенклатура",
-    className: "nomenclature-page",
-    sidebar: renderUiModuleSidebar({
+  return renderMesModulePatternPage({
+    moduleId: "nomenclature",
+    sidebar: {
       eyebrow: "Материалы и компоненты",
       title: "Номенклатура",
+      variant: "filters",
       actions: renderUiActionButton({
         label: "Новая позиция",
         iconName: "plus",
@@ -75,13 +75,12 @@ export function renderNomenclatureModulePage(deps) {
       body: `
         ${renderNomenclatureSectionFilter({ activePane, activeFilter, typeOptions, typeCounts, allCount: allItems.length })}
       `,
-    }),
-    header: renderUiModuleHeader({
+    },
+    header: {
       eyebrow: "Список компонентов",
       title: hasPreviewObject ? (isNewItem ? "Новая позиция номенклатуры" : item.name || "Позиция без названия") : "Объект не выбран",
       description: hasPreviewObject ? "Номенклатура разделяется по типам: РЭА для BOM, платы, механика, кабели, расходники и другие производственные позиции." : "Выберите позицию в таблице или создайте новую, чтобы открыть карточку редактирования.",
-    }),
-    contentClassName: "nomenclature-module-content",
+    },
     content: `
       ${hasPreviewObject ? renderUiPanel({
         title: "Предпросмотр позиции",
@@ -93,30 +92,39 @@ export function renderNomenclatureModulePage(deps) {
               <input type="hidden" name="itemId" value="${escapeAttribute(item.id)}" />
               <input type="hidden" name="isNew" value="${isNewItem ? "yes" : "no"}" />
               <input type="hidden" name="type" value="${escapeAttribute(itemType)}" data-nomenclature-type-hidden />
-              ${renderField({ label: "Наименование", className: "full", control: `<input name="name" value="${escapeAttribute(item.name)}" placeholder="Например: Резистор 10 кОм 0603 1%" />` })}
-              ${renderField({ label: "Артикул", control: `<input name="article" value="${escapeAttribute(item.article)}" placeholder="PN / MPN / внутренний код" />` })}
-              ${renderField({ label: "Раздел", control: renderDenseInlineSelect("type", itemType, typeOptions, { type: "nomenclatureType" }) })}
-              ${renderField({ label: "Новый раздел", control: `<input name="customType" value="" placeholder="если нужен отдельный тип" />` })}
-              ${renderField({ label: "Корпус / размер", control: `<input name="package" value="${escapeAttribute(item.package)}" placeholder="0603, QFN-32, PCB" />` })}
-              ${renderField({ label: "Ед. изм.", control: `<input name="unit" value="${escapeAttribute(item.unit)}" placeholder="шт." />` })}
-              ${renderField({ label: "Производитель", control: `<input name="manufacturer" value="${escapeAttribute(item.manufacturer)}" placeholder="Yageo, Murata, TI..." />` })}
-              ${renderField({ label: "Статус", control: `<input name="status" value="${escapeAttribute(item.status)}" placeholder="Активен" />` })}
-              ${renderField({ label: "Описание", className: "full", control: `<textarea name="description" rows="3" placeholder="Параметры, допуски, замены, комментарии">${escapeHtml(item.description)}</textarea>` })}
-              <div class="module-form-actions full ui-action-bar" data-ui-component="ActionBar">
-                ${isNewItem ? "" : renderUiActionButton({
-                  label: "Удалить",
-                  iconName: "trash",
-                  tone: "danger",
-                  className: "danger",
-                  attributes: `data-nomenclature-delete="${escapeAttribute(item.id)}" type="button"`,
-                })}
-                ${renderUiActionButton({
-                  label: isNewItem ? "Создать позицию" : "Сохранить позицию",
-                  iconName: "save",
-                  tone: "primary",
-                  attributes: "type=\"submit\"",
-                })}
-              </div>
+              ${renderUiFormGrid({
+                columns: "2",
+                className: "nomenclature-form-grid full",
+                body: `
+                  ${renderField({ label: "Наименование", className: "full", control: `<input name="name" value="${escapeAttribute(item.name)}" placeholder="Например: Резистор 10 кОм 0603 1%" />` })}
+                  ${renderField({ label: "Артикул", control: `<input name="article" value="${escapeAttribute(item.article)}" placeholder="PN / MPN / внутренний код" />` })}
+                  ${renderField({ label: "Раздел", control: renderDenseInlineSelect("type", itemType, typeOptions, { type: "nomenclatureType" }) })}
+                  ${renderField({ label: "Новый раздел", control: `<input name="customType" value="" placeholder="если нужен отдельный тип" />` })}
+                  ${renderField({ label: "Корпус / размер", control: `<input name="package" value="${escapeAttribute(item.package)}" placeholder="0603, QFN-32, PCB" />` })}
+                  ${renderField({ label: "Ед. изм.", control: `<input name="unit" value="${escapeAttribute(item.unit)}" placeholder="шт." />` })}
+                  ${renderField({ label: "Производитель", control: `<input name="manufacturer" value="${escapeAttribute(item.manufacturer)}" placeholder="Yageo, Murata, TI..." />` })}
+                  ${renderField({ label: "Статус", control: `<input name="status" value="${escapeAttribute(item.status)}" placeholder="Активен" />` })}
+                  ${renderField({ label: "Описание", className: "full", control: `<textarea name="description" rows="3" placeholder="Параметры, допуски, замены, комментарии">${escapeHtml(item.description)}</textarea>` })}
+                  ${renderUiFormActions({
+                    className: "module-form-actions full",
+                    actions: `
+                      ${isNewItem ? "" : renderUiActionButton({
+                        label: "Удалить",
+                        iconName: "trash",
+                        tone: "danger",
+                        className: "danger",
+                        attributes: `data-nomenclature-delete="${escapeAttribute(item.id)}" type="button"`,
+                      })}
+                      ${renderUiActionButton({
+                        label: isNewItem ? "Создать позицию" : "Сохранить позицию",
+                        iconName: "save",
+                        tone: "primary",
+                        attributes: "type=\"submit\"",
+                      })}
+                    `,
+                  })}
+                `,
+              })}
             </form>
           `,
         }),

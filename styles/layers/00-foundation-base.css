@@ -2,6 +2,13 @@
 reset,
 base browser primitives.
    Cascade order is controlled by root styles.css;do not import this file directly. */
+@font-face{
+  font-family: "Onest";
+  src: url("../../assets/fonts/onest/Onest-Variable.woff2") format("woff2-variations");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+}
 :root{
   --bg: #eef3f8;
   --panel: #ffffff;
@@ -20,7 +27,9 @@ base browser primitives.
   --violet: #7c3aed;
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   --radius: 6px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mes-ui-font-family: "Onest", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--mes-ui-font-family);
+  font-synthesis: none;
   color: var(--text);
   background: var(--bg);
 }*{
@@ -33,6 +42,13 @@ body,
   margin: 0;
   overflow: hidden;
   background: var(--bg);
+  font-family: var(--mes-ui-font-family);
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+}:where(button, input, select, textarea){
+  font-family: inherit;
+}:where(input, select, textarea, table, [data-ui-component="StatusToken"], .gantt-shell){
+  font-variant-numeric: tabular-nums;
 }button{
   cursor: pointer;
 }button:disabled{

@@ -1,0 +1,16 @@
+[Unit]
+Description=MES Pilot PostgreSQL-to-snapshot compatibility outbox delivery
+After=mes-pilot.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/srv/mes/pilot/app
+EnvironmentFile=/etc/mes/mes-pilot-domain.env
+Environment=MES_DOMAIN_STORAGE=postgres
+ExecStart=/usr/bin/npm run domain:sync-snapshot -- --limit 50
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/mes/pilot/shared-state

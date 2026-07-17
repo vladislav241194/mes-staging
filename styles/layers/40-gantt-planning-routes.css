@@ -325,11 +325,11 @@ with a stable badge at every scale. */
   max-width: 100%;
   height: 18px;
   padding: 0 6px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
+  border: 1px solid var(--mes-ui-neutral-alpha-45);
   border-radius: var(--mes-ui-pill);
-  background: rgba(255, 255, 255, 0.92);
-  color: #334155;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
+  background: var(--mes-ui-surface-glass-92);
+  color: var(--mes-ui-text-secondary);
+  box-shadow: var(--mes-ui-shadow-badge-soft);
   font-size: var(--gantt-slot-quantity-font-size);
   font-variant-numeric: tabular-nums;
   font-weight: 820;
@@ -350,10 +350,10 @@ with a stable badge at every scale. */
 .gantt-shell .operation-slot.week-slot .slot-quantity-badge.is-tiny{
   height: 13px;
   padding-inline: 1px;
-  border-color: rgba(148, 163, 184, 0.38);
+  border-color: var(--mes-ui-neutral-alpha-38);
   font-size: var(--gantt-slot-quantity-font-size);
   line-height: 13px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--mes-ui-shadow-badge-tiny);
 }.gantt-shell .non-working-layer{
   position: absolute;
   inset: 0;
@@ -564,7 +564,7 @@ with a stable badge at every scale. */
   gap: 7px;
   min-width: 0;
   min-height: 40px;
-  border: 1px solid var(--mes-border, #d7e0ea);
+  border: 1px solid var(--mes-border, var(--mes-ui-line));
   border-radius: var(--mes-radius-control, 12px);
   background: #ffffff;
   color: #344054;
@@ -608,13 +608,12 @@ with a stable badge at every scale. */
 }.route-steps-panel{
   grid-column: auto;
 }.route-steps-head-actions{
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
-}.route-steps-head-actions{
-  align-items: center;
 }.route-steps-head-actions > span{
   min-width: min(240px, 100%);
   color: var(--mes-text-secondary, #64748b);
@@ -771,10 +770,6 @@ with a stable badge at every scale. */
 }.route-object-editor-shell{
   display: flex;
   min-height: 0;
-}.route-object-table-wrap{
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: visible;
 }.route-object-table{
   min-width: 860px;
 }.route-object-table th:nth-child(1),
@@ -837,17 +832,6 @@ with a stable badge at every scale. */
   gap: 5px;
   align-items: center;
   min-width: 0;
-}.route-object-add-button{
-  flex: 0 0 auto;
-  min-width: 0 !important;
-  min-height: 28px !important;
-  border-radius: 7px !important;
-  padding: 0 8px !important;
-  font-size: 11px !important;
-  line-height: 1 !important;
-}.route-object-add-button svg{
-  width: 13px;
-  height: 13px;
 }.route-object-operation-row > td{
   padding: 0 8px 8px calc(8px + (var(--speki-level) * 10px));
   background: #ffffff;
@@ -953,25 +937,6 @@ with a stable badge at every scale. */
   align-items: center;
   gap: 4px;
   min-width: 0;
-}.route-step-compact-actions > .icon-button{
-  width: 24px !important;
-  min-width: 24px !important;
-  height: 24px !important;
-  min-height: 24px !important;
-  border-radius: 7px !important;
-}.route-step-flow-toggle.is-active{
-  border-color: rgba(37, 99, 235, 0.28) !important;
-  background: #eff6ff !important;
-  color: #2563eb !important;
-}.route-step-labor-toggle{
-  border-color: rgba(245, 158, 11, 0.32) !important;
-  background: rgba(245, 158, 11, 0.08) !important;
-  color: #b45309 !important;
-}.route-step-labor-toggle.is-active{
-  border-color: rgba(245, 158, 11, 0.54) !important;
-  background: #fef3c7 !important;
-  color: #92400e !important;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.13) !important;
 }.route-step-labor-panel-row > td{
   padding: 0 6px 6px calc(6px + (var(--speki-level) * 10px));
   background: #ffffff;
@@ -1220,19 +1185,6 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors.is-in-pan
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }.app-shell[data-layout-page="planning"] .planning-order-detail .route-step-resource-factors{
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}.route-step-flow-panel-row > td{
-  padding: 0 8px 8px calc(8px + (var(--speki-level) * 10px));
-  background: #ffffff;
-}.route-step-flow-panel{
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr);
-  gap: 8px;
-  align-items: end;
-  min-width: 0;
-  border: 1px solid #dbe3ec;
-  border-radius: 8px;
-  background: #f8fafc;
-  padding: 8px;
 }.route-step-flow-panel .operation-flow-map{
   min-width: 0;
   align-self: stretch;
@@ -1315,10 +1267,10 @@ main.app-shell[data-layout-page="routes"] .route-step-resource-factors{
   width: 100%;
   min-width: 28px;
   height: 32px;
-  border: 1px solid var(--mes-border, #d7e0ea);
+  border: 1px solid var(--mes-border, var(--mes-ui-line));
   border-radius: 8px;
-  background: var(--mes-surface-subtle, #f8fafc);
-  color: var(--mes-text, #0f172a);
+  background: var(--mes-surface-subtle, var(--mes-ui-surface-soft));
+  color: var(--mes-text, var(--mes-ui-text));
   font-size: 12px;
   font-weight: 800;
   line-height: 1;

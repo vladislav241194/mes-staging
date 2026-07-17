@@ -25,7 +25,7 @@
 .form-field textarea,
 .command-field select,
 .dense-inline-select{
-  border-radius: var(--mes-radius-control) !important;
+  border-radius: var(--mes-radius-control);
 }.field input,
 .field select,
 .form-field input,
@@ -62,45 +62,24 @@ input[type="radio"]{
 .bom-module-content .module-panel,
 .nomenclature-module-content .module-panel{
   border-radius: var(--mes-radius-card);
-}.directory-sidebar,
-.module-data-sidebar,
-.module-data-workspace,
-.directory-workspace,
-.modal,
-.large-modal,
-.confirm-modal,
-.slot-drawer,
-.dense-inline-options,
-.shop-map-widget-modal{
-  border-radius: var(--mes-radius-panel);
 }.slot-drawer{
   border-radius: var(--mes-radius-panel) 0 0 var(--mes-radius-panel) !important;
-}.module-menu-brand::before{
-  border-radius: var(--mes-radius-control) !important;
 }.production-status,
 .clock,
 .route-sequence-mini span,
 .route-module-sequence b,
 .toggle-switch-button,
 .toggle-switch-knob{
-  border-radius: var(--mes-radius-pill) !important;
+  border-radius: var(--mes-radius-pill);
 }.directory-table-wrap,
 .bom-import-table-wrap,
 .route-module-sequence,
 .bar-track,
 .progress{
-  border-radius: var(--mes-radius-sm) !important;
-}.directory-table th,
-.directory-table td,
-.bom-import-table th,
+  border-radius: var(--mes-radius-sm);
+}.bom-import-table th,
 .bom-import-table td{
   padding: var(--geometry-table-cell-padding-y) var(--geometry-table-cell-padding-x);
-}.directory-table tr.is-selected td:first-child{
-  border-top-left-radius: var(--mes-radius-sm);
-  border-bottom-left-radius: var(--mes-radius-sm);
-}.directory-table tr.is-selected td:last-child{
-  border-top-right-radius: var(--mes-radius-sm);
-  border-bottom-right-radius: var(--mes-radius-sm);
 }.modal-header,
 .drawer-header,
 .ui-panel-head,
@@ -138,24 +117,7 @@ input[type="radio"]{
 }.gantt-shell .resize-handle{
   border-radius: 0 var(--slot-radius, var(--geometry-gantt-corner-radius)) var(--slot-radius, var(--geometry-gantt-corner-radius)) 0 !important;
 }/* Overflow containment audit v1: keep text and nested panels inside their own frames. */
-.module-menu-footer,
-.module-menu-preset-main,
-.module-menu-preset-main span,
-.module-menu-preset-main strong,
-.module-menu-preset-main small,
-.module-menu-brand,
-.module-menu-brand strong,
-.module-menu-brand span{
-  min-width: 0;
-  max-width: 100%;
-}.module-menu-brand{
-  align-items: center;
-}.module-menu-brand span{
-  overflow: hidden;
-  line-height: 14px !important;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}.module-menu .directory-table .actions-cell,
+.module-menu .directory-table .actions-cell,
 .bom-import-table .actions-cell,
 .bom-import-table .bom-row-action-cell{
   width: 96px;
@@ -166,9 +128,9 @@ input[type="radio"]{
   text-align: right;
   white-space: nowrap;
 }.bom-import-table .bom-row-action-cell{
-  width: 52px !important;
-  min-width: 52px !important;
-  max-width: 52px !important;
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
   text-align: center;
 }.directory-table .actions-cell .table-icon-button,
 .bom-import-table .actions-cell .table-icon-button,
@@ -183,9 +145,9 @@ input[type="radio"]{
     overflow: visible;
   }.directories-page .directory-table-card{
     display: block;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
+    height: auto;
+    min-height: 0;
+    max-height: none;
     overflow: visible;
   }.directories-page .directory-table-wrap{
     height: auto;
@@ -205,12 +167,12 @@ input[type="radio"]{
   }.directories-page .directory-detail-list{
     overflow: visible;
   }.nomenclature-table-wrap{
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
+    overflow-x: auto;
+    overflow-y: hidden;
   }.nomenclature-table-wrap .nomenclature-table{
-    width: max-content !important;
-    min-width: 100% !important;
-    table-layout: auto !important;
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
   }.nomenclature-table-wrap .nomenclature-table th,
 .nomenclature-table-wrap .nomenclature-table td{
     overflow: hidden;
@@ -219,15 +181,15 @@ input[type="radio"]{
   }}/* Deep overflow audit v2: prefer readable containment over hidden clipping. */
 .planner-frame{
   min-height: calc(520px + 24px);
-  overflow: visible !important;
-  padding-bottom: 12px !important;
+  overflow: visible;
+  padding-bottom: 12px;
 }main.planning-app-shell.planning-gantt-shell .planner-workspace-gantt-only > .planner-frame{
   height: auto !important;
   min-height: calc(520px + 24px) !important;
   overflow: visible !important;
   padding-bottom: 12px !important;
 }.app-shell[data-layout-page="planning"] .planning-flow-rule-body{
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }.app-shell[data-layout-page="planning"] .planning-flow-live{
   grid-column: 1 / -1;
 }.app-shell[data-layout-page="planning"] .planning-supply-route strong,
@@ -249,27 +211,28 @@ input[type="radio"]{
 }/* Planning 2.0: Jira/Confluence-inspired workbench over the same planning data. */
 .app-shell[data-layout-page="planning"] .planning-order-page{
   --planning-order-bg: #f7f8f9;
-  --planning-order-surface: #ffffff;
+  --planning-order-surface: var(--mes-ui-surface);
   --planning-order-subtle: #f1f2f4;
   --planning-order-hover: #f4f5f7;
-  --planning-order-selected: #e9f2ff;
-  --planning-order-selected-border: #0c66e4;
+  --planning-order-selected: var(--mes-ui-surface-blue-soft);
+  --planning-order-selected-border: var(--mes-ui-primary);
   --planning-order-line: #dfe1e6;
   --planning-order-line-strong: #b3b9c4;
   --planning-order-text: #172b4d;
   --planning-order-muted: #626f86;
-  --planning-order-link: #0c66e4;
+  --planning-order-link: var(--mes-ui-primary);
   --planning-order-green-bg: #dcfff1;
   --planning-order-green-text: #216e4e;
-  --planning-order-yellow-bg: #fff7d6;
+  --planning-order-yellow-bg: var(--mes-ui-surface-warning-muted);
   --planning-order-yellow-text: #a54800;
   --planning-order-red-bg: #ffeceb;
   --planning-order-red-text: #ae2e24;
   --planning-order-radius: 6px;
   --planning-order-radius-sm: 4px;
   --planning-order-shadow: 0 1px 1px rgba(9, 30, 66, 0.12), 0 0 0 1px rgba(9, 30, 66, 0.02);
+  --planning-order-active-shadow: var(--mes-ui-shadow-active-inset-soft), var(--planning-order-shadow);
   display: grid;
-  grid-template-columns: minmax(270px, 320px) minmax(0, 1fr) !important;
+  grid-template-columns: minmax(270px, 320px) minmax(0, 1fr);
   gap: 12px;
   align-items: stretch;
   min-width: 0;
@@ -284,9 +247,9 @@ input[type="radio"]{
   overflow: visible;
 }.app-shell[data-layout-page="planning"] .planning-order-queue{
   gap: 12px;
-  border-color: var(--planning-order-line) !important;
-  border-radius: var(--planning-order-radius) !important;
-  background: var(--planning-order-surface) !important;
+  border-color: var(--planning-order-line);
+  border-radius: var(--planning-order-radius);
+  background: var(--planning-order-surface);
   box-shadow: var(--planning-order-shadow);
   padding: 12px;
 }.app-shell[data-layout-page="planning"] .planning-order-queue .directory-sidebar-head p{
@@ -303,11 +266,11 @@ input[type="radio"]{
   gap: 8px;
   align-items: start;
   min-height: 48px;
-  border: 1px solid transparent !important;
-  border-radius: var(--planning-order-radius-sm) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 8px !important;
+  border: 1px solid transparent;
+  border-radius: var(--planning-order-radius-sm);
+  background: var(--mes-ui-surface-transparent);
+  box-shadow: var(--mes-ui-shadow-none);
+  padding: 8px;
 }.app-shell[data-layout-page="planning"] .planning-order-route-item span{
   gap: 2px;
 }.app-shell[data-layout-page="planning"] .planning-order-route-item strong{
@@ -317,11 +280,11 @@ input[type="radio"]{
   font-weight: 600;
   white-space: normal;
 }.app-shell[data-layout-page="planning"] .planning-order-route-item:hover{
-  background: var(--planning-order-hover) !important;
+  background: var(--planning-order-hover);
 }.app-shell[data-layout-page="planning"] .planning-order-route-item.is-active{
-  border-color: #85b8ff !important;
-  background: var(--planning-order-selected) !important;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset !important;
+  border-color: var(--mes-ui-status-info-border);
+  background: var(--planning-order-selected);
+  box-shadow: var(--mes-ui-shadow-inset-primary-soft);
 }.app-shell[data-layout-page="planning"] .planning-order-route-item > em{
   border: 0;
   border-radius: var(--planning-order-radius-sm);
@@ -338,32 +301,6 @@ input[type="radio"]{
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
-}.app-shell[data-layout-page="planning"] .planning-order-header{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 16px;
-  align-items: start;
-  min-width: 0;
-  border: 1px solid var(--planning-order-line);
-  border-radius: var(--planning-order-radius);
-  background: var(--planning-order-surface);
-  box-shadow: var(--planning-order-shadow);
-  padding: 16px 18px;
-}.app-shell[data-layout-page="planning"] .planning-order-header h2,
-.app-shell[data-layout-page="planning"] .planning-order-header p{
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-}.app-shell[data-layout-page="planning"] .planning-order-header h2{
-  color: var(--planning-order-text);
-  font-size: 24px;
-  line-height: 1.1;
-}.app-shell[data-layout-page="planning"] .planning-order-header p{
-  margin-top: 4px;
-  color: var(--planning-order-muted);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.3;
 }.app-shell[data-layout-page="planning"] .planning-order-workspace{
   display: grid;
   grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
@@ -373,17 +310,16 @@ input[type="radio"]{
   display: grid;
   gap: 8px;
   align-content: start;
-  border: 1px solid var(--planning-order-line) !important;
-  border-radius: var(--planning-order-radius) !important;
-  background: var(--planning-order-subtle) !important;
-  box-shadow: none !important;
-  padding: 10px !important;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius);
+  background: var(--planning-order-subtle);
+  box-shadow: var(--mes-ui-shadow-none);
+  padding: 10px;
 }.app-shell[data-layout-page="planning"] .planning-order-flow{
   display: grid;
+  position: relative;
   gap: 6px;
   min-width: 0;
-}.app-shell[data-layout-page="planning"] .planning-order-flow{
-  position: relative;
 }.app-shell[data-layout-page="planning"] .planning-order-phase,
 .app-shell[data-layout-page="planning"] .planning-order-lane,
 .app-shell[data-layout-page="planning"] .planning-order-lane-head,
@@ -414,9 +350,9 @@ input[type="radio"]{
 }.app-shell[data-layout-page="planning"] .planning-order-phase.is-active,
 .app-shell[data-layout-page="planning"] .planning-order-lane-head.is-active,
 .app-shell[data-layout-page="planning"] .planning-order-step-pill.is-active{
-  border-color: #85b8ff;
+  border-color: var(--mes-ui-status-info-border);
   background: var(--planning-order-selected);
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08) inset, var(--planning-order-shadow);
+  box-shadow: var(--planning-order-active-shadow);
 }.app-shell[data-layout-page="planning"] .planning-order-phase b,
 .app-shell[data-layout-page="planning"] .planning-order-step-pill b{
   display: inline-flex;
@@ -494,11 +430,11 @@ input[type="radio"]{
 }.app-shell[data-layout-page="planning"] .planning-order-phase.is-warning b,
 .app-shell[data-layout-page="planning"] .planning-order-lane.is-warning .planning-order-lane-head,
 .app-shell[data-layout-page="planning"] .planning-order-step-pill.is-warning{
-  border-color: #f5cd47;
-  background: #fff7d6;
+  border-color: var(--mes-ui-status-warning-border);
+  background: var(--mes-ui-surface-warning-muted);
 }.app-shell[data-layout-page="planning"] .planning-order-step-pill.is-smt{
-  border-color: #85b8ff;
-  background: #e9f2ff;
+  border-color: var(--mes-ui-status-info-border);
+  background: var(--mes-ui-surface-blue-soft);
 }.app-shell[data-layout-page="planning"] .planning-order-lane{
   display: grid;
   gap: 6px;
@@ -569,11 +505,11 @@ input[type="radio"]{
   gap: 12px;
   align-content: start;
   min-width: 0;
-  border: 1px solid var(--planning-order-line) !important;
-  border-radius: var(--planning-order-radius) !important;
-  background: var(--planning-order-surface) !important;
+  border: 1px solid var(--planning-order-line);
+  border-radius: var(--planning-order-radius);
+  background: var(--planning-order-surface);
   box-shadow: var(--planning-order-shadow);
-  padding: 14px !important;
+  padding: 14px;
 }.app-shell[data-layout-page="planning"] .planning-order-record-head{
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
@@ -695,7 +631,7 @@ input[type="radio"]{
 }.app-shell[data-layout-page="planning"] .planning-order-register-row.is-head{
   min-height: 0;
   border-color: transparent;
-  background: transparent;
+  background: var(--mes-ui-surface-transparent);
   color: var(--planning-order-muted);
   padding: 0 7px 2px;
   font-size: 9px;
@@ -768,7 +704,7 @@ input[type="radio"]{
   white-space: normal;
   cursor: pointer;
 }.app-shell[data-layout-page="planning"] .planning-order-segmented-actions button.is-active{
-  border-color: #85b8ff;
+  border-color: var(--mes-ui-status-info-border);
   background: var(--planning-order-selected);
   color: var(--planning-order-link);
 }.app-shell[data-layout-page="planning"] .planning-order-segmented-actions button:disabled{
@@ -786,9 +722,9 @@ input[type="radio"]{
   display: grid;
   gap: 3px;
   min-width: 0;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid var(--mes-ui-neutral-alpha-28);
   border-radius: var(--planning-order-radius-sm);
-  background: #ffffff;
+  background: var(--mes-ui-surface-control);
   padding: 8px 9px;
 }.app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer strong,
 .app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer span,
@@ -813,10 +749,10 @@ input[type="radio"]{
   display: inline-flex;
   align-items: center;
   max-width: 210px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--mes-ui-status-info-border);
   border-radius: var(--planning-order-radius-sm);
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--mes-ui-status-info-bg);
+  color: var(--mes-ui-status-info-text);
   padding: 7px 9px;
   font-size: 10px;
   font-style: normal;
@@ -827,7 +763,7 @@ input[type="radio"]{
   gap: 4px;
   min-width: 0;
 }.app-shell[data-layout-page="planning"] .planning-order-rule-editor label span{
-  color: var(--planning-sheet-muted, #64748b);
+  color: var(--planning-sheet-muted, var(--mes-ui-text-muted));
   font-size: 9px;
   font-weight: 850;
 }.app-shell[data-layout-page="planning"] .planning-order-rule-editor input{
@@ -842,23 +778,48 @@ input[type="radio"]{
   font-weight: 800;
   text-align: right;
 }.app-shell[data-layout-page="planning"] .planning-order-detail .planning-detail-body{
-  padding: 8px !important;
+  padding: 8px;
 }.app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button{
   height: auto;
   min-height: 34px;
   align-items: center;
 }.app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button strong,
 .app-shell[data-layout-page="planning"] .planning-order-detail .dense-inline-options button small{
-  overflow: visible !important;
+  overflow: visible;
   overflow-wrap: anywhere;
-  text-overflow: clip !important;
-  white-space: normal !important;
+  text-overflow: clip;
+  white-space: normal;
 }.app-shell[data-layout-page="planning"] .planning-order-batch-editor{
   display: grid;
   gap: 8px;
   min-width: 0;
   overflow: visible;
-}@container (max-width: 760px) {.app-shell[data-layout-page="planning"] .planning-order-rule-editor,
+}.app-shell[data-layout-page="planning"] .planning-order-quantity-form{
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) auto minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: end;
+  padding: 0 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-quantity-form label{
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}.app-shell[data-layout-page="planning"] .planning-order-quantity-form label > span{
+  color: var(--mes-ui-text-muted);
+  font-size: 10px;
+}.app-shell[data-layout-page="planning"] .planning-order-quantity-form input{
+  min-width: 0;
+  height: 34px;
+}.app-shell[data-layout-page="planning"] .planning-order-quantity-form small{
+  align-self: center;
+  color: var(--mes-ui-text-muted);
+  font-size: 10px;
+  line-height: 14px;
+}@container (max-width: 760px){.app-shell[data-layout-page="planning"] .planning-order-quantity-form{
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}}
+@container (max-width: 760px) {.app-shell[data-layout-page="planning"] .planning-order-rule-editor,
 .app-shell[data-layout-page="planning"] .planning-order-rule-editor.is-system-transfer,
 .app-shell[data-layout-page="planning"] .planning-order-register-table.is-supply .planning-order-register-row,
 .app-shell[data-layout-page="planning"] .planning-order-register-table.is-wip .planning-order-register-row,
@@ -868,99 +829,84 @@ input[type="radio"]{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }}@media (max-width: 1280px) {.app-shell[data-layout-page="planning"] .planning-order-page,
 .app-shell[data-layout-page="planning"] .planning-order-workspace{
-    grid-template-columns: minmax(0, 1fr) !important;
-  }.app-shell[data-layout-page="planning"] .planning-order-header{
     grid-template-columns: minmax(0, 1fr);
   }}/* Planning 2.0 HeroUI-inspired skin: clean surfaces over the same planning data. */
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
-  --planning-order-bg: #f8fafc;
-  --planning-order-surface: #ffffff;
-  --planning-order-subtle: #f4f7fb;
-  --planning-order-hover: #f1f6ff;
-  --planning-order-selected: #eef6ff;
-  --planning-order-selected-border: #2563eb;
-  --planning-order-line: #e2e8f0;
-  --planning-order-line-strong: #bfd0e7;
-  --planning-order-text: #0f172a;
-  --planning-order-muted: #64748b;
-  --planning-order-link: #2563eb;
-  --planning-order-green-bg: #ecfdf3;
-  --planning-order-green-text: #15803d;
-  --planning-order-yellow-bg: #fff8e6;
-  --planning-order-yellow-text: #a15c07;
-  --planning-order-red-bg: #fff1f2;
-  --planning-order-red-text: #be123c;
-  --planning-order-radius-xs: 8px;
-  --planning-order-radius-sm: 10px;
-  --planning-order-radius: 16px;
-  --planning-order-radius-lg: 20px;
-  --planning-order-pill: 999px;
-  --planning-order-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px rgba(15, 23, 42, 0.06);
-  --planning-order-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.045);
-  grid-template-columns: minmax(248px, 292px) minmax(0, 1fr) !important;
-  gap: 14px;
-  padding: 14px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0) 220px),
-    var(--planning-order-bg);
+  --planning-order-bg: var(--mes-ui-bg);
+  --planning-order-surface: var(--mes-ui-surface);
+  --planning-order-subtle: var(--mes-ui-surface-subtle);
+  --planning-order-hover: var(--mes-ui-hover);
+  --planning-order-selected: var(--mes-ui-selected);
+  --planning-order-selected-border: var(--mes-ui-primary);
+  --planning-order-line: var(--mes-ui-line);
+  --planning-order-line-strong: var(--mes-ui-line-strong);
+  --planning-order-text: var(--mes-ui-text);
+  --planning-order-muted: var(--mes-ui-muted);
+  --planning-order-link: var(--mes-ui-primary);
+  --planning-order-green-bg: var(--mes-ui-success-soft);
+  --planning-order-green-text: var(--mes-ui-success);
+  --planning-order-yellow-bg: var(--mes-ui-warning-soft);
+  --planning-order-yellow-text: var(--mes-ui-warning);
+  --planning-order-red-bg: var(--mes-ui-danger-soft);
+  --planning-order-red-text: var(--mes-ui-danger);
+  --planning-order-radius-xs: var(--mes-ui-radius-xs);
+  --planning-order-radius-sm: var(--mes-ui-radius-sm);
+  --planning-order-radius: var(--mes-ui-radius-md);
+  --planning-order-radius-lg: var(--mes-ui-radius-xl);
+  --planning-order-pill: var(--mes-ui-pill);
+  --planning-order-shadow: var(--mes-ui-shadow-md);
+  --planning-order-shadow-soft: var(--mes-ui-shadow-sm);
+  --planning-order-active-shadow: var(--mes-ui-shadow-active-inset-soft), var(--planning-order-shadow);
+  --planning-order-active-shadow-soft: var(--mes-ui-shadow-active-inset-soft), var(--planning-order-shadow-soft);
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr);
+  gap: var(--mes-ui-density-gap);
+  overflow: hidden;
+  padding: var(--mes-ui-density-page);
+  background: var(--mes-ui-planning-order-page-background);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue,
-.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-header,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-map,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record{
-  border-color: rgba(148, 163, 184, 0.28) !important;
-  border-radius: var(--planning-order-radius-lg) !important;
-  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: var(--mes-ui-neutral-alpha-28);
+  border-radius: var(--planning-order-radius-lg);
+  background: var(--mes-ui-surface-glass-94);
   box-shadow: var(--planning-order-shadow);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue{
   gap: 14px;
   padding: 14px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .directory-sidebar-head{
-  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
-  padding-bottom: 12px;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-queue .directory-sidebar-head h1{
-  color: var(--planning-order-text);
-  font-size: 18px;
-  line-height: 1.15;
+  border-bottom: 1px solid var(--mes-ui-line-alpha-84);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-list{
   gap: 6px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item{
   min-height: 44px;
-  border-radius: 14px !important;
-  padding: 10px 12px !important;
+  border-radius: 14px;
+  padding: 10px 12px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item strong{
   font-size: 12px;
   line-height: 1.25;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item.is-active{
-  border-color: rgba(37, 99, 235, 0.32) !important;
-  background: var(--planning-order-selected) !important;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08), var(--planning-order-shadow-soft) !important;
+  border-color: var(--mes-ui-primary-alpha-32);
+  background: var(--planning-order-selected);
+  box-shadow: var(--planning-order-active-shadow-soft);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-main{
   gap: 14px;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-header{
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  padding: 14px 16px;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-header h2{
-  font-size: 21px;
-  line-height: 1.18;
-  letter-spacing: 0;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-workspace{
   grid-template-columns: minmax(360px, 0.82fr) minmax(460px, 1.18fr);
   gap: 14px;
   align-items: start;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-map{
   gap: 10px;
-  padding: 12px !important;
+  padding: 12px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-flow{
   gap: 8px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row{
-  border-color: rgba(148, 163, 184, 0.24);
+  border-color: var(--mes-ui-neutral-alpha-24);
   border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.035);
+  background: var(--mes-ui-surface-control);
+  box-shadow: var(--mes-ui-shadow-xs);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase{
   grid-template-columns: minmax(0, 1fr) auto;
   min-height: 48px;
@@ -985,27 +931,27 @@ input[type="radio"]{
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head:hover,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill:hover,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row.is-clickable:hover{
-  border-color: rgba(37, 99, 235, 0.28);
+  border-color: var(--mes-ui-primary-alpha-28);
   background: var(--planning-order-hover);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-phase.is-active,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head.is-active,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill.is-active{
-  border-color: rgba(37, 99, 235, 0.42);
+  border-color: var(--mes-ui-primary-alpha-42);
   background: var(--planning-order-selected);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10), var(--planning-order-shadow-soft);
+  box-shadow: var(--mes-ui-shadow-focus-primary), var(--planning-order-shadow-soft);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane{
   gap: 7px;
-  border-color: rgba(148, 163, 184, 0.20);
+  border-color: var(--mes-ui-neutral-alpha-20);
   border-radius: 18px;
-  background: #f8fafc;
+  background: var(--mes-ui-surface-soft);
   padding: 8px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head{
   grid-template-columns: minmax(0, 1fr) auto;
   padding: 9px 10px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-head > b{
   border-radius: var(--planning-order-pill);
-  background: #eef2ff;
-  color: #1d4ed8;
+  background: var(--mes-ui-status-info-bg);
+  color: var(--mes-ui-status-info-text);
   text-transform: none;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-flow-step-row{
   gap: 6px;
@@ -1018,27 +964,27 @@ input[type="radio"]{
   height: 22px;
   border-radius: 8px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-step-pill.is-smt{
-  border-color: rgba(37, 99, 235, 0.32);
-  background: #eff6ff;
+  border-color: var(--mes-ui-primary-alpha-32);
+  background: var(--mes-ui-status-info-bg);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-lane-empty,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-muted-state{
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--mes-ui-surface-control);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record{
   gap: 12px;
-  padding: 14px !important;
+  padding: 14px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-head{
   align-items: center;
-  border-bottom-color: rgba(226, 232, 240, 0.88);
+  border-bottom-color: var(--mes-ui-line-alpha-86);
   padding-bottom: 12px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-head h3{
   font-size: 18px;
   line-height: 1.18;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-section{
   gap: 9px;
-  border-color: rgba(148, 163, 184, 0.22);
+  border-color: var(--mes-ui-neutral-alpha-22);
   border-radius: 16px;
-  background: #fbfdff;
+  background: var(--mes-ui-contract-subblock-bg);
   padding: 10px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-record-section > header{
   align-items: center;
@@ -1057,22 +1003,22 @@ input[type="radio"]{
   gap: 4px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row.is-head{
   border: 0;
-  background: transparent;
-  box-shadow: none;
+  background: var(--mes-ui-surface-transparent);
+  box-shadow: var(--mes-ui-shadow-none);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-register-row strong{
   font-size: 11px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-segmented-actions{
   gap: 4px;
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-segmented-actions button,
 .app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor input{
-  border-color: rgba(148, 163, 184, 0.28);
+  border-color: var(--mes-ui-neutral-alpha-28);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--mes-ui-surface-control);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-segmented-actions button.is-active{
-  border-color: rgba(37, 99, 235, 0.36);
-  background: #eff6ff;
+  border-color: var(--mes-ui-primary-alpha-36);
+  background: var(--mes-ui-status-info-bg);
   color: var(--planning-order-link);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+  box-shadow: var(--mes-ui-shadow-focus-soft);
 }.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-rule-editor{
   grid-template-columns: minmax(0, 1fr) minmax(128px, 0.38fr);
   gap: 8px;
@@ -1086,8 +1032,8 @@ input[type="radio"]{
     grid-template-columns: minmax(0, 1fr);
   }}@media (max-width: 1360px) {.directories-page .directory-table-wrap,
 .nomenclature-table-wrap{
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
+    overflow-x: auto;
+    overflow-y: hidden;
   }.directories-page .directory-table,
 .nomenclature-table-wrap .nomenclature-table{
     width: max-content;
@@ -1095,18 +1041,17 @@ input[type="radio"]{
     table-layout: auto;
   }}/* Compact layout pass: prevent production screens from hiding meaningful UI text. */
 .directories-page .directory-content{
-  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr);
 }.directories-page .directory-table-card{
   min-width: 0;
   max-width: 100%;
-}.directories-page .directory-table-card{
-  height: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
+  height: auto;
+  max-height: none;
+  overflow: visible;
 }.directories-page .directory-table-wrap{
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  max-height: none !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-height: none;
 }.directories-page .directory-table{
   width: 100%;
   min-width: 0;
@@ -1122,335 +1067,254 @@ input[type="radio"]{
 }.directories-page .directory-table td{
   vertical-align: middle;
 }.directories-page .directory-detail-list{
-  display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
-  gap: 8px !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
 }.products-app-shell .dense-inline-select > summary strong,
 .products-app-shell .dense-inline-select > summary small{
-  overflow: visible !important;
+  overflow: visible;
   overflow-wrap: anywhere;
-  text-overflow: clip !important;
-  white-space: normal !important;
+  text-overflow: clip;
+  white-space: normal;
 }.products-app-shell .speki-structure-table .dense-inline-select > summary strong,
 .products-app-shell .speki-structure-table .dense-inline-select > summary small{
-  overflow: hidden !important;
-  overflow-wrap: normal !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }.products-app-shell .speki-structure-table .dense-inline-select > summary{
-  min-height: 32px !important;
-  height: 32px !important;
+  min-height: 32px;
+  height: 32px;
 }.products-app-shell .speki-structure-table th:nth-child(6),
 .products-app-shell .speki-structure-table td:nth-child(6){
-  width: 150px !important;
+  width: 150px;
 }.products-app-shell .speki-structure-table .dense-inline-options{
-  width: min(440px, calc(100vw - 32px)) !important;
-  max-width: min(440px, calc(100vw - 32px)) !important;
+  width: min(440px, calc(100vw - 32px));
+  max-width: min(440px, calc(100vw - 32px));
 }.products-app-shell .speki-table-row-actions{
-  gap: 2px !important;
+  gap: 2px;
   justify-content: flex-start;
   overflow: visible;
 }.products-app-shell .speki-table-row-actions .icon-button{
-  flex-basis: 20px !important;
-  width: 20px !important;
-  min-width: 20px !important;
+  flex-basis: 20px;
+  width: 20px;
+  min-width: 20px;
 }.app-shell[data-layout-page="planning"] .planning-supply-route{
   min-width: 0;
-}.app-shell[data-layout-page="planning"] .planning-supply-route{
   grid-column: 1;
 }/* Directory typography pass v1: tune master-data screens from the compact sidebar scale. */
-.app-shell[data-layout-page="directories"] .directories-page{
-  font-size: 10.5px;
-  line-height: 14px;
-}.app-shell[data-layout-page="directories"] .directory-sidebar-head h1{
-  font-size: 14px !important;
-  line-height: 17px !important;
-}.app-shell[data-layout-page="directories"] .directory-sidebar-head .eyebrow,
-.app-shell[data-layout-page="directories"] .directory-header .eyebrow,
-.app-shell[data-layout-page="directories"] .detail-card-head .eyebrow{
-  font-size: 9px !important;
-  line-height: 11px !important;
-}.app-shell[data-layout-page="directories"] .directory-nav-group-head{
-  font-size: 9px !important;
-  line-height: 11px !important;
-}.app-shell[data-layout-page="directories"] .directory-nav-item strong{
-  font-size: 10.5px !important;
-  line-height: 13px !important;
-}.app-shell[data-layout-page="directories"] .directory-nav-item em{
-  min-height: 20px !important;
-  min-width: 24px !important;
-  padding: 1px 6px !important;
-  font-size: 9.5px !important;
-  line-height: 11px !important;
-}.app-shell[data-layout-page="directories"] .directory-header h2{
-  font-size: 15px !important;
-  line-height: 18px !important;
-}.app-shell[data-layout-page="directories"] .directory-header p{
-  font-size: 9.75px !important;
-  line-height: 13px !important;
-}.app-shell[data-layout-page="directories"] .directory-table-toolbar strong{
-  font-size: 10.25px !important;
-  line-height: 14px !important;
-}.app-shell[data-layout-page="directories"] .directory-table-toolbar span{
-  font-size: 9.5px !important;
-  line-height: 12px !important;
-}.app-shell[data-layout-page="directories"] .directory-table{
-  font-size: 10px;
-  line-height: 13px;
-}.app-shell[data-layout-page="directories"] .directory-table th{
-  font-size: 9.5px;
-  line-height: 12px;
-}.app-shell[data-layout-page="directories"] .directory-table td{
-  font-size: 10px;
-  line-height: 13px;
-}.app-shell[data-layout-page="directories"] .directory-table .primary-cell{
-  font-weight: 650;
-}.app-shell[data-layout-page="directories"] .detail-card-head h3{
-  font-size: 10.25px !important;
-  line-height: 14px !important;
-}.app-shell[data-layout-page="directories"] .directory-detail-list dt{
-  font-size: 8.5px !important;
-  line-height: 10px !important;
-}.app-shell[data-layout-page="directories"] .directory-detail-list dd{
-  font-size: 9.5px !important;
-  line-height: 12px !important;
-}.app-shell[data-layout-page="directories"] .directory-health strong{
-  font-size: 15px !important;
-  line-height: 18px !important;
-}.app-shell[data-layout-page="directories"] .directory-health span{
-  font-size: 8.5px !important;
-  line-height: 10px !important;
-}/* Directories HeroUI-inspired skin: shared visual language with Planning 2.0. */
-.app-shell[data-layout-page="directories"] .directories-page{
-  --directory-ui-bg: #f8fafc;
-  --directory-ui-surface: #ffffff;
-  --directory-ui-subtle: #f4f7fb;
-  --directory-ui-hover: #f1f6ff;
-  --directory-ui-selected: #eef6ff;
-  --directory-ui-selected-border: #2563eb;
-  --directory-ui-line: #e2e8f0;
-  --directory-ui-line-strong: #bfd0e7;
-  --directory-ui-text: #0f172a;
-  --directory-ui-muted: #64748b;
-  --directory-ui-radius-sm: 10px;
-  --directory-ui-radius: 16px;
-  --directory-ui-radius-lg: 20px;
-  --directory-ui-pill: 999px;
-  --directory-ui-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px rgba(15, 23, 42, 0.06);
-  --directory-ui-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.045);
-  --directory-ui-sidebar-width: 228px;
-  grid-template-columns: var(--directory-ui-sidebar-width) minmax(0, 1fr) !important;
-  gap: 14px !important;
-  padding: 14px !important;
+main.app-shell[data-layout-page="directories"] .directories-page{
+  --directory-ui-bg: var(--mes-ui-bg);
+  --directory-ui-surface: var(--mes-ui-surface);
+  --directory-ui-subtle: var(--mes-ui-surface-subtle);
+  --directory-ui-hover: var(--mes-ui-hover);
+  --directory-ui-selected: var(--mes-ui-selected);
+  --directory-ui-selected-border: var(--mes-ui-primary);
+  --directory-ui-line: var(--mes-ui-line);
+  --directory-ui-line-strong: var(--mes-ui-line-strong);
+  --directory-ui-text: var(--mes-ui-text);
+  --directory-ui-muted: var(--mes-ui-muted);
+  --directory-ui-radius-sm: var(--mes-ui-radius-sm);
+  --directory-ui-radius: var(--mes-ui-radius-md);
+  --directory-ui-radius-lg: var(--mes-ui-radius-xl);
+  --directory-ui-pill: var(--mes-ui-pill);
+  --directory-ui-shadow: var(--mes-ui-shadow-md);
+  --directory-ui-shadow-soft: var(--mes-ui-shadow-sm);
+  --directory-ui-active-shadow-soft: var(--mes-ui-shadow-active-inset-soft), var(--directory-ui-shadow-soft);
+  --directory-ui-sidebar-width: var(--mes-ui-work-sidebar-width);
+  grid-template-columns: var(--directory-ui-sidebar-width) minmax(0, 1fr);
+  gap: var(--mes-ui-density-gap);
+  overflow: hidden;
+  padding: var(--mes-ui-density-page);
   background: var(--mes-ui-module-page-background);
   background-size: var(--mes-ui-module-page-background-size);
   background-repeat: var(--mes-ui-module-page-background-repeat);
-}.app-shell[data-layout-page="directories"] .directory-sidebar,
+  font-size: var(--mes-ui-work-font);
+  line-height: var(--mes-ui-work-line);
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head h1{
+  color: var(--directory-ui-text);
+  font-size: 14px;
+  line-height: 17px;
+}.app-shell[data-layout-page="directories"] .directory-sidebar-head .eyebrow,
+.app-shell[data-layout-page="directories"] .directory-header .eyebrow,
+.app-shell[data-layout-page="directories"] .detail-card-head .eyebrow{
+  font-size: 9px;
+  line-height: 11px;
+}.app-shell[data-layout-page="directories"] .directory-nav-group-head{
+  color: var(--directory-ui-muted);
+  padding: 0 6px 2px;
+  font-size: 9px;
+  line-height: 11px;
+}.app-shell[data-layout-page="directories"] .directory-nav-item strong{
+  font-size: 10.5px;
+  line-height: 13px;
+}.app-shell[data-layout-page="directories"] .directory-nav-item em{
+  min-height: 18px;
+  min-width: 20px;
+  border: 0;
+  border-radius: var(--directory-ui-pill);
+  padding: 1px 5px;
+  background: var(--mes-ui-surface-muted);
+  color: var(--directory-ui-muted);
+  font-size: 9.5px;
+  line-height: 11px;
+}.app-shell[data-layout-page="directories"] .directory-header h2{
+  color: var(--directory-ui-text);
+  letter-spacing: 0;
+  font-size: 15px;
+  line-height: 18px;
+}.app-shell[data-layout-page="directories"] .directory-header p{
+  color: var(--directory-ui-muted);
+  font-size: 9.75px;
+  line-height: 13px;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar strong{
+  font-size: 10.25px;
+  line-height: 14px;
+}.app-shell[data-layout-page="directories"] .directory-table-toolbar span{
+  font-size: 9.5px;
+  line-height: 12px;
+}.app-shell[data-layout-page="directories"] .directory-table .primary-cell{
+  font-weight: 650;
+}.app-shell[data-layout-page="directories"] .detail-card-head h3{
+  font-size: 10.25px;
+  line-height: 14px;
+}.app-shell[data-layout-page="directories"] .directory-detail-list dt{
+  font-size: 8.5px;
+  line-height: 10px;
+}.app-shell[data-layout-page="directories"] .directory-detail-list dd{
+  font-size: 9.5px;
+  line-height: 12px;
+}.app-shell[data-layout-page="directories"] .directory-health strong{
+  font-size: 15px;
+  line-height: 18px;
+}.app-shell[data-layout-page="directories"] .directory-health span{
+  font-size: 8.5px;
+  line-height: 10px;
+}/* Directories HeroUI-inspired skin: shared visual language with Planning 2.0. */
+.app-shell[data-layout-page="directories"] .directory-sidebar,
 .app-shell[data-layout-page="directories"] .directory-header,
 .app-shell[data-layout-page="directories"] .directory-table-card{
-  border-color: rgba(148, 163, 184, 0.28);
+  border-color: var(--mes-ui-neutral-alpha-28);
   border-radius: var(--directory-ui-radius-lg);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--mes-ui-surface-glass-94);
   box-shadow: var(--directory-ui-shadow);
 }.app-shell[data-layout-page="directories"] .directory-workspace{
-  display: grid !important;
+  display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px !important;
+  gap: 8px;
   min-width: 0;
-  overflow: visible !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: var(--mes-ui-surface-transparent);
+  box-shadow: var(--mes-ui-shadow-none);
 }.app-shell[data-layout-page="directories"] .directory-sidebar{
-  gap: 10px;
+  gap: 7px;
   overflow: hidden;
-  padding: 10px;
+  padding: 8px;
 }.app-shell[data-layout-page="directories"] .directory-sidebar-head{
-  min-height: 0 !important;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.85) !important;
-  padding: 2px 2px 10px !important;
-}.app-shell[data-layout-page="directories"] .directory-sidebar-head h1{
-  color: var(--directory-ui-text) !important;
+  min-height: 0;
+  border-bottom: 1px solid var(--mes-ui-line-alpha-84);
+  padding: 2px 2px 7px;
 }.app-shell[data-layout-page="directories"] .directory-sidebar-head .eyebrow{
-  color: var(--directory-ui-muted) !important;
+  color: var(--directory-ui-muted);
 }.app-shell[data-layout-page="directories"] .directory-nav{
-  gap: 10px !important;
-  padding: 0 !important;
+  gap: 7px;
+  padding: 0;
 }.app-shell[data-layout-page="directories"] .directory-nav-group{
-  gap: 4px !important;
-}.app-shell[data-layout-page="directories"] .directory-nav-group-head{
-  color: var(--directory-ui-muted) !important;
-  padding: 0 6px 2px !important;
+  gap: 3px;
 }.app-shell[data-layout-page="directories"] .directory-nav-item{
-  gap: 5px !important;
-  min-height: 32px !important;
-  border-radius: 12px !important;
-  padding: 7px 7px !important;
+  gap: 5px;
+  min-height: 28px;
+  border-radius: 12px;
+  padding: 4px 7px;
 }.app-shell[data-layout-page="directories"] .directory-nav-item span,
 .app-shell[data-layout-page="directories"] .directory-nav-item strong,
 .app-shell[data-layout-page="directories"] .directory-nav-group-head span{
-  min-width: 0 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }.app-shell[data-layout-page="directories"] .directory-nav-item:hover{
-  border-color: transparent !important;
-  background: var(--directory-ui-hover) !important;
+  border-color: transparent;
+  background: var(--directory-ui-hover);
 }.app-shell[data-layout-page="directories"] .directory-nav-item.is-active{
-  border-color: rgba(37, 99, 235, 0.32) !important;
-  background: var(--directory-ui-selected) !important;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08), var(--directory-ui-shadow-soft) !important;
-}.app-shell[data-layout-page="directories"] .directory-nav-item em{
-  min-width: 20px !important;
-  min-height: 18px !important;
-  border: 0 !important;
-  border-radius: var(--directory-ui-pill) !important;
-  background: #f1f5f9 !important;
-  color: var(--directory-ui-muted) !important;
-  padding: 1px 5px !important;
+  border-color: var(--mes-ui-primary-alpha-32);
+  background: var(--directory-ui-selected);
+  box-shadow: var(--directory-ui-active-shadow-soft);
 }.app-shell[data-layout-page="directories"] .directory-header{
-  display: grid !important;
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center !important;
-  gap: 16px !important;
-  min-height: 0 !important;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.28) !important;
-  padding: 14px 16px !important;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  border-bottom: 1px solid var(--mes-ui-neutral-alpha-28);
+  padding: 8px 12px;
 }.app-shell[data-layout-page="directories"] .directory-header > div:first-child,
 .app-shell[data-layout-page="directories"] .directory-header h2,
 .app-shell[data-layout-page="directories"] .directory-header p{
   min-width: 0;
-}.app-shell[data-layout-page="directories"] .directory-header h2{
-  color: var(--directory-ui-text) !important;
-  letter-spacing: 0 !important;
-}.app-shell[data-layout-page="directories"] .directory-header p{
-  color: var(--directory-ui-muted) !important;
 }.app-shell[data-layout-page="directories"] .directory-content{
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  gap: 14px !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   min-width: 0;
   align-content: start;
+  padding-top: 3px;
+  padding-bottom: 3px;
 }.app-shell[data-layout-page="directories"] .directory-table-card{
-  padding: 12px !important;
+  padding: 8px;
 }.app-shell[data-layout-page="directories"] .directory-table-toolbar,
 .app-shell[data-layout-page="directories"] .detail-card-head{
-  border-bottom-color: rgba(226, 232, 240, 0.88) !important;
-  padding: 2px 2px 10px !important;
+  border-bottom-color: var(--mes-ui-line-alpha-86);
+  min-height: 30px;
+  padding: 0 6px 5px;
 }.app-shell[data-layout-page="directories"] .directory-table-toolbar strong,
 .app-shell[data-layout-page="directories"] .detail-card-head h3{
-  color: var(--directory-ui-text) !important;
+  color: var(--directory-ui-text);
 }.app-shell[data-layout-page="directories"] .directory-table-toolbar span,
 .app-shell[data-layout-page="directories"] .detail-card-head .eyebrow{
-  color: var(--directory-ui-muted) !important;
-}.app-shell[data-layout-page="directories"] .directory-table-wrap{
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--directory-ui-radius) !important;
-  background: #ffffff !important;
-}.app-shell[data-layout-page="directories"] .directory-table th{
-  background: var(--directory-ui-subtle);
   color: var(--directory-ui-muted);
-}.app-shell[data-layout-page="directories"] .directory-table th,
-.app-shell[data-layout-page="directories"] .directory-table td{
-  border-bottom-color: rgba(226, 232, 240, 0.86);
-}.app-shell[data-layout-page="directories"] .directory-table tr:hover td{
-  background: var(--directory-ui-hover);
-}.app-shell[data-layout-page="directories"] .directory-table tr.is-selected td{
-  background: #dceafe;
-}.app-shell[data-layout-page="directories"] .directory-table .actions-cell .table-icon-button{
-  border-color: rgba(148, 163, 184, 0.24);
-  border-radius: 12px;
-  background: #ffffff;
+}.app-shell[data-layout-page="directories"] .directory-table-wrap{
+  border-color: var(--mes-ui-neutral-alpha-24);
+  border-radius: 14px;
+  background: var(--mes-ui-surface-control);
 }.app-shell[data-layout-page="directories"] .directory-detail-list{
-  gap: 8px !important;
+  gap: 5px;
 }.app-shell[data-layout-page="directories"] .directory-detail-list div,
 .app-shell[data-layout-page="directories"] .directory-health div{
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: 14px !important;
-  background: #ffffff !important;
-  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.035);
+  border-color: var(--mes-ui-neutral-alpha-24);
+  border-radius: 14px;
+  background: var(--mes-ui-surface-control);
+  box-shadow: var(--mes-ui-shadow-xs);
 }/* Directories density pass: reduce vertical air while keeping the Planning 2.0 skin. */
-.app-shell[data-layout-page="directories"] .directories-page{
-  gap: 8px !important;
-  padding: 8px !important;
-}.app-shell[data-layout-page="directories"] .directory-workspace{
-  gap: 8px !important;
-}.app-shell[data-layout-page="directories"] .directory-sidebar{
-  gap: 7px;
-  padding: 8px;
-}.app-shell[data-layout-page="directories"] .directory-sidebar-head{
-  padding-bottom: 7px !important;
-}.app-shell[data-layout-page="directories"] .directory-nav{
-  gap: 7px !important;
-}.app-shell[data-layout-page="directories"] .directory-nav-group{
-  gap: 3px !important;
-}.app-shell[data-layout-page="directories"] .directory-nav-item{
-  min-height: 28px !important;
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
-}.app-shell[data-layout-page="directories"] .directory-header{
-  gap: 10px !important;
-  padding: 8px 12px !important;
-}.app-shell[data-layout-page="directories"] .directory-content{
-  gap: 8px !important;
-  padding-top: 3px !important;
-  padding-bottom: 3px !important;
-}.app-shell[data-layout-page="directories"] .directory-table-card{
-  padding: 8px !important;
-}.app-shell[data-layout-page="directories"] .directory-table-toolbar,
-.app-shell[data-layout-page="directories"] .detail-card-head{
-  min-height: 30px !important;
-  padding: 0 6px 5px !important;
-}.app-shell[data-layout-page="directories"] .directory-table-wrap{
-  border-radius: 14px !important;
-}.app-shell[data-layout-page="directories"] .directory-table th,
-.app-shell[data-layout-page="directories"] .directory-table td{
-  min-height: 32px;
-  padding: 4px 7px;
-}.app-shell[data-layout-page="directories"] .directory-table .actions-cell .table-icon-button{
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-}.app-shell[data-layout-page="directories"] .directory-detail-list{
-  gap: 5px !important;
-}.app-shell[data-layout-page="directories"] .directory-detail-list div{
-  padding: 5px 8px !important;
+.app-shell[data-layout-page="directories"] .directory-detail-list div{
+  padding: 5px 8px;
 }.app-shell[data-layout-page="directories"] .directory-health{
-  gap: 5px !important;
+  gap: 5px;
 }.app-shell[data-layout-page="directories"] .directory-health div{
-  min-height: 36px !important;
-  padding: 5px 8px !important;
+  min-height: 36px;
+  padding: 5px 8px;
 }/* MES UI Kit v1: canonical HeroUI-inspired tokens and shared base surfaces. */
 :root{
-  --mes-ui-bg: #eef3f8;
-  --mes-ui-bg-gradient: linear-gradient(180deg, rgba(15, 35, 60, 0.055), rgba(238, 243, 248, 0) 220px);
-  --mes-ui-surface: #ffffff;
   --mes-ui-surface-raised: rgba(255, 255, 255, 0.94);
-  --mes-ui-surface-subtle: #f4f7fb;
+  --mes-ui-surface-subtle: var(--mes-ui-surface-blue-muted);
   --mes-ui-surface-soft: #fbfdff;
-  --mes-ui-hover: #f1f6ff;
-  --mes-ui-selected: #eef6ff;
-  --mes-ui-line: #e2e8f0;
-  --mes-ui-line-strong: #cbd5e1;
-  --mes-ui-line-focus: rgba(37, 99, 235, 0.36);
-  --mes-ui-text: #0f172a;
-  --mes-ui-text-secondary: #475569;
-  --mes-ui-muted: #64748b;
-  --mes-ui-muted-soft: #94a3b8;
-  --mes-ui-primary: #2563eb;
-  --mes-ui-primary-hover: #1d4ed8;
-  --mes-ui-primary-soft: #eff6ff;
-  --mes-ui-primary-border: #bfdbfe;
-  --mes-ui-success: #16a34a;
-  --mes-ui-success-soft: #ecfdf3;
-  --mes-ui-success-border: #bbf7d0;
-  --mes-ui-warning: #d97706;
-  --mes-ui-warning-soft: #fff8e6;
-  --mes-ui-warning-border: #fde68a;
-  --mes-ui-danger: #dc2626;
-  --mes-ui-danger-soft: #fff1f2;
-  --mes-ui-danger-border: #fecaca;
+  --mes-ui-hover: var(--mes-ui-surface-selected);
+  --mes-ui-selected: var(--mes-ui-surface-blue-soft);
+  --mes-ui-line: var(--mes-ui-line-muted);
+  --mes-ui-line-focus: var(--mes-ui-primary-alpha-36);
+  --mes-ui-text-secondary: var(--mes-ui-neutral);
+  --mes-ui-muted: var(--mes-ui-text-muted);
+  --mes-ui-muted-soft: var(--mes-ui-text-soft);
+  --mes-ui-primary-hover: var(--mes-ui-status-info-text);
+  --mes-ui-primary-soft: var(--mes-ui-status-info-bg);
+  --mes-ui-primary-border: var(--mes-ui-status-info-border);
+  --mes-ui-success: var(--mes-ui-success-accent);
+  --mes-ui-warning: var(--mes-ui-warning-accent);
+  --mes-ui-warning-soft: var(--mes-ui-status-warning-bg);
+  --mes-ui-danger: var(--mes-ui-danger-accent);
+  --mes-ui-danger-border: var(--mes-ui-danger-border-soft);
   --mes-ui-radius-xs: 8px;
   --mes-ui-radius-sm: 10px;
   --mes-ui-radius-md: 14px;
@@ -1458,20 +1322,19 @@ input[type="radio"]{
   --mes-ui-radius-xl: 20px;
   --mes-ui-pill: 999px;
   --mes-ui-shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.035);
-  --mes-ui-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --mes-ui-shadow-md: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px rgba(15, 23, 42, 0.06);
-  --mes-ui-shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.10);
+  --mes-ui-shadow-sm: 0 1px 2px var(--mes-ui-ink-alpha-05);
+  --mes-ui-shadow-md: 0 1px 2px var(--mes-ui-ink-alpha-05), 0 10px 30px var(--mes-ui-ink-alpha-06);
+  --mes-ui-shadow-focus: var(--mes-ui-shadow-focus-primary);
   --mes-ui-density-page: 8px;
   --mes-ui-density-gap: 8px;
   --mes-ui-density-card: 8px;
   --mes-ui-control-height: 32px;
   --mes-ui-table-row-height: 37px;
   --mes-ui-table-header-height: 30px;
-  --mes-ui-sidebar-bg: #10233c;
   --mes-ui-sidebar-surface: rgba(255, 255, 255, 0.07);
   --mes-ui-sidebar-hover: rgba(255, 255, 255, 0.10);
-  --mes-ui-sidebar-active: #2563eb;
-  --mes-ui-sidebar-text: #e2e8f0;
+  --mes-ui-sidebar-active: var(--mes-ui-primary);
+  --mes-ui-sidebar-text: var(--mes-ui-line-muted);
   --mes-ui-sidebar-muted: #9aa9bc;
   --mes-ui-sidebar-line: rgba(255, 255, 255, 0.11);
   --mes-bg: var(--mes-ui-bg);
@@ -1520,134 +1383,27 @@ input[type="radio"]{
   --mes-table-header-height: var(--mes-ui-table-header-height);
   --mes-shadow-sm: var(--mes-ui-shadow-sm);
   --mes-shadow-md: var(--mes-ui-shadow-md);
-}main[data-layout="app-shell"]:not([data-layout-page="authPrototype"]){
-  background:
-    var(--mes-ui-bg-gradient),
-    var(--mes-ui-bg) !important;
-}.module-menu{
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 180px),
-    var(--mes-ui-sidebar-bg) !important;
-}.module-menu-brand::before,
-.module-menu-preset-main,
-.module-menu-preset-save{
-  border-color: var(--mes-ui-sidebar-line) !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  background: var(--mes-ui-sidebar-surface) !important;
-}.module-tab{
-  border-radius: var(--mes-ui-radius-xs) !important;
-}.module-tab:hover{
-  background: var(--mes-ui-sidebar-hover) !important;
-}.module-tab.is-active{
-  background: linear-gradient(135deg, var(--mes-ui-primary), var(--mes-ui-primary-hover)) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important;
-}.app-topbar{
-  border-bottom-color: rgba(148, 163, 184, 0.28) !important;
-  background: rgba(255, 255, 255, 0.92) !important;
-  box-shadow: var(--mes-ui-shadow-xs) !important;
-}.app-shell :is(input, select, textarea),
-.app-shell .dense-inline-select > summary{
-  border-color: rgba(148, 163, 184, 0.28) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: var(--mes-ui-surface-soft) !important;
-  color: var(--mes-ui-text) !important;
-}.app-shell :is(input, select, textarea):focus,
-.app-shell .dense-inline-select[open] > summary{
-  border-color: var(--mes-ui-line-focus) !important;
-  box-shadow: var(--mes-ui-shadow-focus) !important;
-  outline: 0 !important;
-}.app-shell :is(.secondary-button, .icon-button, .table-icon-button){
-  border-color: rgba(148, 163, 184, 0.28) !important;
-  background: var(--mes-ui-surface) !important;
-  box-shadow: var(--mes-ui-shadow-xs) !important;
-}.app-shell .primary-button{
-  border-color: var(--mes-ui-primary) !important;
-  background: var(--mes-ui-primary) !important;
-}.app-shell .primary-button:hover{
-  background: var(--mes-ui-primary-hover) !important;
-}.app-shell :is(.directory-table-wrap, [data-layout="table"]){
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-md) !important;
-  background: var(--mes-ui-surface) !important;
-}main.app-shell[data-layout="app-shell"] :is(.directory-table-wrap, [data-layout="table"]){
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-md) !important;
-  background: var(--mes-ui-surface) !important;
-}.app-shell .directory-table th{
-  background: var(--mes-ui-surface-subtle);
-  color: var(--mes-ui-muted);
-}.app-shell .directory-table th,
-.app-shell .directory-table td{
-  border-bottom-color: rgba(226, 232, 240, 0.86);
-}.app-shell .directory-table tr:hover td{
-  background: var(--mes-ui-hover);
-}.app-shell .directory-table tr.is-selected td{
-  background: #dceafe;
-}.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
-  --planning-order-bg: var(--mes-ui-bg);
-  --planning-order-surface: var(--mes-ui-surface);
-  --planning-order-subtle: var(--mes-ui-surface-subtle);
-  --planning-order-hover: var(--mes-ui-hover);
-  --planning-order-selected: var(--mes-ui-selected);
-  --planning-order-selected-border: var(--mes-ui-primary);
-  --planning-order-line: var(--mes-ui-line);
-  --planning-order-line-strong: var(--mes-ui-line-strong);
-  --planning-order-text: var(--mes-ui-text);
-  --planning-order-muted: var(--mes-ui-muted);
-  --planning-order-link: var(--mes-ui-primary);
-  --planning-order-green-bg: var(--mes-ui-success-soft);
-  --planning-order-green-text: #15803d;
-  --planning-order-yellow-bg: var(--mes-ui-warning-soft);
-  --planning-order-yellow-text: #a15c07;
-  --planning-order-red-bg: var(--mes-ui-danger-soft);
-  --planning-order-red-text: #be123c;
-  --planning-order-radius-xs: var(--mes-ui-radius-xs);
-  --planning-order-radius-sm: var(--mes-ui-radius-sm);
-  --planning-order-radius: var(--mes-ui-radius-md);
-  --planning-order-radius-lg: var(--mes-ui-radius-xl);
-  --planning-order-pill: var(--mes-ui-pill);
-  --planning-order-shadow: var(--mes-ui-shadow-md);
-  --planning-order-shadow-soft: var(--mes-ui-shadow-sm);
-}.app-shell[data-layout-page="directories"] .directories-page{
-  --directory-ui-bg: var(--mes-ui-bg);
-  --directory-ui-surface: var(--mes-ui-surface);
-  --directory-ui-subtle: var(--mes-ui-surface-subtle);
-  --directory-ui-hover: var(--mes-ui-hover);
-  --directory-ui-selected: var(--mes-ui-selected);
-  --directory-ui-selected-border: var(--mes-ui-primary);
-  --directory-ui-line: var(--mes-ui-line);
-  --directory-ui-line-strong: var(--mes-ui-line-strong);
-  --directory-ui-text: var(--mes-ui-text);
-  --directory-ui-muted: var(--mes-ui-muted);
-  --directory-ui-radius-sm: var(--mes-ui-radius-sm);
-  --directory-ui-radius: var(--mes-ui-radius-md);
-  --directory-ui-radius-lg: var(--mes-ui-radius-xl);
-  --directory-ui-pill: var(--mes-ui-pill);
-  --directory-ui-shadow: var(--mes-ui-shadow-md);
-  --directory-ui-shadow-soft: var(--mes-ui-shadow-sm);
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter{
-  gap: 5px !important;
-  padding: 8px !important;
+  gap: 5px;
+  padding: 8px;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter button{
-  min-height: 38px !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  padding: 7px 8px !important;
+  min-height: 38px;
+  padding: 7px 8px;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter span{
-  font-size: var(--mes-ui-module-font-sm) !important;
-  line-height: 14px !important;
-}main.app-shell[data-layout-page="nomenclature"] .nomenclature-type-filter span{
-  min-width: 0 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--mes-ui-module-font-sm);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
 }main.app-shell[data-layout-page="products"] .speki-structure-table :is(th, td){
-  vertical-align: middle !important;
+  vertical-align: middle;
 }main.app-shell[data-layout-page="products"] .speki-structure-table td{
-  height: 40px !important;
+  height: 40px;
 }main.app-shell[data-layout-page="products"] .speki-structure-table .speki-table-row-actions{
-  align-items: center !important;
+  align-items: center;
 }main.app-shell[data-layout-page="products"] .speki-page.module-data-page{
   grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
   gap: 12px;
@@ -1655,301 +1411,285 @@ input[type="radio"]{
 }main.app-shell[data-layout-page="products"] .speki-page .module-data-workspace,
 main.app-shell[data-layout-page="products"] .speki-page .speki-module-content,
 main.app-shell[data-layout-page="products"] .speki-page .speki-spec-table-panel{
-  min-width: 0 !important;
+  min-width: 0;
 }main.app-shell[data-layout-page="products"] .speki-page .module-data-workspace{
-  display: grid !important;
-  grid-template-rows: minmax(0, 1fr) !important;
-  overflow: hidden !important;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }main.app-shell[data-layout-page="products"] .speki-page .speki-module-content{
-  display: grid !important;
-  gap: var(--mes-ui-density-gap) !important;
-  padding: var(--mes-ui-density-card) !important;
-  overflow: auto !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mes-ui-density-gap);
+  padding: var(--mes-ui-density-card);
+  overflow: auto;
 }main.app-shell[data-layout-page="products"] .speki-page .speki-spec-table-panel{
-  height: auto !important;
-  padding: 8px !important;
-  overflow: visible !important;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  padding: 8px;
+  overflow: visible;
 }main.app-shell[data-layout-page="products"] .speki-page .ui-panel-head{
-  margin-bottom: 8px !important;
+  margin-bottom: 8px;
 }main.app-shell[data-layout-page="products"] .speki-spec-mini-card{
-  grid-template-columns: minmax(280px, 1fr) auto !important;
-  gap: 8px !important;
-  margin-bottom: 8px !important;
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-md) !important;
-  background: var(--mes-ui-surface-soft) !important;
-  padding: 8px !important;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px;
 }main.app-shell[data-layout-page="products"] .speki-spec-name-field{
-  gap: 4px !important;
+  gap: 4px;
 }main.app-shell[data-layout-page="products"] .speki-spec-name-field span{
-  font-size: var(--mes-ui-module-font-xs) !important;
-  line-height: 13px !important;
+  font-size: var(--mes-ui-module-font-xs);
+  line-height: 13px;
 }main.app-shell[data-layout-page="products"] .speki-spec-name-field input{
-  height: var(--mes-ui-module-control-height) !important;
-  font-size: var(--mes-ui-module-font-sm) !important;
+  height: var(--mes-ui-module-control-height);
+  font-size: var(--mes-ui-module-font-sm);
 }main.app-shell[data-layout-page="products"] .speki-structure-table-wrap{
-  border-color: rgba(148, 163, 184, 0.22) !important;
-  border-radius: var(--mes-ui-radius-md) !important;
-  overflow: visible !important;
+  overflow: visible;
 }main.app-shell[data-layout-page="products"] .speki-structure-table{
-  min-width: 760px !important;
+  width: 100%;
+  min-width: 760px;
 }main.app-shell[data-layout-page="products"] .speki-structure-table th:nth-child(2),
 main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2){
-  width: 68px !important;
-  text-align: center !important;
+  width: 68px;
+  text-align: center;
 }main.app-shell[data-layout-page="products"] .speki-structure-table tr:has(.dense-inline-select[open]){
   position: relative;
   z-index: 30;
 }main.app-shell[data-layout-page="products"] .speki-structure-table .dense-inline-select[open]{
   z-index: 40;
 }main.app-shell[data-layout-page="products"] .speki-structure-table :is(input, .dense-inline-select > summary, .speki-static-cell, .speki-section-chip, .speki-section-icon-badge){
-  min-height: 26px !important;
-  font-size: var(--mes-ui-module-font-sm) !important;
+  min-height: 26px;
+  font-size: var(--mes-ui-module-font-sm);
 }main.app-shell[data-layout-page="products"] .speki-structure-table .speki-section-icon-badge{
-  width: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  margin-right: auto !important;
-  margin-left: auto !important;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  margin-right: auto;
+  margin-left: auto;
 }main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2) .dense-select-spekiStructureNomenclatureType{
-  width: 40px !important;
-  margin-right: auto !important;
-  margin-left: auto !important;
+  width: 40px;
+  margin-right: auto;
+  margin-left: auto;
 }main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureNomenclatureType > summary{
-  min-width: 40px !important;
-  min-height: 26px !important;
+  min-width: 40px;
+  min-height: 26px;
 }main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary{
-  border-color: #cbd5e1 !important;
-  background: #f8fafc !important;
-  color: #334155 !important;
+  color: var(--mes-ui-text-secondary);
 }main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-bom > summary{
-  border-color: #bfdbfe !important;
-  background: #eff6ff !important;
-  color: #1d4ed8 !important;
+  color: var(--mes-ui-status-info-text);
 }main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-specification > summary{
-  border-color: #fde68a !important;
-  background: #fffbeb !important;
-  color: #92400e !important;
+  color: var(--mes-ui-status-warning-text);
 }main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary{
-  border-color: #bbf7d0 !important;
-  background: #f0fdf4 !important;
-  color: #15803d !important;
+  color: var(--mes-ui-status-success-text);
 }main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureNomenclatureType .dense-inline-options{
-  width: min(360px, calc(100vw - 32px)) !important;
-  min-width: min(260px, calc(100vw - 32px)) !important;
-  max-width: min(420px, calc(100vw - 32px)) !important;
-  max-height: min(480px, calc(100vh - 340px)) !important;
-  z-index: 90 !important;
+  width: min(360px, calc(100vw - 32px));
+  min-width: min(260px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 32px));
+  max-height: min(480px, calc(100vh - 340px));
+  z-index: 90;
 }main.app-shell[data-layout-page="products"] .speki-table-row-actions .icon-button,
 main.app-shell[data-layout-page="products"] .speki-bom-toggle{
-  flex-basis: 23px !important;
-  width: 23px !important;
-  min-width: 23px !important;
-  height: 22px !important;
-  min-height: 22px !important;
+  flex-basis: 23px;
+  width: 23px;
+  min-width: 23px;
+  height: 22px;
+  min-height: 22px;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-module-content,
 main.app-shell[data-layout-page="routes"] .route-module-content{
-  grid-template-columns: minmax(0, 1fr) !important;
-  gap: var(--mes-ui-density-gap) !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mes-ui-density-gap);
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table-wrap{
-  min-height: 220px !important;
+  min-height: 220px;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  table-layout: fixed !important;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th,
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td{
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(1),
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(1){
-  width: 30% !important;
+  width: 30%;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(2),
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(2){
-  width: 16% !important;
+  width: 16%;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(3),
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(3){
-  width: 15% !important;
+  width: 15%;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(4),
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(4){
-  width: 11% !important;
+  width: 11%;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(5),
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(5){
-  width: 6% !important;
+  width: 6%;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(6),
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(6){
-  width: 14% !important;
+  width: 14%;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-table th:nth-child(7),
 main.app-shell[data-layout-page="nomenclature"] .nomenclature-table td:nth-child(7){
-  width: 8% !important;
+  width: 8%;
 }main.app-shell[data-layout-page="routes"] .route-editor-panel,
 main.app-shell[data-layout-page="routes"] .route-steps-panel{
-  overflow: visible !important;
+  overflow: visible;
 }main.app-shell[data-layout-page="routes"] .route-module-content,
 main.app-shell[data-layout-page="routes"] .route-steps-panel,
 main.app-shell[data-layout-page="routes"] .route-step-editor-shell,
+main.app-shell[data-layout-page="routes"] .route-step-editor-list,
 main.app-shell[data-layout-page="routes"] .route-object-editor-shell,
 main.app-shell[data-layout-page="routes"] .route-object-table-wrap{
-  height: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
-  overflow-x: visible !important;
-  overflow-y: visible !important;
-  overscroll-behavior: auto !important;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  overflow-x: visible;
+  overflow-y: visible;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: auto;
 }main.app-shell[data-layout-page="routes"] .route-module-form{
-  grid-template-columns: minmax(220px, 0.78fr) minmax(300px, 1fr) minmax(128px, 0.32fr) minmax(210px, auto) !important;
-  align-items: end !important;
-  gap: 6px 8px !important;
+  grid-template-columns: minmax(220px, 0.78fr) minmax(300px, 1fr) minmax(128px, 0.32fr) minmax(210px, auto);
+  align-items: end;
+  gap: 6px 8px;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .route-module-form-grid{
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(220px, 0.78fr) minmax(300px, 1fr) minmax(128px, 0.32fr) minmax(210px, auto);
+  align-items: end;
+  gap: var(--mes-space-3) var(--mes-space-4);
 }main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full,
-main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full,
-main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field{
-  display: grid !important;
-  grid-template-rows: 13px 32px !important;
-  align-content: end !important;
-  gap: 4px !important;
-}main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full{
-  grid-column: 1 !important;
-}main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full{
-  grid-column: 2 !important;
-}main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field{
-  grid-column: 3 !important;
-}main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full{
-  grid-column: 4 !important;
-  grid-row: 1 !important;
-  align-self: end !important;
-  justify-content: flex-end !important;
-}main.app-shell[data-layout-page="routes"] .route-module-form .command-field::after{
-  top: auto !important;
-  bottom: 10px !important;
+main.app-shell[data-layout-page="routes"] .route-module-form > .route-binding-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .form-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .route-binding-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .route-planning-quantity-field{
+  display: grid;
+  grid-template-rows: 13px 32px;
+  align-content: end;
+  gap: 4px;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .form-field.full{
+  grid-column: 1;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .route-binding-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .route-binding-field.full{
+  grid-column: 2;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .route-planning-quantity-field{
+  grid-column: 3;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .module-form-actions.full{
+  grid-column: 4;
+  grid-row: 1;
+  align-self: end;
+  justify-content: flex-end;
 }main.app-shell[data-layout-page="routes"] .route-module-form :is(input, select){
-  height: 32px !important;
-  min-height: 32px !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-}main.app-shell[data-layout-page="routes"] .route-module-form .command-field select{
-  line-height: 1.2 !important;
-  padding-right: 42px !important;
-}main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full button{
-  min-height: 28px !important;
+  height: 32px;
+  min-height: 32px;
+}main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full button,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .module-form-actions.full button{
+  min-height: 28px;
 }main.app-shell[data-layout-page="routes"] .route-module-sequence,
 main.app-shell[data-layout-page="routes"] .route-task-sequence,
 main.app-shell[data-layout-page="routes"] .route-step-editor-list{
-  gap: 7px !important;
-  padding: 8px !important;
+  gap: 7px;
+  padding: 8px;
 }main.app-shell[data-layout-page="routes"] .route-module-sequence article,
 main.app-shell[data-layout-page="routes"] .route-task-sequence-card,
 main.app-shell[data-layout-page="routes"] .route-step-editor-row{
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-md) !important;
-  background: var(--mes-ui-surface) !important;
 }main.app-shell[data-layout-page="routes"] .route-step-editor-row{
-  grid-template-columns: 76px minmax(170px, 0.9fr) minmax(230px, 1.35fr) 32px !important;
-  gap: 8px !important;
-  padding: 6px !important;
+  grid-template-columns: 76px minmax(170px, 0.9fr) minmax(230px, 1.35fr) 32px;
+  gap: 8px;
+  padding: 6px;
 }main.app-shell[data-layout-page="routes"] .route-step-editor-row.has-task-target{
-  grid-template-columns: 76px minmax(150px, 1fr) minmax(150px, 0.85fr) minmax(220px, 1.2fr) 32px !important;
+  grid-template-columns: 76px minmax(150px, 1fr) minmax(150px, 0.85fr) minmax(220px, 1.2fr) 32px;
 }main.app-shell[data-layout-page="routes"] .route-step-index{
-  grid-template-columns: 22px minmax(24px, 1fr) 22px !important;
-  gap: 4px !important;
+  grid-template-columns: 22px minmax(24px, 1fr) 22px;
+  gap: 4px;
 }main.app-shell[data-layout-page="routes"] .route-step-index > .icon-button{
-  width: 22px !important;
-  min-width: 22px !important;
-  height: var(--mes-ui-module-control-height) !important;
-  min-height: var(--mes-ui-module-control-height) !important;
+  width: 22px;
+  min-width: 22px;
+  height: var(--mes-ui-module-control-height);
+  min-height: var(--mes-ui-module-control-height);
 }main.app-shell[data-layout-page="routes"] .route-step-order-badge{
-  min-width: 24px !important;
-  height: var(--mes-ui-module-control-height) !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  font-size: var(--mes-ui-module-font-sm) !important;
+  min-width: 24px;
+  height: var(--mes-ui-module-control-height);
+  font-size: var(--mes-ui-module-font-sm);
 }main.app-shell[data-layout-page="routes"] .route-step-editor-row .icon-button.danger-soft{
-  width: 30px !important;
-  min-width: 30px !important;
-  height: var(--mes-ui-module-control-height) !important;
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  background: #ffffff !important;
-  color: #64748b !important;
+  width: 30px;
+  min-width: 30px;
+  height: var(--mes-ui-module-control-height);
+  color: var(--mes-ui-text-muted);
 }main.app-shell[data-layout-page="routes"] .route-step-editor-row .icon-button.danger-soft:hover{
-  border-color: rgba(239, 68, 68, 0.22) !important;
-  background: #fff1f2 !important;
-  color: #dc2626 !important;
+  color: var(--mes-ui-danger-accent);
 }main.app-shell[data-layout-page="routes"] .route-step-flow-editor{
-  gap: 6px !important;
-  padding-top: 6px !important;
+  gap: 6px;
+  padding-top: 6px;
 }main.app-shell[data-layout-page="routes"] .operation-flow-map{
-  gap: 5px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  padding: 5px !important;
+  gap: 5px;
+  padding: 5px;
 }main.app-shell[data-layout-page="routes"] .operation-flow-point{
-  gap: 4px !important;
-  padding: 4px 5px !important;
+  gap: 4px;
+  padding: 4px 5px;
 }main.app-shell[data-layout-page="routes"] .operation-flow-point strong{
-  font-size: var(--mes-ui-module-font-xs) !important;
+  font-size: var(--mes-ui-module-font-xs);
 }main.app-shell[data-layout-page="routes"] .route-step-flow-override > summary{
-  min-height: 26px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  font-size: var(--mes-ui-module-font-xs) !important;
+  min-height: 26px;
+  font-size: var(--mes-ui-module-font-xs);
 }main.app-shell[data-layout-page="routes"] .route-object-table-wrap{
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-md) !important;
-  width: 100% !important;
-  max-width: 100% !important;
+  width: 100%;
+  max-width: 100%;
 }main.app-shell[data-layout-page="routes"] .route-object-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  table-layout: fixed !important;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
 }main.app-shell[data-layout-page="routes"] .route-object-col-index{
-  width: 58px !important;
+  width: 58px;
 }main.app-shell[data-layout-page="routes"] .route-object-col-name{
-  width: auto !important;
+  width: auto;
 }main.app-shell[data-layout-page="routes"] .route-object-col-ratio{
-  width: 58px !important;
+  width: 58px;
 }main.app-shell[data-layout-page="routes"] .route-object-col-physical{
-  width: 96px !important;
+  width: 96px;
 }main.app-shell[data-layout-page="routes"] .route-object-col-unit{
-  width: 78px !important;
+  width: 78px;
 }main.app-shell[data-layout-page="routes"] .route-object-col-actions{
-  width: 220px !important;
+  width: 220px;
 }main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(1),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(1){
-  width: 58px !important;
+  width: 58px;
 }main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(2),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(2){
-  width: auto !important;
-  overflow: visible !important;
-  text-align: left !important;
+  width: auto;
+  overflow: visible;
+  text-align: left;
 }main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(3),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(3){
-  width: 58px !important;
+  width: 58px;
 }main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(4),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(4){
-  width: 96px !important;
+  width: 96px;
 }main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(5),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(5){
-  width: 78px !important;
+  width: 78px;
 }main.app-shell[data-layout-page="routes"] .route-object-table th:nth-child(6),
 main.app-shell[data-layout-page="routes"] .route-object-table td:nth-child(6){
-  width: 220px !important;
-  padding-right: 8px !important;
-  padding-left: 8px !important;
+  width: 220px;
+  padding-right: 8px;
+  padding-left: 8px;
 }main.app-shell[data-layout-page="routes"] .route-object-table th,
 main.app-shell[data-layout-page="routes"] .route-object-table td{
-  min-width: 0 !important;
+  min-width: 0;
 }main.app-shell[data-layout-page="routes"] .route-object-table th{
-  font-weight: 600 !important;
+  font-weight: 600;
 }main.app-shell[data-layout-page="routes"] .route-card-list-item small{
-  display: block !important;
-  min-width: 0 !important;
+  display: block;
+  min-width: 0;
 }main.app-shell[data-layout-page="routes"] .route-card-list-item small i{
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: var(--mes-ui-pill);
-  background: #f8fafc;
-  color: #475569;
+  border: 1px solid var(--mes-ui-neutral-alpha-24);
+  color: var(--mes-ui-neutral);
   padding: 1px 5px;
   font-size: 9px;
   font-style: normal;
@@ -1958,26 +1698,18 @@ main.app-shell[data-layout-page="routes"] .route-object-table td{
   vertical-align: 1px;
 }main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-main small i,
 main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-main{
-  border-color: rgba(37, 99, 235, 0.22);
-  background: #eff6ff;
-  color: #1d4ed8;
+  color: var(--mes-ui-status-info-text);
 }main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-child small i,
 main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-child{
-  border-color: rgba(245, 158, 11, 0.28);
-  background: #fffbeb;
-  color: #92400e;
+  color: var(--mes-ui-status-warning-text);
 }main.app-shell[data-layout-page="routes"] .route-card-list-item.is-route-shift small i,
 main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-shift{
-  border-color: rgba(16, 185, 129, 0.24);
-  background: #ecfdf5;
-  color: #047857;
+  color: var(--mes-ui-status-success-text);
 }main.app-shell[data-layout-page="routes"] .route-lineage-panel{
   display: grid;
   gap: 8px;
   margin-top: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: var(--mes-ui-radius-md);
-  background: #f8fafc;
+  border: 1px solid var(--mes-ui-neutral-alpha-24);
   padding: 8px;
 }main.app-shell[data-layout-page="routes"] .route-lineage-title{
   display: flex;
@@ -1988,10 +1720,8 @@ main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-shift{
   display: inline-flex;
   align-items: center;
   min-height: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: var(--mes-ui-pill);
-  background: #f8fafc;
-  color: #475569;
+  border: 1px solid var(--mes-ui-neutral-alpha-24);
+  color: var(--mes-ui-neutral);
   padding: 0 6px;
   font-size: var(--mes-ui-module-font-xs);
   font-weight: 650;
@@ -2000,7 +1730,7 @@ main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-shift{
 }main.app-shell[data-layout-page="routes"] .route-lineage-title strong{
   min-width: 0;
   overflow: hidden;
-  color: #0f172a;
+  color: var(--mes-ui-text);
   font-size: var(--mes-ui-module-font-sm);
   font-weight: 600;
   text-overflow: ellipsis;
@@ -2013,9 +1743,7 @@ main.app-shell[data-layout-page="routes"] .route-card-kind-pill.is-shift{
   display: grid;
   gap: 2px;
   min-width: 0;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #ffffff;
+  border: 1px solid var(--mes-ui-line-alpha-90);
   padding: 6px 7px;
 }main.app-shell[data-layout-page="routes"] .route-lineage-grid b,
 main.app-shell[data-layout-page="routes"] .route-lineage-grid em{
@@ -2024,11 +1752,11 @@ main.app-shell[data-layout-page="routes"] .route-lineage-grid em{
   text-overflow: ellipsis;
   white-space: nowrap;
 }main.app-shell[data-layout-page="routes"] .route-lineage-grid b{
-  color: #64748b;
+  color: var(--mes-ui-text-muted);
   font-size: var(--mes-ui-module-font-xs);
   font-weight: 500;
 }main.app-shell[data-layout-page="routes"] .route-lineage-grid em{
-  color: #0f172a;
+  color: var(--mes-ui-text);
   font-size: var(--mes-ui-module-font-sm);
   font-style: normal;
   font-weight: 500;
@@ -2036,7 +1764,7 @@ main.app-shell[data-layout-page="routes"] .route-lineage-grid em{
   display: grid;
   gap: 5px;
 }main.app-shell[data-layout-page="routes"] .route-linked-cards > b{
-  color: #64748b;
+  color: var(--mes-ui-text-muted);
   font-size: var(--mes-ui-module-font-xs);
   font-weight: 600;
 }main.app-shell[data-layout-page="routes"] .route-linked-card-list{
@@ -2051,17 +1779,13 @@ main.app-shell[data-layout-page="routes"] .route-lineage-grid em{
   max-width: 260px;
   min-height: 34px;
   min-width: 0;
-  border: 1px solid rgba(245, 158, 11, 0.28);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #fffbeb;
+  border: 1px solid var(--mes-ui-warning-alpha-28);
   color: #78350f;
   padding: 5px 8px;
   text-align: left;
 }main.app-shell[data-layout-page="routes"] button.route-linked-card{
   cursor: pointer;
 }main.app-shell[data-layout-page="routes"] button.route-linked-card:hover{
-  border-color: rgba(245, 158, 11, 0.44);
-  background: #fef3c7;
 }main.app-shell[data-layout-page="routes"] .route-linked-card span,
 main.app-shell[data-layout-page="routes"] .route-linked-card small{
   min-width: 0;
@@ -2072,15 +1796,13 @@ main.app-shell[data-layout-page="routes"] .route-linked-card small{
   font-size: var(--mes-ui-module-font-sm);
   font-weight: 600;
 }main.app-shell[data-layout-page="routes"] .route-linked-card small{
-  color: #92400e;
+  color: var(--mes-ui-status-warning-text);
   font-size: var(--mes-ui-module-font-xs);
   font-weight: 500;
 }main.app-shell[data-layout-page="routes"] .route-linked-card.is-missing{
-  border-color: rgba(148, 163, 184, 0.24);
-  background: #ffffff;
-  color: #64748b;
+  color: var(--mes-ui-text-muted);
 }main.app-shell[data-layout-page="routes"] .route-linked-card.is-missing small{
-  color: #94a3b8;
+  color: var(--mes-ui-text-soft);
 }@media (max-width: 1180px) {main.app-shell[data-layout-page="routes"] .route-lineage-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }}main.app-shell[data-layout-page="routes"] .route-type-icon-badge{
@@ -2090,40 +1812,26 @@ main.app-shell[data-layout-page="routes"] .route-linked-card small{
   width: 28px;
   height: 28px;
   margin-left: 0;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: var(--mes-ui-radius-xs);
-  background: #f8fafc;
-  color: #475569;
+  border: 1px solid var(--mes-ui-neutral-alpha-28);
+  color: var(--mes-ui-neutral);
   vertical-align: middle;
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge svg{
   width: 14px;
   height: 14px;
   stroke-width: 2;
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-operation{
-  border-color: rgba(37, 99, 235, 0.22);
-  background: #eff6ff;
-  color: #2563eb;
+  color: var(--mes-ui-primary);
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-warehouse{
-  border-color: rgba(16, 185, 129, 0.24);
-  background: #ecfdf5;
-  color: #059669;
+  color: var(--mes-ui-status-success-text);
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-bom{
-  border-color: rgba(124, 58, 237, 0.2);
-  background: #f5f3ff;
-  color: #6d28d9;
+  color: var(--mes-ui-violet);
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-spec,
 main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-assembly{
-  border-color: rgba(14, 165, 233, 0.22);
-  background: #f0f9ff;
-  color: #0284c7;
+  color: var(--mes-ui-cyan);
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-part{
-  border-color: rgba(100, 116, 139, 0.22);
-  background: #f8fafc;
-  color: #334155;
+  color: var(--mes-ui-text-secondary);
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-warning{
-  border-color: rgba(245, 158, 11, 0.28);
-  background: #fffbeb;
-  color: #b45309;
+  color: var(--mes-ui-status-warning-text);
 }main.app-shell[data-layout-page="routes"] .route-tree-cell{
   min-height: 29px;
 }main.app-shell[data-layout-page="routes"] .route-tree-cell.is-route-step{
@@ -2132,18 +1840,15 @@ main.app-shell[data-layout-page="routes"] .route-type-icon-badge.is-assembly{
   display: grid;
   min-width: 0;
 }main.app-shell[data-layout-page="routes"] .route-type-icon-badge::after{
-  display: none !important;
+  display: none;
   position: absolute;
   z-index: 120;
   top: 50%;
   left: calc(100% + 8px);
   max-width: 260px;
   width: max-content;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: var(--mes-ui-radius-sm);
-  background: #0f172a;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.2);
-  color: #ffffff;
+  border: 1px solid var(--mes-ui-ink-alpha-12);
+  color: var(--mes-ui-surface);
   content: attr(data-tooltip);
   font-size: var(--mes-ui-module-font-xs);
   font-weight: 500;
@@ -2160,66 +1865,54 @@ main.app-shell[data-layout-page="routes"] .route-type-icon-badge:focus-visible::
   opacity: 1;
   transform: translateY(-50%) translateX(0);
 }main.app-shell[data-layout-page="routes"] .route-object-name-cell strong{
-  font-size: var(--mes-ui-module-font-sm) !important;
-  font-weight: 600 !important;
+  font-size: var(--mes-ui-module-font-sm);
+  font-weight: 600;
 }main.app-shell[data-layout-page="routes"] .route-object-name-cell small{
-  font-size: var(--mes-ui-module-font-xs) !important;
-  font-weight: 500 !important;
-}main.app-shell[data-layout-page="routes"] .route-object-add-button{
-  min-height: 24px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  font-size: var(--mes-ui-module-font-xs) !important;
-  font-weight: 400 !important;
-  padding-right: 7px !important;
-  padding-left: 7px !important;
-}main.app-shell[data-layout-page="routes"] .route-object-add-button span{
-  font-weight: 400 !important;
+  font-size: var(--mes-ui-module-font-xs);
+  font-weight: 500;
 }main.app-shell[data-layout-page="routes"] .route-object-actions{
-  flex-wrap: nowrap !important;
-  gap: 4px !important;
-}main.app-shell[data-layout-page="routes"] .route-object-add-button{
-  gap: 4px !important;
-  min-width: 0 !important;
-  white-space: nowrap !important;
-}main.app-shell[data-layout-page="routes"] .route-object-add-button svg{
-  width: 12px !important;
-  height: 12px !important;
+  flex-wrap: nowrap;
+  gap: 4px;
 }main.app-shell[data-layout-page="routes"] .route-object-row td,
 main.app-shell[data-layout-page="routes"] .route-step-compact-row td{
-  height: auto !important;
-  padding-top: 5px !important;
-  padding-bottom: 5px !important;
-  vertical-align: middle !important;
+  height: auto;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  vertical-align: middle;
 }main.app-shell[data-layout-page="routes"] .route-step-compact-fields{
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr) !important;
-  gap: 6px !important;
-  align-items: center !important;
-  width: min(100%, 392px) !important;
-  max-width: 392px !important;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 6px;
+  align-items: center;
+  width: min(100%, 392px);
+  max-width: 392px;
 }main.app-shell[data-layout-page="routes"] .route-steps-panel > .ui-panel-head strong{
-  font-weight: 650 !important;
+  font-weight: 650;
 }main.app-shell[data-layout-page="routes"] .route-step-compact-fields .form-field,
 main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select,
 main.app-shell[data-layout-page="routes"] .route-step-flow-summary,
 main.app-shell[data-layout-page="routes"] .route-step-compact-actions,
 main.app-shell[data-layout-page="routes"] .route-object-actions{
-  min-width: 0 !important;
+  min-width: 0;
 }main.app-shell[data-layout-page="routes"] .route-step-compact-actions{
-  justify-content: flex-start !important;
-  gap: 2px !important;
-  padding-right: 4px !important;
-}@media (max-width: 1180px) {main.app-shell[data-layout-page="routes"] .route-module-form{
-    grid-template-columns: minmax(0, 1fr) !important;
+  justify-content: flex-start;
+  gap: 2px;
+  padding-right: 4px;
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="routes"] .route-module-form,
+main.app-shell[data-layout-page="routes"] .route-module-form > .route-module-form-grid{
+    grid-template-columns: minmax(0, 1fr);
   }main.app-shell[data-layout-page="routes"] .route-module-form > .form-field.full,
-main.app-shell[data-layout-page="routes"] .route-module-form > .command-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form > .route-binding-field.full,
 main.app-shell[data-layout-page="routes"] .route-module-form > .route-planning-quantity-field,
-main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full{
-    grid-column: 1 !important;
-    grid-row: auto !important;
+main.app-shell[data-layout-page="routes"] .route-module-form > .module-form-actions.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .form-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .route-binding-field.full,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .route-planning-quantity-field,
+main.app-shell[data-layout-page="routes"] .route-module-form-grid > .module-form-actions.full{
+    grid-column: 1;
+    grid-row: auto;
   }}main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary{
-  min-height: 27px !important;
-  height: 27px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
+  min-height: 27px;
+  height: 27px;
 }main.app-shell[data-layout-page="routes"] .route-step-compact-fields .form-field > span,
 main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary strong,
 main.app-shell[data-layout-page="routes"] .route-step-compact-fields .dense-inline-select > summary small,
@@ -2228,114 +1921,77 @@ main.app-shell[data-layout-page="routes"] .route-step-physical-cell,
 main.app-shell[data-layout-page="routes"] .route-step-unit-cell,
 main.app-shell[data-layout-page="routes"] .route-step-order-badge,
 main.app-shell[data-layout-page="routes"] .route-object-table .speki-static-cell{
-  font-weight: 400 !important;
+  font-weight: 400;
 }main.app-shell[data-layout-page="routes"] .route-step-compact-order > .icon-button,
 main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .icon-button{
-  width: 22px !important;
-  min-width: 22px !important;
-  height: 23px !important;
-  min-height: 23px !important;
+  width: 22px;
+  min-width: 22px;
+  height: 23px;
+  min-height: 23px;
 }main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button{
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  background: #ffffff !important;
-  color: #64748b !important;
+  color: var(--mes-ui-text-muted);
 }main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button:hover{
-  border-color: rgba(239, 68, 68, 0.22) !important;
-  background: #fff1f2 !important;
-  color: #dc2626 !important;
+  color: var(--mes-ui-danger-accent);
 }main.app-shell[data-layout-page="routes"] .route-step-compact-actions > .route-step-delete-button svg{
-  width: 13px !important;
-  height: 13px !important;
-  stroke-width: 1.8 !important;
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.8;
 }main.app-shell[data-layout-page="routes"] .route-step-flow-toggle.is-active{
-  border-color: rgba(37, 99, 235, 0.28) !important;
-  background: #eff6ff !important;
-  color: #2563eb !important;
+  color: var(--mes-ui-primary);
 }main.app-shell[data-layout-page="routes"] .route-step-flow-panel-row > td{
-  padding: 0 8px 8px calc(8px + (var(--speki-level, 0) * 10px)) !important;
-  background: #ffffff !important;
+  padding: 0 8px 8px calc(8px + (var(--speki-level, 0) * 10px));
 }main.app-shell[data-layout-page="routes"] .route-step-flow-panel{
-  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) !important;
-  gap: 7px !important;
-  border-color: rgba(148, 163, 184, 0.24) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: #f8fafc !important;
-  padding: 7px !important;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr);
+  gap: 7px;
+  padding: 7px;
 }main.app-shell[data-layout-page="routes"] .route-step-flow-panel .form-field input{
-  height: 28px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  font-size: var(--mes-ui-module-font-xs) !important;
+  height: 28px;
+  font-size: var(--mes-ui-module-font-xs);
 }main.app-shell[data-layout-page="routes"] .route-step-compact-order .route-step-order-badge{
-  min-width: 24px !important;
-  height: 23px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  font-size: var(--mes-ui-module-font-xs) !important;
+  min-width: 24px;
+  height: 23px;
+  font-size: var(--mes-ui-module-font-xs);
 }main.app-shell[data-layout-page="routes"] .route-step-compact-order .route-step-order-plain{
   display: inline;
   min-width: 0;
   border: 0;
-  background: transparent;
   color: var(--mes-ui-text);
   padding: 0;
   font-size: var(--mes-ui-module-font-sm);
   font-weight: var(--mes-ui-weight-regular);
   line-height: var(--mes-ui-line-body);
 }main.app-shell[data-layout-page="routes"] .route-step-flow-summary{
-  min-height: 38px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  overflow: hidden !important;
+  min-height: 38px;
+  overflow: hidden;
 }main.app-shell[data-layout-page="routes"] .route-step-flow-summary > *{
-  min-width: 0 !important;
+  min-width: 0;
 }main.app-shell[data-layout-page="routes"] .route-step-flow-summary b,
 main.app-shell[data-layout-page="routes"] .route-step-flow-summary strong,
 main.app-shell[data-layout-page="routes"] .route-step-flow-summary i{
-  font-weight: 400 !important;
+  font-weight: 400;
 }main.app-shell[data-layout-page="routes"] .route-step-flow-summary b,
 main.app-shell[data-layout-page="routes"] .route-step-flow-summary strong{
-  display: block !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }main.app-shell[data-layout-page="routes"] .route-step-flow-override-compact > summary{
-  min-height: 23px !important;
-  height: 23px !important;
-  border-radius: var(--mes-ui-radius-xs) !important;
-  font-weight: 400 !important;
+  min-height: 23px;
+  height: 23px;
+  font-weight: 400;
 }main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-step-editor-list{
-  gap: 6px !important;
-  padding: 6px 0 2px !important;
+  gap: 6px;
+  padding: 6px 0 2px;
 }main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-step-editor-row{
-  border-radius: var(--mes-ui-radius-sm) !important;
 }main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-task-empty{
-  min-height: 40px !important;
-  padding: 8px 10px !important;
+  min-height: 40px;
+  padding: 8px 10px;
 }@media (max-width: 1180px) {main.app-shell[data-layout-page="products"] .speki-spec-mini-card,
 main.app-shell[data-layout-page="routes"] .route-step-editor-row,
 main.app-shell[data-layout-page="routes"] .route-step-editor-row.has-task-target{
-    grid-template-columns: minmax(0, 1fr) !important;
-  }}/* MES UI Kit rollout batch 2: operational modules. */
-main.app-shell:is([data-layout-page="planning"], [data-layout-page="shopMap"]){
-  --mes-ui-ops-sidebar-width: 248px;
-  --mes-ui-ops-control-height: 30px;
-  --mes-ui-ops-row-height: 34px;
-  --mes-ui-ops-font-xs: 10px;
-  --mes-ui-ops-font-sm: 11px;
-  --mes-ui-ops-font-md: 12px;
-  --mes-ui-ops-font-lg: 14px;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page){
-  grid-template-columns: minmax(var(--mes-ui-ops-sidebar-width), var(--mes-ui-ops-sidebar-width)) minmax(0, 1fr) !important;
-  align-items: stretch !important;
-  gap: var(--mes-ui-density-gap) !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  padding: var(--mes-ui-density-page) !important;
-  overflow: hidden !important;
-  background:
-    var(--mes-ui-bg-gradient),
-    var(--mes-ui-bg) !important;
-}main.app-shell[data-layout-page="shopMap"] .shop-map-page{
-  grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+  }}/* MES UI Kit rollout batch 2: operational modules. *main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page){
+  grid-template-columns: minmax(var(--mes-ui-ops-sidebar-width), var(--mes-ui-ops-sidebar-width)) minmax(0, 1fr);
   align-items: stretch;
   gap: var(--mes-ui-density-gap);
   width: 100%;
@@ -2343,107 +1999,22 @@ main.app-shell:is([data-layout-page="planning"], [data-layout-page="shopMap"]){
   min-height: 0;
   padding: var(--mes-ui-density-page);
   overflow: hidden;
-  background:
-    var(--mes-ui-bg-gradient),
-    var(--mes-ui-bg);
-}main.app-shell[data-layout-page="planning"] .planning-empty-page{
-  background:
     var(--mes-ui-bg-gradient),
     var(--mes-ui-bg) !important;
-  padding: var(--mes-ui-density-page) !important;
+}main.app-shell[data-layout-page="planning"] .planning-empty-page{
+    var(--mes-ui-bg-gradient),
+    var(--mes-ui-bg) !important;
+  padding: var(--mes-ui-density-page);
 }main.app-shell[data-layout-page="planning"] .planning-empty-panel{
-  border-color: rgba(148, 163, 184, 0.28) !important;
-  border-radius: var(--mes-ui-radius-xl) !important;
-  background: var(--mes-ui-surface-raised) !important;
-  box-shadow: var(--mes-ui-shadow-md) !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.module-data-sidebar, .module-data-workspace),
-main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(.module-data-sidebar, .module-data-workspace){
-  min-width: 0;
-  min-height: 0;
-  border-color: rgba(148, 163, 184, 0.28);
-  border-radius: var(--mes-ui-radius-xl);
-  background: var(--mes-ui-surface-raised);
-  box-shadow: var(--mes-ui-shadow-md);
 }main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-data-sidebar{
   align-self: stretch;
   max-height: none;
   overflow: hidden;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-sidebar-head,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-sidebar-head{
-  min-height: 58px !important;
-  padding: 10px 12px !important;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.84) !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-sidebar-head .eyebrow,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-sidebar-head .eyebrow{
-  color: var(--mes-ui-muted) !important;
-  font-size: var(--mes-ui-ops-font-xs) !important;
-  font-weight: 720 !important;
-  line-height: 12px !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-sidebar-head h1,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-sidebar-head h1{
-  margin: 0 !important;
-  color: var(--mes-ui-text) !important;
-  font-size: 15px !important;
-  font-weight: 760 !important;
-  line-height: 18px !important;
 }main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-sidebar-list{
-  gap: 5px !important;
-  padding: 8px !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-data-workspace,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .module-data-workspace{
-  display: grid !important;
-  grid-template-rows: auto minmax(0, 1fr) !important;
-  overflow: hidden !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-header,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-header{
-  min-height: 62px !important;
-  border-bottom-color: rgba(226, 232, 240, 0.84) !important;
-  background: linear-gradient(180deg, #ffffff, var(--mes-ui-surface-soft)) !important;
-  padding: 10px 12px !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-header h2,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-header h2{
-  font-size: 18px !important;
-  line-height: 22px !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .directory-header p,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .directory-header p{
-  margin-top: 3px !important;
-  font-size: var(--mes-ui-ops-font-sm) !important;
-  line-height: 15px !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-data-content,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .module-data-content{
-  gap: var(--mes-ui-density-gap) !important;
-  padding: var(--mes-ui-density-card) !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .module-panel,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .module-panel,
-main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-panel-head,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .ui-panel-head{
-  min-height: 42px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.84);
-  background: var(--mes-ui-surface-soft);
-  padding: 8px 10px;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-panel-head strong,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .ui-panel-head strong{
-  color: var(--mes-ui-text) !important;
-  font-size: var(--mes-ui-ops-font-lg) !important;
-  font-weight: 760 !important;
-  line-height: 18px !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) .ui-panel-head span,
-main.app-shell[data-layout-page="shopMap"] .shop-map-page .ui-panel-head span{
-  color: var(--mes-ui-muted) !important;
-  font-size: var(--mes-ui-ops-font-sm) !important;
-  line-height: 15px !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(input, select, textarea, .dense-inline-select > summary),
-main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(input, select, textarea, .dense-inline-select > summary){
-  min-height: var(--mes-ui-ops-control-height) !important;
-  font-size: var(--mes-ui-ops-font-sm) !important;
-}main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.primary-button, .secondary-button, .icon-button, .table-icon-button),
-main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(.primary-button, .secondary-button, .icon-button, .table-icon-button){
-  min-height: var(--mes-ui-ops-control-height) !important;
-  font-size: var(--mes-ui-ops-font-sm) !important;
+  gap: 5px;
+  padding: 8px;
 }main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page) :is(.planning-order-placement-summary){
-  gap: 6px !important;
-}main.app-shell[data-layout-page="shopMap"] .shop-map-page.module-data-page{
-  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
 }/* MES UI Kit rollout batch 3: Gantt workspace shell. */
 main.app-shell[data-layout-page="gantt"]{
   --gantt-ui-surface: var(--mes-ui-surface-raised);
@@ -2470,7 +2041,6 @@ main.app-shell[data-layout-page="gantt"]{
     var(--mes-ui-bg) !important;
 }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
   display: grid !important;
-  grid-template-columns: minmax(190px, 0.62fr) minmax(420px, 1.6fr) minmax(220px, auto) !important;
   gap: 8px !important;
   align-items: center !important;
   min-width: 0 !important;
@@ -2479,25 +2049,25 @@ main.app-shell[data-layout-page="gantt"]{
   background: var(--gantt-ui-surface) !important;
   box-shadow: var(--gantt-ui-shadow) !important;
   padding: 8px 10px !important;
-}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar :is(.brand-block, .toolbar-grid, .toolbar-actions, .status-strip){
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar :is(.brand-block, .toolbar-grid, .toolbar-actions){
   min-width: 0 !important;
 }main.app-shell[data-layout-page="gantt"] .brand-title{
-  color: var(--gantt-ui-text) !important;
-  font-size: 15px !important;
-  font-weight: 760 !important;
-  line-height: 18px !important;
+  color: var(--gantt-ui-text);
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 18px;
 }main.app-shell[data-layout-page="gantt"] .brand-subtitle{
-  color: var(--gantt-ui-muted) !important;
-  font-size: 11px !important;
-  line-height: 15px !important;
+  color: var(--gantt-ui-muted);
+  font-size: 11px;
+  line-height: 15px;
 }main.app-shell[data-layout-page="gantt"] .toolbar-grid{
-  grid-template-columns: minmax(132px, 0.55fr) minmax(168px, 0.72fr) minmax(132px, 0.52fr) minmax(220px, 1fr) !important;
+  grid-template-columns: minmax(132px, 0.55fr) minmax(168px, 0.72fr) minmax(132px, 0.52fr);
   gap: 6px !important;
 }main.app-shell[data-layout-page="gantt"] .toolbar-grid :is(.field, .segmented, .gantt-zoom-control){
   min-width: 0 !important;
 }main.app-shell[data-layout-page="gantt"] .toolbar-grid .field span{
-  font-size: 10px !important;
-  line-height: 12px !important;
+  font-size: 10px;
+  line-height: 12px;
 }main.app-shell[data-layout-page="gantt"] .gantt-zoom-control{
   height: 30px !important;
   grid-template-columns: 28px minmax(42px, 1fr) 28px !important;
@@ -2512,16 +2082,13 @@ main.app-shell[data-layout-page="gantt"]{
   min-height: 26px !important;
 }main.app-shell[data-layout-page="gantt"] .toolbar-actions{
   gap: 6px !important;
+  flex-wrap: nowrap;
   justify-content: flex-end !important;
-}main.app-shell[data-layout-page="gantt"] .status-strip{
-  grid-column: 1 / -1 !important;
-  gap: 6px !important;
-}main.app-shell[data-layout-page="gantt"] .status-pill,
-main.app-shell[data-layout-page="gantt"] .clock{
+}main.app-shell[data-layout-page="gantt"] .clock{
   min-height: 22px !important;
   padding: 2px 8px !important;
-  font-size: 10px !important;
-  line-height: 13px !important;
+  font-size: 10px;
+  line-height: 13px;
 }main.app-shell[data-layout-page="gantt"] .planner-frame{
   min-height: 0 !important;
   height: 100% !important;
@@ -2535,35 +2102,32 @@ main.app-shell[data-layout-page="gantt"] .clock{
   width: 100% !important;
   height: 100% !important;
   min-height: 0 !important;
-  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border: 1px solid var(--mes-ui-neutral-alpha-22) !important;
   border-radius: var(--gantt-ui-radius-inner) !important;
-  background: var(--mes-ui-surface) !important;
+  background: var(--mes-ui-surface);
   overflow: auto !important;
 }main.app-shell[data-layout-page="gantt"] .gantt-canvas{
-  background: var(--mes-ui-surface) !important;
+  background: var(--mes-ui-surface);
 }main.app-shell[data-layout-page="gantt"] .timeline-corner,
 main.app-shell[data-layout-page="gantt"] .timeline-cell,
 main.app-shell[data-layout-page="gantt"] .row-label{
-  background: var(--mes-ui-surface-soft) !important;
-  color: var(--gantt-ui-muted) !important;
+  background: var(--mes-ui-surface-soft);
+  color: var(--gantt-ui-muted);
 }main.app-shell[data-layout-page="gantt"] .timeline-cell strong,
 main.app-shell[data-layout-page="gantt"] .row-label strong{
-  color: var(--gantt-ui-text) !important;
+  color: var(--gantt-ui-text);
 }main.app-shell[data-layout-page="gantt"] .route-sequence-mini span,
 main.app-shell[data-layout-page="gantt"] .production-status,
 main.app-shell[data-layout-page="gantt"] .deadline-badge{
   border-radius: var(--mes-ui-radius-xs) !important;
 }@media (max-width: 1360px) {main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page){
-    grid-template-columns: minmax(0, 1fr) !important;
-    overflow: auto !important;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
   }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
     grid-template-columns: minmax(0, 1fr) !important;
   }main.app-shell[data-layout-page="gantt"] .toolbar-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }}@media (max-width: 1180px) {main.app-shell[data-layout-page="shopMap"] .shop-map-page{
-    grid-template-columns: minmax(0, 1fr) !important;
-    overflow: auto !important;
-  }main.app-shell[data-layout-page="planning"] .module-data-sidebar{
+  }}@media (max-width: 1180px) {main.app-shell[data-layout-page="planning"] .module-data-sidebar{
     max-height: 320px;
   }}/* MES UI Kit stability pass: one sidebar and typography contract across modules. */
 :root{
@@ -2576,38 +2140,25 @@ main.app-shell[data-layout-page="gantt"] .deadline-badge{
   --mes-ui-work-title: 15px;
   --mes-sidebar-width: var(--mes-ui-app-sidebar-width);
 }main.app-shell[data-layout="app-shell"]{
-  grid-template-columns: var(--mes-ui-app-sidebar-width) minmax(0, 1fr) !important;
-}main.app-shell[data-layout="app-shell"] .module-menu{
-  width: var(--mes-ui-app-sidebar-width) !important;
-  min-width: var(--mes-ui-app-sidebar-width) !important;
-  max-width: var(--mes-ui-app-sidebar-width) !important;
+  grid-template-columns: var(--mes-ui-app-sidebar-width) minmax(0, 1fr);
 }main.app-shell[data-layout="app-shell"] .app-topbar{
-  min-width: 0 !important;
-}main.app-shell[data-layout-page="directories"] .directories-page{
-  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
-  gap: var(--mes-ui-density-gap) !important;
-  padding: var(--mes-ui-density-page) !important;
-  overflow: hidden !important;
+  min-width: 0;
 }main.app-shell[data-layout-page="planning"] .planning-order-page{
-  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
-  gap: var(--mes-ui-density-gap) !important;
-  padding: var(--mes-ui-density-page) !important;
-  overflow: hidden !important;
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr);
+  gap: var(--mes-ui-density-gap);
+  padding: var(--mes-ui-density-page);
+  overflow: hidden;
 }main.app-shell[data-layout-page="planning"] .planning-order-workspace{
-  grid-template-columns: minmax(420px, 0.94fr) minmax(420px, 1.06fr) !important;
-  gap: 8px !important;
+  grid-template-columns: minmax(420px, 0.94fr) minmax(420px, 1.06fr);
+  gap: 8px;
 }main.app-shell[data-layout-page="planning"] .planning-order-queue{
-  height: 100% !important;
-}main.app-shell[data-layout-page="directories"] .directories-page{
-  --directory-ui-sidebar-width: var(--mes-ui-work-sidebar-width);
-  font-size: var(--mes-ui-work-font) !important;
-  line-height: var(--mes-ui-work-line) !important;
+  height: 100%;
 }main.app-shell[data-layout-page="directories"] :is(.directory-table, .directory-table th, .directory-table td){
   font-size: var(--mes-ui-work-font-sm);
   line-height: 15px;
 }main.app-shell[data-layout-page="directories"] .directory-table-wrap{
-  overflow-x: auto !important;
-  overflow-y: visible !important;
+  overflow-x: auto;
+  overflow-y: visible;
 }main.app-shell[data-layout-page="directories"] .directory-table{
   width: max-content;
   min-width: max(100%, 1120px);
@@ -2631,7 +2182,6 @@ main.app-shell[data-layout-page="gantt"] .deadline-badge{
   gap: 5px;
   min-height: 28px;
   padding: 3px 2px;
-  border-radius: var(--mes-ui-radius-xs, 5px);
   cursor: pointer;
   list-style: none;
 }main.app-shell[data-layout-page="directories"] .directory-column-filter > summary::-webkit-details-marker{
@@ -2666,9 +2216,6 @@ main.app-shell[data-layout-page="gantt"] .deadline-badge{
   gap: 7px;
   width: min(260px, calc(100vw - 28px));
   border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-md, 8px);
-  background: var(--mes-ui-surface, #fff);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
   padding: 9px;
   color: var(--mes-ui-text);
   text-align: left;
@@ -2684,14 +2231,12 @@ main.app-shell[data-layout-page="gantt"] .deadline-badge{
   align-items: center;
   gap: 7px;
   min-height: 25px;
-  border-radius: var(--mes-ui-radius-xs, 5px);
   padding: 3px 5px;
   color: var(--mes-ui-text-secondary);
   font-size: 10px;
   font-weight: var(--mes-ui-weight-regular, 600);
   line-height: 13px;
 }main.app-shell[data-layout-page="directories"] .directory-filter-option:hover{
-  background: var(--mes-ui-surface-soft, #f8fafc);
 }main.app-shell[data-layout-page="directories"] .directory-filter-option input{
   width: 13px;
   height: 13px;
@@ -2710,7 +2255,6 @@ main.app-shell[data-layout-page="gantt"] .deadline-badge{
   line-height: 11px;
 }main.app-shell[data-layout-page="directories"] .directory-filter-option.is-all{
   border-bottom: 1px solid var(--mes-ui-line);
-  border-radius: 0;
   padding-bottom: 7px;
 }main.app-shell[data-layout-page="directories"] .directory-filter-actions{
   display: flex;
@@ -2721,19 +2265,15 @@ main.app-shell[data-layout-page="gantt"] .deadline-badge{
 }main.app-shell[data-layout-page="directories"] .directory-filter-actions button{
   min-height: 26px;
   border: 1px solid var(--mes-ui-line);
-  border-radius: var(--mes-ui-radius-sm, 6px);
-  background: var(--mes-ui-surface);
   padding: 3px 8px;
   color: var(--mes-ui-text-secondary);
   font-size: 9.5px;
   font-weight: var(--mes-ui-weight-semibold, 700);
   line-height: 12px;
 }main.app-shell[data-layout-page="directories"] .directory-filter-actions button:last-child{
-  border-color: color-mix(in srgb, var(--mes-ui-primary) 34%, var(--mes-ui-line));
-  background: color-mix(in srgb, var(--mes-ui-primary) 8%, var(--mes-ui-surface));
   color: var(--mes-ui-primary);
 }main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell{
-  padding: 20px !important;
+  padding: 20px;
   text-align: center;
 }main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell strong,
 main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell span{
@@ -2757,13 +2297,13 @@ main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell span
   min-width: 72px;
   max-width: 112px;
 }main.app-shell[data-layout-page="gantt"]{
-  font-size: var(--mes-ui-work-font) !important;
-  line-height: var(--mes-ui-work-line) !important;
+  font-size: var(--mes-ui-work-font);
+  line-height: var(--mes-ui-work-line);
 }main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
-  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr) !important;
+  grid-template-columns: var(--mes-ui-work-sidebar-width) minmax(0, 1fr);
 }main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-workspace{
-  grid-template-columns: minmax(420px, 0.94fr) minmax(420px, 1.06fr) !important;
-  gap: 8px !important;
+  grid-template-columns: minmax(420px, 0.94fr) minmax(420px, 1.06fr);
+  gap: 8px;
 }/* MES UI Kit typography contract: one scale for all production modules. */
 :root{
   --mes-ui-type-micro: 9px;
@@ -2785,23 +2325,21 @@ main.app-shell[data-layout-page="directories"] .directory-empty-filter-cell span
   --mes-ui-weight-semibold: 600;
   --mes-ui-weight-bold: 700;
 }main.app-shell[data-layout="app-shell"] :is(.app-topbar-title h1, .app-topbar-title strong){
-  font-size: var(--mes-ui-type-app-title) !important;
-  font-weight: var(--mes-ui-weight-bold) !important;
-  line-height: var(--mes-ui-line-app-title) !important;
-  letter-spacing: 0 !important;
+  font-size: var(--mes-ui-type-app-title);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-app-title);
+  letter-spacing: 0;
 }main.app-shell[data-layout="app-shell"] .app-topbar-title span{
-  font-size: var(--mes-ui-type-body) !important;
-  font-weight: var(--mes-ui-weight-regular) !important;
-  line-height: var(--mes-ui-line-body) !important;
-  letter-spacing: 0 !important;
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-body);
+  letter-spacing: 0;
 }/* MES verification fix: Gantt topbar must have non-overlapping grid areas. */
 main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
   grid-template-areas:
-    "brand controls actions"
-    "status status status" !important;
-  grid-template-columns: minmax(240px, 0.42fr) minmax(680px, 1fr) minmax(380px, max-content) !important;
-  grid-template-rows: auto auto !important;
-  align-items: start !important;
+    "brand controls actions";
+  grid-template-columns: minmax(220px, 0.42fr) minmax(420px, 0.8fr) minmax(380px, max-content);
+  grid-template-rows: auto;
   gap: 8px !important;
 }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .brand-block{
   grid-area: brand !important;
@@ -2811,12 +2349,6 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
   align-self: start !important;
 }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-actions{
   grid-area: actions !important;
-  align-self: start !important;
-}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .status-strip{
-  grid-area: status !important;
-  flex-wrap: wrap !important;
-  justify-content: flex-start !important;
-  align-self: start !important;
 }/* MES verification fix: Gantt layers should read as lanes first,
 dependencies second. */
 main.app-shell[data-layout-page="gantt"] .gantt-shell .dependencies-layer{
@@ -2833,12 +2365,13 @@ main.app-shell[data-layout-page="gantt"] .gantt-shell .slot-non-working-segment{
 }main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path-underlay{
   stroke-opacity: 0.52 !important;
 }main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path.dependency-path-muted{
-  opacity: 0.26 !important;
+  opacity: 0.26;
 }main.app-shell[data-layout-page="gantt"] .gantt-shell .dependency-path-underlay.dependency-path-muted{
-  opacity: 0.18 !important;
+  opacity: 0.18;
 }/* MES verification fix: zoom controls must fit inside their own 30px frame. */
 main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control{
   box-sizing: border-box !important;
+  display: grid;
   grid-template-columns: 24px minmax(48px, 1fr) 24px !important;
   align-items: center !important;
   height: 30px !important;
@@ -2855,11 +2388,11 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
   max-height: 24px !important;
   border-radius: var(--mes-ui-radius-sm) !important;
   padding: 0 !important;
-  line-height: 24px !important;
+  line-height: 24px;
 }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-zoom-control .gantt-zoom-value{
   width: auto !important;
   min-width: 48px !important;
-  line-height: 24px !important;
+  line-height: 24px;
 }/* MES verification fix: first-row Gantt toolbar containers share one rhythm. */
 main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar{
   --gantt-toolbar-container-height: 40px;
@@ -2878,7 +2411,7 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
   gap: 0 !important;
   overflow: hidden !important;
 }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact > span{
-  line-height: 10px !important;
+  line-height: 10px;
 }main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact > input,
 main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .segmented .segment,
 main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .toolbar-actions :is(.primary-button, .secondary-button, .icon-button, .toggle-switch-button){
@@ -2889,28 +2422,14 @@ main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar
   height: var(--gantt-toolbar-container-height) !important;
   min-height: var(--gantt-toolbar-container-height) !important;
   max-height: var(--gantt-toolbar-container-height) !important;
-}/* Production structure matrix: full-width editable contract for org/resources behavior. */
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-page{
-  display: grid;
-  min-height: 100%;
-  background: var(--mes-ui-page-bg, #f4f7fb);
-  overflow: hidden auto;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-workspace{
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 10px;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-  padding: 10px 12px 14px;
-  overflow: visible;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-content{
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-  overflow: visible;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis{
+}main.app-shell[data-layout-page="gantt"] .planner-workspace-gantt-only > .topbar .gantt-toolbar-clock{
+  flex: 0 0 auto;
+  height: var(--gantt-toolbar-inner-height);
+  min-height: var(--gantt-toolbar-inner-height);
+  margin-left: auto;
+  white-space: nowrap;
+}/* Structure and Employees: domain-specific metrics only; the shared ModulePage contract owns shell geometry. */
+main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
@@ -2921,9 +2440,7 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   gap: 3px;
   min-width: 0;
   min-height: 48px;
-  border: 1px solid var(--mes-ui-border, #d8e0eb);
-  border-radius: var(--mes-ui-radius-md, 8px);
-  background: #ffffff;
+  border: 1px solid var(--mes-ui-border, var(--mes-ui-line-subtle));
   padding: 7px 9px;
 }main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span,
 main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis strong{
@@ -2931,331 +2448,40 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   overflow-wrap: anywhere;
   line-height: 1.15;
 }main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis span{
-  color: var(--mes-ui-muted, #64748b);
+  color: var(--mes-ui-muted, var(--mes-ui-text-muted));
   font-size: 10px;
   font-weight: 700;
 }main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-kpis strong{
-  color: var(--mes-ui-text, #0f172a);
+  color: var(--mes-ui-text, var(--mes-ui-text));
   font-size: 16px;
   font-weight: 700;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-panel{
-  min-width: 0;
-  overflow: visible;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-panel{
-  min-width: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro{
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  margin-bottom: 10px;
-  border: 1px solid var(--mes-ui-border, #d8e0eb);
-  border-radius: var(--mes-ui-radius-md, 8px);
-  background: #f8fbff;
-  padding: 9px 10px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro span{
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.25;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro strong{
-  color: var(--mes-ui-text, #0f172a);
-  font-size: 12px;
-  font-weight: 700;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-intro span{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 11px;
-  font-weight: 560;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-matrix-grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 10px;
-  min-width: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card{
-  display: grid;
-  align-content: start;
-  gap: 9px;
-  min-width: 0;
-  border: 1px solid var(--mes-ui-border, #d8e0eb);
-  border-radius: var(--mes-ui-radius-md, 8px);
-  background: #ffffff;
-  padding: 10px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card > header{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 8px;
-  min-width: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card p,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card span,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card strong,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card small{
-  min-width: 0;
-  overflow-wrap: anywhere;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header div{
-  display: grid;
-  gap: 2px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header span{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 10px;
-  font-weight: 720;
-  line-height: 1.15;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header strong{
-  color: var(--mes-ui-text, #0f172a);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.18;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card header small,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-card p{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 10px;
-  line-height: 1.25;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 8px;
-  min-width: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label{
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls label > span{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 10px;
-  font-weight: 760;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-controls select{
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 32px;
-  border: 1px solid var(--mes-ui-border, #d8e0eb);
-  border-radius: var(--mes-ui-radius-sm, 6px);
-  background: #ffffff;
-  color: var(--mes-ui-text, #0f172a);
-  padding: 5px 28px 5px 8px;
-  font: 700 11px/16px var(--mes-ui-font, Arial, sans-serif);
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats{
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats article{
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  border-radius: var(--mes-ui-radius-sm, 6px);
-  background: #f8fafc;
-  padding: 6px 7px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats span{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 9px;
-  font-weight: 760;
-  line-height: 1.1;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-stats strong{
-  color: var(--mes-ui-text, #0f172a);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.1;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview{
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip{
-  display: grid;
-  gap: 1px;
-  max-width: 180px;
-  border: 1px solid var(--mes-ui-status-info-border);
-  border-radius: var(--mes-ui-pill);
-  background: var(--mes-ui-status-info-bg);
-  padding: 4px 8px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip strong{
-  color: var(--mes-ui-status-info-text);
-  font-size: 10px;
-  font-weight: 760;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-chip small{
-  color: var(--mes-ui-muted);
-  font-size: 8px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-preview em{
-  border-radius: var(--mes-ui-pill);
-  background: var(--mes-ui-status-neutral-bg);
-  color: var(--mes-ui-status-neutral-text);
-  padding: 5px 8px;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 760;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-manual-list{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 6px;
-  min-width: 0;
-  overflow: visible;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check{
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  min-height: 34px;
-  border: 1px solid var(--mes-ui-border, #d8e0eb);
-  border-radius: var(--mes-ui-radius-sm, 6px);
-  background: #ffffff;
-  padding: 5px 7px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check input{
-  inline-size: 14px;
-  block-size: 14px;
-  margin: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check > span{
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong,
-main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check small{
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check strong{
-  color: var(--mes-ui-text, #0f172a);
-  font-size: 10px;
-  font-weight: 720;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .shift-master-assignment-check small{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 9px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table-wrap{
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: visible;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table{
-  width: max-content;
-  min-width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  table-layout: fixed;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th,
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table td{
-  box-sizing: border-box;
-  min-width: 96px;
-  max-width: 230px;
-  border-right: 1px solid var(--mes-ui-border, #d8e0eb);
-  border-bottom: 1px solid var(--mes-ui-border, #d8e0eb);
-  background: #ffffff;
-  padding: 5px;
-  color: var(--mes-ui-text, #0f172a);
-  font-size: 10px;
-  line-height: 1.15;
-  vertical-align: middle;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-wide-column{
-  min-width: 260px;
-  max-width: 360px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table .production-structure-code-column{
-  min-width: 180px;
-  max-width: 260px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th{
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  background: #eef4fb;
-  color: #334155;
-  font-size: 9px;
-  font-weight: 700;
-  text-align: left;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table th:first-child{
-  position: sticky;
-  left: 0;
-  z-index: 4;
-  min-width: 260px;
-  max-width: 300px;
-  border-left: 1px solid var(--mes-ui-border, #d8e0eb);
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table thead th:first-child{
-  z-index: 5;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.has-override td,
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.has-override th{
-  background: #f8fbff;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell{
-  padding-left: calc(8px + var(--structure-level, 0) * 16px) !important;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span,
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > strong,
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > small{
-  display: block;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.12;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > span{
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 9px;
-  font-weight: 760;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell .production-structure-row-type{
-  margin-bottom: 3px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > strong{
-  margin-top: 2px;
-  color: var(--mes-ui-text, #0f172a);
-  font-size: 11px;
-  font-weight: 700;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-cell > small{
-  margin-top: 2px;
-  color: var(--mes-ui-muted, #64748b);
-  font-size: 9px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell{
-  display: block;
-  min-width: 0;
-  min-height: 28px;
-  color: var(--mes-ui-text, #0f172a);
-  padding: 5px 0;
-  font: 620 10px/16px var(--mes-ui-font, Arial, sans-serif);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-structure-name{
-  min-height: 30px;
-  padding-left: 0;
-  color: var(--mes-ui-text, #0f172a);
-  font-size: 11px;
-  font-weight: 760;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-code,
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-static-cell.is-row-type{
-  color: var(--mes-ui-text-secondary, #334155);
-  font-weight: 680;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-control{
-  box-sizing: border-box;
-  display: block;
-  width: 100%;
-  min-width: 0;
-  min-height: 28px;
-  border: 1px solid var(--mes-ui-border, #d8e0eb);
-  border-radius: var(--mes-ui-radius-sm, 6px);
-  background: #ffffff;
-  color: var(--mes-ui-text, #0f172a);
-  padding: 4px 6px;
-  font: 650 10px/16px var(--mes-ui-font, Arial, sans-serif);
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-name-control{
-  min-height: 30px;
-  border-color: transparent;
-  background: #f8fafc;
-  font-size: 11px;
-  font-weight: 760;
-}main.app-shell[data-layout-page="productionStructureMatrix"] select.production-structure-control{
-  padding-right: 22px;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.is-demo-user th,
-main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-table tr.is-demo-user td{
-  background: #fbfdff;
-}main.app-shell[data-layout-page="productionStructureMatrix"] .production-structure-muted{
-  color: var(--mes-ui-muted, #64748b);
 }main.app-shell[data-layout-page="roles"] :is(.access-role-permission-table, .access-role-assignment-table) .primary-cell strong{
   font-weight: 700;
 }main.app-shell[data-layout-page="weeklyProductionControl"]{
-  --weekly-control-line: rgba(148, 163, 184, 0.26);
-  --weekly-control-line-strong: rgba(15, 23, 42, 0.16);
-  --weekly-control-soft: var(--mes-ui-surface-soft);
-  --weekly-control-surface: var(--mes-ui-surface-raised);
+  --weekly-control-line: var(--mes-ui-contract-line);
+  --weekly-control-line-strong: var(--mes-ui-contract-line-strong);
+  --weekly-control-soft: var(--mes-ui-contract-subblock-bg);
+  --weekly-control-surface: var(--mes-ui-contract-card-bg);
+  --weekly-control-page-gradient: var(--mes-ui-contract-page-bg-soft);
+  --weekly-control-panel-gradient: var(--mes-ui-contract-panel-bg);
+  --weekly-control-card-gradient: var(--mes-ui-contract-card-bg);
+  --weekly-control-subblock-gradient: var(--mes-ui-contract-subblock-bg);
+  --weekly-control-table-head-bg: var(--mes-ui-contract-table-head-bg);
+  --weekly-control-table-head-text: var(--mes-ui-contract-table-head-text);
+  --weekly-control-table-head-muted: var(--mes-ui-contract-table-head-muted);
+  --weekly-control-shadow: var(--mes-ui-contract-shadow-soft);
+  --weekly-control-table-head-shadow: var(--mes-ui-contract-table-head-shadow);
+  --weekly-control-marker-shadow: 0 0 0 1px var(--mes-ui-surface), 0 0 0 2px var(--mes-ui-ink-alpha-12);
+  --weekly-control-warning-rail-shadow: inset 3px 0 0 var(--weekly-control-warning-accent);
+  --weekly-control-danger-rail-shadow: inset 3px 0 0 var(--weekly-control-danger-accent);
+  --weekly-control-note-popover-shadow: var(--mes-ui-shadow-popover-strong);
+  --mes-ui-border-default: var(--weekly-control-line);
+  --mes-ui-surface-panel: var(--weekly-control-card-gradient);
+  --mes-ui-surface-panel-raised: var(--weekly-control-panel-gradient);
+  --mes-ui-table-head-bg: var(--weekly-control-table-head-bg);
+  --mes-ui-table-head-text: var(--weekly-control-table-head-text);
+  --mes-ui-table-row-bg: var(--weekly-control-card-gradient);
+  --mes-ui-table-row-border: var(--weekly-control-line);
   --weekly-control-text: var(--mes-ui-text);
   --weekly-control-muted: var(--mes-ui-muted);
   --weekly-control-blue: var(--mes-ui-sidebar-bg);
@@ -3274,13 +2500,10 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   --weekly-control-gap-xs: 3px;
   --weekly-control-gap-sm: var(--mes-ui-density-gap);
   --weekly-control-gap-md: var(--mes-ui-density-page);
-  --weekly-control-header-pad: 12px 14px;
-  --weekly-control-panel-pad: 8px 10px;
-  --weekly-control-cell-pad: 7px 8px;
-  --weekly-control-card-pad: 9px 10px;
-  background:
-    var(--mes-ui-bg-gradient),
-    var(--mes-ui-bg);
+  --weekly-control-header-pad: var(--mes-ui-contract-panel-pad);
+  --weekly-control-panel-pad: var(--mes-ui-contract-panel-pad);
+  --weekly-control-cell-pad: var(--mes-ui-contract-cell-pad);
+  --weekly-control-card-pad: var(--mes-ui-contract-card-pad);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-page{
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -3295,15 +2518,11 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--weekly-control-line);
-  border-radius: var(--mes-ui-radius-xl);
-  background: var(--weekly-control-surface);
-  box-shadow: var(--mes-ui-shadow-md);
+  border: 0;
   overflow: hidden;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-header{
   min-height: 64px;
-  border-block-end: var(--mes-ui-border-width) solid var(--weekly-control-line);
-  background: linear-gradient(180deg, var(--mes-ui-surface), var(--weekly-control-soft));
+  border: var(--mes-ui-border-width) solid var(--weekly-control-line);
   padding: var(--weekly-control-header-pad);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-header h2{
   color: var(--weekly-control-text);
@@ -3326,17 +2545,13 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  padding: var(--weekly-control-gap-md);
+  padding: var(--weekly-control-gap-md) 0 0;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-panel{
-  border: 1px solid var(--weekly-control-line);
-  border-radius: var(--mes-ui-radius-md);
-  background: var(--weekly-control-surface);
-  box-shadow: none;
+  border: var(--mes-ui-border-width) solid var(--weekly-control-line);
   overflow: hidden;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-panel > .ui-panel-head{
   min-height: 42px;
   border-block-end: var(--mes-ui-border-width) solid var(--weekly-control-line);
-  background: var(--weekly-control-soft);
   padding: var(--weekly-control-panel-pad);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-panel > .ui-panel-head strong{
   color: var(--weekly-control-text);
@@ -3356,9 +2571,7 @@ main.app-shell[data-layout-page="productionStructureMatrix"] .production-structu
   display: grid;
   gap: var(--weekly-control-gap-xs);
   min-width: 0;
-  border: 1px solid var(--weekly-control-line);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface);
+  border: var(--mes-ui-border-width) solid var(--weekly-control-line);
   padding: var(--weekly-control-card-pad);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-summary-card span,
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-summary-card small{
@@ -3374,6 +2587,7 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table-wrap,
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-wrap{
   width: 100%;
+  border: var(--mes-ui-border-width) solid var(--weekly-control-line);
   overflow-x: auto;
   overflow-y: hidden;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table,
@@ -3388,7 +2602,7 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table th,
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table td{
   border-block-end: var(--mes-ui-border-width) solid var(--weekly-control-line);
-  border-inline-end: var(--mes-ui-border-width) solid rgba(226, 232, 240, 0.72);
+  border-inline-end: var(--mes-ui-border-width) solid var(--mes-ui-line-alpha-72);
   color: var(--weekly-control-text);
   padding: var(--weekly-control-cell-pad);
   font-size: var(--weekly-control-font-sm);
@@ -3396,15 +2610,14 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
   vertical-align: top;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th,
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table th{
-  background: var(--weekly-control-blue);
-  color: var(--weekly-control-inverse);
+  color: var(--weekly-control-table-head-text);
   font-size: var(--weekly-control-font-xs);
-  font-weight: var(--mes-ui-weight-bold);
+  font-weight: var(--mes-ui-weight-semibold);
   letter-spacing: 0;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th span,
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-deviation-table th span{
   display: block;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--weekly-control-table-head-muted);
   font-size: var(--weekly-control-font-xs);
   font-weight: var(--mes-ui-weight-semibold);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-table th:first-child{
@@ -3441,7 +2654,6 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
   font-weight: var(--mes-ui-weight-medium);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell{
   position: relative;
-  background: var(--mes-ui-surface);
   padding: 0;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-grid{
   display: grid;
@@ -3456,7 +2668,7 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
   min-width: 0;
   padding: 5px 18px 5px 8px;
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric + .weekly-production-control-day-metric{
-  border-block-start: var(--mes-ui-border-width) solid rgba(148, 163, 184, 0.24);
+  border-block-start: var(--mes-ui-border-width) solid var(--mes-ui-neutral-alpha-24);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric small,
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-metric strong{
   display: block;
@@ -3488,24 +2700,13 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
   display: block;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--mes-ui-surface), 0 0 0 2px rgba(15, 23, 42, 0.12);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-marker.is-note{
-  background: var(--mes-ui-sidebar-bg, #10233c);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-marker.is-report{
-  background: var(--weekly-control-danger-accent);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-weekend{
-  background: var(--mes-ui-surface-soft);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-ok{
-  background: var(--weekly-control-success-bg);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-active{
-  background: var(--weekly-control-info-bg);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.has-deviation{
-  background: var(--weekly-control-warning-bg);
-  box-shadow: inset 3px 0 0 var(--weekly-control-warning-accent);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.is-risk.has-deviation{
-  background: var(--weekly-control-danger-bg);
-  box-shadow: inset 3px 0 0 var(--weekly-control-danger-accent);
 }main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.has-deviation:hover,
 main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-control-day-cell.has-deviation:focus-within{
   z-index: 8;
@@ -3523,11 +2724,11 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
   width: min(390px, calc(100vw - 28px));
   max-height: min(360px, calc(100vh - 28px));
   overflow: auto;
-  border: 1px solid rgba(15, 23, 42, 0.20);
+  border: 1px solid var(--mes-ui-ink-alpha-20);
   border-radius: var(--mes-ui-radius-sm);
-  background: #fffef7;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
-  color: var(--weekly-control-text, #0f172a);
+  background: var(--mes-ui-surface-warning-pale);
+  box-shadow: var(--weekly-control-note-popover-shadow);
+  color: var(--weekly-control-text, var(--mes-ui-text));
   padding: 12px;
   pointer-events: none;
 }.weekly-production-control-note-popover[hidden]{
@@ -3538,7 +2739,7 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
   gap: 5px;
   min-width: 0;
 }.weekly-production-control-note-popover header{
-  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  border-bottom: 1px solid var(--mes-ui-neutral-alpha-24);
   padding-bottom: 8px;
 }.weekly-production-control-note-popover strong,
 .weekly-production-control-note-popover span,
@@ -3551,28 +2752,28 @@ main.app-shell[data-layout-page="weeklyProductionControl"] .weekly-production-co
   overflow-wrap: anywhere;
   white-space: normal;
 }.weekly-production-control-note-popover strong{
-  color: var(--weekly-control-text, #0f172a);
+  color: var(--weekly-control-text, var(--mes-ui-text));
   font-size: 13px;
   font-weight: var(--mes-ui-weight-bold);
   line-height: 17px;
 }.weekly-production-control-note-popover span{
-  color: var(--weekly-control-muted, #64748b);
+  color: var(--weekly-control-muted, var(--mes-ui-text-muted));
   font-size: 11px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 15px;
 }.weekly-production-control-note-popover em{
-  color: var(--weekly-control-danger-accent, #dc2626);
+  color: var(--weekly-control-danger-accent, var(--mes-ui-danger-accent));
   font-size: 11px;
   font-style: normal;
   font-weight: var(--mes-ui-weight-bold);
   line-height: 15px;
 }.weekly-production-control-note-popover p{
-  color: var(--weekly-control-text, #0f172a);
+  color: var(--weekly-control-text, var(--mes-ui-text));
   font-size: 12px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 17px;
 }.weekly-production-control-note-popover small{
-  color: var(--weekly-control-muted, #64748b);
+  color: var(--weekly-control-muted, var(--mes-ui-text-muted));
   font-size: 11px;
   font-weight: var(--mes-ui-weight-semibold);
   line-height: 15px;

@@ -37,7 +37,7 @@ const trackedFiles = [
   "docs/mes-contract-migration-v1.md",
   "docs/mes-prototyping-speed-v1.md",
   "docs/object-relationship-map.md",
-  "workflow-preset.json",
+  "bootstrap-snapshot.json",
   ...cssTrackedFiles,
 ];
 
@@ -237,15 +237,15 @@ const hardForbidden = [
     id: "old-auth-route-admin-staff",
     label: "Старая route/admin/staff авторизация",
     regexp: /AUTH_PROTOTYPE_ADMIN_ROLES|authPrototype(?:Route|AdminRole|AdminPersonId|Staff)|data-auth-(?:route|admin|staff)|renderAuthPrototype(?:Admin|Staff)|normalizeAuthPrototype(?:Route|Admin)/,
-    files: ["src/app.js", "workflow-preset.json"],
+    files: ["src/app.js", "bootstrap-snapshot.json"],
     note: "Авторизация стала единым планшетным wizard: отдел -> участок -> сотрудник -> PIN; служебные роли задаются после входа через роли.",
   },
   {
-    id: "workflow-preset-old-ui-state",
-    label: "Старое UI/auth состояние в workflow-preset",
+    id: "bootstrap-snapshot-old-ui-state",
+    label: "Старое UI/auth состояние в bootstrap-snapshot",
     regexp: /authPrototype|authGate|authCurrent|\\"activeRole\\":\\"operator\\"|"activeRole"\s*:\s*"operator"|planning-v2|shiftMasterScenario|shiftMasterHmi|shiftMasterV2|shift-method-|warehouse-(?:page|panel|sidebar)|\brkd\b|app-global-search|update-popup|module-entity|project-/i,
-    files: ["workflow-preset.json"],
-    note: "Рабочий пресет не должен восстанавливать старые UI-слои или transient-состояние авторизации.",
+    files: ["bootstrap-snapshot.json"],
+    note: "Workflow seed не должен восстанавливать старые UI-слои или transient-состояние авторизации.",
   },
   {
     id: "old-project-ui-class-names",

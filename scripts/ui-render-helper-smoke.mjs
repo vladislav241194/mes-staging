@@ -40,6 +40,12 @@ check("Panel", ui.renderUiPanel({
 check("PanelFooter", ui.renderUiPanelFooter({ body: "<button>done</button>" }), ["data-ui-component=\"PanelFooter\"", "ui-panel-footer"]);
 check("TableWrap", ui.renderUiTableWrap({ className: "sample-wrap", body: "<table></table>" }), ["data-ui-component=\"TableWrap\"", "data-layout=\"table\"", "sample-wrap"]);
 check("FormField", ui.renderUiFormField({ label: "Поле", control: "<input />", hint: "подсказка" }), ["data-ui-component=\"FormField\"", "form-field", "ui-form-field"]);
+check("FormField state", ui.renderUiFormField({ label: "Обязательное поле", control: "<input required />", required: true, state: "error", message: "Заполните поле" }), ["data-ui-state=\"error\"", "data-ui-required=\"true\"", "ui-form-required", "data-ui-component=\"FormMessage\""]);
+check("FormSection", ui.renderUiFormSection({ title: "Параметры", meta: "Основные данные", body: "<div>body</div>" }), ["data-ui-component=\"FormSection\"", "data-ui-component=\"SectionHeader\"", "ui-form-section-body"]);
+check("FormGrid", ui.renderUiFormGrid({ body: "<label>field</label>", columns: "2" }), ["data-ui-component=\"FormGrid\"", "data-ui-columns=\"2\""]);
+check("FormRow", ui.renderUiFormRow({ body: "<button>row</button>", align: "end" }), ["data-ui-component=\"FormRow\"", "data-ui-align=\"end\""]);
+check("FormActions", ui.renderUiFormActions({ actions: "<button>save</button>" }), ["data-ui-component=\"FormActions\"", "ui-action-bar"]);
+check("SystemState", ui.renderUiSystemState({ title: "Ошибка", text: "Повторите позже", tone: "danger", action: "<button>retry</button>" }), ["data-ui-component=\"SystemState\"", "is-danger", "ui-system-state-action"]);
 check("DropdownFrame", ui.renderUiDropdownFrame({ trigger: "<button>open</button>", body: "<div>menu</div>" }), ["data-ui-component=\"Dropdown\"", "ui-dropdown-menu"]);
 check("ModalFrame", ui.renderUiModalFrame({ title: "Модалка", meta: "meta", body: "<p>body</p>", actions: "<button>ok</button>" }), ["data-ui-component=\"Modal\"", "ui-modal-head", "ui-modal-footer"]);
 check("ModalShell", ui.renderUiModalShell({ content: "<section>modal</section>" }), ["data-ui-component=\"Modal\"", "<section>modal</section>"]);

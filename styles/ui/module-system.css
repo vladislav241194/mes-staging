@@ -1,0 +1,896 @@
+/* Canonical visual-parity contract for ordinary runtime modules.
+   Module CSS may own business geometry inside these primitives, but not their
+   outer shape, spacing, typography or interaction states. */
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"][data-ui-component="ModulePage"]{
+  display: grid;
+  align-items: stretch;
+  gap: var(--mes-ui-density-gap);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--mes-ui-module-page-background);
+  padding: var(--mes-ui-density-page);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"][data-ui-component="ModulePage"].has-sidebar{
+  grid-template-columns: var(--mes-ui-module-sidebar-width) minmax(0, 1fr);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"][data-ui-component="ModulePage"].is-full-width{
+  grid-template-columns: minmax(0, 1fr);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleWorkspace"]{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: var(--mes-ui-density-gap);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not([data-layout-page="authPrototype"]):not([data-layout-page="authSessionPrototype"]):not([data-layout-page="gantt"]):not([data-layout-page="specifications2"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleWorkspace"].module-data-workspace,
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not([data-layout-page="authPrototype"]):not([data-layout-page="authSessionPrototype"]):not([data-layout-page="gantt"]):not([data-layout-page="specifications2"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleWorkspace"].ui-module-workspace{
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not([data-layout-page="authPrototype"]):not([data-layout-page="authSessionPrototype"]):not([data-layout-page="gantt"]):not([data-layout-page="specifications2"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleContent"].module-data-content,
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not([data-layout-page="authPrototype"]):not([data-layout-page="authSessionPrototype"]):not([data-layout-page="gantt"]):not([data-layout-page="specifications2"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleContent"].ui-module-content{
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleContent"]{
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: var(--mes-ui-density-gap);
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: transparent;
+  padding: 0;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleHeader"]{
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--mes-ui-control-gap);
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-panel-raised);
+  color: var(--mes-ui-text);
+  padding: var(--mes-ui-panel-head-padding);
+  box-shadow: var(--mes-ui-shadow-sm);
+  text-align: left;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleHeader"] > div:first-child{
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleHeader"] :is(.eyebrow, h1, h2, p){
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  text-align: left;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleHeader"] :is(h1, h2){
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-section-title);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-section-title);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleHeader"] :is(.eyebrow, p){
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+/* Module sidebar: one outer surface and explicit body variants. */
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] > [data-ui-component="ModuleSidebar"],
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebar"]{
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  grid-column: auto;
+  grid-row: auto;
+  gap: 0;
+  width: var(--mes-ui-module-sidebar-width);
+  min-width: var(--mes-ui-module-sidebar-width);
+  max-width: var(--mes-ui-module-sidebar-width);
+  min-height: 0;
+  overflow: hidden;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-panel-raised);
+  color: var(--mes-ui-text);
+  padding: 0;
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarHead"]{
+  box-sizing: border-box;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  justify-content: stretch;
+  justify-items: start;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  border-bottom: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-soft);
+  padding: var(--mes-ui-panel-head-padding);
+  color: var(--mes-ui-text);
+  text-align: left;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarHead"] :is(.eyebrow, h1){
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarHead"] .eyebrow{
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarHead"] h1{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-section-title);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-section-title);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarActions"]{
+  box-sizing: border-box;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mes-ui-control-gap);
+  min-width: 0;
+  border-bottom: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-panel-raised);
+  padding: var(--mes-ui-density-page) var(--mes-ui-panel-body-padding);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarActions"] [data-ui-component="ActionButton"]{
+  width: 100%;
+  max-width: 100%;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"]{
+  box-sizing: border-box;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] > :is(.ui-sidebar-list, .directory-nav, .nomenclature-type-filter){
+  box-sizing: border-box;
+  display: grid;
+  align-content: start;
+  gap: var(--mes-ui-sidebar-row-gap);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  padding: var(--mes-ui-panel-body-padding);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .ui-sidebar-label{
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  color: var(--mes-ui-text-muted);
+  padding: 2px 8px;
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .directory-nav-group{
+  display: grid;
+  gap: var(--mes-ui-sidebar-row-gap);
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .directory-nav-group-items{
+  display: grid;
+  gap: var(--mes-ui-sidebar-row-gap);
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .directory-nav-group-head{
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  color: var(--mes-ui-text-muted);
+  padding: 2px 8px;
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  text-align: left;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] :is([data-ui-component="SidebarItem"], .nomenclature-type-filter button){
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: var(--mes-ui-control-gap);
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: var(--mes-ui-border-width) solid transparent;
+  border-radius: var(--mes-ui-radius-sm);
+  background: transparent;
+  color: var(--mes-ui-text-muted);
+  padding: 8px 10px;
+  box-shadow: none;
+  text-align: left;
+}
+
+/* All sidebar families share one visual row. Queue and registry rows only add
+   metadata height; their surface, radius and interaction states stay common. */
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebar"][data-ui-density="metadata"] [data-ui-component="SidebarItem"]{
+  min-height: 56px;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebar"][data-ui-mode="filters"] .nomenclature-filter-item .ui-sidebar-item-body{
+  gap: 0;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] :is([data-ui-component="SidebarItem"], .nomenclature-type-filter button):hover{
+  border-color: var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] :is([data-ui-component="SidebarItem"], .nomenclature-type-filter button).is-active{
+  border-color: var(--mes-ui-primary-alpha-42);
+  background: var(--mes-ui-status-info-bg);
+  color: var(--mes-ui-primary);
+  box-shadow: inset 0 0 0 1px var(--mes-ui-primary-alpha-08);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] [data-ui-component="SidebarItem"] .ui-sidebar-item-body{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] [data-ui-component="SidebarItem"] :is(strong, small){
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: currentColor;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .nomenclature-type-filter [data-ui-component="SidebarItem"] > span{
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: currentColor;
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-body);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] [data-ui-component="SidebarItem"] strong{
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-body);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] [data-ui-component="SidebarItem"] small{
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] [data-ui-component="SidebarItem"] em{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  max-width: 72px;
+  min-height: 22px;
+  overflow: hidden;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-pill);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-text-muted);
+  padding: 1px 8px;
+  font-size: var(--mes-ui-type-caption);
+  font-style: normal;
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sidebar badges may opt into intrinsic width when their full status is part of
+   the domain contract. The default remains bounded and ellipsized for counters. */
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] [data-ui-component="SidebarItem"] em[data-ui-fit="content"]{
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] [data-ui-component="SidebarItem"].is-active em{
+  border-color: var(--mes-ui-primary-alpha-42);
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-primary);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .module-empty-note{
+  display: grid;
+  gap: var(--mes-ui-sidebar-row-gap);
+  min-width: 0;
+  border: var(--mes-ui-border-width) dashed var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-text-muted);
+  padding: var(--mes-ui-panel-body-padding);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .module-empty-note :is(strong, span){
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Panels and forms share one surface grammar across module families. */
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"]{
+  box-sizing: border-box;
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-panel-raised);
+  color: var(--mes-ui-text);
+  padding: 0;
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"]{
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mes-ui-control-gap);
+  min-width: 0;
+  min-height: 44px;
+  border-bottom: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-text);
+  padding: var(--mes-ui-panel-head-padding);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"] :is(strong, h2, h3){
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-section-title);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-section-title);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"] :is(span, small){
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"]{
+  box-sizing: border-box;
+  min-width: 0;
+  background: var(--mes-ui-surface-panel-raised);
+  color: var(--mes-ui-text);
+  padding: var(--mes-ui-panel-body-padding);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelFooter"]{
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mes-ui-control-gap);
+  min-width: 0;
+  border-top: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-soft);
+  padding: var(--mes-ui-panel-footer-padding);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormSection"]{
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--mes-ui-form-section-gap);
+  min-width: 0;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-panel-soft);
+  padding: var(--mes-ui-panel-body-padding);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormGrid"]{
+  gap: var(--mes-ui-form-grid-gap);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormField"]{
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormField"] > span{
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-medium);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormField"] > :is(input, select, textarea){
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--mes-ui-form-control-height);
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-text);
+  font-family: inherit;
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-body);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormField"] > :is(input, select){
+  height: var(--mes-ui-form-control-height);
+  padding: 0 10px;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormField"] > select{
+  line-height: normal;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="FormField"] > textarea{
+  padding: 8px 10px;
+}
+
+/* Editable controls embedded in dense business tables share the form visual
+   grammar. Density is explicit so domain tables may stay compact without
+   reintroducing module-specific borders, radii or typography. */
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="TableWrap"] [data-ui-component="TableControl"]{
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  color: var(--mes-ui-text);
+  padding: 0 8px;
+  font-family: inherit;
+  font-weight: var(--mes-ui-weight-semibold);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="TableControl"][data-ui-density="compact"]{
+  min-height: 28px;
+  height: 28px;
+  font-size: var(--mes-ui-type-caption);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="TableControl"][data-ui-density="default"]{
+  min-height: var(--mes-ui-control-height-default);
+  height: var(--mes-ui-control-height-default);
+  font-size: var(--mes-ui-type-body);
+  line-height: var(--mes-ui-line-body);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="TableControl"][data-ui-density="touch"]{
+  min-height: var(--mes-ui-control-height-touch);
+  height: var(--mes-ui-control-height-touch);
+  font-size: var(--mes-ui-type-body);
+  line-height: var(--mes-ui-line-body);
+}
+
+/* Timesheet viewport/table contract.
+   The module is a dense production calendar, but it should behave like an
+   application workspace, not like a long printable sheet. Data, editing
+   handlers and day geometry remain owned by the timesheet renderer. */
+html:has(main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"]),
+body:has(main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"]),
+body:has(main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"]) #app{
+  height: 100dvh !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+body:has(main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"]){
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"]{
+  height: 100dvh !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-page{
+  height: calc(100dvh - var(--layout-header-height, 60px)) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-workspace{
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-content{
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-hero-panel{
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  min-height: 0 !important;
+  padding: var(--mes-ui-density-page) !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-hero-panel > .ui-panel-body{
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px) !important;
+  align-items: stretch !important;
+  gap: var(--mes-ui-density-gap) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-title{
+  align-content: start;
+  gap: 8px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-title p{
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-controls{
+  flex-wrap: wrap;
+  margin-top: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-kpis{
+  align-self: stretch;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-board-panel{
+  display: grid !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: var(--mes-ui-density-page) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-board-panel > .ui-panel-body{
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: var(--mes-ui-density-gap) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-board-head{
+  align-items: start !important;
+  gap: var(--mes-ui-density-gap) !important;
+  min-height: 0;
+  padding: 0 2px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-board-head span{
+  white-space: normal !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-legend{
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table-wrap{
+  width: 100%;
+  height: 100%;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: 100%;
+  overflow: auto !important;
+  scrollbar-width: thin;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table{
+  width: max-content !important;
+  min-width: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--mes-ui-surface) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-col-person{
+  width: 168px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-col-role{
+  width: 156px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-col-schedule{
+  width: 74px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-col-day{
+  width: 34px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-col-total,
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-col-overtime{
+  width: 52px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table thead th{
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  height: 30px;
+  border-color: var(--mes-ui-border-default);
+  background-color: var(--mes-ui-surface-soft) !important;
+  background-image: linear-gradient(180deg, var(--mes-ui-surface), var(--mes-ui-surface-soft)) !important;
+  box-shadow: inset 0 -1px 0 var(--mes-ui-border-default);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table :is(th, td){
+  border-color: var(--mes-ui-line-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-person-cell,
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-role-cell,
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-schedule-cell{
+  background-color: var(--mes-ui-surface) !important;
+  background-image: linear-gradient(180deg, var(--mes-ui-surface), var(--mes-ui-surface-soft)) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table thead th:nth-child(1),
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-person-cell{
+  position: sticky;
+  left: 0;
+  z-index: 8;
+  width: 168px !important;
+  min-width: 168px !important;
+  max-width: 168px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table thead th:nth-child(2),
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-role-cell{
+  position: sticky;
+  left: 168px;
+  z-index: 8;
+  width: 156px !important;
+  min-width: 156px !important;
+  max-width: 156px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table thead th:nth-child(3),
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-schedule-cell{
+  position: sticky;
+  left: 324px;
+  z-index: 8;
+  width: 74px !important;
+  min-width: 74px !important;
+  max-width: 74px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-table thead th:nth-child(-n + 3){
+  z-index: 10;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-person-cell{
+  box-shadow: inset -1px 0 0 var(--mes-ui-border-default);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-schedule-cell{
+  box-shadow: inset -1px 0 0 var(--mes-ui-border-default);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-department-row th{
+  position: sticky;
+  left: 0;
+  z-index: 7;
+  height: 22px;
+  border-color: var(--mes-ui-border-default) !important;
+  background: linear-gradient(90deg, var(--mes-ui-surface-soft), var(--mes-ui-surface-panel-raised)) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-employee-row{
+  height: 34px;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-day-cell{
+  height: 34px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--mes-ui-surface) 78%, var(--mes-ui-surface-soft));
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-day-button{
+  min-width: 0 !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border-color: var(--mes-ui-status-info-border);
+  box-shadow: none;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-total-cell{
+  background: var(--mes-ui-surface-soft) !important;
+}
+
+@media (max-width: 860px) {
+  main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"][data-ui-component="ModulePage"].has-sidebar{
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebar"]{
+    align-self: start;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    max-height: clamp(240px, 36dvh, 360px);
+  }
+
+  main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleHeader"]{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleHeader"] [data-ui-component="ActionBar"]{
+    justify-self: stretch;
+    justify-content: flex-start;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-hero-panel > .ui-panel-body{
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-title{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-controls{
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-view-switch{
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-view-switch button{
+    width: 100%;
+    min-width: 0;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-period-nav{
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-period-nav strong{
+    min-width: 0;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-kpis{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-board-head{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="timesheet"] .timesheet-legend{
+    justify-content: flex-start;
+  }
+}

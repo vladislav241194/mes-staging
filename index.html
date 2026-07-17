@@ -8,35 +8,116 @@
     <meta http-equiv="Expires" content="0" />
     <title>MES Planning Module Prototype</title>
     <script>
-      window.__MES_DEPLOY_VERSION__ = "v.1.491";
+      window.__MES_DEPLOY_VERSION__ = "v.1.499.28";
       try {
         const key = "mes-staging-cache-refresh-version";
         const current = localStorage.getItem(key);
         if (current !== window.__MES_DEPLOY_VERSION__) {
           localStorage.setItem(key, window.__MES_DEPLOY_VERSION__);
-          if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.getRegistrations().then((items) => items.forEach((item) => item.unregister())).catch(() => {});
-          }
-          if ("caches" in window) {
-            caches.keys().then((keys) => keys.forEach((item) => caches.delete(item))).catch(() => {});
-          }
-          const url = new URL(window.location.href);
-          if (url.searchParams.get("__mes_cache_refresh") !== window.__MES_DEPLOY_VERSION__) {
-            url.searchParams.set("__mes_cache_refresh", window.__MES_DEPLOY_VERSION__);
-            window.location.replace(url.toString());
+          if (current) {
+            if ("serviceWorker" in navigator) {
+              navigator.serviceWorker.getRegistrations().then((items) => items.forEach((item) => item.unregister())).catch(() => {});
+            }
+            if ("caches" in window) {
+              caches.keys().then((keys) => keys.forEach((item) => caches.delete(item))).catch(() => {});
+            }
+            const url = new URL(window.location.href);
+            if (url.searchParams.get("__mes_cache_refresh") !== window.__MES_DEPLOY_VERSION__) {
+              url.searchParams.set("__mes_cache_refresh", window.__MES_DEPLOY_VERSION__);
+              window.location.replace(url.toString());
+            }
           }
         }
       } catch {}
     </script>
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=1.346" />
-    <link rel="stylesheet" href="./styles.css?v=1.399" />
+    <link rel="preload" href="./assets/fonts/onest/Onest-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      html:not(.mes-font-ready) #app{visibility:hidden}
+      .mes-boot-inline{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:#edf3fa;color:#18314d;font:12px Onest,system-ui,sans-serif}
+      .mes-boot-inline>div{display:grid;justify-items:center;gap:12px;padding:28px 34px;border:1px solid rgba(71,112,154,.14);border-radius:22px;background:rgba(255,255,255,.9);box-shadow:0 24px 70px rgba(22,50,82,.13)}
+      .mes-boot-inline i{width:38px;height:38px;border:2px solid rgba(47,111,228,.14);border-top-color:#2f6fe4;border-radius:50%;animation:mes-boot-spin 1s linear infinite}
+      .mes-boot-inline strong{font-size:17px;font-weight:620}.mes-boot-inline span{color:#718296;font-size:10px}@keyframes mes-boot-spin{to{transform:rotate(360deg)}}
+    </style>
+    <script>
+      try {
+        const visualLiveHost = window.location.hostname;
+        const allowVisualLive = visualLiveHost === "pilot.mes-line.ru" || visualLiveHost === "localhost" || visualLiveHost === "127.0.0.1";
+        if (allowVisualLive) {
+          const visualLiveParams = new URL(window.location.href).searchParams;
+          const requestedVisualTheme = String(visualLiveParams.get("visual_theme") || "").trim();
+          const visualTheme = requestedVisualTheme || "base-glass";
+          if (/^[a-z0-9_-]{1,32}$/i.test(visualTheme)) document.documentElement.dataset.visualTheme = visualTheme;
+        }
+      } catch {}
+    </script>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=contour-1.492" />
     <link rel="stylesheet" href="./styles/mes-ui-core.css?v=1.399" />
+    <link rel="stylesheet" href="./styles.css?v=1.399" />
+    <link rel="stylesheet" href="./styles/visual-overrides.live.css?v=1.399" data-visual-live="1" />
+    <script>
+      try {
+        const revealInterface = () => document.documentElement.classList.add("mes-font-ready");
+        if (document.fonts?.load) {
+          Promise.race([
+            document.fonts.load('400 12px "Onest"'),
+            new Promise((resolve) => window.setTimeout(resolve, 1500)),
+          ]).then(revealInterface, revealInterface);
+        } else {
+          revealInterface();
+        }
+      } catch {
+        document.documentElement.classList.add("mes-font-ready");
+      }
+    </script>
+    <script>
+      try {
+        const params = new URL(window.location.href).searchParams;
+        if (params.get("visual_probe") === "1") {
+          document.documentElement.dataset.visualProbe = "1";
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = `./styles/visual-overrides.dev.css?v=${encodeURIComponent(params.get("__visual_probe_ts") || String(Date.now()))}`;
+          link.dataset.visualProbe = "1";
+          document.head.appendChild(link);
+        }
+      } catch {}
+    </script>
   </head>
   <body>
+    <section class="mes-long-task-overlay mes-boot-inline is-visible" data-mes-boot-overlay role="status" aria-live="polite" aria-hidden="false">
+      <div><i aria-hidden="true"></i><strong>Загружаем MES</strong><span>Подготавливаем модули и общее состояние системы</span></div>
+    </section>
     <div id="app"></div>
     <script>
       window.__MES_BOOT_HTML_START__ = performance.now();
     </script>
     <script type="module" src="./src/app.js?v=1.399"></script>
+    <script>
+      // The inspector is a developer tool. Keep it out of the production
+      // critical path, while preserving the URL switch and keyboard shortcut.
+      (() => {
+        let inspectorPromise = null;
+        const activateInspector = () => {
+          if (!inspectorPromise) {
+            const stylesheet = document.createElement("link");
+            stylesheet.rel = "stylesheet";
+            stylesheet.href = "./styles/ui/qa-inspector.css?v=2";
+            document.head.appendChild(stylesheet);
+            inspectorPromise = import("./src/qa_inspector.js?v=2");
+          }
+          return inspectorPromise.then((module) => module.startQaInspector({ enabled: true }));
+        };
+        try {
+          const params = new URL(window.location.href).searchParams;
+          if (params.get("qa_inspector") === "1") void activateInspector();
+        } catch {}
+        window.addEventListener("keydown", (event) => {
+          if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "q") {
+            event.preventDefault();
+            void activateInspector();
+          }
+        }, true);
+      })();
+    </script>
   </body>
 </html>

@@ -1,66 +1,210 @@
-/* ActionButton contract styles. Extracted in Phase 6 runtime decomposition. */
-main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].ui-action-button,
-main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"],
-main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"],
-main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"],
-main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
+/* Canonical ActionButton contract.
+   Domain controls, tabs and navigation are intentionally outside this file. */
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-size]:where(:not([data-ui-tone="domain"])){
+  box-sizing: border-box;
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--mes-ui-control-gap);
+  width: auto;
   min-width: 0;
-  min-height: var(--mes-ui-control-height);
+  height: var(--mes-ui-control-height-default);
+  min-height: var(--mes-ui-control-height-default);
+  max-height: var(--mes-ui-control-height-default);
+  overflow: hidden;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
   border-radius: var(--mes-ui-radius-sm);
-  border-width: 1px;
-  border-style: solid;
+  background: var(--mes-ui-surface-control);
+  color: var(--mes-ui-text);
+  padding: 0 var(--mes-ui-control-padding-x);
+  box-shadow: var(--mes-ui-shadow-none);
+  font-family: inherit;
   font-size: var(--mes-ui-type-body);
   font-weight: var(--mes-ui-weight-semibold);
   line-height: var(--mes-ui-line-caption);
   letter-spacing: 0;
+  text-align: center;
   white-space: nowrap;
-}main.app-shell[data-layout="app-shell"] .primary-button[data-ui-component="ActionButton"]{
-  border-color: var(--mes-ui-primary);
-  background: var(--mes-ui-primary);
-  color: #ffffff;
-}main.app-shell[data-layout="app-shell"] .secondary-button[data-ui-component="ActionButton"]{
-  border-color: var(--mes-ui-line);
-  background: var(--mes-ui-surface);
-  color: var(--mes-ui-text);
-}main.app-shell[data-layout="app-shell"] .icon-button[data-ui-component="ActionButton"]{
+  cursor: pointer;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-size="compact"]{
+  height: var(--mes-ui-control-height-compact);
+  min-height: var(--mes-ui-control-height-compact);
+  max-height: var(--mes-ui-control-height-compact);
+  padding-inline: calc(var(--mes-ui-control-padding-x) - 2px);
+  font-size: var(--mes-ui-type-caption);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-size="touch"]{
+  height: var(--mes-ui-control-height-touch);
+  min-height: var(--mes-ui-control-height-touch);
+  max-height: var(--mes-ui-control-height-touch);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-size="icon"]{
   width: var(--mes-ui-icon-button-size);
   min-width: var(--mes-ui-icon-button-size);
+  max-width: var(--mes-ui-icon-button-size);
   height: var(--mes-ui-icon-button-size);
   min-height: var(--mes-ui-icon-button-size);
+  max-height: var(--mes-ui-icon-button-size);
   padding: 0;
-}main.app-shell[data-layout="app-shell"] .table-icon-button[data-ui-component="ActionButton"]{
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-size="table-icon"]{
   width: var(--mes-ui-table-icon-button-size);
   min-width: var(--mes-ui-table-icon-button-size);
+  max-width: var(--mes-ui-table-icon-button-size);
   height: var(--mes-ui-table-icon-button-size);
   min-height: var(--mes-ui-table-icon-button-size);
+  max-height: var(--mes-ui-table-icon-button-size);
   padding: 0;
-}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-ghost{
-  border-color: transparent;
-  background: transparent;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-tone="primary"]{
+  border-color: var(--mes-ui-primary);
+  background: var(--mes-ui-primary);
+  color: var(--mes-ui-text-inverse);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-tone="primary"]:hover:not(:disabled){
+  border-color: var(--mes-ui-primary-hover);
+  background: var(--mes-ui-primary-hover);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:is([data-ui-tone="secondary"], [data-ui-tone="icon"], [data-ui-tone="table-icon"]){
+  border-color: var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-control);
   color: var(--mes-ui-text);
-}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-danger{
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:is([data-ui-tone="secondary"], [data-ui-tone="icon"], [data-ui-tone="table-icon"]):hover:not(:disabled){
+  border-color: var(--mes-ui-border-strong);
+  background: var(--mes-ui-surface-soft);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-tone="ghost"]{
+  border-color: transparent;
+  background: var(--mes-ui-surface-transparent);
+  color: var(--mes-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-tone="danger"]{
   border-color: var(--mes-ui-status-danger-border);
   background: var(--mes-ui-status-danger-bg);
   color: var(--mes-ui-status-danger-text);
-}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-compact{
-  min-height: var(--mes-ui-control-height-compact);
-  font-size: var(--mes-ui-type-caption);
-}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"].is-touch{
-  min-height: var(--mes-ui-control-height-touch);
-}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"] svg{
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-tone="warning"]{
+  border-color: var(--mes-ui-status-warning-border);
+  background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:is([data-ui-size="icon"], [data-ui-size="table-icon"]):is(.is-active, [aria-pressed="true"]){
+  border-color: var(--mes-ui-primary-alpha-42);
+  background: var(--mes-ui-status-info-bg);
+  color: var(--mes-ui-status-info-text);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][data-ui-tone="warning"]:is(.is-active, [aria-pressed="true"]){
+  border-color: var(--mes-ui-warning-alpha-58);
+  background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
+  box-shadow: var(--mes-ui-shadow-warning-inset);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:where(:not([data-ui-tone="domain"])):focus-visible{
+  outline: 0;
+  box-shadow: var(--mes-ui-focus-ring);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:where(:not([data-ui-tone="domain"])):disabled,
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:where(:not([data-ui-tone="domain"]))[aria-disabled="true"]{
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:where(:not([data-ui-tone="domain"])) > :is(span, strong, small){
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:where(:not([data-ui-tone="domain"])) :is(svg, .mes-icon){
+  flex: 0 0 auto;
   width: var(--mes-ui-icon-size-md);
   height: var(--mes-ui-icon-size-md);
-  flex: 0 0 auto;
-}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"]:disabled,
-main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"][aria-disabled="true"]{
-  cursor: default;
-  opacity: 0.58;
-}main.app-shell[data-layout="app-shell"] [data-ui-component="ActionButton"] > :is(span, strong, small){
+  color: currentColor;
+}
+
+main.app-shell[data-layout="app-shell"] :is([data-ui-component="ActionBar"], [data-ui-component="FormActions"]){
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--mes-ui-control-gap);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+/* Specificity lock: standard module classes cannot silently restyle a shared
+   action. Auth touch controls and the admin operations surface stay isolated. */
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"][data-ui-size][data-ui-tone]:where(:not([data-ui-tone="domain"])){
+  border-radius: var(--mes-ui-radius-sm);
+  padding: 0 var(--mes-ui-control-padding-x);
+  font-size: var(--mes-ui-type-body);
+  font-weight: var(--mes-ui-weight-semibold);
+  line-height: var(--mes-ui-line-caption);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"][data-ui-size="default"]{
+  height: var(--mes-ui-control-height-default);
+  min-height: var(--mes-ui-control-height-default);
+  max-height: var(--mes-ui-control-height-default);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"][data-ui-size="compact"]{
+  height: var(--mes-ui-control-height-compact);
+  min-height: var(--mes-ui-control-height-compact);
+  max-height: var(--mes-ui-control-height-compact);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"][data-ui-size="touch"]{
+  height: var(--mes-ui-control-height-touch);
+  min-height: var(--mes-ui-control-height-touch);
+  max-height: var(--mes-ui-control-height-touch);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"][data-ui-size][data-ui-tone]:is([data-ui-size="icon"], [data-ui-size="table-icon"]){
+  padding: 0;
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"][data-ui-size="icon"][data-ui-tone]{
+  display: inline-flex;
+  width: var(--mes-ui-icon-button-size);
+  min-width: var(--mes-ui-icon-button-size);
+  max-width: var(--mes-ui-icon-button-size);
+  height: var(--mes-ui-icon-button-size);
+  min-height: var(--mes-ui-icon-button-size);
+  max-height: var(--mes-ui-icon-button-size);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"][data-ui-size="table-icon"][data-ui-tone]{
+  display: inline-flex;
+  width: var(--mes-ui-table-icon-button-size);
+  min-width: var(--mes-ui-table-icon-button-size);
+  max-width: var(--mes-ui-table-icon-button-size);
+  height: var(--mes-ui-table-icon-button-size);
+  min-height: var(--mes-ui-table-icon-button-size);
+  max-height: var(--mes-ui-table-icon-button-size);
+}
+
+main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-component="ActionButton"]:is([data-ui-tone="secondary"], [data-ui-tone="icon"], [data-ui-tone="table-icon"]){
+  border-color: var(--mes-ui-border-default);
+  background: var(--mes-ui-surface-control);
+  color: var(--mes-ui-text);
 }

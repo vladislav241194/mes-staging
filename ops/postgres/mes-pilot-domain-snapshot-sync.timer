@@ -1,0 +1,12 @@
+[Unit]
+Description=Retry MES Pilot PostgreSQL compatibility outbox
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=30s
+RandomizedDelaySec=3s
+Persistent=true
+Unit=mes-pilot-domain-snapshot-sync.service
+
+[Install]
+WantedBy=timers.target

@@ -6,7 +6,7 @@ import {
   getSharedStateServerPaths,
   isDestructiveActionsAllowed,
   isProtectedAppEnv,
-  isWorkflowPresetRestoreEnabled,
+  isBootstrapSnapshotRestoreEnabled,
 } from "./shared-state-storage.mjs";
 
 const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -78,8 +78,8 @@ async function main() {
     if (isDestructiveActionsAllowed(process.env)) {
       results.failures.push("MES_ALLOW_DESTRUCTIVE_ACTIONS=true is not allowed for protected contours by default");
     }
-    if (isWorkflowPresetRestoreEnabled(process.env)) {
-      results.failures.push("MES_ENABLE_WORKFLOW_PRESET_RESTORE=true is not allowed for protected contours by default");
+    if (isBootstrapSnapshotRestoreEnabled(process.env)) {
+      results.failures.push("MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE=true is not allowed for protected contours by default");
     }
     if (isInside(projectRoot, paths.filePath)) {
       results.failures.push(`Shared-state file must be outside the git checkout: ${paths.filePath}`);

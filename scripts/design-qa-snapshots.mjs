@@ -5,26 +5,34 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { HARD_UI_RUNTIME_MODULE_IDS, PARTIAL_UI_RUNTIME_MODULE_IDS, SPECIAL_UI_RUNTIME_MODULE_IDS } from "../src/ui_runtime_contracts.js";
+import { getMesModuleNavigationDefinitions } from "../src/module_registry.js";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultUrl = new URL("/", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const defaultOutDir = join(projectRoot, "tmp", `design-qa-snapshots-${Date.now()}`);
 const authStorageKey = "mes-planning-prototype-auth-session-v1";
 const uiStorageKey = "mes-planning-prototype-ui-v1";
+const sharedStateDisabledUntilKey = "mes-planning-prototype-shared-disabled-until-v1";
 const viewports = [
   { name: "macbook-air-15", width: 1710, height: 1112, mobile: false },
 ];
-const moduleIds = ["visualSystem", "gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "contourAdmin", "supply", "shopMap", "directories"];
-const focusModuleIds = ["gantt", "planning", "weeklyProductionControl", "planningTable", "shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype", "dispatch", "routes", "products", "nomenclature", "employees", "productionStructureMatrix", "timesheet", "roles", "contourAdmin", "supply", "shopMap", "directories"];
+const moduleIds = getMesModuleNavigationDefinitions({ adminHost: false, includeStandalone: false })
+  .map((moduleItem) => moduleItem.id);
+const focusModuleIds = [...moduleIds];
+const adminOnlyModuleIds = new Set(
+  getMesModuleNavigationDefinitions({ adminHost: true, includeStandalone: false })
+    .map((moduleItem) => moduleItem.id)
+);
 const authVisualModuleIds = ["authPrototype"];
 const visualRuntimeModuleIds = [...moduleIds, ...authVisualModuleIds];
-const expectedVisualRuntimeModuleIds = [...SPECIAL_UI_RUNTIME_MODULE_IDS, ...HARD_UI_RUNTIME_MODULE_IDS, ...PARTIAL_UI_RUNTIME_MODULE_IDS];
+const expectedVisualRuntimeModuleIds = [...SPECIAL_UI_RUNTIME_MODULE_IDS, ...HARD_UI_RUNTIME_MODULE_IDS, ...PARTIAL_UI_RUNTIME_MODULE_IDS]
+  .filter((moduleId) => !adminOnlyModuleIds.has(moduleId));
 const missingVisualRuntimeModuleIds = expectedVisualRuntimeModuleIds.filter((moduleId) => !visualRuntimeModuleIds.includes(moduleId));
 if (missingVisualRuntimeModuleIds.length) {
   throw new Error(`design-qa-snapshots is missing runtime modules: ${missingVisualRuntimeModuleIds.join(", ")}`);
 }
 const missingFocusRuntimeModuleIds = expectedVisualRuntimeModuleIds
-  .filter((moduleId) => !["authPrototype", "visualSystem"].includes(moduleId))
+  .filter((moduleId) => moduleId !== "authPrototype")
   .filter((moduleId) => !focusModuleIds.includes(moduleId));
 if (missingFocusRuntimeModuleIds.length) {
   throw new Error(`design-qa-snapshots focus mode is missing runtime modules: ${missingFocusRuntimeModuleIds.join(", ")}`);
@@ -83,9 +91,9 @@ const interactionStates = [
     description: "Мастерская: открыт предпросмотр сменного листа",
   },
   {
-    id: "production-structure-master-manual-open",
+    id: "production-structure-entity-editor-open",
     moduleId: "productionStructureMatrix",
-    description: "Права: матрица мастера раскрыта в ручном режиме",
+    description: "Структура и сотрудники: открыт редактор записи системного реестра",
   },
 ];
 const modulePageAliases = {};
@@ -299,9 +307,10 @@ async function navigateAuthPrototype(client, url) {
   await loaded;
   await waitForApp(client);
   await evaluate(client, (payload) => {
-    const { authKey, uiKey } = payload;
+    const { authKey, uiKey, sharedStateKey } = payload;
     localStorage.removeItem(authKey);
     sessionStorage.clear();
+    sessionStorage.setItem(sharedStateKey, String(Date.now() + 5 * 60 * 1000));
     const state = JSON.parse(localStorage.getItem(uiKey) || "{}");
     state.authGateUnlocked = false;
     state.authCurrentUserId = "";
@@ -313,7 +322,7 @@ async function navigateAuthPrototype(client, url) {
     state.authPrototypeAttemptsLeft = 5;
     state.activeModule = "authPrototype";
     localStorage.setItem(uiKey, JSON.stringify(state));
-  }, { authKey: authStorageKey, uiKey: uiStorageKey });
+  }, { authKey: authStorageKey, uiKey: uiStorageKey, sharedStateKey: sharedStateDisabledUntilKey });
   const reloaded = client.waitForEvent("Page.loadEventFired", 15000).catch(() => null);
   await client.send("Page.reload");
   await reloaded;
@@ -417,8 +426,6 @@ async function auditVisualLayout(client, moduleId) {
   return evaluate(client, (id) => {
     const ignoredScrollRootSelector = [
       ".gantt-shell",
-      ".supply-gantt-shell",
-      ".supply-table-wrap",
       ".directory-table-wrap",
       ".nomenclature-table-wrap",
       ".route-object-table-wrap",
@@ -427,7 +434,6 @@ async function auditVisualLayout(client, moduleId) {
       ".toolbar-actions",
       ".mobile-module-sheet",
       ".dense-inline-options",
-      ".supply-detail-popover",
       ".production-flow-lane",
       "[data-layout='table']",
     ].join(",");
@@ -478,7 +484,7 @@ async function auditVisualLayout(client, moduleId) {
           rect: { x: Math.round(rect.x), right: Math.round(rect.right), width: Math.round(rect.width) },
         });
       }
-      if (el.matches(".modal, .slot-drawer, .dense-inline-options, .supply-detail-popover, [popover]")
+      if (el.matches(".modal, .slot-drawer, .dense-inline-options, [popover]")
         && (rect.top < -1 || rect.bottom > viewport.height + 1 || rect.left < -1 || rect.right > viewport.width + 1)) {
         floating.push({ selector: selectorOf(el), rect: { x: Math.round(rect.x), y: Math.round(rect.y), right: Math.round(rect.right), bottom: Math.round(rect.bottom) } });
       }
@@ -525,11 +531,6 @@ async function auditVisualLayout(client, moduleId) {
       ".planning-order-route-item",
       ".shift-master-board-card",
       ".shift-master-board-section",
-      ".planning-table-block",
-      ".planning-table-summary-card",
-      ".visual-system-panel",
-      ".employee-hierarchy-node",
-      ".supply-status-card",
       ".dispatch-section-card",
     ].join(",");
     for (const el of document.querySelectorAll(`main.app-shell :is(${insetContainerSelector})`)) {
@@ -541,7 +542,7 @@ async function auditVisualLayout(client, moduleId) {
       const textEl = Array.from(el.querySelectorAll(textProbeSelector)).find((candidate) => visible(candidate) && candidate.textContent.trim().length > 1);
       if (!textEl) continue;
       const textRect = textEl.getBoundingClientRect();
-      const minInset = el.matches(".ui-sidebar-item, .directory-nav-item, .planning-order-route-item, .employee-hierarchy-node, button") ? 4 : 6;
+      const minInset = el.matches(".ui-sidebar-item, .directory-nav-item, .planning-order-route-item, button") ? 4 : 6;
       const topInset = textRect.top - rect.top;
       const leftInset = textRect.left - rect.left;
       const rightInset = rect.right - textRect.right;
@@ -568,11 +569,6 @@ async function auditVisualLayout(client, moduleId) {
       ".directory-nav-item",
       ".planning-order-route-item",
       ".shift-master-board-card",
-      ".planning-table-block",
-      ".planning-table-summary-card",
-      ".visual-system-panel",
-      ".employee-hierarchy-node",
-      ".supply-status-card",
       ".dispatch-section-card",
       ".ui-status-token",
       ".primary-button",
@@ -615,9 +611,7 @@ async function auditVisualLayout(client, moduleId) {
       }
     }
 
-    const skipTypographyAudit = root?.dataset.layoutPage === "visualSystem";
     for (const el of document.querySelectorAll("main.app-shell [data-layout='main-content'] :is(p,small,span,label,button,td,th,em,strong)")) {
-      if (skipTypographyAudit) continue;
       if (!visible(el) || isAllowedScroll(el)) continue;
       if (el.closest("h1,h2,h3,h4,.ui-panel-head,.directory-header,.app-topbar,.module-data-sidebar,.directory-sidebar")) continue;
       const text = el.textContent.trim().replace(/\s+/g, " ");
@@ -781,6 +775,45 @@ async function hasVisibleElement(client, selector) {
   }, selector);
 }
 
+async function waitForVisibleElement(client, selector, timeoutMs = 8000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await hasVisibleElement(client, selector)) return true;
+    await delay(160);
+  }
+  return false;
+}
+
+async function getGanttInteractionProbe(client) {
+  return evaluate(client, () => {
+    const isVisible = (element) => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0
+        && rect.height > 0
+        && style.display !== "none"
+        && style.visibility !== "hidden"
+        && Number(style.opacity || 1) !== 0;
+    };
+    const uiState = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+    return {
+      layoutPage: document.querySelector("main.app-shell")?.dataset.layoutPage || "",
+      shellCount: document.querySelectorAll("main.app-shell").length,
+      ganttShellCount: document.querySelectorAll("[data-gantt-shell]").length,
+      ganttToggleCount: document.querySelectorAll("[data-toggle-all-projects]").length,
+      ganttTogglePressed: document.querySelector("[data-toggle-all-projects]")?.getAttribute("aria-pressed") || "",
+      routeRowCount: document.querySelectorAll(".gantt-row.route-row").length,
+      resourceRowCount: document.querySelectorAll(".gantt-row.resource-row").length,
+      slotCount: document.querySelectorAll(".operation-slot:not(.aggregate-slot)").length,
+      visibleSlotCount: Array.from(document.querySelectorAll(".operation-slot:not(.aggregate-slot)")).filter(isVisible).length,
+      activeModule: uiState.activeModule || "",
+      expandedProjects: Array.isArray(uiState.expandedProjects) ? uiState.expandedProjects.length : -1,
+      runtimeKeys: Object.keys(window.__mesRuntime || {}).filter((key) => /gantt|planning|module/i.test(key)).slice(0, 24),
+    };
+  });
+}
+
 async function setupInteractionState(client, state) {
   if (state.id === "gantt-slot-editor-open") {
     await evaluate(client, () => {
@@ -790,6 +823,15 @@ async function setupInteractionState(client, state) {
     });
     await delay(520);
     await waitForApp(client);
+    // Gantt renders its rows after the shell and can require an additional
+    // render turn when the module was reached from an auth/standalone screen.
+    // Wait for the actual slot contract instead of treating the empty canvas
+    // as a missing interaction target.
+    const hasOperationSlot = await waitForVisibleElement(client, ".operation-slot:not(.aggregate-slot)");
+    if (!hasOperationSlot) {
+      const probe = await getGanttInteractionProbe(client);
+      throw new Error(`Gantt rendered without a visible operation slot after expand-all: ${JSON.stringify(probe)}`);
+    }
     await triggerFirstVisibleElement(client, ".operation-slot:not(.aggregate-slot)", state.id, { dblClick: true, delayMs: 520 });
     return;
   }
@@ -822,18 +864,17 @@ async function setupInteractionState(client, state) {
     await triggerFirstVisibleElement(client, "[data-shift-board-print]", state.id, { delayMs: 560 });
     return;
   }
-  if (state.id === "production-structure-master-manual-open") {
+  if (state.id === "production-structure-entity-editor-open") {
     const ok = await evaluate(client, () => {
-      const field = document.querySelector("[data-shift-master-assignment-mode]");
-      if (!field) return false;
-      field.scrollIntoView({ block: "center", inline: "nearest" });
-      field.value = "manual";
-      field.dispatchEvent(new Event("change", { bubbles: true }));
+      const control = document.querySelector("[data-system-domain-open]");
+      if (!control) return false;
+      control.scrollIntoView({ block: "center", inline: "nearest" });
+      control.click();
       return true;
     });
-    if (!ok) throw new Error("Cannot open shift master assignment matrix manual mode for visual QA.");
-    await delay(620);
-    await waitForApp(client);
+    if (!ok) throw new Error("Cannot open a system-domain entity editor for visual QA.");
+    const editorOpened = await waitForVisibleElement(client, "[data-system-domain-form]", 5000);
+    if (!editorOpened) throw new Error("System-domain entity editor did not render for visual QA.");
     return;
   }
   throw new Error(`Unknown interaction state: ${state.id}`);
@@ -932,6 +973,14 @@ async function main() {
     const { client } = chrome;
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    // Visual QA must use the bundled deterministic fixture. The shared-state
+    // endpoint can legitimately contain a zero-slot planning snapshot after
+    // a functional run; importing that snapshot would make the Gantt editor
+    // interaction impossible in a fresh profile and would turn the visual
+    // suite into a data-ordering test.
+    await client.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `sessionStorage.setItem(${JSON.stringify(sharedStateDisabledUntilKey)}, String(Date.now() + 5 * 60 * 1000));`,
+    });
     for (const viewport of viewports) {
       await setViewport(client, viewport);
       await navigate(client, url);

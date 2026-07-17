@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { gzipSync } from "node:zlib";
 import {
   appendSharedStateAudit,
   backupSharedStateFile,
@@ -11,17 +12,18 @@ import {
 
 const MAX_SHARED_STATE_BODY_BYTES = 20 * 1024 * 1024;
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+const COMPRESSIBLE_RESPONSE_BYTES = 1024;
 const DEFAULT_SHARED_STATE_KEY = "mes:staging:shared-state:v1";
 const ALLOWED_VALUE_KEYS = new Set([
   "mes-planning-prototype-state-v2",
   "mes-planning-prototype-directories-v2",
   "mes-planning-prototype-directories-defaults-restored-v1",
+  "mes-planning-prototype-system-domains-v1",
   "mes-planning-prototype-directories-deleted-entities-v1",
-  "mes-planning-prototype-supply-control-v1",
   "mes-planning-prototype-work-center-operations-seeded-v2",
+  "mes-specifications-2-registry-v1",
 ]);
 const ALLOWED_SHARED_UI_KEYS = new Set([
-  "shopMapWidgetLayouts",
   "ganttDependencyRoutes",
   "productionStructureMatrixOverrides",
   "timesheetCellOverrides",
@@ -35,6 +37,46 @@ const ALLOWED_SHARED_UI_KEYS = new Set([
   "accessRoleAssignments",
 ]);
 
+// Revision-only browser polls are intentionally small on the wire, but a file
+// store used to parse the complete multi-megabyte snapshot for every poll just
+// to discover that its version had not changed. Keep a process-local parsed
+// value keyed by the file's stat fingerprint; an external write invalidates it
+// naturally on the next read without creating a second source of truth.
+const FILE_SNAPSHOT_CACHE = new Map();
+
+function getFileFingerprint(fileStat) {
+  return `${Number(fileStat?.size || 0)}:${Number(fileStat?.mtimeMs || 0)}`;
+}
+
+async function readFileSnapshot(filePath) {
+  try {
+    const fileStat = await stat(filePath);
+    const fingerprint = getFileFingerprint(fileStat);
+    const cached = FILE_SNAPSHOT_CACHE.get(filePath);
+    if (cached?.fingerprint === fingerprint) return cached.snapshot;
+    const raw = await readFile(filePath, "utf-8");
+    const snapshot = parseSnapshot(raw) || createEmptySnapshot();
+    FILE_SNAPSHOT_CACHE.set(filePath, { fingerprint, snapshot });
+    return snapshot;
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      FILE_SNAPSHOT_CACHE.delete(filePath);
+      return createEmptySnapshot();
+    }
+    throw error;
+  }
+}
+
+async function writeFileSnapshot(filePath, snapshot) {
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf-8");
+  const fileStat = await stat(filePath);
+  FILE_SNAPSHOT_CACHE.set(filePath, {
+    fingerprint: getFileFingerprint(fileStat),
+    snapshot,
+  });
+}
+
 function normalizeHeaders(headers, contentType = JSON_CONTENT_TYPE) {
   if (typeof headers === "function") return headers(contentType);
   return {
@@ -47,20 +89,37 @@ function normalizeHeaders(headers, contentType = JSON_CONTENT_TYPE) {
 
 function sendJson(res, headers, statusCode, payload) {
   const responseHeaders = normalizeHeaders(headers);
+  const serialized = Buffer.from(JSON.stringify(payload));
+  const acceptsGzip = /\bgzip\b/i.test(String(res.__mesAcceptEncoding || ""));
+  const useGzip = acceptsGzip && serialized.byteLength >= COMPRESSIBLE_RESPONSE_BYTES;
+  const body = useGzip ? gzipSync(serialized) : serialized;
+  const finalHeaders = useGzip
+    ? {
+      ...responseHeaders,
+      "Content-Encoding": "gzip",
+      "Vary": "Accept-Encoding",
+      "Content-Length": String(body.byteLength),
+    }
+    : responseHeaders;
   if (typeof res.writeHead === "function") {
-    res.writeHead(statusCode, responseHeaders);
-    res.end(JSON.stringify(payload));
+    res.writeHead(statusCode, finalHeaders);
+    res.end(body);
     return;
   }
 
-  Object.entries(responseHeaders).forEach(([key, value]) => res.setHeader?.(key, value));
+  Object.entries(finalHeaders).forEach(([key, value]) => res.setHeader?.(key, value));
   if (typeof res.status === "function" && typeof res.json === "function") {
+    if (useGzip) {
+      res.statusCode = statusCode;
+      res.end?.(body);
+      return;
+    }
     res.status(statusCode).json(payload);
     return;
   }
 
   res.statusCode = statusCode;
-  res.end?.(JSON.stringify(payload));
+  res.end?.(body);
 }
 
 function readStreamBody(req, limitBytes = MAX_SHARED_STATE_BODY_BYTES) {
@@ -156,11 +215,19 @@ function sanitizeSharedUi(sharedUi, currentSharedUi = {}) {
   if (!sharedUi || typeof sharedUi !== "object" || Array.isArray(sharedUi)) {
     sharedUi = {};
   }
+  // A server-owned domain can explicitly retire its compatibility projection.
+  // Missing fields are still preserved for older clients, while an allowed
+  // null is a narrow tombstone for just that field.
+  const deletedKeys = new Set(
+    Object.entries(sharedUi)
+      .filter(([key, value]) => ALLOWED_SHARED_UI_KEYS.has(key) && value === null)
+      .map(([key]) => key),
+  );
   const entries = Object.entries(sharedUi)
     .filter(([key, value]) => isAllowedSharedUiValue(key, value));
   const sanitized = Object.fromEntries(entries);
   ALLOWED_SHARED_UI_KEYS.forEach((key) => {
-    if (Object.prototype.hasOwnProperty.call(sanitized, key)) return;
+    if (Object.prototype.hasOwnProperty.call(sanitized, key) || deletedKeys.has(key)) return;
     const currentValue = currentSharedUi?.[key];
     if (isAllowedSharedUiValue(key, currentValue)) sanitized[key] = currentValue;
   });
@@ -178,6 +245,26 @@ function createEmptySnapshot() {
   };
 }
 
+function getRequestedValueKeys(headers = {}) {
+  const raw = String(headers?.["x-mes-shared-state-keys"] || "").trim();
+  if (!raw) return null;
+  // A server-authoritative planning bootstrap still needs the shared revision
+  // and UI metadata, but must not pull the legacy planning payload merely to
+  // learn that revision.
+  if (raw === "__none__") return [];
+  const keys = [...new Set(raw.split(",").map((key) => key.trim()).filter((key) => ALLOWED_VALUE_KEYS.has(key)))];
+  return keys.length ? keys : null;
+}
+
+function projectSnapshotValues(snapshot, requestedValueKeys = null) {
+  if (!requestedValueKeys || !snapshot?.values) return snapshot;
+  const allowed = new Set(requestedValueKeys);
+  return {
+    ...snapshot,
+    values: Object.fromEntries(Object.entries(snapshot.values).filter(([key]) => allowed.has(key))),
+  };
+}
+
 function createFileStore(filePath) {
   return {
     kind: "file",
@@ -185,18 +272,11 @@ function createFileStore(filePath) {
     configured: Boolean(filePath),
     async read() {
       if (!filePath) return createEmptySnapshot();
-      try {
-        const raw = await readFile(filePath, "utf-8");
-        return parseSnapshot(raw) || createEmptySnapshot();
-      } catch (error) {
-        if (error?.code === "ENOENT") return createEmptySnapshot();
-        throw error;
-      }
+      return readFileSnapshot(filePath);
     },
     async write(snapshot) {
       if (!filePath) throw new Error("Shared state file path is not configured");
-      await mkdir(dirname(filePath), { recursive: true });
-      await writeFile(filePath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf-8");
+      await writeFileSnapshot(filePath, snapshot);
     },
   };
 }
@@ -223,6 +303,38 @@ function createStore({ env = process.env, filePath } = {}) {
   return createFileStore(filePath);
 }
 
+// Transitional read port for domain APIs. New endpoints must consume this
+// port instead of knowing whether the pilot currently uses a file or KV
+// snapshot. A PostgreSQL repository can replace this implementation later
+// without changing the HTTP contracts.
+export async function readSharedStateSnapshot({ env = process.env, filePath = "" } = {}) {
+  const store = createStore({ env, filePath });
+  return {
+    configured: store.configured,
+    kind: store.kind,
+    snapshot: await store.read(),
+  };
+}
+
+export async function updateSharedStateSnapshot({ env = process.env, filePath = "", expectedVersion = null, update } = {}) {
+  const store = createStore({ env, filePath });
+  if (!store.configured) return { ok: false, configured: false, snapshot: createEmptySnapshot() };
+  const current = await store.read();
+  if (expectedVersion !== null && Number(expectedVersion) !== Number(current.version || 0)) {
+    return { ok: false, configured: true, conflict: true, snapshot: current };
+  }
+  const next = typeof update === "function" ? update(current) : null;
+  if (!next || typeof next !== "object") throw new Error("Shared-state domain update must return a snapshot");
+  const snapshot = {
+    ...current,
+    ...next,
+    version: Number(current.version || 0) + 1,
+    updatedAt: new Date().toISOString(),
+  };
+  await store.write(snapshot);
+  return { ok: true, configured: true, snapshot };
+}
+
 function normalizeActor(value) {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, 80);
@@ -231,6 +343,33 @@ function normalizeActor(value) {
 function normalizeAction(value) {
   if (typeof value !== "string") return "snapshot";
   return value.trim().slice(0, 80) || "snapshot";
+}
+
+function parsePlanningState(value) {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const state = JSON.parse(value);
+    return state && typeof state === "object" ? state : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasMeaningfulPlanningState(value) {
+  const state = parsePlanningState(value);
+  return Boolean(state?.routes?.length || state?.routeSteps?.length || state?.slots?.length);
+}
+
+function getMaxSpecifications2PlanningRevision(value) {
+  const state = parsePlanningState(value);
+  if (!state) return 0;
+  return (state.routes || []).reduce((maxRevision, route) => {
+    if (!route?.sourceSpecifications2EntryId) return maxRevision;
+    return Math.max(
+      maxRevision,
+      Number(route?.documentRevisionSnapshot?.specificationRevision || route?.revision || 0),
+    );
+  }, 0);
 }
 
 function buildClientSnapshot(current, payload) {
@@ -270,6 +409,10 @@ export async function handleSharedStateRequest(req, res, {
   backupDir = "",
   auditLogPath = "",
 } = {}) {
+  // Keep the transport concern local to this endpoint: state semantics stay
+  // byte-for-byte identical after the browser transparently decompresses it.
+  // The marker is intentionally non-persistent and only used by sendJson.
+  res.__mesAcceptEncoding = String(req.headers?.["accept-encoding"] || "");
   const store = createStore({ env, filePath });
 
   if (!store.configured) {
@@ -284,7 +427,19 @@ export async function handleSharedStateRequest(req, res, {
 
   if (req.method === "GET") {
     const snapshot = await store.read();
-    sendJson(res, headers, 200, { ok: true, configured: true, ...snapshot });
+    const knownVersion = Number(req.headers?.["x-mes-shared-state-version"] || 0);
+    const requestedValueKeys = getRequestedValueKeys(req.headers);
+    if (!requestedValueKeys && knownVersion > 0 && knownVersion === Number(snapshot.version || 0)) {
+      sendJson(res, headers, 200, {
+        ok: true,
+        configured: true,
+        unchanged: true,
+        version: Number(snapshot.version || 0),
+        updatedAt: snapshot.updatedAt || "",
+      });
+      return;
+    }
+    sendJson(res, headers, 200, { ok: true, configured: true, ...projectSnapshotValues(snapshot, requestedValueKeys) });
     return;
   }
 
@@ -329,6 +484,47 @@ export async function handleSharedStateRequest(req, res, {
         configured: true,
         conflict: true,
         error: "Shared state version conflict",
+        current,
+      });
+      return;
+    }
+
+    const planningKey = "mes-planning-prototype-state-v2";
+    const incomingPlanning = payload.values?.[planningKey];
+    if (!destructiveAction
+      && hasMeaningfulPlanningState(current.values?.[planningKey])
+      && typeof incomingPlanning === "string"
+      && !hasMeaningfulPlanningState(incomingPlanning)) {
+      await appendSharedStateAudit({
+        auditLogPath,
+        event: {
+          action,
+          status: "denied",
+          reason: "nonempty-planning-state-cannot-be-cleared",
+          appEnv: env.APP_ENV || env.MES_APP_ENV || "",
+          clientId: normalizeActor(payload.clientId),
+          actor: normalizeActor(payload.actor),
+        },
+      }).catch(() => {});
+      sendJson(res, headers, 409, {
+        ok: false,
+        configured: true,
+        conflict: true,
+        error: "Non-empty planning state cannot be replaced by an empty snapshot",
+        current,
+      });
+      return;
+    }
+    const currentSpecifications2Revision = getMaxSpecifications2PlanningRevision(current.values?.[planningKey]);
+    const incomingSpecifications2Revision = getMaxSpecifications2PlanningRevision(incomingPlanning);
+    if (!destructiveAction
+      && incomingSpecifications2Revision > 0
+      && incomingSpecifications2Revision < currentSpecifications2Revision) {
+      sendJson(res, headers, 409, {
+        ok: false,
+        configured: true,
+        conflict: true,
+        error: "An older Specifications 2.0 planning revision cannot replace a newer revision",
         current,
       });
       return;

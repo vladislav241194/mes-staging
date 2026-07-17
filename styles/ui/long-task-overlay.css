@@ -1,0 +1,118 @@
+.mes-long-task-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(225, 239, 255, 0.88), rgba(242, 247, 253, 0.96) 52%, rgba(235, 242, 250, 0.98));
+  backdrop-filter: blur(14px) saturate(1.08);
+  transition: opacity 160ms ease, visibility 0s linear 160ms;
+}
+
+.mes-long-task-overlay.is-visible {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 160ms ease;
+}
+
+.mes-long-task-card {
+  width: min(430px, calc(100vw - 40px));
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 30px 34px 26px;
+  border: 1px solid rgba(71, 112, 154, 0.14);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 24px 70px rgba(22, 50, 82, 0.14), inset 0 1px rgba(255, 255, 255, 0.92);
+  color: var(--mes-ui-text, #10243a);
+  text-align: center;
+}
+
+.mes-long-task-kicker {
+  color: var(--mes-ui-text-muted, #6d7f91);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mes-long-task-card > strong {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 620;
+  line-height: 1.25;
+}
+
+.mes-long-task-card > span:not(.mes-long-task-kicker) {
+  color: var(--mes-ui-text-muted, #6d7f91);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mes-long-task-card > small {
+  color: color-mix(in srgb, var(--mes-ui-text-muted, #6d7f91) 78%, transparent);
+  font-size: 9px;
+}
+
+.mes-long-task-spinner {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  margin: 6px 0 2px;
+}
+
+.mes-long-task-spinner i {
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-top-color: var(--mes-ui-accent, #2f6fe4);
+  border-radius: 50%;
+  animation: mes-long-task-spin 1.2s linear infinite;
+}
+
+.mes-long-task-spinner i:nth-child(2) {
+  inset: 8px;
+  border-top-color: color-mix(in srgb, var(--mes-ui-accent, #2f6fe4) 58%, white);
+  animation-duration: 0.9s;
+  animation-direction: reverse;
+}
+
+.mes-long-task-spinner i:nth-child(3) {
+  inset: 19px;
+  border: 0;
+  background: color-mix(in srgb, var(--mes-ui-accent, #2f6fe4) 13%, white);
+}
+
+.mes-long-task-progress {
+  width: 100%;
+  height: 5px;
+  margin: 8px 0 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(65, 100, 137, 0.09);
+}
+
+.mes-long-task-progress i {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--mes-ui-accent, #2f6fe4), transparent);
+  animation: mes-long-task-sweep 1.35s ease-in-out infinite;
+}
+
+@keyframes mes-long-task-spin { to { transform: rotate(360deg); } }
+@keyframes mes-long-task-sweep { from { transform: translateX(-120%); } to { transform: translateX(340%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mes-long-task-spinner i,
+  .mes-long-task-progress i { animation-duration: 3s; }
+}
+

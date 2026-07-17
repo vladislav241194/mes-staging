@@ -1,6 +1,7 @@
 export const GANTT_UI_VIEWPORTS = [
   { id: "desktop", width: 1440, height: 932, category: "desktop" },
   { id: "desktop-wide", width: 1512, height: 982, category: "desktop" },
+  { id: "pilot-wide", width: 1967, height: 1192, category: "desktop" },
   { id: "tablet", width: 1180, height: 820, category: "tablet" },
   { id: "tablet-compact", width: 1024, height: 768, category: "tablet" },
   { id: "narrow", width: 430, height: 932, category: "narrow" },
@@ -21,7 +22,9 @@ export const GANTT_UI_REQUIRED_SELECTORS = [
   ".dependencies-layer[data-ui-component='GanttDependencyLayer']",
   ".dependency-path[data-ui-component='GanttDependencyPath']",
   ".dependency-arrow[data-ui-component='GanttDependencyArrow']",
+  ".gantt-zoom-control[role='group']",
   "[data-gantt-zoom]",
+  "[data-gantt-toolbar-clock][data-ui-component='GanttClock']",
   "[data-ui-component='GanttToolbar']",
 ];
 

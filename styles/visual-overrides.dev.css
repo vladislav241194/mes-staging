@@ -1,0 +1,52 @@
+/* MES visual probe overrides.
+   Loaded only when the URL has ?visual_probe=1.
+   Use this file for temporary pilot-only visual experiments; move accepted fixes
+   into the normal CSS layers before final publication. */
+
+html[data-visual-probe="1"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-workspace{
+  position: relative;
+}
+
+html[data-visual-probe="1"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-header{
+  position: absolute !important;
+  inset: 10px 10px auto auto !important;
+  z-index: 12 !important;
+  display: block !important;
+  width: max-content !important;
+  max-width: max-content !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+html[data-visual-probe="1"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-header > div:not(.ui-module-header-actions){
+  display: none !important;
+}
+
+html[data-visual-probe="1"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-header .ui-module-header-actions{
+  display: flex !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+}
+
+html[data-visual-probe="1"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-header .ui-action-button{
+  min-height: 30px;
+  height: 30px;
+  box-shadow: var(--mes-ui-shadow-xs);
+}
+
+html[data-visual-probe="1"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-top-controls{
+  padding-right: 148px;
+}

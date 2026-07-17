@@ -1,0 +1,23 @@
+[Unit]
+Description=MES Pilot initial domain data import
+After=mes-pilot-domain-migrate.service
+Requires=mes-pilot-domain-migrate.service
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/srv/mes/pilot/app
+EnvironmentFile=/etc/mes/mes-pilot-domain.env
+# The pilot server derives this name from APP_ENV=pilot. Keep the import source
+# explicit so a migration never falls back to a local/default snapshot.
+Environment=APP_ENV=pilot
+# Reconcile both read projections from one immutable source slice.  The unit
+# runs with the protected database environment, while deploy receives only the
+# narrow ability to start this named unit (not database credentials or shell
+# sudo).  Keeping these imports together prevents a green work-order parity
+# check from masking stale System Domains.
+ExecStart=/bin/sh -c '/usr/bin/npm run domain:export-snapshot -- /srv/mes/pilot/shared-state/mes-pilot-shared-state-v1.json /srv/mes/pilot/backups/domain-export-initial.json && /usr/bin/npm run domain:postgres:import -- /srv/mes/pilot/backups/domain-export-initial.json --apply && /usr/bin/npm run domain:postgres:import-system-domains -- --input=/srv/mes/pilot/shared-state/mes-pilot-shared-state-v1.json --apply'
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/mes/pilot

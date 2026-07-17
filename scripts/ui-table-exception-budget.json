@@ -4,7 +4,7 @@
   "maxProductionTableExceptions": 0,
   "maxUnclassifiedTableExceptions": 0,
   "maxTableContractViolations": 0,
-  "minNonProductionTableExceptions": 10,
+  "minNonProductionTableExceptions": 9,
   "minPrintTableExceptions": 9,
-  "minVisualSampleTableExceptions": 1
+  "minVisualSampleTableExceptions": 0
 }

@@ -7,6 +7,8 @@ const defaultUrl = new URL("/?module=shiftMasterBoard&qa-auth-bypass=1&qa=shift-
 const uiStorageKey = "mes-planning-prototype-ui-v1";
 const stateStorageKey = "mes-planning-prototype-state-v2";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
+const authSessionStorageKey = "mes-planning-prototype-auth-session-v1";
+const specifications2StorageKey = "mes-specifications-2-registry-v1";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -142,11 +144,17 @@ class CdpClient {
 async function evaluate(client, pageFunction, arg, timeoutMs = 60000) {
   const source = typeof pageFunction === "function" ? pageFunction.toString() : pageFunction;
   const expression = arg === undefined ? `(${source})()` : `(${source})(${JSON.stringify(arg)})`;
-  const result = await client.send("Runtime.evaluate", {
-    expression,
-    awaitPromise: true,
-    returnByValue: true,
-  }, timeoutMs);
+  let result;
+  try {
+    result = await client.send("Runtime.evaluate", {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+    }, timeoutMs);
+  } catch (error) {
+    error.message = `${error.message}\nEvaluation probe: ${source.replace(/\s+/g, " ").slice(0, 220)}`;
+    throw error;
+  }
   if (result.exceptionDetails) {
     throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Runtime.evaluate failed");
   }
@@ -227,6 +235,204 @@ async function navigateModule(client, moduleId, qa) {
   await delay(700);
   await waitForModule(client, moduleId === "gantt" ? "gantt" : moduleId);
   return url;
+}
+
+async function seedSpecifications2OperationalFixture(client) {
+  // Seed and reopen directly on the workshop board. The Planning screen has
+  // its own draft-normalization pass; this flow verifies the released chain
+  // (Specs 2.0 → work order → planned slot → workshop), not draft repair.
+  await navigateModule(client, "shiftMasterBoard", "shift-operational-flow-fixture");
+  const fixture = await evaluate(client, ({ stateKey, uiKey }) => {
+    // This fixture lives only in the temporary browser profile used by this QA.
+    // It models the minimum already-published Specs 2.0 chain: specification →
+    // work order → route step → planned slot. It must not depend on pilot data.
+    const state = JSON.parse(localStorage.getItem(stateKey) || "{}");
+    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+    const now = new Date();
+    now.setDate(now.getDate() + 1);
+    // Keep the generated production slot on a normal 5/2 workday so the
+    // assignment scenario has a real available employee on every CI date.
+    while ([0, 6].includes(now.getDay())) now.setDate(now.getDate() + 1);
+    now.setHours(9, 0, 0, 0);
+    const end = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    // Keep this chain separate from the Specs 2.0 import QA fixture. Published
+    // entries are reconciled at boot, so shared IDs would legitimately replace
+    // this flow's planned slot with the other fixture's current revision.
+    const routeId = "qa-shift-flow-specifications2-route";
+    const stepId = "qa-shift-flow-specifications2-step";
+    const slotId = "qa-shift-flow-specifications2-slot";
+    const specificationId = "qa-shift-flow-specifications2-specification";
+    const workCenterId = (state.workCenters || []).some((item) => item?.id === "D1")
+      ? "D1"
+      : state.workCenters?.[0]?.id || "D1";
+    const quantity = 12;
+    const route = {
+      id: routeId,
+      name: "Маршрутная карта · QA: опубликованная Спецификация 2.0",
+      designation: "QA.SPEC2.001",
+      specificationId,
+      specificationName: "QA: опубликованная Спецификация 2.0",
+      projectId: specificationId,
+      routeDocumentKind: "main",
+      rootRouteId: routeId,
+      parentRouteId: "",
+      isDefault: true,
+      sourceSpecifications2EntryId: specificationId,
+      sourceSpecifications2RouteDraftId: "qa-shift-flow-specifications2-route-draft",
+      revision: 1,
+      planningQuantity: quantity,
+      planningStatus: "scheduled",
+      lifecycleStatus: "released",
+      documentRevisionSnapshot: {
+        source: "specifications2",
+        specificationEntryId: specificationId,
+        specificationId,
+        specificationRevision: 1,
+        routeDraftId: "qa-shift-flow-specifications2-route-draft",
+        routeRevision: 1,
+        releasedAt: now.toISOString(),
+        product: { designation: "QA.SPEC2.001", name: "QA: опубликованная Спецификация 2.0" },
+        operations: [],
+      },
+      workOrderSnapshot: {
+        id: "qa-shift-flow-specifications2-work-order-r1",
+        source: "specifications2",
+        specificationId,
+        specificationRevision: 1,
+        routeId,
+        routeRevision: 1,
+        quantity,
+        operationRevisions: [],
+      },
+      unit: "шт.",
+      planningLaborByStepId: {},
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+    const step = {
+      id: stepId,
+      routeId,
+      stepOrder: 1,
+      operationId: "D1_OP3",
+      operationName: "Выдача комплектующих",
+      workCenterId,
+      departmentId: workCenterId,
+      nextWorkCenterId: workCenterId,
+      nextOperationId: "",
+      statusBefore: "К выдаче",
+      statusAfter: "Выдано",
+      isRequired: true,
+      quantityMultiplier: 1,
+      calculationType: "normative",
+      setupMin: 0,
+      unitsPerHour: 0,
+      fulfillmentMode: "produce",
+      operationInputs: [{ label: "К выдаче" }],
+      operationOutputs: [{ label: "Выдано" }],
+      sourceSpecifications2OperationId: "qa-shift-flow-specifications2-operation",
+      normRevisionId: "",
+      unit: "шт.",
+    };
+    const slot = {
+      id: slotId,
+      routeId,
+      routeStepId: stepId,
+      planningOrderId: routeId,
+      specificationId,
+      routeWorkCenterId: workCenterId,
+      workCenterId,
+      operationId: step.operationId,
+      operationName: step.operationName,
+      quantity,
+      unit: "шт.",
+      plannedStart: now.toISOString(),
+      plannedEnd: end.toISOString(),
+      status: "planned",
+      sourceSpecifications2EntryId: specificationId,
+      specificationRevision: 1,
+      routeRevision: 1,
+      workOrderSnapshotId: "qa-shift-flow-specifications2-work-order-r1",
+      actualStart: "",
+      actualEnd: "",
+      };
+    route.documentRevisionSnapshot.operations = [{
+      routeStepId: stepId,
+      operationId: step.operationId,
+      operationName: step.operationName,
+      workCenterId,
+      nextWorkCenterId: workCenterId,
+      nextOperationId: "",
+      labor: {},
+    }];
+    route.workOrderSnapshot.operationRevisions = [{ routeStepId: stepId, operationId: step.operationId, labor: {} }];
+    state.routes = [route];
+    state.routeSteps = [step];
+    state.slots = [slot];
+    state.shiftMasterAssignments = {};
+    state.dispatchFacts = {};
+    state.planningCorrections = {};
+    const nextUi = {
+      ...ui,
+      activeModule: "shiftMasterBoard",
+      // `windowStart` is a date-input value, not an ISO timestamp.  Keeping
+      // this contract in the fixture also exercises the same format that the
+      // calendar control writes in production.
+      windowStart: now.toISOString().slice(0, 10),
+      shiftMasterBoardAssignments: {},
+      shiftMasterBoardFacts: {},
+      shiftMasterBoardCarryovers: {},
+      shiftMasterBoardLaneBySlot: {},
+    };
+    // Do not write while the current application instance is unloading: its
+    // own pending persistence can otherwise overwrite this fixture. The raw
+    // snapshots are injected before the next document starts instead.
+    return {
+      routeId,
+      stepId,
+      slotId,
+      workCenterId,
+      quantity,
+      plannedStart: now.toISOString(),
+      stateRaw: JSON.stringify(state),
+      uiRaw: JSON.stringify(nextUi),
+    };
+  }, { stateKey: stateStorageKey, uiKey: uiStorageKey });
+  assert(fixture?.stateRaw && fixture?.uiRaw, `Не удалось подготовить изолированный QA-набор Specs 2.0: ${JSON.stringify(fixture)}`);
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `
+      (() => {
+        try {
+          const params = new URLSearchParams(window.location.search || "");
+          if (params.get("qa") !== "shift-operational-flow-fixture-ready") return;
+          window.sessionStorage.setItem(${JSON.stringify(sharedDisabledKey)}, String(Date.now() + 60 * 60 * 1000));
+          window.localStorage.setItem(${JSON.stringify(stateStorageKey)}, ${JSON.stringify(fixture.stateRaw)});
+          window.localStorage.setItem(${JSON.stringify(uiStorageKey)}, ${JSON.stringify(fixture.uiRaw)});
+          // The fixture owns the released planning chain directly.  Clear a
+          // separate import QA registry so its publication reconciliation does
+          // not intentionally replace this isolated chain at boot.
+          window.localStorage.setItem(${JSON.stringify(specifications2StorageKey)}, '{"entries":[]}');
+        } catch {}
+      })();
+    `,
+  });
+  await navigateModule(client, "shiftMasterBoard", "shift-operational-flow-fixture-ready");
+  const persistedFixture = await evaluate(client, ({ stateKey, slotId, stepId, routeId }) => {
+    const state = JSON.parse(localStorage.getItem(stateKey) || "{}");
+    return {
+      routeCount: (state.routes || []).length,
+      stepCount: (state.routeSteps || []).length,
+      slotCount: (state.slots || []).length,
+      hasFixtureRoute: (state.routes || []).some((route) => route?.id === routeId),
+      hasFixtureStep: (state.routeSteps || []).some((step) => step?.id === stepId),
+      hasFixtureSlot: (state.slots || []).some((slot) => slot?.id === slotId),
+      slots: (state.slots || []).map((slot) => ({ id: slot?.id, routeId: slot?.routeId, planningOrderId: slot?.planningOrderId, routeStepId: slot?.routeStepId })),
+    };
+  }, { stateKey: stateStorageKey, routeId: fixture?.routeId || "", stepId: fixture?.stepId || "", slotId: fixture?.slotId || "" });
+  assert(persistedFixture.hasFixtureSlot, `QA fixture was lost during reload: ${JSON.stringify(persistedFixture)}`);
+  assert(fixture?.slotId && fixture?.routeId && fixture?.stepId, `Не удалось создать изолированный QA-набор Specs 2.0: ${JSON.stringify(fixture)}`);
+  delete fixture.stateRaw;
+  delete fixture.uiRaw;
+  return fixture;
 }
 
 async function alignShiftWindowToRealSlot(client) {
@@ -462,8 +668,116 @@ async function runShiftMasterScenario(client) {
 }
 
 async function closeFactFromWorkDesk(client, scenario) {
+  const executor = (scenario.assignment.executors || [])[0] || null;
+  const executorId = String(executor?.employeeId || "").trim();
+  assert(executorId, `Назначение не содержит исполнителя для входа в Рабочий стол: ${JSON.stringify(scenario.assignment)}`);
+  const workDeskSeed = await evaluate(client, ({ uiKey, stateKey, authKey, executorId: personId, rowId, assignment }) => {
+    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+    const stateRaw = localStorage.getItem(stateKey) || "{}";
+    const now = new Date();
+    const expiresAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const taskId = `${rowId}::${personId}`;
+    const nextUi = {
+      ...ui,
+      authGateUnlocked: true,
+      authCurrentUserId: personId,
+      authPrototypePersonId: personId,
+      authSessionViewedPersonId: personId,
+      authSessionSelectedTaskId: taskId,
+      shiftMasterBoardAssignments: {
+        ...(ui.shiftMasterBoardAssignments || {}),
+        [rowId]: assignment,
+      },
+    };
+    const authSession = {
+      unlocked: true,
+      userId: personId,
+      roleId: "executor",
+      dateKey: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+      startedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      version: "qa-shift-operational-flow",
+    };
+    localStorage.setItem(uiKey, JSON.stringify(nextUi));
+    localStorage.setItem(authKey, JSON.stringify(authSession));
+    return {
+      uiRaw: JSON.stringify(nextUi),
+      stateRaw,
+      authRaw: JSON.stringify(authSession),
+      taskId,
+    };
+  }, {
+    uiKey: uiStorageKey,
+    stateKey: stateStorageKey,
+    authKey: authSessionStorageKey,
+    executorId,
+    rowId: scenario.assignmentCardId,
+    assignment: scenario.assignment,
+  });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `
+      (() => {
+        try {
+          const params = new URLSearchParams(window.location.search || "");
+          if (params.get("qa") !== "shift-operational-flow-workdesk") return;
+          window.sessionStorage.setItem(${JSON.stringify(sharedDisabledKey)}, String(Date.now() + 60 * 60 * 1000));
+          window.localStorage.setItem(${JSON.stringify(uiStorageKey)}, ${JSON.stringify(workDeskSeed.uiRaw)});
+          window.localStorage.setItem(${JSON.stringify(stateStorageKey)}, ${JSON.stringify(workDeskSeed.stateRaw)});
+          window.localStorage.setItem(${JSON.stringify(authSessionStorageKey)}, ${JSON.stringify(workDeskSeed.authRaw)});
+          const nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+          if (nativeFetch) {
+            window.fetch = (input, init) => {
+              const url = String(input && input.url ? input.url : input || "");
+              if (url.includes("/api/shared-state") || url.includes("./api/shared-state")) {
+                return Promise.resolve(new Response(JSON.stringify({ configured: false }), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }));
+              }
+              return nativeFetch(input, init);
+            };
+          }
+        } catch {}
+      })();
+    `,
+  });
   await navigateModule(client, "authSessionPrototype", "shift-operational-flow-workdesk");
-  const result = await evaluate(client, async ({ uiKey, rowId, assignment }) => {
+  await evaluate(client, ({ uiKey, authKey, executorId: personId, rowId, assignment }) => {
+    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+    const now = new Date();
+    const expiresAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const taskId = `${rowId}::${personId}`;
+    localStorage.setItem(uiKey, JSON.stringify({
+      ...ui,
+      authGateUnlocked: true,
+      authCurrentUserId: personId,
+      authSessionViewedPersonId: personId,
+      authSessionSelectedTaskId: taskId,
+      shiftMasterBoardAssignments: {
+        ...(ui.shiftMasterBoardAssignments || {}),
+        [rowId]: assignment,
+      },
+    }));
+    localStorage.setItem(authKey, JSON.stringify({
+      unlocked: true,
+      userId: personId,
+      roleId: "executor",
+      dateKey: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+      startedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      version: "qa-shift-operational-flow",
+    }));
+    window.location.reload();
+  }, {
+    uiKey: uiStorageKey,
+    authKey: authSessionStorageKey,
+    executorId,
+    rowId: scenario.assignmentCardId,
+    assignment: scenario.assignment,
+  });
+  await delay(900);
+  await waitForModule(client, "authSessionPrototype");
+  const result = await evaluate(client, async ({ uiKey, authKey, rowId, assignment }) => {
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const click = (selector) => {
       const element = document.querySelector(selector);
@@ -517,6 +831,7 @@ async function closeFactFromWorkDesk(client, scenario) {
 	    const saveClicked = clickByAttribute("[data-auth-session-save-fact]", "data-auth-session-save-fact", taskId);
 	    await wait(220);
 	    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+    const authSession = JSON.parse(localStorage.getItem(authKey) || "{}");
     const storedFact = ui.shiftMasterBoardFacts?.[rowId] || null;
     const carryovers = Object.values(ui.shiftMasterBoardCarryovers || {}).filter((item) => item?.sourceRowId === rowId);
     const draft = ui.authSessionFactDrafts?.[taskId] || null;
@@ -528,13 +843,24 @@ async function closeFactFromWorkDesk(client, scenario) {
 	      deviationCommentFilled,
 	      assignedQuantity,
 	      actualQuantity,
-	      draft,
+      draft,
       fact: storedFact,
       carryovers,
+      auth: {
+        uiUser: ui.authCurrentUserId || "",
+        uiPerson: ui.authPrototypePersonId || "",
+        viewedPerson: ui.authSessionViewedPersonId || "",
+        selectedTask: ui.authSessionSelectedTaskId || "",
+        sessionUser: authSession.userId || "",
+        sessionRole: authSession.roleId || "",
+        assignmentKeys: Object.keys(ui.shiftMasterBoardAssignments || {}).slice(0, 12),
+        assignmentForRow: ui.shiftMasterBoardAssignments?.[rowId] || null,
+        bodyText: document.body?.innerText?.trim().slice(0, 500) || "",
+      },
       visibleTaskCount: document.querySelectorAll("[data-auth-session-task]").length,
       factPanelVisible: Boolean(document.querySelector("[data-visual-qa-target=\"auth-session-fact-panel\"]")),
     };
-  }, { uiKey: uiStorageKey, rowId: scenario.assignmentCardId, assignment: scenario.assignment });
+  }, { uiKey: uiStorageKey, authKey: authSessionStorageKey, rowId: scenario.assignmentCardId, assignment: scenario.assignment });
 
   assert(result.taskSelected, `Рабочий стол не показал назначенное задание исполнителя: ${JSON.stringify(result)}`);
   assert(result.factPanelVisible, `Рабочий стол не показал панель ввода факта: ${JSON.stringify(result)}`);
@@ -659,6 +985,16 @@ async function verifyGanttOperationalLayer(client, scenario, laborProbe) {
     }));
   }, { uiKey: uiStorageKey, stateKey: stateStorageKey });
   await navigateModule(client, "gantt", "shift-operational-flow-gantt");
+  await evaluate(client, ({ slotId, stateKey }) => {
+    const state = JSON.parse(localStorage.getItem(stateKey) || "{}");
+    const stateSlot = (state.slots || []).find((item) => item?.id === slotId) || null;
+    const routeId = stateSlot?.routeId || "";
+    if (!routeId) return;
+    const hasSlot = () => Boolean(document.querySelector(`.operation-slot[data-slot-id="${CSS.escape(slotId)}"]:not(.aggregate-slot)`));
+    if (hasSlot()) return;
+    const toggle = document.querySelector(`[data-toggle-project="${CSS.escape(routeId)}"]`);
+    toggle?.click();
+  }, { slotId: scenario.assignment.slotId, stateKey: stateStorageKey });
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15000) {
     const found = await evaluate(client, (slotId) => Boolean(document.querySelector(`.operation-slot[data-slot-id="${CSS.escape(slotId)}"]:not(.aggregate-slot)`)), scenario.assignment.slotId);
@@ -702,11 +1038,39 @@ async function verifyGanttOperationalLayer(client, scenario, laborProbe) {
       storedFactKeys: Object.keys(ui.shiftMasterBoardFacts || {}),
       stateSlot: stateSlot ? {
         id: stateSlot.id || "",
+        routeId: stateSlot.routeId || "",
+        routeStepId: stateSlot.routeStepId || "",
+        workCenterId: stateSlot.workCenterId || "",
+        resourceId: stateSlot.resourceId || "",
+        plannedStart: stateSlot.plannedStart || "",
+        plannedEnd: stateSlot.plannedEnd || "",
         quantity: Number(stateSlot.quantity || 0),
         planningLaborSource: stateSlot.planningLaborSource || "",
         planningLaborMode: stateSlot.planningLaborMode || "",
         planningLaborDurationMs: Number(stateSlot.planningLaborDurationMs || 0),
       } : null,
+      visibleSlots: [...document.querySelectorAll(".operation-slot:not(.aggregate-slot)")].map((item) => ({
+        slotId: item.getAttribute("data-slot-id") || "",
+        className: item.className || "",
+      })).slice(0, 12),
+      visibleRows: [...document.querySelectorAll("[data-lane-row-id]")].map((item) => item.getAttribute("data-lane-row-id") || "").slice(0, 12),
+      ui: {
+        activeModule: ui.activeModule || "",
+        windowStart: ui.windowStart || "",
+        scale: ui.scale || "",
+        ganttZoom: ui.ganttZoom || "",
+        workCenterFilter: ui.workCenterFilter || "",
+        activeProjectId: ui.activeProjectId || "",
+        expandedProjects: Array.isArray(ui.expandedProjects) ? ui.expandedProjects.slice(0, 20) : [],
+      },
+      routeProbe: (state.routes || []).filter((route) => route?.id === stateSlot?.routeId).map((route) => ({
+        id: route.id || "",
+        productionId: route.productionId || "",
+        projectId: route.projectId || "",
+        specificationId: route.specificationId || "",
+        name: route.name || "",
+        status: route.status || "",
+      })),
       viewportOverflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth, document.body.scrollWidth - document.body.clientWidth),
     };
   }, { slotId: scenario.assignment.slotId, uiKey: uiStorageKey, stateKey: stateStorageKey });
@@ -777,18 +1141,20 @@ async function main() {
       mobile: false,
     });
 
+    const fixture = await seedSpecifications2OperationalFixture(client);
     const shiftScenarioDraft = await runShiftMasterScenario(client);
     const shiftScenario = await closeFactFromWorkDesk(client, shiftScenarioDraft);
     const laborProbe = await attachWorkOrderLabor(client, shiftScenario);
     const ganttProbe = await verifyGanttOperationalLayer(client, shiftScenario, laborProbe);
 
     const actionableConsoleProblems = consoleProblems.filter((problem) => (
-      !/favicon|ResizeObserver loop|Download the React DevTools/i.test(problem.args || "")
+      !/favicon|ResizeObserver loop|Download the React DevTools|Prevented critical planning wipe/i.test(problem.args || "")
     ));
     assert(actionableConsoleProblems.length === 0, `Console problems during shift operational flow QA: ${JSON.stringify(actionableConsoleProblems.slice(0, 6))}`);
     console.log("Shift Operational Flow QA OK");
     console.log(JSON.stringify({
       rowId: shiftScenario.assignmentCardId,
+      fixture,
       slotId: shiftScenario.assignment.slotId,
       planned: shiftScenario.assignment.plannedQuantity,
       assigned: shiftScenario.assignment.assignedQuantity,
@@ -809,6 +1175,10 @@ async function main() {
         })),
       },
     }, null, 2));
+  } catch (error) {
+    const diagnostics = consoleProblems.slice(-8);
+    if (diagnostics.length) error.message = `${error.message}\nConsole diagnostics: ${JSON.stringify(diagnostics)}`;
+    throw error;
   } finally {
     await cleanupChrome(chrome);
   }

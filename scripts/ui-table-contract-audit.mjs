@@ -5,14 +5,30 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const appPath = path.join(rootDir, "src", "app.js");
+const modulesDir = path.join(rootDir, "src", "modules");
 
-const source = await fs.readFile(appPath, "utf8");
+async function listRuntimeSources(directory) {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(entries.map(async (entry) => {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return listRuntimeSources(entryPath);
+    return entry.isFile() && entry.name.endsWith(".js") ? [entryPath] : [];
+  }));
+  return nested.flat();
+}
 
-function getLineNumber(index) {
+const runtimePaths = [appPath, ...(await listRuntimeSources(modulesDir))];
+const runtimeSources = await Promise.all(runtimePaths.map(async (filePath) => ({
+  filePath,
+  relativePath: path.relative(rootDir, filePath),
+  source: await fs.readFile(filePath, "utf8"),
+})));
+
+function getLineNumber(source, index) {
   return source.slice(0, index).split("\n").length;
 }
 
-function getWindow(index, before = 1400, after = 700) {
+function getWindow(source, index, before = 1400, after = 700) {
   return source.slice(Math.max(0, index - before), Math.min(source.length, index + after));
 }
 
@@ -37,8 +53,8 @@ const documentedExceptions = [
   },
 ];
 
-function classifyTable(index) {
-  const context = getWindow(index);
+function classifyTable(source, index) {
+  const context = getWindow(source, index);
   const hasHelper = /renderUiTableWrap\s*\(/.test(context);
   const hasMarker = /data-ui-component=["']TableWrap["']/.test(context);
   if (hasHelper || hasMarker) return { status: "contract", reason: hasHelper ? "renderUiTableWrap" : "data-ui-component=TableWrap" };
@@ -47,45 +63,51 @@ function classifyTable(index) {
   return { status: "violation", reason: "missing TableWrap contract" };
 }
 
-const tables = [...source.matchAll(/<table\b/g)].map((match) => {
-  const index = match.index || 0;
-  const context = getWindow(index, 120, 220);
-  const classMatch = context.match(/class=["']([^"']+)/);
-  const classification = classifyTable(index);
-  return {
-    line: getLineNumber(index),
-    className: classMatch?.[1] || "",
-    snippet: normalizeSnippet(context),
-    ...classification,
-  };
-});
-
-const tableLikeClassMatches = [...source.matchAll(/class(?:Name)?\s*[:=]\s*["'`]([^"'`]*(?:table|table-wrap|tree-table|matrix-table)[^"'`]*)["'`]/g)]
-  .map((match) => {
+const tables = runtimeSources.flatMap(({ relativePath, source }) => (
+  [...source.matchAll(/<table\b/g)].map((match) => {
     const index = match.index || 0;
-    const context = getWindow(index);
-    const hasHelper = /renderUiTableWrap\s*\(/.test(context);
-    const hasMarker = /data-ui-component=["']TableWrap["']/.test(context);
-    const exception = documentedExceptions.find((item) => item.test(context));
-    const className = match[1];
-    const isTableWrapClass = /(?:^|\s)(?:ui-table-wrap|[^"\s]+-table-wrap)(?:\s|$)/.test(className);
-    const isPlainTableClass = /(?:^|\s)[^"\s]+-table(?:\s|$)|(?:^|\s)[^"\s]+-matrix(?:\s|$)/.test(className);
-    const status = hasHelper || hasMarker
-      ? "contract"
-      : exception
-        ? "non-production-exception"
-        : isTableWrapClass || isPlainTableClass
-          ? "violation"
-          : "class-only";
+    const context = getWindow(source, index, 120, 220);
+    const classMatch = context.match(/class=["']([^"']+)/);
+    const classification = classifyTable(source, index);
     return {
-      line: getLineNumber(index),
-      className,
-      status,
-      reason: hasHelper ? "renderUiTableWrap" : hasMarker ? "data-ui-component=TableWrap" : exception?.id || "missing TableWrap contract",
-      component: exception?.component || "",
-      kind: exception?.kind || "",
+      file: relativePath,
+      line: getLineNumber(source, index),
+      className: classMatch?.[1] || "",
+      snippet: normalizeSnippet(context),
+      ...classification,
     };
-  });
+  })
+));
+
+const tableLikeClassMatches = runtimeSources.flatMap(({ relativePath, source }) => (
+  [...source.matchAll(/class(?:Name)?\s*[:=]\s*["'`]([^"'`]*(?:table|table-wrap|tree-table|matrix-table)[^"'`]*)["'`]/g)]
+    .map((match) => {
+      const index = match.index || 0;
+      const context = getWindow(source, index);
+      const hasHelper = /renderUiTableWrap\s*\(/.test(context);
+      const hasMarker = /data-ui-component=["']TableWrap["']/.test(context);
+      const exception = documentedExceptions.find((item) => item.test(context));
+      const className = match[1];
+      const isTableWrapClass = /(?:^|\s)(?:ui-table-wrap|[^"\s]+-table-wrap)(?:\s|$)/.test(className);
+      const isPlainTableClass = /(?:^|\s)[^"\s]+-table(?:\s|$)|(?:^|\s)[^"\s]+-matrix(?:\s|$)/.test(className);
+      const status = hasHelper || hasMarker
+        ? "contract"
+        : exception
+          ? "non-production-exception"
+          : isTableWrapClass || isPlainTableClass
+            ? "violation"
+            : "class-only";
+      return {
+        file: relativePath,
+        line: getLineNumber(source, index),
+        className,
+        status,
+        reason: hasHelper ? "renderUiTableWrap" : hasMarker ? "data-ui-component=TableWrap" : exception?.id || "missing TableWrap contract",
+        component: exception?.component || "",
+        kind: exception?.kind || "",
+      };
+    })
+));
 
 const contractTables = tables.filter((item) => item.status === "contract");
 const nonProductionExceptionTables = tables.filter((item) => item.status === "non-production-exception");
@@ -98,6 +120,7 @@ const exceptionsByKind = nonProductionExceptionTables.reduce((accumulator, item)
 }, {});
 
 console.log("MES UI Table Contract Audit");
+console.log(`Runtime source files scanned: ${runtimeSources.length}`);
 console.log(`Tables found: ${tables.length}`);
 console.log(`Tables under TableWrap: ${contractTables.length}`);
 console.log(`Production table exceptions: ${violatingTables.length}`);
@@ -111,17 +134,17 @@ console.log(`Table-like class violations: ${violatingClassPatterns.length}`);
 if (nonProductionExceptionTables.length) {
   console.log("\nDocumented non-production exceptions:");
   nonProductionExceptionTables.forEach((item) => {
-    console.log(`- src/app.js:${item.line} ${item.component || item.reason} ${item.className || ""}`.trim());
+    console.log(`- ${item.file}:${item.line} ${item.component || item.reason} ${item.className || ""}`.trim());
   });
 }
 
 if (violatingTables.length || violatingClassPatterns.length) {
   console.error("\nTable contract failures:");
   violatingTables.forEach((item) => {
-    console.error(`- table src/app.js:${item.line} ${item.reason}: ${item.snippet}`);
+    console.error(`- table ${item.file}:${item.line} ${item.reason}: ${item.snippet}`);
   });
   violatingClassPatterns.forEach((item) => {
-    console.error(`- class src/app.js:${item.line} ${item.reason}: ${item.className}`);
+    console.error(`- class ${item.file}:${item.line} ${item.reason}: ${item.className}`);
   });
   process.exit(1);
 }

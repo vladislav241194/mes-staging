@@ -6,6 +6,8 @@ import { join } from "node:path";
 const defaultUrl = new URL("/?module=authPrototype&qa=auth-functional", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const authStorageKey = "mes-planning-prototype-auth-session-v1";
 const uiStorageKey = "mes-planning-prototype-ui-v1";
+const browserDiagnostics = [];
+const visibleAuthPersonName = "Алексеев Егор";
 
 function getArg(name, fallback) {
   const prefix = `${name}=`;
@@ -204,7 +206,20 @@ async function waitForCondition(client, predicate, timeoutMs = 10000) {
     if (result) return result;
     await delay(120);
   }
-  throw new Error("Timed out waiting for auth UI condition.");
+  const debug = await evaluate(client, () => ({
+    pageId: document.querySelector("main.app-shell")?.getAttribute("data-layout-page") || "",
+    startupText: document.querySelector(".startup-error, [data-startup-error]")?.textContent?.trim().replace(/\s+/g, " ").slice(0, 500) || "",
+    bodyText: document.body?.innerText?.trim().replace(/\s+/g, " ").slice(0, 500) || "",
+    step: document.querySelector("[data-auth-step]")?.getAttribute("data-auth-step") || "",
+    departments: document.querySelectorAll("[data-auth-department]").length,
+    units: document.querySelectorAll("[data-auth-unit]").length,
+    people: document.querySelectorAll("[data-auth-person]").length,
+    pins: document.querySelectorAll("[data-auth-pin-digit]").length,
+  }));
+  throw new Error(`Timed out waiting for auth UI condition. ${JSON.stringify({
+    ...debug,
+    browserDiagnostics: browserDiagnostics.slice(-8),
+  })}`);
 }
 
 async function clickFirst(client, selector) {
@@ -275,7 +290,7 @@ async function completeAuthSelection(client) {
   if (needsUnit) await clickFirst(client, "[data-auth-unit]");
   await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-person]")));
   await verifyAuthMasterRoleMarker(client);
-  await clickByText(client, "[data-auth-person]", "Алексеев Егор Максимович");
+  await clickByText(client, "[data-auth-person]", visibleAuthPersonName);
   return await waitForPinOrUnlocked(client);
 }
 
@@ -502,7 +517,7 @@ function assertUnlockedAuthReport(report, contextLabel = "Auth") {
   assert(report.sessionRoleId, `${contextLabel}: auth session must store interface role id.`);
   assert(!report.hasSidebarRoleCard, `${contextLabel}: sidebar role card must be removed after moving auth context to the topbar.`);
   assert(!report.hasSidebarSessionCard, `${contextLabel}: sidebar auth card must be removed after moving auth context to the topbar.`);
-  assert(report.authSummaryText.includes("Алексеев Егор Максимович"), `${contextLabel}: topbar auth summary must show the selected employee name.`);
+  assert(report.authSummaryText.includes(visibleAuthPersonName), `${contextLabel}: topbar auth summary must show the selected employee name.`);
   assert(
     report.authSummaryText.split("\n").filter(Boolean).length >= 2
       && !/(?:Сеанс не выбран|отдел не выбран|сотрудник не выбран)/.test(report.authSummaryText)
@@ -519,6 +534,21 @@ async function main() {
     const { client } = chrome;
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    client.on("Runtime.exceptionThrown", (event) => {
+      const details = event?.exceptionDetails || {};
+      browserDiagnostics.push({
+        type: "exception",
+        text: details.text || "",
+        description: details.exception?.description || details.exception?.value || "",
+      });
+    });
+    client.on("Runtime.consoleAPICalled", (event) => {
+      if (!["error", "warning"].includes(event?.type)) return;
+      browserDiagnostics.push({
+        type: event.type,
+        text: (event.args || []).map((arg) => arg.value || arg.description || "").filter(Boolean).join(" "),
+      });
+    });
     await client.send("Page.navigate", { url });
     await new Promise((resolve) => client.on("Page.loadEventFired", resolve));
     await resetAuthStorage(client);
@@ -607,7 +637,7 @@ async function main() {
     assert(persistedReport.sessionUnlocked, "Auth session must survive a same-day page reload.");
     assert(persistedReport.sessionUserId === report.sessionUserId, "Reloaded auth session must keep the selected user id.");
     assert(!persistedReport.hasSidebarRoleCard, "Reloaded interface must not restore the removed sidebar role card.");
-    assert(persistedReport.authSummaryText.includes(report.sessionUserId) || persistedReport.authSummaryText.includes("Алексеев Егор Максимович"), "Reloaded topbar auth summary must stay bound to the authenticated user.");
+    assert(persistedReport.authSummaryText.includes(report.sessionUserId) || persistedReport.authSummaryText.includes(visibleAuthPersonName), "Reloaded topbar auth summary must stay bound to the authenticated user.");
 
     await clickFirst(client, "[data-auth-logout]");
     const logoutReport = await waitForCondition(client, () => {
@@ -619,13 +649,14 @@ async function main() {
       } catch {
         session = null;
       }
-      return {
+      const report = {
         pageId: shell?.dataset?.layoutPage || "",
         sessionUnlocked: Boolean(session?.unlocked),
         hasAuthDepartments: Boolean(document.querySelector("[data-auth-department]")),
       };
+      return report.pageId === "authPrototype" && !report.sessionUnlocked && report.hasAuthDepartments ? report : null;
     }, 10000);
-    assert(logoutReport.pageId === "authPrototype", "Logout must return to authPrototype.");
+    assert(logoutReport.pageId === "authPrototype", `Logout must return to authPrototype: ${JSON.stringify(logoutReport)}.`);
     assert(!logoutReport.sessionUnlocked, "Logout must clear the unlocked auth session.");
     assert(logoutReport.hasAuthDepartments, "Logout must show the first auth step again.");
 

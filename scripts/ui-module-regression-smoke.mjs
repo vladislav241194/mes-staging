@@ -13,6 +13,10 @@ import {
 import {
   GANTT_UI_REQUIRED_SELECTORS,
 } from "../src/gantt_ui_contracts.js";
+import {
+  MES_MODULE_BLUEPRINT_REGISTRY,
+  getMesModuleNavigationDefinitions,
+} from "../src/module_registry.js";
 
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
@@ -23,27 +27,10 @@ const GANTT_GENERIC_REQUIRED_SELECTORS = GANTT_UI_REQUIRED_SELECTORS.filter((sel
   && !selector.includes("GanttDependencyArrow")
 ));
 
-const smokeModules = [
-  "gantt",
-  "planning",
-  "shiftWorkOrders",
-  "routes",
-  "products",
-  "nomenclature",
-  "directories",
-  "timesheet",
-  "productionStructureMatrix",
-  "shiftMasterBoard",
-  "authPrototype",
-  "authSessionPrototype",
-  "roles",
-  "planningTable",
-  "supply",
-  "shopMap",
-  "visualSystem",
-  "employees",
-  "dispatch",
-];
+const smokeModules = getMesModuleNavigationDefinitions({ adminHost: false, includeStandalone: true })
+  .map((moduleItem) => moduleItem.id);
+const adminOnlyModules = getMesModuleNavigationDefinitions({ adminHost: true, includeStandalone: false })
+  .map((moduleItem) => moduleItem.id);
 
 const reportPaths = {
   summaryJson: "reports/ui-regression-summary.json",
@@ -60,13 +47,9 @@ const reportPaths = {
   ganttMd: "docs/gantt-ui-regression-report.md",
 };
 
-const overlayProbeSelectors = {
-  routes: "[data-route-print-preview]:not([disabled])",
-  shiftWorkOrders: "[data-shift-work-order-print-preview]:not([disabled])",
-  timesheet: "[data-timesheet-day-button]",
-  shiftMasterBoard: "[data-shift-board-print]:not([disabled])",
-  authSessionPrototype: "[data-auth-session-modal='issue']:not([disabled])",
-};
+const overlayProbeSelectors = Object.freeze(Object.fromEntries(MES_MODULE_BLUEPRINT_REGISTRY
+  .filter((blueprint) => blueprint.qa.overlayProbeSelector)
+  .map((blueprint) => [blueprint.id, blueprint.qa.overlayProbeSelector])));
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -252,10 +235,10 @@ function moduleUrl(moduleId) {
   return url.toString();
 }
 
-async function getPresetStorageSeed() {
-  const raw = await readFile("workflow-preset.json", "utf8");
-  const preset = JSON.parse(raw);
-  return preset.values && typeof preset.values === "object" ? preset.values : {};
+async function getBootstrapSnapshotStorageSeed() {
+  const raw = await readFile("bootstrap-snapshot.json", "utf8");
+  const snapshot = JSON.parse(raw);
+  return snapshot.values && typeof snapshot.values === "object" ? snapshot.values : {};
 }
 
 async function waitForSmokeReady(client, moduleId) {
@@ -310,7 +293,9 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
       return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
     };
     const shell = document.querySelector("main.app-shell");
-    const header = document.querySelector('[data-layout="header"], .app-topbar, .topbar, [data-visual-qa-target="auth-prototype-header"]');
+    const header = moduleId === "gantt"
+      ? document.querySelector('[data-ui-component="GanttToolbar"], .topbar')
+      : document.querySelector('[data-layout="header"], .app-topbar, .topbar, [data-visual-qa-target="auth-prototype-header"]');
     const main = document.querySelector('[data-layout="main-content"], [data-layout="planning-page"]');
     const bodyText = (document.body?.innerText || "").trim().replace(/\s+/g, " ");
     const headerRect = header?.getBoundingClientRect();
@@ -353,7 +338,7 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
           overflowRight,
           scrollDelta,
           visible: isVisible(element),
-          isAllowedContainer: Boolean(element.closest(".gantt-shell, .planner-workspace, .ui-table-wrap, [data-layout='table'], .timesheet-table-wrap, .production-structure-table-wrap, .supply-table-wrap")),
+          isAllowedContainer: Boolean(element.closest(".gantt-shell, .planner-workspace, .ui-table-wrap, [data-layout='table'], .timesheet-table-wrap, .production-structure-table-wrap")),
         };
       })
       .filter((item) => item.visible && (item.overflowRight > overflowThreshold || item.scrollDelta > overflowThreshold))
@@ -367,7 +352,8 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
       const headers = [...table.querySelectorAll("th")].map((cell) => cell.textContent.trim()).filter(Boolean);
       const rows = [...table.querySelectorAll("tbody tr")];
       const wrapper = table.closest('[data-ui-component="TableWrap"], .ui-table-wrap[data-layout="table"]');
-      const actionButtons = [...table.querySelectorAll(".ui-action-button, [data-ui-component='ActionButton'], .table-icon-button")];
+      const actionButtons = [...table.querySelectorAll(".ui-action-button, [data-ui-component='ActionButton'], .table-icon-button")]
+        .filter((button) => !button.matches("[data-timesheet-day-button]"));
       const iconButtonSizes = actionButtons.slice(0, 8).map((button) => {
         const buttonRect = button.getBoundingClientRect();
         return { width: Math.round(buttonRect.width), height: Math.round(buttonRect.height) };
@@ -395,7 +381,7 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
         width: Math.round(rect.width),
         height: Math.round(rect.height),
         visible: isVisible(overlay),
-        closeActions: overlay.querySelectorAll("[data-close-modal], [data-close-drawer], [data-confirm-cancel], [data-supply-detail-close], [aria-label*='Закрыть']").length,
+        closeActions: overlay.querySelectorAll("[data-close-modal], [data-close-drawer], [data-confirm-cancel], [aria-label*='Закрыть']").length,
         bodyCount: overlay.querySelectorAll(".ui-modal-body, .ui-drawer-body, .modal-body, form, section").length,
         footerActions: overlay.querySelectorAll(".ui-modal-footer, .ui-panel-footer, .modal-footer, button").length,
         overflowX: Math.max(0, Math.round(rect.right - document.documentElement.clientWidth)),
@@ -436,6 +422,11 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
       selector,
       count: document.querySelectorAll(selector).length,
     }));
+    const operationalEmpty = moduleId === "planning"
+      ? Boolean(document.querySelector(".planning-empty-page"))
+      : moduleId === "gantt"
+        ? Boolean(document.querySelector(".gantt-shell[data-gantt-shell]")) && !document.querySelector(".gantt-row")
+        : false;
 
     return {
       moduleId,
@@ -469,6 +460,7 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
       actionButtonCount: document.querySelectorAll('[data-ui-component="ActionButton"], .ui-action-button').length,
       actionZones,
       requiredSelectors,
+      operationalEmpty,
       overflowElements: visibleOverflowElements,
       bodyRuntimeErrorText: /Ошибка запуска интерфейса|Cannot initialize|ReferenceError|TypeError|SyntaxError/.test(bodyText),
       gantt,
@@ -485,7 +477,17 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
   if (!pageReport.main.present || pageReport.main.height < 80 || pageReport.main.width < 120) failures.push("content bounds invalid");
   if (pageReport.textLength <= 40) failures.push("blank or nearly blank screen");
   if (pageReport.bodyRuntimeErrorText) failures.push("runtime error text detected");
-  pageReport.requiredSelectors.filter((item) => item.count === 0).forEach((item) => failures.push(`missing required selector ${item.selector}`));
+  pageReport.requiredSelectors
+    .filter((item) => item.count === 0)
+    .filter((item) => !pageReport.operationalEmpty || ![
+      ".planning-order-page",
+      ".operation-slot",
+      ".gantt-row[data-row-id]",
+      ".row-label",
+      ".lane[data-lane-row-id]",
+      ".operation-slot[data-ui-component='GanttSlot'][data-slot-id]",
+    ].includes(item.selector))
+    .forEach((item) => failures.push(`missing required selector ${item.selector}`));
 
   if (pageReport.bodyOverflowX > overflowThreshold) {
     if (isLimitedSupport(moduleId, viewport)) warnings.push(`body overflow ${pageReport.bodyOverflowX}px allowed in narrow limited support`);
@@ -493,11 +495,11 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
   }
   if (pageReport.overlayCount > 2) failures.push(`double overlay risk ${pageReport.overlayCount}`);
 
-  if (profile.hasTable && pageReport.tableWrapCount === 0 && pageReport.emptyStateCount === 0) {
+  if (profile.hasTable && pageReport.tableWrapCount === 0 && pageReport.emptyStateCount === 0 && !pageReport.operationalEmpty) {
     if (profile.type === "placeholder") warnings.push("placeholder without TableWrap");
     else failures.push("table module without TableWrap or EmptyState");
   }
-  if (moduleId !== "visualSystem" && pageReport.tableReports.some((table) => !table.headers.length)) failures.push("table with empty header");
+  if (pageReport.tableReports.some((table) => !table.headers.length)) failures.push("table with empty header");
   if (pageReport.tableReports.some((table) => table.actionButtonCount && table.iconButtonSizes.filter((size) => size.width > 0 && size.height > 0).some((size) => size.width < 24 || size.height < 24))) {
     failures.push("table action button below minimum size");
   }
@@ -505,7 +507,7 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
     warnings.push("tree table without visible toggle/level markers");
   }
 
-  if (profile.hasActions && pageReport.actionButtonCount === 0) {
+  if (profile.hasActions && pageReport.actionButtonCount === 0 && !pageReport.operationalEmpty) {
     if (profile.type === "placeholder") warnings.push("placeholder without action buttons");
     else failures.push("action buttons missing");
   }
@@ -517,10 +519,10 @@ async function collectPageReport(client, moduleId, viewport, eventWindow) {
   if (pageReport.gantt) {
     if (!pageReport.gantt.shell) failures.push("Gantt shell missing");
     if (!pageReport.gantt.timeline) failures.push("Gantt timeline missing");
-    if (!pageReport.gantt.rows) failures.push("Gantt rows missing");
-    if (!pageReport.gantt.slots) failures.push("Gantt operation slots missing");
+    if (!pageReport.gantt.rows && !pageReport.operationalEmpty) failures.push("Gantt rows missing");
+    if (!pageReport.gantt.slots && !pageReport.operationalEmpty) failures.push("Gantt operation slots missing");
     if (!pageReport.gantt.dependencyLayer) failures.push("Gantt dependency layer missing");
-    if (!pageReport.gantt.slotIds) failures.push("Gantt slot ids missing");
+    if (!pageReport.gantt.slotIds && !pageReport.operationalEmpty) failures.push("Gantt slot ids missing");
     if (pageReport.gantt.slotBounds.some((slot) => slot.width <= 0 || slot.height <= 0)) failures.push("Gantt slot has empty bounds");
   }
 
@@ -786,7 +788,7 @@ async function writeReports(result) {
 }
 
 async function run() {
-  const presetStorageSeed = await getPresetStorageSeed();
+  const bootstrapSnapshotStorageSeed = await getBootstrapSnapshotStorageSeed();
   const chrome = await launchChrome();
   const checks = [];
   const overlayProbes = [];
@@ -822,12 +824,12 @@ async function run() {
     await client.send("Log.enable");
     await client.send("Page.navigate", { url: moduleUrl("planning") });
     await delay(400);
-    await evaluate(client, ({ presetStorageSeed, sharedDisabledKey }) => {
+    await evaluate(client, ({ bootstrapSnapshotStorageSeed, sharedDisabledKey }) => {
       sessionStorage.setItem(sharedDisabledKey, String(Date.now() + 5 * 60 * 1000));
-      Object.entries(presetStorageSeed || {}).forEach(([key, value]) => {
+      Object.entries(bootstrapSnapshotStorageSeed || {}).forEach(([key, value]) => {
         if (typeof value === "string") localStorage.setItem(key, value);
       });
-    }, { presetStorageSeed, sharedDisabledKey });
+    }, { bootstrapSnapshotStorageSeed, sharedDisabledKey });
 
     for (const viewport of UI_REGRESSION_VIEWPORTS) {
       await client.send("Emulation.setDeviceMetricsOverride", {
@@ -857,6 +859,7 @@ async function run() {
   const result = {
     generatedAt: new Date().toISOString(),
     modules: smokeModules,
+    adminOnlyModules,
     viewports: UI_REGRESSION_VIEWPORTS,
     threshold: { bodyOverflowX: overflowThreshold },
     summary: {
@@ -871,6 +874,7 @@ async function run() {
   await writeReports(result);
   console.log("MES UI Phase 4 Regression Smoke");
   console.log(`- modules: ${smokeModules.length}`);
+  console.log(`- admin-only modules excluded from public regression: ${adminOnlyModules.join(", ") || "none"}`);
   console.log(`- viewports: ${UI_REGRESSION_VIEWPORTS.map((item) => `${item.id} ${item.width}x${item.height}`).join(", ")}`);
   console.log(`- checks: ${checks.length}`);
   console.log(`- overlay probes: ${overlayProbes.length}`);

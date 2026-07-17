@@ -1,23 +1,19 @@
 {
   "version": 1,
   "mode": "corrective-phase-b-status-budget",
-  "minRenderUiStatusTokenCalls": 56,
-  "minTokenizedStatusBadgeChipPatterns": 12,
-  "maxRawLocalStatusColors": 107,
+  "minRenderUiStatusTokenCalls": 38,
+  "reviewNote": "Four non-actionable Gantt toolbar counters and the retired shift-master assignment matrix chip were intentionally removed; the remaining shared status-token adoption is still protected.",
+  "minTokenizedStatusBadgeChipPatterns": 9,
+  "maxRawLocalStatusColors": 6,
   "tokenizedPatterns": [
     { "pattern": "status-pill", "action": "token-only", "reason": "legacy generic status class is styled through styles/ui/status.css" },
-    { "pattern": "status-pill.ok", "action": "token-only", "reason": "success tone maps to StatusToken success tokens" },
-    { "pattern": "status-pill.warning", "action": "token-only", "reason": "warning tone maps to StatusToken warning tokens" },
-    { "pattern": "status-pill.critical", "action": "token-only", "reason": "critical tone maps to StatusToken danger tokens" },
     { "pattern": "deadline-badge", "action": "token-only", "reason": "legacy deadline badge is classified as a status alias outside Gantt" },
-    { "pattern": "supply-status-pill", "action": "token-only", "reason": "supply status chips use semantic status border/background/text tokens" },
-    { "pattern": "supply-status-pill.is-warning", "action": "token-only", "reason": "supply warning state uses status warning tokens" },
-    { "pattern": "supply-status-pill.is-ok", "action": "token-only", "reason": "supply ok state uses status success tokens" },
-    { "pattern": "supply-status-pill.is-danger", "action": "token-only", "reason": "supply danger state uses status danger tokens" },
-    { "pattern": "supply-readonly-badge", "action": "token-only", "reason": "readonly metadata badge uses info/status token colors" },
-    { "pattern": "shop-map-readonly-badge", "action": "token-only", "reason": "shop map readonly badge is guarded by shared legacy badge aliases" },
     { "pattern": "auth-prototype-role-marker", "action": "token-only", "reason": "master marker uses neutral status tokens" },
-    { "pattern": "shift-master-assignment-chip", "action": "token-only", "reason": "master assignment chips use info/neutral status tokens" },
-    { "pattern": "director-order-chip", "action": "token-only", "reason": "director order chip tones use neutral/warning/danger status tokens" }
+    { "pattern": "director-order-chip", "action": "token-only", "reason": "director order chip tones use neutral/warning/danger status tokens" },
+    { "pattern": "speki-section-chip", "action": "token-only", "reason": "specification structure chips use neutral/info/warning/success status tokens" },
+    { "pattern": "speki-section-icon-badge", "action": "token-only", "reason": "specification icon badges use status and semantic surface tokens" },
+    { "pattern": "route-type-icon-badge", "action": "token-only", "reason": "route type badges use status and semantic surface tokens" },
+    { "pattern": "route-step-order-badge", "action": "token-only", "reason": "route step order badge fallbacks point to MES UI tokens" },
+    { "pattern": "shift-work-orders-group-status", "action": "token-only", "reason": "shift work orders grouping status uses shared muted text token" }
   ]
 }

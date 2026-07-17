@@ -108,11 +108,11 @@ const evidenceLabels = {
   "panel-padding-tokens": "отступы панелей вынесены в tokens",
   "panel-overlap-smoke-gate": "browser smoke ловит выход и наложения внутри панелей",
   "table-helper": "таблицы оборачиваются через renderUiTableWrap",
-  "table-horizontal-scroll-contract": "TableWrap имеет horizontal-only scroll contract",
-  "table-vertical-scroll-smoke-gate": "browser smoke ловит вертикальный scroll внутри TableWrap",
+  "table-horizontal-scroll-contract": "TableWrap имеет horizontal-only и viewport scroll contracts",
+  "table-vertical-scroll-smoke-gate": "browser smoke ловит вертикальный scroll внутри horizontal-only TableWrap",
   "form-field-helper": "поля собираются через renderUiFormField",
   "form-control-height-token": "высота input/select/textarea вынесена в token",
-  "form-field-smoke-gate": "browser smoke ловит поля без FormField marker",
+  "form-field-smoke-gate": "browser smoke требует явный FormField или DomainField contract",
   "modal-helper": "модалки собираются через renderUiModalFrame/renderUiModalShell",
   "drawer-helper": "drawer собирается через renderUiDrawerFrame/renderUiDrawerShell",
   "dropdown-helper": "dropdown собирается через renderUiDropdownFrame",
@@ -138,9 +138,11 @@ const evidenceChecks = {
   },
   "runtime-coverage-registry": () => {
     assert(HARD_UI_RUNTIME_MODULE_IDS.length >= 14, `expected hard runtime coverage for live modules, got ${HARD_UI_RUNTIME_MODULE_IDS.length}`);
-    assert(PARTIAL_UI_RUNTIME_MODULE_IDS.length >= 4, `expected documented partial runtime coverage for known non-hard modules, got ${PARTIAL_UI_RUNTIME_MODULE_IDS.length}`);
+    const partialModulesAreClosed = PARTIAL_UI_RUNTIME_MODULE_IDS.length === 0;
+    const partialModulesAreDocumented = PARTIAL_UI_RUNTIME_MODULE_IDS.length >= 4;
+    assert(partialModulesAreClosed || partialModulesAreDocumented, `expected partial runtime modules to be closed or documented, got ${PARTIAL_UI_RUNTIME_MODULE_IDS.length}`);
     assert(SPECIAL_UI_RUNTIME_MODULE_IDS.includes("gantt"), "missing specialized gantt runtime coverage");
-    assert(SPECIAL_UI_RUNTIME_MODULE_IDS.includes("visualSystem"), "missing specialized visualSystem runtime coverage");
+    assert(!SPECIAL_UI_RUNTIME_MODULE_IDS.includes("visualSystem"), "removed visualSystem must not remain in specialized runtime coverage");
   },
   "runtime-class-audit": () => {
     includes(packageJson.scripts?.["qa:ui"] || "", "ui-runtime-class-audit.mjs", "qa:ui class audit");
@@ -208,13 +210,15 @@ const evidenceChecks = {
   },
   "table-helper": () => includes(uiRuntimeJsSource, "function renderUiTableWrap", "renderUiTableWrap"),
   "table-horizontal-scroll-contract": () => {
-    includes(uiRuntimeJsSource, "data-scroll-contract=\"horizontal-only\"", "TableWrap horizontal-only marker");
+    includes(uiRuntimeJsSource, "scrollContract = \"horizontal-only\"", "TableWrap horizontal-only default contract");
+    includes(uiRuntimeJsSource, "data-scroll-contract=\"${escapeAttribute(normalizedScrollContract)}\"", "TableWrap dynamic scroll contract marker");
     includes(coreCssSource, ".ui-table-wrap[data-scroll-contract=\"horizontal-only\"]", "TableWrap horizontal-only CSS");
+    includes(coreCssSource, ".ui-table-wrap[data-scroll-contract=\"viewport\"]", "TableWrap viewport CSS");
   },
-  "table-vertical-scroll-smoke-gate": () => includes(moduleSmokeSource, "horizontal-only TableWrap has vertical scroll contract drift", "TableWrap vertical scroll smoke gate"),
+  "table-vertical-scroll-smoke-gate": () => includes(moduleSmokeSource, "TableWrap horizontal-only has vertical scroll contract drift", "TableWrap vertical scroll smoke gate"),
   "form-field-helper": () => includes(uiRuntimeJsSource, "function renderUiFormField", "renderUiFormField"),
   "form-control-height-token": () => assert(hasToken("--mes-ui-form-control-height"), "missing form control height token"),
-  "form-field-smoke-gate": () => includes(moduleSmokeSource, "visible form field without FormField marker", "FormField smoke gate"),
+  "form-field-smoke-gate": () => includes(moduleSmokeSource, "visible form field without explicit FormField/DomainField contract", "FormField/DomainField smoke gate"),
   "modal-helper": () => {
     includes(uiRuntimeJsSource, "function renderUiModalFrame", "renderUiModalFrame");
     includes(uiRuntimeJsSource, "function renderUiModalShell", "renderUiModalShell");
@@ -234,6 +238,7 @@ const evidenceChecks = {
     [
       "planning",
       "products",
+      "specifications2",
       "routes",
       "shiftMasterBoard",
       "shiftWorkOrders",
@@ -243,6 +248,7 @@ const evidenceChecks = {
     ].forEach((moduleId) => assert(hasExplicitRuntimeModule(moduleId), `missing explicit runtime module ${moduleId}`));
   },
   "partial-runtime-modules-documented": () => {
+    assert(PARTIAL_UI_RUNTIME_MODULE_IDS.length === 0 || Object.keys(PARTIAL_UI_RUNTIME_CONTRACTS).length >= PARTIAL_UI_RUNTIME_MODULE_IDS.length, "partial runtime contracts do not cover listed modules");
     PARTIAL_UI_RUNTIME_MODULE_IDS.forEach((moduleId) => {
       const contract = PARTIAL_UI_RUNTIME_CONTRACTS[moduleId];
       assert(contract?.status && contract?.reason && contract?.nextMigration, `partial runtime contract is incomplete for ${moduleId}`);
@@ -258,7 +264,11 @@ const evidenceChecks = {
     includes(packageJson.scripts?.["qa:ui"] || "", "ui-runtime-coverage-qa.mjs", "qa:ui runtime coverage gate");
     includes(packageJson.scripts?.["qa:ui"] || "", "ui-hardening-plan-qa.mjs", "qa:ui hardening plan gate");
   },
-  "qa-syntax-script": () => includes(packageJson.scripts?.["qa:syntax"] || "", "scripts/ui-hardening-plan-qa.mjs", "qa:syntax hardening plan check"),
+  "qa-syntax-script": () => {
+    const syntaxScript = packageJson.scripts?.["qa:syntax"] || "";
+    if (syntaxScript.includes("scripts/syntax-qa.mjs")) return;
+    includes(syntaxScript, "scripts/ui-hardening-plan-qa.mjs", "qa:syntax hardening plan check");
+  },
   "module-smoke-script": () => includes(packageJson.scripts?.["qa:module-smoke:inner"] || "", "scripts/module-smoke-qa.mjs", "module smoke script"),
   "css-layer-audit-script": () => {
     includes(packageJson.scripts?.["qa:css"] || "", "scripts/css-layer-audit.mjs", "css audit script");

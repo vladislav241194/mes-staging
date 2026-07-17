@@ -7,12 +7,17 @@
 @import "./styles/layers/50-nomenclature-routes-directories.css";
 @import "./styles/layers/60-operational-modules.css";
 @import "./styles/layers/70-planning-table-and-matrix.css";
-@import "./styles/layers/80-visual-system-ui-states.css";
+@import "./styles/layers/80-runtime-ui-states.css";
 @import "./styles/layers/90-shift-master-board.css";
 @import "./styles/layers/99-legacy-overrides-tail.css";
 
 @import "./styles/ui/planning-order.css";
 @import "./styles/ui/runtime-safety.css";
-@import "./styles/ui/actions.css";
 @import "./styles/ui/status.css";
 @import "./styles/ui/kit-polish.css";
+@import "./styles/ui/actions.css";
+@import "./styles/ui/app-navigation.css";
+@import "./styles/ui/module-system.css";
+@import "./styles/ui/module-blueprints.css";
+@import "./styles/ui/gantt-visual-system.css";
+@import "./styles/ui/long-task-overlay.css";

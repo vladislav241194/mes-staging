@@ -30,6 +30,17 @@ const phaseBBaseline = {
 const entryCssFiles = ["styles.css", "styles/mes-ui-core.css"];
 const statusSelectorPattern = /(?:status-pill|deadline-badge|mes-signal|readonly-(?:badge|token)|state-token|group-status|role-marker|report-badge|module-menu-badge|supply-status-pill|shift-master-assignment-chip|director-order-chip|speki-section-icon-badge|route-type-icon-badge|route-step-order-badge|chip|badge)/i;
 const rawColorPattern = /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]+\)/g;
+const duplicateSelectorClassifiers = [
+  { test: (items) => items[0]?.selector === ":root" },
+  { test: (items) => /^(?:body|svg|html,\s*body,\s*#app|\[data-layout=["']app-shell["']\]|main\.app-shell\[data-layout=["']app-shell["']\](?:\s|$|:)|main\[data-layout=["']app-shell["']\](?:\s|$|>))/.test(items[0]?.selector || "") },
+  { test: (items) => /\b(?:gantt|timeline|slot|lane|row-label|dependency|dependencies-layer|resize-handle|today-marker|production-label|production-status|workcenter-label|workcenter-code|progress|bar-track|status-planned|status-in_progress|status-paused|status-completed|planner-workspace|planning-app-shell|planning-gantt|planner-frame|planning-assistant-dock|assistant-panel|director-command|director-flow-step|director-order-chip)\b/i.test(`${items[0]?.selector || ""} ${items[0]?.context || ""}`) },
+  { test: (items) => /\b(?:print|route-print|auth|auth-prototype|modal|drawer|popover|toast|tooltip|calendar|focus|collapsed|dense-popover|specifications2-diagram)\b/i.test(`${items[0]?.selector || ""} ${items[0]?.context || ""}`) },
+  { test: (items) => /@(?:media|container)\b/i.test(items[0]?.context || "") },
+  { test: (items) => /\b(?:module-menu|module-tab|app-topbar|topbar|toolbar-grid|status-strip|clock|brand-block|directories-page|module-data-page|directory-workspace|module-data-workspace|module-data-content|directory-sidebar|module-data-sidebar|directory-nav|ui-sidebar-item|module-panel|ui-panel|module-form|brand-title|brand-subtitle|eyebrow|planning-controls|directory-header|detail-card|table-wrap|directory-table|ui-table|dense-inline|dense-select|FormField)\b/i.test(items[0]?.selector || "") },
+  { test: (items) => /\b(?:speki|nomenclature|bom-import-table|bom-module-content|route-step|route-object|route-tree|planning-order|planning-flow|planning-supply|shift-master|shift-work-orders)\b/i.test(items[0]?.selector || "") },
+  { test: (items) => /\b(?:contourAdmin|admin-standalone)\b/i.test(items[0]?.selector || "") },
+  { test: (items) => items.some((item) => /styles\/ui\/runtime-safety\.css|styles\/layers\/80-runtime-ui-states\.css|styles\/layers\/99-legacy-overrides-tail\.css/.test(item.file)) },
+];
 
 function toPosixPath(value = "") {
   return value.split(path.sep).join("/");
@@ -64,6 +75,24 @@ async function collectCssSources(file, seen = new Set()) {
     importedSources.push(...await collectCssSources(importedFile, seen));
   }
   return [{ file: normalizedFile, source }, ...importedSources];
+}
+
+async function collectRuntimeJsSources(relativeDir = "src") {
+  const absoluteDir = path.join(rootDir, relativeDir);
+  const entries = await fs.readdir(absoluteDir, { withFileTypes: true }).catch(() => []);
+  const sources = [];
+  for (const entry of entries) {
+    const relativePath = `${relativeDir}/${entry.name}`;
+    const absolutePath = path.join(rootDir, relativePath);
+    if (entry.isDirectory()) {
+      sources.push(...await collectRuntimeJsSources(relativePath));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".js")) {
+      sources.push(await fs.readFile(absolutePath, "utf8"));
+    }
+  }
+  return sources;
 }
 
 function collectRules(source, file) {
@@ -125,6 +154,10 @@ function groupBy(items, getKey) {
   return map;
 }
 
+function classifyDuplicateSelectorGroup(items = []) {
+  return duplicateSelectorClassifiers.some((classifier) => classifier.test(items));
+}
+
 async function collectCssMetrics() {
   const sourceMap = new Map();
   for (const file of entryCssFiles) {
@@ -138,6 +171,7 @@ async function collectCssMetrics() {
   const duplicateSelectorGroups = [...selectorGroups.entries()].filter(([, items]) => items.length > 1);
   const exactDuplicateRuleGroups = [...exactRuleGroups.values()].filter((items) => items.length > 1);
   const maxDuplicateSelectorGroupSize = duplicateSelectorGroups.reduce((max, [, items]) => Math.max(max, items.length), 0);
+  const actionableDuplicateSelectorGroups = duplicateSelectorGroups.filter(([, items]) => !classifyDuplicateSelectorGroup(items));
   const statusRules = rules.filter((rule) => statusSelectorPattern.test(rule.selector));
   const rawLocalStatusColors = statusRules.reduce((sum, rule) => {
     if (rule.file === "styles/mes-ui-core.css" || rule.file === "styles/ui/status.css") return sum;
@@ -148,6 +182,7 @@ async function collectCssMetrics() {
     rules,
     duplicateSelectorGroups,
     duplicateSelectorGroupCount: duplicateSelectorGroups.length,
+    actionableDuplicateSelectorGroupCount: actionableDuplicateSelectorGroups.length,
     largestDuplicateSelectorGroup: maxDuplicateSelectorGroupSize,
     exactDuplicateRuleGroups: exactDuplicateRuleGroups.length,
     rawLocalStatusColors,
@@ -178,7 +213,7 @@ function classifyTable(source, index) {
 }
 
 async function collectTableMetrics() {
-  const source = await fs.readFile(path.join(rootDir, "src", "app.js"), "utf8");
+  const source = (await collectRuntimeJsSources()).join("\n");
   const tables = [...source.matchAll(/<table\b/g)].map((match) => {
     const index = match.index || 0;
     return {
@@ -200,10 +235,10 @@ async function collectTableMetrics() {
 }
 
 async function collectStatusMetrics(cssMetrics) {
-  const appSource = await fs.readFile(path.join(rootDir, "src", "app.js"), "utf8");
   const componentSource = await fs.readFile(path.join(rootDir, "src", "ui", "components.js"), "utf8");
+  const runtimeJsSource = (await collectRuntimeJsSources()).join("\n");
   const fullSource = [
-    appSource,
+    runtimeJsSource,
     componentSource,
     ...cssMetrics.sources.map((item) => item.source),
   ].join("\n");
@@ -215,7 +250,7 @@ async function collectStatusMetrics(cssMetrics) {
     deadlineBadgeOccurrences: countMatches(fullSource, /deadline-badge/g),
     mesSignalOccurrences: countMatches(fullSource, /mes-signal/g),
     statusStateTokenOccurrences: countMatches(fullSource, /(?:status-pill|deadline-badge|status-token|state-token|status-badge|status-chip)/g),
-    renderUiStatusTokenCalls: countMatches(appSource, /renderUiStatusToken\s*\(/g),
+    renderUiStatusTokenCalls: countMatches(runtimeJsSource, /renderUiStatusToken\s*\(/g),
     statusBadgeChipPatternsTracked: statusBudget.tokenizedPatterns?.length || 0,
     tokenizedStatusBadgeChipPatterns: tokenizedPatterns.length,
     rawLocalStatusColors: cssMetrics.rawLocalStatusColors,
@@ -278,6 +313,7 @@ const rawVisualMetrics = await collectRawVisualMetrics(cssMetrics);
 const metrics = {
   duplicate: {
     duplicateSelectorGroups: cssMetrics.duplicateSelectorGroupCount,
+    actionableDuplicateSelectorGroups: cssMetrics.actionableDuplicateSelectorGroupCount,
     largestDuplicateSelectorGroup: cssMetrics.largestDuplicateSelectorGroup,
     exactDuplicateRuleGroups: cssMetrics.exactDuplicateRuleGroups,
   },
@@ -290,6 +326,7 @@ const failures = [];
 if (scope === "all" || scope === "duplicate") {
   const budget = await readJson(budgetFiles.duplicate);
   assertBudget("duplicateSelectorGroups", metrics.duplicate.duplicateSelectorGroups, budget.maxDuplicateSelectorGroups, failures);
+  assertBudget("actionableDuplicateSelectorGroups", metrics.duplicate.actionableDuplicateSelectorGroups, budget.maxActionableDuplicateSelectorGroups, failures);
   assertBudget("largestDuplicateSelectorGroup", metrics.duplicate.largestDuplicateSelectorGroup, budget.maxLargestDuplicateSelectorGroup, failures);
   assertBudget("exactDuplicateRuleGroups", metrics.duplicate.exactDuplicateRuleGroups, budget.maxExactDuplicateRuleGroups, failures);
   validateCollapsedFamilies(cssMetrics, budget, failures);
@@ -344,6 +381,7 @@ if (writeReport) {
 console.log("MES Corrective Phase B Budget");
 console.log(`Scope: ${scope}`);
 console.log(`Duplicate selector groups: ${metrics.duplicate.duplicateSelectorGroups}`);
+console.log(`Actionable duplicate selector groups: ${metrics.duplicate.actionableDuplicateSelectorGroups}`);
 console.log(`Largest duplicate selector group: ${metrics.duplicate.largestDuplicateSelectorGroup}`);
 console.log(`Exact duplicate rule groups: ${metrics.duplicate.exactDuplicateRuleGroups}`);
 console.log(`Raw local status colors: ${metrics.status.rawLocalStatusColors}`);

@@ -1,0 +1,23 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
+function assert(condition, message) { if (!condition) throw new Error(message); }
+const source = await readFile(fileURLToPath(new URL("./domain-postgres-repository.mjs", import.meta.url)), "utf-8");
+assert(source.includes("const CLIENTS_BY_URL = new Map()"), "PostgreSQL repository must own a process-level pool registry");
+assert(source.includes("function getClient(databaseUrl)"), "PostgreSQL repository must reuse a client by connection URL");
+assert(!source.includes("onClose"), "Request repository must not close a shared client");
+assert(source.includes("function listMetadata(rows = [])"), "PostgreSQL list must derive a changing list revision from aggregate revisions");
+assert(source.includes("slot.quantity") && source.includes("slot.is_locked"), "PostgreSQL detail projection must return slot quantity and lock state");
+assert(source.includes("const nextQuantity = Number(slot.quantity_multiplier) * Number(quantity)"), "PostgreSQL quantity change must recalculate a slot from its operation multiplier");
+assert(source.includes("function normalizeExecutionContext"), "PostgreSQL detail projection must normalize a complete execution context");
+assert(source.includes("executionContext: normalizeExecutionContext(row.execution_context)"), "PostgreSQL detail projection must return its normalized execution context");
+assert(source.includes("calculateOperationDurationMs(executionContext, nextQuantity"), "PostgreSQL quantity change must calculate a fresh slot duration");
+assert(source.includes("addCalendarWorkingDuration(calendar, slot.planned_start, durationMs)"), "PostgreSQL quantity change must apply work-center calendar duration");
+assert(source.includes("Work-center calendar is missing"), "PostgreSQL quantity change must fail safely if its calendar projection is absent");
+assert(source.includes("snapshot_sync_state") && source.includes("listPendingSnapshotSyncs") && source.includes("markSnapshotSync"), "PostgreSQL repository must expose the snapshot-sync outbox contract");
+assert(source.includes("AND slot.is_locked = FALSE") && source.includes("slot.status NOT IN ('completed', 'done')"), "PostgreSQL quantity change must not rewrite locked or completed slots");
+assert(source.includes("async changeSlotSchedule(id, operationId"), "PostgreSQL repository must expose a slot schedule command");
+assert(source.includes("Completed or locked planning slot cannot be rescheduled"), "Slot schedule command must reject locked and completed slots");
+assert(source.includes("const nextEnd = addCalendarWorkingDuration(calendar, nextStart, durationMs)"), "Slot schedule command must calculate its end through the work-center calendar");
+assert(source.includes("'change_slot_schedule'"), "Slot schedule command must persist an outbox event");
+console.log("PostgreSQL repository lifecycle QA: OK");

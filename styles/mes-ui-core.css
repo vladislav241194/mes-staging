@@ -1,15 +1,46 @@
 /* MES UI Core v1: reusable primitives and shell contracts for new prototypes. */
 html{
-  --mes-ui-bg: #eef3f8;
+  --mes-ui-font-family: "Onest", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mes-ui-bg: #f1f5f8;
   --mes-ui-bg-grid: rgba(37, 99, 235, 0.035);
-  --mes-ui-bg-gradient: linear-gradient(180deg, rgba(15, 35, 60, 0.055), rgba(238, 243, 248, 0) 220px);
-  --mes-ui-module-page-background:
-    var(--mes-ui-bg-gradient),
-    linear-gradient(var(--mes-ui-bg-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--mes-ui-bg-grid) 1px, transparent 1px),
-    var(--mes-ui-bg);
-  --mes-ui-module-page-background-size: auto, 22px 22px, 22px 22px, auto;
-  --mes-ui-module-page-background-repeat: no-repeat, repeat, repeat, repeat;
+  --mes-ui-bg-gradient: none;
+  --mes-ui-module-page-background: var(--mes-ui-bg);
+  --mes-ui-module-page-background-size: auto;
+  --mes-ui-module-page-background-repeat: repeat;
+
+  /* Global UI Contract v2.
+     These variables are the shared edit point for module backgrounds, panels,
+     tables and new informational blocks. Module CSS should alias to these
+     values instead of hardcoding its own surface palette. */
+  --mes-ui-contract-page-bg-soft: var(--mes-ui-bg);
+  --mes-ui-contract-page-bg-admin:
+    radial-gradient(circle at 13% 9%, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0) 35%),
+    radial-gradient(circle at 87% 88%, rgba(16, 35, 60, 0.12), rgba(16, 35, 60, 0) 35%),
+    linear-gradient(180deg, #f8fbff 0%, #edf4ff 56%, #f7f9fc 100%);
+  --mes-ui-contract-panel-bg: linear-gradient(135deg, #ffffff 0%, #f8fafc 60%, #edf2f7 100%);
+  --mes-ui-contract-card-bg: #ffffff;
+  --mes-ui-contract-subblock-bg: #fbfcfe;
+  --mes-ui-contract-table-head-bg: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --mes-ui-contract-table-head-text: #293844;
+  --mes-ui-contract-table-head-muted: #6b7788;
+  --mes-ui-contract-line: #d9e0ea;
+  --mes-ui-contract-line-strong: #cbd5e1;
+  --mes-ui-contract-chip-line: #e9edf3;
+  --mes-ui-contract-muted: #6b7788;
+  --mes-ui-contract-shadow-soft: 0 22px 70px rgba(24, 36, 50, 0.08);
+  --mes-ui-contract-table-head-shadow: inset 0 -1px 0 var(--mes-ui-contract-line);
+  --mes-ui-contract-page-pad: 8px 16px 32px;
+  --mes-ui-contract-section-gap: var(--mes-space-6);
+  --mes-ui-contract-panel-pad: 8px 10px;
+  --mes-ui-contract-card-pad: 9px 10px;
+  --mes-ui-contract-cell-pad: 7px 8px;
+  --mes-ui-shell-sidebar-bg: color-mix(in srgb, var(--mes-ui-surface-panel) 86%, transparent);
+  --mes-ui-shell-sidebar-edge: color-mix(in srgb, var(--mes-ui-surface-panel) 72%, transparent);
+  --mes-ui-shell-brand-border: color-mix(in srgb, var(--mes-ui-primary) 16%, transparent);
+  --mes-ui-shell-tab-hover-bg: color-mix(in srgb, var(--mes-ui-surface-panel) 78%, transparent);
+  --mes-ui-shell-tab-hover-border: color-mix(in srgb, var(--mes-ui-text) 8%, transparent);
+  --mes-ui-shell-tab-active-bg: var(--mes-ui-surface-panel);
+  --mes-ui-shell-tab-active-border: color-mix(in srgb, var(--mes-ui-primary) 18%, transparent);
 
   /* Phase 7 semantic surface aliases. New UI rules should depend on meaning,
      not on direct color values. Compatibility aliases below stay intact. */
@@ -25,12 +56,245 @@ html{
   --mes-ui-surface-control: var(--mes-ui-surface);
   --mes-ui-surface-hover: var(--mes-ui-table-row-hover-bg);
   --mes-ui-surface-inverse: var(--mes-ui-sidebar-bg);
+  --mes-ui-surface-transparent: transparent;
+  --mes-ui-background-none: none;
+  --mes-ui-background-current: currentColor;
+  --mes-ui-background-inherit: inherit;
+  --mes-ui-surface-glass-58: rgba(255, 255, 255, 0.58);
+  --mes-ui-surface-glass-64: rgba(255, 255, 255, 0.64);
+  --mes-ui-surface-glass-68: rgba(255, 255, 255, 0.68);
+  --mes-ui-surface-glass-70: rgba(255, 255, 255, 0.70);
+  --mes-ui-surface-glass-72: rgba(255, 255, 255, 0.72);
+  --mes-ui-surface-glass-74: rgba(255, 255, 255, 0.74);
+  --mes-ui-surface-glass-76: rgba(255, 255, 255, 0.76);
+  --mes-ui-surface-glass-78: rgba(255, 255, 255, 0.78);
+  --mes-ui-surface-glass-80: rgba(255, 255, 255, 0.80);
+  --mes-ui-surface-glass-82: rgba(255, 255, 255, 0.82);
+  --mes-ui-surface-glass-84: rgba(255, 255, 255, 0.84);
+  --mes-ui-surface-glass-86: rgba(255, 255, 255, 0.86);
+  --mes-ui-surface-glass-88: rgba(255, 255, 255, 0.88);
+  --mes-ui-surface-glass-90: rgba(255, 255, 255, 0.90);
+  --mes-ui-surface-glass-92: rgba(255, 255, 255, 0.92);
+  --mes-ui-surface-glass-94: rgba(255, 255, 255, 0.94);
+  --mes-ui-surface-soft-glass-72: rgba(248, 250, 252, 0.72);
+  --mes-ui-surface-soft-glass-78: rgba(248, 250, 252, 0.78);
+  --mes-ui-surface-soft-glass-82: rgba(248, 250, 252, 0.82);
+  --mes-ui-surface-soft-glass-86: rgba(248, 250, 252, 0.86);
+  --mes-ui-surface-soft-glass-92: rgba(248, 250, 252, 0.92);
+  --mes-ui-surface-soft-glass-98: rgba(248, 250, 252, 0.98);
+  --mes-ui-surface-soft-transparent: rgba(248, 250, 252, 0);
+  --mes-ui-status-info-glass-32: rgba(239, 246, 255, 0.32);
+  --mes-ui-status-info-glass-38: rgba(239, 246, 255, 0.38);
+  --mes-ui-status-info-glass-46: rgba(239, 246, 255, 0.46);
+  --mes-ui-status-info-glass-64: rgba(239, 246, 255, 0.64);
+  --mes-ui-status-info-glass-72: rgba(239, 246, 255, 0.72);
+  --mes-ui-status-info-glass-76: rgba(239, 246, 255, 0.76);
+  --mes-ui-status-info-glass-78: rgba(239, 246, 255, 0.78);
+  --mes-ui-status-info-glass-90: rgba(239, 246, 255, 0.90);
+  --mes-ui-status-info-glass-92: rgba(239, 246, 255, 0.92);
+  --mes-ui-status-info-glass-96: rgba(239, 246, 255, 0.96);
+  --mes-ui-status-info-border-glass-82: rgba(191, 219, 254, 0.82);
+  --mes-ui-status-info-surface-glass-58: rgba(219, 234, 254, 0.58);
+  --mes-ui-status-warning-glass-46: rgba(255, 251, 235, 0.46);
+  --mes-ui-status-warning-glass-72: rgba(255, 251, 235, 0.72);
+  --mes-ui-status-warning-glass-82: rgba(255, 251, 235, 0.82);
+  --mes-ui-status-warning-glass-86: rgba(255, 251, 235, 0.86);
+  --mes-ui-status-warning-glass-88: rgba(255, 251, 235, 0.88);
+  --mes-ui-status-warning-glass-94: rgba(255, 251, 235, 0.94);
+  --mes-ui-status-warning-glass-96: rgba(255, 251, 235, 0.96);
+  --mes-ui-status-demo-glass-88: rgba(255, 247, 237, 0.88);
+  --mes-ui-status-demo-glass-92: rgba(255, 247, 237, 0.92);
+  --mes-ui-status-danger-glass-42: rgba(254, 242, 242, 0.42);
+  --mes-ui-status-danger-glass-58: rgba(254, 242, 242, 0.58);
+  --mes-ui-status-danger-glass-88: rgba(254, 242, 242, 0.88);
+  --mes-ui-status-danger-glass-94: rgba(254, 242, 242, 0.94);
+  --mes-ui-status-danger-glass-96: rgba(254, 242, 242, 0.96);
+  --mes-ui-status-success-glass-38: rgba(240, 253, 244, 0.38);
+  --mes-ui-status-success-glass-72: rgba(240, 253, 244, 0.72);
+  --mes-ui-status-success-glass-74: rgba(240, 253, 244, 0.74);
+  --mes-ui-status-success-glass-88: rgba(240, 253, 244, 0.88);
+  --mes-ui-status-success-glass-90: rgba(240, 253, 244, 0.90);
+  --mes-ui-status-success-glass-92: rgba(240, 253, 244, 0.92);
+  --mes-ui-surface-blue-quiet: #f8fbff;
+  --mes-ui-surface-blue-soft: #eef6ff;
+  --mes-ui-surface-blue-muted: #eef4fb;
+  --mes-ui-surface-blue-selected: #dceafe;
+  --mes-ui-surface-warning-muted: #fff7d6;
+  --mes-ui-surface-warning-pale: #fffef7;
+  --mes-ui-surface-violet-soft: #f5f3ff;
+  --mes-ui-surface-sky-soft: #f0f9ff;
+  --mes-ui-slot-bg-default: #eef4ff;
+  --mes-ui-line-muted: #e2e8f0;
+  --mes-ui-line-subtle: #d8e0eb;
+  --mes-ui-text-secondary: #334155;
+  --mes-ui-success-accent: #16a34a;
+  --mes-ui-warning-accent: #d97706;
+  --mes-ui-danger-accent: #dc2626;
+  --mes-ui-danger-border-soft: #fecaca;
+  --mes-ui-sky-border: #bae6fd;
+  --mes-ui-violet: #7c3aed;
+  --mes-ui-cyan: #0891b2;
+  --mes-ui-teal: #0f766e;
+  --mes-ui-neutral-alpha-12: rgba(148, 163, 184, 0.12);
+  --mes-ui-neutral-alpha-08: rgba(148, 163, 184, 0.08);
+  --mes-ui-neutral-alpha-11: rgba(148, 163, 184, 0.11);
+  --mes-ui-neutral-alpha-14: rgba(148, 163, 184, 0.14);
+  --mes-ui-neutral-alpha-16: rgba(148, 163, 184, 0.16);
+  --mes-ui-neutral-alpha-18: rgba(148, 163, 184, 0.18);
+  --mes-ui-neutral-alpha-20: rgba(148, 163, 184, 0.20);
+  --mes-ui-neutral-alpha-22: rgba(148, 163, 184, 0.22);
+  --mes-ui-neutral-alpha-24: rgba(148, 163, 184, 0.24);
+  --mes-ui-neutral-alpha-28: rgba(148, 163, 184, 0.28);
+  --mes-ui-neutral-alpha-34: rgba(148, 163, 184, 0.34);
+  --mes-ui-neutral-alpha-38: rgba(148, 163, 184, 0.38);
+  --mes-ui-neutral-alpha-42: rgba(148, 163, 184, 0.42);
+  --mes-ui-neutral-alpha-45: rgba(148, 163, 184, 0.45);
+  --mes-ui-line-alpha-72: rgba(226, 232, 240, 0.72);
+  --mes-ui-line-alpha-40: rgba(226, 232, 240, 0.40);
+  --mes-ui-line-alpha-84: rgba(226, 232, 240, 0.84);
+  --mes-ui-line-alpha-86: rgba(226, 232, 240, 0.86);
+  --mes-ui-line-alpha-90: rgba(226, 232, 240, 0.90);
+  --mes-ui-line-alpha-92: rgba(226, 232, 240, 0.92);
+  --mes-ui-line-alpha-95: rgba(226, 232, 240, 0.95);
+  --mes-ui-primary-alpha-04: rgba(37, 99, 235, 0.04);
+  --mes-ui-primary-alpha-08: rgba(37, 99, 235, 0.08);
+  --mes-ui-primary-alpha-09: rgba(37, 99, 235, 0.09);
+  --mes-ui-primary-alpha-10: rgba(37, 99, 235, 0.10);
+  --mes-ui-primary-alpha-12: rgba(37, 99, 235, 0.12);
+  --mes-ui-primary-alpha-15: rgba(37, 99, 235, 0.15);
+  --mes-ui-primary-alpha-18: rgba(37, 99, 235, 0.18);
+  --mes-ui-primary-alpha-20: rgba(37, 99, 235, 0.20);
+  --mes-ui-primary-alpha-22: rgba(37, 99, 235, 0.22);
+  --mes-ui-primary-alpha-24: rgba(37, 99, 235, 0.24);
+  --mes-ui-primary-alpha-28: rgba(37, 99, 235, 0.28);
+  --mes-ui-primary-alpha-32: rgba(37, 99, 235, 0.32);
+  --mes-ui-primary-alpha-34: rgba(37, 99, 235, 0.34);
+  --mes-ui-primary-alpha-36: rgba(37, 99, 235, 0.36);
+  --mes-ui-primary-alpha-38: rgba(37, 99, 235, 0.38);
+  --mes-ui-primary-alpha-40: rgba(37, 99, 235, 0.40);
+  --mes-ui-primary-alpha-42: rgba(37, 99, 235, 0.42);
+  --mes-ui-primary-alpha-44: rgba(37, 99, 235, 0.44);
+  --mes-ui-primary-alpha-46: rgba(37, 99, 235, 0.46);
+  --mes-ui-primary-alpha-50: rgba(37, 99, 235, 0.50);
+  --mes-ui-primary-alpha-55: rgba(37, 99, 235, 0.55);
+  --mes-ui-primary-alpha-56: rgba(37, 99, 235, 0.56);
+  --mes-ui-primary-alpha-72: rgba(37, 99, 235, 0.72);
+  --mes-ui-primary-alpha-76: rgba(37, 99, 235, 0.76);
+  --mes-ui-primary-alpha-78: rgba(37, 99, 235, 0.78);
+  --mes-ui-primary-alpha-84: rgba(37, 99, 235, 0.84);
+  --mes-ui-success-alpha-12: rgba(22, 163, 74, 0.12);
+  --mes-ui-success-alpha-18: rgba(22, 163, 74, 0.18);
+  --mes-ui-success-alpha-26: rgba(34, 197, 94, 0.26);
+  --mes-ui-success-alpha-30: rgba(22, 163, 74, 0.30);
+  --mes-ui-success-alpha-34: rgba(22, 163, 74, 0.34);
+  --mes-ui-success-alpha-36: rgba(22, 163, 74, 0.36);
+  --mes-ui-success-alpha-42: rgba(22, 163, 74, 0.42);
+  --mes-ui-success-alpha-46: rgba(22, 163, 74, 0.46);
+  --mes-ui-success-alpha-50: rgba(21, 128, 61, 0.50);
+  --mes-ui-success-alpha-54: rgba(21, 128, 61, 0.54);
+  --mes-ui-success-alpha-56: rgba(22, 163, 74, 0.56);
+  --mes-ui-success-alpha-72: rgba(34, 197, 94, 0.72);
+  --mes-ui-danger-alpha-22: rgba(239, 68, 68, 0.22);
+  --mes-ui-danger-alpha-12: rgba(220, 38, 38, 0.12);
+  --mes-ui-danger-alpha-20: rgba(239, 68, 68, 0.20);
+  --mes-ui-danger-alpha-24: rgba(220, 38, 38, 0.24);
+  --mes-ui-danger-alpha-34: rgba(220, 38, 38, 0.34);
+  --mes-ui-danger-alpha-42: rgba(220, 38, 38, 0.42);
+  --mes-ui-danger-alpha-58: rgba(239, 68, 68, 0.58);
+  --mes-ui-danger-alpha-84: rgba(220, 38, 38, 0.84);
+  --mes-ui-rose-alpha-16: rgba(251, 113, 133, 0.16);
+  --mes-ui-rose-alpha-34: rgba(244, 63, 94, 0.34);
+  --mes-ui-warning-alpha-12: rgba(245, 158, 11, 0.12);
+  --mes-ui-warning-alpha-28: rgba(245, 158, 11, 0.28);
+  --mes-ui-warning-alpha-30: rgba(245, 158, 11, 0.30);
+  --mes-ui-warning-alpha-32: rgba(245, 158, 11, 0.32);
+  --mes-ui-warning-alpha-36: rgba(245, 158, 11, 0.36);
+  --mes-ui-warning-alpha-44: rgba(245, 158, 11, 0.44);
+  --mes-ui-warning-alpha-58: rgba(245, 158, 11, 0.58);
+  --mes-ui-warning-alpha-62: rgba(245, 158, 11, 0.62);
+  --mes-ui-warning-alpha-82: rgba(245, 158, 11, 0.82);
+  --mes-ui-warning-alpha-88: rgba(245, 158, 11, 0.88);
+  --mes-ui-ink-alpha-04: rgba(15, 23, 42, 0.04);
+  --mes-ui-ink-alpha-045: rgba(15, 23, 42, 0.045);
+  --mes-ui-ink-alpha-05: rgba(15, 23, 42, 0.05);
+  --mes-ui-ink-alpha-06: rgba(15, 23, 42, 0.06);
+  --mes-ui-ink-alpha-07: rgba(15, 23, 42, 0.07);
+  --mes-ui-ink-alpha-10: rgba(15, 23, 42, 0.10);
+  --mes-ui-ink-alpha-11: rgba(15, 23, 42, 0.11);
+  --mes-ui-ink-alpha-12: rgba(15, 23, 42, 0.12);
+  --mes-ui-ink-alpha-16: rgba(15, 23, 42, 0.16);
+  --mes-ui-ink-alpha-18: rgba(15, 23, 42, 0.18);
+  --mes-ui-ink-alpha-20: rgba(15, 23, 42, 0.20);
+  --mes-ui-ink-alpha-22: rgba(15, 23, 42, 0.22);
+  --mes-ui-ink-alpha-32: rgba(15, 23, 42, 0.32);
+  --mes-ui-ink-alpha-34: rgba(16, 35, 60, 0.34);
+  --mes-ui-ink-alpha-82: rgba(15, 23, 42, 0.82);
+  --mes-ui-sidebar-alpha-035: rgba(16, 35, 60, 0.035);
+  --mes-ui-sidebar-alpha-045: rgba(16, 35, 60, 0.045);
+  --mes-ui-sidebar-alpha-075: rgba(16, 35, 60, 0.075);
+  --mes-ui-sidebar-alpha-16: rgba(16, 35, 60, 0.16);
+  --mes-ui-sidebar-alpha-24: rgba(16, 35, 60, 0.24);
+  --mes-ui-sidebar-alpha-34: rgba(16, 35, 60, 0.34);
+  --mes-ui-sidebar-alpha-42: rgba(100, 116, 139, 0.42);
+  --mes-ui-sidebar-alpha-58: rgba(16, 35, 60, 0.58);
+  --mes-ui-sidebar-gloss: rgba(255, 255, 255, 0.035);
+  --mes-ui-sidebar-gloss-end: rgba(255, 255, 255, 0);
+  --mes-ui-auth-login-bg: #10243a;
+  --mes-ui-sidebar-solid-bg: #10233c;
+  --mes-ui-auth-login-bg-gradient:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.26) 0%, rgba(37, 99, 235, 0) 42%),
+    radial-gradient(circle at 88% 92%, rgba(45, 212, 191, 0.105) 0%, rgba(34, 197, 94, 0.055) 26%, rgba(34, 197, 94, 0) 54%),
+    linear-gradient(180deg, #071527 0%, var(--mes-ui-auth-login-bg) 56%, #0a1b30 100%);
+  --mes-ui-sidebar-bg-gradient: var(--mes-ui-auth-login-bg-gradient);
+  --mes-ui-sidebar-group-border: rgba(148, 163, 184, 0.08);
+  --mes-ui-sidebar-group-bg: rgba(148, 163, 184, 0.035);
+  --mes-ui-sidebar-active-ring: rgba(255, 255, 255, 0.10);
+  --mes-ui-sky-alpha-13: rgba(14, 165, 233, 0.13);
+  --mes-ui-sky-alpha-22: rgba(14, 165, 233, 0.22);
+  --mes-ui-blue-alpha-26: rgba(59, 130, 246, 0.26);
+  --mes-ui-blue-alpha-56: rgba(96, 165, 250, 0.56);
+  --mes-ui-violet-alpha-12: rgba(124, 58, 237, 0.12);
+  --mes-ui-violet-alpha-20: rgba(168, 85, 247, 0.20);
+  --mes-ui-demo-alpha-22: rgba(249, 115, 22, 0.22);
+  --mes-ui-surface-print-muted: #eef2f7;
+  --mes-ui-primary-surface-mix-08: color-mix(in srgb, var(--mes-ui-primary) 8%, var(--mes-ui-surface));
+  --mes-ui-shadow-badge-counter: 0 1px 1px var(--mes-ui-ink-alpha-22), 0 2px 5px var(--mes-ui-ink-alpha-18);
+  --mes-ui-shadow-badge-soft: 0 1px 4px var(--mes-ui-ink-alpha-10);
+  --mes-ui-shadow-badge-tiny: 0 1px 2px var(--mes-ui-ink-alpha-08);
+  --mes-ui-select-affordance-background:
+    linear-gradient(
+      90deg,
+      var(--mes-ui-surface-transparent),
+      var(--mes-ui-surface-transparent) calc(100% - var(--mes-ui-select-affordance-width)),
+      var(--mes-ui-surface-muted) calc(100% - var(--mes-ui-select-affordance-width))
+    ),
+    var(--mes-ui-surface-control);
+  --mes-ui-lane-grid-soft-background:
+    linear-gradient(to right, var(--mes-ui-ink-alpha-045) 1px, var(--mes-ui-surface-transparent) 1px),
+    linear-gradient(to bottom, var(--mes-ui-surface-glass-74), var(--mes-ui-surface-glass-74));
+  --mes-ui-lane-grid-muted-background:
+    linear-gradient(to right, var(--mes-surface-muted) 1px, var(--mes-ui-surface-transparent) 1px),
+    linear-gradient(to bottom, var(--mes-surface-muted) 1px, var(--mes-ui-surface-transparent) 1px);
+  --mes-ui-gantt-lane-grid-background: linear-gradient(to right, var(--gantt-grid-line) 1px, var(--mes-ui-surface-transparent) 1px);
+  --mes-ui-planning-order-page-background:
+    linear-gradient(180deg, var(--mes-ui-surface-glass-82), var(--mes-ui-surface-soft-transparent) 220px),
+    var(--planning-order-bg);
+  --mes-ui-route-print-scroll-background:
+    linear-gradient(135deg, var(--mes-ui-neutral-alpha-11), var(--mes-ui-line-alpha-40)),
+    var(--mes-ui-surface-print-muted);
+  --mes-ui-gradient-surface-info: linear-gradient(180deg, var(--mes-ui-surface-panel), var(--mes-ui-status-info-bg));
+  --mes-ui-gradient-surface-soft: linear-gradient(180deg, var(--mes-ui-surface-panel), var(--mes-ui-surface-panel-soft));
+  --mes-ui-gradient-primary-diagonal: linear-gradient(135deg, var(--mes-ui-primary), var(--mes-ui-primary-hover));
+  --mes-ui-gradient-primary-fade: linear-gradient(90deg, var(--mes-ui-primary-alpha-08), rgba(255, 255, 255, 0));
+  --mes-ui-success-gradient-rail: linear-gradient(90deg, rgba(22, 163, 74, 0.88), rgba(74, 222, 128, 0.70));
+  --mes-ui-gradient-primary-rail: linear-gradient(90deg, rgba(37, 99, 235, 0.92), rgba(96, 165, 250, 0.74));
 
   /* Phase 7 border aliases. */
   --mes-ui-line: #d7e0ea;
   --mes-ui-line-strong: #cbd5e1;
   --mes-ui-line-soft: #e5edf5;
   --mes-ui-border-width: 1px;
+  --mes-ui-border-width-strong: 2px;
   --mes-ui-border-soft: var(--mes-ui-line-soft);
   --mes-ui-border-default: var(--mes-ui-line);
   --mes-ui-border-strong: var(--mes-ui-line-strong);
@@ -38,11 +302,12 @@ html{
   /* Phase 7 text/accent aliases. */
   --mes-ui-text: #0f172a;
   --mes-ui-muted: #64748b;
+  --mes-ui-quiet-text: #64748b;
   --mes-ui-text-muted: var(--mes-ui-muted);
   --mes-ui-text-soft: #94a3b8;
   --mes-ui-text-inverse: #ffffff;
   --mes-ui-primary: #2563eb;
-  --mes-ui-sidebar-bg: #10233c;
+  --mes-ui-sidebar-bg: var(--mes-ui-auth-login-bg);
   --mes-ui-accent: var(--mes-ui-primary);
   --mes-ui-accent-soft: var(--mes-ui-status-info-bg);
   --mes-ui-focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.18);
@@ -56,9 +321,11 @@ html{
   --mes-ui-danger: #b91c1c;
   --mes-ui-danger-soft: #fff1f2;
   --mes-ui-danger-border: #fecdd3;
+  --mes-ui-badge-counter-bg: rgb(255, 59, 48);
   --mes-ui-neutral: #475569;
   --mes-ui-neutral-soft: #f8fafc;
   --mes-ui-neutral-border: #d7e0ea;
+  --mes-ui-app-sidebar-width: 154px;
   --mes-ui-module-sidebar-width: 260px;
   --mes-ui-work-sidebar-width: 300px;
   --mes-space-0: 0;
@@ -84,12 +351,26 @@ html{
   --mes-ui-panel-head-padding: 10px 12px;
   --mes-ui-panel-body-padding: 12px;
   --mes-ui-panel-footer-padding: 10px 12px;
+  --mes-ui-form-section-gap: var(--mes-space-6);
+  --mes-ui-form-grid-gap: var(--mes-space-4);
+  --mes-ui-form-grid-min-column: var(--mes-ui-dropdown-min-width);
+  --mes-ui-form-row-gap: var(--mes-space-4);
+  --mes-ui-form-state-padding: var(--mes-space-6);
+  --mes-ui-form-message-color: var(--mes-ui-text-soft);
   --mes-ui-control-height: 36px;
   --mes-ui-control-height-compact: 30px;
   --mes-ui-control-height-default: var(--mes-ui-control-height);
   --mes-ui-control-height-touch: 44px;
+  --mes-ui-control-padding-y: 8px;
   --mes-ui-control-padding-x: 10px;
   --mes-ui-control-gap: 8px;
+  --mes-ui-select-affordance-width: 34px;
+  --mes-ui-select-arrow-size: 7px;
+  --mes-ui-dropdown-z-index: 90;
+  --mes-ui-dropdown-min-width: 240px;
+  --mes-ui-dropdown-max-width: 360px;
+  --mes-ui-dropdown-max-height: 280px;
+  --mes-ui-dropdown-viewport-gap: 32px;
   --mes-control-height-compact: var(--mes-ui-control-height-compact);
   --mes-control-height-default: var(--mes-ui-control-height-default);
   --mes-control-height-touch: var(--mes-ui-control-height-touch);
@@ -104,6 +385,7 @@ html{
   --mes-ui-icon-size-md: 16px;
   --mes-ui-icon-size-lg: 18px;
   --mes-ui-form-control-height: 34px;
+  --mes-ui-textarea-min-height: 84px;
   --mes-ui-table-row-height: 40px;
   --mes-ui-table-row-height-compact: 34px;
   --mes-ui-table-row-height-default: var(--mes-ui-table-row-height);
@@ -111,8 +393,10 @@ html{
   --mes-ui-table-header-height: 36px;
   --mes-ui-table-cell-padding-x: 10px;
   --mes-ui-table-cell-padding-y: 7px;
+  --mes-ui-table-cell-max-width: 260px;
   --mes-ui-table-tree-indent: 18px;
   --mes-ui-table-action-size: var(--mes-ui-table-icon-button-size);
+  --mes-ui-table-action-cell-width: 82px;
   --mes-ui-data-table-min-width-wide: 1180px;
   --mes-ui-auth-card-title-line-clamp: 4;
   --mes-ui-table-head-bg: var(--mes-ui-sidebar-bg);
@@ -148,6 +432,9 @@ html{
   --mes-ui-radius-md: 6px;
   --mes-ui-radius-lg: 8px;
   --mes-ui-radius-xl: 8px;
+  --mes-ui-radius-legacy-7: 7px;
+  --mes-ui-radius-legacy-10: 10px;
+  --mes-ui-radius-legacy-12: 12px;
   --mes-ui-pill: 999px;
   --mes-radius-none: 0;
   --mes-radius-xs: var(--mes-ui-radius-xs);
@@ -160,7 +447,10 @@ html{
   --mes-ui-type-body: 13px;
   --mes-ui-type-section-title: 15px;
   --mes-ui-type-table: 11px;
+  --mes-ui-type-control: 12px;
   --mes-ui-type-small: 10px;
+  --mes-ui-type-tiny: 8px;
+  --mes-ui-type-micro: 7px;
   --mes-font-size-caption: var(--mes-ui-type-caption);
   --mes-font-size-body: var(--mes-ui-type-body);
   --mes-font-size-table: var(--mes-ui-type-table);
@@ -170,11 +460,14 @@ html{
   --mes-ui-line-caption: 15px;
   --mes-ui-line-body: 18px;
   --mes-ui-line-section-title: 20px;
+  --mes-ui-line-compact: 10px;
+  --mes-ui-line-micro: 9px;
   --mes-line-height-caption: var(--mes-ui-line-caption);
   --mes-line-height-body: var(--mes-ui-line-body);
   --mes-line-height-table: var(--mes-ui-line-caption);
   --mes-line-height-section-title: var(--mes-ui-line-section-title);
   --mes-ui-weight-regular: 400;
+  --mes-ui-weight-quiet: 500;
   --mes-ui-weight-medium: 560;
   --mes-ui-weight-semibold: 680;
   --mes-ui-weight-bold: 820;
@@ -239,13 +532,24 @@ html{
   --mes-status-demo-border: var(--mes-ui-status-demo-border);
   --mes-status-demo-text: var(--mes-ui-status-demo-text);
   --mes-status-demo-accent: #f97316;
-  --mes-ui-gantt-plan-bg: #dbeafe;
-  --mes-ui-gantt-distributed-bg: #bfdbfe;
-  --mes-ui-gantt-fact-bg: #bbf7d0;
-  --mes-ui-gantt-deficit-bg: #fecdd3;
-  --mes-ui-gantt-transfer-bg: #fde68a;
-  --mes-ui-gantt-border: #93c5fd;
-  --mes-ui-gantt-label: #0f172a;
+  /* Gantt visual contract: semantic aliases keep the chart in the same
+     surface, status and typography system as the rest of the application. */
+  --mes-ui-gantt-surface: var(--mes-ui-surface-panel);
+  --mes-ui-gantt-surface-soft: var(--mes-ui-surface-panel-soft);
+  --mes-ui-gantt-surface-raised: var(--mes-ui-surface-panel-raised);
+  --mes-ui-gantt-line: var(--mes-ui-line);
+  --mes-ui-gantt-line-soft: var(--mes-ui-line-soft);
+  --mes-ui-gantt-text: var(--mes-ui-text);
+  --mes-ui-gantt-muted: var(--mes-ui-text-secondary);
+  --mes-ui-gantt-accent: var(--mes-ui-primary);
+  --mes-ui-gantt-plan-bg: var(--mes-ui-status-info-bg);
+  --mes-ui-gantt-distributed-bg: color-mix(in srgb, var(--mes-ui-primary) 14%, var(--mes-ui-surface-panel));
+  --mes-ui-gantt-active-bg: color-mix(in srgb, var(--mes-ui-primary) 20%, var(--mes-ui-surface-panel));
+  --mes-ui-gantt-fact-bg: var(--mes-ui-status-success-bg);
+  --mes-ui-gantt-deficit-bg: var(--mes-ui-status-danger-bg);
+  --mes-ui-gantt-transfer-bg: var(--mes-ui-status-warning-bg);
+  --mes-ui-gantt-border: var(--mes-ui-status-info-border);
+  --mes-ui-gantt-label: var(--mes-ui-text);
   --mes-ui-gantt-row-height: 68px;
   --mes-ui-gantt-timeline-height: 48px;
   --mes-ui-gantt-left-width: 360px;
@@ -253,30 +557,30 @@ html{
   --mes-ui-gantt-slot-border: var(--mes-ui-gantt-border);
   --mes-ui-gantt-slot-planned-bg: var(--mes-ui-gantt-plan-bg);
   --mes-ui-gantt-slot-distributed-bg: var(--mes-ui-gantt-distributed-bg);
-  --mes-ui-gantt-slot-active-bg: var(--mes-ui-gantt-distributed-bg);
+  --mes-ui-gantt-slot-active-bg: var(--mes-ui-gantt-active-bg);
   --mes-ui-gantt-slot-completed-bg: var(--mes-ui-gantt-fact-bg);
   --mes-ui-gantt-slot-warning-bg: var(--mes-ui-status-warning-bg);
   --mes-ui-gantt-slot-problem-bg: var(--mes-ui-status-danger-bg);
   --mes-ui-gantt-slot-paused-bg: var(--mes-ui-status-warning-bg);
-  --mes-ui-gantt-slot-transfer-bg: #dcfce7;
-  --mes-ui-gantt-slot-transfer-border: #86efac;
-  --mes-ui-gantt-slot-transfer-accent: #16a34a;
-  --mes-ui-gantt-slot-transfer-text: #166534;
-  --mes-ui-gantt-slot-break-border: rgba(96, 165, 250, 0.58);
-  --mes-ui-gantt-non-working-bg: rgba(148, 163, 184, 0.095);
-  --mes-ui-gantt-non-working-stripe-a: rgba(100, 116, 139, 0.055);
-  --mes-ui-gantt-non-working-stripe-b: rgba(100, 116, 139, 0.095);
-  --mes-ui-gantt-non-working-border: rgba(148, 163, 184, 0.12);
-  --mes-ui-gantt-dependency-color: #475569;
-  --mes-ui-gantt-dependency-active-color: #2563eb;
-  --mes-ui-gantt-dependency-warning-color: #475569;
-  --mes-ui-gantt-dependency-underlay-color: rgba(255, 255, 255, 0.88);
-  --mes-ui-gantt-dependency-underlay-muted-color: rgba(255, 255, 255, 0.24);
-  --mes-ui-gantt-dependency-arrow-stroke: rgba(255, 255, 255, 0.78);
-  --mes-ui-gantt-grid-line: rgba(216, 222, 230, 0.95);
-  --mes-ui-gantt-timeline-bg: #f8fafc;
-  --mes-ui-gantt-row-hover-bg: rgba(219, 234, 254, 0.36);
-  --mes-ui-gantt-row-selected-bg: rgba(37, 99, 235, 0.08);
+  --mes-ui-gantt-slot-transfer-bg: var(--mes-ui-status-success-bg);
+  --mes-ui-gantt-slot-transfer-border: var(--mes-ui-status-success-border);
+  --mes-ui-gantt-slot-transfer-accent: var(--mes-ui-success-accent);
+  --mes-ui-gantt-slot-transfer-text: var(--mes-ui-status-success-text);
+  --mes-ui-gantt-slot-break-border: color-mix(in srgb, var(--mes-ui-primary) 58%, transparent);
+  --mes-ui-gantt-non-working-bg: var(--mes-ui-neutral-alpha-08);
+  --mes-ui-gantt-non-working-stripe-a: var(--mes-ui-neutral-alpha-08);
+  --mes-ui-gantt-non-working-stripe-b: var(--mes-ui-neutral-alpha-14);
+  --mes-ui-gantt-non-working-border: var(--mes-ui-neutral-alpha-12);
+  --mes-ui-gantt-dependency-color: var(--mes-ui-neutral);
+  --mes-ui-gantt-dependency-active-color: var(--mes-ui-primary);
+  --mes-ui-gantt-dependency-warning-color: var(--mes-ui-warning);
+  --mes-ui-gantt-dependency-underlay-color: var(--mes-ui-surface-glass-88);
+  --mes-ui-gantt-dependency-underlay-muted-color: var(--mes-ui-surface-glass-24, var(--mes-ui-surface-glass-58));
+  --mes-ui-gantt-dependency-arrow-stroke: var(--mes-ui-surface-glass-78);
+  --mes-ui-gantt-grid-line: var(--mes-ui-line-soft);
+  --mes-ui-gantt-timeline-bg: var(--mes-ui-surface-soft);
+  --mes-ui-gantt-row-hover-bg: var(--mes-ui-primary-alpha-08);
+  --mes-ui-gantt-row-selected-bg: var(--mes-ui-primary-alpha-10);
   --mes-gantt-row-height: var(--mes-ui-gantt-row-height);
   --mes-gantt-timeline-height: var(--mes-ui-gantt-timeline-height);
   --mes-gantt-left-width: var(--mes-ui-gantt-left-width);
@@ -292,6 +596,36 @@ html{
   --mes-ui-shadow-md: 0 12px 32px rgba(15, 23, 42, 0.08);
   --mes-ui-shadow-overlay: var(--mes-ui-shadow-md);
   --mes-ui-shadow-lift: 0 6px 18px rgba(15, 23, 42, 0.08);
+  --mes-ui-shadow-none: none;
+  --mes-ui-shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.035);
+  --mes-ui-shadow-focus-soft: 0 0 0 2px rgba(37, 99, 235, 0.08);
+  --mes-ui-shadow-inset-primary-soft: 0 0 0 1px rgba(37, 99, 235, 0.08) inset;
+  --mes-ui-shadow-inset-primary: inset 0 0 0 2px var(--mes-ui-primary-alpha-10);
+  --mes-ui-shadow-inset-primary-line: 0 0 0 1px var(--mes-ui-primary-alpha-12) inset;
+  --mes-ui-shadow-inset-neutral-line: 0 0 0 1px var(--mes-ui-neutral-alpha-08) inset;
+  --mes-ui-shadow-xs-ink: 0 1px 2px var(--mes-ui-ink-alpha-04);
+  --mes-ui-shadow-primary-xs: 0 1px 2px var(--mes-ui-primary-alpha-12);
+  --mes-ui-shadow-primary-sm: 0 1px 3px var(--mes-ui-primary-alpha-18);
+  --mes-ui-shadow-success-xs: 0 1px 2px var(--mes-ui-success-alpha-12);
+  --mes-ui-shadow-elevation-10: 0 4px 10px var(--mes-ui-ink-alpha-12);
+  --mes-ui-shadow-elevation-20: 0 8px 20px var(--mes-ui-ink-alpha-12);
+  --mes-ui-shadow-elevation-24: 0 10px 24px var(--mes-ui-ink-alpha-12);
+  --mes-ui-shadow-elevation-26: 0 12px 26px var(--mes-ui-ink-alpha-16);
+  --mes-ui-shadow-primary-elevation: 0 14px 30px var(--mes-ui-ink-alpha-18), 0 0 0 3px var(--mes-ui-primary-alpha-12);
+  --mes-ui-shadow-primary-elevation-strong: 0 18px 36px var(--mes-ui-ink-alpha-22), 0 0 0 4px var(--mes-ui-primary-alpha-15);
+  --mes-ui-shadow-focus-primary: 0 0 0 3px var(--mes-ui-primary-alpha-10);
+  --mes-ui-shadow-focus-primary-soft: 0 0 0 3px var(--mes-ui-primary-alpha-12);
+  --mes-ui-shadow-warning-xs: 0 1px 4px var(--mes-ui-warning-alpha-12);
+  --mes-ui-shadow-danger-xs: 0 1px 4px var(--mes-ui-danger-alpha-12);
+  --mes-ui-shadow-warning-inset: inset 0 0 0 1px var(--mes-ui-warning-alpha-30);
+  --mes-ui-shadow-danger-inset: inset 0 0 0 1px var(--mes-ui-danger-alpha-24);
+  --mes-ui-shadow-active-inset-soft: 0 0 0 1px var(--mes-ui-primary-alpha-08) inset;
+  --mes-ui-shadow-active-inset: 0 0 0 1px var(--mes-ui-primary-alpha-10) inset;
+  --mes-ui-shadow-floating-marker: 0 0 0 4px var(--mes-ui-surface-glass-88), 0 8px 18px var(--mes-ui-ink-alpha-18);
+  --mes-ui-shadow-tooltip: 0 14px 32px var(--mes-ui-ink-alpha-20);
+  --mes-ui-shadow-popover: 0 18px 42px var(--mes-ui-ink-alpha-16);
+  --mes-ui-shadow-popover-strong: 0 18px 42px var(--mes-ui-ink-alpha-22);
+  --mes-ui-shadow-print-sheet: 0 18px 48px var(--mes-ui-ink-alpha-18);
   --mes-ui-overlay-max-height: calc(100vh - 32px);
   --mes-ui-overlay-max-width: calc(100vw - 32px);
   --mes-ui-modal-width: min(920px, var(--mes-ui-overlay-max-width));
@@ -334,6 +668,10 @@ but its body must never collapse and leak into the next block. */
 [data-ui-component="ModuleContent"],
 [data-ui-component="ModuleHeader"],
 [data-ui-component="FormField"],
+[data-ui-component="FormSection"],
+[data-ui-component="FormGrid"],
+[data-ui-component="FormRow"],
+[data-ui-component="FormActions"],
 [data-ui-component="ActionButton"],
 [data-ui-component="ActionBar"],
 [data-ui-component="TableWrap"],
@@ -485,6 +823,136 @@ but its body must never collapse and leak into the next block. */
   color: var(--muted, #64748b);
   font-size: 10px;
   line-height: 1.25;
+}.ui-form-section{
+  display: grid;
+  gap: var(--mes-ui-form-section-gap);
+  min-width: 0;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-surface-panel-soft);
+  padding: var(--mes-ui-panel-body-padding);
+}.ui-form-section-head{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--mes-ui-control-gap);
+  min-width: 0;
+  border-bottom: var(--mes-ui-border-width) solid var(--mes-ui-line);
+  padding-bottom: var(--mes-space-4);
+}.ui-form-section-copy{
+  display: grid;
+  gap: var(--mes-space-1);
+  min-width: 0;
+}.ui-form-section-copy > strong{
+  color: var(--mes-ui-text);
+  font-size: var(--mes-ui-type-section-title);
+  font-weight: var(--mes-ui-weight-bold);
+  line-height: var(--mes-ui-line-section-title);
+}.ui-form-section-copy > span{
+  color: var(--mes-ui-text-muted);
+  font-size: var(--mes-ui-type-caption);
+  font-weight: var(--mes-ui-weight-regular);
+  line-height: var(--mes-ui-line-body);
+}.ui-form-section-body{
+  display: grid;
+  gap: var(--mes-ui-form-section-gap);
+  min-width: 0;
+}.ui-form-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--mes-ui-form-grid-min-column)), 1fr));
+  gap: var(--mes-ui-form-grid-gap);
+  min-width: 0;
+}.ui-form-grid[data-ui-columns="1"]{
+  grid-template-columns: minmax(0, 1fr);
+}.ui-form-grid[data-ui-columns="2"]{
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}.ui-form-grid[data-ui-columns="3"]{
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}.ui-form-grid[data-ui-columns="4"]{
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}.ui-form-row{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: var(--ui-form-row-align, stretch);
+  gap: var(--mes-ui-form-row-gap);
+  min-width: 0;
+}.ui-form-row[data-ui-align="start"]{
+  --ui-form-row-align: flex-start;
+}.ui-form-row[data-ui-align="center"]{
+  --ui-form-row-align: center;
+}.ui-form-row[data-ui-align="end"]{
+  --ui-form-row-align: flex-end;
+}.ui-form-row > *{
+  min-width: 0;
+}.ui-form-actions{
+  justify-content: flex-end;
+  min-width: 0;
+  border-top: var(--mes-ui-border-width) solid var(--mes-ui-line);
+  padding-top: var(--mes-space-4);
+}.ui-form-required{
+  margin-left: var(--mes-space-1);
+  color: var(--mes-ui-status-danger-text);
+  font-style: normal;
+}.ui-form-field.is-disabled{
+  opacity: 0.64;
+}.ui-form-field.is-readonly > :is(input, select, textarea),
+.ui-form-field[data-ui-readonly="true"] > :is(input, select, textarea){
+  background: var(--mes-ui-surface-muted);
+  color: var(--mes-ui-text-muted);
+}.ui-form-field.is-error > :is(input, select, textarea){
+  border-color: var(--mes-ui-status-danger-border);
+  background: var(--mes-ui-status-danger-bg);
+}.ui-form-field.is-warning > :is(input, select, textarea){
+  border-color: var(--mes-ui-status-warning-border);
+  background: var(--mes-ui-status-warning-bg);
+}.ui-form-field.is-success > :is(input, select, textarea){
+  border-color: var(--mes-ui-status-success-border);
+  background: var(--mes-ui-status-success-bg);
+}.ui-form-field-message{
+  color: var(--mes-ui-form-message-color);
+}.ui-form-field.is-error > .ui-form-field-message{
+  color: var(--mes-ui-status-danger-text);
+}.ui-form-field.is-warning > .ui-form-field-message{
+  color: var(--mes-ui-status-warning-text);
+}.ui-system-state{
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--mes-ui-control-gap);
+  min-width: 0;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-status-neutral-border);
+  border-radius: var(--mes-ui-radius-md);
+  background: var(--mes-ui-status-neutral-bg);
+  color: var(--mes-ui-status-neutral-text);
+  padding: var(--mes-ui-form-state-padding);
+}.ui-system-state.is-warning{
+  border-color: var(--mes-ui-status-warning-border);
+  background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
+}.ui-system-state.is-danger,
+.ui-system-state.is-critical{
+  border-color: var(--mes-ui-status-danger-border);
+  background: var(--mes-ui-status-danger-bg);
+  color: var(--mes-ui-status-danger-text);
+}.ui-system-state.is-success,
+.ui-system-state.is-ok{
+  border-color: var(--mes-ui-status-success-border);
+  background: var(--mes-ui-status-success-bg);
+  color: var(--mes-ui-status-success-text);
+}.ui-system-state-copy{
+  display: grid;
+  gap: var(--mes-space-1);
+  min-width: 0;
+}.ui-system-state-copy > :is(strong, span){
+  min-width: 0;
+  overflow-wrap: anywhere;
+}.ui-system-state-action{
+  min-width: 0;
+}.ui-system-state-icon :is(svg, .mes-icon){
+  width: var(--mes-ui-icon-size-lg);
+  height: var(--mes-ui-icon-size-lg);
+  color: currentColor;
 }.ui-table-wrap{
   min-width: 0;
   max-width: 100%;
@@ -500,6 +968,12 @@ never by Y. */
   overflow-y: hidden !important;
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}.ui-table-wrap[data-scroll-contract="viewport"],
+[data-ui-component="TableWrap"][data-scroll-contract="viewport"]{
+  display: block;
+  overflow: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }.ui-empty-state{
   min-width: 0;
@@ -614,34 +1088,42 @@ label.ui-demo-marker-host{
   display: none;
 }.ui-dropdown-menu{
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + var(--mes-space-3));
   right: 0;
-  z-index: var(--mes-ui-z-dropdown, 120);
+  z-index: var(--mes-ui-z-dropdown);
   display: grid;
-  gap: 4px;
-  min-width: min(260px, calc(100vw - 32px));
-  max-width: calc(100vw - 32px);
-  max-height: min(360px, calc(100vh - 96px));
+  gap: var(--mes-space-2);
+  min-width: min(var(--mes-ui-dropdown-min-width), calc(100vw - var(--mes-ui-dropdown-viewport-gap)));
+  max-width: min(var(--mes-ui-dropdown-max-width), calc(100vw - var(--mes-ui-dropdown-viewport-gap)));
+  max-height: min(var(--mes-ui-dropdown-max-height), calc(100vh - var(--mes-ui-dropdown-viewport-gap)));
   box-sizing: border-box;
   overflow: auto;
-  border: 1px solid var(--line, rgba(148, 163, 184, 0.28));
-  border-radius: 8px;
-  background: var(--panel, #ffffff);
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
-  padding: 6px;
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default);
+  border-radius: var(--mes-ui-radius-lg);
+  background: var(--mes-ui-surface-raised);
+  box-shadow: var(--mes-ui-shadow-overlay);
+  padding: var(--mes-space-3);
 }.ui-modal,
 .ui-drawer{
   min-width: 0;
   box-sizing: border-box;
   background: var(--panel, #ffffff);
 }.ui-modal{
-  width: min(720px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  width: var(--mes-ui-modal-width);
+  max-height: var(--mes-ui-overlay-max-height);
   overflow: auto;
+}.ui-modal[data-ui-size="small"]{
+  width: var(--mes-ui-drawer-width);
+}.ui-modal[data-ui-size="large"]{
+  width: var(--mes-ui-overlay-max-width);
+}.ui-modal[data-ui-size="full"]{
+  width: calc(100vw - var(--mes-ui-dropdown-viewport-gap));
 }.ui-drawer{
-  width: min(420px, calc(100vw - 24px));
-  max-height: calc(100vh - 24px);
+  width: var(--mes-ui-drawer-width);
+  max-height: var(--mes-ui-overlay-max-height);
   overflow: auto;
+}.ui-drawer[data-ui-size="wide"]{
+  width: var(--mes-ui-modal-width);
 }.ui-modal.is-sample,
 .ui-drawer.is-sample{
   width: 100%;
@@ -709,19 +1191,10 @@ label.ui-demo-marker-host{
   font-weight: var(--mes-ui-weight-semibold, 680);
   line-height: 1;
   pointer-events: none;
-}/* Shell annotation contract: the former search slot now explains the active module. */
-main.app-shell[data-layout="app-shell"] > .app-topbar{
-  grid-template-columns: minmax(180px, 0.54fr) minmax(280px, 1fr) auto !important;
-}main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
-  grid-column: 2 !important;
-}main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
-  grid-column: 3 !important;
-}
+}/* Shell topbar contract: title and actions share the standard header grid. */
 
 @media (max-width: 900px) {main.app-shell[data-layout="app-shell"] > .app-topbar{
     grid-template-columns: minmax(0, 1fr) auto !important;
-  }main.app-shell[data-layout="app-shell"] > .app-topbar .app-module-annotation{
-    display: none !important;
   }main.app-shell[data-layout="app-shell"] > .app-topbar .app-topbar-actions{
     grid-column: 2 !important;
   }}/* Shared module sidebar contract: keep this in UI Core,
@@ -763,15 +1236,15 @@ main.app-shell[data-layout="app-shell"] :is(.module-data-page .module-data-sideb
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-ok, .planning-order-queue .planning-order-route-item > em.is-ok, .supply-route-card em.is-ok){
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-ok, .planning-order-queue .planning-order-route-item > em.is-ok){
   border-color: var(--mes-ui-success-border);
   background: var(--mes-ui-success-soft);
   color: var(--mes-ui-success);
-}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-warning, .planning-order-queue .planning-order-route-item > em.is-warning, .supply-route-card em.is-warning){
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-warning, .planning-order-queue .planning-order-route-item > em.is-warning){
   border-color: var(--mes-ui-warning-border);
   background: var(--mes-ui-warning-soft);
   color: var(--mes-ui-warning);
-}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-critical, .module-data-sidebar .ui-sidebar-item em.is-danger, .planning-order-queue .planning-order-route-item > em.is-critical, .supply-route-card em.is-critical){
+}main.app-shell[data-layout="app-shell"] :is(.module-data-sidebar .ui-sidebar-item em.is-critical, .module-data-sidebar .ui-sidebar-item em.is-danger, .planning-order-queue .planning-order-route-item > em.is-critical){
   border-color: var(--mes-ui-danger-border);
   background: var(--mes-ui-danger-soft);
   color: var(--mes-ui-danger);
@@ -883,7 +1356,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-aut
   width: 22px !important;
   height: 22px !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-department-icon{
-  color: var(--mes-ui-sidebar-bg, #10233c) !important;
+  color: var(--mes-ui-sidebar-solid-bg, #10233c) !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="authPrototype"].is-auth-standalone .auth-prototype-unit-copy{
   display: grid;
   gap: 4px;
@@ -948,6 +1421,32 @@ main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]){
   background: var(--mes-ui-module-page-background);
   background-size: var(--mes-ui-module-page-background-size);
   background-repeat: var(--mes-ui-module-page-background-repeat);
+}main.app-shell[data-layout="app-shell"].is-admin-standalone{
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  --mes-admin-page-gradient:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0) 42%),
+    linear-gradient(180deg, #f8fbff 0%, #edf4ff 56%, #f7f9fc 100%);
+  background: var(--mes-admin-page-gradient);
+  background-size: auto, auto;
+  background-repeat: no-repeat;
+}main.app-shell[data-layout="app-shell"].is-admin-standalone > [data-ui-component="ModulePage"].ui-module-page,
+main.app-shell[data-layout="app-shell"].is-admin-standalone > .module-data-page{
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  min-height: 100vh;
+}main.app-shell[data-layout="app-shell"].is-admin-standalone > [data-ui-component="ModulePage"].contour-admin-page,
+main.app-shell[data-layout="app-shell"].is-admin-standalone > .module-data-page.contour-admin-page{
+  background: transparent;
+  background-size: auto;
+  background-repeat: no-repeat;
+}main.app-shell[data-layout="app-shell"].is-admin-standalone .contour-admin-workspace[data-ui-component="ModuleWorkspace"]{
+  --mes-ui-surface: #ffffff;
+  --mes-ui-surface-soft: #fbfcfe;
+  --mes-ui-surface-raised: #ffffff;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }main.app-shell[data-layout="app-shell"] [data-ui-component="ModulePage"].ui-module-page{
   gap: var(--mes-ui-density-gap);
   padding: var(--mes-ui-density-page) calc(var(--mes-ui-density-page) + 2px);
@@ -973,6 +1472,27 @@ main.app-shell[data-layout="app-shell"] .module-data-workspace[data-ui-component
 }main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) [data-ui-component="ModuleWorkspace"].ui-module-workspace,
 main.app-shell[data-layout="app-shell"]:not([data-layout-page="authPrototype"]) .module-data-workspace[data-ui-component="ModuleWorkspace"]{
   background: var(--mes-ui-surface) !important;
+}main.app-shell[data-layout="app-shell"].is-admin-standalone[data-layout-page="contourAdmin"]{
+  position: relative;
+  isolation: isolate;
+  background-color: #f7f9fc !important;
+  background-image:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0) 42%),
+    linear-gradient(180deg, #f8fbff 0%, #edf4ff 56%, #f7f9fc 100%) !important;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: auto, auto;
+}main.app-shell[data-layout="app-shell"].is-admin-standalone[data-layout-page="contourAdmin"] > [data-ui-runtime="hard-v1"][data-ui-component="ModulePage"].contour-admin-page,
+main.app-shell[data-layout="app-shell"].is-admin-standalone[data-layout-page="contourAdmin"] > .module-data-page.contour-admin-page{
+  background: transparent;
+}main.app-shell[data-layout="app-shell"].is-admin-standalone[data-layout-page="contourAdmin"] .contour-admin-workspace[data-ui-component="ModuleWorkspace"]{
+  --mes-ui-surface: #ffffff;
+  --mes-ui-surface-soft: #fbfcfe;
+  --mes-ui-surface-raised: #ffffff;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }main.app-shell[data-layout="app-shell"] [data-ui-component="ModuleContent"].ui-module-content,
 main.app-shell[data-layout="app-shell"] .module-data-content[data-ui-component="ModuleContent"]{
   gap: var(--mes-ui-density-gap);
@@ -1062,23 +1582,6 @@ main.app-shell[data-layout="app-shell"] .form-field[data-ui-component="FormField
   --ui-table-action-size: var(--mes-ui-table-action-size);
 }main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :is(th, td){
   min-height: var(--mes-ui-table-row-height);
-}main.app-shell[data-layout="app-shell"] [data-ui-component="TableWrap"] :is(
-  .directory-table,
-  .planning-order-table,
-  .shift-work-orders-table,
-  .route-object-table,
-  .speki-structure-table,
-  .nomenclature-table,
-  .timesheet-table,
-  .production-structure-table,
-  .supply-table,
-  .bom-import-table,
-  .ui-table
-){
-  --ui-table-font-size: var(--mes-table-font-size);
-  --ui-table-line-height: var(--mes-table-line-height);
-  --ui-table-cell-padding-x: var(--mes-table-cell-padding-x);
-  --ui-table-cell-padding-y: var(--mes-table-cell-padding-y);
 }main.app-shell[data-layout="app-shell"] .ui-table{
   width: 100%;
   border-collapse: collapse;
@@ -1142,44 +1645,6 @@ main.app-shell[data-layout="app-shell"] .ui-gantt-bar[data-ui-component="GanttBa
   box-sizing: border-box;
 }
 
-/* Main sidebar tab contract. The app navigation is not an ActionButton surface:
-   keep it inside the dark sidebar palette even when older global button/tab
-   layers are loaded before UI Core. */
-main.app-shell[data-layout="app-shell"] > .module-menu .module-tab{
-  border-color: transparent;
-  background: transparent;
-  color: var(--mes-ui-sidebar-text);
-  box-shadow: none;
-  font-weight: var(--mes-ui-sidebar-tab-weight);
-}
-main.app-shell[data-layout="app-shell"] > .module-menu .module-tab span{
-  font-weight: var(--mes-ui-sidebar-tab-weight);
-}
-main.app-shell[data-layout="app-shell"] > .module-menu .module-group-title{
-  font-weight: var(--mes-ui-sidebar-group-weight) !important;
-}
-main.app-shell[data-layout="app-shell"] > .module-menu .module-tab:hover{
-  border-color: var(--mes-ui-sidebar-line);
-  background: var(--mes-ui-sidebar-hover);
-  color: var(--mes-ui-text-inverse);
-}
-main.app-shell[data-layout="app-shell"] > .module-menu .module-tab.is-active{
-  border-color: var(--mes-ui-sidebar-active);
-  background: linear-gradient(135deg, var(--mes-ui-sidebar-active), var(--mes-ui-primary-hover));
-  color: var(--mes-ui-text-inverse);
-  box-shadow: var(--mes-ui-shadow-xs);
-  font-weight: var(--mes-ui-sidebar-tab-active-weight);
-}
-main.app-shell[data-layout="app-shell"] > .module-menu .module-tab.is-active span{
-  font-weight: var(--mes-ui-sidebar-tab-active-weight);
-}
-main.app-shell[data-layout="app-shell"] > .module-menu .module-tab :is(svg, .mes-icon){
-  color: currentColor;
-}
-main.app-shell[data-layout="app-shell"] > .module-menu .module-group.is-test-group .module-tab{
-  color: var(--mes-ui-status-demo-border);
-}
-
 /* Radius normalization contract.
    Dense MES screens should read as calm rectangles, not soft consumer cards.
    Keep pills only for explicit badges/tokens;panels,
@@ -1227,34 +1692,33 @@ main.app-shell[data-layout-page="planning"] .planning-order-page.is-heroui{
   [data-ui-component="FormField"] :is(input, select, textarea)
 ){
   border-radius: var(--mes-ui-radius-sm) !important;
-}main.app-shell[data-layout-page="directories"] .directories-page :is(
-  .directory-header,
-  [class~="directory-table-card"]
-),
-main.app-shell[data-layout-page="shopMap"] .shop-map-page :is(
-  .shop-map-widget
-),
-main.app-shell[data-layout-page="shiftMasterBoard"] :is(
-  .shift-master-board-panel,
-  .shift-master-board-task-context,
-  .shift-master-board-section,
-  .shift-master-board-card,
-  .shift-master-board-available-person,
-  .shift-master-board-document,
-  .visual-state-card
-){
-  border-radius: var(--mes-ui-radius-md) !important;
-}main.app-shell[data-layout-page="directories"] .directories-page :is(
-  .directory-nav-item,
-  .directory-health div,
-  .directory-detail-list div
-),
-main.app-shell[data-layout-page="shiftMasterBoard"] :is(
-  .shift-master-board-available-quantity input,
-  .shift-master-board-available-capacity,
-  .shift-master-board-summary-cell,
-  .shift-master-board-route-chain-card,
-  .visual-form-grid .form-field
-){
-  border-radius: var(--mes-ui-radius-sm) !important;
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-density="compact"]{
+  --mes-ui-form-section-gap: var(--mes-space-4);
+  --mes-ui-form-grid-gap: var(--mes-space-3);
+  --mes-ui-form-row-gap: var(--mes-space-3);
+  --mes-ui-form-control-height: var(--mes-ui-control-height-compact);
+}
+
+main.app-shell[data-layout="app-shell"] [data-ui-density="comfortable"]{
+  --mes-ui-form-section-gap: var(--mes-space-8);
+  --mes-ui-form-grid-gap: var(--mes-space-6);
+  --mes-ui-form-row-gap: var(--mes-space-6);
+  --mes-ui-form-control-height: var(--mes-ui-control-height-touch);
+}
+
+@media (max-width: 768px) {
+  main.app-shell[data-layout="app-shell"] .ui-form-grid:is([data-ui-columns="2"], [data-ui-columns="3"], [data-ui-columns="4"]){
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout="app-shell"] .ui-system-state{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout="app-shell"] .ui-system-state-action,
+  main.app-shell[data-layout="app-shell"] .ui-system-state-action > *{
+    width: 100%;
+  }
 }

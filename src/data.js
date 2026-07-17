@@ -1,6 +1,9 @@
-import { getProductionStructureWorkCenters } from "./production_structure_service.js";
+import { DEFAULT_PRODUCTION_WORK_CENTERS } from "./production_structure_default_work_centers.js";
 
-export const workCenters = getProductionStructureWorkCenters();
+// The default plan must be available before the optional full production
+// structure editor is fetched.  The generated projection deliberately keeps
+// only the planning contract, not the whole legacy matrix.
+export const workCenters = DEFAULT_PRODUCTION_WORK_CENTERS;
 
 export function createDefaultPlanningState() {
   return {

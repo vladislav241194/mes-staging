@@ -1,0 +1,39 @@
+/* Executable module-pattern contract.
+   Patterns own outer composition only; domain renderers keep tables, trees,
+   boards, calendars and protected geometry inside the declared slots. */
+main.app-shell[data-module-blueprint][data-ui-pattern] [data-ui-blueprint="mes-module-blueprint/v1"]{
+  min-width: 0;
+  min-height: 0;
+}
+
+main.app-shell[data-module-blueprint][data-ui-pattern] [data-ui-blueprint="mes-module-blueprint/v1"] :is(
+  [data-ui-component="ModuleWorkspace"],
+  [data-ui-component="ModuleContent"],
+  [data-ui-component="ModuleSidebarBody"],
+  [data-ui-component="ModuleHeader"],
+  [data-ui-component="Panel"],
+  [data-ui-component="PanelHead"],
+  [data-ui-component="PanelBody"]
+){
+  min-width: 0;
+}
+
+main.app-shell[data-ui-pattern="sidebar-workspace"] [data-ui-blueprint="mes-module-blueprint/v1"],
+main.app-shell[data-ui-pattern="registry-table"] [data-ui-blueprint="mes-module-blueprint/v1"],
+main.app-shell[data-ui-pattern="tree-editor"] [data-ui-blueprint="mes-module-blueprint/v1"],
+main.app-shell[data-ui-pattern="detail-workflow"] [data-ui-blueprint="mes-module-blueprint/v1"]{
+  --mes-module-pattern-sidebar: var(--mes-ui-module-sidebar-width);
+}
+
+main.app-shell[data-ui-pattern="registry-table"] [data-ui-component="ModuleContent"],
+main.app-shell[data-ui-pattern="dashboard"] [data-ui-component="ModuleContent"],
+main.app-shell[data-ui-pattern="board"] [data-ui-component="ModuleContent"],
+main.app-shell[data-ui-pattern="calendar"] [data-ui-component="ModuleContent"],
+main.app-shell[data-ui-pattern="matrix"] [data-ui-component="ModuleContent"]{
+  align-content: start;
+}
+
+main.app-shell[data-ui-pattern="protected-canvas"] [data-ui-blueprint="mes-module-blueprint/v1"]{
+  /* The factory marks the boundary but deliberately does not own inner geometry. */
+  isolation: isolate;
+}

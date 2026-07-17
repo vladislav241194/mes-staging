@@ -1,14 +1,30 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const defaultUrl = new URL("/?module=gantt&qa-auth-bypass=1&qa=boot-performance", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const bootStorageKey = "mes-boot-performance-last";
+const sharedSyncStorageKey = "mes-shared-state-sync-last";
+const bootErrorStorageKey = "mes-boot-performance-error";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
+const systemDomainsStorageKey = "mes-planning-prototype-system-domains-v1";
 const startupTotalBudgetMs = 15000;
 const loadStateBudgetMs = 5000;
 const firstRenderBudgetMs = 6000;
+const defaultReportPath = join(process.cwd(), "reports", "performance", "boot-performance-latest.json");
+const repeatedStartupMigrationSteps = new Set([
+  "applyMesOrgStructureDefaults",
+  "ensureStatusDirectoryDefaults",
+  "migrateDepartmentsToUnifiedWorkCenters",
+  "migrateProjectEntityToSpecifications",
+  "migrateSpecificationBomRowsToNomenclature",
+  "syncNomenclatureTypesFromItems",
+  "migratePlanningManualLaborUiToRoutes",
+  "recoverPlanningStateFromStorageIfRuntimeEmpty",
+  "migrateLegacyOperationsToDirectory",
+  "ensureWorkCenterOperations",
+]);
 
 function getArg(name, fallback) {
   const prefix = `${name}=`;
@@ -207,6 +223,45 @@ async function waitForBootReport(client) {
   throw new Error("Boot performance report was not written to sessionStorage.");
 }
 
+async function waitForSharedSyncReport(client) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < startupTotalBudgetMs + 10000) {
+    const report = await evaluate(client, (storageKey) => {
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }, sharedSyncStorageKey);
+    if (report?.status && report.status !== "started") return report;
+    await delay(120);
+  }
+  throw new Error("Shared-state sync performance report was not written to sessionStorage.");
+}
+
+async function waitForDeferredSystemDomains(client) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 10000) {
+    const summary = await evaluate(client, (storageKey) => {
+      try {
+        const domains = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const registries = domains?.registries || {};
+        return {
+          employees: Array.isArray(registries.employees) ? registries.employees.length : 0,
+          workCenters: Array.isArray(registries.workCenters) ? registries.workCenters.length : 0,
+        };
+      } catch {
+        return null;
+      }
+    }, systemDomainsStorageKey);
+    if (summary?.employees > 0 && summary?.workCenters > 0) return summary;
+    await delay(120);
+  }
+  throw new Error("Deferred System Domains migration did not finish for a blank browser profile.");
+}
+
 function getStep(report, stepName) {
   return (report.entries || []).find((entry) => entry.step === stepName) || null;
 }
@@ -217,15 +272,33 @@ function getStepMs(step = null) {
 }
 
 async function main() {
-  const url = getArg("--url", defaultUrl);
+  const expectQaInspector = process.argv.includes("--expect-qa-inspector");
+  const inspectorUrl = new URL(defaultUrl);
+  if (expectQaInspector) inspectorUrl.searchParams.set("qa_inspector", "1");
+  const url = getArg("--url", inspectorUrl.toString());
+  const reportPath = getArg("--report", defaultReportPath);
+  const withSharedState = process.argv.includes("--with-shared-state");
+  const verifyWarmStart = !process.argv.includes("--skip-warm-start-check");
   const chrome = await launchChrome();
   try {
     const { client } = chrome;
     await client.send("Page.enable");
     await client.send("Runtime.enable");
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: `sessionStorage.setItem(${JSON.stringify(sharedDisabledKey)}, String(Date.now() + 60 * 60 * 1000));`,
+      source: `
+        window.addEventListener("error", (event) => {
+          sessionStorage.setItem(${JSON.stringify(bootErrorStorageKey)}, String(event.error?.stack || event.message || "window error"));
+        });
+        window.addEventListener("unhandledrejection", (event) => {
+          sessionStorage.setItem(${JSON.stringify(bootErrorStorageKey)}, String(event.reason?.stack || event.reason || "unhandled rejection"));
+        });
+      `,
     });
+    if (!withSharedState) {
+      await client.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: `sessionStorage.setItem(${JSON.stringify(sharedDisabledKey)}, String(Date.now() + 60 * 60 * 1000));`,
+      });
+    }
     await client.send("Emulation.setDeviceMetricsOverride", {
       width: 1556,
       height: 1006,
@@ -233,22 +306,124 @@ async function main() {
       mobile: false,
     });
     await client.send("Page.navigate", { url });
-    const report = await waitForBootReport(client);
+    let report;
+    try {
+      report = await waitForBootReport(client);
+    } catch (error) {
+      const diagnostics = await evaluate(client, (errorStorageKey) => ({
+        error: sessionStorage.getItem(errorStorageKey),
+        title: document.title,
+        body: document.body?.innerText?.slice(0, 1800) || "",
+      }), bootErrorStorageKey).catch(() => null);
+      if (diagnostics) console.error(`Boot diagnostics: ${JSON.stringify(diagnostics)}`);
+      throw error;
+    }
+    const sharedSync = withSharedState ? await waitForSharedSyncReport(client) : null;
+    const deferredSystemDomains = withSharedState ? null : await waitForDeferredSystemDomains(client);
+    if (expectQaInspector) {
+      const inspectorLoaded = await evaluate(client, () => Boolean(document.querySelector('[data-mes-qa-ui="launcher"]')));
+      assert(inspectorLoaded, "QA-инспектор не загрузился по требованию.");
+    }
+    let warmBoot = null;
+    if (verifyWarmStart) {
+      await evaluate(client, (storageKey) => sessionStorage.removeItem(storageKey), bootStorageKey);
+      await client.send("Page.reload", { ignoreCache: false });
+      warmBoot = await waitForBootReport(client);
+      const repeatedMigrations = (warmBoot.entries || [])
+        .map((entry) => entry.step)
+        .filter((step) => repeatedStartupMigrationSteps.has(step));
+      assert(repeatedMigrations.length === 0,
+        `One-time startup migrations ran again after reload: ${repeatedMigrations.join(", ")}`);
+    }
     const loadState = getStep(report, "loadState");
     const firstRender = getStep(report, "first render");
+    const staticImports = getStep(report, "static imports before app timer");
     const loadStateMs = getStepMs(loadState);
     const firstRenderMs = getStepMs(firstRender);
+    const staticImportsMs = getStepMs(staticImports);
     const stepNames = (report.entries || []).map((entry) => entry.step).join(", ");
+    const navigation = await evaluate(client, () => {
+      const entry = performance.getEntriesByType("navigation")[0];
+      return entry ? {
+        domContentLoadedMs: Number(entry.domContentLoadedEventEnd?.toFixed?.(2) || 0),
+        loadEventMs: Number(entry.loadEventEnd?.toFixed?.(2) || 0),
+        transferBytes: Number(entry.transferSize || 0),
+        encodedBodyBytes: Number(entry.encodedBodySize || 0),
+        decodedBodyBytes: Number(entry.decodedBodySize || 0),
+      } : null;
+    });
+    const resourceSummary = await evaluate(client, () => performance.getEntriesByType("resource")
+      .reduce((summary, entry) => {
+        const initiator = entry.initiatorType || "other";
+        summary.count += 1;
+        summary.transferBytes += Number(entry.transferSize || 0);
+        summary.encodedBodyBytes += Number(entry.encodedBodySize || 0);
+        summary.byInitiator[initiator] = (summary.byInitiator[initiator] || 0) + 1;
+        try {
+          const url = new URL(entry.name);
+          summary.entries.push({
+            path: url.pathname,
+            initiator,
+            transferBytes: Number(entry.transferSize || 0),
+          });
+        } catch {
+          // Ignore malformed third-party resource entries in diagnostics.
+        }
+        return summary;
+      }, { count: 0, transferBytes: 0, encodedBodyBytes: 0, byInitiator: {}, entries: [] }));
 
     assert(report.totalMs <= startupTotalBudgetMs, `Startup took ${report.totalMs} ms, budget is ${startupTotalBudgetMs} ms.`);
     assert(loadStateMs !== null && loadStateMs <= loadStateBudgetMs, `loadState took ${loadStateMs ?? "unknown"} ms, budget is ${loadStateBudgetMs} ms. Steps: ${stepNames}`);
     assert(firstRenderMs !== null && firstRenderMs <= firstRenderBudgetMs, `first render took ${firstRenderMs ?? "unknown"} ms, budget is ${firstRenderBudgetMs} ms. Steps: ${stepNames}`);
 
+    const audit = {
+      checkedAt: new Date().toISOString(),
+      url,
+      coldProfile: true,
+      withSharedState,
+      budgets: {
+        startupTotalMs: startupTotalBudgetMs,
+        loadStateMs: loadStateBudgetMs,
+        firstRenderMs: firstRenderBudgetMs,
+      },
+      boot: report,
+      navigation,
+      resources: resourceSummary,
+      deferredSystemDomains,
+      sharedStateSync: sharedSync,
+      warmBoot: warmBoot ? {
+        totalMs: warmBoot.totalMs,
+        staticImportsMs: warmBoot.staticImportsMs,
+        entries: warmBoot.entries,
+      } : null,
+    };
+    await mkdir(dirname(reportPath), { recursive: true });
+    await writeFile(reportPath, `${JSON.stringify(audit, null, 2)}\n`);
+
     console.log("MES Boot Performance QA");
     console.log(`- total: ${report.totalMs} ms`);
+    console.log(`- static imports: ${staticImportsMs ?? "n/a"} ms`);
     console.log(`- loadState: ${loadStateMs ?? "n/a"} ms`);
     console.log(`- first render: ${firstRenderMs ?? "n/a"} ms`);
     console.log(`- entries: ${(report.entries || []).length}`);
+    console.log(`- resources: ${resourceSummary.count}, ${resourceSummary.transferBytes} B transferred`);
+    if (deferredSystemDomains) {
+      console.log(`- deferred System Domains: ${deferredSystemDomains.workCenters} work centers, ${deferredSystemDomains.employees} employees`);
+    }
+    if (warmBoot) {
+      console.log(`- warm reload: ${warmBoot.totalMs} ms; one-time migrations skipped`);
+    }
+    console.log(`- report: ${reportPath}`);
+    if (sharedSync) {
+      assert(sharedSync.status === "synchronized" || sharedSync.status === "initialized" || sharedSync.status === "bootstrapped",
+        `Shared-state sync did not complete: ${sharedSync.status}${sharedSync.message ? ` (${sharedSync.message})` : ""}.`);
+      console.log(`- shared-state sync: ${sharedSync.durationMs} ms (${sharedSync.status}, apply ${sharedSync.applyMs ?? "n/a"} ms, version ${sharedSync.version ?? "n/a"})`);
+      const renderProfile = await evaluate(client, () => window.__MES_RENDER_PERFORMANCE__ || null);
+      if (renderProfile?.totalMs) {
+        const phases = (renderProfile.entries || []).map((entry) => `${entry.name} ${entry.ms}ms`).join(", ");
+        console.log(`- synchronized ${renderProfile.module} render: ${renderProfile.totalMs} ms (${phases})`);
+      }
+    }
     console.log("OK: boot performance is within guard budgets.");
   } finally {
     await cleanupChrome(chrome);

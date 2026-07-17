@@ -6,6 +6,7 @@ import { join } from "node:path";
 const defaultUrl = new URL("/?module=roles&qa-auth-bypass=1&qa=roles-functional", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const uiStorageKey = "mes-planning-prototype-ui-v1";
 const planningStorageKey = "mes-planning-prototype-state-v2";
+const systemDomainsStorageKey = "mes-planning-prototype-system-domains-v1";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -197,22 +198,23 @@ async function resetRolesUiState(client) {
     state.accessRoleAssignments = {};
     state.accessRolesSelectedRoleId = "admin";
     localStorage.setItem(payload.uiStorageKey, JSON.stringify(state));
+    localStorage.removeItem(payload.systemDomainsStorageKey);
     window.location.reload();
-  }, { uiStorageKey, planningStorageKey });
+  }, { uiStorageKey, planningStorageKey, systemDomainsStorageKey });
   await delay(800);
   await waitForRolesPage(client);
 }
 
 async function runRolesScenario(client) {
-  const result = await evaluate(client, (storageKey) => {
+  const result = await evaluate(client, async (payload) => {
     const event = (name) => new Event(name, { bubbles: true, cancelable: true });
     const masterButton = document.querySelector('[data-access-role-select="master"]');
     if (!masterButton) return { error: "master role button missing" };
     masterButton.click();
-    const captionField = document.querySelector('[data-access-role-field="master"][data-access-role-field-name="caption"]');
-    if (!captionField) return { error: "master caption field missing" };
-    captionField.value = "QA: распределение смены";
-    captionField.dispatchEvent(event("change"));
+    const descriptionField = document.querySelector('[data-access-role-field="master"][data-access-role-field-name="description"]');
+    if (!descriptionField) return { error: "master description field missing" };
+    descriptionField.value = "QA: распределение смены";
+    descriptionField.dispatchEvent(event("change"));
     const rolesViewToggle = document.querySelector('[data-access-role-id="master"][data-access-module-id="roles"][data-access-action-id="view"]');
     if (!rolesViewToggle) return { error: "master roles/view toggle missing" };
     rolesViewToggle.checked = true;
@@ -223,21 +225,27 @@ async function runRolesScenario(client) {
     assignmentSelect.value = "master";
     assignmentSelect.dispatchEvent(event("change"));
     const employeeId = assignmentSelect.dataset.accessRoleAssignment || "";
-    const state = JSON.parse(localStorage.getItem(storageKey) || "{}");
-    const masterRole = (state.accessRoleProfiles || []).find((role) => role.id === "master") || {};
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const uiState = JSON.parse(localStorage.getItem(payload.uiStorageKey) || "{}");
+    const domains = JSON.parse(localStorage.getItem(payload.systemDomainsStorageKey) || "{}");
+    const masterRole = (domains.registries?.accessRoles || []).find((role) => role.id === "master") || {};
+    const rolesViewGrant = (domains.registries?.grants || []).find((grant) => (
+      grant.roleId === "master" && grant.resourceId === "roles" && grant.actionId === "view"
+    ));
+    const assignment = (domains.registries?.roleAssignments || []).find((row) => row.employeeId === employeeId) || {};
     return {
       pageId: document.querySelector("main.app-shell")?.dataset.layoutPage || "",
       employeeId,
-      selectedRole: state.accessRolesSelectedRoleId || "",
-      caption: masterRole.caption || "",
-      rolesView: Boolean(masterRole.modulePermissions?.roles?.view),
-      assignment: state.accessRoleAssignments?.[employeeId] || "",
+      selectedRole: uiState.accessRolesSelectedRoleId || "",
+      description: masterRole.description || "",
+      rolesView: rolesViewGrant?.effect === "allow",
+      assignment: assignment.roleId || "",
     };
-  }, uiStorageKey);
+  }, { uiStorageKey, systemDomainsStorageKey });
   assert(!result.error, result.error || "Roles scenario failed.");
   assert(result.pageId === "roles", `Expected roles page, got ${result.pageId}`);
   assert(result.selectedRole === "master", `Expected selected master role, got ${result.selectedRole}`);
-  assert(result.caption === "QA: распределение смены", "Master role caption was not persisted.");
+  assert(result.description === "QA: распределение смены", "Master role description was not persisted.");
   assert(result.rolesView, "Master role roles/view permission was not persisted.");
   assert(result.employeeId && result.assignment === "master", "Employee role assignment was not persisted.");
   return result;
@@ -264,15 +272,19 @@ async function reloadAndReadState(client, employeeId) {
   await delay(800);
   await waitForRolesPage(client);
   return evaluate(client, (payload) => {
-    const state = JSON.parse(localStorage.getItem(payload.storageKey) || "{}");
-    const masterRole = (state.accessRoleProfiles || []).find((role) => role.id === "master") || {};
+    const domains = JSON.parse(localStorage.getItem(payload.systemDomainsStorageKey) || "{}");
+    const masterRole = (domains.registries?.accessRoles || []).find((role) => role.id === "master") || {};
+    const rolesViewGrant = (domains.registries?.grants || []).find((grant) => (
+      grant.roleId === "master" && grant.resourceId === "roles" && grant.actionId === "view"
+    ));
+    const assignment = (domains.registries?.roleAssignments || []).find((row) => row.employeeId === payload.employeeId) || {};
     return {
       pageId: document.querySelector("main.app-shell")?.dataset.layoutPage || "",
-      caption: masterRole.caption || "",
-      rolesView: Boolean(masterRole.modulePermissions?.roles?.view),
-      assignment: state.accessRoleAssignments?.[payload.employeeId] || "",
+      description: masterRole.description || "",
+      rolesView: rolesViewGrant?.effect === "allow",
+      assignment: assignment.roleId || "",
     };
-  }, { storageKey: uiStorageKey, employeeId });
+  }, { systemDomainsStorageKey, employeeId });
 }
 
 async function cleanupChrome(chrome) {
@@ -305,7 +317,7 @@ async function main() {
     const scenario = await runRolesScenario(chrome.client);
     const reload = await reloadAndReadState(chrome.client, scenario.employeeId);
     assert(reload.pageId === "roles", `Expected roles page after reload, got ${reload.pageId}`);
-    assert(reload.caption === scenario.caption, `Role caption did not survive reload: ${JSON.stringify({ scenario, reload })}`);
+    assert(reload.description === scenario.description, `Role description did not survive reload: ${JSON.stringify({ scenario, reload })}`);
     assert(reload.rolesView === true, `Role permission did not survive reload: ${JSON.stringify({ scenario, reload })}`);
     assert(reload.assignment === "master", `Role assignment did not survive reload: ${JSON.stringify({ scenario, reload })}`);
     console.log("Roles Functional QA OK");

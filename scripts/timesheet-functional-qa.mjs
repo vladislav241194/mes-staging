@@ -7,6 +7,7 @@ import { getProductionStructureEmployees } from "../src/production_structure_ser
 
 const defaultUrl = new URL("/?module=timesheet&qa=timesheet-functional&qa-auth-bypass=1", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
+const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
 
 function getArg(name, fallback) {
   const prefix = `${name}=`;
@@ -263,10 +264,11 @@ async function main() {
     assert(initial.firstDayButtonRect?.width >= 28 && initial.firstDayButtonRect?.height >= 28, "Timesheet day button is below touch target.");
     assert(initial.firstEmployeeId && initial.firstDateKey, "Timesheet first editable cell was not found.");
 
-    const edited = await evaluate(client, ({ employeeId, dateKey, uiStorageKey }) => {
+    const editedAttendance = await evaluate(client, async ({ employeeId, dateKey, uiStorageKey, systemDomainsStorageKey }) => {
       const cell = document.querySelector(`[data-timesheet-cell][data-timesheet-employee-id="${CSS.escape(employeeId)}"][data-timesheet-date="${CSS.escape(dateKey)}"]`);
       cell?.querySelector("[data-timesheet-day-button]")?.click();
-      const form = document.querySelector("[data-timesheet-editor-form]");
+      const form = document.querySelector("[data-timesheet-attendance-form]");
+      const scheduleForm = document.querySelector("[data-timesheet-schedule-form]");
       if (!form) return { opened: false };
       const setField = (name, value) => {
         const field = form.querySelector(`[name="${name}"]`);
@@ -279,44 +281,91 @@ async function main() {
       setField("value", "sick");
       setField("start", "09:00");
       setField("end", "18:00");
-      setField("overtime", "1.5");
+      setField("overtime", "0");
       setField("comment", "QA табель");
-      setField("scheduleCode", "2/2");
-      setField("scheduleStart", "07:00");
-      setField("scheduleEnd", "20:00");
-      setField("patternOffset", "2");
       form.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 120));
       const ui = JSON.parse(localStorage.getItem(uiStorageKey) || "{}");
+      const domains = JSON.parse(localStorage.getItem(systemDomainsStorageKey) || "{}");
       return {
         opened: true,
-        cellOverride: ui.timesheetCellOverrides?.[`${employeeId}::${dateKey}`] || null,
-        scheduleOverride: ui.timesheetScheduleOverrides?.[employeeId] || null,
+        formsSeparated: Boolean(scheduleForm && !form.querySelector("[name='scheduleCode']") && !scheduleForm.querySelector("[name='value']")),
+        legacyCellOverride: ui.timesheetCellOverrides?.[`${employeeId}::${dateKey}`] || null,
+        attendanceEvent: (domains.registries?.attendanceEvents || []).find((event) => event.employeeId === employeeId && event.date === dateKey) || null,
       };
-    }, { employeeId: initial.firstEmployeeId, dateKey: initial.firstDateKey, uiStorageKey: UI_STORAGE_KEY });
+    }, {
+      employeeId: initial.firstEmployeeId,
+      dateKey: initial.firstDateKey,
+      uiStorageKey: UI_STORAGE_KEY,
+      systemDomainsStorageKey: SYSTEM_DOMAINS_STORAGE_KEY,
+    });
     await delay(700);
 
-    assert(edited.opened, "Timesheet editor modal did not open.");
-    assert(edited.cellOverride?.value === "sick", "Timesheet cell override was not saved.");
-    assert(edited.cellOverride?.start === "09:00" && edited.cellOverride?.end === "18:00", "Timesheet cell time override was not saved.");
-    assert(Number(edited.cellOverride?.overtime || 0) === 1.5, "Timesheet overtime override was not saved.");
-    assert(edited.scheduleOverride?.code === "2/2", "Timesheet schedule code override was not saved.");
-    assert(edited.scheduleOverride?.start === "07:00" && edited.scheduleOverride?.end === "20:00", "Timesheet schedule time override was not saved.");
+    assert(editedAttendance.opened, "Timesheet editor modal did not open.");
+    assert(editedAttendance.formsSeparated, "Attendance fact and permanent schedule are not separated into independent forms.");
+    assert(editedAttendance.attendanceEvent?.type === "sick", `Canonical sick attendance event was not saved: ${JSON.stringify(editedAttendance.attendanceEvent)}`);
+    assert(!editedAttendance.legacyCellOverride, "Attendance save wrote back to legacy timesheetCellOverrides.");
 
-    const reflected = await evaluate(client, ({ employeeId, dateKey }) => {
+    const editedSchedule = await evaluate(client, async ({ employeeId, dateKey, uiStorageKey, systemDomainsStorageKey }) => {
+      const scheduleButton = document.querySelector(`[data-timesheet-schedule-button][data-timesheet-employee-id="${CSS.escape(employeeId)}"]`);
+      scheduleButton?.click();
+      const form = document.querySelector("[data-timesheet-schedule-form]");
+      if (!form) return { opened: false };
+      const setField = (name, value) => {
+        const field = form.querySelector(`[name="${name}"]`);
+        if (!field) return false;
+        field.value = String(value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      };
+      setField("effectiveFrom", dateKey);
+      setField("scheduleCode", "2/2");
+      setField("patternOffset", "2");
+      form.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      const ui = JSON.parse(localStorage.getItem(uiStorageKey) || "{}");
+      const domains = JSON.parse(localStorage.getItem(systemDomainsStorageKey) || "{}");
+      const scheduleAssignment = (domains.registries?.scheduleAssignments || []).find((assignment) => (
+        assignment.employeeId === employeeId && assignment.validFrom === dateKey
+      )) || null;
+      return {
+        opened: true,
+        legacyScheduleOverride: ui.timesheetScheduleOverrides?.[employeeId] || null,
+        scheduleAssignment,
+        scheduleTemplate: (domains.registries?.scheduleTemplates || []).find((template) => template.id === scheduleAssignment?.scheduleTemplateId) || null,
+      };
+    }, {
+      employeeId: initial.firstEmployeeId,
+      dateKey: initial.firstDateKey,
+      uiStorageKey: UI_STORAGE_KEY,
+      systemDomainsStorageKey: SYSTEM_DOMAINS_STORAGE_KEY,
+    });
+    await delay(700);
+
+    assert(editedSchedule.opened, "Independent schedule editor did not open.");
+    assert(editedSchedule.scheduleTemplate?.code === "2/2", `Canonical 2/2 assignment was not saved: ${JSON.stringify(editedSchedule)}`);
+    assert(Number(editedSchedule.scheduleAssignment?.patternOffset) === 2, "Canonical schedule cycle offset was not saved.");
+    assert(!editedSchedule.legacyScheduleOverride, "Schedule save wrote back to legacy timesheetScheduleOverrides.");
+
+    const reflected = await evaluate(client, ({ employeeId, dateKey, systemDomainsStorageKey }) => {
       const cell = document.querySelector(`[data-timesheet-cell][data-timesheet-employee-id="${CSS.escape(employeeId)}"][data-timesheet-date="${CSS.escape(dateKey)}"]`);
       const schedule = document.querySelector(`[data-timesheet-schedule-button][data-timesheet-employee-id="${CSS.escape(employeeId)}"]`);
+      const domains = JSON.parse(localStorage.getItem(systemDomainsStorageKey) || "{}");
       return {
         cellValue: cell?.dataset.timesheetValue || "",
+        cellAvailability: cell?.dataset.timesheetAvailability || "",
         cellText: cell?.textContent?.trim().replace(/\s+/g, " ") || "",
         scheduleText: schedule?.textContent?.trim().replace(/\s+/g, " ") || "",
         editorStillOpen: Boolean(document.querySelector("[data-timesheet-editor-form]")),
+        attendanceEvents: (domains.registries?.attendanceEvents || []).filter((event) => event.employeeId === employeeId && event.date === dateKey),
       };
-    }, { employeeId: initial.firstEmployeeId, dateKey: initial.firstDateKey });
+    }, { employeeId: initial.firstEmployeeId, dateKey: initial.firstDateKey, systemDomainsStorageKey: SYSTEM_DOMAINS_STORAGE_KEY });
 
     assert(!reflected.editorStillOpen, "Timesheet editor stayed open after save.");
-    assert(reflected.cellValue === "sick", `Timesheet cell did not reflect saved state: ${reflected.cellValue}`);
+    assert(reflected.cellValue === "sick", `Timesheet cell did not reflect saved state: ${JSON.stringify(reflected)}`);
     assert(reflected.cellText.includes("Б/л"), `Timesheet sick cell text is missing: ${reflected.cellText}`);
-    assert(reflected.scheduleText.includes("2/2") && reflected.scheduleText.includes("07:00-20:00"), `Timesheet schedule did not reflect override: ${reflected.scheduleText}`);
+    assert(reflected.scheduleText.includes("2/2") && reflected.scheduleText.includes("08:00-20:00"), `Timesheet schedule did not reflect canonical template: ${reflected.scheduleText}`);
     assert(!consoleProblems.length, `Console problems: ${consoleProblems.slice(0, 5).join("; ")}`);
 
     console.log("Timesheet Functional QA OK");

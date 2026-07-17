@@ -1,0 +1,225 @@
+/* Canonical application navigation contract.
+   Desktop owns one stable, left-aligned sidebar. Mobile and focus mode keep
+   their dedicated runtime-state behavior. */
+@media (min-width: 769px) {
+  main.app-shell[data-layout="app-shell"]:not(.is-focus-mode){
+    grid-template-columns: var(--mes-ui-app-sidebar-width) minmax(0, 1fr);
+  }
+
+  main.app-shell[data-layout="app-shell"]:not(.is-focus-mode) > .module-menu{
+    position: relative;
+    z-index: 20;
+    grid-column: 1;
+    grid-row: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 10px;
+    width: var(--mes-ui-app-sidebar-width);
+    min-width: var(--mes-ui-app-sidebar-width);
+    max-width: var(--mes-ui-app-sidebar-width);
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    border-right: 1px solid var(--mes-ui-sidebar-line);
+    border-bottom: 0;
+    background: var(--mes-ui-sidebar-bg-gradient), var(--mes-ui-sidebar-bg);
+    color: var(--mes-ui-sidebar-text);
+    padding: 10px 8px;
+    box-shadow: none;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand{
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-rows: 15px 15px;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 0;
+    min-width: 0;
+    min-height: 30px;
+    color: var(--mes-ui-sidebar-text);
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand::before{
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--mes-ui-sidebar-line);
+    border-radius: var(--mes-ui-radius-xs);
+    background: var(--mes-ui-sidebar-surface);
+    color: var(--mes-ui-text-inverse);
+    content: "MES";
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: -0.25px;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand strong,
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand span{
+    grid-column: 2;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand strong{
+    grid-row: 1;
+    align-self: end;
+    color: var(--mes-ui-text-inverse);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 15px;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand span{
+    grid-row: 2;
+    align-self: start;
+    color: var(--mes-ui-sidebar-muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 15px;
+    text-overflow: ellipsis;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-tabs{
+    display: grid;
+    align-content: start;
+    align-items: stretch;
+    gap: 6px;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0 1px 2px;
+    scrollbar-width: thin;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-group{
+    display: grid;
+    justify-items: stretch;
+    gap: 3px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--mes-ui-sidebar-group-border);
+    border-radius: var(--mes-radius-control);
+    background: var(--mes-ui-sidebar-group-bg);
+    padding: 4px 3px 5px;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-group-title{
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 12px;
+    overflow: hidden;
+    border-bottom: 1px solid var(--mes-ui-sidebar-group-border);
+    color: var(--mes-ui-sidebar-muted);
+    padding: 0 4px 3px 28px;
+    font-size: 8.5px;
+    font-weight: var(--mes-ui-sidebar-group-weight);
+    line-height: 10px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-tab{
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    align-items: center;
+    justify-content: stretch;
+    justify-items: start;
+    gap: 6px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 34px;
+    min-height: 34px;
+    border: 1px solid transparent;
+    border-radius: var(--mes-ui-radius-xs);
+    background: transparent;
+    color: var(--mes-ui-sidebar-text);
+    padding: 3px 8px;
+    box-shadow: none;
+    font-size: 11px;
+    font-weight: var(--mes-ui-sidebar-tab-weight);
+    line-height: 12px;
+    text-align: left;
+    transition: none;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-tab:hover{
+    border-color: var(--mes-ui-sidebar-line);
+    background: var(--mes-ui-sidebar-hover);
+    color: var(--mes-ui-text-inverse);
+    transform: none;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-tab.is-active{
+    border-color: var(--mes-ui-sidebar-active);
+    background: var(--mes-ui-gradient-primary-diagonal);
+    color: var(--mes-ui-text-inverse);
+    box-shadow: inset 0 0 0 1px var(--mes-ui-sidebar-active-ring);
+    font-weight: var(--mes-ui-sidebar-tab-active-weight);
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-tab span{
+    position: relative;
+    z-index: 1;
+    display: block;
+    justify-self: stretch;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: inherit;
+    line-height: 12px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  main.app-shell[data-layout="app-shell"] > .module-menu .module-tab :is(svg, .mes-icon){
+    position: relative;
+    z-index: 1;
+    justify-self: center;
+    width: 14px;
+    height: 14px;
+    color: currentColor;
+    stroke: currentColor;
+    filter: none;
+  }
+}
+
+/* The legacy Gantt desktop lock pins its workspace to column 2. On a narrow
+   shell that creates an implicit 0px navigation column, so the shared mobile
+   switcher collapses even though the Gantt canvas itself is intact. Keep the
+   correction at the outer-shell boundary; no Gantt geometry is changed. */
+@media (max-width: 768px) {
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]{
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"] > .module-menu{
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  main.app-shell.planning-app-shell.planning-gantt-shell[data-layout="app-shell"][data-layout-page="gantt"] > .planner-workspace.planner-workspace-gantt-only{
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+}

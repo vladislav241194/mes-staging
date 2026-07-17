@@ -1,0 +1,529 @@
+/* Gantt visual system v1.492.48.
+   This is a visual-only bridge from the protected Gantt runtime to the shared
+   MES UI contract. Keep geometry, scale, inline coordinates and interaction
+   rules in the dedicated Gantt layers; change palette here only. */
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]{
+  --gantt-ui-surface: var(--mes-ui-gantt-surface);
+  --gantt-ui-surface-soft: var(--mes-ui-gantt-surface-soft);
+  --gantt-ui-surface-raised: var(--mes-ui-gantt-surface-raised);
+  --gantt-ui-line: var(--mes-ui-gantt-line);
+  --gantt-ui-line-soft: var(--mes-ui-gantt-line-soft);
+  --gantt-ui-line-muted: color-mix(in srgb, var(--mes-ui-line-soft) 58%, transparent);
+  --gantt-ui-grid-line: color-mix(in srgb, var(--mes-ui-line-soft) 50%, transparent);
+  --gantt-ui-nonwork-a: color-mix(in srgb, var(--mes-ui-neutral-alpha-08) 48%, transparent);
+  --gantt-ui-nonwork-b: color-mix(in srgb, var(--mes-ui-neutral-alpha-14) 38%, transparent);
+  --gantt-ui-text: var(--mes-ui-gantt-text);
+  --gantt-ui-muted: var(--mes-ui-gantt-muted);
+  --gantt-ui-accent: var(--mes-ui-gantt-accent);
+  --gantt-ui-shadow: var(--mes-ui-shadow-sm);
+  --mes-ui-gantt-grid-line: var(--gantt-ui-grid-line);
+  background: var(--mes-ui-module-page-background) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only{
+  gap: var(--mes-ui-density-gap) !important;
+  background: var(--mes-ui-module-page-background) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar{
+  --gantt-toolbar-container-height: 46px;
+  --gantt-toolbar-inner-height: 34px;
+  display: grid !important;
+  grid-template-areas: "brand controls actions" !important;
+  grid-template-columns: minmax(170px, 0.5fr) minmax(420px, 0.96fr) minmax(420px, 1fr) !important;
+  grid-template-rows: auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  border-color: var(--gantt-ui-line) !important;
+  background: var(--gantt-ui-surface-raised) !important;
+  box-shadow: var(--gantt-ui-shadow) !important;
+  color: var(--gantt-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar > :is(.brand-block, .toolbar-grid, .toolbar-actions){
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .brand-block{
+  grid-area: brand !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-grid{
+  grid-area: controls !important;
+  display: grid !important;
+  grid-template-columns: minmax(132px, 0.82fr) minmax(176px, 1fr) minmax(132px, 0.78fr) !important;
+  grid-template-rows: var(--gantt-toolbar-container-height) !important;
+  align-items: stretch !important;
+  gap: 6px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-grid > :is(.field, .segmented, .gantt-zoom-control){
+  min-width: 0 !important;
+  height: var(--gantt-toolbar-container-height) !important;
+  min-height: var(--gantt-toolbar-container-height) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-actions{
+  grid-area: actions !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .brand-title{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gantt-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .brand-subtitle,
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .field > span{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gantt-ui-muted);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar :is(.field, .segmented, .gantt-zoom-control){
+  border-color: var(--gantt-ui-line) !important;
+  background: var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar :is(input, .segment, .gantt-zoom-value){
+  color: var(--gantt-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact{
+  display: grid !important;
+  grid-template-rows: 10px 28px !important;
+  align-content: center !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact > input{
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  line-height: 28px !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .segmented{
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .gantt-zoom-control{
+  display: grid !important;
+  grid-template-columns: 28px minmax(48px, 1fr) 28px !important;
+  align-items: stretch !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .gantt-zoom-control :is(.icon-button, .gantt-zoom-value),
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-actions :is(.icon-button, .secondary-button, .toggle-switch-button),
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .gantt-toolbar-clock{
+  height: var(--gantt-toolbar-inner-height) !important;
+  min-height: var(--gantt-toolbar-inner-height) !important;
+  max-height: var(--gantt-toolbar-inner-height) !important;
+  line-height: var(--gantt-toolbar-inner-height) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .segment.is-active,
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .gantt-zoom-value{
+  border-color: var(--mes-ui-status-info-border) !important;
+  background: var(--mes-ui-status-info-bg) !important;
+  color: var(--mes-ui-status-info-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-actions :is(.icon-button, .secondary-button, .toggle-switch-button),
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .gantt-toolbar-clock{
+  border-color: var(--gantt-ui-line) !important;
+  background: var(--gantt-ui-surface-raised) !important;
+  color: var(--gantt-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toolbar-actions .toggle-switch-button.is-on{
+  border-color: var(--mes-ui-status-info-border) !important;
+  background: var(--mes-ui-status-info-bg) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toggle-switch-knob{
+  background: var(--mes-ui-line-strong);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .topbar .toggle-switch-button.is-on .toggle-switch-knob{
+  background: var(--gantt-ui-accent);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .planner-workspace-gantt-only > .planner-frame{
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell{
+  border-color: var(--gantt-ui-line) !important;
+  background: var(--gantt-ui-surface-soft) !important;
+  box-shadow: var(--gantt-ui-shadow) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-canvas{
+  background:
+    linear-gradient(180deg, var(--gantt-ui-surface) 0, var(--gantt-ui-surface) 48px, var(--gantt-ui-surface-soft) 48px),
+    var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .timeline-row{
+  border-color: var(--gantt-ui-line) !important;
+  background: linear-gradient(180deg, var(--gantt-ui-surface-raised), var(--gantt-ui-surface-soft)) !important;
+  box-shadow: inset 0 -1px 0 var(--gantt-ui-line-muted);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell :is(.timeline-corner, .timeline-cell){
+  border-color: var(--gantt-ui-line-muted) !important;
+  background: linear-gradient(180deg, var(--gantt-ui-surface-raised), var(--gantt-ui-surface-soft)) !important;
+  color: var(--gantt-ui-muted);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .timeline-corner{
+  background: linear-gradient(180deg, var(--gantt-ui-surface-raised), var(--gantt-ui-surface)) !important;
+  box-shadow: inset -1px 0 0 var(--gantt-ui-line-muted);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .timeline-week-group{
+  border-color: var(--gantt-ui-line) !important;
+  background: var(--mes-ui-primary-alpha-08) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell :is(.timeline-corner span, .timeline-cell strong, .timeline-week-group strong){
+  color: var(--gantt-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell :is(.timeline-corner small, .timeline-cell small, .timeline-week-group small){
+  color: var(--gantt-ui-muted);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .timeline-cells.is-grouped-by-week .timeline-cell.is-weekend{
+  background:
+    repeating-linear-gradient(
+      135deg,
+      var(--gantt-ui-nonwork-a) 0,
+      var(--gantt-ui-nonwork-a) 7px,
+      var(--gantt-ui-nonwork-b) 7px,
+      var(--gantt-ui-nonwork-b) 8px
+    ),
+    var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row{
+  border-color: var(--gantt-ui-line-muted) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .row-label{
+  border-color: var(--gantt-ui-line-muted) !important;
+  background: linear-gradient(180deg, var(--gantt-ui-surface), var(--gantt-ui-surface-soft)) !important;
+  box-shadow: inset -1px 0 0 var(--gantt-ui-line-muted);
+  color: var(--gantt-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:nth-of-type(even) .row-label{
+  background: var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell :is(.production-row .row-label, .production-lane){
+  background: var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .lane{
+  border-color: var(--gantt-ui-line-muted) !important;
+  background:
+    linear-gradient(to right, var(--gantt-ui-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--mes-ui-surface-glass-58), var(--mes-ui-surface-glass-58)),
+    var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:nth-of-type(odd) .lane{
+  background:
+    linear-gradient(to right, var(--gantt-ui-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--mes-ui-surface-glass-72), var(--mes-ui-surface-glass-72)),
+    var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:is(:hover, :focus-within, .is-drop-target) .row-label,
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:has(.operation-slot.is-selected) .row-label{
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--mes-ui-gantt-row-hover-bg) 62%, var(--gantt-ui-surface)),
+      color-mix(in srgb, var(--mes-ui-gantt-row-hover-bg) 42%, var(--gantt-ui-surface-soft))
+    ) !important;
+  box-shadow:
+    inset 3px 0 0 var(--gantt-ui-accent),
+    inset -1px 0 0 var(--gantt-ui-line-muted) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:is(:hover, :focus-within, .is-drop-target) .lane,
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:has(.operation-slot.is-selected) .lane{
+  background:
+    linear-gradient(to right, var(--gantt-ui-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--mes-ui-gantt-row-hover-bg), var(--mes-ui-gantt-row-hover-bg)),
+    var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:has(.operation-slot.is-selected) .row-label{
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--mes-ui-gantt-row-selected-bg) 68%, var(--gantt-ui-surface)),
+      color-mix(in srgb, var(--mes-ui-gantt-row-selected-bg) 48%, var(--gantt-ui-surface-soft))
+    ) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .gantt-row:has(.operation-slot.is-selected) .lane{
+  background:
+    linear-gradient(to right, var(--gantt-ui-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--mes-ui-gantt-row-selected-bg), var(--mes-ui-gantt-row-selected-bg)),
+    var(--gantt-ui-surface-soft) !important;
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell :is(.production-meta, .workcenter-name, .slot-operation){
+  color: var(--gantt-ui-muted);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .production-name-line strong{
+  color: var(--gantt-ui-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .workcenter-code{
+  border-color: var(--gantt-ui-line) !important;
+  background: var(--gantt-ui-surface-soft) !important;
+  color: var(--gantt-ui-muted);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .progress{
+  background: var(--gantt-ui-line-soft);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .today-marker{
+  background: var(--mes-ui-danger-accent);
+  box-shadow: 0 0 0 1px var(--mes-ui-danger-alpha-12);
+}
+
+/* Status colours are semantic; the rectangular slot geometry remains owned by
+   runtime-safety.css and is intentionally not changed here. */
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot.status-planned{
+  --slot-bg: var(--mes-ui-gantt-slot-planned-bg);
+  --slot-border: var(--mes-ui-gantt-slot-border);
+  --slot-accent: var(--mes-ui-primary);
+  --slot-text: var(--mes-ui-status-info-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot.status-in_progress{
+  --slot-bg: var(--mes-ui-gantt-slot-active-bg);
+  --slot-border: var(--mes-ui-status-info-border);
+  --slot-accent: var(--mes-ui-primary);
+  --slot-text: var(--mes-ui-status-info-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot.status-paused{
+  --slot-bg: var(--mes-ui-gantt-slot-paused-bg);
+  --slot-border: var(--mes-ui-status-warning-border);
+  --slot-accent: var(--mes-ui-warning-accent);
+  --slot-text: var(--mes-ui-status-warning-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot.status-completed{
+  --slot-bg: var(--mes-ui-gantt-slot-completed-bg);
+  --slot-border: var(--mes-ui-status-success-border);
+  --slot-accent: var(--mes-ui-success-accent);
+  --slot-text: var(--mes-ui-status-success-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot:is(.status-problem, .status-overdue){
+  --slot-bg: var(--mes-ui-gantt-slot-problem-bg);
+  --slot-border: var(--mes-ui-status-danger-border);
+  --slot-accent: var(--mes-ui-danger-accent);
+  --slot-text: var(--mes-ui-status-danger-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot.material-transfer-slot{
+  --slot-bg: var(--mes-ui-gantt-slot-transfer-bg);
+  --slot-border: var(--mes-ui-gantt-slot-transfer-border);
+  --slot-break-border: var(--mes-ui-gantt-slot-transfer-border);
+  --slot-accent: var(--mes-ui-gantt-slot-transfer-accent);
+  --slot-text: var(--mes-ui-gantt-slot-transfer-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot{
+  border-color: var(--slot-border, var(--mes-ui-gantt-slot-border));
+  background: var(--slot-bg, var(--mes-ui-gantt-slot-planned-bg));
+  color: var(--slot-text, var(--mes-ui-gantt-label));
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .operation-slot.is-selected{
+  border-color: var(--gantt-ui-accent);
+  outline-color: var(--mes-ui-primary-alpha-20);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .slot-quantity-badge{
+  border-color: var(--gantt-ui-line) !important;
+  background: var(--mes-ui-surface-glass-92) !important;
+  color: var(--gantt-ui-text);
+  box-shadow: var(--mes-ui-shadow-sm);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .week-slot-line :is(strong, span){
+  border-color: var(--mes-ui-status-warning-border);
+  background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .dependencies-layer .dependency-path{
+  stroke: var(--mes-ui-gantt-dependency-color);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .dependencies-layer .dependency-path.is-transfer{
+  stroke: var(--mes-ui-gantt-dependency-active-color);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .dependencies-layer .dependency-arrow{
+  fill: var(--mes-ui-gantt-dependency-color);
+}
+
+main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+  .gantt-shell .dependencies-layer .dependency-arrow.is-transfer{
+  fill: var(--mes-ui-gantt-dependency-active-color);
+}
+
+@media (max-width: 1540px){
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar{
+    grid-template-areas:
+      "brand actions"
+      "controls controls" !important;
+    grid-template-columns: minmax(180px, 1fr) minmax(420px, max-content) !important;
+    grid-template-rows: auto auto !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar .toolbar-grid{
+    grid-template-columns: minmax(144px, 0.75fr) minmax(220px, 1fr) minmax(148px, 0.72fr) !important;
+  }
+}
+
+@media (max-width: 1180px){
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar{
+    grid-template-areas:
+      "brand"
+      "controls"
+      "actions" !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar .toolbar-grid{
+    grid-template-columns: minmax(128px, 0.8fr) minmax(0, 1.2fr) !important;
+    grid-template-rows: repeat(2, var(--gantt-toolbar-container-height)) !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar .toolbar-grid > .field.compact{
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar .toolbar-grid > .segmented{
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar .toolbar-grid > .gantt-zoom-control{
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+  }
+
+  main.app-shell[data-layout="app-shell"][data-layout-page="gantt"]
+    .planner-workspace-gantt-only > .topbar .toolbar-actions{
+    justify-content: flex-start !important;
+  }
+}

@@ -1,10 +1,12 @@
 import { spawn } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultUrl = process.env.MES_QA_URL || "http://localhost:4174/";
+const hasExplicitTargetUrl = Boolean(process.env.MES_QA_URL);
 const delimiterIndex = process.argv.indexOf("--");
 const commandArgs = delimiterIndex >= 0 ? process.argv.slice(delimiterIndex + 1) : process.argv.slice(2);
 
@@ -14,7 +16,7 @@ if (!commandArgs.length) {
 }
 
 const targetUrl = new URL(defaultUrl);
-const targetOrigin = targetUrl.origin;
+let targetOrigin = targetUrl.origin;
 let spawnedServer = null;
 let serverOutput = "";
 
@@ -22,10 +24,33 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function getFreePort() {
+  return new Promise((resolvePort, reject) => {
+    const probe = createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      probe.close((error) => error ? reject(error) : resolvePort(port));
+    });
+  });
+}
+
 async function isServerReachable() {
   try {
     const response = await fetch(targetOrigin, { cache: "no-store" });
     return response.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+async function isPublicMesServerReachable() {
+  try {
+    const response = await fetch(new URL("/?module=gantt&qa-auth-bypass=1", targetOrigin), { cache: "no-store" });
+    if (response.status >= 500) return false;
+    const html = await response.text();
+    return /MES Planning Module Prototype|id="app"/i.test(html) && !/MES Admin|Вход в админ-панель/i.test(html);
   } catch {
     return false;
   }
@@ -61,7 +86,7 @@ async function isServedAppCurrent() {
     const checks = await Promise.all([
       isServedTextCurrent("/src/app.js", "src/app.js", "dist/src/app.js", normalizeBuiltModuleSource),
       isServedTextCurrent("/styles.css", "styles.css", "dist/styles.css", normalizeBuiltCssSource),
-      isServedTextCurrent("/workflow-preset.json", "workflow-preset.json", "", (value) => value),
+      isServedTextCurrent("/bootstrap-snapshot.json", "bootstrap-snapshot.json", "", (value) => value),
       ...cssFiles.map((file) => isServedTextCurrent(`/${file}`, file, `dist/${file}`, normalizeBuiltCssSource)),
     ]);
     return checks.every(Boolean);
@@ -77,8 +102,14 @@ async function isServedTextCurrent(urlPath, sourcePath, distPath, normalize = (v
     readFile(resolve(rootDir, distPath), "utf8").catch(() => ""),
   ]);
   if (!sourceFile) return true;
-  if (distFile && normalize(distFile) !== normalize(sourceFile)) return false;
-  return Boolean(servedSource) && (servedSource === sourceFile || servedSource === distFile);
+  const normalizedServedSource = normalize(servedSource);
+  const normalizedSourceFile = normalize(sourceFile);
+  const normalizedDistFile = normalize(distFile);
+  return Boolean(servedSource)
+    && (
+      normalizedServedSource === normalizedSourceFile
+      || (distFile && normalizedServedSource === normalizedDistFile)
+    );
 }
 
 async function waitForServer(timeoutMs = 10000) {
@@ -106,13 +137,26 @@ process.on("SIGTERM", () => {
   process.exit(143);
 });
 
-if (!(await isServerReachable())) {
+const serverReachable = await isServerReachable();
+const publicMesReachable = serverReachable && await isPublicMesServerReachable();
+
+if (!publicMesReachable) {
+  if (serverReachable && hasExplicitTargetUrl) {
+    console.error(`Local MES QA target at ${targetOrigin} does not serve the public MES application.`);
+    console.error("Use a public MES URL or omit MES_QA_URL to let the QA wrapper start an isolated server.");
+    process.exit(1);
+  }
+  if (!hasExplicitTargetUrl) {
+    targetUrl.port = String(await getFreePort());
+    targetOrigin = targetUrl.origin;
+  }
   spawnedServer = spawn(process.execPath, ["server.js"], {
     cwd: rootDir,
     env: {
       ...process.env,
       HOST: targetUrl.hostname || "localhost",
       PORT: targetUrl.port || (targetUrl.protocol === "https:" ? "443" : "80"),
+      MES_ADMIN_HOSTS: process.env.MES_ADMIN_HOSTS || "admin.mes-line.ru",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

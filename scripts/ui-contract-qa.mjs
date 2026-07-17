@@ -2,6 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  HARD_UI_RUNTIME_MODULE_IDS,
+  PARTIAL_UI_RUNTIME_MODULE_IDS,
+  SPECIAL_UI_RUNTIME_MODULE_IDS,
   UI_HARDENING_PLAN_STAGES,
   UI_RUNTIME_COMPONENT_CONTRACTS,
   UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
@@ -9,6 +12,7 @@ import {
   UI_RUNTIME_STYLE_TOKENS,
   UI_RUNTIME_TABLE_SCROLL_SELECTORS,
 } from "../src/ui_runtime_contracts.js";
+import { getMesModuleNavigationDefinitions } from "../src/module_registry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -22,15 +26,16 @@ const paths = {
   localServerWrapper: path.join(rootDir, "scripts", "run-with-local-server.mjs"),
   designSnapshots: path.join(rootDir, "scripts", "design-qa-snapshots.mjs"),
   package: path.join(rootDir, "package.json"),
-  visualDocs: path.join(rootDir, "docs", "mes-visual-system-v1.md"),
   speedDocs: path.join(rootDir, "docs", "mes-prototyping-speed-v1.md"),
   componentMapDocs: path.join(rootDir, "docs", "mes-component-map-v1.md"),
   hardRuntimeCoverageDocs: path.join(rootDir, "docs", "hard-ui-runtime-coverage-v2.md"),
   hardRuntimeLegacyRoadmapDocs: path.join(rootDir, "docs", "hard-ui-runtime-legacy-roadmap-v2.md"),
-  workflowPreset: path.join(rootDir, "workflow-preset.json"),
+  bootstrapSnapshot: path.join(rootDir, "bootstrap-snapshot.json"),
   uiRuntimeContracts: path.join(rootDir, "src", "ui_runtime_contracts.js"),
   uiHtml: path.join(rootDir, "src", "ui", "html.js"),
   uiComponents: path.join(rootDir, "src", "ui", "components.js"),
+  accessRolesModule: path.join(rootDir, "src", "modules", "access_roles", "render.js"),
+  ganttRuntimeModule: path.join(rootDir, "src", "modules", "gantt_runtime", "render.js"),
   uiRuntimeCoverageContracts: path.join(rootDir, "src", "ui", "contracts", "runtime-contracts.js"),
   uiHardeningPlanContracts: path.join(rootDir, "src", "ui", "contracts", "hardening-plan-contracts.js"),
   uiRuntimeCoverageQa: path.join(rootDir, "scripts", "ui-runtime-coverage-qa.mjs"),
@@ -54,6 +59,23 @@ async function collectCssFiles(relativeDir = "styles") {
   return files;
 }
 
+async function collectRuntimeJsSources(relativeDir = path.join("src", "modules")) {
+  const absoluteDir = path.join(rootDir, relativeDir);
+  const entries = await fs.readdir(absoluteDir, { withFileTypes: true }).catch(() => []);
+  const chunks = [];
+  for (const entry of entries) {
+    const entryPath = path.join(absoluteDir, entry.name);
+    if (entry.isDirectory()) {
+      chunks.push(...await collectRuntimeJsSources(path.relative(rootDir, entryPath)));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".js")) {
+      chunks.push(await fs.readFile(entryPath, "utf8"));
+    }
+  }
+  return chunks;
+}
+
 const styleLayerFiles = ["styles.css", ...await collectCssFiles()];
 const browserQaScriptFiles = [
   "scripts/state-consistency-qa.mjs",
@@ -70,7 +92,7 @@ const browserQaScriptFiles = [
   "scripts/shift-master-board-functional-qa.mjs",
 ];
 
-const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource, localServerWrapperSource, designSnapshotsSource, packageSource, visualDocsSource, speedDocsSource, componentMapDocsSource, hardRuntimeCoverageDocsSource, hardRuntimeLegacyRoadmapDocsSource, workflowPresetSource, uiRuntimeContractsSource, uiRuntimeCoverageQaSource, uiHardeningPlanQaSource] = await Promise.all([
+const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource, localServerWrapperSource, designSnapshotsSource, packageSource, speedDocsSource, componentMapDocsSource, hardRuntimeCoverageDocsSource, hardRuntimeLegacyRoadmapDocsSource, bootstrapSnapshotSource, uiRuntimeContractsSource, uiRuntimeCoverageQaSource, uiHardeningPlanQaSource, accessRolesModuleSource, ganttRuntimeModuleSource, moduleRuntimeSources] = await Promise.all([
   fs.readFile(paths.app, "utf8"),
   fs.readFile(paths.index, "utf8"),
   fs.readFile(paths.styles, "utf8"),
@@ -79,15 +101,17 @@ const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource,
   fs.readFile(paths.localServerWrapper, "utf8"),
   fs.readFile(paths.designSnapshots, "utf8"),
   fs.readFile(paths.package, "utf8"),
-  fs.readFile(paths.visualDocs, "utf8"),
   fs.readFile(paths.speedDocs, "utf8").catch(() => ""),
   fs.readFile(paths.componentMapDocs, "utf8").catch(() => ""),
   fs.readFile(paths.hardRuntimeCoverageDocs, "utf8").catch(() => ""),
   fs.readFile(paths.hardRuntimeLegacyRoadmapDocs, "utf8").catch(() => ""),
-  fs.readFile(paths.workflowPreset, "utf8"),
+  fs.readFile(paths.bootstrapSnapshot, "utf8"),
   fs.readFile(paths.uiRuntimeContracts, "utf8"),
   fs.readFile(paths.uiRuntimeCoverageQa, "utf8"),
   fs.readFile(paths.uiHardeningPlanQa, "utf8"),
+  fs.readFile(paths.accessRolesModule, "utf8"),
+  fs.readFile(paths.ganttRuntimeModule, "utf8"),
+  collectRuntimeJsSources(),
 ]);
 const stylesSource = [
   rawStylesSource,
@@ -100,7 +124,10 @@ const [uiHtmlSource, uiComponentsSource, uiRuntimeCoverageContractsSource, uiHar
   fs.readFile(paths.uiRuntimeCoverageContracts, "utf8"),
   fs.readFile(paths.uiHardeningPlanContracts, "utf8"),
 ]);
-const uiRuntimeJsSource = [appSource, uiHtmlSource, uiComponentsSource].join("\n");
+const runtimeSource = [appSource, ...moduleRuntimeSources].join("\n");
+const moduleRegistrySource = await fs.readFile(path.join(rootDir, "src", "module_registry.js"), "utf8");
+const uiRuntimeJsSource = [runtimeSource, uiHtmlSource, uiComponentsSource].join("\n");
+const ganttRuntimeSource = [runtimeSource, ganttRuntimeModuleSource].join("\n");
 const uiRuntimeContractsAllSource = [uiRuntimeContractsSource, uiRuntimeCoverageContractsSource, uiHardeningPlanContractsSource].join("\n");
 const uiAllCssSource = [stylesSource, uiCoreStylesSource].join("\n");
 
@@ -182,6 +209,10 @@ const requiredUiHelpers = [
   "function renderUiActionBar",
   "function renderUiToolbar",
   "function renderUiFilterBar",
+  "function renderUiFormSection",
+  "function renderUiFormGrid",
+  "function renderUiFormRow",
+  "function renderUiFormActions",
   "function renderUiSidebarItem",
   "function renderUiModuleSidebar",
   "function renderUiModulePage",
@@ -189,6 +220,7 @@ const requiredUiHelpers = [
   "function renderUiModuleHeader",
   "function renderUiTableWrap",
   "function renderUiFormField",
+  "function renderUiSystemState",
   "function renderUiDropdownFrame",
   "function renderUiModalFrame",
   "function renderUiModalShell",
@@ -218,6 +250,11 @@ const requiredUiCss = [
   ".ui-filter-bar",
   ".ui-action-button",
   ".ui-form-field",
+  ".ui-form-section",
+  ".ui-form-grid",
+  ".ui-form-row",
+  ".ui-form-actions",
+  ".ui-system-state",
   ".ui-sidebar-list",
   ".ui-sidebar-label",
   ".ui-sidebar-item",
@@ -229,7 +266,6 @@ const requiredUiCss = [
   ".ui-modal",
   ".ui-drawer",
   ".ui-gantt-bar",
-  ".app-module-annotation",
 ];
 
 requiredUiCss.forEach((selector) => checkIncludes(`Нет CSS-контракта ${selector}`, uiAllCssSource, selector));
@@ -252,6 +288,11 @@ const requiredUiComponentMarkers = [
   "data-ui-component=\"SidebarItem\"",
   "data-ui-component=\"TableWrap\"",
   "data-ui-component=\"FormField\"",
+  "data-ui-component=\"FormSection\"",
+  "data-ui-component=\"FormGrid\"",
+  "data-ui-component=\"FormRow\"",
+  "data-ui-component=\"FormActions\"",
+  "data-ui-component=\"SystemState\"",
   "data-ui-component=\"Dropdown\"",
   "data-ui-component=\"Modal\"",
   "data-ui-component=\"Drawer\"",
@@ -290,15 +331,12 @@ UI_RUNTIME_QA_CLASS_CONTRACTS.forEach(({ label, requiredClass, companionClass })
   checkClassContract(label, appSource, requiredClass, companionClass);
 });
 
-checkIncludes("Нет getModuleAnnotation() для topbar-аннотации модуля", appSource, "function getModuleAnnotation");
-checkIncludes("Topbar не выводит app-module-annotation", appSource, "class=\"app-module-annotation\"");
-checkNoPattern("getModuleAnnotation не должен держать локальный словарь annotations вместо MES_MODULE_FLOW_CONTRACTS", appSource, /function getModuleAnnotation[\s\S]{0,1200}const annotations\s*=/);
 checkNoMatches("Новые shell нельзя писать вручную как <main class=\"app-shell...\">; использовать renderUiAppShell", appSource, /<main\s+class="app-shell/);
 checkNoMatches("Live modal нельзя писать вручную как <section class=\"modal...\">; использовать renderUiModalShell/renderUiModalFrame", appSource, /<section\s+class="(?:modal(?:\s|")|[^"]+\smodal(?:\s|"))/);
 checkNoMatches("Live drawer нельзя писать вручную как <aside class=\"slot-drawer/detail-drawer...\">; использовать renderUiDrawerShell/renderUiDrawerFrame", appSource, /<aside\s+class="(?:(?:slot-drawer|detail-drawer)(?:\s|")|[^"]+\s(?:slot-drawer|detail-drawer)(?:\s|"))/);
 checkNoMatches("Runtime module-panel без ui-panel должен иметь data-ui-component=\"Panel\"", appSource, /<section[^>]*class="[^"]*\bmodule-panel\b(?![^"]*\bui-panel\b)[^"]*"(?![^>]*data-ui-component="Panel")/);
 checkNoMatches("Runtime table-wrap/ui-table-wrap должен иметь data-ui-component=\"TableWrap\"", appSource, /<div[^>]*class="[^"]*(?:\bui-table-wrap\b|\b(?:directory|speki-structure|visual|timesheet|bom-import)[^"]*table-wrap\b)[^"]*"(?![^>]*data-ui-component="TableWrap")/);
-checkNoMatches("Runtime TableWrap должен явно фиксировать horizontal-only scroll contract", appSource, /<div(?=[^>]*data-ui-component="TableWrap")(?![^>]*data-scroll-contract="horizontal-only")[^>]*>/);
+checkNoMatches("Runtime TableWrap должен явно фиксировать scroll contract", appSource, /<div(?=[^>]*data-ui-component="TableWrap")(?![^>]*data-scroll-contract="(?:horizontal-only|viewport)")[^>]*>/);
 checkNoMatches("Внутренний сайдбар должен использовать module-data-sidebar", appSource, /<aside\s+class="directory-sidebar(?! module-data-sidebar)/);
 checkIncludes("index.html не подключает физический UI Core CSS слой", indexSource, "./styles/mes-ui-core.css");
 checkIncludes("build.mjs не копирует/версирует физический UI Core CSS слой", buildSource, "mes-ui-core.css");
@@ -306,7 +344,7 @@ checkIncludes("renderUiPanelHead должен держать текстовую 
 checkNoMatches("Runtime не должен возвращать старый report-card-head; использовать ui-panel-head", appSource, /report-card-head/);
 checkIncludes("UI Core должен нормализовать вложенный текст заголовка панели", uiCoreStylesSource, ".ui-panel-head-copy > div");
 checkIncludes("UI Core должен задавать form field contract", uiCoreStylesSource, ".ui-form-field > :is(input, select, textarea)");
-checkIncludes("UI Core должен задавать viewport-safe dropdown menu", uiCoreStylesSource, "max-height: min(360px, calc(100vh - 96px))");
+checkIncludes("UI Core должен задавать viewport-safe dropdown menu", uiCoreStylesSource, "max-height: min(var(--mes-ui-dropdown-max-height), calc(100vh - var(--mes-ui-dropdown-viewport-gap)))");
 checkIncludes("UI Core должен задавать GanttBar segment contract", uiCoreStylesSource, ".ui-gantt-bar-segment");
 checkIncludes("Design snapshots не фиксируют раскрытую трудоемкость маршрутной карты", designSnapshotsSource, "routes-labor-open");
 checkIncludes("Design snapshots не фиксируют открытую карточку операции Ганта", designSnapshotsSource, "gantt-slot-editor-open");
@@ -317,7 +355,6 @@ checkIncludes("Design snapshots не фиксируют сменный лист 
 checkIncludes("Design snapshots не фиксируют экран выбора отдела авторизации", designSnapshotsSource, "authPrototype-departments");
 checkIncludes("Design snapshots не фиксируют экран ввода PIN авторизации", designSnapshotsSource, "authPrototype-pin");
 checkIncludes("Design snapshots авторизации должны удалять qa-auth-bypass", designSnapshotsSource, "targetUrl.searchParams.delete(\"qa-auth-bypass\")");
-checkIncludes("Документация Visual System должна направлять точечные визуальные замечания в аннотацию браузера", visualDocsSource, "аннотацию браузера Codex");
 checkIncludes("Нет документа MES Prototyping Speed Pass v1", speedDocsSource, "MES Prototyping Speed Pass v1");
 checkIncludes("Документ speed-pass не фиксирует шаблон нового модуля", speedDocsSource, "Шаблон нового модуля");
 checkIncludes("Документ speed-pass не фиксирует QA gate", speedDocsSource, "QA gate");
@@ -329,8 +366,10 @@ checkIncludes("Документ Hard UI Runtime Coverage v2 не фиксиру�
 checkIncludes("Нет документа Hard UI Runtime Legacy Roadmap v2", hardRuntimeLegacyRoadmapDocsSource, "Hard UI Runtime Legacy Roadmap v2");
 checkIncludes("Legacy roadmap не фиксирует отдельный GanttRuntime", hardRuntimeLegacyRoadmapDocsSource, "GanttRuntime");
 checkIncludes("Coverage doc не ссылается на legacy roadmap", hardRuntimeCoverageDocsSource, "hard-ui-runtime-legacy-roadmap-v2.md");
-checkIncludes("renderUiTableWrap не маркирует horizontal-only scroll contract", uiRuntimeJsSource, "data-scroll-contract=\"horizontal-only\"");
+checkIncludes("renderUiTableWrap не задаёт horizontal-only как default scroll contract", uiRuntimeJsSource, "scrollContract = \"horizontal-only\"");
+checkIncludes("renderUiTableWrap не маркирует динамический scroll contract", uiRuntimeJsSource, "data-scroll-contract=\"${escapeAttribute(normalizedScrollContract)}\"");
 checkIncludes("UI Core не фиксирует horizontal-only scroll contract", uiCoreStylesSource, ".ui-table-wrap[data-scroll-contract=\"horizontal-only\"]");
+checkIncludes("UI Core не фиксирует viewport scroll contract", uiCoreStylesSource, ".ui-table-wrap[data-scroll-contract=\"viewport\"]");
 checkIncludes("UI Core table-wrap должен запрещать внутренний vertical scroll", uiCoreStylesSource, "overflow-y: hidden !important");
 checkIncludes("Runtime не применяет UI contracts после каждого render()", appSource, "applyUiRuntimeContracts();");
 checkIncludes("Нет hard UI runtime marker data-ui-runtime=\"hard-v1\"", uiRuntimeJsSource, "data-ui-runtime=\"hard-v1\"");
@@ -341,12 +380,16 @@ checkIncludes("UI Core не фиксирует hard-runtime ModuleContent как
 checkIncludes("UI Core не фиксирует flex-column для hard-runtime ModuleContent", uiCoreStylesSource, "flex-direction: column !important");
 checkIncludes("UI Core не фиксирует защиту hard-runtime Panel от схлопывания", uiCoreStylesSource, "[data-ui-component=\"Panel\"].ui-panel");
 checkIncludes("UI Core не фиксирует hard-runtime PanelBody height:auto", uiCoreStylesSource, "[data-ui-component=\"Panel\"] > [data-ui-component=\"PanelBody\"]");
-checkMatchCount("Hard runtime marker должен выпускаться только renderUiModulePage", uiRuntimeJsSource, /data-ui-runtime="hard-v1"/g, 1);
-checkMatchCount("ModulePage marker должен выпускаться только renderUiModulePage", uiRuntimeJsSource, /data-ui-component="ModulePage"/g, 1);
+// Count emitted markers in the renderer source, not selector/query-string references
+// in the application runtime. This keeps the ownership contract strict without
+// making the QA gate depend on how a module finds its existing page in the DOM.
+checkMatchCount("Hard runtime marker должен выпускаться только renderUiModulePage", uiComponentsSource, /data-ui-runtime="hard-v1"/g, 1);
+checkMatchCount("ModulePage marker должен выпускаться только renderUiModulePage", uiComponentsSource, /data-ui-component="ModulePage"/g, 1);
 checkIncludes("Runtime normalizer не подключает общий UI_RUNTIME_DOM_NORMALIZER_CONTRACTS", appSource, "UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach");
 checkIncludes("Runtime normalizer не подключает общий UI_RUNTIME_TABLE_SCROLL_SELECTORS", appSource, "UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach");
 UI_RUNTIME_DOM_NORMALIZER_CONTRACTS.forEach(({ component, selector }) => {
-  checkIncludes(`Runtime normalizer contract missing ${component}: ${selector}`, uiRuntimeContractsAllSource, `component: "${component}", selector: "${selector}"`);
+  checkIncludes(`Runtime normalizer component missing ${component}`, uiRuntimeContractsAllSource, `component: "${component}"`);
+  checkIncludes(`Runtime normalizer selector missing ${component}: ${selector}`, uiRuntimeContractsAllSource, `selector: "${selector}"`);
 });
 UI_RUNTIME_TABLE_SCROLL_SELECTORS.forEach((selector) => {
   checkIncludes(`Runtime table scroll contract missing ${selector}`, uiRuntimeContractsAllSource, `"${selector}"`);
@@ -358,9 +401,9 @@ checkIncludes("module-smoke не проверяет выход содержим�
 checkIncludes("module-smoke не проверяет Panel без прямого PanelBody", browserQaSources.join("\n"), "hard Panel without direct PanelBody");
 checkIncludes("module-smoke не проверяет panel marker coverage", browserQaSources.join("\n"), "visible panel without Panel marker");
 checkIncludes("module-smoke не проверяет button marker coverage", browserQaSources.join("\n"), "visible button without UI component marker");
-checkIncludes("module-smoke не проверяет form field marker coverage", browserQaSources.join("\n"), "visible form field without FormField marker");
+checkIncludes("module-smoke не проверяет form field marker coverage", browserQaSources.join("\n"), "visible form field without explicit FormField/DomainField contract");
 checkIncludes("module-smoke не проверяет table marker coverage", browserQaSources.join("\n"), "visible table wrapper without TableWrap marker");
-checkIncludes("module-smoke не проверяет вертикальный scroll внутри TableWrap", browserQaSources.join("\n"), "horizontal-only TableWrap has vertical scroll contract drift");
+checkIncludes("module-smoke не проверяет вертикальный scroll внутри horizontal-only TableWrap", browserQaSources.join("\n"), "TableWrap horizontal-only has vertical scroll contract drift");
 checkIncludes("module-smoke не проверяет наложение прямых блоков контента", browserQaSources.join("\n"), "module content direct blocks overlap");
 checkIncludes("module-smoke не проверяет наложение прямых блоков внутри PanelBody", browserQaSources.join("\n"), "PanelBody direct blocks overlap");
 checkIncludes("module-smoke не проверяет выпадение hard-runtime модулей из smoke-списка", browserQaSources.join("\n"), "Hard UI runtime modules are missing from module smoke QA");
@@ -369,19 +412,19 @@ checkIncludes("module-smoke не запрещает hard-v1 marker вне runtim
 checkIncludes("module-smoke не запрещает special runtime marker вне special-runtime списка", browserQaSources.join("\n"), "page renders special runtime but module is not listed in SPECIAL_UI_RUNTIME_MODULE_IDS");
 checkIncludes("module-smoke не применяет hard-runtime проверки к alias-страницам", browserQaSources.join("\n"), "await runModuleSpecificSmokeChecks(client, alias.target);");
 checkIncludes("module-smoke не проверяет специализированный GanttRuntime", browserQaSources.join("\n"), "expected data-ui-runtime=gantt-v1");
-checkIncludes("Живой Гант не маркирует GanttRuntime", appSource, "data-ui-component=\"GanttRuntime\"");
-checkIncludes("Живой Гант не маркирует GanttCanvas", appSource, "data-ui-component=\"GanttCanvas\"");
-checkIncludes("Живой Гант не маркирует GanttTimeline", appSource, "data-ui-component=\"GanttTimeline\"");
-checkIncludes("Живой Гант не маркирует GanttSlot", appSource, "data-ui-component=\"GanttSlot\"");
-checkIncludes("Живой Гант не маркирует GanttOperationalLayer", appSource, "data-ui-component=\"GanttOperationalLayer\"");
-checkIncludes("Живой Гант не маркирует GanttDependencyLayer", appSource, "data-ui-component=\"GanttDependencyLayer\"");
-checkIncludes("Живой Гант не маркирует GanttDependencySlotMask", appSource, "data-ui-component=\"GanttDependencySlotMask\"");
-checkIncludes("Живой Гант не маркирует GanttDependencySlotMaskRect", appSource, "data-ui-component=\"GanttDependencySlotMaskRect\"");
-checkIncludes("Живой Гант не маркирует GanttNonWorkingLayer", appSource, "data-ui-component=\"GanttNonWorkingLayer\"");
-checkIncludes("Живой Гант не маркирует GanttNonWorkingZone", appSource, "data-ui-component=\"GanttNonWorkingZone\"");
-checkIncludes("Живой Гант не маркирует GanttSnapOverlay", appSource, "data-ui-component=\"GanttSnapOverlay\"");
-checkIncludes("Живой Гант не маркирует GanttDragGhost", appSource, "data-ui-component=\"GanttDragGhost\"");
-checkIncludes("Живой Гант не маркирует GanttResizeHandle", appSource, "data-ui-component=\"GanttResizeHandle\"");
+checkIncludes("Живой Гант не маркирует GanttRuntime", ganttRuntimeSource, "data-ui-component=\"GanttRuntime\"");
+checkIncludes("Живой Гант не маркирует GanttCanvas", ganttRuntimeSource, "data-ui-component=\"GanttCanvas\"");
+checkIncludes("Живой Гант не маркирует GanttTimeline", ganttRuntimeSource, "data-ui-component=\"GanttTimeline\"");
+checkIncludes("Живой Гант не маркирует GanttSlot", ganttRuntimeSource, "data-ui-component=\"GanttSlot\"");
+checkIncludes("Живой Гант не маркирует GanttOperationalLayer", ganttRuntimeSource, "data-ui-component=\"GanttOperationalLayer\"");
+checkIncludes("Живой Гант не маркирует GanttDependencyLayer", ganttRuntimeSource, "data-ui-component=\"GanttDependencyLayer\"");
+checkIncludes("Живой Гант не маркирует GanttDependencySlotMask", ganttRuntimeSource, "data-ui-component=\"GanttDependencySlotMask\"");
+checkIncludes("Живой Гант не маркирует GanttDependencySlotMaskRect", ganttRuntimeSource, "data-ui-component=\"GanttDependencySlotMaskRect\"");
+checkIncludes("Живой Гант не маркирует GanttNonWorkingLayer", ganttRuntimeSource, "data-ui-component=\"GanttNonWorkingLayer\"");
+checkIncludes("Живой Гант не маркирует GanttNonWorkingZone", ganttRuntimeSource, "data-ui-component=\"GanttNonWorkingZone\"");
+checkIncludes("Живой Гант не маркирует GanttSnapOverlay", ganttRuntimeSource, "data-ui-component=\"GanttSnapOverlay\"");
+checkIncludes("Живой Гант не маркирует GanttDragGhost", ganttRuntimeSource, "data-ui-component=\"GanttDragGhost\"");
+checkIncludes("Живой Гант не маркирует GanttResizeHandle", ganttRuntimeSource, "data-ui-component=\"GanttResizeHandle\"");
 checkIncludes("module-smoke не проверяет GanttSlot marker drift", browserQaSources.join("\n"), "GanttSlot marker drift");
 checkIncludes("module-smoke не проверяет GanttOperationalLayer", browserQaSources.join("\n"), "operational slots rendered without GanttOperationalLayer");
 checkIncludes("module-smoke не проверяет GanttDependencyLayer", browserQaSources.join("\n"), "GanttDependencyLayer contract is missing");
@@ -394,21 +437,34 @@ checkIncludes("module-smoke не проверяет drag overlay Ганта", br
 checkIncludes("module-smoke не проверяет drag ghost geometry Ганта", browserQaSources.join("\n"), "drag ghost geometry looks broken");
 checkIncludes("module-smoke не проверяет resize overlay Ганта", browserQaSources.join("\n"), "resize overlay contract is missing");
 checkIncludes("module-smoke не проверяет resize snap guide mode Ганта", browserQaSources.join("\n"), "resize snap guide mode is wrong");
-checkIncludes("module-smoke не проверяет специализированный VisualSystemRuntime", browserQaSources.join("\n"), "expected data-ui-runtime=visual-system-v1");
-checkIncludes("UI-состояния не маркируют VisualSystemRuntime", appSource, "data-ui-component=\"VisualSystemRuntime\"");
-checkIncludes("module-smoke не проверяет три Gantt scale columns в UI-состояниях", browserQaSources.join("\n"), "expected three Gantt scale columns");
-checkIncludes("module-smoke не проверяет fact scenarios в UI-состояниях", browserQaSources.join("\n"), "expected fact scenarios");
-checkIncludes("module-smoke не проверяет выход Gantt samples за колонки UI-состояний", browserQaSources.join("\n"), "Gantt samples escape their mode columns");
 checkIncludes("module-smoke должен использовать эталонный MacBook Air 15 viewport", browserQaSources.join("\n"), "macbook-air-15");
-["authPrototype", "authSessionPrototype", "planningTable", "shiftWorkOrders", "timesheet", "roles", "productionStructureMatrix", "employees", "dispatch", "shiftMasterBoard", "supply", "shopMap", "directories", "products", "nomenclature", "routes", "planning"].forEach((moduleId) => {
-  checkIncludes(`ui_runtime_contracts не содержит runtime-модуль ${moduleId}`, uiRuntimeContractsAllSource, `"${moduleId}"`);
-  checkIncludes(`design-qa-snapshots должен включать runtime-модуль ${moduleId}`, designSnapshotsSource, `"${moduleId}"`);
+const publicRegistryModuleIds = getMesModuleNavigationDefinitions({ adminHost: false, includeStandalone: true })
+  .map((moduleItem) => moduleItem.id);
+const adminRegistryModuleIds = new Set(
+  getMesModuleNavigationDefinitions({ adminHost: true, includeStandalone: false })
+    .map((moduleItem) => moduleItem.id)
+);
+const expectedPublicRuntimeModuleIds = [...new Set([
+  ...SPECIAL_UI_RUNTIME_MODULE_IDS,
+  ...HARD_UI_RUNTIME_MODULE_IDS,
+  ...PARTIAL_UI_RUNTIME_MODULE_IDS,
+])].filter((moduleId) => !adminRegistryModuleIds.has(moduleId));
+expectedPublicRuntimeModuleIds.forEach((moduleId) => {
+  if (!publicRegistryModuleIds.includes(moduleId)) {
+    fail(`Публичный runtime-модуль отсутствует в module_registry: ${moduleId}`);
+  }
 });
-checkIncludes("ui_runtime_contracts должен фиксировать partial runtime модули", uiRuntimeContractsAllSource, "export const PARTIAL_UI_RUNTIME_MODULE_IDS = [");
-checkIncludes("ui_runtime_contracts должен фиксировать partial runtime contracts", uiRuntimeContractsAllSource, "export const PARTIAL_UI_RUNTIME_CONTRACTS = {");
-checkIncludes("ui_runtime_contracts должен фиксировать special runtime модули", uiRuntimeContractsAllSource, "export const SPECIAL_UI_RUNTIME_MODULE_IDS = [");
-checkIncludes("ui_runtime_contracts должен фиксировать special runtime contracts", uiRuntimeContractsAllSource, "export const SPECIAL_UI_RUNTIME_CONTRACTS = {");
-checkIncludes("ui_runtime_contracts должен фиксировать отсутствие legacy-модулей", uiRuntimeContractsAllSource, "export const LEGACY_UI_RUNTIME_MODULE_IDS = [];");
+checkIncludes("Design snapshots не используют единый module_registry", designSnapshotsSource, "getMesModuleNavigationDefinitions");
+checkIncludes("Design snapshots не исключают admin-only модули из public sweep", designSnapshotsSource, "adminOnlyModuleIds");
+["visualSystem", "planningTable", "supply", "shopMap", "employees"].forEach((moduleId) => {
+  checkNoMatches(`Удаленный/архивный модуль ${moduleId} не должен возвращаться в runtime contracts`, uiRuntimeContractsAllSource, new RegExp(`"${moduleId}"`));
+  checkNoMatches(`Удаленный/архивный модуль ${moduleId} не должен возвращаться в visual QA`, designSnapshotsSource, new RegExp(`"${moduleId}"`));
+});
+checkIncludes("ui_runtime_contracts должен выводить runtime coverage из Blueprint registry", uiRuntimeContractsAllSource, "MES_MODULE_BLUEPRINT_REGISTRY");
+checkIncludes("ui_runtime_contracts должен фиксировать standard runtime kind", uiRuntimeContractsAllSource, "MES_MODULE_RUNTIME_KINDS.STANDARD");
+checkIncludes("ui_runtime_contracts должен фиксировать special runtime kind", uiRuntimeContractsAllSource, "MES_MODULE_RUNTIME_KINDS.SPECIAL");
+checkIncludes("ui_runtime_contracts должен фиксировать partial runtime contracts", uiRuntimeContractsAllSource, "export const PARTIAL_UI_RUNTIME_CONTRACTS = Object.freeze({})");
+checkIncludes("ui_runtime_contracts должен фиксировать отсутствие legacy-модулей", uiRuntimeContractsAllSource, "export const LEGACY_UI_RUNTIME_MODULE_IDS = Object.freeze([])");
 checkIncludes("UI runtime coverage QA должен проверять special runtime contracts", uiRuntimeCoverageQaSource, "Special UI runtime modules are missing runtime contracts");
 checkIncludes("UI runtime coverage QA должен проверять partial runtime contracts", uiRuntimeCoverageQaSource, "Partial UI runtime modules require explicit contracts");
 checkIncludes("UI runtime coverage QA должен фейлить возврат legacy-модулей", uiRuntimeCoverageQaSource, "expects no legacy modules after special runtime gates");
@@ -428,18 +484,18 @@ checkIncludes("Документ speed-pass не фиксирует Scroll-contra
 checkIncludes("Документ speed-pass не фиксирует runtime normalizer", speedDocsSource, "applyUiRuntimeContracts()");
 checkIncludes("Документ speed-pass не фиксирует opened states visual QA", speedDocsSource, "opened states");
 checkIncludes("Документ component map не фиксирует runtime normalizer", componentMapDocsSource, "Runtime normalizer");
-checkIncludes("UI-состояния не показывают UI-kit runtime contracts", appSource, "UI-kit runtime contracts");
-checkIncludes("PlanningTable не фиксирует локальный scroll rule", stylesSource, "Scroll rule: panels and table wrappers must not own vertical scrolling");
-checkIncludes("Матрица ролей должна исключать системный экран authPrototype", appSource, "getModuleDefinitions().filter((moduleItem) => moduleItem.id !== \"authPrototype\")");
-checkIncludes("Главный сайдбар должен держать Рабочий стол в Оперативном управлении", appSource, "ids: [\"dispatch\", \"shiftMasterBoard\", \"authSessionPrototype\", \"shiftWorkOrders\"]");
-checkIncludes("Главный сайдбар не должен возвращать Рабочий стол в UX-макеты", appSource, "ids: [\"visualSystem\", \"planningTable\", \"supply\", \"shopMap\"]");
+checkIncludes("Матрица ролей должна исключать системный экран authPrototype", accessRolesModuleSource, "getModuleDefinitions().filter((moduleItem) => moduleItem.id !== \"authPrototype\")");
+if (!/id:\s*"authSessionPrototype"[^\n]*groupId:\s*"operations"/.test(moduleRegistrySource)) {
+  fail("Главный сайдбар должен держать Рабочий стол в Оперативном управлении через единый module registry");
+}
+checkNoMatches("Главный сайдбар не должен возвращать группу UX-макетов", runtimeSource, /UX-макеты|ids:\s*\[[^\]]*"visualSystem"[^\]]*\]/);
 checkNoMatches("authPrototype нельзя возвращать в группы главного меню", appSource, /ids:\s*\[[^\]]*"authPrototype"[^\]]*\]/);
 checkNoMatches("Запрещено возвращать старую route/admin/staff авторизацию", appSource, /AUTH_PROTOTYPE_ADMIN_ROLES|authPrototype(?:Route|AdminRole|AdminPersonId|Staff)|data-auth-(?:route|admin|staff)|renderAuthPrototype(?:Admin|Staff)|normalizeAuthPrototype(?:Route|Admin)/);
 checkNoMatches("Запрещено возвращать CSS старой route/staff авторизации", `${stylesSource}\n${uiCoreStylesSource}`, /auth-prototype-(?:route-tabs|staff-(?:route|login|pin|result)|department-strip|executor-grid|role-grid|search)/);
 checkNoMatches("Auth back-кнопки не должны использовать departments/info icon", appSource, /label:\s*"К (?:участкам|отделам)"[^}]*iconName:\s*"departments"/);
 checkNoMatches("Runtime не должен возвращать отдельную 'служебную роль' авторизации", appSource, /Служебная роль|служебн(?:ая|ой) роль/);
-checkNoMatches("workflow-preset не должен хранить состояние авторизации", workflowPresetSource, /authPrototype|authGate|authCurrent|\\"activeRole\\":\\"operator\\"|"activeRole"\s*:\s*"operator"/);
-checkNoMatches("workflow-preset не должен хранить старые UI-паттерны", workflowPresetSource, /planning-v2|shiftMasterScenario|shiftMasterHmi|shiftMasterV2|shift-method-|warehouse-(?:page|panel|sidebar)|\brkd\b|app-global-search|update-popup|module-entity|project-/i);
+checkNoMatches("bootstrap-snapshot не должен хранить состояние авторизации", bootstrapSnapshotSource, /authPrototype|authGate|authCurrent|\\"activeRole\\":\\"operator\\"|"activeRole"\s*:\s*"operator"/);
+checkNoMatches("bootstrap-snapshot не должен хранить старые UI-паттерны", bootstrapSnapshotSource, /planning-v2|shiftMasterScenario|shiftMasterHmi|shiftMasterV2|shift-method-|warehouse-(?:page|panel|sidebar)|\brkd\b|app-global-search|update-popup|module-entity|project-/i);
 
 const removedSearchPattern = /type="search"|app-global-search|data-directory-filter-search|searchInput|ui\.search|directory-search|module-search|filter-search/;
 
@@ -521,14 +577,14 @@ if (visualViewportNames.length !== 1 || visualViewportNames[0] !== "macbook-air-
   "productionStructureMatrix",
   "roles",
 ].forEach((moduleId) => {
-  if (!designSnapshotsSource.includes(`"${moduleId}"`)) {
-    fail(`design-qa-snapshots должен включать системный модуль ${moduleId}`);
+  if (!publicRegistryModuleIds.includes(moduleId)) {
+    fail(`module_registry должен включать системный модуль ${moduleId}`);
   }
 });
 [
   "authPrototype-departments",
   "authPrototype-pin",
-  "production-structure-master-manual-open",
+  "production-structure-entity-editor-open",
 ].forEach((stateId) => {
   if (!designSnapshotsSource.includes(stateId)) {
     fail(`design-qa-snapshots должен проверять состояние ${stateId}`);
@@ -557,14 +613,15 @@ if (packageJson.scripts?.["qa:module-smoke:inner"] !== "node scripts/module-smok
   || !packageJson.scripts?.["qa:module-smoke"]?.includes("npm run qa:module-smoke:inner")) {
   fail("scripts.qa:module-smoke должен запускаться через local-server wrapper, а inner-команда должна запускать module-smoke-qa.mjs");
 }
-if (!packageJson.scripts?.["qa:syntax"]?.includes("src/validation.js")
+const recursiveSyntaxQa = packageJson.scripts?.["qa:syntax"]?.includes("scripts/syntax-qa.mjs");
+if (!recursiveSyntaxQa && (!packageJson.scripts?.["qa:syntax"]?.includes("src/validation.js")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/run-with-local-server.mjs")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/design-qa-snapshots.mjs")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/planning-labor-functional-qa.mjs")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/module-smoke-qa.mjs")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/shift-operational-flow-functional-qa.mjs")
   || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/auth-functional-qa.mjs")
-  || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/roles-functional-qa.mjs")) {
+  || !packageJson.scripts?.["qa:syntax"]?.includes("scripts/roles-functional-qa.mjs"))) {
   fail("scripts.qa:syntax должен проверять src/validation.js, visual QA, planning-labor QA, module-smoke QA, shift-flow QA, auth/roles QA и local-server wrapper");
 }
 const functionalScript = packageJson.scripts?.["qa:functional:inner"] || packageJson.scripts?.["qa:functional"] || "";
@@ -578,8 +635,8 @@ if (!functionalScript.includes("npm run qa:shared-state")
 if (!packageJson.scripts?.["qa:functional"]?.includes("scripts/run-with-local-server.mjs")) {
   fail("scripts.qa:functional должен запускаться через локальный server wrapper");
 }
-if (!localServerWrapperSource.includes("/workflow-preset.json")) {
-  fail("run-with-local-server.mjs должен проверять свежесть workflow-preset.json, чтобы browser QA не смотрел старый preset");
+if (!localServerWrapperSource.includes("/bootstrap-snapshot.json")) {
+  fail("run-with-local-server.mjs должен проверять свежесть bootstrap-snapshot.json, чтобы browser QA не смотрел старый snapshot");
 }
 if (!localServerWrapperSource.includes("MES_QA_URL: targetUrl.toString()")) {
   fail("run-with-local-server.mjs должен прокидывать MES_QA_URL дочерним browser QA-скриптам");

@@ -1,7 +1,8 @@
 {
   "version": 1,
   "mode": "corrective-phase-b-duplicate-budget",
-  "maxDuplicateSelectorGroups": 347,
+  "maxDuplicateSelectorGroups": 194,
+  "maxActionableDuplicateSelectorGroups": 0,
   "maxLargestDuplicateSelectorGroup": 12,
   "maxExactDuplicateRuleGroups": 0,
   "collapsedSelectorFamilies": [

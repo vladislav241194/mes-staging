@@ -16,6 +16,7 @@ import {
 } from "../src/gantt_ui_contracts.js";
 
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
+const stateStorageKey = "mes-planning-prototype-state-v2";
 const uiStorageKey = "mes-planning-prototype-ui-v1";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
 const overflowThreshold = 16;
@@ -218,10 +219,10 @@ async function cleanupChrome(chrome) {
   await rm(chrome.profileDir, { recursive: true, force: true }).catch(() => {});
 }
 
-async function getPresetStorageSeed() {
-  const raw = await readFile("workflow-preset.json", "utf8");
-  const preset = JSON.parse(raw);
-  return preset.values && typeof preset.values === "object" ? preset.values : {};
+async function getBootstrapSnapshotStorageSeed() {
+  const raw = await readFile("bootstrap-snapshot.json", "utf8");
+  const snapshot = JSON.parse(raw);
+  return snapshot.values && typeof snapshot.values === "object" ? snapshot.values : {};
 }
 
 function getExpandedRouteIdsFromStorageSeed(seed = {}) {
@@ -243,26 +244,45 @@ function moduleUrl() {
   return url.toString();
 }
 
-async function seedGanttState(client, presetStorageSeed, expandedProjects, scale = "days") {
-  await evaluate(client, (payload) => {
-    sessionStorage.setItem(payload.sharedDisabledKey, String(Date.now() + 5 * 60 * 1000));
-    Object.entries(payload.presetStorageSeed || {}).forEach(([key, value]) => {
-      if (typeof value === "string") localStorage.setItem(key, value);
-    });
-    const presetUi = JSON.parse(payload.presetStorageSeed[payload.uiStorageKey] || "{}");
-    localStorage.setItem(payload.uiStorageKey, JSON.stringify({
-      ...presetUi,
-      activeModule: "gantt",
-      scale: payload.scale,
-      ganttZoom: payload.scale === "hours" ? 8 : 1,
-      ganttShowQuantity: true,
-      expandedProjects: payload.expandedProjects,
-      ganttDependencyEditMode: false,
-      ganttOptimizationDialog: null,
-      editor: null,
-      selectedSlotId: null,
-    }));
-  }, { sharedDisabledKey, uiStorageKey, presetStorageSeed, expandedProjects, scale });
+function buildGanttFixtureStorageSeed(storageSeed = {}) {
+  const state = JSON.parse(storageSeed[stateStorageKey] || "{}");
+  const workCenterId = state.workCenters?.[0]?.id || "D1";
+  const routeId = "qa-gantt-regression-route";
+  const stepId = "qa-gantt-regression-step";
+  const nextStepId = "qa-gantt-regression-step-2";
+  const slotId = "qa-gantt-regression-slot";
+  const nextSlotId = "qa-gantt-regression-slot-2";
+  const specificationId = "qa-gantt-regression-specification";
+  const now = new Date();
+  now.setHours(8, 0, 0, 0);
+  const end = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+  const nextEnd = new Date(end.getTime() + 4 * 60 * 60 * 1000);
+  const operation = { routeStepId: stepId, operationId: "D1_OP3", operationName: "QA-операция Gantt", workCenterId, nextWorkCenterId: workCenterId, labor: { mode: "unit", minutesPerUnit: 1 } };
+  const nextOperation = { routeStepId: nextStepId, operationId: "D1_OP3", operationName: "QA-контроль Gantt", workCenterId, nextWorkCenterId: workCenterId, labor: { mode: "unit", minutesPerUnit: 1 } };
+  state.routes = [{ id: routeId, name: "Маршрутная карта · QA Gantt", designation: "QA.GANTT.003", specificationId, specificationName: "QA: Gantt regression", projectId: specificationId, routeDocumentKind: "main", rootRouteId: routeId, isDefault: true, sourceSpecifications2EntryId: specificationId, sourceSpecifications2RouteDraftId: "qa-gantt-regression-draft", revision: 1, planningQuantity: 1000, planningStatus: "scheduled", lifecycleStatus: "released", unit: "шт.", planningLaborByStepId: { [stepId]: { mode: "unit", minutesPerUnit: 1 }, [nextStepId]: { mode: "unit", minutesPerUnit: 1 } }, createdAt: now.toISOString(), updatedAt: now.toISOString(), documentRevisionSnapshot: { source: "specifications2", specificationEntryId: specificationId, specificationId, specificationRevision: 1, routeDraftId: "qa-gantt-regression-draft", routeRevision: 1, releasedAt: now.toISOString(), product: { designation: "QA.GANTT.003", name: "QA Gantt" }, operations: [operation, nextOperation] }, workOrderSnapshot: { id: "qa-gantt-regression-work-order-r1", source: "specifications2", specificationId, specificationRevision: 1, routeId, routeRevision: 1, quantity: 1000, operationRevisions: [operation, nextOperation] } }];
+  state.routeSteps = [{ id: stepId, routeId, stepOrder: 1, operationId: operation.operationId, operationName: operation.operationName, workCenterId, departmentId: workCenterId, nextWorkCenterId: workCenterId, nextOperationId: nextOperation.operationId, statusBefore: "К сборке", statusAfter: "Собрано", isRequired: true, quantityMultiplier: 1, calculationType: "normative", fulfillmentMode: "produce", operationInputs: [{ label: "К сборке" }], operationOutputs: [{ label: "Собрано" }], sourceSpecifications2OperationId: "qa-gantt-regression-operation", normRevisionId: "", unit: "шт." }, { id: nextStepId, routeId, stepOrder: 2, operationId: nextOperation.operationId, operationName: nextOperation.operationName, workCenterId, departmentId: workCenterId, nextWorkCenterId: workCenterId, nextOperationId: "", statusBefore: "Собрано", statusAfter: "Проверено", isRequired: true, quantityMultiplier: 1, calculationType: "normative", fulfillmentMode: "produce", operationInputs: [{ label: "Собрано" }], operationOutputs: [{ label: "Проверено" }], sourceSpecifications2OperationId: "qa-gantt-regression-operation-2", normRevisionId: "", unit: "шт." }];
+  state.slots = [{ id: slotId, routeId, routeStepId: stepId, planningOrderId: routeId, specificationId, routeWorkCenterId: workCenterId, workCenterId, operationId: operation.operationId, operationName: operation.operationName, quantity: 1000, unit: "шт.", plannedStart: now.toISOString(), plannedEnd: end.toISOString(), status: "planned", sourceSpecifications2EntryId: specificationId, specificationRevision: 1, routeRevision: 1, workOrderSnapshotId: "qa-gantt-regression-work-order-r1", actualStart: "", actualEnd: "" }, { id: nextSlotId, routeId, routeStepId: nextStepId, planningOrderId: routeId, specificationId, routeWorkCenterId: workCenterId, workCenterId, operationId: nextOperation.operationId, operationName: nextOperation.operationName, quantity: 1000, unit: "шт.", plannedStart: end.toISOString(), plannedEnd: nextEnd.toISOString(), status: "planned", sourceSpecifications2EntryId: specificationId, specificationRevision: 1, routeRevision: 1, workOrderSnapshotId: "qa-gantt-regression-work-order-r1", actualStart: "", actualEnd: "" }];
+  state.shiftMasterAssignments = {};
+  state.dispatchFacts = {};
+  state.planningCorrections = {};
+  return { ...storageSeed, [stateStorageKey]: JSON.stringify(state) };
+}
+
+async function seedGanttState(client, bootstrapSnapshotStorageSeed, expandedProjects, scale = "days") {
+  const origin = new URL(moduleUrl()).origin;
+  const bootstrapSnapshotUi = JSON.parse(bootstrapSnapshotStorageSeed[uiStorageKey] || "{}");
+  await client.send("Page.navigate", { url: new URL("/app-version.json", origin).toString() });
+  await delay(160);
+  await client.send("DOMStorage.enable");
+  const storageId = { securityOrigin: origin, isLocalStorage: true };
+  const sessionStorageId = { securityOrigin: origin, isLocalStorage: false };
+  const values = [
+    [stateStorageKey, bootstrapSnapshotStorageSeed[stateStorageKey]],
+    [uiStorageKey, JSON.stringify({ ...bootstrapSnapshotUi, activeModule: "gantt", scale, ganttZoom: scale === "hours" ? 8 : 1, ganttShowQuantity: true, expandedProjects, ganttDependencyEditMode: false, ganttOptimizationDialog: null, editor: null, selectedSlotId: null })],
+    ["mes-specifications-2-registry-v1", '{"entries":[]}'],
+  ];
+  for (const [key, value] of values) await client.send("DOMStorage.setDOMStorageItem", { storageId, key, value });
+  await client.send("DOMStorage.setDOMStorageItem", { storageId: sessionStorageId, key: sharedDisabledKey, value: String(Date.now() + 5 * 60 * 1000) });
 }
 
 async function waitForGantt(client) {
@@ -319,6 +339,35 @@ async function switchScale(client, scale) {
   await waitForGantt(client);
 }
 
+async function checkGanttToolbarStability(client, viewport) {
+  const report = await evaluate(client, async () => {
+    const samples = [];
+    let previousButton = null;
+    let replacements = 0;
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 1800) {
+      const button = document.querySelector('button[data-gantt-zoom="reset"]');
+      if (button && previousButton && button !== previousButton) replacements += 1;
+      previousButton = button;
+      samples.push({
+        text: button?.textContent?.trim() || "",
+        width: Math.round(button?.getBoundingClientRect().width || 0),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 240));
+    }
+    return { replacements, samples };
+  });
+  const failures = [];
+  addFailure(failures, report.replacements === 0, `Gantt zoom reset button was replaced ${report.replacements} times during stability window`);
+  addFailure(failures, report.samples.every((sample) => /^\d+%$/.test(sample.text) && sample.width > 0), "Gantt zoom reset button lost visible value or bounds during stability window");
+  return {
+    viewport,
+    status: failures.length ? "fail" : "pass",
+    failures,
+    replacements: report.replacements,
+  };
+}
+
 async function collectGanttDom(client, viewport, scale) {
   return evaluate(client, (payload) => {
     const round = (value) => Math.round(Number(value || 0) * 10) / 10;
@@ -327,6 +376,8 @@ async function collectGanttDom(client, viewport, scale) {
       return rect ? {
         x: round(rect.x),
         y: round(rect.y),
+        left: round(rect.left),
+        top: round(rect.top),
         width: round(rect.width),
         height: round(rect.height),
         right: round(rect.right),
@@ -355,6 +406,36 @@ async function collectGanttDom(client, viewport, scale) {
     const dependencyArrows = [...document.querySelectorAll("[data-ui-component='GanttDependencyArrow']")];
     const dependencyMasks = [...document.querySelectorAll("[data-ui-component='GanttDependencySlotMask']")];
     const dependencyMaskRects = [...document.querySelectorAll("[data-ui-component='GanttDependencySlotMaskRect']")];
+    const toolbarRoot = document.querySelector(".planner-workspace-gantt-only > .topbar[data-ui-component='GanttToolbar']");
+    const toolbarActions = toolbarRoot?.querySelector(".toolbar-actions");
+    const zoomGroup = toolbarRoot?.querySelector(".toolbar-grid > .gantt-zoom-control");
+    const zoomButtons = zoomGroup ? [...zoomGroup.children] : [];
+    const zoomRect = rectOf(zoomGroup);
+    const zoomButtonReports = zoomButtons.map((button) => {
+      const rect = rectOf(button);
+      const svgRect = rectOf(button.querySelector("svg"));
+      return {
+        action: button.getAttribute("data-gantt-zoom") || "",
+        text: button.textContent.trim().replace(/\s+/g, " "),
+        rect,
+        svgRect,
+        visible: Boolean(rect?.width && rect?.height) && getComputedStyle(button).display !== "none",
+        insideGroup: Boolean(rect && zoomRect)
+          && rect.left >= zoomRect.left - 1
+          && rect.right <= zoomRect.right + 1
+          && rect.top >= zoomRect.top - 1
+          && rect.bottom <= zoomRect.bottom + 1,
+      };
+    });
+    const zoomTops = zoomButtonReports.map((item) => item.rect?.top).filter(Number.isFinite);
+    const zoomBottoms = zoomButtonReports.map((item) => item.rect?.bottom).filter(Number.isFinite);
+    const peerHeights = [
+      toolbarRoot?.querySelector(".toolbar-grid > .field.compact"),
+      toolbarRoot?.querySelector(".toolbar-grid > .segmented"),
+    ].map((element) => rectOf(element)?.height).filter(Number.isFinite);
+    const toolbarClock = toolbarRoot?.querySelector("[data-gantt-toolbar-clock]");
+    const clockRect = rectOf(toolbarClock);
+    const optimizeRect = rectOf(toolbarRoot?.querySelector("#optimizePlanButton"));
     const requiredSelectors = payload.requiredSelectors.map((selector) => ({
       selector,
       count: document.querySelectorAll(selector).length,
@@ -422,11 +503,42 @@ async function collectGanttDom(client, viewport, scale) {
         styleKeys: styleKeys(canvas),
       },
       toolbar: {
-        present: Boolean(document.querySelector("[data-ui-component='GanttToolbar']")),
+        present: Boolean(toolbarRoot),
         actionButtons: document.querySelectorAll(".topbar .ui-action-button, [data-ui-component='GanttToolbar'] .ui-action-button").length,
         scaleControls: document.querySelectorAll("[data-scale]").length,
         zoomControls: document.querySelectorAll("[data-gantt-zoom]").length,
         optimizeControls: document.querySelectorAll("#optimizePlanButton").length,
+        statusStrips: toolbarRoot?.querySelectorAll(".status-strip").length || 0,
+        statusTokens: toolbarRoot?.querySelectorAll("[data-ui-component='StatusToken']").length || 0,
+        clock: {
+          count: toolbarRoot?.querySelectorAll("[data-gantt-toolbar-clock]").length || 0,
+          component: toolbarClock?.getAttribute("data-ui-component") || "",
+          directActionChild: Boolean(toolbarClock && toolbarClock.parentElement === toolbarActions),
+          visible: Boolean(clockRect?.width && clockRect?.height) && getComputedStyle(toolbarClock || document.documentElement).display !== "none",
+          rect: clockRect,
+          optimizeCenterDelta: clockRect && optimizeRect
+            ? round(Math.abs((clockRect.top + clockRect.height / 2) - (optimizeRect.top + optimizeRect.height / 2)))
+            : null,
+        },
+        zoom: {
+          count: toolbarRoot?.querySelectorAll(".toolbar-grid > .gantt-zoom-control").length || 0,
+          display: zoomGroup ? getComputedStyle(zoomGroup).display : "",
+          rect: zoomRect,
+          scrollWidth: zoomGroup?.scrollWidth || 0,
+          clientWidth: zoomGroup?.clientWidth || 0,
+          scrollHeight: zoomGroup?.scrollHeight || 0,
+          clientHeight: zoomGroup?.clientHeight || 0,
+          actions: zoomButtonReports.map((item) => item.action),
+          buttons: zoomButtonReports,
+          sameRow: zoomTops.length === 3 && zoomBottoms.length === 3
+            && Math.max(...zoomTops) - Math.min(...zoomTops) <= 2
+            && Math.max(...zoomBottoms) - Math.min(...zoomBottoms) <= 2,
+          orderedWithoutOverlap: zoomButtonReports.length === 3
+            && zoomButtonReports.every((item, index) => index === 0 || zoomButtonReports[index - 1].rect.right <= item.rect.left + 1),
+          peerHeightDelta: zoomRect && peerHeights.length === 2
+            ? Math.max(...peerHeights.map((height) => Math.abs(height - zoomRect.height)))
+            : null,
+        },
       },
       timeline: {
         present: Boolean(timeline),
@@ -485,6 +597,29 @@ function validateDomReport(report) {
   addFailure(failures, report.toolbar.present, "GanttToolbar marker missing");
   addFailure(failures, report.toolbar.scaleControls >= 3, "scale controls missing");
   addFailure(failures, report.toolbar.zoomControls >= 3, "zoom controls missing");
+  addFailure(failures, report.toolbar.statusStrips === 0, `obsolete Gantt status strip count: ${report.toolbar.statusStrips}`);
+  addFailure(failures, report.toolbar.statusTokens === 0, `obsolete Gantt toolbar status token count: ${report.toolbar.statusTokens}`);
+  addFailure(failures, report.toolbar.clock.count === 1, `Gantt toolbar clock count: ${report.toolbar.clock.count}`);
+  addFailure(failures, report.toolbar.clock.component === "GanttClock", "Gantt toolbar clock lost GanttClock marker");
+  addFailure(failures, report.toolbar.clock.directActionChild, "Gantt toolbar clock is not a direct toolbar-actions child");
+  if (report.viewport.category !== "narrow") {
+    addFailure(failures, report.toolbar.clock.visible, "Gantt toolbar clock is not visible outside narrow layout");
+    addFailure(failures, report.toolbar.clock.optimizeCenterDelta !== null && report.toolbar.clock.optimizeCenterDelta <= 2, `Gantt toolbar clock dropped below actions by ${report.toolbar.clock.optimizeCenterDelta}px`);
+  }
+  addFailure(failures, report.toolbar.zoom.count === 1, `Gantt zoom group count: ${report.toolbar.zoom.count}`);
+  addFailure(failures, report.toolbar.zoom.display === "grid", `Gantt zoom group display is ${report.toolbar.zoom.display || "missing"}`);
+  addFailure(failures, JSON.stringify(report.toolbar.zoom.actions) === JSON.stringify(["out", "reset", "in"]), `Gantt zoom action order: ${report.toolbar.zoom.actions.join(",")}`);
+  addFailure(failures, report.toolbar.zoom.buttons.length === 3 && report.toolbar.zoom.buttons.every((button) => button.visible), "Gantt zoom buttons are not all visible");
+  addFailure(failures, report.toolbar.zoom.buttons.length === 3 && report.toolbar.zoom.buttons.every((button) => button.insideGroup), "Gantt zoom buttons escape their group");
+  addFailure(failures, report.toolbar.zoom.sameRow, "Gantt zoom buttons are not on one row");
+  addFailure(failures, report.toolbar.zoom.orderedWithoutOverlap, "Gantt zoom buttons overlap or are out of order");
+  addFailure(failures, report.toolbar.zoom.scrollWidth <= report.toolbar.zoom.clientWidth + 1, `Gantt zoom horizontal overflow ${report.toolbar.zoom.scrollWidth - report.toolbar.zoom.clientWidth}px`);
+  addFailure(failures, report.toolbar.zoom.scrollHeight <= report.toolbar.zoom.clientHeight + 1, `Gantt zoom vertical overflow ${report.toolbar.zoom.scrollHeight - report.toolbar.zoom.clientHeight}px`);
+  addFailure(failures, report.toolbar.zoom.peerHeightDelta !== null && report.toolbar.zoom.peerHeightDelta <= 2, `Gantt zoom height differs from neighboring controls by ${report.toolbar.zoom.peerHeightDelta}px`);
+  const resetZoomButton = report.toolbar.zoom.buttons.find((button) => button.action === "reset");
+  const iconZoomButtons = report.toolbar.zoom.buttons.filter((button) => button.action !== "reset");
+  addFailure(failures, Boolean(resetZoomButton && /^\d+%$/.test(resetZoomButton.text)), `Gantt zoom reset value is ${resetZoomButton?.text || "missing"}`);
+  addFailure(failures, iconZoomButtons.length === 2 && iconZoomButtons.every((button) => button.svgRect?.width > 0 && button.svgRect?.height > 0), "Gantt zoom +/- icons have empty bounds");
   addFailure(failures, report.timeline.present && report.timeline.rect?.width > 0 && report.timeline.rect?.height > 0, "timeline has empty bounds");
   addFailure(failures, report.timeline.closestShell, "timeline is outside Gantt shell");
   addFailure(failures, report.rowsLayer.present && report.rowsLayer.closestShell, "rows layer missing or outside shell");
@@ -793,12 +928,13 @@ async function writeReports(result) {
 }
 
 async function run() {
-  const presetStorageSeed = await getPresetStorageSeed();
-  const expandedProjects = getExpandedRouteIdsFromStorageSeed(presetStorageSeed);
+  const bootstrapSnapshotStorageSeed = buildGanttFixtureStorageSeed(await getBootstrapSnapshotStorageSeed());
+  const expandedProjects = getExpandedRouteIdsFromStorageSeed(bootstrapSnapshotStorageSeed);
   const chrome = await launchChrome();
   const geometryChecks = [];
   const scaleChecks = [];
   const overlayChecks = [];
+  const stabilityChecks = [];
   try {
     const { client } = chrome;
     await client.send("Page.enable");
@@ -808,9 +944,10 @@ async function run() {
       await setViewport(client, viewport);
       await client.send("Page.navigate", { url: moduleUrl() });
       await delay(300);
-      await seedGanttState(client, presetStorageSeed, expandedProjects, "days");
+      await seedGanttState(client, bootstrapSnapshotStorageSeed, expandedProjects, "days");
       await client.send("Page.navigate", { url: moduleUrl() });
       await waitForGantt(client);
+      stabilityChecks.push(await checkGanttToolbarStability(client, viewport));
 
       for (const scale of GANTT_UI_SCALE_MODES) {
         await switchScale(client, scale);
@@ -829,6 +966,7 @@ async function run() {
   const tokenUsage = await buildTokenUsageReport();
   const domFailures = geometryChecks.flatMap((item) => item.failures);
   const overlayFailures = overlayChecks.flatMap((item) => item.failures || []);
+  const stabilityFailures = stabilityChecks.flatMap((item) => item.failures || []);
   const result = {
     generatedAt: new Date().toISOString(),
     runtimeMap: buildRuntimeMapReport(),
@@ -877,6 +1015,14 @@ async function run() {
         warnings: scaleChecks.reduce((sum, item) => sum + item.warnings.length, 0),
       },
     },
+    toolbarStability: {
+      generatedAt: new Date().toISOString(),
+      checks: stabilityChecks,
+      summary: {
+        checks: stabilityChecks.length,
+        failures: stabilityFailures.length,
+      },
+    },
   };
 
   await writeReports(result);
@@ -885,13 +1031,15 @@ async function run() {
   console.log(`- geometry checks: ${geometryChecks.length}`);
   console.log(`- scale checks: ${scaleChecks.length}`);
   console.log(`- overlay checks: ${overlayChecks.length}`);
-  console.log(`- failures: ${domFailures.length + overlayFailures.length}`);
+  console.log(`- toolbar stability checks: ${stabilityChecks.length}`);
+  console.log(`- failures: ${domFailures.length + stabilityFailures.length + overlayFailures.length}`);
   console.log(`- warnings: ${result.geometry.summary.warnings + result.overlay.summary.warnings}`);
   console.log(`- report: ${reportPaths.combinedJson}`);
 
-  if (domFailures.length || overlayFailures.length || tokenUsage.missingDefinitions.length) {
+  if (domFailures.length || stabilityFailures.length || overlayFailures.length || tokenUsage.missingDefinitions.length) {
     const messages = [
       ...domFailures,
+      ...stabilityFailures,
       ...overlayFailures,
       ...tokenUsage.missingDefinitions.map((item) => `missing Gantt token ${item.token}`),
     ];

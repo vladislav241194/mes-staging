@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const defaultUrl = new URL("/?module=gantt&qa-auth-bypass=1&qa=gantt-runtime-guardrails", process.env.MES_QA_URL || "http://localhost:4174/").toString();
+const stateStorageKey = "mes-planning-prototype-state-v2";
 const uiStorageKey = "mes-planning-prototype-ui-v1";
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
 
@@ -151,10 +152,47 @@ async function launchChrome() {
   }
 }
 
-async function getPresetStorageSeed() {
-  const raw = await readFile("workflow-preset.json", "utf8");
-  const preset = JSON.parse(raw);
-  return preset.values && typeof preset.values === "object" ? preset.values : {};
+async function getBootstrapSnapshotStorageSeed() {
+  const raw = await readFile("bootstrap-snapshot.json", "utf8");
+  const snapshot = JSON.parse(raw);
+  return snapshot.values && typeof snapshot.values === "object" ? snapshot.values : {};
+}
+
+function buildGuardrailsFixtureStorageSeed(storageSeed = {}) {
+  const state = JSON.parse(storageSeed[stateStorageKey] || "{}");
+  const workCenterId = state.workCenters?.[0]?.id || "D1";
+  const routeId = "qa-gantt-guardrails-route";
+  const stepId = "qa-gantt-guardrails-step";
+  const slotId = "qa-gantt-guardrails-slot";
+  const specificationId = "qa-gantt-guardrails-specification";
+  const now = new Date();
+  now.setHours(8, 0, 0, 0);
+  const end = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+  const operation = { routeStepId: stepId, operationId: "D1_OP3", operationName: "QA-операция Gantt", workCenterId, nextWorkCenterId: workCenterId, labor: { mode: "unit", minutesPerUnit: 1 } };
+  state.routes = [{
+    id: routeId, name: "Маршрутная карта · QA Gantt", designation: "QA.GANTT.002", specificationId, specificationName: "QA: Gantt guardrails", projectId: specificationId,
+    routeDocumentKind: "main", rootRouteId: routeId, isDefault: true, sourceSpecifications2EntryId: specificationId, sourceSpecifications2RouteDraftId: "qa-gantt-guardrails-draft", revision: 1,
+    planningQuantity: 1000, planningStatus: "scheduled", lifecycleStatus: "released", unit: "шт.", planningLaborByStepId: { [stepId]: { mode: "unit", minutesPerUnit: 1 } }, createdAt: now.toISOString(), updatedAt: now.toISOString(),
+    documentRevisionSnapshot: { source: "specifications2", specificationEntryId: specificationId, specificationId, specificationRevision: 1, routeDraftId: "qa-gantt-guardrails-draft", routeRevision: 1, releasedAt: now.toISOString(), product: { designation: "QA.GANTT.002", name: "QA Gantt" }, operations: [operation] },
+    workOrderSnapshot: { id: "qa-gantt-guardrails-work-order-r1", source: "specifications2", specificationId, specificationRevision: 1, routeId, routeRevision: 1, quantity: 1000, operationRevisions: [operation] },
+  }];
+  state.routeSteps = [{ id: stepId, routeId, stepOrder: 1, operationId: operation.operationId, operationName: operation.operationName, workCenterId, departmentId: workCenterId, nextWorkCenterId: workCenterId, nextOperationId: "", statusBefore: "К сборке", statusAfter: "Собрано", isRequired: true, quantityMultiplier: 1, calculationType: "normative", fulfillmentMode: "produce", operationInputs: [{ label: "К сборке" }], operationOutputs: [{ label: "Собрано" }], sourceSpecifications2OperationId: "qa-gantt-guardrails-operation", normRevisionId: "", unit: "шт." }];
+  state.slots = [{ id: slotId, routeId, routeStepId: stepId, planningOrderId: routeId, specificationId, routeWorkCenterId: workCenterId, workCenterId, operationId: operation.operationId, operationName: operation.operationName, quantity: 1000, unit: "шт.", plannedStart: now.toISOString(), plannedEnd: end.toISOString(), status: "planned", sourceSpecifications2EntryId: specificationId, specificationRevision: 1, routeRevision: 1, workOrderSnapshotId: "qa-gantt-guardrails-work-order-r1", actualStart: "", actualEnd: "" }];
+  state.shiftMasterAssignments = {};
+  state.dispatchFacts = {};
+  state.planningCorrections = {};
+  return { ...storageSeed, [stateStorageKey]: JSON.stringify(state) };
+}
+
+async function setStorageFixture(client, url, entries) {
+  const origin = new URL(url).origin;
+  await client.send("Page.navigate", { url: new URL("/app-version.json", origin).toString() });
+  await delay(180);
+  const storageId = { securityOrigin: origin, isLocalStorage: true };
+  const sessionStorageId = { securityOrigin: origin, isLocalStorage: false };
+  await client.send("DOMStorage.enable");
+  for (const [key, value] of entries.local) await client.send("DOMStorage.setDOMStorageItem", { storageId, key, value });
+  for (const [key, value] of entries.session) await client.send("DOMStorage.setDOMStorageItem", { storageId: sessionStorageId, key, value });
 }
 
 function getExpandedRouteIdsFromStorageSeed(seed = {}) {
@@ -233,30 +271,22 @@ function assert(condition, message) {
 }
 
 async function run() {
-  const presetStorageSeed = await getPresetStorageSeed();
-  const expandedProjects = getExpandedRouteIdsFromStorageSeed(presetStorageSeed);
+  const bootstrapSnapshotStorageSeed = buildGuardrailsFixtureStorageSeed(await getBootstrapSnapshotStorageSeed());
+  const expandedProjects = getExpandedRouteIdsFromStorageSeed(bootstrapSnapshotStorageSeed);
   const chrome = await launchChrome();
   try {
     const { client } = chrome;
     await client.send("Page.enable");
     await client.send("Runtime.enable");
-    await client.send("Page.navigate", { url: defaultUrl });
-    await delay(500);
-    await evaluate(client, (payload) => {
-      sessionStorage.setItem(payload.sharedDisabledKey, String(Date.now() + 5 * 60 * 1000));
-      Object.entries(payload.presetStorageSeed || {}).forEach(([key, value]) => {
-        if (typeof value === "string") localStorage.setItem(key, value);
-      });
-      const presetUi = JSON.parse(payload.presetStorageSeed[payload.uiStorageKey] || "{}");
-      localStorage.setItem(payload.uiStorageKey, JSON.stringify({
-        ...presetUi,
-        activeModule: "gantt",
-        scale: "hours",
-        ganttZoom: 8,
-        ganttShowQuantity: true,
-        expandedProjects: payload.expandedProjects,
-      }));
-    }, { sharedDisabledKey, uiStorageKey, presetStorageSeed, expandedProjects });
+    const bootstrapSnapshotUi = JSON.parse(bootstrapSnapshotStorageSeed[uiStorageKey] || "{}");
+    await setStorageFixture(client, defaultUrl, {
+      local: [
+        [stateStorageKey, bootstrapSnapshotStorageSeed[stateStorageKey]],
+        [uiStorageKey, JSON.stringify({ ...bootstrapSnapshotUi, activeModule: "gantt", scale: "hours", ganttZoom: 8, ganttShowQuantity: true, expandedProjects })],
+        ["mes-specifications-2-registry-v1", '{"entries":[]}'],
+      ],
+      session: [[sharedDisabledKey, String(Date.now() + 5 * 60 * 1000)]],
+    });
     await client.send("Page.navigate", { url: defaultUrl });
     await waitForGantt(client);
 
@@ -265,6 +295,25 @@ async function run() {
       const slots = [...document.querySelectorAll(".operation-slot[data-slot-id]:not(.aggregate-slot)")];
       const aggregateSlots = [...document.querySelectorAll(".operation-slot.aggregate-slot")];
       const firstSlot = slots[0];
+      const toolbar = document.querySelector(".planner-workspace-gantt-only > .topbar[data-ui-component='GanttToolbar']");
+      const toolbarActions = toolbar?.querySelector(".toolbar-actions");
+      const zoomGroup = toolbar?.querySelector(".toolbar-grid > .gantt-zoom-control");
+      const zoomButtons = zoomGroup ? [...zoomGroup.children] : [];
+      const zoomRects = zoomButtons.map((button) => button.getBoundingClientRect());
+      const clock = toolbar?.querySelector("[data-gantt-toolbar-clock]");
+      const zoomDisplay = zoomGroup ? getComputedStyle(zoomGroup).display : "";
+      const zoomActions = zoomButtons.map((button) => button.getAttribute("data-gantt-zoom") || "");
+      const zoomSameRow = zoomRects.length === 3 && Math.max(...zoomRects.map((rect) => rect.top)) - Math.min(...zoomRects.map((rect) => rect.top)) <= 2;
+      const zoomWithinBounds = Boolean(zoomGroup) && zoomRects.every((rect) => {
+        const groupRect = zoomGroup.getBoundingClientRect();
+        return rect.left >= groupRect.left - 1 && rect.right <= groupRect.right + 1 && rect.top >= groupRect.top - 1 && rect.bottom <= groupRect.bottom + 1;
+      });
+      const zoomOverflow = zoomGroup ? Math.max(0, zoomGroup.scrollWidth - zoomGroup.clientWidth, zoomGroup.scrollHeight - zoomGroup.clientHeight) : -1;
+      const statusStripCount = toolbar?.querySelectorAll(".status-strip").length || 0;
+      const statusTokenCount = toolbar?.querySelectorAll("[data-ui-component='StatusToken']").length || 0;
+      const clockCount = toolbar?.querySelectorAll("[data-gantt-toolbar-clock]").length || 0;
+      const clockComponent = clock?.getAttribute("data-ui-component") || "";
+      const clockInToolbarActions = Boolean(clock && clock.parentElement === toolbarActions);
       firstSlot?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true, view: window }));
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       return {
@@ -281,6 +330,16 @@ async function run() {
         dependencyLayer: Boolean(document.querySelector(".dependencies-layer[data-ui-component='GanttDependencyLayer']")),
         dependencyPathCount: document.querySelectorAll(".dependency-path").length,
         zoomControls: document.querySelectorAll("[data-gantt-zoom]").length,
+        zoomDisplay,
+        zoomActions,
+        zoomSameRow,
+        zoomWithinBounds,
+        zoomOverflow,
+        statusStripCount,
+        statusTokenCount,
+        clockCount,
+        clockComponent,
+        clockInToolbarActions,
         modalBackdropCount: document.querySelectorAll(".modal-backdrop").length,
         slotFormCount: document.querySelectorAll("#slotForm").length,
         modalCount: document.querySelectorAll("[data-ui-component='Modal']").length,
@@ -298,6 +357,16 @@ async function run() {
     assert(contract.slotComponentCount === contract.slotCount, "Some operation slots lost data-ui-component=GanttSlot.");
     assert(contract.dependencyLayer, "Missing GanttDependencyLayer component marker.");
     assert(contract.zoomControls >= 3, "Gantt zoom controls lost data-gantt-zoom attributes.");
+    assert(contract.zoomDisplay === "grid", `Gantt zoom group display is ${contract.zoomDisplay || "missing"}.`);
+    assert(JSON.stringify(contract.zoomActions) === JSON.stringify(["out", "reset", "in"]), `Gantt zoom actions are out of order: ${contract.zoomActions.join(",")}.`);
+    assert(contract.zoomSameRow, "Gantt zoom controls are not on one row.");
+    assert(contract.zoomWithinBounds, "Gantt zoom controls escape their group.");
+    assert(contract.zoomOverflow === 0, `Gantt zoom group overflow is ${contract.zoomOverflow}px.`);
+    assert(contract.statusStripCount === 0, "Obsolete Gantt status strip is still rendered.");
+    assert(contract.statusTokenCount === 0, "Obsolete Gantt status tokens are still rendered.");
+    assert(contract.clockCount === 1, `Gantt toolbar clock count is ${contract.clockCount}.`);
+    assert(contract.clockComponent === "GanttClock", "Gantt toolbar clock lost GanttClock marker.");
+    assert(contract.clockInToolbarActions, "Gantt toolbar clock is not inside toolbar-actions.");
     assert(contract.slotFormCount <= 1, "Double slot editor form mounted after double click.");
     assert(contract.modalBackdropCount <= 1, "Double modal backdrop mounted after double click.");
 

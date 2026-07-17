@@ -4,19 +4,33 @@
 
 /* Planning v1.491: work-order screen follows the document-tree/detail pattern from Shift Work Orders. */
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page{
-  --planning-order-accent: var(--mes-ui-sidebar-bg, #10233c);
-  --planning-order-accent-text: #f8fafc;
-  --planning-order-accent-muted: #cbd5e1;
-  --planning-order-accent-soft: rgba(16, 35, 60, 0.075);
-  --planning-order-accent-line: rgba(16, 35, 60, 0.24);
-  --planning-order-tree-line: #94a3b8;
-  --planning-order-tree-active-dot: #0f172a;
+  --planning-order-accent: var(--mes-ui-sidebar-bg, var(--mes-ui-sidebar-bg));
+  --planning-order-accent-text: var(--mes-ui-surface-soft);
+  --planning-order-accent-muted: var(--mes-ui-line-strong);
+  --planning-order-accent-soft: var(--mes-ui-sidebar-alpha-075);
+  --planning-order-accent-line: var(--mes-ui-sidebar-alpha-24);
+  --planning-order-surface: var(--mes-ui-surface-panel);
+  --planning-order-soft-surface: var(--mes-ui-surface-panel-soft);
+  --planning-order-hover-surface: color-mix(in srgb, var(--planning-order-accent) 4.5%, var(--planning-order-surface));
+  --planning-order-subtle-surface: color-mix(in srgb, var(--planning-order-accent) 3.5%, var(--planning-order-surface));
+  --planning-order-accent-inverse-surface: color-mix(in srgb, var(--planning-order-accent-text) 14%, transparent);
+  --planning-order-accent-inverse-line: color-mix(in srgb, var(--planning-order-accent-text) 28%, transparent);
+  --planning-order-line-soft: color-mix(in srgb, var(--planning-order-accent) 12%, transparent);
+  --planning-order-line-default: color-mix(in srgb, var(--planning-order-accent) 14%, transparent);
+  --planning-order-line-strong: color-mix(in srgb, var(--planning-order-accent) 16%, transparent);
+  --planning-order-row-divider: color-mix(in srgb, var(--planning-order-accent) 8%, transparent);
+  --planning-order-accent-divider: color-mix(in srgb, var(--planning-order-accent-text) 12%, transparent);
+  --planning-order-accent-divider-strong: color-mix(in srgb, var(--planning-order-accent-text) 16%, transparent);
+  --planning-order-selected-shadow: drop-shadow(0 3px 7px color-mix(in srgb, var(--planning-order-text-strong) 10%, transparent));
+  --planning-order-selected-shadow-soft: drop-shadow(0 3px 7px color-mix(in srgb, var(--planning-order-text-strong) 8%, transparent));
+  --planning-order-tree-line: var(--mes-ui-text-soft);
+  --planning-order-tree-active-dot: var(--mes-ui-text);
   --planning-order-text-strong: #172033;
-  --planning-order-text-main: #334155;
-  --planning-order-text-secondary: #475569;
-  --planning-order-text-muted: #64748b;
-  --planning-order-detail-line: rgba(16, 35, 60, 0.16);
-  --planning-order-detail-soft: #f8fafc;
+  --planning-order-text-main: var(--mes-ui-text-secondary);
+  --planning-order-text-secondary: var(--mes-ui-neutral);
+  --planning-order-text-muted: var(--mes-ui-text-muted);
+  --planning-order-detail-line: var(--mes-ui-sidebar-alpha-16);
+  --planning-order-detail-soft: var(--mes-ui-surface-soft);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
   display: grid;
   align-content: start;
@@ -30,29 +44,6 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   gap: 10px;
   align-items: start;
   min-width: 0;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid rgba(16, 35, 60, 0.12);
-  border-radius: var(--mes-ui-radius-md);
-  background: var(--mes-ui-surface);
-  padding: 10px 12px;
-  box-shadow: none;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header h2{
-  margin: 0;
-  color: var(--planning-order-text-strong);
-  font-size: 15px;
-  font-weight: 680;
-  line-height: 18px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-header p{
-  margin: 2px 0 0;
-  color: var(--planning-order-text-muted);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 14px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control{
   display: grid;
   gap: 3px;
@@ -62,72 +53,56 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   line-height: 12px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-start-date-control input{
   min-height: 30px;
-  border: 1px solid rgba(16, 35, 60, 0.16);
+  border: 1px solid var(--planning-order-line-strong);
   border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
+  background: var(--planning-order-surface);
   color: var(--planning-order-text-main);
   font-size: 11px;
   font-weight: 600;
   line-height: 14px;
   padding: 0 8px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page[data-ui-contract~="visual-parity-v2"] .planning-order-start-date-control[data-ui-component="FormField"] > input{
+  height: var(--mes-ui-control-height-compact);
+  min-height: var(--mes-ui-control-height-compact);
+  max-height: var(--mes-ui-control-height-compact);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel{
   min-width: 0;
-  border-color: rgba(16, 35, 60, 0.12);
-  box-shadow: none;
+  border-color: var(--planning-order-line-soft);
+  box-shadow: var(--mes-ui-shadow-none);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-queue{
-  grid-template-rows: auto auto !important;
+  grid-template-rows: auto auto;
   align-content: start;
   align-self: start;
-  height: auto !important;
-  min-height: 0 !important;
+  height: auto;
+  min-height: 0;
   max-height: calc(100dvh - 84px);
-  overflow: hidden !important;
+  overflow: hidden;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-list{
   align-self: stretch;
   align-content: start;
   min-height: 0;
   max-height: calc(100dvh - 170px);
   margin: 0;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head{
-  min-height: 42px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--planning-order-accent);
-  color: var(--planning-order-accent-text);
-  padding: 8px 10px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head strong{
-  color: var(--planning-order-accent-text);
-  font-size: 12px;
-  font-weight: 680;
-  line-height: 15px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head span{
-  color: var(--planning-order-accent-muted);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 13px;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel > .ui-panel-head .ui-status-token{
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--planning-order-accent-text);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-map > .ui-panel-body{
   display: grid;
   gap: 10px;
   padding: 10px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-strip{
-  display: grid !important;
-  grid-template-columns: minmax(170px, 0.65fr) minmax(0, 1.35fr) !important;
-  gap: 8px !important;
-  align-items: stretch !important;
-  border: 1px solid var(--planning-order-detail-line) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: var(--mes-ui-surface) !important;
-  padding: 7px !important;
-  box-shadow: none !important;
+  display: grid;
+  grid-template-columns: minmax(11rem, 0.55fr) minmax(0, 1.25fr) minmax(22rem, auto);
+  gap: 8px;
+  align-items: stretch;
+  border: 1px solid var(--planning-order-detail-line);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--mes-ui-surface);
+  padding: 7px;
+  box-shadow: var(--mes-ui-shadow-none);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary{
   display: grid;
   align-content: center;
   gap: 2px;
   min-width: 0;
-  border-right: 1px solid rgba(16, 35, 60, 0.12);
+  border-right: 1px solid var(--planning-order-line-soft);
   padding: 2px 10px 2px 4px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary span,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary small,
@@ -135,126 +110,163 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric small{
   min-width: 0;
   overflow: hidden;
-  color: var(--planning-order-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 500 !important;
-  line-height: 12px !important;
+  color: var(--planning-order-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary strong{
   min-width: 0;
   overflow: hidden;
-  color: var(--planning-order-text-strong) !important;
-  font-size: 11px !important;
-  font-weight: 650 !important;
-  line-height: 14px !important;
+  color: var(--planning-order-text-strong);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metrics{
-  display: grid !important;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-  gap: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
   min-width: 0;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-actions{
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--mes-space-2);
+  min-width: 0;
+  border-left: 1px solid var(--planning-order-row-divider);
+  padding-left: var(--mes-space-2);
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-date{
+  min-width: 9.5rem;
+  max-width: 10.5rem;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-quantity{
+  display: flex;
+  align-items: flex-end;
+  gap: var(--mes-space-1);
+  min-width: 8.75rem;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-quantity label{
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-quantity label > span{
+  color: var(--mes-ui-text-muted);
+  font-size: 10px;
+  line-height: 12px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-quantity input{
+  width: 4.5rem;
+  min-width: 0;
+  height: 30px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-quantity .ui-action-button{
+  min-width: 0;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-action-buttons{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--mes-space-2);
+  min-width: 0;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-action-buttons .ui-action-button{
+  white-space: nowrap;
+}@media (max-width: 82em){
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-strip{
+    grid-template-columns: minmax(0, 1fr);
+  }
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-primary{
+    border-right: 0;
+    border-bottom: 1px solid var(--planning-order-row-divider);
+    padding: 0 0 var(--mes-space-2);
+  }
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-actions{
+    justify-content: space-between;
+    border-left: 0;
+    border-top: 1px solid var(--planning-order-row-divider);
+    padding: var(--mes-space-2) 0 0;
+  }
+}
+@media (max-width: 48em){
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metrics{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-actions{
+    display: grid;
+    justify-content: stretch;
+  }
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-date{
+    max-width: none;
+  }
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-action-buttons{
+    justify-content: stretch;
+  }
+  main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-action-buttons .ui-action-button{
+    flex: 1 1 auto;
+  }
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric{
-  display: grid !important;
-  align-content: center !important;
-  gap: 2px !important;
-  min-width: 0 !important;
-  min-height: 44px !important;
-  border: 0 !important;
-  border-left: 1px solid rgba(16, 35, 60, 0.10) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 2px 7px !important;
-  box-shadow: none !important;
-  text-align: left !important;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  border-left: 1px solid var(--planning-order-row-divider);
+  border-radius: 0;
+  background: var(--mes-ui-surface-transparent);
+  padding: 2px 7px;
+  box-shadow: var(--mes-ui-shadow-none);
+  text-align: left;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:first-child{
-  border-left: 0 !important;
+  border-left: 0;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button){
   cursor: pointer;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric:is(button):hover,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric.is-active{
-  background: rgba(16, 35, 60, 0.045) !important;
+  background: var(--planning-order-hover-surface);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-metric strong{
   min-width: 0;
   overflow: hidden;
-  color: var(--planning-order-text-strong) !important;
-  font-size: 11px !important;
-  font-weight: 650 !important;
-  line-height: 14px !important;
+  color: var(--planning-order-text-strong);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table-wrap{
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
+  overflow-x: hidden;
+  overflow-y: hidden;
   border-radius: var(--mes-ui-radius-sm);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table{
-  width: 100% !important;
-  min-width: 0 !important;
-  table-layout: fixed !important;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td){
   box-sizing: border-box;
   min-width: 0;
-  padding: 6px 6px !important;
+  padding: 6px 6px;
   color: var(--planning-order-text-main);
   font-size: 11px;
   font-weight: 500;
   line-height: 15px;
   vertical-align: middle;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td{
-  border-top: 0 !important;
-  border-bottom: 0 !important;
+  border-top: 0;
+  border-bottom: 0;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td:first-child{
   overflow: visible;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
-  width: 34%;
+  width: 30%;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
-  width: 33%;
+  width: 38%;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
-  width: 13%;
+  width: 12%;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
   width: 9%;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(5){
   width: 11%;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th{
-  padding-top: 9px !important;
-  padding-bottom: 9px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background: var(--planning-order-accent) !important;
-  color: var(--planning-order-accent-text) !important;
-  font-size: 10px !important;
-  font-weight: 720 !important;
-  line-height: 12px !important;
-  white-space: nowrap;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th + th{
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:first-child{
-  border-top-left-radius: var(--mes-ui-radius-sm);
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table th:last-child{
-  border-top-right-radius: var(--mes-ui-radius-sm);
-  padding-right: 10px !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table th:last-child{
-  padding-right: 10px !important;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row){
   cursor: pointer;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(.planning-order-object-row, .planning-order-step-row):hover td{
-  background: rgba(16, 35, 60, 0.045) !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected td{
-  background: #fff !important;
-  box-shadow: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected{
-  outline: 1px solid var(--planning-order-accent-line);
-  outline-offset: -1px;
-  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(.planning-order-object-row.is-selected, .planning-order-step-row.is-selected) td{
-  background: #fff !important;
-  box-shadow: none !important;
-}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table :is(.planning-order-object-row.is-selected, .planning-order-step-row.is-selected){
-  outline: 1px solid var(--planning-order-accent-line);
-  outline-offset: -1px;
-  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell{
   --speki-tree-step: 30px;
   --speki-tree-line-color: var(--planning-order-tree-line);
@@ -265,6 +277,12 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   height: 100%;
   padding-top: 5px;
   padding-bottom: 5px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell.is-level-0{
+  grid-template-columns: 14px minmax(0, 1fr);
+  padding-left: 0;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell.is-level-0 > .speki-tree-branch{
+  display: block;
+  visibility: hidden;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .route-tree-cell > .speki-tree-start-dot{
   position: absolute;
   top: 50%;
@@ -276,7 +294,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   border: 1px solid var(--planning-order-tree-line);
   border-radius: var(--mes-ui-pill);
   background: var(--planning-order-tree-line);
-  box-shadow: none;
+  box-shadow: var(--mes-ui-shadow-none);
   transform: translate(-50%, -50%);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected .route-tree-cell > .speki-tree-start-dot{
   border-color: var(--planning-order-tree-active-dot);
@@ -301,6 +319,8 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell > .speki-tree-branch::before{
   top: calc(-1 * var(--speki-tree-line-bleed-top));
   bottom: calc(-1 * var(--speki-tree-line-bleed-bottom));
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-route-structure .planning-order-table .route-tree-cell.is-last > .speki-tree-branch::before{
+  bottom: 50%;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-name-cell{
   display: grid;
   gap: 1px;
@@ -332,65 +352,96 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-state-token,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-labor-note-field,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
-  border-color: rgba(16, 35, 60, 0.14) !important;
-  background: #fff !important;
-  box-shadow: none !important;
+  border-color: var(--planning-order-line-default);
+  background: var(--planning-order-surface);
+  box-shadow: var(--mes-ui-shadow-none);
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell{
   display: grid;
   gap: 1px;
   min-height: 30px;
-  padding: 4px 6px !important;
+  padding: 4px 6px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell strong{
-  color: var(--planning-order-text-secondary) !important;
-  font-size: 11px !important;
-  font-weight: 560 !important;
-  line-height: 15px !important;
+  color: var(--planning-order-text-secondary);
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 15px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-context-cell small{
-  color: var(--planning-order-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 500 !important;
-  line-height: 12px !important;
+  color: var(--planning-order-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-labor{
-  padding: 6px !important;
+  padding: 6px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-head{
-  display: none !important;
+  display: none;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-grid{
-  display: grid !important;
-  grid-template-columns: minmax(96px, 0.9fr) minmax(86px, 0.75fr) minmax(84px, 0.6fr) minmax(102px, 0.8fr) !important;
-  gap: 6px !important;
-  align-items: stretch !important;
+  display: grid;
+  grid-template-columns: minmax(96px, 0.9fr) minmax(86px, 0.75fr) minmax(84px, 0.6fr) minmax(102px, 0.8fr);
+  gap: 6px;
+  align-items: stretch;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-fields{
-  display: contents !important;
+  display: contents;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result{
-  min-width: 0 !important;
-  min-height: 28px !important;
+  min-width: 0;
+  min-height: 51px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode{
+  display: grid;
+  grid-template-rows: 11px 28px;
+  align-content: end;
+  gap: 2px;
+  min-height: 51px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] :is(.planning-manual-inline-field, .planning-manual-inline-mode) > span{
+  min-width: 0;
+  overflow: hidden;
+  color: var(--planning-order-text-muted);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-field input,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-mode select,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference input{
-  width: 100% !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  border: 1px solid rgba(16, 35, 60, 0.16) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: #fff !important;
-  color: var(--planning-order-text-main) !important;
-  font-size: 10px !important;
-  font-weight: 600 !important;
-  line-height: 14px !important;
-  padding: 0 7px !important;
-  box-shadow: none !important;
+  width: 100%;
+  height: 28px;
+  min-height: 28px;
+  border: 1px solid var(--planning-order-line-strong);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--planning-order-surface);
+  color: var(--planning-order-text-main);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  padding: 0 7px;
+  box-shadow: var(--mes-ui-shadow-none);
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference.is-editable{
+  display: grid;
+  grid-template-rows: 11px 28px;
+  align-content: end;
+  gap: 2px;
+  min-height: 51px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference-control{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 28px;
+}main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference-control strong{
+  font-size: 8px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference:not(.is-editable){
-  display: grid !important;
-  align-content: center !important;
-  gap: 1px !important;
-  border: 1px solid rgba(16, 35, 60, 0.14) !important;
-  border-radius: var(--mes-ui-radius-sm) !important;
-  background: var(--planning-order-detail-soft) !important;
-  padding: 4px 6px !important;
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  border: 1px solid var(--planning-order-line-default);
+  border-radius: var(--mes-ui-radius-sm);
+  background: var(--planning-order-detail-soft);
+  padding: 4px 6px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result :is(span, strong),
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference :is(span, strong){
   min-width: 0;
@@ -399,36 +450,36 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-m
   white-space: nowrap;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result span,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference span{
-  color: var(--planning-order-text-muted) !important;
-  font-size: 9px !important;
-  font-weight: 500 !important;
-  line-height: 11px !important;
+  color: var(--planning-order-text-muted);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 11px;
 }main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-result strong,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-manual-inline-reference strong{
-  color: var(--planning-order-text-strong) !important;
-  font-size: 10px !important;
-  font-weight: 650 !important;
-  line-height: 12px !important;
+  color: var(--planning-order-text-strong);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 12px;
 }
 
 /* Planning work orders: full-width document workspace aligned with Shift Work Orders. */
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-full-width{
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  flex-wrap: initial !important;
-  align-items: stretch !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex-wrap: initial;
+  align-items: stretch;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main{
   width: 100%;
   min-width: 0;
-  flex: none !important;
+  flex: none;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-workspace{
   overflow: auto;
-  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
-  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-strip{
@@ -444,22 +495,22 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   gap: 8px;
   min-width: 0;
   min-height: 46px;
-  border: 1px solid rgba(16, 35, 60, 0.14);
+  border: 1px solid var(--planning-order-line-default);
   border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
+  background: var(--planning-order-surface);
   color: var(--planning-order-text-main);
   padding: 6px 8px;
   text-align: left;
   cursor: pointer;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip:hover{
-  background: rgba(16, 35, 60, 0.035);
+  background: var(--planning-order-subtle-surface);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip.is-active{
   outline: 1px solid var(--planning-order-accent-line);
   outline-offset: -1px;
-  background: #fff;
-  filter: drop-shadow(0 3px 7px rgba(15, 23, 42, 0.08));
+  background: var(--planning-order-surface);
+  filter: var(--planning-order-selected-shadow-soft);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip span,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip strong,
@@ -486,19 +537,14 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   line-height: 12px;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item{
-  border-radius: var(--mes-ui-radius-sm) !important;
+  border-radius: var(--mes-ui-radius-sm);
+  align-items: center;
 }
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(1){
-  width: 30%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(2){
-  width: 38%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(3){
-  width: 12%;
-}
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table :is(th, td):nth-child(4){
-  width: 9%;
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-item > .ui-sidebar-item-badge{
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary{
   display: grid;
@@ -507,17 +553,16 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   width: 100%;
   min-width: 0;
   min-height: 34px;
-  border: 1px solid rgba(16, 35, 60, 0.14);
+  border: 1px solid var(--planning-order-line-default);
   border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
+  background: var(--planning-order-surface);
   color: var(--planning-order-text-main);
   padding: 4px 6px;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
-main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary:hover,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary.is-active{
-  background: rgba(16, 35, 60, 0.045);
+  background: var(--planning-order-hover-surface);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary span,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-labor-summary strong,
@@ -553,8 +598,8 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-head .ui-action-button,
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-head .ui-status-token{
-  border-color: rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--planning-order-accent-inverse-line);
+  background: var(--planning-order-accent-inverse-surface);
   color: var(--planning-order-accent-text);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel .ui-panel-body{
@@ -584,7 +629,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   position: relative;
   overflow: hidden;
   border-color: var(--planning-order-detail-line);
-  box-shadow: none;
+  box-shadow: var(--mes-ui-shadow-none);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary :is(span, small),
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list :is(span, small),
@@ -603,7 +648,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   min-height: 18px;
   max-width: 100%;
   overflow: hidden;
-  border: 1px solid rgba(16, 35, 60, 0.18);
+  border: 1px solid var(--planning-order-line-strong);
   border-radius: var(--mes-ui-pill);
   background: var(--planning-order-accent);
   color: var(--planning-order-accent-text);
@@ -632,7 +677,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   min-width: 0;
   border: 1px solid var(--planning-order-detail-line);
   border-radius: var(--mes-ui-radius-sm);
-  background: #fff;
+  background: var(--planning-order-surface);
   padding: 8px;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header,
@@ -650,7 +695,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   align-items: center;
   min-width: 0;
   min-height: 28px;
-  border-top: 1px solid rgba(16, 35, 60, 0.08);
+  border-top: 1px solid var(--planning-order-row-divider);
   padding-top: 6px;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list p{
@@ -678,7 +723,7 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article.is-current{
   border-color: var(--planning-order-accent-line);
   background: var(--mes-ui-surface);
-  box-shadow: none;
+  box-shadow: var(--mes-ui-shadow-none);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer-link{
   position: relative;
@@ -708,17 +753,17 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
   transform: translateY(-50%) rotate(45deg);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-grid{
-  grid-template-columns: minmax(92px, 0.9fr) minmax(92px, 0.9fr) minmax(96px, 0.9fr) minmax(92px, 0.8fr) !important;
+  grid-template-columns: minmax(92px, 0.9fr) minmax(92px, 0.9fr) minmax(96px, 0.9fr) minmax(92px, 0.8fr);
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-labor.is-detail-mode{
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  width: 100% !important;
-  min-width: 0 !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
 }
 main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor .planning-manual-inline-labor.is-detail-mode .planning-manual-inline-grid{
-  width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  min-width: 0;
 }
 @media (max-width: 1540px) {
   main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-main-grid{
@@ -728,3 +773,154 @@ main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-o
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Specifications 2.0 visual bridge.
+   Keep the work-order information architecture intact, but use the same
+   restrained surfaces, active rails and table hierarchy as the document editor. */
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page{
+  --planning-order-accent: var(--mes-ui-accent);
+  --planning-order-accent-text: var(--mes-ui-accent-strong);
+  --planning-order-accent-soft: color-mix(in srgb, var(--mes-ui-accent) 7%, var(--mes-ui-surface-panel));
+  --planning-order-accent-line: color-mix(in srgb, var(--mes-ui-accent) 24%, transparent);
+  --planning-order-surface: var(--mes-ui-surface-panel);
+  --planning-order-soft-surface: color-mix(in srgb, var(--mes-ui-sidebar-bg) 3%, var(--mes-ui-surface-panel));
+  --planning-order-hover-surface: color-mix(in srgb, var(--mes-ui-sidebar-bg) 3%, var(--mes-ui-surface-panel));
+  --planning-order-subtle-surface: color-mix(in srgb, var(--mes-ui-sidebar-bg) 2%, var(--mes-ui-surface-panel));
+  --planning-order-line-soft: color-mix(in srgb, var(--mes-ui-sidebar-bg) 9%, transparent);
+  --planning-order-line-default: color-mix(in srgb, var(--mes-ui-sidebar-bg) 11%, transparent);
+  --planning-order-line-strong: color-mix(in srgb, var(--mes-ui-sidebar-bg) 14%, transparent);
+  --planning-order-row-divider: color-mix(in srgb, var(--mes-ui-sidebar-bg) 7%, transparent);
+  --planning-order-detail-line: color-mix(in srgb, var(--mes-ui-sidebar-bg) 9%, transparent);
+  --planning-order-tree-line: color-mix(in srgb, var(--mes-ui-sidebar-bg) 24%, transparent);
+  --planning-order-tree-active-dot: color-mix(in srgb, var(--mes-ui-accent) 56%, var(--mes-ui-surface-panel));
+  --planning-order-text-strong: var(--mes-ui-text-primary);
+  --planning-order-text-main: var(--mes-ui-text-secondary);
+  --planning-order-text-secondary: var(--mes-ui-text-secondary);
+  --planning-order-text-muted: var(--mes-ui-text-muted);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page .ui-panel,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-list{
+  border: 1px solid var(--planning-order-line-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--planning-order-surface) 96%, transparent);
+  box-shadow: 0 10px 26px rgba(31, 74, 116, .055);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-list{
+  overflow: hidden auto;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-list .ui-sidebar-label{
+  padding: 10px 12px 7px;
+  color: var(--planning-order-text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item{
+  min-height: 58px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--planning-order-row-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 10px 12px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item:last-child{
+  border-bottom: 0;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item:is(:hover, :focus-visible){
+  background: var(--planning-order-hover-surface);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-page.is-heroui .planning-order-route-item.is-active{
+  background: linear-gradient(90deg, color-mix(in srgb, var(--mes-ui-accent) 9%, var(--planning-order-surface)), color-mix(in srgb, var(--mes-ui-accent) 3%, var(--planning-order-surface)) 72%, var(--planning-order-surface));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--mes-ui-accent) 62%, transparent);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip{
+  min-height: 52px;
+  border-color: var(--planning-order-line-soft);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--planning-order-surface) 94%, transparent);
+  padding: 9px 10px;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-chip.is-active{
+  outline: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--mes-ui-accent) 9%, var(--planning-order-surface)), color-mix(in srgb, var(--mes-ui-accent) 3%, var(--planning-order-surface)) 72%, var(--planning-order-surface));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--mes-ui-accent) 62%, transparent);
+  filter: none;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-route-map > .ui-panel-head,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-panel > .ui-panel-head{
+  border-bottom-color: var(--planning-order-row-divider);
+  background: color-mix(in srgb, var(--mes-ui-sidebar-bg) 2%, var(--planning-order-surface));
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table-wrap{
+  border: 1px solid var(--planning-order-line-soft);
+  border-radius: 12px;
+  background: var(--planning-order-surface);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table thead th{
+  height: 34px;
+  border-bottom: 1px solid var(--planning-order-line-default);
+  background: color-mix(in srgb, var(--mes-ui-sidebar-bg) 4%, var(--planning-order-surface));
+  color: var(--planning-order-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .02em;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody td{
+  border-bottom: 1px solid var(--planning-order-row-divider);
+  background: var(--planning-order-surface);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tbody tr:hover td{
+  background: var(--planning-order-hover-surface);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table tr.is-selected td{
+  background: var(--planning-order-accent-soft);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .planning-order-object-row td:first-child{
+  box-shadow: inset 3px 0 0 transparent;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .planning-order-object-row.is-selected td:first-child{
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--mes-ui-accent) 54%, transparent);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-table .planning-order-object-row:not(.is-selected) td{
+  background: color-mix(in srgb, var(--mes-ui-accent) 3%, var(--planning-order-surface));
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-object-row td:first-child strong{
+  font-weight: 650;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-step-row td:first-child strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor header strong,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer strong{
+  font-weight: 600;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-decision-strip,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-summary article,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-list,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-labor,
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article{
+  border-color: var(--planning-order-line-soft);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--planning-order-surface) 96%, transparent);
+  box-shadow: none;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-detail-transfer article.is-current{
+  border-color: var(--planning-order-accent-line);
+  background: var(--planning-order-accent-soft);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--mes-ui-accent) 52%, transparent);
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-tree-cell{--tree-step:20px;--tree-size:24px;--tree-half:12px;--tree-line:rgba(47,88,128,.24);position:relative;display:grid;grid-template-columns:calc(var(--planning-tree-level) * var(--tree-step) + var(--tree-size)) minmax(0,1fr);gap:6px;align-items:center;min-height:38px}.planning-order-tree-gutter,.planning-order-tree-lines{position:absolute;inset:0;pointer-events:none}.planning-order-tree-gutter{width:calc(var(--planning-tree-level) * var(--tree-step) + var(--tree-size))}.planning-order-tree-line{position:absolute;width:1px;background:var(--tree-line)}.planning-order-tree-line.is-ancestor{top:0;bottom:0;left:calc(var(--tree-line-level) * var(--tree-step) + var(--tree-half))}.planning-order-tree-line.is-incoming{top:0;bottom:0;left:calc((var(--planning-tree-level) - 1) * var(--tree-step) + var(--tree-half))}.planning-order-tree-line.is-incoming.is-last{bottom:50%}.planning-order-tree-line.is-incoming::after{position:absolute;top:50%;left:0;width:var(--tree-step);border-top:1px solid var(--tree-line);content:""}.planning-order-tree-line.is-child-stem{top:50%;bottom:0;left:calc(var(--planning-tree-level) * var(--tree-step) + var(--tree-half))}.planning-order-tree-anchor{position:absolute;top:50%;left:calc(var(--planning-tree-level) * var(--tree-step));width:var(--tree-size);height:var(--tree-size);transform:translateY(-50%)}.planning-order-tree-cell.has-children .planning-order-tree-anchor{border:1px solid rgba(47,88,128,.24);border-radius:6px;background:rgba(47,88,128,.06)}.planning-order-tree-anchor i{position:absolute;top:50%;left:50%;width:4px;height:4px;border-radius:50%;background:rgba(47,88,128,.32);box-shadow:0 0 0 2px #fff;transform:translate(-50%,-50%)}.planning-order-tree-anchor .planning-order-tree-toggle-mark{width:9px;height:1.5px;border-radius:2px;background:rgba(47,88,128,.72);box-shadow:none}.planning-order-tree-anchor .planning-order-tree-toggle-mark::after{position:absolute;inset:0;border-radius:inherit;background:inherit;content:"";transform:rotate(90deg)}.planning-order-tree-copy{grid-column:2;min-width:0}
+
+/* Tree interaction: the square is a real control, matching the Specifications 2.0 contract. */
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-tree-gutter { pointer-events: auto; }
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-tree-lines { pointer-events: none; }
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-tree-cell.has-children .planning-order-tree-anchor { border: 0; background: transparent; }
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-tree-toggle {
+  display: grid; place-items: center; width: 24px; height: 24px; margin: 0; padding: 0;
+  border: 1px solid rgba(47,88,128,.24); border-radius: 6px; background: rgba(47,88,128,.06);
+  cursor: pointer;
+}
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-tree-toggle:focus-visible { outline: 2px solid var(--mes-ui-accent); outline-offset: 2px; }
+main.app-shell[data-layout="app-shell"][data-layout-page="planning"] .planning-order-tree-toggle[aria-expanded="true"] .planning-order-tree-toggle-mark::after { display: none; }

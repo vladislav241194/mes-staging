@@ -1,0 +1,206 @@
+:root[data-mes-qa-inspector] {
+  cursor: crosshair;
+}
+
+.mes-qa-inspector-overlay {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 2147483645;
+  pointer-events: none;
+  border: 2px solid #1684ff;
+  border-radius: 5px;
+  background: rgba(22, 132, 255, 0.13);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 8px 28px rgba(11, 78, 158, 0.22);
+  transition: transform 60ms linear, width 60ms linear, height 60ms linear;
+}
+
+.mes-qa-inspector-overlay[data-selected="1"] {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.mes-qa-inspector-launcher,
+.mes-qa-inspector-panel {
+  font-family: var(--mes-ui-font-family, "Onest", ui-sans-serif, system-ui, sans-serif);
+  cursor: default;
+}
+
+.mes-qa-inspector-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483647;
+  display: grid;
+  gap: 2px;
+  min-width: 116px;
+  padding: 9px 13px;
+  color: #fff;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0f63d8, #6945d8);
+  box-shadow: 0 12px 34px rgba(13, 55, 120, 0.32);
+  transition: none;
+}
+
+.mes-qa-inspector-launcher span {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.mes-qa-inspector-launcher small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 9px;
+}
+
+.mes-qa-inspector-launcher[aria-pressed="false"] {
+  color: #344054;
+  border-color: #cfd8e5;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(30, 48, 72, 0.16);
+}
+
+.mes-qa-inspector-launcher[aria-pressed="false"] small {
+  color: #7a8698;
+}
+
+.mes-qa-inspector-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 86px;
+  z-index: 2147483646;
+  display: grid;
+  gap: 12px;
+  width: min(390px, calc(100vw - 36px));
+  padding: 15px;
+  color: #172033;
+  border: 1px solid rgba(126, 145, 175, 0.35);
+  border-radius: 18px;
+  background: rgba(250, 252, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(20, 44, 82, 0.3);
+  backdrop-filter: blur(18px);
+}
+
+.mes-qa-inspector-panel[hidden],
+.mes-qa-inspector-overlay[hidden] {
+  display: none;
+}
+
+.mes-qa-inspector-panel header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mes-qa-inspector-panel header div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mes-qa-inspector-panel header small,
+.mes-qa-inspector-panel label,
+.mes-qa-inspector-panel p {
+  color: #667085;
+  font-size: 10px;
+}
+
+.mes-qa-inspector-panel header strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mes-qa-inspector-panel header button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: #526071;
+  font-size: 21px;
+  border: 1px solid #d8e0ea;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.mes-qa-inspector-panel code {
+  overflow: hidden;
+  padding: 8px 10px;
+  color: #315178;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 9px;
+  background: #eef4fb;
+}
+
+.mes-qa-inspector-panel label {
+  display: grid;
+  gap: 6px;
+  font-weight: 650;
+}
+
+.mes-qa-inspector-panel textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 11px;
+  resize: vertical;
+  color: #172033;
+  font: 12px/1.45 inherit;
+  border: 1px solid #cfd9e6;
+  border-radius: 11px;
+  outline: 0;
+  background: #fff;
+}
+
+.mes-qa-inspector-panel textarea:focus {
+  border-color: #1684ff;
+  box-shadow: 0 0 0 3px rgba(22, 132, 255, 0.12);
+}
+
+.mes-qa-inspector-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mes-qa-inspector-panel-actions button {
+  min-height: 34px;
+  padding: 7px 11px;
+  color: #344054;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #cfd9e6;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mes-qa-inspector-panel-actions button[data-qa-copy] {
+  color: #fff;
+  border-color: #176ddc;
+  background: linear-gradient(135deg, #1778ec, #5b4bd7);
+}
+
+.mes-qa-inspector-panel-actions button:disabled {
+  opacity: 0.55;
+}
+
+.mes-qa-inspector-panel p {
+  min-height: 15px;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .mes-qa-inspector-panel {
+    right: 10px;
+    bottom: 74px;
+    width: calc(100vw - 20px);
+  }
+
+  .mes-qa-inspector-launcher {
+    right: 10px;
+    bottom: 10px;
+  }
+}

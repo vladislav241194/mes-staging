@@ -2,7 +2,7 @@ import { appendFile, copyFile, mkdir, readdir, readFile, stat, unlink, writeFile
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
 const PROTECTED_APP_ENVS = new Set(["pilot", "staging", "user-testing", "production"]);
-const DESTRUCTIVE_ACTION_RE = /\b(reset|restore|seed|preset|wipe|clear|delete|destructive|initial-state|initial-preset)\b/i;
+const DESTRUCTIVE_ACTION_RE = /\b(reset|restore|seed|snapshot|wipe|clear|delete|destructive|initial-state|initial-bootstrap-snapshot)\b/i;
 
 function normalizeEnvValue(value = "") {
   return String(value || "").trim();
@@ -37,8 +37,8 @@ export function isDestructiveActionsAllowed(env = process.env) {
   return normalizeEnvValue(env.MES_ALLOW_DESTRUCTIVE_ACTIONS).toLowerCase() === "true";
 }
 
-export function isWorkflowPresetRestoreEnabled(env = process.env) {
-  const explicit = normalizeEnvValue(env.MES_ENABLE_WORKFLOW_PRESET_RESTORE).toLowerCase();
+export function isBootstrapSnapshotRestoreEnabled(env = process.env) {
+  const explicit = normalizeEnvValue(env.MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE).toLowerCase();
   if (explicit) return explicit === "true";
   return !isProtectedAppEnv(env);
 }
@@ -90,7 +90,7 @@ export function getSharedStateServerPaths({ projectRoot = process.cwd(), fallbac
     backupDir: resolveSharedStateBackupDir({ projectRoot, sharedStateFile: filePath, env }),
     auditLogPath: resolveSharedStateAuditLogPath({ projectRoot, sharedStateFile: filePath, env }),
     sharedStateKey: getSharedStateKey(env),
-    workflowPresetRestoreEnabled: isWorkflowPresetRestoreEnabled(env),
+    bootstrapSnapshotRestoreEnabled: isBootstrapSnapshotRestoreEnabled(env),
     destructiveActionsAllowed: isDestructiveActionsAllowed(env),
   };
 }
@@ -100,7 +100,7 @@ export function getPublicRuntimeConfig(env = process.env) {
     APP_ENV: getAppEnv(env),
     APP_BASE_URL: normalizeEnvValue(env.APP_BASE_URL),
     MES_SHARED_STATE_KEY: getSharedStateKey(env),
-    MES_ENABLE_WORKFLOW_PRESET_RESTORE: isWorkflowPresetRestoreEnabled(env),
+    MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE: isBootstrapSnapshotRestoreEnabled(env),
     MES_ALLOW_DESTRUCTIVE_ACTIONS: isDestructiveActionsAllowed(env),
   };
 }

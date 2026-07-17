@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { MES_MODULE_FLOW_CONTRACTS } from "../src/mes_contracts.js";
+import { getMesModuleNavigationDefinitions } from "../src/module_registry.js";
 import {
   PARTIAL_UI_RUNTIME_CONTRACTS,
   SPECIAL_UI_RUNTIME_CONTRACTS,
@@ -11,38 +12,35 @@ import {
 } from "../src/ui_runtime_contracts.js";
 
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
-const coverageModules = [
-  "gantt",
-  "planning",
-  "dispatch",
-  "shiftMasterBoard",
-  "authSessionPrototype",
-  "shiftWorkOrders",
-  "routes",
-  "products",
-  "nomenclature",
-  "productionStructureMatrix",
-  "employees",
-  "timesheet",
-  "roles",
-  "directories",
-  "visualSystem",
-  "authPrototype",
-  "planningTable",
-  "supply",
-  "shopMap",
-];
+const coverageModules = getMesModuleNavigationDefinitions({ adminHost: false, includeStandalone: true })
+  .map((moduleItem) => moduleItem.id);
+const adminOnlyModules = getMesModuleNavigationDefinitions({ adminHost: true, includeStandalone: false })
+  .map((moduleItem) => moduleItem.id);
 const trackedComponents = [
   "AppShell",
   "ModulePage",
+  "ModuleWorkspace",
+  "ModuleContent",
+  "ModuleSidebar",
   "ModuleHeader",
   "Panel",
+  "PanelHead",
+  "PanelBody",
+  "PanelFooter",
   "TableWrap",
   "ActionButton",
   "StatusToken",
   "ActionBar",
   "Toolbar",
   "FilterBar",
+  "FormSection",
+  "FormGrid",
+  "FormRow",
+  "FormField",
+  "FormActions",
+  "SystemState",
+  "InfoGrid",
+  "MetricGrid",
   "EmptyState",
   "Modal",
   "Drawer",
@@ -250,11 +248,12 @@ function resolveDomStatus(moduleId, report) {
   if (registryStatus === "partial") return registryStatus;
   if (registryStatus === "unknown") return "unknown";
   if (!report.appShell || !report.components.ModulePage) return "legacy";
-  if (!report.components.ModuleHeader || !report.components.Panel) return "partial";
+  if (!report.components.Panel) return "partial";
+  if (!report.components.ModuleHeader && !report.headerlessModuleContract) return "partial";
   return "contract";
 }
 
-function getExceptionReason(moduleId, status, components) {
+function getExceptionReason(moduleId, status, report) {
   if (status === "special-runtime") {
     const contract = SPECIAL_UI_RUNTIME_CONTRACTS[moduleId];
     return contract?.component ? `${contract.runtime}: ${contract.component}` : "special runtime";
@@ -262,25 +261,30 @@ function getExceptionReason(moduleId, status, components) {
   if (status === "partial") {
     return PARTIAL_UI_RUNTIME_CONTRACTS[moduleId]?.reason || "partial runtime contract";
   }
-  if (!components.TableWrap && ["authPrototype", "authSessionPrototype", "shopMap", "timesheet", "productionStructureMatrix"].includes(moduleId)) {
+  if (!report.components.ModuleHeader && report.headerlessModuleContract) {
+    return "headerless-module contract: internal ModuleHeader intentionally omitted";
+  }
+  const components = report.components;
+  if (!components.TableWrap && ["authPrototype", "authSessionPrototype", "timesheet", "productionStructureMatrix"].includes(moduleId)) {
     return "layout/data-dense module: TableWrap may be absent or specialized on some states";
   }
   return "";
 }
 
-function getNextMigration(moduleId, components) {
+function getNextMigration(moduleId, report) {
+  const components = report.components;
   if (PARTIAL_UI_RUNTIME_CONTRACTS[moduleId]?.nextMigration) {
     return PARTIAL_UI_RUNTIME_CONTRACTS[moduleId].nextMigration;
   }
   const missing = [];
   if (!components.ModulePage) missing.push("ModulePage");
-  if (!components.ModuleHeader) missing.push("ModuleHeader");
+  if (!components.ModuleHeader && !report.headerlessModuleContract) missing.push("ModuleHeader");
   if (!components.Panel) missing.push("Panel");
   if (!components.ActionBar) missing.push("ActionBar/Toolbar");
-  if (!components.TableWrap && ["planning", "shiftWorkOrders", "routes", "products", "nomenclature", "directories", "planningTable", "roles"].includes(moduleId)) {
+  if (!components.TableWrap && ["planning", "shiftWorkOrders", "routes", "products", "specifications2", "nomenclature", "directories", "roles"].includes(moduleId)) {
     missing.push("TableWrap");
   }
-  if (!components.StatusToken && ["planning", "shiftWorkOrders", "routes", "supply", "roles"].includes(moduleId)) {
+  if (!components.StatusToken && ["planning", "shiftWorkOrders", "routes", "roles"].includes(moduleId)) {
     missing.push("StatusToken");
   }
   return missing.length ? missing.join(", ") : "covered";
@@ -306,6 +310,7 @@ async function waitForModuleCoverage(client, moduleId) {
       const runtimeErrors = /Ошибка запуска интерфейса|Cannot initialize|ReferenceError|TypeError/.test(bodyText);
       const appShell = Boolean(document.querySelector('main.app-shell[data-layout="app-shell"]'));
       const documentedException = Boolean(document.querySelector("[data-ui-contract-exception]"));
+      const headerlessModuleContract = Boolean(document.querySelector('[data-ui-contract~="headerless-module"]'));
       return {
         ready: Boolean(shell) && layoutPage === expectedLayout,
         layoutPage,
@@ -313,6 +318,7 @@ async function waitForModuleCoverage(client, moduleId) {
         components,
         componentCounts,
         documentedException,
+        headerlessModuleContract,
         runtimeErrors,
         title: (document.querySelector(".app-topbar-title h1")?.textContent || "").trim(),
         mainTextLength: bodyText.length,
@@ -331,10 +337,10 @@ async function waitForModuleCoverage(client, moduleId) {
   throw new Error(`${moduleId}: UI contract coverage page did not become ready. Last report: ${JSON.stringify(lastReport)}`);
 }
 
-async function getPresetStorageSeed() {
-  const raw = await readFile("workflow-preset.json", "utf8");
-  const preset = JSON.parse(raw);
-  return preset.values && typeof preset.values === "object" ? preset.values : {};
+async function getBootstrapSnapshotStorageSeed() {
+  const raw = await readFile("bootstrap-snapshot.json", "utf8");
+  const snapshot = JSON.parse(raw);
+  return snapshot.values && typeof snapshot.values === "object" ? snapshot.values : {};
 }
 
 function buildMarkdownReport(result) {
@@ -363,6 +369,8 @@ Viewport: ${result.viewport.width}x${result.viewport.height}
 ## Summary
 
 - modules checked: ${result.modules.length}
+- admin-only modules excluded from public coverage: ${result.adminOnlyModules.join(", ") || "none"}
+- public admin deep-link isolation: ${result.adminIsolation.passed ? "pass" : "fail"}
 - contract: ${result.summary.contract}
 - special-runtime: ${result.summary["special-runtime"]}
 - partial: ${result.summary.partial}
@@ -396,6 +404,8 @@ async function writeReports(result) {
 
 function assertCoverage(result) {
   const failures = [];
+  if (result.adminOnlyModules.includes("contourAdmin") !== true) failures.push("contourAdmin: missing from admin-only registry scope");
+  if (!result.adminIsolation.passed) failures.push(`contourAdmin: public deep-link isolation failed (${JSON.stringify(result.adminIsolation)})`);
   result.modules.forEach((item) => {
     if (item.status === "unknown") failures.push(`${item.module}: unknown UI coverage status`);
     if (item.status === "contract" || item.status === "partial") {
@@ -415,8 +425,28 @@ function assertCoverage(result) {
   }
 }
 
+async function checkPublicAdminIsolation(client) {
+  await client.send("Page.navigate", { url: moduleUrl("contourAdmin") });
+  await delay(500);
+  const report = await evaluate(client, () => {
+    const shell = document.querySelector('main.app-shell[data-layout="app-shell"]');
+    return {
+      hostname: location.hostname,
+      layoutPage: shell?.dataset.layoutPage || "",
+      contourDesktopTabs: document.querySelectorAll('.module-tabs [data-module="contourAdmin"]').length,
+      contourMobileTabs: document.querySelectorAll('.mobile-module-switcher [data-module="contourAdmin"]').length,
+    };
+  });
+  return {
+    ...report,
+    passed: report.layoutPage !== "contourAdmin"
+      && report.contourDesktopTabs === 0
+      && report.contourMobileTabs === 0,
+  };
+}
+
 async function run() {
-  const presetStorageSeed = await getPresetStorageSeed();
+  const bootstrapSnapshotStorageSeed = await getBootstrapSnapshotStorageSeed();
   const chrome = await launchChrome();
   try {
     const { client } = chrome;
@@ -430,12 +460,12 @@ async function run() {
     });
     await client.send("Page.navigate", { url: moduleUrl("planning") });
     await delay(400);
-    await evaluate(client, ({ presetStorageSeed, sharedDisabledKey }) => {
+    await evaluate(client, ({ bootstrapSnapshotStorageSeed, sharedDisabledKey }) => {
       sessionStorage.setItem(sharedDisabledKey, String(Date.now() + 5 * 60 * 1000));
-      Object.entries(presetStorageSeed || {}).forEach(([key, value]) => {
+      Object.entries(bootstrapSnapshotStorageSeed || {}).forEach(([key, value]) => {
         if (typeof value === "string") localStorage.setItem(key, value);
       });
-    }, { presetStorageSeed, sharedDisabledKey });
+    }, { bootstrapSnapshotStorageSeed, sharedDisabledKey });
 
     const modules = [];
     for (const moduleId of coverageModules) {
@@ -452,12 +482,14 @@ async function run() {
         layoutPage: report.layoutPage,
         components: report.components,
         componentCounts: report.componentCounts,
+        headerlessModuleContract: report.headerlessModuleContract,
         hasOverlay,
         documentedException: report.documentedException,
-        exceptionReason: getExceptionReason(moduleId, status, report.components),
-        nextMigration: status === "special-runtime" ? "special guardrails only" : getNextMigration(moduleId, report.components),
+        exceptionReason: getExceptionReason(moduleId, status, report),
+        nextMigration: status === "special-runtime" ? "special guardrails only" : getNextMigration(moduleId, report),
       });
     }
+    const adminIsolation = await checkPublicAdminIsolation(client);
 
     const summary = { contract: 0, "special-runtime": 0, partial: 0, legacy: 0, unknown: 0 };
     modules.forEach((item) => {
@@ -466,6 +498,8 @@ async function run() {
     const result = {
       generatedAt: new Date().toISOString(),
       viewport,
+      adminOnlyModules,
+      adminIsolation,
       summary,
       modules,
     };
@@ -473,6 +507,8 @@ async function run() {
     await writeReports(result);
     console.log("MES UI Contract Coverage Report");
     console.log(`- modules checked: ${modules.length}`);
+    console.log(`- admin-only modules excluded from public coverage: ${adminOnlyModules.join(", ") || "none"}`);
+    console.log(`- public admin deep-link isolation: ${adminIsolation.passed ? "pass" : "fail"}`);
     console.log(`- contract: ${summary.contract}`);
     console.log(`- special-runtime: ${summary["special-runtime"]}`);
     console.log(`- partial: ${summary.partial}`);

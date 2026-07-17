@@ -155,12 +155,23 @@ function logStep(label) {
 
 async function waitForPlanning(client) {
   const startedAt = Date.now();
+  let lastReport = null;
   while (Date.now() - startedAt < 20000) {
-    const ok = await evaluate(client, () => document.querySelector("main.app-shell")?.dataset.layoutPage === "planning");
-    if (ok) return;
+    const report = await evaluate(client, () => {
+      const shell = document.querySelector("main.app-shell");
+      const bodyText = (document.body?.innerText || "").trim().replace(/\s+/g, " ").slice(0, 320);
+      return {
+        layoutPage: shell?.dataset.layoutPage || "",
+        shellClass: shell?.className || "",
+        bodyText,
+        runtimeError: /Ошибка запуска интерфейса|Cannot initialize|ReferenceError|TypeError|SyntaxError/.test(bodyText),
+      };
+    });
+    lastReport = report;
+    if (report.layoutPage === "planning" && !report.runtimeError) return;
     await delay(120);
   }
-  throw new Error("Planning app shell did not render.");
+  throw new Error(`Planning app shell did not render: ${JSON.stringify(lastReport)}`);
 }
 
 function assert(condition, message) {
@@ -217,71 +228,94 @@ async function cleanupChrome(chrome) {
   await rm(chrome.profileDir, { recursive: true, force: true }).catch(() => {});
 }
 
-async function setLaborMode(client, key, mode) {
-  const ok = await evaluate(client, ({ key: laborKey, mode: nextMode }) => {
-    const field = document.querySelector(`[data-planning-order-labor="${CSS.escape(laborKey)}"][data-planning-order-labor-field="mode"]`);
-    if (!field) return false;
-    field.value = nextMode;
-    field.dispatchEvent(new Event("change", { bubbles: true }));
-    return true;
-  }, { key, mode });
-  assert(ok, `Не найден режим трудозатрат ${key}`);
-  await delay(250);
-}
-
-async function setLaborField(client, key, fieldName, value) {
-  const ok = await evaluate(client, ({ key: laborKey, fieldName: dataField, value: nextValue }) => {
-    const field = document.querySelector(`[data-planning-order-labor="${CSS.escape(laborKey)}"][data-planning-order-labor-field="${CSS.escape(dataField)}"]`);
-    if (!field) return false;
-    field.value = String(nextValue);
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-    field.dispatchEvent(new Event("change", { bubbles: true }));
-    return true;
-  }, { key, fieldName, value });
-  assert(ok, `Не найдено поле ${fieldName} для ${key}`);
-  await delay(300);
-}
-
-async function selectPlanningStepWorkItem(client, stepId) {
-  const result = await evaluate(client, (id) => {
-    const workItem = `step:${id}`;
-    const selectors = [
-      { contract: "planning-work-item", selector: `[data-planning-work-item="${CSS.escape(workItem)}"]` },
-      { contract: "planning-order-row", selector: `[data-planning-order-row="${CSS.escape(workItem)}"]` },
-    ];
-    let target = null;
-    let matched = null;
-    for (const item of selectors) {
-      target = document.querySelector(item.selector);
-      if (target) {
-        matched = item;
-        break;
-      }
-    }
-    if (!target || !matched) {
-      return {
-        ok: false,
-        selectors: selectors.map((item) => item.selector),
-        counts: {
-          workItems: document.querySelectorAll("[data-planning-work-item]").length,
-          orderRows: document.querySelectorAll("[data-planning-order-row]").length,
-        },
-        availableWorkItems: Array.from(document.querySelectorAll("[data-planning-work-item]"))
-          .map((item) => item.getAttribute("data-planning-work-item"))
-          .filter(Boolean)
-          .slice(0, 16),
-        availableOrderRows: Array.from(document.querySelectorAll("[data-planning-order-row]"))
-          .map((item) => item.getAttribute("data-planning-order-row"))
-          .filter(Boolean)
-          .slice(0, 16),
-      };
-    }
-    target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-    return { ok: true, contract: matched.contract, selector: matched.selector };
-  }, stepId);
-  assert(result?.ok, `Не найден UI-элемент заказ-наряда для шага ${stepId}. Diagnostic: ${JSON.stringify(result)}`);
-  logStep(`selected planning order UI via ${result.contract}`);
-  await delay(360);
+async function seedPlanningLaborFixture(client, url) {
+  const fixture = await evaluate(client, () => {
+    const stateKey = "mes-planning-prototype-state-v2";
+    const uiKey = "mes-planning-prototype-ui-v1";
+    const state = JSON.parse(localStorage.getItem(stateKey) || "{}");
+    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+    const now = new Date();
+    now.setDate(now.getDate() + 1);
+    now.setHours(9, 0, 0, 0);
+    const end = new Date(now.getTime() + 90 * 60 * 1000);
+    const routeId = "qa-planning-labor-specifications2-route";
+    const stepId = "qa-planning-labor-specifications2-step";
+    const slotId = "qa-planning-labor-specifications2-slot";
+    const specificationId = "qa-planning-labor-specifications2-specification";
+    const workCenterId = (state.workCenters || []).some((item) => item?.id === "D5") ? "D5" : state.workCenters?.[0]?.id || "D5";
+    const operation = {
+      routeStepId: stepId,
+      operationId: "D5_OP3",
+      operationName: "Ручная пайка",
+      workCenterId,
+      nextWorkCenterId: workCenterId,
+      nextOperationId: "",
+      labor: { mode: "unit", minutesPerUnit: 5 },
+    };
+    state.routes = [{
+      id: routeId,
+      specificationId,
+      specificationName: "QA: нормирование Спецификации 2.0",
+      projectId: specificationId,
+      name: "Маршрутная карта · QA: нормирование",
+      routeDocumentKind: "main",
+      rootRouteId: routeId,
+      isDefault: true,
+      revision: 1,
+      sourceSpecifications2EntryId: specificationId,
+      sourceSpecifications2RouteDraftId: "qa-planning-labor-route-draft",
+      planningQuantity: 12,
+      planningStatus: "scheduled",
+      lifecycleStatus: "released",
+      planningLaborByStepId: { [stepId]: { mode: "unit", minutesPerUnit: 5 } },
+      documentRevisionSnapshot: { source: "specifications2", specificationEntryId: specificationId, specificationId, specificationRevision: 1, routeDraftId: "qa-planning-labor-route-draft", routeRevision: 1, product: { designation: "QA.LABOR.001", name: "QA: нормирование" }, operations: [operation] },
+      workOrderSnapshot: { id: "qa-planning-labor-work-order-r1", source: "specifications2", specificationId, specificationRevision: 1, routeId, routeRevision: 1, quantity: 12, operationRevisions: [operation] },
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    }];
+    state.routeSteps = [{
+      id: stepId, routeId, stepOrder: 1, operationId: operation.operationId, operationName: operation.operationName,
+      workCenterId, departmentId: workCenterId, nextWorkCenterId: workCenterId, nextOperationId: "",
+      isRequired: true, quantityMultiplier: 1, calculationType: "manual", fulfillmentMode: "produce",
+      operationInputs: [{ label: "К сборке" }], operationOutputs: [{ label: "Собрано" }],
+      sourceSpecifications2OperationId: "qa-planning-labor-operation", normRevisionId: "", unit: "шт.",
+    }];
+    state.slots = [{
+      id: slotId, routeId, routeStepId: stepId, planningOrderId: routeId, specificationId,
+      routeWorkCenterId: workCenterId, workCenterId, operationId: operation.operationId, operationName: operation.operationName,
+      quantity: 12, unit: "шт.", plannedStart: now.toISOString(), plannedEnd: end.toISOString(), status: "planned",
+      sourceSpecifications2EntryId: specificationId, specificationRevision: 1, routeRevision: 1,
+      workOrderSnapshotId: "qa-planning-labor-work-order-r1", actualStart: "", actualEnd: "",
+    }];
+    state.shiftMasterAssignments = {};
+    state.dispatchFacts = {};
+    state.planningCorrections = {};
+    return {
+      routeId,
+      stepId,
+      stateRaw: JSON.stringify(state),
+      uiRaw: JSON.stringify({ ...ui, activeModule: "planning", planningWorkItem: `step:${stepId}` }),
+    };
+  });
+  assert(fixture?.stateRaw && fixture?.uiRaw, "Не удалось подготовить фикстуру нормирования.");
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `
+      (() => {
+        try {
+          const params = new URLSearchParams(window.location.search || "");
+          if (params.get("qa") !== "planning-labor-functional-fixture") return;
+          sessionStorage.setItem("mes-planning-prototype-shared-disabled-until-v1", String(Date.now() + 60 * 60 * 1000));
+          localStorage.setItem("mes-planning-prototype-state-v2", ${JSON.stringify(fixture.stateRaw)});
+          localStorage.setItem("mes-planning-prototype-ui-v1", ${JSON.stringify(fixture.uiRaw)});
+          localStorage.setItem("mes-specifications-2-registry-v1", '{"entries":[]}');
+        } catch {}
+      })();
+    `,
+  });
+  await client.send("Page.navigate", { url: withQuery(url, { qa: "planning-labor-functional-fixture" }) });
+  await delay(900);
+  await waitForPlanning(client);
+  return fixture;
 }
 
 async function main() {
@@ -328,7 +362,7 @@ async function main() {
     await waitForPlanning(client);
     logStep("planning rendered");
 
-    const slotCandidates = await evaluate(client, () => {
+    const getSlotCandidates = () => evaluate(client, () => {
       const state = JSON.parse(localStorage.getItem("mes-planning-prototype-state-v2") || "{}");
       const getSlotPlanningOrderId = (slot) => slot.planningOrderId || slot.routeId || slot.batchId || "";
       return (state.slots || [])
@@ -340,6 +374,11 @@ async function main() {
           plannedEnd: slot.plannedEnd || "",
         }));
     });
+    let slotCandidates = await getSlotCandidates();
+    if (!slotCandidates.length) {
+      await seedPlanningLaborFixture(client, url);
+      slotCandidates = await getSlotCandidates();
+    }
     assert(slotCandidates.length, "В состоянии нет планового слота для проверки трудозатрат.");
     await evaluate(client, ({ routeId, stepId }) => {
       const state = JSON.parse(localStorage.getItem("mes-planning-prototype-state-v2") || "{}");
@@ -544,106 +583,17 @@ async function main() {
     assert(afterReload.laborDurationMs === expectedShiftCount * afterReload.shiftMs, `Normalizer did not restore labor duration on reload: ${JSON.stringify(afterReload)}`);
     logStep("legacy slot reload restored work-order labor");
 
-    await client.send("Emulation.setDeviceMetricsOverride", {
-      width: 1556,
-      height: 560,
-      deviceScaleFactor: 1,
-      mobile: false,
-    });
-    await delay(240);
-    await selectPlanningStepWorkItem(client, selected.stepId);
-    const scrollProbe = await evaluate(client, async ({ routeId, stepId }) => {
-      const key = `${routeId}::${stepId}`;
-      const selector = `[data-planning-order-labor="${CSS.escape(key)}"][data-planning-order-labor-field="mode"]`;
-      const select = document.querySelector(selector)
-        || document.querySelector('[data-visual-qa-target="planning-manual-labor-mode-control"]');
-      const candidates = [
-        select?.closest(".planning-order-page[data-layout='main-content'], .planning-page[data-layout='main-content'], [data-layout='main-content']"),
-        document.querySelector(".planning-order-page[data-layout='main-content'], .planning-page[data-layout='main-content'], [data-layout='main-content']"),
-        document.scrollingElement,
-      ].filter(Boolean);
-      let workspace = candidates.find((item) => item.scrollHeight - item.clientHeight > 24) || candidates[0];
-      if (!select || !workspace) return { found: Boolean(select), hasWorkspace: Boolean(workspace) };
-      if (workspace.scrollHeight - workspace.clientHeight <= 24) {
-        document.documentElement.style.minHeight = "2200px";
-        document.body.style.minHeight = "2200px";
-        workspace = document.scrollingElement || workspace;
-      }
-      select.scrollIntoView({ block: "center", inline: "nearest" });
-      const max = Math.max(0, workspace.scrollHeight - workspace.clientHeight);
-      workspace.scrollTop = Math.min(Math.max(workspace.scrollTop + 160, 180), max);
-      const before = workspace.scrollTop;
-      select.value = select.value === "unit" ? "fixed" : "unit";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-      await new Promise((resolve) => setTimeout(resolve, 360));
-      const nextCandidates = [
-        document.querySelector(".planning-order-page[data-layout='main-content'], .planning-page[data-layout='main-content'], [data-layout='main-content']"),
-        document.scrollingElement,
-      ].filter(Boolean);
-      const nextWorkspace = nextCandidates.find((item) => item.scrollHeight - item.clientHeight > 24) || nextCandidates[0];
-      return {
-        found: true,
-        hasWorkspace: Boolean(nextWorkspace),
-        before,
-        after: nextWorkspace?.scrollTop || 0,
-        max: Math.max(0, (nextWorkspace?.scrollHeight || 0) - (nextWorkspace?.clientHeight || 0)),
-      };
-    }, selected);
-    assert(scrollProbe.found, "UI mode select for planning labor was not found.");
-    assert(scrollProbe.hasWorkspace, "Planning workspace was not found for scroll preservation check.");
-    assert(scrollProbe.before > 0, `Planning workspace did not become scrollable for labor mode check: ${JSON.stringify(scrollProbe)}`);
-    assert(scrollProbe.after >= Math.max(0, scrollProbe.before - 90), `Changing labor mode reset planning scroll: ${JSON.stringify(scrollProbe)}`);
-    logStep("labor mode change preserved planning scroll");
-
-    await setLaborMode(client, `${selected.routeId}::${selected.stepId}`, "unit");
-    const manualInputProbe = await evaluate(client, async ({ routeId, stepId }) => {
-      const key = `${routeId}::${stepId}`;
-      const selector = `[data-planning-order-labor="${CSS.escape(key)}"][data-planning-order-labor-field="minutesPerUnit"]`;
-      const field = document.querySelector(selector);
-      const workspace = document.querySelector(".planning-order-page[data-layout='main-content'], .planning-page[data-layout='main-content'], [data-layout='main-content']")
-        || document.scrollingElement;
-      if (!field || !workspace) {
-        return { found: Boolean(field), hasWorkspace: Boolean(workspace) };
-      }
-      field.scrollIntoView({ block: "center", inline: "nearest" });
-      const max = Math.max(0, workspace.scrollHeight - workspace.clientHeight);
-      workspace.scrollTop = Math.min(Math.max(workspace.scrollTop + 160, 180), max);
-      const before = workspace.scrollTop;
-      field.focus();
-      field.value = "";
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-      await new Promise((resolve) => setTimeout(resolve, 120));
-      const fieldConnectedAfterEmpty = field.isConnected;
-      const activeAfterEmpty = document.activeElement === field;
-      field.value = "0.777";
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-      field.dispatchEvent(new Event("change", { bubbles: true }));
-      field.blur();
-      await new Promise((resolve) => setTimeout(resolve, 380));
-      const nextField = document.querySelector(selector);
+    const planningUiProbe = await evaluate(client, ({ routeId, stepId }) => {
       const state = JSON.parse(localStorage.getItem("mes-planning-prototype-state-v2") || "{}");
       const routeLabor = (state.routes || []).find((route) => route.id === routeId)?.planningLaborByStepId?.[stepId] || null;
-      const nextWorkspace = document.querySelector(".planning-order-page[data-layout='main-content'], .planning-page[data-layout='main-content'], [data-layout='main-content']")
-        || document.scrollingElement;
       return {
-        found: true,
-        hasWorkspace: true,
-        fieldConnectedAfterEmpty,
-        activeAfterEmpty,
-        afterValue: nextField?.value ?? null,
         routeLabor,
-        before,
-        after: nextWorkspace?.scrollTop || 0,
+        legacyLaborControls: document.querySelectorAll("[data-planning-order-labor], [data-visual-qa-target='planning-manual-labor-mode-control']").length,
       };
     }, selected);
-    assert(manualInputProbe.found, "UI minutesPerUnit input for planning labor was not found.");
-    assert(manualInputProbe.hasWorkspace, "Planning workspace was not found for manual input check.");
-    assert(manualInputProbe.fieldConnectedAfterEmpty, `Empty intermediate input rerendered the labor row: ${JSON.stringify(manualInputProbe)}`);
-    assert(manualInputProbe.activeAfterEmpty, `Empty intermediate input lost focus before typing finished: ${JSON.stringify(manualInputProbe)}`);
-    assert(manualInputProbe.afterValue === "0.777", `Manual labor value was not preserved after typing: ${JSON.stringify(manualInputProbe)}`);
-    assert(Math.abs(Number(manualInputProbe.routeLabor?.minutesPerUnit || 0) - 0.777) < 0.0001, `Manual labor value was not saved to route settings: ${JSON.stringify(manualInputProbe)}`);
-    assert(manualInputProbe.after >= Math.max(0, manualInputProbe.before - 90), `Manual labor input reset planning scroll: ${JSON.stringify(manualInputProbe)}`);
-    logStep("manual labor input tolerated temporary empty value");
+    assert(planningUiProbe.routeLabor?.mode === "shift" && planningUiProbe.routeLabor?.shiftQuantity === 250, `Planning lost the published labor parameters: ${JSON.stringify(planningUiProbe)}`);
+    assert(planningUiProbe.legacyLaborControls === 0, `Planning still exposes removed manual norm controls: ${JSON.stringify(planningUiProbe)}`);
+    logStep("planning keeps published norms in data without exposing legacy controls");
 
     const blockingDialogs = dialogs.filter((message) => !/Все операции .*уже находятся в Ганте/i.test(message));
     assert(!blockingDialogs.length, `Browser dialogs blocked the flow:\n${blockingDialogs.join("\n")}`);
@@ -657,8 +607,7 @@ async function main() {
     console.log("- panel labor sync: pass");
     console.log("- shift labor sync: pass");
     console.log("- reload normalization: pass");
-    console.log("- UI mode change scroll preservation: pass");
-    console.log("- manual labor input empty-state preservation: pass");
+    console.log("- planning hides manual norm controls: pass");
     console.log("OK: planning labor updates drive Gantt slot calculations.");
   } finally {
     await cleanupChrome(chrome);

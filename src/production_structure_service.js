@@ -1,7 +1,7 @@
 import {
-  PRODUCTION_STRUCTURE_MATRIX_COLUMNS,
-  PRODUCTION_STRUCTURE_MATRIX_ROWS,
-} from "./production_structure_matrix_data.js";
+  PRODUCTION_STRUCTURE_BOOTSTRAP_FIELD_COUNT,
+  PRODUCTION_STRUCTURE_BOOTSTRAP_ROWS,
+} from "./production_structure_bootstrap_data.js";
 
 const MATRIX_ID_TO_RUNTIME_ID = {
   "D-MANUAL": "D5",
@@ -130,7 +130,7 @@ function withOverrides(row = {}, overrides = {}) {
 }
 
 function getMatrixRows(overrides = {}) {
-  return PRODUCTION_STRUCTURE_MATRIX_ROWS.map((row) => withOverrides(row, overrides));
+  return PRODUCTION_STRUCTURE_BOOTSTRAP_ROWS.map((row) => withOverrides(row, overrides));
 }
 
 function makeNameIndex(rows = []) {
@@ -287,7 +287,7 @@ function estimateUnitsPerHour(row = {}) {
 }
 
 export function getProductionStructureColumns() {
-  return [...PRODUCTION_STRUCTURE_MATRIX_COLUMNS];
+  return [];
 }
 
 export function getProductionStructureRows(overrides = {}) {
@@ -469,7 +469,7 @@ export function getProductionStructureSummary(overrides = {}) {
   const rows = getMatrixRows(overrides);
   return {
     rows: rows.length,
-    fields: PRODUCTION_STRUCTURE_MATRIX_COLUMNS.length,
+    fields: PRODUCTION_STRUCTURE_BOOTSTRAP_FIELD_COUNT,
     departments: rows.filter((row) => getCell(row, "Тип строки") === "Отдел").length,
     sections: rows.filter((row) => getCell(row, "Тип строки") === "Участок").length,
     roles: rows.filter((row) => ["Роль", "Руководитель производства"].includes(getCell(row, "Тип строки"))).length,

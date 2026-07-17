@@ -12,25 +12,66 @@ import {
   getMesFlowTransition,
   getMesStatusContract,
 } from "../src/mes_contracts.js";
+import {
+  MES_MODULE_NAVIGATION_GROUPS,
+  MES_MODULE_NAVIGATION_REGISTRY,
+  MES_MODULE_NAVIGATION_SCOPES,
+  getMesModuleNavigationDefinitions,
+  getMesModuleNavigationGroups,
+} from "../src/module_registry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 
 const appPath = path.join(rootDir, "src", "app.js");
+const appConstantsPath = path.join(rootDir, "src", "app_constants.js");
+const bootstrapSnapshotServicePath = path.join(rootDir, "src", "modules", "bootstrap_snapshot", "service.js");
 const validationPath = path.join(rootDir, "src", "validation.js");
 const sharedStateEndpointPath = path.join(rootDir, "scripts", "shared-state-endpoint.mjs");
 const stateConsistencyQaPath = path.join(rootDir, "scripts", "state-consistency-qa.mjs");
 const docsPath = path.join(rootDir, "docs", "mes-contract-migration-v1.md");
 const packagePath = path.join(rootDir, "package.json");
 
-const [appSource, validationSource, sharedStateEndpointSource, stateConsistencyQaSource, docsSource, packageSource] = await Promise.all([
+async function collectRuntimeJsSources(relativeDir) {
+  const dir = path.join(rootDir, relativeDir);
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const chunks = [];
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      chunks.push(...await collectRuntimeJsSources(path.relative(rootDir, entryPath)));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".js")) {
+      chunks.push(await fs.readFile(entryPath, "utf8"));
+    }
+  }
+  return chunks;
+}
+
+const [
+  appSource,
+  appConstantsSource,
+  bootstrapSnapshotServiceSource,
+  validationSource,
+  sharedStateEndpointSource,
+  stateConsistencyQaSource,
+  docsSource,
+  packageSource,
+  moduleRuntimeSources,
+] = await Promise.all([
   fs.readFile(appPath, "utf8"),
+  fs.readFile(appConstantsPath, "utf8"),
+  fs.readFile(bootstrapSnapshotServicePath, "utf8"),
   fs.readFile(validationPath, "utf8"),
   fs.readFile(sharedStateEndpointPath, "utf8"),
   fs.readFile(stateConsistencyQaPath, "utf8"),
   fs.readFile(docsPath, "utf8"),
   fs.readFile(packagePath, "utf8"),
+  collectRuntimeJsSources(path.join("src", "modules")),
 ]);
+
+const runtimeSource = [appSource, appConstantsSource, ...moduleRuntimeSources].join("\n");
 
 const failures = [];
 const warnings = [];
@@ -62,12 +103,18 @@ function isLineInRanges(lineNumber, ranges) {
 
 function findFunctionRange(source, functionName) {
   const lines = source.split("\n");
-  const startIndex = lines.findIndex((line) => new RegExp(`\\bfunction\\s+${functionName}\\s*\\(`).test(line));
-  if (startIndex === -1) {
+  const wrapperPattern = new RegExp(`^function\\s+${functionName}\\(\\.\\.\\.args\\)\\s+\\{\\s+return\\s+[A-Za-z_$][\\w$]*\\.${functionName}\\(\\.\\.\\.args\\);\\s+\\}$`);
+  const candidateIndexes = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => new RegExp(`\\bfunction\\s+${functionName}\\s*\\(`).test(line));
+  const implementationCandidate = candidateIndexes.find(({ line }) => !wrapperPattern.test(line))
+    || candidateIndexes[0];
+  if (!implementationCandidate) {
     fail(`Не найдена helper/function зона для QA: ${functionName}`);
     return null;
   }
 
+  const startIndex = implementationCandidate.index;
   let depth = 0;
   let hasOpened = false;
   for (let index = startIndex; index < lines.length; index += 1) {
@@ -135,37 +182,20 @@ const requiredTransitions = [
   "dispatchFactToPlanningCorrection",
 ];
 
-const requiredModuleFlow = [
-  "nomenclature",
-  "products",
-  "routes",
-  "planning",
-  "gantt",
-  "shiftMasterBoard",
-  "shiftWorkOrders",
-  "dispatch",
-  "productionStructureMatrix",
-  "employees",
-  "timesheet",
-  "roles",
-  "contourAdmin",
-  "directories",
-  "visualSystem",
-  "authPrototype",
-  "authSessionPrototype",
-  "planningTable",
-  "supply",
-  "shopMap",
-];
-const allowedModuleGroups = new Set(["Технологии", "Планирование нагрузки", "Оперативное управление", "Система", "UX-макеты", "Авторизация"]);
-const runtimeModulesHiddenFromSidebar = new Set(["authPrototype"]);
-const expectedSidebarGroups = [
-  { label: "Планирование нагрузки", ids: ["gantt", "planning", "weeklyProductionControl"] },
-  { label: "Оперативное управление", ids: ["dispatch", "shiftMasterBoard", "authSessionPrototype", "shiftWorkOrders"] },
-  { label: "Технологии", ids: ["routes", "products", "nomenclature"] },
-  { label: "Система", ids: ["productionStructureMatrix", "employees", "timesheet", "roles", "contourAdmin", "directories"] },
-  { label: "UX-макеты", ids: ["visualSystem", "planningTable", "supply", "shopMap"] },
-];
+const requiredModuleFlow = [...MES_MODULE_FLOW_SEQUENCE];
+const allowedModuleGroups = new Set(["Технологии", "Планирование нагрузки", "Оперативное управление", "Система", "Авторизация"]);
+const runtimeModulesHiddenFromSidebar = new Set(
+  MES_MODULE_NAVIGATION_REGISTRY
+    .filter((moduleItem) => moduleItem.scope !== MES_MODULE_NAVIGATION_SCOPES.USER)
+    .map((moduleItem) => moduleItem.id),
+);
+const expectedSidebarGroups = MES_MODULE_NAVIGATION_GROUPS.map((group) => ({
+  label: group.label,
+  ids: MES_MODULE_NAVIGATION_REGISTRY
+    .filter((moduleItem) => moduleItem.scope === MES_MODULE_NAVIGATION_SCOPES.USER && moduleItem.groupId === group.id)
+    .sort((left, right) => left.order - right.order)
+    .map((moduleItem) => moduleItem.id),
+}));
 const allowedGanttImpacts = new Set([
   "none",
   "none-current",
@@ -205,6 +235,28 @@ requiredModuleFlow.forEach((moduleId) => {
   if (contract && !allowedGanttImpacts.has(contract.ganttImpact)) fail(`MES_MODULE_FLOW_CONTRACTS.${moduleId} имеет неизвестный ganttImpact: ${contract.ganttImpact}`);
 });
 
+const systemDomainModuleLabels = new Map([
+  ["productionStructureMatrix", "Структура и сотрудники"],
+  ["timesheet", "Табель"],
+  ["roles", "Роли и доступ"],
+  ["directories", "Справочники и нормативы"],
+]);
+systemDomainModuleLabels.forEach((expectedLabel, moduleId) => {
+  const contract = MES_MODULE_FLOW_CONTRACTS[moduleId];
+  const navigation = MES_MODULE_NAVIGATION_REGISTRY.find((moduleItem) => moduleItem.id === moduleId);
+  if (contract?.label !== expectedLabel) fail(`${moduleId}: contract label должен быть «${expectedLabel}»`);
+  if (navigation?.label !== expectedLabel) fail(`${moduleId}: navigation label должен быть «${expectedLabel}»`);
+});
+if (Object.values(MES_MODULE_FLOW_CONTRACTS).some((contract) => contract.reads?.includes("Права"))) {
+  fail("Flow contracts не должны использовать «Права» как имя модуля структуры.");
+}
+if (!MES_MODULE_FLOW_CONTRACTS.timesheet?.role.includes("факты рабочего времени")) {
+  fail("Табель должен явно разделять календарь персонала и факты рабочего времени.");
+}
+if (!MES_MODULE_FLOW_CONTRACTS.roles?.writes.includes("Grants") || !MES_MODULE_FLOW_CONTRACTS.roles?.writes.includes("Области ответственности")) {
+  fail("Роли и доступ должны владеть grants и областями ответственности.");
+}
+
 const dispatchContract = MES_MODULE_FLOW_CONTRACTS.dispatch;
 if (dispatchContract) {
   if (dispatchContract.ganttImpact !== "none") fail("Диспетчерская должна оставаться без влияния на Гант до нового ТЗ.");
@@ -214,27 +266,36 @@ if (/planningState\.dispatchFacts\s*=/.test(appSource)) {
   fail("Runtime не должен писать в planningState.dispatchFacts; Диспетчерская placeholder, а факты идут через ui.shiftMasterBoardFacts/Архив факта.");
 }
 
-const moduleDefinitionsSource = getSourceRange(appSource, findFunctionRange(appSource, "getModuleDefinitions"));
-const runtimeModuleIds = [...moduleDefinitionsSource.matchAll(/\{\s*id:\s*"([^"]+)"/g)].map((match) => match[1]);
+const runtimeModuleIds = MES_MODULE_NAVIGATION_REGISTRY.map((moduleItem) => moduleItem.id);
 runtimeModuleIds.forEach((moduleId) => {
   if (!MES_MODULE_FLOW_CONTRACTS[moduleId]) {
-    fail(`Runtime module без MES_MODULE_FLOW_CONTRACTS: ${moduleId}`);
+    fail(`Navigation registry module без MES_MODULE_FLOW_CONTRACTS: ${moduleId}`);
   }
 });
 Object.keys(MES_MODULE_FLOW_CONTRACTS).forEach((moduleId) => {
   if (!runtimeModuleIds.includes(moduleId)) {
-    fail(`MES_MODULE_FLOW_CONTRACTS.${moduleId} отсутствует в getModuleDefinitions()`);
+    fail(`MES_MODULE_FLOW_CONTRACTS.${moduleId} отсутствует в MES_MODULE_NAVIGATION_REGISTRY`);
   }
 });
 
-const moduleGroupsSource = getSourceRange(appSource, findFunctionRange(appSource, "getModuleGroups"));
 const moduleSidebarGroups = new Map();
-const actualSidebarGroups = [...moduleGroupsSource.matchAll(/\{\s*label:\s*"([^"]+)",\s*ids:\s*\[([^\]]*)\]/g)].map((match) => ({
-  label: match[1],
-  ids: [...match[2].matchAll(/"([^"]+)"/g)].map((idMatch) => idMatch[1]),
+const publicModuleDefinitions = getMesModuleNavigationDefinitions({ adminHost: false });
+const adminModuleDefinitions = getMesModuleNavigationDefinitions({ adminHost: true });
+const actualSidebarGroups = getMesModuleNavigationGroups(publicModuleDefinitions).map((group) => ({
+  label: group.label,
+  ids: group.modules.map((moduleItem) => moduleItem.id),
 }));
 if (JSON.stringify(actualSidebarGroups) !== JSON.stringify(expectedSidebarGroups)) {
   fail(`Порядок групп главного меню расходится с MES sidebar contract: ${JSON.stringify(actualSidebarGroups)}`);
+}
+if (publicModuleDefinitions.some((moduleItem) => moduleItem.id === "contourAdmin")) {
+  fail("Публичные определения модулей не должны содержать contourAdmin");
+}
+if (adminModuleDefinitions.length !== 1 || adminModuleDefinitions[0]?.id !== "contourAdmin") {
+  fail(`Admin runtime должен получать только contourAdmin: ${JSON.stringify(adminModuleDefinitions.map((moduleItem) => moduleItem.id))}`);
+}
+if (MES_MODULE_NAVIGATION_GROUPS.some((group) => !group.id || !group.label || !Number.isFinite(group.order))) {
+  fail("Navigation group registry требует id, label и числовой order");
 }
 actualSidebarGroups.forEach((group) => {
   const label = group.label;
@@ -276,11 +337,11 @@ const deepLinkDirectorySource = getSourceRange(appSource, findFunctionRange(appS
   }
 });
 
-const slotRouteHelperSource = getSourceRange(appSource, findFunctionRange(appSource, "getSlotRoute"));
+const slotRouteHelperSource = getSourceRange(runtimeSource, findFunctionRange(runtimeSource, "getSlotRoute"));
 if (!slotRouteHelperSource.includes("getSlotRouteId(slot, planningState)")) {
   fail("getSlotRoute() должен сначала использовать getSlotRouteId(), чтобы не расходились routeId/planningOrderId alias.");
 }
-const slotPlanningOrderHelperSource = getSourceRange(appSource, findFunctionRange(appSource, "getSlotPlanningOrderId"));
+const slotPlanningOrderHelperSource = getSourceRange(runtimeSource, findFunctionRange(runtimeSource, "getSlotPlanningOrderId"));
 if (!slotPlanningOrderHelperSource.includes("slot.planningOrderId || slot.routeId || fallbackRouteId || slot.batchId")) {
   fail("getSlotPlanningOrderId() должен держать legacy batchId последним fallback после planningOrderId/routeId.");
 }
@@ -299,13 +360,14 @@ MES_MODULE_FLOW_SEQUENCE.forEach((moduleId) => {
 if (getMesGanttInfluenceMatrix().length !== MES_MODULE_FLOW_SEQUENCE.length) {
   fail("Матрица влияния модулей на Gantt не совпадает с MES_MODULE_FLOW_SEQUENCE");
 }
-const directScheduleRouteToGanttCalls = findLines(appSource, /schedulePlanningRouteToGantt\(/);
+const directScheduleRouteToGanttCalls = findLines(runtimeSource, /schedulePlanningRouteToGantt\(/)
+  .filter((item) => !/function\s+schedulePlanningRouteToGantt\(\.\.\.args\)/.test(item.line));
 if (directScheduleRouteToGanttCalls.length !== 2) {
   fail(`schedulePlanningRouteToGantt() должен объявляться и вызываться только из Заказ-нарядов: ${directScheduleRouteToGanttCalls.map((item) => item.number).join(", ")}`);
 }
 checkNoMatches("Маршрутная карта не должна иметь прямую кнопку передачи в Gantt", appSource, /data-route-(?:card-)?to-gantt|data-routes?-to-gantt/);
 
-const appSharedStateValueKeys = extractStringArray(appSource, "SHARED_STATE_VALUE_KEYS");
+const appSharedStateValueKeys = extractStringArray(runtimeSource, "SHARED_STATE_VALUE_KEYS");
 const endpointAllowedValueKeys = new Set(extractStringSet(sharedStateEndpointSource, "ALLOWED_VALUE_KEYS"));
 appSharedStateValueKeys.forEach((key) => {
   if (!endpointAllowedValueKeys.has(key)) {
@@ -331,23 +393,28 @@ if (!sharedStateEndpointSource.includes('key === "accessRoleProfiles"')) {
   fail("Shared-state endpoint должен явно разрешать массив accessRoleProfiles и не открывать массивы для всех sharedUi ключей.");
 }
 
-const externalStorageSyncSource = getSourceRange(appSource, findFunctionRange(appSource, "bindExternalStorageSync"));
-const syncExternalStorageStateSource = getSourceRange(appSource, findFunctionRange(appSource, "syncExternalStorageState"));
-const workflowPresetValueKeys = extractStringArray(appSource, "WORKFLOW_PRESET_VALUE_KEYS");
-const applyWorkflowPresetValuesSource = getSourceRange(appSource, findFunctionRange(appSource, "applyWorkflowPresetValues"));
-["STORAGE_KEY", "DIRECTORY_STORAGE_KEY", "DIRECTORY_DEFAULTS_STORAGE_KEY", "DIRECTORY_DELETED_ENTITIES_STORAGE_KEY", "SUPPLY_CONTROL_STORAGE_KEY"].forEach((keyName) => {
+const externalStorageSyncSource = getSourceRange(runtimeSource, findFunctionRange(runtimeSource, "bindExternalStorageSync"));
+const syncExternalStorageStateSource = getSourceRange(runtimeSource, findFunctionRange(runtimeSource, "syncExternalStorageState"));
+const applySharedStateSnapshotSource = getSourceRange(runtimeSource, findFunctionRange(runtimeSource, "applySharedStateSnapshot"));
+const writeSharedStateValuesSource = getSourceRange(runtimeSource, findFunctionRange(runtimeSource, "writeSharedStateValues"));
+const bootstrapSnapshotValueKeys = extractStringArray(bootstrapSnapshotServiceSource, "BOOTSTRAP_SNAPSHOT_VALUE_KEYS");
+const applyBootstrapSnapshotValuesSource = getSourceRange(runtimeSource, findFunctionRange(runtimeSource, "applyBootstrapSnapshotValues"));
+["STORAGE_KEY", "DIRECTORY_STORAGE_KEY", "DIRECTORY_DEFAULTS_STORAGE_KEY", "DIRECTORY_DELETED_ENTITIES_STORAGE_KEY", "SYSTEM_DOMAINS_STORAGE_KEY"].forEach((keyName) => {
   if (!externalStorageSyncSource.includes(keyName)) {
     fail(`bindExternalStorageSync() не слушает общий storage key: ${keyName}`);
   }
 });
-if (!syncExternalStorageStateSource.includes("supplyControlState = loadSupplyControlState()")) {
-  fail("syncExternalStorageState() должен обновлять supplyControlState при изменении SUPPLY_CONTROL_STORAGE_KEY");
+if (!syncExternalStorageStateSource.includes("reloadSystemDomainsState")) {
+  fail("External storage sync должен перезагружать нормализованный System Domains store.");
 }
-if (!workflowPresetValueKeys.includes("mes-planning-prototype-supply-control-v1")) {
-  fail("WORKFLOW_PRESET_VALUE_KEYS должен сохранять supply-control слой вместе с рабочим пресетом");
+if (!applySharedStateSnapshotSource.includes("reloadSystemDomainsState")) {
+  fail("Shared snapshot должен перезагружать нормализованный System Domains store после записи values.");
 }
-if (!applyWorkflowPresetValuesSource.includes("supplyControlState = loadSupplyControlState()")) {
-  fail("applyWorkflowPresetValues() должен восстанавливать supplyControlState из рабочего пресета");
+if (!writeSharedStateValuesSource.includes("hasOwnProperty.call(values, key)")) {
+  fail("Shared snapshot без нового ключа не должен удалять локальный System Domains store старого клиента.");
+}
+if (syncExternalStorageStateSource.includes("SUPPLY_CONTROL_STORAGE_KEY") || applyBootstrapSnapshotValuesSource.includes("loadSupplyControlState()")) {
+  fail("Удаленный UX-модуль supply не должен возвращаться в runtime storage/bootstrap contract.");
 }
 
 const statusKeys = new Set();
@@ -431,7 +498,7 @@ const legacySlotReadAllowedRanges = [
 const legacyWarningReadAllowedRanges = [
   "getWarningProductionId",
   "getWarningPlanningOrderId",
-].map((functionName) => findFunctionRange(appSource, functionName));
+].map((functionName) => findFunctionRange(runtimeSource, functionName));
 const directLegacySlotReads = findLines(appSource, /\bslot\.(?:projectId|batchId)\b/)
   .filter((item) => !isLineInRanges(item.number, legacySlotReadAllowedRanges));
 const directLegacyWarningReads = findLines(appSource, /\bwarning\.(?:projectId|batchId)\b/)
