@@ -11,7 +11,10 @@ import { syncMesIconRuntimeRegistry } from "./generate-mes-icon-runtime-registry
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = join(projectRoot, "dist");
-const stagingDistDir = join(projectRoot, `.dist-build-${Date.now()}`);
+// Keep the staging path stable. esbuild includes absolute source paths in its
+// chunk graph; a timestamped staging directory made identical source emit
+// different chunk hashes on every build.
+const stagingDistDir = join(projectRoot, ".dist-build");
 const previousDistDir = join(projectRoot, ".dist-previous");
 const appVersionPath = join(projectRoot, "app-version.json");
 const appVersionPattern = /^v\.\d\.\d{3}\.\d{2}$/;
@@ -41,6 +44,7 @@ function shouldSkipDistCopy(sourcePath) {
 async function copyDirectory(sourceDir, targetDir) {
   await mkdir(targetDir, { recursive: true });
   const entries = await readdir(sourceDir, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
 
   for (const entry of entries) {
     const sourcePath = join(sourceDir, entry.name);
@@ -70,6 +74,7 @@ function toPosixPath(path) {
 
 async function collectJsFiles(rootDir) {
   const entries = await readdir(rootDir, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
   const files = [];
 
   for (const entry of entries) {
@@ -86,6 +91,7 @@ async function collectJsFiles(rootDir) {
 
 async function collectFilesByExtension(rootDir, extensions) {
   const entries = await readdir(rootDir, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
   const files = [];
 
   for (const entry of entries) {
@@ -186,59 +192,38 @@ async function minifyCssFiles(rootDir) {
   }));
 }
 
-async function getJsModuleHashes(rootDir, filePaths) {
-  const hashes = new Map();
-  await Promise.all(filePaths.map(async (filePath) => {
-    hashes.set(toPosixPath(relative(rootDir, filePath)), await fileHash(filePath));
-  }));
-  return hashes;
-}
-
-function withVersionedLocalJsImport(rootDir, importerPath, hashes, deployCacheSuffix, prefix, specifier, suffix) {
-  const targetPath = join(dirname(importerPath), specifier);
-  const targetKey = toPosixPath(relative(rootDir, targetPath));
-  const version = hashes.get(targetKey);
-  if (!version) return `${prefix}${specifier}${suffix}`;
-  return `${prefix}${specifier}?v=${version}${deployCacheSuffix}${suffix}`;
-}
-
-async function versionLocalJsImports(rootDir, deployCacheSuffix = "") {
+async function getJavaScriptReleaseToken(rootDir) {
   const filePaths = await collectJsFiles(rootDir);
-  let hashes = await getJsModuleHashes(rootDir, filePaths);
-
-  for (let iteration = 0; iteration < 8; iteration += 1) {
-    let sourceChanged = false;
-
-    for (const filePath of filePaths) {
-      const source = await readFile(filePath, "utf-8");
-      const versioned = source
-        .replace(/(from\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
-          withVersionedLocalJsImport(rootDir, filePath, hashes, deployCacheSuffix, prefix, specifier, suffix)
-        ))
-        .replace(/(\bimport\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
-          withVersionedLocalJsImport(rootDir, filePath, hashes, deployCacheSuffix, prefix, specifier, suffix)
-        ))
-        .replace(/(\bimport\s*\(\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["']\s*\))/g, (match, prefix, specifier, suffix) => (
-          withVersionedLocalJsImport(rootDir, filePath, hashes, deployCacheSuffix, prefix, specifier, suffix)
-        ));
-
-      if (versioned !== source) {
-        sourceChanged = true;
-        await writeFile(filePath, versioned);
-      }
-    }
-
-    const nextHashes = await getJsModuleHashes(rootDir, filePaths);
-    const hashChanged = filePaths.some((filePath) => {
-      const key = toPosixPath(relative(rootDir, filePath));
-      return nextHashes.get(key) !== hashes.get(key);
-    });
-    hashes = nextHashes;
-
-    if (!sourceChanged && !hashChanged) break;
+  const digest = createHash("sha256");
+  for (const filePath of filePaths) {
+    digest.update(relative(rootDir, filePath).split(sep).join("/"));
+    digest.update("\0");
+    digest.update(await readFile(filePath));
+    digest.update("\0");
   }
+  return digest.digest("hex").slice(0, 12);
+}
 
-  return hashes;
+function withReleaseVersion(prefix, specifier, suffix, releaseToken, deployCacheSuffix) {
+  return `${prefix}${specifier}?v=${releaseToken}${deployCacheSuffix}${suffix}`;
+}
+
+async function versionLocalJsImports(rootDir, releaseToken, deployCacheSuffix = "") {
+  const filePaths = await collectJsFiles(rootDir);
+  for (const filePath of filePaths) {
+    const source = await readFile(filePath, "utf-8");
+    const versioned = source
+      .replace(/(from\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
+        withReleaseVersion(prefix, specifier, suffix, releaseToken, deployCacheSuffix)
+      ))
+      .replace(/(\bimport\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["'])/g, (match, prefix, specifier, suffix) => (
+        withReleaseVersion(prefix, specifier, suffix, releaseToken, deployCacheSuffix)
+      ))
+      .replace(/(\bimport\s*\(\s*["'])(\.{1,2}\/[^"']+?\.js)(?:\?[^"']*)?(["']\s*\))/g, (match, prefix, specifier, suffix) => (
+        withReleaseVersion(prefix, specifier, suffix, releaseToken, deployCacheSuffix)
+      ));
+    if (versioned !== source) await writeFile(filePath, versioned);
+  }
 }
 
 async function versionCssImports(stylesheetPath, deployCacheSuffix = "") {
@@ -343,13 +328,18 @@ await Promise.all([
 
 await bundleStylesheet(join(projectRoot, "styles.css"), join(stagingDistDir, "styles.css"));
 
+// The token is intentionally calculated before esbuild emits dynamic chunks.
+// Deriving it from output chunk names creates a circular hash graph and makes
+// identical source produce different cache URLs on consecutive builds.
+const jsReleaseToken = await getJavaScriptReleaseToken(join(stagingDistDir, "src"));
+
 // The application used to start through a deep static ESM graph.  On a real
 // contour that produces dozens of round trips before the first screen can be
 // rendered.  Keep source modules in dist for diagnostics, but publish a single
 // minified entry file so startup has one script request instead of a waterfall.
 await bundleApplication(join(stagingDistDir, "src", "app.js"), join(stagingDistDir, "src", "app.js"));
 
-const jsModuleHashes = await versionLocalJsImports(join(stagingDistDir, "src"), deployCacheSuffix);
+await versionLocalJsImports(join(stagingDistDir, "src"), jsReleaseToken, deployCacheSuffix);
 await versionCssImports(join(stagingDistDir, "styles.css"), deployCacheSuffix);
 const [stylesVersion, uiCoreStylesVersion, visualLiveStylesVersion, faviconVersion] = await Promise.all([
   fileHash(join(stagingDistDir, "styles.css")),
@@ -361,7 +351,7 @@ const [stylesVersion, uiCoreStylesVersion, visualLiveStylesVersion, faviconVersi
   )),
   pathExists(join(stagingDistDir, "favicon.svg")).then((exists) => exists ? fileHash(join(stagingDistDir, "favicon.svg")) : ""),
 ]);
-const appVersion = jsModuleHashes.get("app.js") || await fileHash(join(stagingDistDir, "src", "app.js"));
+const appVersion = await fileHash(join(stagingDistDir, "src", "app.js"));
 
 html = replaceRequired(
   html,

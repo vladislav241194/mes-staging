@@ -23,7 +23,8 @@ npm run release:stage:pilot -- --release-id=<version-and-commit>
 
 The command deliberately refuses a dirty Git worktree. It performs:
 
-1. `npm ci` and the production build locally;
+1. `npm ci` and two production builds locally; their complete `dist/` digests
+   must match before the release can continue;
 2. a SHA-256 digest of the allowlisted runtime source and `dist/` artifact;
 3. upload into a new, inactive `/srv/mes/pilot/releases/<id>/app` directory;
 4. production-only dependency installation and server preflight in that new

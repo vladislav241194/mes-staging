@@ -1,5 +1,8 @@
 node_modules/
 dist/
+.dist-build/
+.dist-build-*/
+.dist-previous/
 tmp/
 .DS_Store
 .env

@@ -192,8 +192,14 @@ async function main() {
 
   await run("npm", ["ci"]);
   await run("npm", ["run", "build"]);
+  const firstDistTreeSha256 = await treeSha(["dist"]);
+  await run("npm", ["run", "build"]);
+  const secondDistTreeSha256 = await treeSha(["dist"]);
+  if (firstDistTreeSha256 !== secondDistTreeSha256) {
+    throw new Error("Refusing non-deterministic build output; the two dist digests differ");
+  }
   const sourceTreeSha256 = await treeSha(SOURCE_INCLUDES);
-  const distTreeSha256 = await treeSha(["dist"]);
+  const distTreeSha256 = secondDistTreeSha256;
   const packageLockSha256 = await sha256(join(projectRoot, "package-lock.json"));
   const manifest = {
     schemaVersion: 1,
@@ -207,7 +213,7 @@ async function main() {
     distTreeSha256,
     packageLockSha256,
     verification: {
-      localBuild: "npm ci && npm run build",
+      localBuild: "npm ci && npm run build twice with matching dist digest",
       remotePreflight: "npm ci --omit=dev && npm run server:preflight",
       activation: "not activated by stage command",
     },
