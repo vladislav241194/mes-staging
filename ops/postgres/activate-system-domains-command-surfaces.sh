@@ -46,9 +46,31 @@ DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 ACTOR_POLICY_FILE="/etc/mes/mes-pilot-system-domains-command-actors.env"
 ACTOR_POLICY_DROPIN_FILE="${DROPIN_DIR}/49-system-domains-command-actors.conf"
 PRODUCTION_DROPIN_FILE="${DROPIN_DIR}/50-system-domains-production-structure.conf"
+LEGACY_PRODUCTION_DROPIN_FILE="${DROPIN_DIR}/60-system-domains-production-structure.conf"
 TIMESHEET_DROPIN_FILE="${DROPIN_DIR}/61-system-domains-timesheet.conf"
 ACCESS_CONTROL_DROPIN_FILE="${DROPIN_DIR}/62-system-domains-access-control.conf"
-DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
+# The pre-policy rollout used a 60-* production drop-in. Include it in both
+# the backup and removal set so an old file cannot silently broaden a new
+# staged rollout through lexical systemd override order.
+DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
+INTERNAL_ORIGIN="http://127.0.0.1:4175"
+
+# systemctl reports the unit active before its Node listener has necessarily
+# bound the loopback port. A one-shot curl here used to convert that normal
+# startup gap into a needless rollback of a valid staged configuration.
+# Keep the retry bounded and retain a final verbose request for diagnosis.
+request_internal_api() {
+  local path="$1" response="" attempt
+  for attempt in $(seq 1 12); do
+    if systemctl is-active --quiet "$SERVICE" \
+      && response="$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 -H 'Host: mes-internal' "${INTERNAL_ORIGIN}${path}" 2>/dev/null)"; then
+      printf '%s' "$response"
+      return 0
+    fi
+    sleep 1
+  done
+  curl --fail --silent --show-error --connect-timeout 2 --max-time 5 -H 'Host: mes-internal' "${INTERNAL_ORIGIN}${path}"
+}
 
 case "$THROUGH" in
   production-structure)
@@ -103,7 +125,7 @@ validate_actor_policy() {
 
 assert_compatibility_parity() {
   local consistency
-  consistency="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/consistency)"
+  consistency="$(request_internal_api /api/v1/system-domains/consistency)"
   node -e '
     const value = JSON.parse(process.argv[1]);
     const reconciliation = value?.consistency?.details?.reconciliation?.promotion || {};
@@ -120,7 +142,7 @@ assert_compatibility_parity
 
 # The current stage is taken from the running service, not from files on disk.
 # A target may be re-run idempotently, but skipped stages are rejected.
-pre_capabilities="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/capabilities)"
+pre_capabilities="$(request_internal_api /api/v1/system-domains/capabilities)"
 node -e '
   const value = JSON.parse(process.argv[1]);
   const expected = process.argv[2].split(",").filter(Boolean);
@@ -158,7 +180,7 @@ for file in "${DROPIN_FILES[@]}"; do
 done
 
 install -d -m 0755 "$DROPIN_DIR"
-rm -f "$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE"
+rm -f "$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE"
 install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-system-domains-command-actors.conf" "$ACTOR_POLICY_DROPIN_FILE"
 install -m 0644 "$TARGET_SOURCE" "$TARGET_FILE"
 install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-domain-snapshot-sync.service" "/etc/systemd/system/${SYNC_SERVICE}"
@@ -191,7 +213,7 @@ node -e '
   exit 1
 }
 
-capabilities="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/capabilities)"
+capabilities="$(request_internal_api /api/v1/system-domains/capabilities)"
 node -e '
   const value = JSON.parse(process.argv[1]);
   const expected = process.argv[2].split(",").filter(Boolean);

@@ -14,10 +14,30 @@ DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 ACTOR_POLICY_FILE="/etc/mes/mes-pilot-system-domains-command-actors.env"
 ACTOR_POLICY_DROPIN_FILE="${DROPIN_DIR}/49-system-domains-command-actors.conf"
 PRODUCTION_DROPIN_FILE="${DROPIN_DIR}/50-system-domains-production-structure.conf"
+LEGACY_PRODUCTION_DROPIN_FILE="${DROPIN_DIR}/60-system-domains-production-structure.conf"
 TIMESHEET_DROPIN_FILE="${DROPIN_DIR}/61-system-domains-timesheet.conf"
 ACCESS_CONTROL_DROPIN_FILE="${DROPIN_DIR}/62-system-domains-access-control.conf"
-DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
+# Remove the old pre-policy production drop-in too; its lexical name is later
+# than the reviewed 50-* file and otherwise can win an Environment override.
+DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
 EXPECTED_CSV="production-structure,timesheet,access-control"
+INTERNAL_ORIGIN="http://127.0.0.1:4175"
+
+# A systemd restart can return while the service is active but has not yet
+# opened its HTTP listener. Bound retries make recovery deterministic without
+# weakening its authority proof.
+request_internal_api() {
+  local path="$1" response="" attempt
+  for attempt in $(seq 1 12); do
+    if systemctl is-active --quiet "$SERVICE" \
+      && response="$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 -H 'Host: mes-internal' "${INTERNAL_ORIGIN}${path}" 2>/dev/null)"; then
+      printf '%s' "$response"
+      return 0
+    fi
+    sleep 1
+  done
+  curl --fail --silent --show-error --connect-timeout 2 --max-time 5 -H 'Host: mes-internal' "${INTERNAL_ORIGIN}${path}"
+}
 
 for file in \
   "${APP_DIR}/ops/postgres/mes-pilot-system-domains-command-actors.conf" \
@@ -39,7 +59,7 @@ node -e '
 # This is deliberately the inverse authority check of the pre-cutover scripts:
 # recovery is permitted only when a durable PostgreSQL-primary tombstone proof
 # is already readable. It must never be used to force a new cutover.
-consistency="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/consistency)"
+consistency="$(request_internal_api /api/v1/system-domains/consistency)"
 node -e '
   const value = JSON.parse(process.argv[1]);
   const reconciliation = value?.consistency?.details?.reconciliation?.promotion || {};
@@ -76,7 +96,7 @@ for file in "${DROPIN_FILES[@]}"; do
 done
 
 install -d -m 0755 "$DROPIN_DIR"
-rm -f "$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE"
+rm -f "$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE"
 install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-system-domains-command-actors.conf" "$ACTOR_POLICY_DROPIN_FILE"
 install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-system-domains-access-control.conf" "$ACCESS_CONTROL_DROPIN_FILE"
 APPLIED=1
@@ -104,7 +124,7 @@ node -e '
   exit 1
 }
 
-capabilities="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/capabilities)"
+capabilities="$(request_internal_api /api/v1/system-domains/capabilities)"
 node -e '
   const value = JSON.parse(process.argv[1]);
   const expected = process.argv[2].split(",");
@@ -121,7 +141,7 @@ node -e '
   exit 1
 }
 
-post_consistency="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/consistency)"
+post_consistency="$(request_internal_api /api/v1/system-domains/consistency)"
 node -e '
   const value = JSON.parse(process.argv[1]);
   const reconciliation = value?.consistency?.details?.reconciliation?.promotion || {};

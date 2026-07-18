@@ -35,9 +35,30 @@ DROPIN_DIR="/etc/systemd/system/${SERVICE}.service.d"
 ACTOR_POLICY_FILE="/etc/mes/mes-pilot-system-domains-command-actors.env"
 ACTOR_POLICY_DROPIN_FILE="${DROPIN_DIR}/49-system-domains-command-actors.conf"
 PRODUCTION_DROPIN_FILE="${DROPIN_DIR}/50-system-domains-production-structure.conf"
+LEGACY_PRODUCTION_DROPIN_FILE="${DROPIN_DIR}/60-system-domains-production-structure.conf"
 TIMESHEET_DROPIN_FILE="${DROPIN_DIR}/61-system-domains-timesheet.conf"
 ACCESS_CONTROL_DROPIN_FILE="${DROPIN_DIR}/62-system-domains-access-control.conf"
-DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
+# A pre-policy 60-* drop-in may still be present on a pilot upgraded in place.
+# Treat it as managed state so a downshift cannot leave a higher legacy surface
+# effective after the reviewed files are removed.
+DROPIN_FILES=("$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE")
+INTERNAL_ORIGIN="http://127.0.0.1:4175"
+
+# Restart completion precedes listener readiness. Retry the loopback proof so
+# a healthy staged rollback is not itself rolled back merely because Node is
+# still binding its port.
+request_internal_api() {
+  local path="$1" response="" attempt
+  for attempt in $(seq 1 12); do
+    if systemctl is-active --quiet "$SERVICE" \
+      && response="$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 -H 'Host: mes-internal' "${INTERNAL_ORIGIN}${path}" 2>/dev/null)"; then
+      printf '%s' "$response"
+      return 0
+    fi
+    sleep 1
+  done
+  curl --fail --silent --show-error --connect-timeout 2 --max-time 5 -H 'Host: mes-internal' "${INTERNAL_ORIGIN}${path}"
+}
 
 case "$TARGET" in
   disabled)
@@ -59,7 +80,7 @@ esac
 
 assert_compatibility_parity() {
   local consistency
-  consistency="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/consistency)"
+  consistency="$(request_internal_api /api/v1/system-domains/consistency)"
   node -e '
     const value = JSON.parse(process.argv[1]);
     const reconciliation = value?.consistency?.details?.reconciliation?.promotion || {};
@@ -118,7 +139,7 @@ for file in "${DROPIN_FILES[@]}"; do
 done
 
 install -d -m 0755 "$DROPIN_DIR"
-rm -f "$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE"
+rm -f "$ACTOR_POLICY_DROPIN_FILE" "$PRODUCTION_DROPIN_FILE" "$LEGACY_PRODUCTION_DROPIN_FILE" "$TIMESHEET_DROPIN_FILE" "$ACCESS_CONTROL_DROPIN_FILE"
 if [[ "$TARGET" != "disabled" ]]; then
   install -m 0644 "${APP_DIR}/ops/postgres/mes-pilot-system-domains-command-actors.conf" "$ACTOR_POLICY_DROPIN_FILE"
   install -m 0644 "$TARGET_SOURCE" "$TARGET_FILE"
@@ -151,7 +172,7 @@ node -e '
   exit 1
 }
 
-capabilities="$(curl --fail --silent --show-error -H 'Host: mes-internal' http://127.0.0.1:4175/api/v1/system-domains/capabilities)"
+capabilities="$(request_internal_api /api/v1/system-domains/capabilities)"
 node -e '
   const value = JSON.parse(process.argv[1]);
   const expected = process.argv[2].split(",").filter(Boolean);
