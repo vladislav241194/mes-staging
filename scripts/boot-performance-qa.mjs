@@ -17,6 +17,37 @@ const systemDomainsStorageKey = "mes-planning-prototype-system-domains-v1";
 const startupTotalBudgetMs = 15000;
 const loadStateBudgetMs = 5000;
 const firstRenderBudgetMs = 6000;
+const navigationDirectModules = ["planning", "weeklyProductionControl", "gantt"];
+const navigationSequence = ["planning", "shiftWorkOrders", "weeklyProductionControl", "gantt"];
+const navigationDirectReadyBudgetMs = Number(process.env.MES_QA_NAV_DIRECT_READY_BUDGET_MS || 12000);
+const navigationTransitionReadyBudgetMs = Number(process.env.MES_QA_NAV_TRANSITION_READY_BUDGET_MS || 6000);
+const navigationExpectedProjectionSource = String(process.env.MES_QA_NAV_EXPECT_PLANNING_SOURCE || "").trim();
+const navigationRequiresServerProjection = process.argv.includes("--require-server-projection");
+const navigationRouteContracts = {
+  planning: {
+    selectors: [".planning-order-page", ".planning-empty-page"],
+    endpoint: "/api/v1/planning/work-orders/bootstrap",
+    projection: {
+      selector: "[data-planning-projection-source]",
+      attribute: "data-planning-projection-source",
+    },
+  },
+  shiftWorkOrders: {
+    selectors: [".shift-work-orders-page"],
+  },
+  weeklyProductionControl: {
+    selectors: [".weekly-production-control-panel"],
+    endpoint: "/api/v1/planning/period",
+  },
+  gantt: {
+    selectors: ["[data-gantt-shell][data-ui-runtime='gantt-v1']"],
+    endpoint: "/api/v1/planning/work-orders/projection",
+    projection: {
+      selector: "[data-gantt-planning-projection-source]",
+      attribute: "data-gantt-planning-projection-source",
+    },
+  },
+};
 const defaultReportPath = join(process.cwd(), "reports", "performance", "boot-performance-latest.json");
 const repeatedStartupMigrationSteps = new Set([
   "applyMesOrgStructureDefaults",
@@ -337,6 +368,399 @@ async function waitForWeeklyRuntime(client) {
   throw new Error(`Weekly control runtime did not render after lazy load: ${JSON.stringify(lastState)}`);
 }
 
+function makeNavigationQaUrl(moduleId, phase) {
+  const url = new URL("/", process.env.MES_QA_URL || "http://localhost:4174/");
+  url.searchParams.set("module", moduleId);
+  url.searchParams.set("qa-auth-bypass", "1");
+  url.searchParams.set("qa", "navigation-contract");
+  url.searchParams.set("qa_phase", phase);
+  return url.toString();
+}
+
+function countRequestPath(requests, pathname) {
+  return requests.filter((request) => request.pathname === pathname).length;
+}
+
+function assertSuccessfulApiRequests(requests, pathname, expectedCount, scope) {
+  const matches = requests.filter((request) => request.pathname === pathname);
+  assert(matches.length === expectedCount,
+    `${scope} must request ${pathname} ${expectedCount} time(s): ${JSON.stringify(matches)}`);
+  const unsuccessful = matches.filter((request) => request.failed || !Number.isFinite(request.status) || request.status < 200 || request.status >= 300);
+  assert(unsuccessful.length === 0,
+    `${scope} must receive successful ${pathname} response(s): ${JSON.stringify(unsuccessful)}`);
+}
+
+async function waitForApiResponses(events, pathname, expectedCount, scope) {
+  const startedAt = Date.now();
+  let matches = [];
+  while (Date.now() - startedAt < navigationTransitionReadyBudgetMs) {
+    matches = events.requests.filter((request) => request.pathname === pathname);
+    if (matches.length === expectedCount && matches.every((request) => request.failed || Number.isFinite(request.status))) return;
+    await delay(40);
+  }
+  throw new Error(`${scope} did not complete ${pathname} request(s): ${JSON.stringify(matches)}`);
+}
+
+function getExpectedNavigationProjectionSource() {
+  if (navigationRequiresServerProjection) return "server";
+  return navigationExpectedProjectionSource;
+}
+
+function assertKnownNavigationProjectionSource(source, scope) {
+  assert(["server", "snapshot-fallback"].includes(source),
+    `${scope} must expose an applied Planning projection source, received ${JSON.stringify(source)}.`);
+  const expected = getExpectedNavigationProjectionSource();
+  if (expected) {
+    assert(source === expected,
+      `${scope} must apply ${expected} Planning projection, received ${source}.`);
+  }
+}
+
+function getNavigationProjectionSource(probe, moduleId) {
+  if (moduleId === "planning") return probe.planningProjectionSource || "";
+  if (moduleId === "gantt") return probe.ganttProjectionSource || "";
+  return "";
+}
+
+async function setupNavigationContractPage(client, events) {
+  await client.send("Page.enable");
+  await client.send("Runtime.enable");
+  await client.send("Network.enable");
+  client.on("Network.requestWillBeSent", (params) => {
+    const url = String(params.request?.url || "");
+    try {
+      const request = {
+        requestId: String(params.requestId || ""),
+        pathname: new URL(url).pathname,
+        url,
+        status: null,
+        failed: "",
+      };
+      events.requests.push(request);
+      events.requestsById.set(request.requestId, request);
+    } catch {
+      // Ignore opaque browser-internal URLs.
+    }
+  });
+  client.on("Network.responseReceived", (params) => {
+    const request = events.requestsById.get(String(params.requestId || ""));
+    if (request) request.status = Number(params.response?.status || 0);
+  });
+  client.on("Network.loadingFailed", (params) => {
+    const request = events.requestsById.get(String(params.requestId || ""));
+    if (request) request.failed = String(params.errorText || "Network request failed");
+  });
+  client.on("Runtime.exceptionThrown", (params) => {
+    events.runtimeExceptions.push(String(params.exceptionDetails?.text || "Runtime exception"));
+  });
+  client.on("Runtime.consoleAPICalled", (params) => {
+    if (!["error", "assert"].includes(String(params.type || ""))) return;
+    events.consoleErrors.push((params.args || []).map((arg) => arg.value ?? arg.description ?? "").join(" "));
+  });
+  await client.send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `
+      (() => {
+        window.__MES_NAVIGATION_QA__ = {
+          documentId: globalThis.crypto?.randomUUID?.() || String(Date.now()) + Math.random(),
+          errors: [],
+        };
+        window.addEventListener("error", (event) => {
+          window.__MES_NAVIGATION_QA__.errors.push(String(event.error?.stack || event.message || "window error"));
+        });
+        window.addEventListener("unhandledrejection", (event) => {
+          window.__MES_NAVIGATION_QA__.errors.push(String(event.reason?.stack || event.reason || "unhandled rejection"));
+        });
+      })();
+    `,
+  });
+}
+
+async function setNavigationContractViewport(client) {
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1556,
+    height: 1006,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+}
+
+async function readNavigationProbe(client) {
+  return evaluate(client, () => {
+    const shell = document.querySelector("main.app-shell[data-layout-page]");
+    const qa = window.__MES_NAVIGATION_QA__ || {};
+    const navigation = performance.getEntriesByType("navigation");
+    return {
+      documentId: qa.documentId || "",
+      errors: Array.isArray(qa.errors) ? qa.errors : [],
+      module: new URL(window.location.href).searchParams.get("module") || "",
+      layoutPage: shell?.dataset?.layoutPage || "",
+      timeOrigin: Number(performance.timeOrigin || 0),
+      navigationCount: navigation.length,
+      planningProjectionSource: document.querySelector("[data-planning-projection-source]")?.getAttribute("data-planning-projection-source") || "",
+      ganttProjectionSource: document.querySelector("[data-gantt-planning-projection-source]")?.getAttribute("data-gantt-planning-projection-source") || "",
+      bodyText: String(document.body?.innerText || "").slice(0, 1200),
+      render: window.__MES_RENDER_PERFORMANCE__ || null,
+    };
+  });
+}
+
+async function waitForNavigationRoute(client, moduleId, budgetMs) {
+  const contract = navigationRouteContracts[moduleId];
+  assert(contract, `Missing navigation contract for ${moduleId}.`);
+  const startedAt = Date.now();
+  let lastProbe = null;
+  while (Date.now() - startedAt < budgetMs) {
+    lastProbe = await evaluate(client, ({ selectors, projection }) => {
+      const shell = document.querySelector("main.app-shell[data-layout-page]");
+      const isVisible = (element) => {
+        if (!element) return false;
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const readySelector = selectors.find((selector) => isVisible(document.querySelector(selector))) || "";
+      const projectionSource = projection
+        ? (document.querySelector(projection.selector)?.getAttribute(projection.attribute) || "")
+        : "";
+      const bodyText = String(document.body?.innerText || "");
+      return {
+        module: new URL(window.location.href).searchParams.get("module") || "",
+        layoutPage: shell?.dataset?.layoutPage || "",
+        readySelector,
+        projectionSource,
+        startupError: bodyText.includes("Интерфейс не удалось запустить")
+          || bodyText.includes("Не удалось загрузить график")
+          || bodyText.includes("Модуль недоступен"),
+        bodyLength: bodyText.length,
+      };
+    }, { selectors: contract.selectors, projection: contract.projection || null });
+    if (lastProbe.startupError) {
+      throw new Error(`Route ${moduleId} entered a startup-error boundary: ${JSON.stringify(lastProbe)}`);
+    }
+    if (lastProbe.module === moduleId
+      && lastProbe.layoutPage === moduleId
+      && lastProbe.readySelector
+      && (!contract.projection
+        || !getExpectedNavigationProjectionSource()
+        || lastProbe.projectionSource === getExpectedNavigationProjectionSource())
+      && lastProbe.bodyLength > 40) {
+      return { ...lastProbe, readyMs: Date.now() - startedAt };
+    }
+    await delay(80);
+  }
+  throw new Error(`Route ${moduleId} did not become ready in ${budgetMs} ms: ${JSON.stringify(lastProbe)}`);
+}
+
+async function clickNavigationModuleTab(client, moduleId) {
+  const target = await evaluate(client, (targetModule) => {
+    const isVisible = (element) => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const candidates = [...document.querySelectorAll(`.module-tabs .module-tab[data-module="${targetModule}"]`)];
+    const button = candidates.find(isVisible);
+    if (!button) {
+      return {
+        availableModules: [...document.querySelectorAll(".module-tabs .module-tab[data-module]")]
+          .map((element) => ({
+            module: element.dataset.module || "",
+            visible: isVisible(element),
+          })),
+      };
+    }
+    button.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const rect = button.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, moduleId);
+  assert(target && Number.isFinite(target.x) && Number.isFinite(target.y),
+    `Visible module tab is missing for ${moduleId}: ${JSON.stringify(target?.availableModules || [])}`);
+  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: target.x, y: target.y, button: "left", clickCount: 1 });
+  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", clickCount: 1 });
+}
+
+async function ensureNavigationMenuVisible(client) {
+  const inspect = () => evaluate(client, () => {
+    const isVisible = (element) => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const visibleModuleTabs = [...document.querySelectorAll(".module-tabs .module-tab[data-module]")]
+      .filter(isVisible)
+      .map((element) => element.dataset.module || "");
+    const focusToggle = [...document.querySelectorAll("[data-toggle-focus-mode]")]
+      .find(isVisible);
+    if (visibleModuleTabs.length) return { visibleModuleTabs, focusToggle: null };
+    if (!focusToggle) return { visibleModuleTabs, focusToggle: null };
+    const rect = focusToggle.getBoundingClientRect();
+    return {
+      visibleModuleTabs,
+      focusToggle: {
+        pressed: focusToggle.getAttribute("aria-pressed") || "",
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      },
+    };
+  });
+  const initial = await inspect();
+  if (initial.visibleModuleTabs.length) return;
+  assert(initial.focusToggle?.pressed === "true", `Module navigation is not visible and focus mode cannot be exited: ${JSON.stringify(initial)}`);
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: initial.focusToggle.x,
+    y: initial.focusToggle.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: initial.focusToggle.x,
+    y: initial.focusToggle.y,
+    button: "left",
+    clickCount: 1,
+  });
+  const startedAt = Date.now();
+  let final = initial;
+  while (Date.now() - startedAt < navigationTransitionReadyBudgetMs) {
+    final = await inspect();
+    if (final.visibleModuleTabs.length) return;
+    await delay(80);
+  }
+  throw new Error(`Module navigation stayed hidden after exiting focus mode: ${JSON.stringify(final)}`);
+}
+
+function assertNavigationNoErrors(events, probe, scope) {
+  assert(events.runtimeExceptions.length === 0, `${scope} raised runtime exceptions: ${JSON.stringify(events.runtimeExceptions)}`);
+  assert(events.consoleErrors.length === 0, `${scope} logged console errors: ${JSON.stringify(events.consoleErrors)}`);
+  assert((probe.errors || []).length === 0, `${scope} raised window errors: ${JSON.stringify(probe.errors)}`);
+}
+
+async function runNavigationContract() {
+  const reportPath = getArg("--report", join(process.cwd(), "reports", "performance", "navigation-latest.json"));
+  if (navigationRequiresServerProjection) {
+    assert(String(process.env.MES_QA_URL || "").trim(),
+      "Server navigation QA requires MES_QA_URL to point at the running server environment.");
+  }
+  const direct = [];
+  for (const moduleId of navigationDirectModules) {
+    const chrome = await launchChrome();
+    try {
+      const events = { requests: [], requestsById: new Map(), runtimeExceptions: [], consoleErrors: [] };
+      await setupNavigationContractPage(chrome.client, events);
+      await setNavigationContractViewport(chrome.client);
+      const startedAt = Date.now();
+      await chrome.client.send("Page.navigate", { url: makeNavigationQaUrl(moduleId, `direct-${moduleId}`) });
+      const ready = await waitForNavigationRoute(chrome.client, moduleId, navigationDirectReadyBudgetMs);
+      const expectedEndpoint = navigationRouteContracts[moduleId].endpoint;
+      if (expectedEndpoint) await waitForApiResponses(events, expectedEndpoint, 1, `Direct ${moduleId}`);
+      await delay(180);
+      const probe = await readNavigationProbe(chrome.client);
+      assertNavigationNoErrors(events, probe, `Direct ${moduleId}`);
+      if (navigationRouteContracts[moduleId].projection) {
+        assertKnownNavigationProjectionSource(getNavigationProjectionSource(probe, moduleId), `Direct ${moduleId}`);
+      }
+      assert(ready.readyMs <= navigationDirectReadyBudgetMs, `Direct ${moduleId} took ${ready.readyMs} ms, budget is ${navigationDirectReadyBudgetMs} ms.`);
+      if (expectedEndpoint) {
+        assertSuccessfulApiRequests(events.requests, expectedEndpoint, 1, `Direct ${moduleId}`);
+      }
+      if (moduleId === "gantt") {
+        assert(countRequestPath(events.requests, "/api/v1/planning/work-orders/bootstrap") === 0,
+          `Direct Gantt must not request the Planning workbench bootstrap: ${JSON.stringify(events.requests)}`);
+      }
+      direct.push({
+        module: moduleId,
+        readyMs: Date.now() - startedAt,
+        route: ready,
+        requests: events.requests,
+        render: probe.render,
+      });
+    } finally {
+      await cleanupChrome(chrome);
+    }
+  }
+
+  const chrome = await launchChrome();
+  let sequence;
+  try {
+    const events = { requests: [], requestsById: new Map(), runtimeExceptions: [], consoleErrors: [] };
+    await setupNavigationContractPage(chrome.client, events);
+    await setNavigationContractViewport(chrome.client);
+    await chrome.client.send("Page.navigate", { url: makeNavigationQaUrl("planning", "sequence") });
+    const firstReady = await waitForNavigationRoute(chrome.client, "planning", navigationDirectReadyBudgetMs);
+    await waitForApiResponses(events, "/api/v1/planning/work-orders/bootstrap", 1, "Sequence initial Planning");
+    await ensureNavigationMenuVisible(chrome.client);
+    const firstProbe = await readNavigationProbe(chrome.client);
+    assertNavigationNoErrors(events, firstProbe, "Sequence initial Planning");
+    assertSuccessfulApiRequests(events.requests, "/api/v1/planning/work-orders/bootstrap", 1, "Sequence initial Planning");
+    assertKnownNavigationProjectionSource(getNavigationProjectionSource(firstProbe, "planning"), "Sequence initial Planning");
+    const stableDocument = {
+      documentId: firstProbe.documentId,
+      timeOrigin: firstProbe.timeOrigin,
+      navigationCount: firstProbe.navigationCount,
+    };
+    const transitions = [{
+      module: "planning",
+      readyMs: firstReady.readyMs,
+      route: firstReady,
+      requests: events.requests.slice(),
+      render: firstProbe.render,
+    }];
+    for (const moduleId of navigationSequence.slice(1)) {
+      const requestStart = events.requests.length;
+      await clickNavigationModuleTab(chrome.client, moduleId);
+      const ready = await waitForNavigationRoute(chrome.client, moduleId, navigationTransitionReadyBudgetMs);
+      const requestDelta = events.requests.slice(requestStart);
+      if (moduleId === "weeklyProductionControl") {
+        await waitForApiResponses({ requests: requestDelta }, "/api/v1/planning/period", 1, "Weekly transition");
+      }
+      if (moduleId === "gantt") {
+        await waitForApiResponses({ requests: requestDelta }, "/api/v1/planning/work-orders/projection", 1, "Gantt transition");
+      }
+      const probe = await readNavigationProbe(chrome.client);
+      assertNavigationNoErrors(events, probe, `Sequence transition to ${moduleId}`);
+      if (navigationRouteContracts[moduleId].projection) {
+        assertKnownNavigationProjectionSource(getNavigationProjectionSource(probe, moduleId), `Sequence transition to ${moduleId}`);
+      }
+      assert(probe.documentId === stableDocument.documentId, `Navigation to ${moduleId} reloaded the document.`);
+      assert(probe.timeOrigin === stableDocument.timeOrigin, `Navigation to ${moduleId} changed performance.timeOrigin.`);
+      assert(probe.navigationCount === stableDocument.navigationCount, `Navigation to ${moduleId} created a document navigation.`);
+      assert(ready.readyMs <= navigationTransitionReadyBudgetMs,
+        `Transition to ${moduleId} took ${ready.readyMs} ms, budget is ${navigationTransitionReadyBudgetMs} ms.`);
+      if (moduleId === "weeklyProductionControl") {
+        assertSuccessfulApiRequests(requestDelta, "/api/v1/planning/period", 1, "Weekly transition");
+      }
+      if (moduleId === "gantt") {
+        assertSuccessfulApiRequests(requestDelta, "/api/v1/planning/work-orders/projection", 1, "Gantt transition");
+        assert(countRequestPath(requestDelta, "/api/v1/planning/work-orders/bootstrap") === 0,
+          `Gantt transition must not request another workbench bootstrap: ${JSON.stringify(requestDelta)}`);
+      }
+      transitions.push({ module: moduleId, readyMs: ready.readyMs, route: ready, requests: requestDelta, render: probe.render });
+    }
+    sequence = { stableDocument, transitions, requests: events.requests };
+  } finally {
+    await cleanupChrome(chrome);
+  }
+
+  const audit = {
+    checkedAt: new Date().toISOString(),
+    expectedProjectionSource: getExpectedNavigationProjectionSource() || "any-applied-source",
+    directReadyBudgetMs: navigationDirectReadyBudgetMs,
+    transitionReadyBudgetMs: navigationTransitionReadyBudgetMs,
+    direct,
+    sequence,
+  };
+  await mkdir(dirname(reportPath), { recursive: true });
+  await writeFile(reportPath, `${JSON.stringify(audit, null, 2)}\n`);
+  console.log("MES navigation performance QA");
+  direct.forEach((entry) => console.log(`- direct ${entry.module}: ${entry.route.readyMs} ms`));
+  sequence.transitions.forEach((entry) => console.log(`- SPA ${entry.module}: ${entry.readyMs} ms`));
+  console.log(`- report: ${reportPath}`);
+  console.log("OK: direct and SPA navigation contracts are within guard budgets.");
+}
+
 function getStep(report, stepName) {
   return (report.entries || []).find((entry) => entry.step === stepName) || null;
 }
@@ -347,6 +771,10 @@ function getStepMs(step = null) {
 }
 
 async function main() {
+  if (process.argv.includes("--navigation-contract")) {
+    await runNavigationContract();
+    return;
+  }
   const expectQaInspector = process.argv.includes("--expect-qa-inspector");
   const inspectorUrl = new URL(defaultUrl);
   if (expectQaInspector) inspectorUrl.searchParams.set("qa_inspector", "1");

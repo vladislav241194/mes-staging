@@ -149,7 +149,7 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
       : "Выберите заказ-наряд в боковой панели.";
     if (!routes.length) {
       return `
-        <section class="planning-empty-page planning-order-empty" data-layout="main-content" aria-label="${WORK_ORDERS_MODULE_LABEL}">
+        <section class="planning-empty-page planning-order-empty" data-layout="main-content" data-planning-projection-source="${escapeAttribute(projectionSource)}" aria-label="${WORK_ORDERS_MODULE_LABEL}">
           <section class="planning-empty-panel">
             <div class="planning-empty-icon">${icon("calendar")}</div>
             <div>
@@ -167,7 +167,7 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
       sidebar: renderPlanningWorkbenchQueue(routes, activeRoute),
       workspaceClassName: "planning-order-main",
       visualContract: "ops-soft-v1 workbench-sidebar",
-      attributes: `data-planning-active-route-id="${escapeAttribute(activeRoute?.id || "")}" data-planning-projection-source="${projectionSource}"`,
+      attributes: `data-planning-active-route-id="${escapeAttribute(activeRoute?.id || "")}" data-planning-projection-source="${escapeAttribute(projectionSource)}"`,
       header: renderUiModuleHeader({
         eyebrow: "Планирование",
         title: WORK_ORDERS_MODULE_LABEL,

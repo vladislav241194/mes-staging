@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.51";
+const APP_VERSION_FALLBACK = "v.1.499.52";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -6220,6 +6220,9 @@ function renderCurrentModule(options = {}) {
     const warningsContext = getSlotWarnings(planningState);
     recordRenderPhase("gantt data model", ganttDataStartedAt);
     const ganttDomStartedAt = renderStartedAt ? performance.now() : 0;
+    const ganttPlanningProjectionSource = planningRuntimeProjectionState.status === "fallback"
+      ? "snapshot-fallback"
+      : planningRuntimeProjectionState.status;
     app.innerHTML = renderUiAppShell({
       pageId: "gantt",
       className: "planning-app-shell planning-gantt-shell",
@@ -6228,7 +6231,7 @@ function renderCurrentModule(options = {}) {
         <section class="planner-workspace planner-workspace-gantt-only" data-layout="planning-page" aria-label="Рабочая область планирования">
           ${renderToolbar()}
           <section class="planner-frame" aria-label="Производственный план">
-            <div class="gantt-shell ${ui.ganttDependencyEditMode ? "is-dependency-editing" : ""}" data-layout="gantt" data-gantt-shell data-ui-component="GanttRuntime" data-ui-runtime="gantt-v1">
+            <div class="gantt-shell ${ui.ganttDependencyEditMode ? "is-dependency-editing" : ""}" data-layout="gantt" data-gantt-shell data-ui-component="GanttRuntime" data-ui-runtime="gantt-v1" data-gantt-planning-projection-source="${escapeAttribute(ganttPlanningProjectionSource)}">
               <div class="gantt-canvas" data-ui-component="GanttCanvas" style="--left-width:${LEFT_WIDTH}px; --timeline-width:${scaleInfo.width}px; --total-height:${rowLayout.totalHeight}px;">
                 ${renderTimeline(scaleInfo)}
                 <div class="rows-layer" data-ui-component="GanttRowsLayer" style="top:${TIMELINE_HEIGHT}px;">
