@@ -60,6 +60,7 @@ export function createNomenclatureReactIslandHost({
       const target = root?.querySelector?.(NOMENCLATURE_REACT_TARGET);
       if (!(target instanceof HTMLElement)) return false;
       const revision = ++loadRevision;
+      const mountStartedAt = globalThis.performance?.now?.() ?? Date.now();
       try {
         const islandUrl = new URL("./react-islands/nomenclature.js", import.meta.url);
         const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
@@ -72,8 +73,10 @@ export function createNomenclatureReactIslandHost({
         island = mountNomenclatureReactIsland(target, getPayload?.(), {
           onError: (error) => requestFallback("render-error", error),
           onReady: ({ revision: readyRevision }) => {
+            const readyAt = globalThis.performance?.now?.() ?? Date.now();
             target.dataset.reactIslandState = "ready";
             target.dataset.reactIslandRevision = String(readyRevision);
+            target.dataset.reactIslandCommitMs = Math.max(0, readyAt - mountStartedAt).toFixed(2);
           },
           onRequestLegacy: () => requestFallback("unsupported-scope"),
         });

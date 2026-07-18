@@ -771,6 +771,9 @@ try {
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /reason === "unsupported-scope".*activeNomenclaturePane = "boards"/s);
+  const productionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/react_island_host.js"), "utf8");
+  assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
+  assert.match(productionHostSource, /performance\?\.now/);
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);

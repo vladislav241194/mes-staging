@@ -160,6 +160,7 @@ async function main() {
       const selected = document.querySelector('[data-ui-component="SelectableRow"].is-selected');
       return {
         revision: document.querySelector("[data-react-nomenclature-island]")?.getAttribute("data-react-island-revision"),
+        commitMs: Number(document.querySelector("[data-react-nomenclature-island]")?.getAttribute("data-react-island-commit-ms")),
         rowIds: [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].map((row) => (
           [...row.querySelectorAll("td")].map((cell) => cell.textContent.replace(/\s+/g, " ").trim()).join(" ")
         )),
@@ -171,6 +172,7 @@ async function main() {
       };
     });
     assert(initial.revision === "1", "initial React commit revision must be 1");
+    assert(Number.isFinite(initial.commitMs) && initial.commitMs >= 0 && initial.commitMs < 2000, `initial React commit must stay below the 2000 ms local gate, got ${initial.commitMs}`);
     assert(initial.rowIds.length === 4 && initial.rowIds[0].includes("Резистор 10 кОм"), "React must preserve the four-row payload order");
     assert(
       JSON.stringify(initial.rowIds) === JSON.stringify(legacyRows),
@@ -222,6 +224,7 @@ async function main() {
     console.log("Nomenclature React production-shell functional QA: OK");
     console.log("- same server payload: 4 legacy rows = 4 React rows");
     console.log("- filters, selection and detail: pass");
+    console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
     console.log("- legacy Boards fallback with 2 boards: pass");
   } catch (error) {

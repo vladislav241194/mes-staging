@@ -56,7 +56,7 @@ stale immutable browser response.
 - the build contains the independent island export;
 - the production island uses the automatic JSX runtime and does not depend on
   a browser-global `React` variable;
-- root bundle performance budget passes (`app 202,480 B` Brotli);
+- root bundle performance budget passes (`app 202,564 B` Brotli);
 - root production build passes at application version `v.1.499.70`;
 - frozen backend guard passes.
 
@@ -95,6 +95,11 @@ selection/detail agreement, counts `4 / 2 / 2`, the
 single-row Mechanics filter, disabled writes, legacy Boards fallback and an
 unchanged state file after the complete scenario. The temporary directory and
 browser profile are removed after every run.
+
+The production target records `data-react-island-commit-ms` when revision `1`
+commits. The automated local gate requires this end-to-end value (dynamic
+bundle load plus the first React commit) to stay below `2000 ms`; Pilot will
+use the same marker rather than a fixed wait.
 
 Run the complete checkpoint with:
 
