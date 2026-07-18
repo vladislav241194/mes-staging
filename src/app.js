@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.48";
+const APP_VERSION_FALLBACK = "v.1.499.49";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -3504,6 +3504,17 @@ let workOrdersReadModel = null;
 let planningRuntimeProjectionReadModel = null;
 let canApplyPlanningRuntimeProjection = () => false;
 let planningDomainApiModuleLoad = null;
+let planningWorkbenchSnapshotFallbackState = "idle";
+let planningWorkbenchSnapshotFallbackPromise = null;
+const PLANNING_STARTUP_PROJECTION_MODULE_IDS = new Set([
+  // These modules directly render the legacy route / step / slot graph. Keep
+  // their established BFF -> narrow-snapshot fallback until their own bounded
+  // domain read models replace it.
+  "planning",
+  "gantt",
+  "shiftMasterBoard",
+  "shiftWorkOrders",
+]);
 let planningRuntimeProjectionState = { status: "idle", error: "", revision: 0 };
 const systemDomainsReadModel = createSystemDomainsReadModel();
 const systemDomainsCommands = createSystemDomainsCommands();
@@ -3645,11 +3656,40 @@ function getDomainWorkOrderDetail(id) { return workOrdersReadModel?.getDetail?.(
 function hydratePlanningWorkOrderReadModel() {
   void hydratePlanningWorkbenchBootstrap({ renderOnChange: true });
 }
+async function restorePlanningWorkbenchSnapshotFallback() {
+  // During the initial Planning boot runtime_state owns the fallback request.
+  // A later deferred-module navigation needs the same compatibility path, but
+  // must not issue it repeatedly while a server incident persists.
+  if (!sharedStateStatus.enabled || planningWorkbenchSnapshotFallbackState === "applied") return false;
+  if (planningWorkbenchSnapshotFallbackPromise) return planningWorkbenchSnapshotFallbackPromise;
+  const hydratePlanningSnapshotFallback = runtimeStateService?.hydratePlanningSnapshotFallback;
+  if (typeof hydratePlanningSnapshotFallback !== "function") return false;
+  planningWorkbenchSnapshotFallbackState = "loading";
+  planningWorkbenchSnapshotFallbackPromise = Promise.resolve(hydratePlanningSnapshotFallback())
+    .then((hydrated) => {
+      if (!hydrated) return false;
+      planningWorkbenchSnapshotFallbackState = "applied";
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      planningWorkbenchSnapshotFallbackPromise = null;
+      if (planningWorkbenchSnapshotFallbackState === "loading") planningWorkbenchSnapshotFallbackState = "idle";
+    });
+  return planningWorkbenchSnapshotFallbackPromise;
+}
 async function hydratePlanningWorkbenchBootstrap({ force = false, renderOnChange = false } = {}) {
   if (!await ensurePlanningDomainApiModule()) return false;
   const requestedActiveRouteId = String(ui.activeRouteId || "");
   const result = await workOrdersReadModel.refreshWorkbenchBootstrap(requestedActiveRouteId, { force });
-  if (!result.ok) return false;
+  if (!result.ok) {
+    // Runtime fallback applies and renders the snapshot atomically. Rendering
+    // once more here would create two complete Planning paints after an API
+    // outage, precisely on the recovery path that must stay lightweight.
+    await restorePlanningWorkbenchSnapshotFallback();
+    return false;
+  }
+  planningWorkbenchSnapshotFallbackState = "idle";
   // A user can choose another order while a slow bootstrap is in flight.
   // Its response remains cached by the read model, but it must never restore
   // the earlier selection over the newer click.
@@ -5203,8 +5243,12 @@ function initializeRuntimeStateServiceModule() {
   // The Planning workbench renders from the compact order list and selected
   // detail. Loading every slot here makes its first frame pay Gantt's cost.
   // The full projection is requested only by an operation that needs it.
+  getInitialPlanningBootstrapMode: () => (
+    PLANNING_STARTUP_PROJECTION_MODULE_IDS.has(ui?.activeModule) ? "required" : "deferred"
+  ),
   onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap(),
   onPlanningSnapshotSynchronized: () => hydratePlanningWorkbenchBootstrap({ renderOnChange: true }),
+  shouldHydratePlanningAfterSharedSync: () => ui?.activeModule === "planning",
   onSystemDomainsSnapshotRetired: () => {
     // A tombstone proves the browser may no longer authorize or mutate from
     // its cached compatibility copy. Rehydrate only from PostgreSQL.

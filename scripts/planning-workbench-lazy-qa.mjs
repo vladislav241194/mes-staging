@@ -18,6 +18,8 @@ expect(source.includes('workOrdersReadModel.refreshWorkbenchBootstrap(requestedA
 expect(!source.includes('function hydratePlanningWorkOrderDetail('), "Planning must not race its compact bootstrap with the retired direct-detail loader.");
 expect(source.includes('if (String(ui.activeRouteId || "") !== requestedActiveRouteId) return true;'), "A stale bootstrap response must not restore an earlier route selection.");
 expect(source.includes('hydratePlanningWorkOrderReadModel();\n  const currentPage = app.querySelector'), "A route click must request the newly selected aggregate through the compact bootstrap.");
+expect(source.includes("await restorePlanningWorkbenchSnapshotFallback();"), "A deferred Planning entry must retain the runtime-owned compatibility fallback.");
+expect(!source.includes("if (restored && renderOnChange && ui.activeModule === \"planning\") render({ skipRememberScroll: true });"), "Planning fallback must not trigger a duplicate full render after runtime state already applied the snapshot.");
 expect(readModelSource.includes('async function refreshWorkbenchBootstrap(activeId = "", { force = false } = {})'), "Work-order read model must expose the combined workbench bootstrap reader.");
 expect(readModelSource.includes('`${url}/bootstrap${params}`'), "Workbench bootstrap must use the dedicated one-request endpoint.");
 expect(readModelSource.includes('bootstrapEntries: new Map()') && readModelSource.includes('bootstrapLoading: new Map()'), "Independent selections must retain keyed bootstrap cache and in-flight requests.");

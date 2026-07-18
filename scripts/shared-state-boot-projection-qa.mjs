@@ -9,9 +9,14 @@ const [runtimeState, app] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
 ]);
 
-assert(runtimeState.includes("const serverPlanningApplied = await onPlanningBootstrap().catch(() => false);"), "Boot must attempt the server-authoritative planning projection before the compatibility snapshot.");
-assert(runtimeState.includes("const initialValueKeys = serverPlanningApplied ? [] : [STORAGE_KEY];"), "Boot must retain the narrow planning-snapshot fallback when the server projection is unavailable.");
-assert(runtimeState.includes("? { emptyProjection: true }"), "A server-authoritative planning bootstrap must request metadata only from shared state.");
+assert(runtimeState.includes('getInitialPlanningBootstrapMode = () => "required"'), "Runtime state must expose an explicit initial Planning-bootstrap policy.");
+assert(runtimeState.includes('const metadataSnapshotPromise = requestSharedState("GET", null, { emptyProjection: true })'), "Shared-state metadata must begin in parallel with the Planning workbench bootstrap.");
+assert(runtimeState.includes('const serverPlanningApplied = requestedPlanningBootstrapMode === "required"'), "Only modules that require the Planning projection may invoke the workbench BFF during startup.");
+assert(runtimeState.includes('const metadataOnly = serverPlanningApplied || requestedPlanningBootstrapMode === "deferred";'), "Metadata-only polling must distinguish a healthy BFF from an intentionally deferred module.");
+assert(runtimeState.includes('snapshot = await requestSharedState("GET", null, { valueKeys: [STORAGE_KEY] });'), "Boot must retain the narrow planning-snapshot fallback when the server projection is unavailable.");
+assert(runtimeState.includes("async function hydratePlanningSnapshotFallback()"), "Deferred Planning entry must promote its fallback through runtime state.");
+assert(runtimeState.includes('setSharedStateValueProjection("planning");'), "Planning fallback must restore the full polling contract.");
+assert(runtimeState.includes("sharedStateValueProjectionEpoch"), "A late metadata poll must be fenced after Planning promotes the full projection.");
 assert(runtimeState.includes("const hasPlanningState = Object.prototype.hasOwnProperty.call(values, STORAGE_KEY);"), "Partial planning snapshots must be recognized explicitly.");
 assert(runtimeState.includes("options.allowSharedUiOnly !== true"), "An empty projection must be rejected unless it is the explicit shared-UI-only bootstrap path.");
 assert(runtimeState.includes("if (hasDirectoryState)"), "Directory state must be applied only when it was requested.");
@@ -38,6 +43,8 @@ assert(runtimeState.includes("onSystemDomainsSnapshotRetired = () => {}"), "Runt
 const reloadSystemDomainsState = app.match(/function reloadSystemDomainsState\([\s\S]*?\n}\n\nfunction updateSystemDomainRegistry/);
 assert(reloadSystemDomainsState, "System Domains reload path is missing.");
 assert((reloadSystemDomainsState[0].match(/hasObservedSystemDomainsPrimaryAuthority\(\)/g) || []).length >= 2, "Legacy System Domains reload must stop both before and after its async matrix import when PostgreSQL-primary is observed.");
+assert(app.includes("PLANNING_STARTUP_PROJECTION_MODULE_IDS"), "Modules that still render the legacy Planning graph must have an explicit bootstrap compatibility guard.");
+assert(app.includes("getInitialPlanningBootstrapMode: () => ("), "App must select the initial Planning bootstrap policy by active module.");
 assert(app.includes("onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap()"), "Runtime startup must wire the compact Planning workbench bootstrap.");
 assert(!app.includes("onPlanningBootstrap: () => hydratePlanningRuntimeProjection()"), "Planning startup must not fetch the complete runtime projection.");
 assert(runtimeState.includes("function isCompactSharedUiReason(reason = \"\")"), "Shared UI writes must have an explicit compact transport gate.");

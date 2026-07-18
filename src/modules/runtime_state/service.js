@@ -66,8 +66,13 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     normalizeShiftMasterAssignmentMatrix,
     normalizeShiftMasterRecordMap,
     notifySaveSuccess,
+    // A Planning workbench aggregate is only needed when the user opens the
+    // Planning module. Other modules can keep their own compact/read-only
+    // projections and must not make the workbench request during boot.
+    getInitialPlanningBootstrapMode = () => "required",
     onPlanningBootstrap = async () => false,
     onPlanningSnapshotSynchronized = () => {},
+    shouldHydratePlanningAfterSharedSync = () => false,
     onSystemDomainsSnapshotRetired = () => {},
     persistUiState,
     publishBootPerformance,
@@ -91,6 +96,8 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
   let bootstrapSnapshotLoadPromise = dependencies.getBootstrapSnapshotLoadPromise?.() ?? null;
   let directoryEntityRemovalAllowed = dependencies.getDirectoryEntityRemovalAllowed?.() ?? false;
   let planningEntityRemovalAllowed = dependencies.getPlanningEntityRemovalAllowed?.() ?? false;
+  let planningSnapshotFallbackPromise = null;
+  let sharedStateValueProjectionEpoch = 0;
 
   function syncRuntimeState() {
     ui = dependencies.getUi?.() ?? ui ?? {};
@@ -118,6 +125,14 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     dependencies.setBootstrapSnapshotLoadPromise?.(bootstrapSnapshotLoadPromise);
     dependencies.setDirectoryEntityRemovalAllowed?.(directoryEntityRemovalAllowed);
     dependencies.setPlanningEntityRemovalAllowed?.(planningEntityRemovalAllowed);
+  }
+
+  function setSharedStateValueProjection(valueProjection = "planning") {
+    const nextValue = valueProjection === "metadata" ? "metadata" : "planning";
+    if (sharedStateStatus.valueProjection === nextValue) return sharedStateValueProjectionEpoch;
+    sharedStateStatus.valueProjection = nextValue;
+    sharedStateValueProjectionEpoch += 1;
+    return sharedStateValueProjectionEpoch;
   }
 
 function handleDevResetParams() {
@@ -545,6 +560,56 @@ async function requestSharedState(method = "GET", payload = null, options = {}) 
   }
 }
 
+  async function hydratePlanningSnapshotFallback() {
+    // A compact workbench aggregate can be unavailable during a mixed-version
+    // deployment or an API outage. Promote the established compatibility
+    // projection through the runtime service, rather than merely writing it
+    // into localStorage from app.js: version, shared-UI base and subsequent
+    // polling must all return to the full planning contract together.
+    if (!window.fetch || isSharedStateTemporarilyDisabled()) return false;
+    if (planningSnapshotFallbackPromise) return planningSnapshotFallbackPromise;
+    planningSnapshotFallbackPromise = (async () => {
+      const previousValueProjection = sharedStateStatus.valueProjection;
+      try {
+        // Switch the poll contract before the request so a timer that happens
+        // to fire during this read cannot issue a later metadata-only poll.
+        setSharedStateValueProjection("planning");
+        const snapshot = await requestSharedState("GET", null, { valueKeys: [STORAGE_KEY] });
+        if (snapshot.configured === false) {
+          sharedStateStatus.enabled = false;
+          sharedStateStatus.configured = false;
+          rememberSharedStateDisabled();
+          return false;
+        }
+        const preserveLocalSharedUi = shouldPreserveLocalSharedUi();
+        const applied = applySharedStateSnapshot(snapshot, {
+          silent: true,
+          preserveLocalSharedUi,
+          allowSharedUiOnly: false,
+        });
+        if (!applied) {
+          setSharedStateValueProjection(previousValueProjection);
+          return false;
+        }
+        forgetSharedStateDisabled();
+        sharedStateStatus.configured = true;
+        sharedStateStatus.enabled = true;
+        // applySharedStateSnapshot stores the response revision and shared UI
+        // base atomically. Keep the matching full projection for future polls.
+        setSharedStateValueProjection("planning");
+        if (preserveLocalSharedUi) scheduleSharedStatePush("local-shared-ui");
+        return true;
+      } catch (error) {
+        setSharedStateValueProjection(previousValueProjection);
+        console.warn("[MES] Planning snapshot fallback is not available", error);
+        return false;
+      }
+    })().finally(() => {
+      planningSnapshotFallbackPromise = null;
+    });
+    return planningSnapshotFallbackPromise;
+  }
+
 function isCompactSharedUiReason(reason = "") {
   return reason === "shared-ui" || reason === "local-shared-ui";
 }
@@ -898,10 +963,17 @@ async function pollSharedState() {
     // full compatibility snapshot; the compact domain read model refreshes
     // planning data independently.
     const metadataOnly = sharedStateStatus.valueProjection === "metadata";
+    const valueProjectionEpoch = sharedStateValueProjectionEpoch;
     const snapshot = await requestSharedState("GET", null, {
       knownVersion: sharedStateStatus.version,
       ...(metadataOnly ? { emptyProjection: true } : {}),
     });
+    // A metadata-only request may have started just before Planning promoted
+    // itself to a full compatibility projection. Its late response has no
+    // route/step/slot values, so it must never advance the version after the
+    // full snapshot was applied; otherwise the next full poll could receive
+    // 304 and retain stale planning data.
+    if (metadataOnly && valueProjectionEpoch !== sharedStateValueProjectionEpoch) return;
     if (snapshot.configured === false) {
       sharedStateStatus.enabled = false;
       sharedStateStatus.configured = false;
@@ -960,15 +1032,38 @@ async function startSharedStateSync() {
     return;
   }
   try {
-    // Planning is the only projection needed for the first frame.  Heavy
-    // directories, System Domains and Specifications 2.0 are hydrated by
-    // their modules on first use.
-    const serverPlanningApplied = await onPlanningBootstrap().catch(() => false);
-    sharedStateStatus.valueProjection = serverPlanningApplied ? "metadata" : "planning";
-    const initialValueKeys = serverPlanningApplied ? [] : [STORAGE_KEY];
-    const snapshot = await requestSharedState("GET", null, serverPlanningApplied
-      ? { emptyProjection: true }
-      : { valueKeys: initialValueKeys });
+    // The workbench detail and the shared-state metadata do not depend on
+    // each other. Start the small metadata read immediately rather than
+    // waiting for the workbench BFF round-trip first. If the BFF is not
+    // usable, retain the established one-time planning-snapshot fallback.
+    //
+    // Opening another module must not import the Planning read model or call
+    // its endpoint at all. Its full planning projection was never applied by
+    // the compact BFF path, so deferring this request does not weaken that
+    // module's data authority; Planning still restores the compatibility
+    // snapshot if its server aggregate is unavailable on entry.
+    const requestedPlanningBootstrapMode = getInitialPlanningBootstrapMode() === "deferred"
+      ? "deferred"
+      : "required";
+    const metadataSnapshotPromise = requestSharedState("GET", null, { emptyProjection: true })
+      .then((snapshot) => ({ ok: true, snapshot }))
+      .catch((error) => ({ ok: false, error }));
+    const serverPlanningApplied = requestedPlanningBootstrapMode === "required"
+      ? await onPlanningBootstrap().catch(() => false)
+      : false;
+    const metadataOnly = serverPlanningApplied || requestedPlanningBootstrapMode === "deferred";
+    setSharedStateValueProjection(metadataOnly ? "metadata" : "planning");
+    let snapshot;
+    if (metadataOnly) {
+      const metadataResult = await metadataSnapshotPromise;
+      if (!metadataResult.ok) throw metadataResult.error;
+      snapshot = metadataResult.snapshot;
+    } else {
+      // The metadata request is deliberately allowed to finish in the
+      // background here. Its failure is captured above, so this legacy
+      // fallback never produces an unhandled rejection.
+      snapshot = await requestSharedState("GET", null, { valueKeys: [STORAGE_KEY] });
+    }
     if (snapshot.configured === false) {
       rememberSharedStateDisabled();
       await startBootstrapSnapshotBootstrap();
@@ -989,7 +1084,7 @@ async function startSharedStateSync() {
       const applied = applySharedStateSnapshot(snapshot, {
         silent: true,
         preserveLocalSharedUi,
-        allowSharedUiOnly: serverPlanningApplied,
+        allowSharedUiOnly: metadataOnly,
       });
       const applyFinishedAt = window.performance?.now?.() ?? Date.now();
       syncReport = {
@@ -1003,10 +1098,13 @@ async function startSharedStateSync() {
       } else if (preserveLocalSharedUi) {
         scheduleSharedStatePush("local-shared-ui");
       }
-      // PostgreSQL can now supply the three large planning collections. Run
-      // this only after the compatibility snapshot is fully applied so the
-      // caller can perform an exact parity gate instead of racing bootstrap.
-      void onPlanningSnapshotSynchronized();
+      // On a direct Planning boot this is the established post-sync parity
+      // gate. If the user navigated to Planning while a non-Planning boot was
+      // synchronizing, run exactly the same safe hydration after metadata is
+      // ready instead of leaving a cold local snapshot on screen.
+      if (serverPlanningApplied || shouldHydratePlanningAfterSharedSync()) {
+        void onPlanningSnapshotSynchronized();
+      }
     } else {
       await startBootstrapSnapshotBootstrap();
       const restoredSnapshot = restoreBootstrapSnapshotIfCurrentPlanningEmpty(getBootstrapSnapshot());
@@ -1805,6 +1903,7 @@ let planningCoreService = {};
     bindExternalStorageSync,
     scheduleSharedStatePush,
     hydrateSharedStateValues,
+    hydratePlanningSnapshotFallback,
     scheduleSharedStateSyncBootstrap,
     hasMeaningfulPlanningState,
     getBootstrapSnapshotCountsFromValues,
