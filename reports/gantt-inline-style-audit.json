@@ -1,49 +1,19 @@
 {
-  "generatedAt": "2026-07-05T20:34:48.353Z",
-  "sourcePath": "src/app.js",
-  "ranges": [
-    {
-      "id": "runtime-render",
-      "start": 6660,
-      "end": 6740
-    },
-    {
-      "id": "toolbar",
-      "start": 33680,
-      "end": 33860
-    },
-    {
-      "id": "timeline-rows",
-      "start": 33940,
-      "end": 34520
-    },
-    {
-      "id": "slots",
-      "start": 34880,
-      "end": 35520
-    },
-    {
-      "id": "dependencies",
-      "start": 35600,
-      "end": 35960
-    },
-    {
-      "id": "overlays",
-      "start": 37070,
-      "end": 37490
-    }
+  "generatedAt": "2026-07-18T13:26:18.114Z",
+  "sourcePaths": [
+    "src/modules/gantt_runtime/render.js"
   ],
   "summary": {
-    "entries": 16,
-    "geometry": 16,
+    "entries": 25,
+    "geometry": 25,
     "geometryCssVariable": 0,
     "visualViolations": 0,
     "unknownWarnings": 0
   },
   "entries": [
     {
-      "rangeId": "slots",
-      "line": 35148,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 547,
       "style": "height:${TIMELINE_HEIGHT}px;",
       "keys": [
         "height"
@@ -58,8 +28,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "slots",
-      "line": 35156,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 555,
       "style": "width:${scaleInfo.width}px; left:${LEFT_WIDTH}px;",
       "keys": [
         "width",
@@ -79,8 +49,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "slots",
-      "line": 35165,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 564,
       "style": "left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;",
       "keys": [
         "left",
@@ -100,8 +70,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "slots",
-      "line": 35178,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 577,
       "style": "left:${group.startIndex * scaleInfo.cellWidth}px; width:${group.dayCount * scaleInfo.cellWidth}px;",
       "keys": [
         "left",
@@ -121,8 +91,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "slots",
-      "line": 35189,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 588,
       "style": "left:${index * scaleInfo.cellWidth}px; width:${scaleInfo.cellWidth}px;",
       "keys": [
         "left",
@@ -142,8 +112,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "slots",
-      "line": 35219,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 618,
       "style": "left:${round(boundary.left)}px;",
       "keys": [
         "left"
@@ -158,8 +128,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "slots",
-      "line": 35241,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 640,
       "style": "height:${height}px; top:${layout.top}px;",
       "keys": [
         "height",
@@ -179,8 +149,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "slots",
-      "line": 35243,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 642,
       "style": "left:${LEFT_WIDTH}px; width:${scaleInfo.width}px; height:${height}px; --cell-width:${scaleInfo.cellWidth}px;",
       "keys": [
         "left",
@@ -210,8 +180,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "dependencies",
-      "line": 35628,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 930,
       "style": "height:${height}px;",
       "keys": [
         "height"
@@ -226,8 +196,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "dependencies",
-      "line": 35630,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 932,
       "style": "left:${round(segment.left)}px; width:${round(segment.width)}px;",
       "keys": [
         "left",
@@ -247,8 +217,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "dependencies",
-      "line": 35662,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 964,
       "style": "width:${progress}%",
       "keys": [
         "width"
@@ -263,8 +233,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "dependencies",
-      "line": 35691,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 993,
       "style": "width:${progress}%",
       "keys": [
         "width"
@@ -279,8 +249,247 @@
       "status": "ok"
     },
     {
-      "rangeId": "overlays",
-      "line": 37126,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1459,
+      "style": "left:${x}px; height:${height}px;",
+      "keys": [
+        "left",
+        "height"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1508,
+      "style": "--transfer-width:${round(visual.percent)}%;",
+      "keys": [
+        "--transfer-width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "--transfer-width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1737,
+      "style": "--segment-left:${round(segment.left)}%; --segment-width:${round(segment.width)}%;",
+      "keys": [
+        "--segment-left",
+        "--segment-width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "--segment-left",
+          "classification": "geometry"
+        },
+        {
+          "key": "--segment-width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1779,
+      "style": "--slot-validation-progress:${Math.round(state.validationPercent || 0)}%; --slot-fact-progress:${Math.round(state.factPercent || 0)}%;",
+      "keys": [
+        "--slot-validation-progress",
+        "--slot-fact-progress"
+      ],
+      "keyClassifications": [
+        {
+          "key": "--slot-validation-progress",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-fact-progress",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1854,
+      "style": "left:${segment.offset}px; width:${segment.width}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1881,
+      "style": "left:${segment.offset}px; width:${segment.width}px;",
+      "keys": [
+        "left",
+        "width"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1907,
+      "style": "left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;",
+      "keys": [
+        "left",
+        "top",
+        "width",
+        "height",
+        "--slot-height",
+        "--slot-radius"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-radius",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 1923,
+      "style": "left:${visualRect.x}px; top:${top}px; width:${visualRect.width}px; height:${height}px; --slot-height:${height}px; --slot-radius:${slotRadius}px;",
+      "keys": [
+        "left",
+        "top",
+        "width",
+        "height",
+        "--slot-height",
+        "--slot-radius"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--slot-radius",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 2262,
+      "style": "left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --dependency-clip-left:${ui.scrollLeft}px;",
+      "keys": [
+        "left",
+        "top",
+        "width",
+        "height",
+        "--dependency-clip-left"
+      ],
+      "keyClassifications": [
+        {
+          "key": "left",
+          "classification": "geometry"
+        },
+        {
+          "key": "top",
+          "classification": "geometry"
+        },
+        {
+          "key": "width",
+          "classification": "geometry"
+        },
+        {
+          "key": "height",
+          "classification": "geometry"
+        },
+        {
+          "key": "--dependency-clip-left",
+          "classification": "geometry"
+        }
+      ],
+      "classification": "geometry",
+      "status": "ok"
+    },
+    {
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 2433,
       "style": "left:${LEFT_WIDTH}px; top:${TIMELINE_HEIGHT}px; width:${scaleInfo.width}px; height:${rowLayout.totalHeight}px; --cell-width:${scaleInfo.cellWidth}px; --snap-width:${round(snapWidth)}px; --dependency-clip-left:${ui.scrollLeft}px;",
       "keys": [
         "left",
@@ -325,8 +534,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "overlays",
-      "line": 37130,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 2437,
       "style": "left:${round(columnLeft)}px; width:${round(columnWidth)}px;",
       "keys": [
         "left",
@@ -346,8 +555,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "overlays",
-      "line": 37131,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 2438,
       "style": "left:${round(rect.x)}px; top:${round(top)}px; width:${round(rect.width)}px; height:${round(height)}px;",
       "keys": [
         "left",
@@ -377,8 +586,8 @@
       "status": "ok"
     },
     {
-      "rangeId": "overlays",
-      "line": 37132,
+      "sourcePath": "src/modules/gantt_runtime/render.js",
+      "line": 2439,
       "style": "left:${round(guideX)}px;",
       "keys": [
         "left"

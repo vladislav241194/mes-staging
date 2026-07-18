@@ -6,18 +6,10 @@ import {
   GANTT_UI_VISUAL_INLINE_STYLE_KEYS,
 } from "../src/gantt_ui_contracts.js";
 
-const sourcePath = "src/app.js";
+const sourcePaths = ["src/modules/gantt_runtime/render.js"];
 const reportJsonPath = "reports/gantt-inline-style-audit.json";
 const reportMarkdownPath = "docs/gantt-inline-style-classification.md";
-
-const ganttRanges = [
-  { id: "runtime-render", start: 6660, end: 6740 },
-  { id: "toolbar", start: 33680, end: 33860 },
-  { id: "timeline-rows", start: 33940, end: 34520 },
-  { id: "slots", start: 34880, end: 35520 },
-  { id: "dependencies", start: 35600, end: 35960 },
-  { id: "overlays", start: 37070, end: 37490 },
-];
+const writeReport = process.argv.includes("--write-report");
 
 function parseStyleKeys(styleValue = "") {
   return styleValue
@@ -35,13 +27,9 @@ function classifyStyleKey(key = "") {
   return "unknown";
 }
 
-function findRange(lineNumber) {
-  return ganttRanges.find((range) => lineNumber >= range.start && lineNumber <= range.end) || null;
-}
-
 function buildMarkdown(report) {
   const rows = report.entries.map((entry) => (
-    `| ${entry.rangeId} | ${entry.line} | \`${entry.keys.join("`, `")}\` | ${entry.classification} | ${entry.status} |`
+    `| ${entry.sourcePath} | ${entry.line} | \`${entry.keys.join("`, `")}\` | ${entry.classification} | ${entry.status} |`
   ));
   return `# Gantt Inline Style Classification
 
@@ -59,7 +47,7 @@ Geometry inline styles are allowed because Gantt is an absolute-positioned timel
 
 ## Entries
 
-| range | line | style keys | classification | status |
+| source | line | style keys | classification | status |
 | --- | ---: | --- | --- | --- |
 ${rows.join("\n")}
 
@@ -79,39 +67,37 @@ async function writeJson(filePath, payload) {
 }
 
 async function run() {
-  const source = await readFile(sourcePath, "utf8");
-  const lines = source.split(/\r?\n/);
   const entries = [];
 
-  lines.forEach((line, index) => {
-    const lineNumber = index + 1;
-    const range = findRange(lineNumber);
-    if (!range || !line.includes("style=")) return;
-    const matches = [...line.matchAll(/style="([^"]*)"/g)];
-    matches.forEach((match) => {
-      const keys = parseStyleKeys(match[1]);
-      if (!keys.length) return;
-      const classes = keys.map(classifyStyleKey);
-      const hasVisual = classes.includes("visual");
-      const hasUnknown = classes.includes("unknown");
-      entries.push({
-        rangeId: range.id,
-        line: lineNumber,
-        style: match[1],
-        keys,
-        keyClassifications: keys.map((key, keyIndex) => ({ key, classification: classes[keyIndex] })),
-        classification: hasVisual ? "visual" : hasUnknown ? "unknown" : classes.includes("geometry") ? "geometry" : "geometry-css-variable",
-        status: hasVisual ? "fail" : hasUnknown ? "warn" : "ok",
+  for (const sourcePath of sourcePaths) {
+    const source = await readFile(sourcePath, "utf8");
+    const lines = source.split(/\r?\n/);
+    lines.forEach((line, index) => {
+      if (!line.includes("style=")) return;
+      const matches = [...line.matchAll(/style="([^"]*)"/g)];
+      matches.forEach((match) => {
+        const keys = parseStyleKeys(match[1]);
+        if (!keys.length) return;
+        const classes = keys.map(classifyStyleKey);
+        const hasVisual = classes.includes("visual");
+        const hasUnknown = classes.includes("unknown");
+        entries.push({
+          sourcePath,
+          line: index + 1,
+          style: match[1],
+          keys,
+          keyClassifications: keys.map((key, keyIndex) => ({ key, classification: classes[keyIndex] })),
+          classification: hasVisual ? "visual" : hasUnknown ? "unknown" : classes.includes("geometry") ? "geometry" : "geometry-css-variable",
+          status: hasVisual ? "fail" : hasUnknown ? "warn" : "ok",
+        });
       });
     });
-  });
-
+  }
   const visualViolations = entries.filter((entry) => entry.status === "fail");
   const unknownWarnings = entries.filter((entry) => entry.status === "warn");
   const report = {
     generatedAt: new Date().toISOString(),
-    sourcePath,
-    ranges: ganttRanges,
+    sourcePaths,
     summary: {
       entries: entries.length,
       geometry: entries.filter((entry) => entry.classification === "geometry").length,
@@ -124,17 +110,21 @@ async function run() {
     unknownWarnings,
   };
 
-  await writeJson(reportJsonPath, report);
-  await writeFile(reportMarkdownPath, buildMarkdown(report));
+  if (writeReport) {
+    await writeJson(reportJsonPath, report);
+    await writeFile(reportMarkdownPath, buildMarkdown(report));
+  }
 
   console.log("Gantt Inline Style Audit");
   console.log(`- entries: ${entries.length}`);
   console.log(`- visual violations: ${visualViolations.length}`);
   console.log(`- unknown warnings: ${unknownWarnings.length}`);
-  console.log(`- report: ${reportMarkdownPath}`);
+  console.log(writeReport
+    ? `- report: ${reportMarkdownPath}`
+    : "- report: not written (pass --write-report to refresh the tracked audit artifacts)");
 
   if (visualViolations.length) {
-    throw new Error(`Gantt visual inline styles detected: ${visualViolations.map((entry) => `${entry.rangeId}:${entry.line}`).join(", ")}`);
+    throw new Error(`Gantt visual inline styles detected: ${visualViolations.map((entry) => `${entry.sourcePath}:${entry.line}`).join(", ")}`);
   }
 }
 

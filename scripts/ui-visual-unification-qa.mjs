@@ -15,6 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const reportPath = path.join(rootDir, "reports", "ui-visual-unification.json");
 const strict = process.argv.includes("--strict");
+const writeReport = process.argv.includes("--write-report");
 
 const adoptionTargets = {
   renderUiFormField: 20,
@@ -224,8 +225,10 @@ const report = {
   effectiveFailures,
 };
 
-await fs.mkdir(path.dirname(reportPath), { recursive: true });
-await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+if (writeReport) {
+  await fs.mkdir(path.dirname(reportPath), { recursive: true });
+  await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+}
 
 console.log("MES UI Visual Unification QA");
 console.log(`Mode: ${strict ? "strict" : "non-strict"}`);
@@ -239,7 +242,9 @@ console.log(`FormField/FormGrid/FormActions: ${helperAdoption.renderUiFormField}
 console.log(`Toolbar + FilterBar: ${helperAdoption.toolbarAndFilterBar}`);
 console.log(`ModalFrame: ${helperAdoption.renderUiModalFrame}`);
 console.log(`Raw form controls: ${rawSourceControls.formControls}; buttons: ${rawSourceControls.buttons}; tables: ${rawSourceControls.tables}; inline styles: ${rawSourceControls.inlineStyles}`);
-console.log(`Report: ${path.relative(rootDir, reportPath)}`);
+console.log(writeReport
+  ? `Report: ${path.relative(rootDir, reportPath)}`
+  : "Report: not written (pass --write-report to save a JSON artifact).");
 
 warnings.forEach((message) => console.warn(`WARN: ${message}`));
 failures.forEach((message) => console.error(`FAIL: ${message}`));

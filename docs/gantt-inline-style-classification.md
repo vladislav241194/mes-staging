@@ -1,11 +1,11 @@
 # Gantt Inline Style Classification
 
-Generated: 2026-07-05T20:34:48.353Z
+Generated: 2026-07-18T13:26:18.114Z
 
 ## Summary
 
-- inline style entries: 16
-- geometry entries: 16
+- inline style entries: 25
+- geometry entries: 25
 - geometry CSS variable entries: 0
 - visual inline violations: 0
 - unknown inline warnings: 0
@@ -14,24 +14,33 @@ Geometry inline styles are allowed because Gantt is an absolute-positioned timel
 
 ## Entries
 
-| range | line | style keys | classification | status |
+| source | line | style keys | classification | status |
 | --- | ---: | --- | --- | --- |
-| slots | 35148 | `height` | geometry | ok |
-| slots | 35156 | `width`, `left` | geometry | ok |
-| slots | 35165 | `left`, `width` | geometry | ok |
-| slots | 35178 | `left`, `width` | geometry | ok |
-| slots | 35189 | `left`, `width` | geometry | ok |
-| slots | 35219 | `left` | geometry | ok |
-| slots | 35241 | `height`, `top` | geometry | ok |
-| slots | 35243 | `left`, `width`, `height`, `--cell-width` | geometry | ok |
-| dependencies | 35628 | `height` | geometry | ok |
-| dependencies | 35630 | `left`, `width` | geometry | ok |
-| dependencies | 35662 | `width` | geometry | ok |
-| dependencies | 35691 | `width` | geometry | ok |
-| overlays | 37126 | `left`, `top`, `width`, `height`, `--cell-width`, `--snap-width`, `--dependency-clip-left` | geometry | ok |
-| overlays | 37130 | `left`, `width` | geometry | ok |
-| overlays | 37131 | `left`, `top`, `width`, `height` | geometry | ok |
-| overlays | 37132 | `left` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 547 | `height` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 555 | `width`, `left` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 564 | `left`, `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 577 | `left`, `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 588 | `left`, `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 618 | `left` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 640 | `height`, `top` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 642 | `left`, `width`, `height`, `--cell-width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 930 | `height` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 932 | `left`, `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 964 | `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 993 | `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1459 | `left`, `height` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1508 | `--transfer-width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1737 | `--segment-left`, `--segment-width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1779 | `--slot-validation-progress`, `--slot-fact-progress` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1854 | `left`, `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1881 | `left`, `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1907 | `left`, `top`, `width`, `height`, `--slot-height`, `--slot-radius` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 1923 | `left`, `top`, `width`, `height`, `--slot-height`, `--slot-radius` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 2262 | `left`, `top`, `width`, `height`, `--dependency-clip-left` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 2433 | `left`, `top`, `width`, `height`, `--cell-width`, `--snap-width`, `--dependency-clip-left` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 2437 | `left`, `width` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 2438 | `left`, `top`, `width`, `height` | geometry | ok |
+| src/modules/gantt_runtime/render.js | 2439 | `left` | geometry | ok |
 
 ## Allowed Geometry Keys
 
