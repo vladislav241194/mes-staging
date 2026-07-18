@@ -4653,6 +4653,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     originalStart: toDate(slot.plannedStart),
     originalEnd: toDate(slot.plannedEnd),
     originalWorkCenterId: slot.workCenterId,
+    originalSlot: { ...slot },
     productionId: getSlotProductionContextId(slot),
     routeId: route?.id || "",
     targetRowId: getVisibleSlotRowId(slot),
@@ -4663,13 +4664,45 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
 
   document.body.classList.add("is-manipulating");
 
+  const restoreCancelledDrag = (drag) => {
+    if (!drag?.moved || !drag.originalSlot) return false;
+    const targetSlot = planningState.slots.find((item) => item.id === slotId);
+    if (!targetSlot) return false;
+    Object.keys(targetSlot).forEach((key) => {
+      if (!(key in drag.originalSlot)) delete targetSlot[key];
+    });
+    Object.assign(targetSlot, drag.originalSlot);
+    return true;
+  };
+
+  const clearDragListeners = () => {
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    document.removeEventListener("pointercancel", onCancel);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    window.removeEventListener("blur", onWindowBlur);
+  };
+
+  const finishDrag = ({ persist = false } = {}) => {
+    const drag = ui.drag;
+    clearDragListeners();
+    document.body.classList.remove("is-manipulating");
+    if (!drag) return;
+    ui.drag = null;
+    if (persist && drag.moved) {
+      suppressNextGanttSlotClick(slotId);
+      cascadeIfEnabled(slotId);
+      persistState();
+      notifySaveSuccess("Операция Ганта сохранена");
+      render();
+      return;
+    }
+    if (restoreCancelledDrag(drag)) render();
+  };
+
   const onMove = (moveEvent) => {
     if (!ui.drag) return;
     moveEvent.preventDefault();
-    ui.drag = {
-      ...ui.drag,
-      moved: true,
-    };
 
     const dx = moveEvent.clientX - ui.drag.startClientX;
     const snapMs = ui.drag.snapMs || getGanttSnapMs();
@@ -4678,6 +4711,10 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     if (!targetSlot) {
       return;
     }
+    ui.drag = {
+      ...ui.drag,
+      moved: true,
+    };
 
     if (mode === "resize") {
       const minEnd = addMs(ui.drag.originalStart, snapMs);
@@ -4708,26 +4745,18 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     render();
   };
 
-  const onUp = () => {
-    document.body.classList.remove("is-manipulating");
-    document.removeEventListener("pointermove", onMove);
-    document.removeEventListener("pointerup", onUp);
-    const moved = ui.drag?.moved;
-    ui.drag = null;
-    if (moved) {
-      suppressNextGanttSlotClick(slotId);
-      cascadeIfEnabled(slotId);
-      persistState();
-      notifySaveSuccess("Операция Ганта сохранена");
-      render();
-    }
-    setTimeout(() => {
-      if (moved) ui.drag = null;
-    }, 0);
+  const onUp = () => finishDrag({ persist: true });
+  const onCancel = () => finishDrag();
+  const onWindowBlur = () => finishDrag();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") finishDrag();
   };
 
   document.addEventListener("pointermove", onMove, { passive: false });
   document.addEventListener("pointerup", onUp);
+  document.addEventListener("pointercancel", onCancel);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  window.addEventListener("blur", onWindowBlur);
 }
 
 function suppressNextGanttSlotClick(slotId) {
