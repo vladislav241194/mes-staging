@@ -2,16 +2,14 @@
   "version": 1,
   "mode": "corrective-phase-b-status-budget",
   "minRenderUiStatusTokenCalls": 38,
-  "reviewNote": "Four non-actionable Gantt toolbar counters and the retired shift-master assignment matrix chip were intentionally removed; the remaining shared status-token adoption is still protected.",
-  "minTokenizedStatusBadgeChipPatterns": 9,
+  "reviewNote": "Four non-actionable Gantt toolbar counters, the retired shift-master assignment matrix chip, and the retired Products specification chips were intentionally removed; the remaining shared status-token adoption is still protected.",
+  "minTokenizedStatusBadgeChipPatterns": 7,
   "maxRawLocalStatusColors": 6,
   "tokenizedPatterns": [
     { "pattern": "status-pill", "action": "token-only", "reason": "legacy generic status class is styled through styles/ui/status.css" },
     { "pattern": "deadline-badge", "action": "token-only", "reason": "legacy deadline badge is classified as a status alias outside Gantt" },
     { "pattern": "auth-prototype-role-marker", "action": "token-only", "reason": "master marker uses neutral status tokens" },
     { "pattern": "director-order-chip", "action": "token-only", "reason": "director order chip tones use neutral/warning/danger status tokens" },
-    { "pattern": "speki-section-chip", "action": "token-only", "reason": "specification structure chips use neutral/info/warning/success status tokens" },
-    { "pattern": "speki-section-icon-badge", "action": "token-only", "reason": "specification icon badges use status and semantic surface tokens" },
     { "pattern": "route-type-icon-badge", "action": "token-only", "reason": "route type badges use status and semantic surface tokens" },
     { "pattern": "route-step-order-badge", "action": "token-only", "reason": "route step order badge fallbacks point to MES UI tokens" },
     { "pattern": "shift-work-orders-group-status", "action": "token-only", "reason": "shift work orders grouping status uses shared muted text token" }
