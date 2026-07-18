@@ -75,6 +75,24 @@ release pointer, restarts the service again, and retains both failed and
 previous artifacts for diagnosis. Use `--dry-run` to validate a candidate
 without changing the active target.
 
+## Reflect an activated pilot release in GitHub `main`
+
+After activation, make the exact active release visible on the default GitHub
+branch from the same clean isolated worktree:
+
+```bash
+npm run release:promote-main -- --contour=pilot --release-id=<version-and-commit>
+```
+
+This is deliberately a separate finalization step rather than an implicit side
+effect of activation. It reads the server's `active-release.json` and release
+manifest, requires the exact release pointer, recorded local/public health and
+freshly fetched Git provenance, then fetches `origin/main`. It only permits a
+fast-forward push of the manifest commit to `main`; it never checks out,
+resets, merges, rebases, or force-pushes a branch. A protected or diverged
+`main` is reported as a Git finalization failure while the already healthy
+pilot remains active. Use `--dry-run` to inspect the pending promotion.
+
 `deploy-contour` is now intentionally refused once an app path is a release
 pointer: direct `rsync` would mutate an immutable artifact and invalidate
 rollback. Emergency recovery must activate a known staged release or first

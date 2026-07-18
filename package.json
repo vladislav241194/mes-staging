@@ -20,6 +20,8 @@
     "release:stage:staging": "node scripts/release-stage.mjs --contour=staging",
     "release:activate:pilot": "node scripts/release-activate.mjs --contour=pilot",
     "release:activate:staging": "node scripts/release-activate.mjs --contour=staging",
+    "release:promote-main": "node scripts/release-promote-main.mjs",
+    "qa:release-main-promotion": "node scripts/release-main-promotion-qa.mjs",
     "promote:pilot-to-staging": "node scripts/promote-contour.mjs --action=promote --from=pilot --to=staging",
     "promote:pilot-to-staging:dry": "node scripts/promote-contour.mjs --action=promote --from=pilot --to=staging --dry-run",
     "rollback:staging:last-dist": "node scripts/promote-contour.mjs --action=rollback --to=staging",
