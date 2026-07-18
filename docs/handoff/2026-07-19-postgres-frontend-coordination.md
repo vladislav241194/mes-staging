@@ -3,19 +3,19 @@
 Date: 2026-07-19  
 PostgreSQL worktree: `/Users/vladislav/Documents/Codex/2026-05-30/mes-postgres-primary`  
 Branch: `codex/postgres-primary-slice`  
-Base / merge-base with `origin/main`: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`  
-Current PostgreSQL branch commit: `96ed910`
+Accepted PostgreSQL release commit: `c3b405993c1b723dbb8dc6dedc5b4bb423f87f51`
 
 Handoff commit at first publication: `4f0fbae`
 
-Visible pilot version: `v.1.499.69`
-Active pilot release: `v.1.499.69-9404ee4`
+Visible pilot version: `v.1.499.70`
+Active pilot release: `v.1.499.70-c3b4059`
+Integrated main: `origin/main` contains accepted release commit `c3b405993c1b723dbb8dc6dedc5b4bb423f87f51`
 
 This handoff contains no credentials. Pilot QA access must be obtained directly from the owner and must not be copied into Git, task handoffs, logs, screenshots, or memory.
 
 ## Current state
 
-The PostgreSQL slice is still in progress and must be integrated as one vertical unit only after the remaining command-surface activation, final release gates, merge to `main`, and final live acceptance.
+The PostgreSQL code and release slice is integrated and live. One root-controlled rollout operation remains before the global PostgreSQL goal can be declared complete: enable the Specifications 2.0 revision-publication and attachment command surfaces, then repeat their live acceptance.
 
 Already confirmed on the live pilot:
 
@@ -30,16 +30,27 @@ Already confirmed on the live pilot:
 - Shift Execution shared-state payloads are tombstoned under server authority; its compatibility archive and authority digest match.
 - Bootstrap snapshot restore is disabled by default on protected pilot/staging environments and is retained only as an explicit emergency fallback.
 - A real staging rollback drill between two manifest-verified, commit-derived releases completed successfully; health checks passed after rollback.
+- Compatibility backup/export creation is restricted to `0600`; every deploy-owned existing file in `/srv/mes/pilot/backups` was also restricted to `0600`.
+- `qa:stabilize` is green, including all domain migration, authority, Specifications 2.0, release provenance, rollback and build gates.
+- Staging and pilot were built from the same commit with identical source and dist digests.
+- The live browser loaded `v.1.499.70` assets and rendered PostgreSQL-backed Workshop, Structure and Employees (`19/19/49/76/6`) and Specifications 2.0 (`91/18/66`).
+- The exact active release commit was fast-forwarded to `origin/main`.
 
 Still pending in the PostgreSQL task:
 
-- Root-level activation and live validation of the Specifications 2.0 publication and attachment command flags. The `deploy` account cannot install the required systemd drop-ins, so this exact operation requires the authorized root operator.
-- Restricting permissions on compatibility backup/export files and committing the corresponding storage hardening.
-- Final full QA, merge to `main`, visible version bump, commit-derived pilot release, and final live UI/API acceptance.
+- An authorized root operator must run these exact commands on the pilot VM:
 
-## Files owned by the PostgreSQL task
+  ```bash
+  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-publication.sh
+  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-attachments.sh
+  sudo find /srv/mes/pilot/backups -maxdepth 1 -type f ! -perm 0600 -exec chmod 0600 -- {} +
+  ```
 
-The following files differ from `origin/main` and must not be edited in parallel without explicit coordination:
+- The PostgreSQL agent then verifies both readiness flags, authenticated UI server-first behavior, data counts and final health. The `deploy` account cannot perform the three root operations; exact non-interactive sudo was preflighted and rejected without changing service state.
+
+## Files changed by the integrated PostgreSQL slice
+
+The following were principal shared files in the completed slice. They are now in `origin/main`; this list is historical overlap context, not an assertion that they still differ from main:
 
 - `app-version.json`
 - `db/migrations/025_shift_execution_postgres_authority.sql`
@@ -78,7 +89,7 @@ Not changed by this PostgreSQL branch at the handoff point:
 - `server.js`
 - `scripts/build.mjs`
 
-Do not infer that these three files are generally free: coordinate before changing shared build files. During the current goal, `package-lock.json` has one designated owner: the PostgreSQL task.
+Do not infer that these three files are generally free: inspect the current Git diff before changing shared build files.
 
 ## API and data contracts
 
@@ -109,41 +120,30 @@ Frontend modules depending on this migration:
 - Planning/Gantt
 - Specifications 2.0
 
-## Ownership until PostgreSQL acceptance
+## Ownership after release acceptance
 
 | Area | PostgreSQL task | Frontend task |
 | --- | --- | --- |
-| Database schema, migrations, repositories | Changes and verifies | Does not touch |
-| `/api/v1/*` domain contracts and server adapters | Changes and freezes contract | Consumes through adapters only |
-| `src/app.js`, login hydration, runtime reconciliation | Owns until the live scenario is green | Does not touch |
-| Shift Execution server projection/bridge | Owns | Does not touch |
-| Pure module rendering and CSS | Touches only for required API wiring | May change in isolated files after confirming no overlap |
+| Database schema, migrations, repositories | Owns remaining root rollout validation | Does not touch without a new coordinated backend task |
+| `/api/v1/*` domain contracts and server adapters | Contracts frozen at `c3b4059` | Consumes through adapters only |
+| `src/app.js`, login hydration, runtime reconciliation | No pending code edit | May change after rebasing onto `origin/main` and checking overlap |
+| Shift Execution server projection/bridge | Accepted and frozen | Consumes only |
+| Pure module rendering and CSS | No pending edit | May change after rebasing and normal QA |
 | Legacy UI | Keeps operational and changes only for vertical PostgreSQL wiring | Preserves until replacement acceptance |
 | Shared build files | Changes only by agreement | Changes only by agreement |
-| `package-lock.json` | Sole owner during this goal | Does not edit in parallel |
+| `package-lock.json` | No pending edit | Normal single-owner coordination per change |
 
 The current product frontend is legacy JavaScript/HTML/CSS, not React/TypeScript. Any React proof of concept must remain in an isolated branch and isolated files, must preserve the legacy UI, and must not change business logic, API contracts, or the data model.
 
-## Files temporarily blocked for parallel frontend edits
+## Parallel frontend edits
 
-Until the PostgreSQL task publishes a green live scenario and final contract checkpoint, do not change:
-
-- `src/app.js`
-- `src/modules/runtime_state/service.js`
-- System Domains hydration/reconciliation code
-- Shift Master Board server projection/bridge code
-- Shift Execution domain API/repository/authority code
-- the QA scripts validating those paths
-- `package.json`, `index.html`, `app-version.json`, or `package-lock.json`
-
-Pure visual work outside these files may proceed in a separate branch after checking the actual Git diff, not only this document.
+The blanket PostgreSQL file lock is released because the accepted slice is in `origin/main`. A frontend task must rebase onto `c3b4059` or newer and inspect its actual diff. Until the two remaining Specifications 2.0 flags are live-accepted, coordinate any edit to publication/attachment adapters or runtime capability policy; unrelated rendering and CSS work may proceed normally.
 
 ## Required integration order
 
-1. PostgreSQL task completes backup permission hardening and obtains authorized root activation of the two Specifications 2.0 command surfaces.
-2. PostgreSQL task completes live command-surface acceptance and the full release QA gate.
-3. PostgreSQL slice is merged to `main`, released as a commit-derived artifact, and accepted on the live pilot.
-4. Frontend task rebases onto that accepted commit and consumes the frozen contracts.
-5. Any isolated React proof of concept is evaluated and integrated separately; it must not be merged ahead of the PostgreSQL authority slice.
+1. Authorized root operator runs the three exact commands above.
+2. PostgreSQL task completes live Specifications 2.0 command-surface acceptance and the final goal audit.
+3. Frontend task rebases onto `origin/main` and consumes the frozen contracts.
+4. Any isolated React proof of concept is evaluated and integrated separately.
 
-Before starting frontend edits, verify `git status`, branch, merge-base, and `git diff --name-status` in the frontend worktree. If any intended file overlaps the ownership list above, stop and coordinate the exact hunk or wait for the PostgreSQL checkpoint.
+Before starting frontend edits, verify `git status`, branch, merge-base, and `git diff --name-status` in the frontend worktree. If an intended edit overlaps Specifications 2.0 publication/attachment capability policy, coordinate the exact hunk until the root rollout acceptance is recorded.
