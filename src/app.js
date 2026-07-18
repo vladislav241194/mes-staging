@@ -4148,7 +4148,9 @@ function hydrateShiftExecutionServerProjection() {
       if (coverageComplete && !wasAuthoritative) persistUiState();
       void flushShiftExecutionOutbox();
     }
-    if (projection.ok && projection.changed && ui?.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });
+    if (projection.ok && projection.changed && ["shiftMasterBoard", "authSessionPrototype"].includes(ui?.activeModule)) {
+      render({ skipRememberScroll: true });
+    }
   }).catch(() => {
     shiftExecutionServerState = {
       ...shiftExecutionServerState,
@@ -5974,6 +5976,10 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("authSessionPrototype", { fallbackToLegacy: false });
         }
         ensureAuthModules();
+        // The employee desktop consumes the same PostgreSQL assignment/fact
+        // projection as the Master Board.  Hydrate it before treating the
+        // retired browser maps as an authoritative empty task list.
+        if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
         return renderAuthSessionPrototypePage();
       },
       renderModals: () => renderAuthSessionModal(),
