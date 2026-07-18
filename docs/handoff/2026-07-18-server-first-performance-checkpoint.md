@@ -4,6 +4,11 @@
 
 This is a safe stopping point for the gradual MES performance and domain-model migration. It adds a bounded Gantt read-model foundation without changing the current Planning/Gantt client path or the pilot release. It is intentionally not a claim that the whole migration, or the user-visible loading problem, is complete.
 
+For the full continuation plan, use
+[the detailed handoff](2026-07-18-performance-migration-detailed-handoff.md)
+together with
+[the status report](../../reports/server-first-performance-status-2026-07-18.md).
+
 ## Start here
 
 - Repository/worktree used for this checkpoint: `/tmp/mes-pilot-baseline-applycheck-20260718-0206`.
