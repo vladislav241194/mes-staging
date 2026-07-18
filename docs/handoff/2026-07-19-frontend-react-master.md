@@ -104,6 +104,13 @@ restore the host-owned legacy view. Browser QA proved disabled and render-error
 paths without console warnings. This closes the isolated rollback-mechanics
 gate but does not wire or activate a production flag.
 
+The production-candidate Nomenclature entry is now separated from the
+multi-scenario lab. Its minified budget is `225,000 B` raw / `68,000 B` gzip;
+the current artifact is `204,954 B` / `63,501 B` and is checked not to contain
+the Component Types scenario. The shared runtime reports post-commit revision
+events, so Pilot mount/update time can later be measured without arbitrary
+timeouts. Local timings are QA evidence only, not Pilot acceptance.
+
 ## Acceptance gates for the first integrated slice
 
 - legacy and React routes can be switched independently by a feature flag;
