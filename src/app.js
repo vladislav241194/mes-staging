@@ -3557,15 +3557,22 @@ function hydrateSharedStateForModule(moduleId, valueKeys = []) {
 // snapshot off its navigation path; only placement needs the complete
 // calendar/resource model.
 async function ensurePlanningSystemDomains() {
-  const hydrated = await runtimeStateService?.hydrateSharedStateValues?.([SYSTEM_DOMAINS_STORAGE_KEY]);
-  if (hydrated) reloadSystemDomainsState({
-    source: "planning-scheduling-hydration",
-    migrateLegacy: false,
-  });
   const server = await hydrateSystemDomainsServerRead("planning", {
-    fallbackToLegacy: !systemDomainsState && !hasObservedSystemDomainsPrimaryAuthority(),
+    fallbackToLegacy: false,
   });
-  return server.ok === true || Boolean(systemDomainsState);
+  if (server.ok === true || systemDomainsState) return true;
+  // Only a contour that still advertises an active/mixed-version
+  // compatibility projection may read the legacy key after the PostgreSQL
+  // request fails. A retired primary never reintroduces shared-state as the
+  // scheduling source.
+  if (["active", "unknown"].includes(systemDomainsCompatibilityState)) {
+    const hydrated = await runtimeStateService?.hydrateSharedStateValues?.([SYSTEM_DOMAINS_STORAGE_KEY]);
+    if (hydrated) reloadSystemDomainsState({
+      source: "planning-scheduling-compatibility-fallback",
+      migrateLegacy: false,
+    });
+  }
+  return Boolean(systemDomainsState);
 }
 let workOrdersReadModel = null;
 let planningRuntimeProjectionReadModel = null;
@@ -6006,7 +6013,9 @@ function initializeModuleRuntime() {
     },
     productionStructureMatrix: {
       render: () => {
-        hydrateSharedStateForModule("productionStructureMatrix", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        if (systemDomainsServerReadState.status !== "server") {
+          void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
+        }
         ensureProductionStructureMatrixModule();
         return renderProductionStructureMatrixPage();
       },
@@ -6014,7 +6023,9 @@ function initializeModuleRuntime() {
     },
     timesheet: {
       render: () => {
-        hydrateSharedStateForModule("timesheet", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        if (systemDomainsServerReadState.status !== "server") {
+          void hydrateSystemDomainsServerRead("timesheet", { fallbackToLegacy: false });
+        }
         ensureTimesheetModule();
         return renderTimesheetPage();
       },
@@ -6023,7 +6034,9 @@ function initializeModuleRuntime() {
     },
     roles: {
       render: () => {
-        hydrateSharedStateForModule("roles", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        if (systemDomainsServerReadState.status !== "server") {
+          void hydrateSystemDomainsServerRead("roles", { fallbackToLegacy: false });
+        }
         ensureAccessRolesModule();
         return renderAccessRolesPage();
       },
@@ -6064,7 +6077,9 @@ function initializeModuleRuntime() {
     },
     shiftMasterBoard: {
       render: () => {
-        hydrateSharedStateForModule("shiftMasterBoard", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        if (systemDomainsServerReadState.status !== "server") {
+          void hydrateSystemDomainsServerRead("shiftMasterBoard", { fallbackToLegacy: false });
+        }
         ensureShiftMasterBoardModule();
         // The board is lazy-loaded.  Its own render cycle follows module
         // initialization, so scope the server read only after the board can
@@ -6083,7 +6098,9 @@ function initializeModuleRuntime() {
     },
     shiftWorkOrders: {
       render: () => {
-        hydrateSharedStateForModule("shiftWorkOrders", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        if (systemDomainsServerReadState.status !== "server") {
+          void hydrateSystemDomainsServerRead("shiftWorkOrders", { fallbackToLegacy: false });
+        }
         ensureShiftWorkOrdersModule();
         if (shiftWorkOrdersModuleError) {
           return renderMesModulePatternPage({

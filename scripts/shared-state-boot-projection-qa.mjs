@@ -27,6 +27,12 @@ assert(app.includes("function hydrateSharedStateForModule(moduleId, valueKeys = 
 assert(app.includes("sharedStateModuleHydrations.delete(hydrationKey);"), "A deferred module hydration must retry after an early shared-state miss.");
 assert(app.includes('hydrateSharedStateForModule("directories", [DIRECTORY_STORAGE_KEY])'), "Directories must hydrate their own projection.");
 assert(!app.includes('hydrateSharedStateForModule("planning", [SYSTEM_DOMAINS_STORAGE_KEY])'), "Planning must not hydrate System Domains before the explicit scheduling action.");
+assert(!app.includes('hydrateSharedStateForModule("productionStructureMatrix", [SYSTEM_DOMAINS_STORAGE_KEY])'), "Production structure must read PostgreSQL directly after compatibility retirement.");
+assert(!app.includes('hydrateSharedStateForModule("timesheet", [SYSTEM_DOMAINS_STORAGE_KEY])'), "Timesheet must read PostgreSQL directly after compatibility retirement.");
+assert(!app.includes('hydrateSharedStateForModule("roles", [SYSTEM_DOMAINS_STORAGE_KEY])'), "Access control must read PostgreSQL directly after compatibility retirement.");
+assert(!app.includes('hydrateSharedStateForModule("shiftMasterBoard", [SYSTEM_DOMAINS_STORAGE_KEY])'), "Workshop must not revive the retired System Domains snapshot.");
+assert(!app.includes('hydrateSharedStateForModule("shiftWorkOrders", [SYSTEM_DOMAINS_STORAGE_KEY])'), "Shift journal must not revive the retired System Domains snapshot.");
+assert(app.includes('source: "planning-scheduling-compatibility-fallback"') && app.includes('["active", "unknown"].includes(systemDomainsCompatibilityState)'), "Explicit Planning fallback must remain gated by a non-retired compatibility state.");
 assert(app.includes("async function ensurePlanningSystemDomains()"), "Planning must retain on-demand System Domains hydration for scheduling.");
 assert(app.includes('hydrateSharedStateForModule("specifications2", [DIRECTORY_STORAGE_KEY])'), "Specifications 2.0 must hydrate directory dependencies independently.");
 assert(runtimeState.includes("isSystemDomainsServerAuthoritative = () => false"), "Runtime state must accept the System Domains authority gate.");
