@@ -15,14 +15,17 @@ Current minified measurements:
 
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
-| Nomenclature production island | 205,396 B | 63,682 B | 225,000 B | 68,000 B |
-| Boards/BOM production island | 208,032 B | 64,296 B | 225,000 B | 68,000 B |
-| Full three-scenario lab | 233,261 B | 69,621 B | 240,000 B | 75,000 B |
-| Shared lab CSS | 5,377 B | 1,630 B | 6,000 B | 2,000 B |
+| Nomenclature production island | 205,396 B | 63,679 B | 225,000 B | 68,000 B |
+| Boards/BOM production island | 208,172 B | 64,373 B | 225,000 B | 68,000 B |
+| Structure Employees production island | 210,455 B | 64,762 B | 225,000 B | 68,000 B |
+| Full four-scenario lab | 247,968 B | 72,536 B | 260,000 B | 80,000 B |
+| Shared lab CSS | 5,787 B | 1,691 B | 6,000 B | 2,000 B |
 
-The budget script also inspects the minified Nomenclature and Boards artifacts
-and rejects unrelated scenario labels. This preserves independent vertical
-slices instead of shipping every lab scenario with either island.
+The budget script also inspects the minified Nomenclature, Boards and Structure
+Employees artifacts and rejects unrelated scenario labels. This preserves
+independent vertical slices instead of shipping every lab scenario with an
+individual island. The larger `260,000 B / 80,000 B` limit applies only to the
+four-scenario development lab, never to a production island.
 
 The command is part of `qa.mjs`, so size regressions fail the normal isolated
 contract gate.
@@ -40,8 +43,9 @@ Browser evidence from one local run:
 | Nomenclature | 21.2 ms | 3.0 ms | 1 row, one selected row |
 | Component Types | 9.6 ms | 1.4 ms | 1 row, detail updated |
 | Boards/BOM | measured by the same callback | 3.80 ms | 2 rows, 5 components, revision 2 |
+| Structure Employees | measured by the same callback | 2.90 ms | 1 employee, metric and detail updated, revision 2 |
 
-Both paths produced revision `1` then `2`, with no console warnings/errors.
+All measured paths produced revision `1` then `2`.
 
 These local values prove the measurement mechanism only. They are not a Pilot
 performance claim or SLA. After integration, the same callback must be measured

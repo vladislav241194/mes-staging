@@ -52,6 +52,14 @@ export function TableWrap({ children }: { children: ReactNode }) {
   return <div className="table-wrap" data-ui-component="TableWrap">{children}</div>;
 }
 
+export function MetricGrid({ children, className = "", label }: { children: ReactNode; className?: string; label: string }) {
+  return <div aria-label={label} className={["metric-grid", className].filter(Boolean).join(" ")} data-ui-component="MetricGrid">{children}</div>;
+}
+
+export function MetricCard({ label, meta, value }: { label: ReactNode; meta?: ReactNode; value: ReactNode }) {
+  return <article className="metric-card" data-ui-component="MetricCard"><span>{label}</span><strong>{value}</strong>{meta ? <small>{meta}</small> : null}</article>;
+}
+
 export function ActionButton({ children, disabled = false, title, variant = "primary" }: { children: ReactNode; disabled?: boolean; title?: string; variant?: "primary" | "secondary" | "danger" }) {
   return <button className={`action action--${variant}`} data-ui-component="ActionButton" disabled={disabled} title={title} type="button">{children}</button>;
 }

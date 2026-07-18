@@ -45,7 +45,7 @@ node experiments/react-migration/qa.mjs
 
 Result:
 
-- 22 TypeScript/TSX sources compile;
+- 27 TypeScript/TSX sources compile;
 - invalid board records and invalid row containers fail closed;
 - the known `Аритикул производителя` header typo normalizes to the current
   legacy label;

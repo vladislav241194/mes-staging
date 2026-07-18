@@ -1,4 +1,4 @@
-# Nomenclature React activation-policy QA
+# React read-only activation-policy QA
 
 Date: 2026-07-19
 Branch: `codex/frontend-react-migration`
@@ -11,7 +11,9 @@ would be a functional regression even if all visible rows matched.
 
 ## Decisions
 
-`resolveNomenclatureActivation(...)` has four explicit outcomes:
+`resolveReadOnlyScenarioActivation(...)` is the shared gate for every read-only
+island. `resolveNomenclatureActivation(...)` adds the item/Boards pane boundary.
+Together they have four explicit outcomes:
 
 | Feature flag | Pane | Access mode | Decision |
 | --- | --- | --- | --- |
@@ -20,7 +22,8 @@ would be a functional regression even if all visible rows matched.
 | on | items | editor | `write-parity-incomplete` -> legacy |
 | on | items | read-only evaluation | `eligible` -> React |
 
-All four decisions are covered by the isolated QA. The feature gate also proves
+All four decisions are covered by the isolated QA for Nomenclature and by the
+shared policy for Boards and Structure Employees. The feature gate also proves
 that a `write-parity-incomplete` decision never calls the mount function.
 
 ## Browser evidence
@@ -40,4 +43,5 @@ With the default read-only evaluation path:
 - browser console warnings/errors: none.
 
 This allows a controlled Pilot comparison later without taking create/edit/
-delete behavior away from working users.
+delete behavior away from working users. Browser QA separately confirmed the
+same pre-mount editor fallback for Boards and Structure Employees.

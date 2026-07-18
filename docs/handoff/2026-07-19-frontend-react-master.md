@@ -4,25 +4,20 @@ Date: 2026-07-19
 Branch: `codex/frontend-react-migration`
 Worktree: `/Users/vladislav/Documents/Codex/2026-05-30/mes-frontend-react`
 Baseline: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`
-Coordination handoff: PostgreSQL commit `4f0fbae`
+Initial coordination handoff: PostgreSQL commit `4f0fbae`
+Final PostgreSQL handoff: `fc71e01`
 
 ## Coordination checkpoint
 
-PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
-cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
-The accepted PostgreSQL release `c3b4059` is live, and `origin/main` has since
-advanced to the root-rollout ordering handoff commit `511e281`. The slice includes guarded
-Specifications 2.0 commands, verified runtime rollback, and retirement fixes
-for System Domains shared-state compatibility plus compatibility-backup
-hardening, preparation of `v1.499.70`, and isolation of bootstrap compression
-artifacts. Root activation and authenticated acceptance of the two
-Specifications 2.0 command flags remain pending, so the published integration
-order still places frontend rebase after that final audit. The accepted
-PostgreSQL release and final-gate handoff are already on `main`; only the root
-activation/final authenticated audit still prevents the actual frontend rebase.
-Independent work inside the isolated frontend worktree remains available, so
-the temporary stop-list below applies to integration files rather than blocking
-the migration master as a whole.
+Final handoff `fc71e01` confirms that the accepted PostgreSQL release `c3b4059`
+is live as `v.1.499.70-c3b4059`, all four readiness domains are green, the two
+Specifications 2.0 command surfaces are active in the authenticated UI, backup
+files are `0600`, and the real Shift Execution assignment was preserved. System
+Domains and Shift Execution no longer hydrate working authority from shared
+state; shared-state/bootstrap are compatibility or emergency mechanisms only.
+There is no remaining PostgreSQL migration gate for frontend work. The frontend
+branch may now rebase onto `origin/main@fc71e01` or newer and consume the frozen
+contracts through adapters.
 
 ## Goal
 
@@ -31,13 +26,13 @@ and TypeScript through complete, measurable user scenarios. Preserve business
 logic, API contracts, user data, the legacy UI, and the existing visual and
 Gantt contracts until each replacement is explicitly accepted.
 
-This branch is isolated and must not be merged ahead of the accepted
-PostgreSQL authority slice.
+This branch remains isolated until each React slice is separately accepted; the
+earlier requirement not to merge ahead of PostgreSQL is now satisfied.
 
-## Temporary stop-list
+## Released handoff stop-list
 
-Until the PostgreSQL worker scenario, rollback drill, merge, and live acceptance
-are green, this task does not change:
+The initial `4f0fbae` handoff prohibited changes to these paths while PostgreSQL
+authority was in flight:
 
 - `src/app.js`;
 - `src/modules/runtime_state/service.js`;
@@ -47,8 +42,11 @@ are green, this task does not change:
 - `package.json`, `package-lock.json`, `index.html`, or `app-version.json`;
 - business logic, API contracts, or the data model.
 
-The PostgreSQL task remains the sole owner of `package-lock.json` during its
-active goal. Shared build files require explicit coordination.
+This lock is released by `fc71e01`. The isolated proofs completed before the
+release did not change any listed path. After rebase, pure frontend integration
+may change host/build files with normal overlap review, while PostgreSQL schema,
+repositories, Specifications capability policy and Shift Execution authority
+remain frozen backend contracts rather than frontend migration scope.
 
 ## Migration rules
 
@@ -69,7 +67,7 @@ active goal. Shared build files require explicit coordination.
 | --- | --- | --- |
 | Registry/sidebar | Nomenclature, Roles, Production Structure, Directories | Shared page, sidebar, filter, table, detail contracts |
 | Dense planning | Planning, Timesheet, Weekly Control | Shared loading/error contracts; specialized dense layouts |
-| Operational | Workshop, Worker Desktop, Shift Journal | Blocked until PostgreSQL worker scenario and hydration freeze |
+| Operational | Workshop, Worker Desktop, Shift Journal | Integrate only after the final PostgreSQL root audit; preserve accepted server authority |
 | Protected canvas | Gantt, Specifications 2.0 | Migrate last; retain geometry and interaction guardrails |
 | Admin/standalone | Contours, Authorization | Keep isolated security and standalone-shell contracts |
 
@@ -97,10 +95,12 @@ header and page contracts. This closes the one-off-prototype risk for the
 registry family: shared behavior now has two consumers, while entity columns
 remain scenario-specific.
 
-All three scenarios are available through the generic reversible island boundary.
+All four scenarios are available through the generic reversible island boundary.
 Nomenclature remains the only proposed first production feature-flag scope;
 Component Types is an isolated reuse proof, and Boards/BOM is an isolated
-process-specific proof; neither is a production activation claim.
+process-specific proof. Structure Employees is the first canonical System
+Domains read-model proof. None of the additional proofs is a production
+activation claim.
 
 The lab also contains a host-side feature gate. A disabled flag never mounts
 React; mount/update/render failures schedule one fallback, unmount React, and
@@ -108,11 +108,12 @@ restore the host-owned legacy view. Browser QA proved disabled and render-error
 paths without console warnings. This closes the isolated rollback-mechanics
 gate but does not wire or activate a production flag.
 
-The production-candidate Nomenclature and Boards entries are separated from the
-multi-scenario lab. Each minified budget is `225,000 B` raw / `68,000 B` gzip;
-the current artifacts are respectively `205,396 B` / `63,682 B` and
-`208,032 B` / `64,296 B`, and each is checked not to contain unrelated
-scenarios. The shared runtime reports post-commit revision
+The production-candidate Nomenclature, Boards and Structure Employees entries
+are separated from the multi-scenario lab. Each minified budget is `225,000 B`
+raw / `68,000 B` gzip; the current artifacts are respectively
+`205,396 B` / `63,679 B`, `208,172 B` / `64,373 B`, and
+`210,455 B` / `64,762 B`. Each is checked not to contain unrelated scenarios.
+The shared runtime reports post-commit revision
 events, so Pilot mount/update time can later be measured without arbitrary
 timeouts. Local timings are QA evidence only, not Pilot acceptance.
 
@@ -140,10 +141,18 @@ the shared fixture. Nine read headers, normalized row values and order, plus
 sidebar component totals match. The legacy action column, editable inputs,
 create/import/delete commands, and editor mode remain explicit non-parity.
 
-A dry-run rebase preflight against `origin/main@511e281` found 40 frontend paths,
-50 main paths, zero overlapping paths and zero merge conflict markers. The
-actual rebase is structurally ready but remains deferred until the final root
-Specifications acceptance required by the PostgreSQL handoff.
+Structure Employees QA targets the canonical `productionStructureMatrix`
+System Domains module rather than the older hierarchy visualization. It joins
+employees to their primary employment assignments, preserves stable IDs, and
+matches the actual legacy four-column Employees table plus all seven registry
+counts. The adapter also consumes the complete generated canonical snapshot
+without dropping any of its 76 employees. Other registries and every command
+remain behind `unsupported-scope`/editor fallback.
+
+A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
+frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
+markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
+will be repeated after the Structure Employees commit and before rebasing.
 
 ## Acceptance gates for the first integrated slice
 
@@ -158,10 +167,10 @@ Specifications acceptance required by the PostgreSQL handoff.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for two registry proofs and the Boards/BOM read-only proof.**
-2. Wait for PostgreSQL live worker acceptance and contract checkpoint.
-3. Rebase this branch onto the accepted PostgreSQL/main commit.
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Boards/BOM and Structure Employees read-only proofs.**
+2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
+3. Rebase this branch onto the accepted PostgreSQL/main commit. **Authorized; next action.**
 4. Replace fixtures with read-only API adapters.
 5. Mount the first React island behind a disabled-by-default feature flag.
 6. Run legacy parity, functional, visual, performance, and pilot checks.
-7. Only then choose the next registry scenario.
+7. Only then propose default-on activation or the next integrated registry scope.

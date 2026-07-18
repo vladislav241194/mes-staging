@@ -20,7 +20,7 @@ node experiments/react-migration/qa.mjs
 
 Result:
 
-- 22 typed sources in the combined migration lab compiled;
+- 27 typed sources in the combined migration lab compiled;
 - invalid position records fail closed;
 - legacy REA aliases normalize to `РЭА компоненты`;
 - inactive type rows are excluded;

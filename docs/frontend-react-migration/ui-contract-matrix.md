@@ -27,7 +27,7 @@ unresolved.
 
 | Family | Shared | Remains specialized | First proof |
 | --- | --- | --- | --- |
-| Registry/sidebar | Page, header, sidebar, filters, panel, table, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types read-only scenarios |
+| Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
 | Dense planning | Header, toolbar, status, loading/error | Dense grids, calendar and planning calculations | After registry proof |
 | Operational | Status, action, overlay frames | Workshop board, worker fact entry, shift documents | After PostgreSQL final acceptance |
@@ -44,10 +44,11 @@ unresolved.
   module acceptance pass.
 
 The lab now implements `ModulePage`, `ModuleHeader`, `ModuleSidebar`,
-`SidebarItem`, `Panel`, `TableWrap`, `ActionButton`, `SelectableRow`,
-`DetailPanel`, `EmptyState`, `SystemState`, and `StatusToken`. Nomenclature and
-Component Types and Boards/BOM use the same primitives; entity-specific columns,
-filters, summaries, and detail fields remain inside their scenario. Write
+`SidebarItem`, `Panel`, `TableWrap`, `MetricGrid`, `MetricCard`, `ActionButton`,
+`SelectableRow`, `DetailPanel`, `EmptyState`, `SystemState`, and `StatusToken`.
+Nomenclature, Component Types, Boards/BOM and Structure Employees use the same
+primitives; entity-specific columns, filters, summaries, and detail fields
+remain inside their scenario. Write
 actions stay disabled until an accepted API contract is connected.
 
 ## Nomenclature read-model evidence
@@ -105,3 +106,18 @@ summary and nine-column table are process-specific composition inside the
 shared `Panel` and `TableWrap`; they are not promoted to universal registry
 variants. The actual legacy action column and editable inputs remain protected
 by editor fallback.
+
+## Structure Employees read-model evidence
+
+The canonical module is `productionStructureMatrix` over System Domains; the
+older `employees` hierarchy screen is not treated as the target architecture.
+The read-only vertical joins `employees` with the primary row from
+`employmentAssignments` and resolves labels through `positions`, `orgUnits`
+and `workCenters`. Stable IDs stay visible because they are the cross-module
+identity contract.
+
+Only the Employees registry is inside this React slice. The six other sidebar
+destinations return through the feature gate to legacy, and editor access never
+mounts the read-only island. Shared `MetricGrid`/`MetricCard` primitives now
+serve both canonical structure metrics and the Boards component summary without
+turning either process composition into a universal table variant.

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { ActionButton, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { adaptBoards, BOM_COMPONENT_FIELDS } from "./adapter";
 import { formatBomCell, formatComponentCount, getBoardSidebarMeta, getVisibleComponentTotal, resolveVisibleBoard } from "./view-model";
 
@@ -27,11 +27,11 @@ export function BoardsScenario({ payload }: { payload: unknown }) {
     <ModulePage header={header} sidebar={sidebar}>
       <Panel heading={<div className="panel-heading"><div><h2>{selected?.name || "Плата не выбрана"}</h2><p>{selected ? `${selected.rows.length} строк · покомпонентный расчет платы` : "Выберите плату в перечне"}</p></div><ActionButton disabled title="Создание и импорт остаются в legacy до миграции команд">Импортировать *.xlsx</ActionButton></div>}>
         {selected ? selected.rows.length ? <>
-          <div className="board-summary" aria-label="Подсчет импортированных компонентов">
-            <article><span>Компонентов</span><strong>{formatComponentCount(selected.componentTotal)}</strong><small>на одну плату</small></article>
-            <article><span>Типов</span><strong>{formatComponentCount(selected.activeComponentTypes)}</strong><small>заполненных категорий</small></article>
-            {BOM_COMPONENT_FIELDS.map((field) => <article key={field.key}><span>{field.label}</span><strong>{formatComponentCount(selected.componentCounts[field.key])}</strong><small>шт.</small></article>)}
-          </div>
+          <MetricGrid className="board-summary" label="Подсчет импортированных компонентов">
+            <MetricCard label="Компонентов" meta="на одну плату" value={formatComponentCount(selected.componentTotal)} />
+            <MetricCard label="Типов" meta="заполненных категорий" value={formatComponentCount(selected.activeComponentTypes)} />
+            {BOM_COMPONENT_FIELDS.map((field) => <MetricCard key={field.key} label={field.label} meta="шт." value={formatComponentCount(selected.componentCounts[field.key])} />)}
+          </MetricGrid>
           <TableWrap><table className="bom-table">
             <thead><tr>{selected.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}</tr></thead>
             <tbody>{selected.rows.map((row, rowIndex) => <tr key={`${selected.id}-${rowIndex}`}>

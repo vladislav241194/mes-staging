@@ -331,6 +331,148 @@ try {
   assert.deepEqual(legacyBoardButtons, adaptedBoards.map((board) => [board.id, String(board.rows.length ? board.componentTotal : 0)]), "React board list must preserve legacy badge totals");
   assert.deepEqual(legacyBomRows.map((row) => row.values.map(String)), adaptedBoards[0].rows.map((row) => row.values.map(String)), "React adapter must match the actual legacy BOM row normalizer");
 
+  const structureAdapterOutput = join(temporaryRoot, "structure-employees-adapter.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/structure-employees/adapter.ts")],
+    outfile: structureAdapterOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const structureAdapter = await import(`${pathToFileURL(structureAdapterOutput).href}?qa=${Date.now()}`);
+  assert.equal(structureAdapter.formatStructurePersonName("Иванов Иван Иванович"), "Иванов Иван", "employee display name must match the legacy formatter");
+  assert.equal(structureAdapter.formatStructurePersonName("John Ronald Reuel Tolkien"), "John Ronald Reuel Tolkien", "non-Russian names must not be shortened");
+  assert.deepEqual(structureAdapter.adaptStructureEmployees({ registries: { employees: {} } }).employees, [], "invalid employees registry must fail closed");
+
+  const structureFixtureOutput = join(temporaryRoot, "structure-employees-fixture.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/structure-employees/fixture.ts")],
+    outfile: structureFixtureOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { structureEmployeesFixture } = await import(`${pathToFileURL(structureFixtureOutput).href}?qa=${Date.now()}`);
+  const structureModel = structureAdapter.adaptStructureEmployees(structureEmployeesFixture);
+  assert.deepEqual(structureModel.counts, {
+    orgUnits: 2,
+    workCenters: 2,
+    positions: 3,
+    employees: 3,
+    equipment: 1,
+    responsibilityPolicies: 1,
+    migrationDiagnostics: 152,
+  });
+  assert.deepEqual(structureModel.employees.map((employee) => [employee.id, employee.displayName, employee.statusLabel]), [
+    ["EMP-001", "Николаев Ирина", "активно"],
+    ["EMP-003", "Петров Алексей", "архив"],
+    ["EMP-002", "Степанов Ирина", "активно"],
+  ]);
+  assert.equal(structureModel.employees[0].employmentLabel, "Мастер отдела · Отдел нанесения влагозащитных покрытий");
+  assert.equal(structureModel.employees[0].workCenterLabel, "Влагозащита");
+
+  const structureViewModelOutput = join(temporaryRoot, "structure-employees-view-model.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/structure-employees/view-model.ts")],
+    outfile: structureViewModelOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const structureViewModel = await import(`${pathToFileURL(structureViewModelOutput).href}?qa=${Date.now()}`);
+  const structureRegistryOptions = structureViewModel.buildStructureRegistryOptions(structureModel);
+  assert.deepEqual(structureRegistryOptions.map((option) => [option.id, option.count, option.action]), [
+    ["orgUnits", 2, "legacy"],
+    ["workCenters", 2, "legacy"],
+    ["positions", 3, "legacy"],
+    ["employees", 3, "employees"],
+    ["equipment", 1, "legacy"],
+    ["responsibilityPolicies", 1, "legacy"],
+    ["migrationDiagnostics", 152, "legacy"],
+  ], "only the Employees registry may remain inside the React vertical slice");
+  assert.equal(structureViewModel.resolveVisibleStructureEmployee(structureModel.employees, "missing")?.id, "EMP-001");
+
+  const { PRODUCTION_STRUCTURE_MATRIX_COLUMNS, PRODUCTION_STRUCTURE_MATRIX_ROWS } = await import(`${pathToFileURL(join(repositoryRoot, "src/production_structure_matrix_data.js")).href}?qa=${Date.now()}`);
+  const { migrateLegacySystemDomains } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/system_domains/service.js")).href}?qa=${Date.now()}`);
+  const canonicalMigration = migrateLegacySystemDomains({ matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS, migratedAt: "2026-07-19T00:00:00.000Z" });
+  const canonicalStructureModel = structureAdapter.adaptStructureEmployees({
+    registries: canonicalMigration.domains.registries,
+    migrationDiagnosticsCount: PRODUCTION_STRUCTURE_MATRIX_ROWS.length,
+  });
+  assert.deepEqual([
+    canonicalStructureModel.counts.orgUnits,
+    canonicalStructureModel.counts.workCenters,
+    canonicalStructureModel.counts.positions,
+    canonicalStructureModel.counts.employees,
+    canonicalStructureModel.counts.equipment,
+    canonicalStructureModel.counts.migrationDiagnostics,
+  ], [19, 19, 49, 76, 6, 152], "React adapter must consume the complete canonical migration read-model");
+  assert.equal(canonicalStructureModel.employees.length, 76, "no canonical employee may be dropped by the adapter");
+
+  const { createProductionStructureMatrixModule } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/production_structure_matrix/render.js")).href}?qa=${Date.now()}`);
+  const registryListeners = new Map();
+  const employeesRegistryButton = {
+    dataset: { systemDomainRegistry: "employees" },
+    addEventListener(type, listener) { registryListeners.set(type, listener); },
+    fire(type) { registryListeners.get(type)?.({ currentTarget: this, preventDefault() {} }); },
+  };
+  const structurePage = {
+    querySelector() { return null; },
+    querySelectorAll(selector) { return selector === "[data-system-domain-registry]" ? [employeesRegistryButton] : []; },
+  };
+  const legacyStructureModule = createProductionStructureMatrixModule({
+    PRODUCTION_STRUCTURE_MATRIX_COLUMNS,
+    PRODUCTION_STRUCTURE_MATRIX_ROWS,
+    canEditSystemDomainRegistry: () => false,
+    escapeAttribute: escapeLegacyText,
+    escapeHtml: escapeLegacyText,
+    getApp: () => ({ querySelector: (selector) => selector === ".production-structure-page" ? structurePage : null }),
+    getSystemDomainsState: () => structureEmployeesFixture,
+    render: () => {},
+    renderUiActionButton: ({ label = "", attributes = "" }) => `<button ${attributes}>${escapeLegacyText(label)}</button>`,
+    renderUiEmptyState: ({ title = "", text = "" }) => `<div>${escapeLegacyText(title)}${escapeLegacyText(text)}</div>`,
+    renderUiFormField: ({ control = "" }) => control,
+    renderUiFormGrid: ({ body = "" }) => body,
+    renderUiModuleHeader: ({ title = "", description = "" }) => `<header><h1>${escapeLegacyText(title)}</h1><p>${escapeLegacyText(description)}</p></header>`,
+    renderUiModulePage: ({ sidebar = "", header = "", content = "" }) => `<main>${sidebar}${header}${content}</main>`,
+    renderUiModuleSidebar: ({ body = "" }) => `<aside>${body}</aside>`,
+    renderUiPanel: ({ title = "", meta = "", body = "" }) => `<section><h2>${escapeLegacyText(title)}</h2><p>${escapeLegacyText(meta)}</p>${body}</section>`,
+    renderUiPanelBody: ({ body = "" }) => body,
+    renderUiSidebarItem: ({ title = "", meta = "", badge = "", attributes = "" }) => `<button ${attributes}><span>${escapeLegacyText(title)}</span><small>${escapeLegacyText(meta)}</small><b>${escapeLegacyText(badge)}</b></button>`,
+    renderUiStatusToken: (label = "") => `<span>${escapeLegacyText(label)}</span>`,
+    renderUiTableControlAttributes: () => "",
+    renderUiTableWrap: ({ body = "", attributes = "" }) => `<div ${attributes}>${body}</div>`,
+  });
+  legacyStructureModule.bindProductionStructureMatrixEvents();
+  employeesRegistryButton.fire("click");
+  const legacyStructureHtml = legacyStructureModule.renderProductionStructureMatrixPage();
+  const legacyEmployeeTable = legacyStructureHtml.match(/<table class="directory-table ui-table production-structure-registry-table">([\s\S]*?)<\/table>/)?.[1] || "";
+  assert.ok(legacyEmployeeTable, "actual legacy Structure and Employees table must render");
+  const legacyEmployeeHeaders = [...legacyEmployeeTable.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => decodeLegacyText(match[1]));
+  assert.deepEqual(legacyEmployeeHeaders.slice(0, -1), structureViewModel.STRUCTURE_EMPLOYEE_READ_COLUMNS, "React employee columns must match the actual legacy order");
+  assert.equal(legacyEmployeeHeaders.at(-1), "Действие", "legacy employee command column must remain outside the read-only React slice");
+  const legacyEmployeeBody = legacyEmployeeTable.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] || "";
+  const legacyEmployeeRows = [...legacyEmployeeBody.matchAll(/<tr[^>]*data-system-domain-row="([^"]+)"[^>]*>([\s\S]*?)<\/tr>/g)].map((match) => {
+    const cells = [...match[2].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => cell[1]);
+    return {
+      id: match[1],
+      displayName: decodeLegacyText(cells[0].match(/<strong>([\s\S]*?)<\/strong>/)?.[1] || ""),
+      stableId: decodeLegacyText(cells[0].match(/<span>([\s\S]*?)<\/span>/)?.[1] || ""),
+      cells: [decodeLegacyText(cells[1]), decodeLegacyText(cells[2]), decodeLegacyText(cells[3])],
+    };
+  });
+  assert.deepEqual(legacyEmployeeRows, structureModel.employees.map((employee) => ({
+    id: employee.id,
+    displayName: employee.displayName,
+    stableId: employee.id,
+    cells: [employee.personnelNumber, employee.employmentLabel, employee.statusLabel],
+  })), "React employees adapter must preserve actual legacy visible rows, identity and order");
+  const legacyStructureSidebar = [...legacyStructureHtml.matchAll(/<button[^>]*data-system-domain-registry="([^"]+)"[^>]*>[\s\S]*?<b>([^<]*)<\/b><\/button>/g)].map((match) => [match[1], decodeLegacyText(match[2])]);
+  assert.deepEqual(legacyStructureSidebar, structureRegistryOptions.map((option) => [option.id, String(option.count)]), "React registry navigation counts must match the actual legacy sidebar");
+
   const componentTypesAdapterOutput = join(temporaryRoot, "component-types-adapter.mjs");
   await build({
     entryPoints: [join(sourceRoot, "modules/component-types/adapter.ts")],
@@ -397,11 +539,15 @@ try {
     format: "esm",
     target: "node20",
   });
-  const { resolveNomenclatureActivation } = await import(`${pathToFileURL(activationPolicyOutput).href}?qa=${Date.now()}`);
+  const { resolveNomenclatureActivation, resolveReadOnlyScenarioActivation } = await import(`${pathToFileURL(activationPolicyOutput).href}?qa=${Date.now()}`);
   assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: false, activePane: "items", accessMode: "read-only-evaluation" }), { activateReact: false, reason: "disabled" });
   assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" }), { activateReact: false, reason: "unsupported-scope" });
   assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: true, activePane: "items", accessMode: "editor" }), { activateReact: false, reason: "write-parity-incomplete" });
   assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: true, activePane: "items", accessMode: "read-only-evaluation" }), { activateReact: true, reason: "eligible" });
+  assert.deepEqual(resolveReadOnlyScenarioActivation({ featureFlagEnabled: false, accessMode: "read-only-evaluation" }), { activateReact: false, reason: "disabled" });
+  assert.deepEqual(resolveReadOnlyScenarioActivation({ featureFlagEnabled: true, accessMode: "editor" }), { activateReact: false, reason: "write-parity-incomplete" });
+  assert.deepEqual(resolveReadOnlyScenarioActivation({ featureFlagEnabled: true, accessMode: "read-only-evaluation", supportedScope: false }), { activateReact: false, reason: "unsupported-scope" });
+  assert.deepEqual(resolveReadOnlyScenarioActivation({ featureFlagEnabled: true, accessMode: "read-only-evaluation" }), { activateReact: true, reason: "eligible" });
 
   const featureGateOutput = join(temporaryRoot, "feature-gate.mjs");
   await build({
@@ -529,7 +675,7 @@ try {
     }
   }
 
-  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "ActionButton", "SelectableRow", "DetailPanel", "EmptyState", "SystemState", "StatusToken"];
+  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "MetricGrid", "MetricCard", "ActionButton", "SelectableRow", "DetailPanel", "EmptyState", "SystemState", "StatusToken"];
   const uiSource = await readFile(join(sourceRoot, "ui/components.tsx"), "utf8");
   for (const marker of requiredMarkers) {
     assert.match(uiSource, new RegExp(`data-ui-component=[{]?['\"]${marker}`), `missing ${marker} contract marker`);
@@ -557,10 +703,15 @@ try {
   const boardsIslandSource = await readFile(join(sourceRoot, "boards-island.tsx"), "utf8");
   assert.match(boardsIslandSource, /export function mountBoardsReactIsland/);
 
+  const structureEmployeesIslandSource = await readFile(join(sourceRoot, "structure-employees-island.tsx"), "utf8");
+  assert.match(structureEmployeesIslandSource, /export function mountStructureEmployeesReactIsland/);
+  assert.match(structureEmployeesIslandSource, /onRequestLegacy/);
+
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /scenario.*component-types/);
   assert.match(mainSource, /scenarioParam.*boards/);
+  assert.match(mainSource, /scenarioParam.*structure-employees/);
   assert.match(mainSource, /createReactIslandFeatureGate/);
   assert.match(mainSource, /featureGate\.update\(updatePayload\)/);
   assert.match(mainSource, /featureGate\.dispose\(\)/);
@@ -577,6 +728,7 @@ try {
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });
   assert.match(performanceBudget, /"nomenclature"/);
   assert.match(performanceBudget, /"boards"/);
+  assert.match(performanceBudget, /"structureEmployees"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   console.log(`React migration QA passed: ${sources.length} typed sources, adapter boundary, UI markers, stop-list, build.`);

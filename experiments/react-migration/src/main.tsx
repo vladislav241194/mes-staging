@@ -1,17 +1,18 @@
-import { resolveNomenclatureActivation } from "./activation-policy";
+import { resolveNomenclatureActivation, resolveReadOnlyScenarioActivation } from "./activation-policy";
 import { createReactIslandFeatureGate, type LegacyFallbackContext } from "./feature-gate";
 import { componentTypesFixture, componentTypesUpdateFixture } from "./modules/component-types/fixture";
 import { boardsFixture, boardsUpdateFixture } from "./modules/boards/fixture";
 import { nomenclatureFixture, nomenclatureUpdateFixture } from "./modules/nomenclature/fixture";
+import { structureEmployeesFixture, structureEmployeesUpdateFixture } from "./modules/structure-employees/fixture";
 import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
 
 const root = document.querySelector<HTMLElement>("#root");
 if (!root) throw new Error("React migration lab root is missing");
 const searchParams = new URL(window.location.href).searchParams;
 const scenarioParam = searchParams.get("scenario");
-const scenario: ReactMigrationScenarioId = scenarioParam === "component-types" ? "componentTypes" : scenarioParam === "boards" ? "boards" : "nomenclature";
-const initialPayload = scenario === "componentTypes" ? componentTypesFixture : scenario === "boards" ? boardsFixture : nomenclatureFixture;
-const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : scenario === "boards" ? boardsUpdateFixture : nomenclatureUpdateFixture;
+const scenario: ReactMigrationScenarioId = scenarioParam === "component-types" ? "componentTypes" : scenarioParam === "boards" ? "boards" : scenarioParam === "structure-employees" ? "structureEmployees" : "nomenclature";
+const initialPayload = scenario === "componentTypes" ? componentTypesFixture : scenario === "boards" ? boardsFixture : scenario === "structureEmployees" ? structureEmployeesFixture : nomenclatureFixture;
+const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : scenario === "boards" ? boardsUpdateFixture : scenario === "structureEmployees" ? structureEmployeesUpdateFixture : nomenclatureUpdateFixture;
 const featureFlagEnabled = searchParams.get("react") !== "0";
 const accessMode = searchParams.get("access") === "editor" ? "editor" : "read-only-evaluation";
 const nomenclatureActivation = resolveNomenclatureActivation({
@@ -21,11 +22,7 @@ const nomenclatureActivation = resolveNomenclatureActivation({
 });
 const activationDecision = scenario === "nomenclature"
   ? nomenclatureActivation
-  : !featureFlagEnabled
-    ? { activateReact: false, reason: "disabled" as const }
-    : accessMode === "editor"
-      ? { activateReact: false, reason: "write-parity-incomplete" as const }
-      : { activateReact: true, reason: "eligible" as const };
+  : resolveReadOnlyScenarioActivation({ featureFlagEnabled, accessMode });
 let lifecycleStatus: HTMLElement | null = null;
 const performancePrefix = `mes-react-island:${scenario}`;
 let nextExpectedRevision = 1;
