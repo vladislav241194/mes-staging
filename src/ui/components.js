@@ -37,13 +37,16 @@ export function createUiRenderers({ icon }) {
     density = "",
     component = "Panel",
   }) {
+    const componentAttribute = component === "Panel"
+      ? 'data-ui-component="Panel"'
+      : `data-ui-component="${escapeAttribute(component || "Panel")}"`;
     const contractAttributes = [
       surface ? `data-ui-surface="${escapeAttribute(surface)}"` : "",
       density ? `data-ui-density="${escapeAttribute(density)}"` : "",
       attributes,
     ].filter(Boolean).join(" ");
     return `
-    <section class="${escapeAttribute(joinUiClasses("module-panel", "ui-panel", cornerMarker ? "ui-demo-marker-host" : "", className))}" data-ui-component="${escapeAttribute(component || "Panel")}" ${contractAttributes}>
+    <section class="${escapeAttribute(joinUiClasses("module-panel", "ui-panel", cornerMarker ? "ui-demo-marker-host" : "", className))}" ${componentAttribute} ${contractAttributes}>
       ${cornerMarker}
       ${title ? renderUiPanelHead({ title, meta, actions, actionsClassName }) : ""}
       ${body}
