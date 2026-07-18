@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.45";
+const APP_VERSION_FALLBACK = "v.1.499.46";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -6360,7 +6360,10 @@ operationalRuntimeService = createOperationalRuntimeServiceModule({
   getSlotOperationFlow,
   getSlotPlanningOrderId,
   getSlotProducedQuantityAt,
-  getSlotRoute: (...args) => getSlotRoute(...args),
+  // The operational shell is rendered on every module route.  It must not
+  // reach the lazy Gantt facade just to resolve a slot's route while the
+  // Gantt chunk is still loading.
+  getSlotRoute: (slot) => getPlanningSlotRoute(slot),
   getSlotRouteId,
   getTimesheetCell: (...args) => typeof getTimesheetCell === "function" ? getTimesheetCell(...args) : ({ value: "work", code: "work", hours: 8, overtime: 0 }),
   getTimesheetDayOption: (...args) => typeof getTimesheetDayOption === "function" ? getTimesheetDayOption(...args) : ({ value: args[0] || "work", label: args[0] || "work" }),

@@ -32,6 +32,15 @@ expect(Boolean(shiftBoardInitialization), "Shift-board initialization must exist
 expect(shiftBoardInitialization.includes("getSlotRoute: (slot) => getPlanningSlotRoute(slot)"), "Shift board must use the lightweight planning route resolver before Gantt loads");
 expect(shiftBoardInitialization.includes("getSlotGanttWorkCenterId: (slot) => getPlanningSlotWorkCenterId(slot)"), "Shift board must use the lightweight planning work-center resolver before Gantt loads");
 
+const operationalRuntimeInitializationStart = appSource.indexOf("operationalRuntimeService = createOperationalRuntimeServiceModule({");
+const operationalRuntimeInitializationEnd = appSource.indexOf("appEventsService = createAppEventsServiceModule({", operationalRuntimeInitializationStart);
+const operationalRuntimeInitialization = operationalRuntimeInitializationStart >= 0 && operationalRuntimeInitializationEnd > operationalRuntimeInitializationStart
+  ? appSource.slice(operationalRuntimeInitializationStart, operationalRuntimeInitializationEnd)
+  : "";
+expect(Boolean(operationalRuntimeInitialization), "Operational-runtime initialization must exist");
+expect(operationalRuntimeInitialization.includes("getSlotRoute: (slot) => getPlanningSlotRoute(slot)"), "Operational runtime must use the lightweight planning route resolver before Gantt loads");
+expect(!operationalRuntimeInitialization.includes("getSlotRoute: (...args) => getSlotRoute(...args)"), "Operational runtime must not forward getSlotRoute through the lazy Gantt facade");
+
 const appEventsInitializationStart = appSource.indexOf("appEventsService = createAppEventsServiceModule({");
 const appEventsInitializationEnd = appSource.indexOf("function updateClockOnly", appEventsInitializationStart);
 const appEventsInitialization = appEventsInitializationStart >= 0 && appEventsInitializationEnd > appEventsInitializationStart
