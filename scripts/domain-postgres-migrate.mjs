@@ -46,7 +46,7 @@ const authorityEnv = String(process.env.MES_SHARED_STATE_DIR || "").trim()
         MES_AUDIT_LOG_PATH: "/srv/mes/dev/audit/audit.log",
       }
       : null;
-if (String(process.env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1" && authorityEnv) {
+if (authorityEnv) {
   const authorityModule = await import("./domain-shift-execution-authority.mjs");
   const rollbackTriggerPath = resolve(authorityEnv.MES_SHARED_STATE_DIR, ".shift-execution-authority-rollback.json");
   let rollbackTrigger = null;
