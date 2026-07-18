@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { inspectShiftExecutionAuthority } from "./domain-shift-execution-authority.mjs";
+import { inspectShiftExecutionAuthority, partitionResolvablePayload } from "./domain-shift-execution-authority.mjs";
 import { assertShiftExecutionCommandAuthorityWritable } from "./domain-shift-execution-repository.mjs";
 
 function assert(value, message) { if (!value) throw new Error(message); }
@@ -64,6 +64,26 @@ try {
   catch (error) { pendingError = error; }
   assert(pendingError?.code === "SHIFT_EXECUTION_AUTHORITY_TRANSITION_PENDING", "commands must stop while the authority transition is pending");
   assert(guardCalls.some((query) => /pg_advisory_xact_lock_shared/.test(query)), "commands must share the cutover advisory lock");
+
+  const source = {
+    schemaVersion: "008_shift_execution_read_model",
+    shiftAssignments: [
+      { id: "active", work_order_id: "wo", work_order_operation_id: "op" },
+      { id: "legacy", work_order_id: "legacy-wo", work_order_operation_id: "legacy-op" },
+    ],
+    shiftAssignmentExecutors: [
+      { shift_assignment_id: "active", employee_id: "a" },
+      { shift_assignment_id: "legacy", employee_id: "b" },
+    ],
+    shiftFacts: [{ id: "legacy-fact", shift_assignment_id: "legacy" }],
+    shiftCarryovers: [],
+  };
+  const referenceTx = async (strings, ...values) => (
+    /FROM work_order_operations/.test(strings.join("")) && values[0] === "op" && values[1] === "wo" ? [{ id: "op" }] : []
+  );
+  const partition = await partitionResolvablePayload(referenceTx, source);
+  assert(partition.active.shiftAssignments.map((row) => row.id).join() === "active", "resolvable assignments must stay in the active import");
+  assert(partition.archived.shiftAssignments.map((row) => row.id).join() === "legacy" && partition.archived.shiftFacts.length === 1, "orphan legacy aggregates must be archived without losing dependent facts");
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

@@ -19,6 +19,12 @@ function digestPayload(payload) {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
+function stable(value) {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(",")}}`;
+  return JSON.stringify(value ?? null);
+}
+
 function countsFor(payload) {
   return {
     assignments: payload.shiftAssignments.length,
@@ -36,6 +42,53 @@ function projectSnapshot(snapshot = {}) {
   const payload = exportShiftExecutionSnapshot(snapshot);
   validateShiftExecutionExport(payload);
   return { payload, digest: digestPayload(payload), counts: countsFor(payload) };
+}
+
+function selectAssignments(payload, assignmentIds) {
+  const selected = new Set(assignmentIds);
+  return {
+    ...payload,
+    shiftAssignments: payload.shiftAssignments.filter((row) => selected.has(row.id)),
+    shiftAssignmentExecutors: payload.shiftAssignmentExecutors.filter((row) => selected.has(row.shift_assignment_id)),
+    shiftFacts: payload.shiftFacts.filter((row) => selected.has(row.shift_assignment_id)),
+    shiftCarryovers: payload.shiftCarryovers.filter((row) => selected.has(row.source_assignment_id)),
+  };
+}
+
+export async function partitionResolvablePayload(tx, payload) {
+  const activeIds = [];
+  const archivedIds = [];
+  for (const assignment of payload.shiftAssignments) {
+    const rows = await tx`
+      SELECT id FROM work_order_operations
+      WHERE id = ${assignment.work_order_operation_id}
+        AND work_order_id = ${assignment.work_order_id}
+      LIMIT 1
+    `;
+    (rows.length === 1 ? activeIds : archivedIds).push(assignment.id);
+  }
+  return {
+    active: selectAssignments(payload, activeIds),
+    archived: selectAssignments(payload, archivedIds),
+  };
+}
+
+async function readArchivedPayload(tx, transitionId) {
+  const rows = await tx`
+    SELECT source_payload FROM shift_execution_compatibility_archive
+    WHERE transition_id = ${transitionId}
+    LIMIT 1
+  `;
+  return rows[0]?.source_payload || null;
+}
+
+async function verifyArchivedPayload(tx, transitionId, expected) {
+  const actual = await readArchivedPayload(tx, transitionId);
+  const expectedHasRows = expected.shiftAssignments.length > 0;
+  if (!expectedHasRows && actual) throw new Error("Shift Execution compatibility archive contains unexpected rows");
+  if (expectedHasRows && (!actual || stable(actual) !== stable(expected))) {
+    throw new Error("Shift Execution compatibility archive parity failed");
+  }
 }
 
 function hasRetiredSharedUi(snapshot = {}) {
@@ -114,7 +167,8 @@ async function assertDatabaseEmpty(tx) {
       (SELECT count(*) FROM shift_execution_mutation_requests)::int AS mutation_requests,
       (SELECT count(*) FROM shift_execution_fact_requests)::int AS fact_requests,
       (SELECT count(*) FROM shift_execution_carryover_requests)::int AS carryover_requests,
-      (SELECT count(*) FROM shift_execution_carryover_cancellation_requests)::int AS carryover_cancellation_requests
+      (SELECT count(*) FROM shift_execution_carryover_cancellation_requests)::int AS carryover_cancellation_requests,
+      (SELECT count(*) FROM shift_execution_compatibility_archive)::int AS compatibility_archives
   `;
   const counts = Object.fromEntries(Object.entries(row || {}).map(([key, value]) => [key, Number(value || 0)]));
   if (Object.values(counts).some((value) => value !== 0)) {
@@ -172,15 +226,31 @@ async function beginAuthorityTransition(sql, { transitionId, sourceVersion, dige
     }
     await tx`LOCK TABLE shift_assignments, shift_assignment_executors, shift_facts, shift_carryovers IN ACCESS EXCLUSIVE MODE`;
     await assertDatabaseEmpty(tx);
-    await importShiftExecutionRows(tx, payload);
-    await verifyImportedProjection(tx, payload);
+    const partition = await partitionResolvablePayload(tx, payload);
+    await importShiftExecutionRows(tx, partition.active);
+    await verifyImportedProjection(tx, partition.active);
+    if (partition.archived.shiftAssignments.length) {
+      await tx`
+        INSERT INTO shift_execution_compatibility_archive (
+          transition_id, source_digest, source_payload, source_counts
+        ) VALUES (
+          ${transitionId}, ${digest}, ${tx.json(partition.archived)}, ${tx.json(countsFor(partition.archived))}
+        )
+      `;
+    }
+    await verifyArchivedPayload(tx, transitionId, partition.archived);
+    const authorityCounts = {
+      ...counts,
+      activeAssignments: partition.active.shiftAssignments.length,
+      archivedAssignments: partition.archived.shiftAssignments.length,
+    };
     await tx`
       INSERT INTO shift_execution_authority (
         authority_key, mode, transition_id, source_snapshot_version,
         source_digest, source_counts, source_export_path
       ) VALUES (
         ${SHIFT_EXECUTION_AUTHORITY_KEY}, 'transition-pending', ${transitionId}, ${sourceVersion},
-        ${digest}, ${tx.json(counts)}, ${exportPath}
+        ${digest}, ${tx.json(authorityCounts)}, ${exportPath}
       )
     `;
   });
@@ -340,7 +410,12 @@ export async function rollbackShiftExecutionPostgresAuthority({ transitionId = "
         await sql.begin("isolation level serializable", async (tx) => {
           await tx`SELECT pg_advisory_xact_lock(hashtext('mes:shift-execution-postgres-authority'))`;
           await tx`LOCK TABLE shift_assignments, shift_assignment_executors, shift_facts, shift_carryovers IN ACCESS EXCLUSIVE MODE`;
-          await verifyImportedProjection(tx, payload);
+          const archived = await readArchivedPayload(tx, authority.transitionId)
+            || selectAssignments(payload, []);
+          const archivedIds = new Set(archived.shiftAssignments.map((row) => row.id));
+          const active = selectAssignments(payload, payload.shiftAssignments.map((row) => row.id).filter((id) => !archivedIds.has(id)));
+          await verifyImportedProjection(tx, active);
+          await verifyArchivedPayload(tx, authority.transitionId, archived);
           await tx`
             UPDATE shift_execution_authority
             SET mode = 'rollback-pending', updated_at = now()
@@ -380,7 +455,12 @@ export async function rollbackShiftExecutionPostgresAuthority({ transitionId = "
       await sql.begin("isolation level serializable", async (tx) => {
         await tx`SELECT pg_advisory_xact_lock(hashtext('mes:shift-execution-postgres-authority'))`;
         await tx`LOCK TABLE shift_assignments, shift_assignment_executors, shift_facts, shift_carryovers IN ACCESS EXCLUSIVE MODE`;
-        await verifyImportedProjection(tx, payload);
+        const archived = await readArchivedPayload(tx, authority.transitionId)
+          || selectAssignments(payload, []);
+        const archivedIds = new Set(archived.shiftAssignments.map((row) => row.id));
+        const active = selectAssignments(payload, payload.shiftAssignments.map((row) => row.id).filter((id) => !archivedIds.has(id)));
+        await verifyImportedProjection(tx, active);
+        await verifyArchivedPayload(tx, authority.transitionId, archived);
         await tx`DELETE FROM shift_execution_carryover_cancellation_requests WHERE shift_carryover_id IN (SELECT id FROM shift_carryovers WHERE source_assignment_id = ANY(${assignmentIds}))`;
         await tx`DELETE FROM shift_execution_fact_requests WHERE shift_fact_id IN (SELECT id FROM shift_facts WHERE shift_assignment_id = ANY(${assignmentIds}))`;
         await tx`DELETE FROM shift_execution_carryover_requests WHERE shift_carryover_id IN (SELECT id FROM shift_carryovers WHERE source_assignment_id = ANY(${assignmentIds}))`;
@@ -390,6 +470,7 @@ export async function rollbackShiftExecutionPostgresAuthority({ transitionId = "
         await tx`DELETE FROM shift_carryovers WHERE source_assignment_id = ANY(${assignmentIds})`;
         await tx`DELETE FROM shift_assignment_executors WHERE shift_assignment_id = ANY(${assignmentIds})`;
         await tx`DELETE FROM shift_assignments WHERE id = ANY(${assignmentIds})`;
+        await tx`DELETE FROM shift_execution_compatibility_archive WHERE transition_id = ${authority.transitionId}`;
         await tx`
           DELETE FROM shift_execution_authority
           WHERE authority_key = ${SHIFT_EXECUTION_AUTHORITY_KEY}
