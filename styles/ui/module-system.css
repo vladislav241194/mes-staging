@@ -383,22 +383,6 @@ main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contr
   color: var(--mes-ui-primary);
 }
 
-main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .module-empty-note{
-  display: grid;
-  gap: var(--mes-ui-sidebar-row-gap);
-  min-width: 0;
-  border: var(--mes-ui-border-width) dashed var(--mes-ui-border-default);
-  border-radius: var(--mes-ui-radius-sm);
-  background: var(--mes-ui-surface-soft);
-  color: var(--mes-ui-text-muted);
-  padding: var(--mes-ui-panel-body-padding);
-}
-
-main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ModuleSidebarBody"] .module-empty-note :is(strong, span){
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 /* Panels and forms share one surface grammar across module families. */
 main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"]{
   box-sizing: border-box;

@@ -369,13 +369,6 @@ main.app-shell[data-layout="app-shell"]:not([data-layout-page="gantt"]) [data-la
     -webkit-overflow-scrolling: touch;
   }
 
-  main.app-shell[data-layout="app-shell"] :is(.row-actions, .table-actions) {
-    display: inline-flex !important;
-    flex-wrap: nowrap !important;
-    gap: 4px !important;
-    min-width: max-content !important;
-  }
-
   main.app-shell[data-layout="app-shell"] .dense-inline-select[open] {
     z-index: 90 !important;
   }
@@ -1362,23 +1355,23 @@ main.app-shell[data-layout="app-shell"] .dense-inline-select[open] .dense-inline
   border-color: var(--mes-icon-tone-border) !important;
   background: var(--mes-icon-tone-soft) !important;
   color: var(--mes-icon-tone) !important;
-}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-operation, .speki-section-icon-badge.is-operation, .speki-structure-table .dense-select-spekiStructureType.is-operation > summary, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-operation > summary){
+}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-operation, .speki-structure-table .dense-select-spekiStructureType.is-operation > summary, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-operation > summary){
   --mes-icon-tone: var(--mes-icon-operation);
   --mes-icon-tone-soft: var(--mes-icon-operation-soft);
   --mes-icon-tone-border: var(--mes-icon-operation-border);
-}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-warehouse, .speki-section-icon-badge.is-warehouse, .speki-structure-table .dense-select-spekiStructureType.is-warehouse > summary, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-warehouse > summary){
+}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-warehouse, .speki-structure-table .dense-select-spekiStructureType.is-warehouse > summary, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-warehouse > summary){
   --mes-icon-tone: var(--mes-icon-warehouse);
   --mes-icon-tone-soft: var(--mes-icon-warehouse-soft);
   --mes-icon-tone-border: var(--mes-icon-warehouse-border);
-}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-assembly, .speki-section-icon-badge.is-assembly, .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary){
+}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-assembly, .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary){
   --mes-icon-tone: var(--mes-icon-assembly);
   --mes-icon-tone-soft: var(--mes-icon-assembly-soft);
   --mes-icon-tone-border: var(--mes-icon-assembly-border);
-}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-spec, .route-type-icon-badge.is-specification, .speki-section-icon-badge.is-spec, .speki-section-icon-badge.is-specification, .speki-structure-table .dense-select-spekiStructureType.is-specification > summary){
+}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-spec, .route-type-icon-badge.is-specification, .speki-structure-table .dense-select-spekiStructureType.is-specification > summary){
   --mes-icon-tone: var(--mes-icon-spec);
   --mes-icon-tone-soft: var(--mes-icon-spec-soft);
   --mes-icon-tone-border: var(--mes-icon-spec-border);
-}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-part, .route-type-icon-badge.is-neutral, .speki-section-icon-badge.is-part, .speki-section-icon-badge.is-nomenclature, .speki-section-icon-badge.is-section-neutral, .speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-neutral > summary){
+}main.app-shell[data-layout="app-shell"] :is(.route-type-icon-badge.is-part, .route-type-icon-badge.is-neutral, .speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-neutral > summary){
   --mes-icon-tone: var(--mes-icon-part);
   --mes-icon-tone-soft: var(--mes-icon-part-soft);
   --mes-icon-tone-border: var(--mes-icon-part-border);
@@ -1386,27 +1379,27 @@ main.app-shell[data-layout="app-shell"] .dense-inline-select[open] .dense-inline
    master-data modules must collapse to a single column on phones. Without this
    late override,
 old two-column sidebar/workspace CSS squeezes headers into a
-   narrow right strip and QA reports false-looking text/outside failures. *main.app-shell[data-layout="app-shell"] :is(.speki-section-icon-badge.is-section-violet, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-violet > summary){
+   narrow right strip and QA reports false-looking text/outside failures. *main.app-shell[data-layout="app-shell"] :is(.speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-violet > summary){
   --mes-icon-tone: var(--mes-icon-cable);
   --mes-icon-tone-soft: var(--mes-icon-cable-soft);
   --mes-icon-tone-border: var(--mes-icon-cable-border);
-}main.app-shell[data-layout="app-shell"] :is(.speki-section-icon-badge.is-section-slate, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-slate > summary){
+}main.app-shell[data-layout="app-shell"] :is(.speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-slate > summary){
   --mes-icon-tone: var(--mes-icon-mech);
   --mes-icon-tone-soft: var(--mes-icon-mech-soft);
   --mes-icon-tone-border: var(--mes-icon-mech-border);
-}main.app-shell[data-layout="app-shell"] :is(.speki-section-icon-badge.is-section-cyan, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-cyan > summary){
+}main.app-shell[data-layout="app-shell"] :is(.speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-cyan > summary){
   --mes-icon-tone: var(--mes-icon-pack);
   --mes-icon-tone-soft: var(--mes-icon-pack-soft);
   --mes-icon-tone-border: var(--mes-icon-pack-border);
-}main.app-shell[data-layout="app-shell"] :is(.speki-section-icon-badge.is-section-rose, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-rose > summary){
+}main.app-shell[data-layout="app-shell"] :is(.speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-rose > summary){
   --mes-icon-tone: var(--mes-icon-buy);
   --mes-icon-tone-soft: var(--mes-icon-buy-soft);
   --mes-icon-tone-border: var(--mes-icon-buy-border);
-}main.app-shell[data-layout="app-shell"] :is(.speki-section-icon-badge.is-section-indigo, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-indigo > summary){
+}main.app-shell[data-layout="app-shell"] :is(.speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-indigo > summary){
   --mes-icon-tone: var(--mes-icon-make);
   --mes-icon-tone-soft: var(--mes-icon-make-soft);
   --mes-icon-tone-border: var(--mes-icon-make-border);
-}main.app-shell[data-layout="app-shell"] :is(.speki-section-icon-badge.is-section-stone, .speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-stone > summary){
+}main.app-shell[data-layout="app-shell"] :is(.speki-structure-table .dense-select-spekiStructureNomenclatureType.is-section-stone > summary){
   --mes-icon-tone: var(--mes-icon-tool);
   --mes-icon-tone-soft: var(--mes-icon-tool-soft);
   --mes-icon-tone-border: var(--mes-icon-tool-border);

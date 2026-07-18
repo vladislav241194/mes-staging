@@ -145,25 +145,6 @@ employee and planning-order foundations.
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}.module-empty-note{
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  border: var(--mes-ui-border-width) solid var(--mes-ui-border-soft);
-  border-radius: var(--mes-ui-radius-lg);
-  background: var(--mes-ui-surface-panel-soft);
-  padding: 10px;
-}.module-empty-note strong{
-  overflow: hidden;
-  color: var(--mes-ui-text);
-  font-size: 13px;
-  font-weight: 860;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}.module-empty-note span{
-  color: var(--mes-ui-text-muted);
-  font-size: 11px;
-  line-height: 1.45;
 }.planning-empty-page{
   display: grid;
   align-items: start;

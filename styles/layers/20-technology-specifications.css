@@ -8,13 +8,6 @@
   }.planning-assistant-dock{
     scrollbar-color: #cbd5e1 transparent;
   }
-}.component-name{
-  display: block;
-  overflow: visible;
-  color: #111827;
-  text-overflow: clip;
-  white-space: normal;
-  word-break: normal;
 }@keyframes specAdded {from{
     transform: translateY(-4px);
     opacity: 0;

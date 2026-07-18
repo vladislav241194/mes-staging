@@ -1369,104 +1369,6 @@ main.app-shell[data-layout-page="directories"] .directories-page{
   white-space: nowrap;
   word-break: normal;
   overflow-wrap: normal;
-}main.app-shell[data-layout-page="products"] .speki-structure-table :is(th, td){
-  vertical-align: middle;
-}main.app-shell[data-layout-page="products"] .speki-structure-table td{
-  height: 40px;
-}main.app-shell[data-layout-page="products"] .speki-structure-table .speki-table-row-actions{
-  align-items: center;
-}main.app-shell[data-layout-page="products"] .speki-page.module-data-page{
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px;
-}main.app-shell[data-layout-page="products"] .speki-page .module-data-workspace,
-main.app-shell[data-layout-page="products"] .speki-page .speki-module-content,
-main.app-shell[data-layout-page="products"] .speki-page .speki-spec-table-panel{
-  min-width: 0;
-}main.app-shell[data-layout-page="products"] .speki-page .module-data-workspace{
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-}main.app-shell[data-layout-page="products"] .speki-page .speki-module-content{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--mes-ui-density-gap);
-  padding: var(--mes-ui-density-card);
-  overflow: auto;
-}main.app-shell[data-layout-page="products"] .speki-page .speki-spec-table-panel{
-  width: 100%;
-  max-width: none;
-  height: auto;
-  padding: 8px;
-  overflow: visible;
-}main.app-shell[data-layout-page="products"] .speki-page .ui-panel-head{
-  margin-bottom: 8px;
-}main.app-shell[data-layout-page="products"] .speki-spec-mini-card{
-  grid-template-columns: minmax(280px, 1fr) auto;
-  gap: 8px;
-  margin-bottom: 8px;
-  padding: 8px;
-}main.app-shell[data-layout-page="products"] .speki-spec-name-field{
-  gap: 4px;
-}main.app-shell[data-layout-page="products"] .speki-spec-name-field span{
-  font-size: var(--mes-ui-module-font-xs);
-  line-height: 13px;
-}main.app-shell[data-layout-page="products"] .speki-spec-name-field input{
-  height: var(--mes-ui-module-control-height);
-  font-size: var(--mes-ui-module-font-sm);
-}main.app-shell[data-layout-page="products"] .speki-structure-table-wrap{
-  overflow: visible;
-}main.app-shell[data-layout-page="products"] .speki-structure-table{
-  width: 100%;
-  min-width: 760px;
-}main.app-shell[data-layout-page="products"] .speki-structure-table th:nth-child(2),
-main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2){
-  width: 68px;
-  text-align: center;
-}main.app-shell[data-layout-page="products"] .speki-structure-table tr:has(.dense-inline-select[open]){
-  position: relative;
-  z-index: 30;
-}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-inline-select[open]{
-  z-index: 40;
-}main.app-shell[data-layout-page="products"] .speki-structure-table :is(input, .dense-inline-select > summary, .speki-static-cell, .speki-section-chip, .speki-section-icon-badge){
-  min-height: 26px;
-  font-size: var(--mes-ui-module-font-sm);
-}main.app-shell[data-layout-page="products"] .speki-structure-table .speki-section-icon-badge{
-  width: 28px;
-  min-width: 28px;
-  max-width: 28px;
-  height: 28px;
-  min-height: 28px;
-  margin-right: auto;
-  margin-left: auto;
-}main.app-shell[data-layout-page="products"] .speki-structure-table td:nth-child(2) .dense-select-spekiStructureNomenclatureType{
-  width: 40px;
-  margin-right: auto;
-  margin-left: auto;
-}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureNomenclatureType > summary{
-  min-width: 40px;
-  min-height: 26px;
-}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary{
-  color: var(--mes-ui-text-secondary);
-}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-bom > summary{
-  color: var(--mes-ui-status-info-text);
-}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-specification > summary{
-  color: var(--mes-ui-status-warning-text);
-}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary{
-  color: var(--mes-ui-status-success-text);
-}main.app-shell[data-layout-page="products"] .speki-structure-table .dense-select-spekiStructureNomenclatureType .dense-inline-options{
-  width: min(360px, calc(100vw - 32px));
-  min-width: min(260px, calc(100vw - 32px));
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: min(480px, calc(100vh - 340px));
-  z-index: 90;
-}main.app-shell[data-layout-page="products"] .speki-table-row-actions .icon-button,
-main.app-shell[data-layout-page="products"] .speki-bom-toggle{
-  flex-basis: 23px;
-  width: 23px;
-  min-width: 23px;
-  height: 22px;
-  min-height: 22px;
 }main.app-shell[data-layout-page="nomenclature"] .nomenclature-module-content,
 main.app-shell[data-layout-page="routes"] .route-module-content{
   grid-template-columns: minmax(0, 1fr);
@@ -1957,8 +1859,7 @@ main.app-shell[data-layout-page="routes"] .route-step-flow-summary strong{
 }main.app-shell[data-layout-page="routes"] .route-object-operation-row .route-task-empty{
   min-height: 40px;
   padding: 8px 10px;
-}@media (max-width: 1180px) {main.app-shell[data-layout-page="products"] .speki-spec-mini-card,
-main.app-shell[data-layout-page="routes"] .route-step-editor-row,
+}@media (max-width: 1180px) {main.app-shell[data-layout-page="routes"] .route-step-editor-row,
 main.app-shell[data-layout-page="routes"] .route-step-editor-row.has-task-target{
     grid-template-columns: minmax(0, 1fr);
   }}/* MES UI Kit rollout batch 2: operational modules. *main.app-shell[data-layout-page="planning"] .planning-page:not(.planning-order-page){

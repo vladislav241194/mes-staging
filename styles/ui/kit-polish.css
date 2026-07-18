@@ -1785,10 +1785,6 @@ main.app-shell[data-layout="app-shell"] .ui-document-tree-table-wrap[data-ui-com
   table-layout: fixed;
 }
 
-main.app-shell[data-layout="app-shell"][data-layout-page="products"] .ui-document-tree-table-wrap[data-ui-component="TableWrap"] .ui-document-tree-table{
-  min-width: 760px;
-}
-
 main.app-shell[data-layout="app-shell"] .ui-document-tree-table :is(th, td){
   box-sizing: border-box;
   min-width: 0;
