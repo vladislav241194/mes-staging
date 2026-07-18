@@ -388,14 +388,36 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
     // any direct PostgreSQL edit to orders, operations or slots invalidates it
     // before the next read.
     async getPlanningProjectionParityState() {
-      const rows = await sql`
-        SELECT primary_revision, primary_updated_at,
-          verified_primary_revision, verified_snapshot_fingerprint,
-          verified_contract_version, verified_at
-        FROM planning_projection_parity_state
-        WHERE singleton = TRUE
-        LIMIT 1
-      `;
+      let rows;
+      let observationAvailable = true;
+      try {
+        rows = await sql`
+          SELECT primary_revision, primary_updated_at,
+            verified_primary_revision, verified_snapshot_fingerprint,
+            verified_snapshot_generation, verified_contract_version, verified_at,
+            snapshot_generation, snapshot_observation_state,
+            observed_snapshot_version, observed_snapshot_fingerprint,
+            observed_snapshot_source, observed_snapshot_at, observed_snapshot_error
+          FROM planning_projection_parity_state
+          WHERE singleton = TRUE
+          LIMIT 1
+        `;
+      } catch (error) {
+        // A rolling release can start this application before the additive
+        // observation migration has run.  Preserve the existing marker path
+        // in that short window; the API will simply retain snapshot health
+        // verification until the migration is present.
+        if (String(error?.code || "") !== "42703") throw error;
+        observationAvailable = false;
+        rows = await sql`
+          SELECT primary_revision, primary_updated_at,
+            verified_primary_revision, verified_snapshot_fingerprint,
+            verified_contract_version, verified_at
+          FROM planning_projection_parity_state
+          WHERE singleton = TRUE
+          LIMIT 1
+        `;
+      }
       const row = rows[0] || null;
       return row ? {
         primaryRevision: Number(row.primary_revision || 0),
@@ -403,16 +425,94 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         verifiedPrimaryRevision: row.verified_primary_revision === null || row.verified_primary_revision === undefined
           ? null : Number(row.verified_primary_revision),
         verifiedSnapshotFingerprint: String(row.verified_snapshot_fingerprint || ""),
+        verifiedSnapshotGeneration: row.verified_snapshot_generation === null || row.verified_snapshot_generation === undefined
+          ? null : Number(row.verified_snapshot_generation),
         verifiedContractVersion: Number(row.verified_contract_version || 0),
         verifiedAt: row.verified_at?.toISOString?.() || String(row.verified_at || ""),
+        observationAvailable,
+        snapshotGeneration: Number(row.snapshot_generation || 0),
+        snapshotObservationState: String(row.snapshot_observation_state || "unknown"),
+        observedSnapshotVersion: row.observed_snapshot_version === null || row.observed_snapshot_version === undefined
+          ? null : Number(row.observed_snapshot_version),
+        observedSnapshotFingerprint: String(row.observed_snapshot_fingerprint || ""),
+        observedSnapshotSource: String(row.observed_snapshot_source || ""),
+        observedSnapshotAt: row.observed_snapshot_at?.toISOString?.() || String(row.observed_snapshot_at || ""),
+        observedSnapshotError: String(row.observed_snapshot_error || ""),
       } : null;
     },
 
-    async markPlanningProjectionParity({ primaryRevision, snapshotFingerprint, contractVersion } = {}) {
+    async beginPlanningSnapshotObservation({ source = "planning-snapshot-write" } = {}) {
+      const normalizedSource = String(source || "planning-snapshot-write").trim().slice(0, 160) || "planning-snapshot-write";
+      const rows = await sql`
+        UPDATE planning_projection_parity_state
+        SET snapshot_generation = snapshot_generation + 1,
+            snapshot_observation_state = 'pending',
+            observed_snapshot_version = NULL,
+            observed_snapshot_fingerprint = '',
+            observed_snapshot_source = ${normalizedSource},
+            observed_snapshot_at = NULL,
+            observed_snapshot_error = '',
+            verified_primary_revision = NULL,
+            verified_snapshot_fingerprint = '',
+            verified_snapshot_generation = NULL,
+            verified_contract_version = 0,
+            verified_at = NULL
+        WHERE singleton = TRUE
+        RETURNING primary_revision, snapshot_generation
+      `;
+      const row = rows[0] || null;
+      return row ? {
+        primaryRevision: Number(row.primary_revision || 0),
+        snapshotGeneration: Number(row.snapshot_generation || 0),
+      } : null;
+    },
+
+    async recordPlanningSnapshotObservation({ snapshotGeneration, snapshotVersion, snapshotFingerprint, source = "planning-snapshot-write" } = {}) {
+      const generation = Math.max(0, Number(snapshotGeneration) || 0);
+      const version = Math.max(0, Number(snapshotVersion) || 0);
+      const fingerprint = String(snapshotFingerprint || "").trim();
+      const normalizedSource = String(source || "planning-snapshot-write").trim().slice(0, 160) || "planning-snapshot-write";
+      if (!generation || !fingerprint) return false;
+      const rows = await sql`
+        UPDATE planning_projection_parity_state
+        SET snapshot_observation_state = 'observed',
+            observed_snapshot_version = ${version},
+            observed_snapshot_fingerprint = ${fingerprint},
+            observed_snapshot_source = ${normalizedSource},
+            observed_snapshot_at = now(),
+            observed_snapshot_error = ''
+        WHERE singleton = TRUE
+          AND snapshot_generation = ${generation}
+          AND snapshot_observation_state = 'pending'
+        RETURNING snapshot_generation
+      `;
+      return Boolean(rows[0]);
+    },
+
+    async markPlanningProjectionParity({ primaryRevision, snapshotFingerprint, snapshotGeneration = null, contractVersion } = {}) {
       const revision = Math.max(0, Number(primaryRevision) || 0);
       const fingerprint = String(snapshotFingerprint || "").trim();
+      const generation = snapshotGeneration === null || snapshotGeneration === undefined
+        ? null : Math.max(0, Number(snapshotGeneration) || 0);
       const parityContractVersion = Math.max(1, Number(contractVersion) || 0);
       if (!fingerprint) return false;
+      if (generation !== null) {
+        const rows = await sql`
+          UPDATE planning_projection_parity_state
+          SET verified_primary_revision = ${revision},
+              verified_snapshot_fingerprint = ${fingerprint},
+              verified_snapshot_generation = ${generation},
+              verified_contract_version = ${parityContractVersion},
+              verified_at = now()
+          WHERE singleton = TRUE
+            AND primary_revision = ${revision}
+            AND snapshot_generation = ${generation}
+            AND snapshot_observation_state = 'observed'
+            AND observed_snapshot_fingerprint = ${fingerprint}
+          RETURNING primary_revision
+        `;
+        return Boolean(rows[0]);
+      }
       const rows = await sql`
         UPDATE planning_projection_parity_state
         SET verified_primary_revision = ${revision},

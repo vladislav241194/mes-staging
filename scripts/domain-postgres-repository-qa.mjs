@@ -25,6 +25,10 @@ assert(source.includes("Completed or locked planning slot cannot be rescheduled"
 assert(source.includes("const nextEnd = addCalendarWorkingDuration(calendar, nextStart, durationMs)"), "Slot schedule command must calculate its end through the work-center calendar");
 assert(source.includes("'change_slot_schedule'"), "Slot schedule command must persist an outbox event");
 assert(source.includes("async getPlanningProjectionParityState()"), "PostgreSQL repository must expose a planning parity watermark reader");
+assert(source.includes("async beginPlanningSnapshotObservation"), "PostgreSQL repository must invalidate a planning observation before a managed snapshot write");
+assert(source.includes("async recordPlanningSnapshotObservation"), "PostgreSQL repository must record an observed planning snapshot after it is written");
 assert(source.includes("async markPlanningProjectionParity"), "PostgreSQL repository must expose an atomic planning parity watermark writer");
 assert(source.includes("WHERE singleton = TRUE") && source.includes("AND primary_revision = ${revision}"), "Parity marker write must be guarded by the exact primary epoch");
+assert(source.includes("AND snapshot_generation = ${generation}") && source.includes("AND snapshot_observation_state = 'observed'"), "Observed parity marker must be guarded by its exact snapshot generation");
+assert(source.includes("AND observed_snapshot_fingerprint = ${fingerprint}"), "Observed parity marker must bind the exact durable snapshot fingerprint");
 console.log("PostgreSQL repository lifecycle QA: OK");

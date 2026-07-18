@@ -4,7 +4,13 @@ import { dirname, join } from "node:path";
 import {
   appendSharedStateAudit,
   backupSharedStateFile,
+  withSharedStateFileLock,
 } from "./shared-state-storage.mjs";
+import {
+  beginPlanningSnapshotObservation,
+  recordPlanningSnapshotObservation,
+  resolvePlanningSnapshotObservationEnvironment,
+} from "./planning-snapshot-observer.mjs";
 
 const contourConfigs = {
   staging: {
@@ -99,6 +105,28 @@ function createTargetSnapshot({ sourceSnapshot, sourceConfig, targetConfig, acto
   };
 }
 
+async function targetEnvironment(targetConfig) {
+  const observationEnv = await resolvePlanningSnapshotObservationEnvironment({
+    env: process.env,
+    targetAppEnv: targetConfig.appEnv,
+    targetSharedStateFile: targetConfig.filePath,
+  });
+  return {
+    ...observationEnv,
+    APP_ENV: targetConfig.appEnv,
+    MES_SHARED_STATE_KEY: targetConfig.sharedStateKey,
+    MES_SHARED_STATE_FILE: targetConfig.filePath,
+    MES_BACKUP_DIR: targetConfig.backupDir,
+    MES_AUDIT_LOG_PATH: targetConfig.auditLogPath,
+  };
+}
+
+function observationUnavailableError(observation) {
+  const error = new Error(`Stage-to-pilot sync was blocked before writing Planning data: ${observation?.error || "Planning snapshot observation is unavailable"}`);
+  error.code = "MES_PLANNING_SNAPSHOT_OBSERVATION_UNAVAILABLE";
+  return error;
+}
+
 async function main() {
   const from = getArgValue("--from", "staging");
   const to = getArgValue("--to", "pilot");
@@ -160,20 +188,55 @@ async function main() {
   };
 
   if (!dryRun) {
-    const backup = await backupSharedStateFile({
-      filePath: targetConfig.filePath,
-      backupDir: targetConfig.backupDir,
-      reason: `before-${reason}`,
-      actor,
-      env: {
-        APP_ENV: targetConfig.appEnv,
-        MES_SHARED_STATE_KEY: targetConfig.sharedStateKey,
-      },
-      allowMissing: true,
-    });
+    const targetEnv = await targetEnvironment(targetConfig);
+    await withSharedStateFileLock(targetConfig.filePath, async () => {
+      // Re-read inside the shared writer lock. The initial read remains useful
+      // for dry-run output, while this one is the only safe predecessor for a
+      // real restore/sync write and its observation marker.
+      const lockedTargetBefore = await readSnapshot(targetConfig.filePath).catch((error) => {
+        if (error?.code === "ENOENT") return null;
+        throw error;
+      });
+      summary.targetBefore = lockedTargetBefore ? {
+        contour: targetConfig.label,
+        filePath: targetConfig.filePath,
+        bytes: Buffer.byteLength(lockedTargetBefore.raw),
+        ...summarizeSnapshot(lockedTargetBefore.snapshot),
+      } : {
+        contour: targetConfig.label,
+        filePath: targetConfig.filePath,
+        bytes: 0,
+        missing: true,
+      };
 
-    summary.backupPath = backup?.backupPath || "";
-    await writeJsonAtomic(targetConfig.filePath, targetSnapshot);
+      const observation = await beginPlanningSnapshotObservation({
+        env: targetEnv,
+        current: lockedTargetBefore?.snapshot || {},
+        next: targetSnapshot,
+        source: "sync-stage-to-pilot",
+      });
+      if (!observation.ok) throw observationUnavailableError(observation);
+
+      const backup = await backupSharedStateFile({
+        filePath: targetConfig.filePath,
+        backupDir: targetConfig.backupDir,
+        reason: `before-${reason}`,
+        actor,
+        env: targetEnv,
+        allowMissing: true,
+      });
+
+      summary.backupPath = backup?.backupPath || "";
+      await writeJsonAtomic(targetConfig.filePath, targetSnapshot);
+      const recorded = await recordPlanningSnapshotObservation({
+        observation,
+        snapshot: targetSnapshot,
+        source: "sync-stage-to-pilot",
+      });
+      summary.planningSnapshotObservation = recorded.attempted
+        ? (recorded.recorded ? "recorded" : "pending")
+        : "not-required";
+    });
 
     await Promise.all([
       appendSharedStateAudit({
@@ -200,6 +263,7 @@ async function main() {
           previousTargetVersion: summary.targetBefore.version || 0,
           targetVersion: summary.targetAfter.version,
           backupPath: summary.backupPath,
+          planningSnapshotObservation: summary.planningSnapshotObservation || "not-required",
         },
       }).catch(() => {}),
     ]);

@@ -10,6 +10,7 @@ import { createSystemDomainsRepository } from "./domain-system-domains-repositor
 import { inspectSystemDomainsSnapshotConsistency, syncPendingSystemDomainsSnapshotChanges } from "./domain-system-domains-snapshot-sync.mjs";
 import { syncPendingSnapshotChanges } from "./domain-snapshot-sync.mjs";
 import { getPublicAuthPrincipal } from "./public-auth-guard.mjs";
+import { isPlanningSnapshotObservationEnabled } from "./planning-snapshot-observer.mjs";
 import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
 
 const API_PREFIX = "/api/v1";
@@ -339,9 +340,33 @@ function getSnapshotPlanningFingerprint(snapshotHealth = {}) {
   return String(snapshotHealth?.planningProjectionFingerprint || "").trim();
 }
 
-function createPlanningProjectionReadVerification(markerState = null, snapshotHealth = {}) {
+function hasMatchingPlanningSnapshotObservationMarker(markerState = null) {
+  return Boolean(
+    markerState
+    && markerState.observationAvailable !== false
+    && String(markerState.snapshotObservationState || "") === "observed"
+    && Number(markerState.snapshotGeneration) > 0
+    && Number(markerState.verifiedSnapshotGeneration) === Number(markerState.snapshotGeneration)
+    && Number(markerState.verifiedPrimaryRevision) === Number(markerState.primaryRevision)
+    && String(markerState.observedSnapshotFingerprint || "")
+    && String(markerState.verifiedSnapshotFingerprint || "") === String(markerState.observedSnapshotFingerprint || "")
+    && Number(markerState.verifiedContractVersion) === PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
+  );
+}
+
+function createPlanningProjectionReadVerification(markerState = null, snapshotHealth = {}, { allowObservedMarker = false } = {}) {
+  if (allowObservedMarker && hasMatchingPlanningSnapshotObservationMarker(markerState)) {
+    return {
+      mode: "observed-snapshot-generation",
+      primaryRevision: Number(markerState.primaryRevision || 0),
+      snapshotGeneration: Number(markerState.snapshotGeneration || 0),
+      snapshotFingerprint: String(markerState.observedSnapshotFingerprint || ""),
+      contractVersion: PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
+    };
+  }
   if (!hasMatchingPlanningProjectionMarker(markerState, snapshotHealth)) return null;
   return {
+    mode: "snapshot-health",
     primaryRevision: Number(markerState.primaryRevision || 0),
     snapshotFingerprint: getSnapshotPlanningFingerprint(snapshotHealth),
     contractVersion: PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
@@ -361,9 +386,20 @@ function hasMatchingPlanningProjectionMarker(markerState = null, snapshotHealth 
 }
 
 async function isPlanningProjectionReadVerificationCurrent({ primary, snapshot, verification } = {}) {
-  if (!verification || !primary || !snapshot
+  if (!verification || !primary
     || typeof primary.getPlanningProjectionParityState !== "function") return false;
   try {
+    if (verification.mode === "observed-snapshot-generation") {
+      const markerState = await primary.getPlanningProjectionParityState();
+      return Boolean(
+        hasMatchingPlanningSnapshotObservationMarker(markerState)
+        && Number(markerState.primaryRevision) === Number(verification.primaryRevision)
+        && Number(markerState.snapshotGeneration) === Number(verification.snapshotGeneration)
+        && String(markerState.observedSnapshotFingerprint || "") === String(verification.snapshotFingerprint || "")
+        && Number(markerState.verifiedContractVersion) === Number(verification.contractVersion),
+      );
+    }
+    if (!snapshot) return false;
     const [markerState, snapshotHealth] = await Promise.all([
       primary.getPlanningProjectionParityState(),
       snapshot.health(),
@@ -479,6 +515,9 @@ function planningParityCacheKey({ filePath = "", primaryHealth = {}, snapshotHea
     snapshotRevision: Number(snapshotHealth.revision || 0),
     snapshotUpdatedAt: String(snapshotHealth.updatedAt || ""),
     snapshotPlanningFingerprint,
+    snapshotObservationState: String(markerState?.snapshotObservationState || ""),
+    snapshotGeneration: Number(markerState?.snapshotGeneration || 0),
+    observedSnapshotFingerprint: String(markerState?.observedSnapshotFingerprint || ""),
   });
 }
 
@@ -546,7 +585,47 @@ export async function inspectPlanningProjectionSafety({
     };
   }
 
+  // Constructing the compatibility adapter does not read its snapshot.  When
+  // the durable observation marker is valid we retain it only as a fail-closed
+  // fallback and avoid parsing/hash-reading the multi-megabyte file here.
   const snapshot = await createRepository({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+  const markerSupported = typeof primary?.getPlanningProjectionParityState === "function"
+    && typeof primary?.markPlanningProjectionParity === "function";
+  const observationSupported = markerSupported
+    && typeof primary?.beginPlanningSnapshotObservation === "function"
+    && typeof primary?.recordPlanningSnapshotObservation === "function";
+  const observationConfigured = observationSupported && isPlanningSnapshotObservationEnabled(env);
+  let markerState = null;
+  if (markerSupported) {
+    try {
+      markerState = await primary.getPlanningProjectionParityState();
+    } catch {
+      // A release may reach the application before its optional migration.
+      // Never trust an unavailable marker; the established full parity route
+      // below remains the safe fallback until the schema is ready.
+      markerState = null;
+    }
+  }
+
+  // Migration 024 is additive and can land after the application package.
+  // Do not repeatedly issue a failing `begin` against the older row shape:
+  // its reader reports `observationAvailable: false`, so the proven
+  // snapshot-health path remains active until the schema is actually ready.
+  const observationRequested = observationConfigured && markerState?.observationAvailable === true;
+
+  if (!forceFullParity && observationRequested && hasMatchingPlanningSnapshotObservationMarker(markerState)) {
+    return {
+      repository: primary,
+      primary,
+      primaryHealth,
+      snapshot,
+      snapshotHealth: null,
+      readVerification: createPlanningProjectionReadVerification(markerState, {}, { allowObservedMarker: true }),
+      parity: { matches: true, skipped: "verified-snapshot-observation-marker", mismatches: [] },
+      fallbackReason: "",
+    };
+  }
+
   const snapshotHealth = await snapshot.health();
   // A PostgreSQL-only deployment has no compatibility state to protect.  It
   // is therefore safe to preserve the configured primary path unchanged.
@@ -562,21 +641,20 @@ export async function inspectPlanningProjectionSafety({
     };
   }
 
-  const markerSupported = typeof primary?.getPlanningProjectionParityState === "function"
-    && typeof primary?.markPlanningProjectionParity === "function";
-  let markerState = null;
-  if (markerSupported && getSnapshotPlanningFingerprint(snapshotHealth)) {
+  let observation = null;
+  if (observationRequested) {
     try {
-      markerState = await primary.getPlanningProjectionParityState();
+      observation = await primary.beginPlanningSnapshotObservation({ source: "planning-parity-proof" });
+      if (!observation?.snapshotGeneration) observation = null;
     } catch {
-      // A release may reach the application before its optional migration.
-      // Never trust an unavailable marker; the established full parity route
-      // below remains the safe fallback until the schema is ready.
-      markerState = null;
+      // A rolling release that has not run migration 024 retains the existing
+      // fingerprint proof below.  It never treats the newer fast path as
+      // healthy until an observed generation can be read and revalidated.
+      observation = null;
     }
   }
 
-  if (!forceFullParity && hasMatchingPlanningProjectionMarker(markerState, snapshotHealth)) {
+  if (!forceFullParity && !observation && hasMatchingPlanningProjectionMarker(markerState, snapshotHealth)) {
     return {
       repository: primary,
       primary,
@@ -592,7 +670,7 @@ export async function inspectPlanningProjectionSafety({
   const cacheKey = planningParityCacheKey({ filePath, primaryHealth, snapshotHealth, markerState });
   const cached = planningPostgresParityCache;
   let checked;
-  if (!forceFullParity && cached?.cacheKey === cacheKey && now() - cached.checkedAt < PLANNING_POSTGRES_PARITY_CACHE_TTL_MS) {
+  if (!observation && !forceFullParity && cached?.cacheKey === cacheKey && now() - cached.checkedAt < PLANNING_POSTGRES_PARITY_CACHE_TTL_MS) {
     checked = cached.checked;
   } else {
     try {
@@ -601,13 +679,14 @@ export async function inspectPlanningProjectionSafety({
       // comparison was running.  The PostgreSQL epoch is trigger-maintained
       // for every order/operation/slot write; the snapshot SHA covers the
       // planning value independently from unrelated UI state changes.
-      if (checked.parity.matches && markerSupported && markerState && getSnapshotPlanningFingerprint(snapshotHealth)) {
+      if (checked.parity.matches && markerSupported && getSnapshotPlanningFingerprint(snapshotHealth)) {
         const [primaryAfter, snapshotAfter] = await Promise.all([
           primary.getPlanningProjectionParityState().catch(() => null),
           snapshot.health().catch(() => null),
         ]);
-        if (!primaryAfter || !snapshotAfter
-          || Number(primaryAfter.primaryRevision) !== Number(markerState.primaryRevision)
+        const expectedPrimaryRevision = observation ? Number(observation.primaryRevision) : Number(markerState?.primaryRevision);
+        if (!primaryAfter || !snapshotAfter || !Number.isFinite(expectedPrimaryRevision)
+          || Number(primaryAfter.primaryRevision) !== expectedPrimaryRevision
           || getSnapshotPlanningFingerprint(snapshotAfter) !== getSnapshotPlanningFingerprint(snapshotHealth)) {
           checked.parity = {
             matches: false,
@@ -620,9 +699,19 @@ export async function inspectPlanningProjectionSafety({
           // checkpoint now so that the read can revalidate the exact source
           // pair afterwards.  If it cannot be written, select the safe
           // snapshot instead of silently returning an unguarded primary.
-          const marked = await primary.markPlanningProjectionParity({
-            primaryRevision: markerState.primaryRevision,
-            snapshotFingerprint: getSnapshotPlanningFingerprint(snapshotHealth),
+          const fingerprint = getSnapshotPlanningFingerprint(snapshotHealth);
+          const observed = observation
+            ? await primary.recordPlanningSnapshotObservation({
+              snapshotGeneration: observation.snapshotGeneration,
+              snapshotVersion: Number(snapshotAfter.version || 0),
+              snapshotFingerprint: fingerprint,
+              source: "planning-parity-proof",
+            }).catch(() => false)
+            : true;
+          const marked = observed && await primary.markPlanningProjectionParity({
+            primaryRevision: expectedPrimaryRevision,
+            snapshotFingerprint: fingerprint,
+            ...(observation ? { snapshotGeneration: observation.snapshotGeneration } : {}),
             contractVersion: PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
           }).catch(() => false);
           if (!marked) {
@@ -651,24 +740,32 @@ export async function inspectPlanningProjectionSafety({
         },
       };
     }
-    planningPostgresParityCache = { cacheKey, checkedAt: now(), checked };
+    if (!observation) planningPostgresParityCache = { cacheKey, checkedAt: now(), checked };
   }
 
   const fallbackReason = checked.parity.matches ? "" : PLANNING_POSTGRES_FALLBACK_REASON;
   let verifiedMarkerState = null;
   let verifiedSnapshotHealth = snapshotHealth;
   if (!fallbackReason) {
-    [verifiedMarkerState, verifiedSnapshotHealth] = await Promise.all([
-      Promise.resolve().then(() => primary.getPlanningProjectionParityState()).catch(() => null),
-      snapshot.health().catch(() => null),
-    ]);
+    if (observation) {
+      verifiedMarkerState = await Promise.resolve().then(() => primary.getPlanningProjectionParityState()).catch(() => null);
+    } else {
+      [verifiedMarkerState, verifiedSnapshotHealth] = await Promise.all([
+        Promise.resolve().then(() => primary.getPlanningProjectionParityState()).catch(() => null),
+        snapshot.health().catch(() => null),
+      ]);
+    }
   }
   // Re-read both sides after the CAS marker write.  A direct PostgreSQL or
   // legacy snapshot change that interleaves with the full proof must not be
   // promoted to a trusted primary read.
   const readVerification = fallbackReason
     ? null
-    : createPlanningProjectionReadVerification(verifiedMarkerState, verifiedSnapshotHealth);
+    : createPlanningProjectionReadVerification(
+      verifiedMarkerState,
+      verifiedSnapshotHealth,
+      { allowObservedMarker: Boolean(observation) },
+    );
   if (!fallbackReason && !readVerification) {
     checked.parity = {
       matches: false,

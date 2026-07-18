@@ -43,6 +43,8 @@ const shiftExecutionCarryoverLifecycleMigrationPath = fileURLToPath(new URL("../
 const shiftExecutionCarryoverLifecycleSql = await readFile(shiftExecutionCarryoverLifecycleMigrationPath, "utf-8");
 const systemDomainsPrimaryAuthorityMigrationPath = fileURLToPath(new URL("../db/migrations/023_system_domains_postgres_primary_authority.sql", import.meta.url));
 const systemDomainsPrimaryAuthoritySql = await readFile(systemDomainsPrimaryAuthorityMigrationPath, "utf-8");
+const planningSnapshotObservationMigrationPath = fileURLToPath(new URL("../db/migrations/024_planning_snapshot_observation_guard.sql", import.meta.url));
+const planningSnapshotObservationSql = await readFile(planningSnapshotObservationMigrationPath, "utf-8");
 const postgresPreflightPath = fileURLToPath(new URL("./domain-postgres-preflight.mjs", import.meta.url));
 const postgresPreflightSql = await readFile(postgresPreflightPath, "utf-8");
 
@@ -195,4 +197,13 @@ assert(
   postgresPreflightSql.includes('"023_system_domains_postgres_primary_authority"'),
   "PostgreSQL domain preflight must require the System Domains primary-authority migration",
 );
+[
+  "ADD COLUMN IF NOT EXISTS snapshot_generation BIGINT NOT NULL DEFAULT 0",
+  "snapshot_observation_state TEXT NOT NULL DEFAULT 'unknown'",
+  "observed_snapshot_fingerprint TEXT NOT NULL DEFAULT ''",
+  "verified_snapshot_generation BIGINT",
+  "verified_snapshot_generation = NULL",
+  "INSERT INTO mes_schema_migrations(version)\nVALUES ('024_planning_snapshot_observation_guard')",
+].forEach((fragment) => assert(planningSnapshotObservationSql.includes(fragment), `Planning snapshot-observation migration is missing: ${fragment}`));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningSnapshotObservationSql), "Planning snapshot-observation migration must not contain destructive statements");
 console.log("Domain schema QA: OK");

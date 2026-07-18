@@ -10,6 +10,10 @@ import {
   withSharedStateFileLock,
   writeSharedStateFileAtomic,
 } from "./shared-state-storage.mjs";
+import {
+  beginPlanningSnapshotObservation,
+  recordPlanningSnapshotObservation,
+} from "./planning-snapshot-observer.mjs";
 
 const MAX_SHARED_STATE_BODY_BYTES = 20 * 1024 * 1024;
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
@@ -519,6 +523,7 @@ export async function updateSharedStateSnapshot({
   expectedVersion = null,
   update,
   beforeWrite = null,
+  planningObservationSource = "shared-state-domain-update",
   allowSystemDomainsCompatibilitySnapshotRetirement = false,
 } = {}) {
   const store = createStore({ env, filePath });
@@ -548,6 +553,21 @@ export async function updateSharedStateSnapshot({
       version: Number(current.version || 0) + 1,
       updatedAt: new Date().toISOString(),
     };
+    const planningObservation = await beginPlanningSnapshotObservation({
+      env,
+      current,
+      next: snapshot,
+      source: planningObservationSource,
+    });
+    if (!planningObservation.ok) {
+      return {
+        ok: false,
+        configured: true,
+        retryable: true,
+        error: planningObservation.error || "Planning snapshot observation is unavailable",
+        snapshot: current,
+      };
+    }
     if (typeof beforeWrite === "function") await beforeWrite({ current, snapshot, store });
     if (store.kind === "kv") {
       let persisted;
@@ -575,7 +595,12 @@ export async function updateSharedStateSnapshot({
     } else {
       await store.write(snapshot);
     }
-    return { ok: true, configured: true, snapshot };
+    const planningObservationResult = await recordPlanningSnapshotObservation({
+      observation: planningObservation,
+      snapshot,
+      source: planningObservationSource,
+    });
+    return { ok: true, configured: true, snapshot, planningObservation: planningObservationResult };
   };
   return store.kind === "file"
     ? withSharedStateFileLock(store.filePath, applyUpdate)
@@ -1019,6 +1044,22 @@ export async function handleSharedStateRequest(req, res, {
         return;
       }
       snapshot = specifications2Authority.snapshot;
+      const planningObservationSource = `browser-shared-state:${action}`;
+      const planningObservation = await beginPlanningSnapshotObservation({
+        env,
+        current,
+        next: snapshot,
+        source: planningObservationSource,
+      });
+      if (!planningObservation.ok) {
+        sendJson(res, headers, 503, {
+          ok: false,
+          configured: true,
+          retryable: true,
+          error: planningObservation.error || "Planning snapshot observation is unavailable",
+        });
+        return;
+      }
       if (store.kind === "file" && store.filePath && (destructiveAction || env.MES_BACKUP_BEFORE_SHARED_STATE_WRITE === "true")) {
         await backupSharedStateFile({
           filePath: store.filePath,
@@ -1056,6 +1097,11 @@ export async function handleSharedStateRequest(req, res, {
       } else {
         await store.write(snapshot);
       }
+      const planningObservationResult = await recordPlanningSnapshotObservation({
+        observation: planningObservation,
+        snapshot,
+        source: planningObservationSource,
+      });
       await appendSharedStateAudit({
         auditLogPath,
         event: {
@@ -1065,6 +1111,7 @@ export async function handleSharedStateRequest(req, res, {
           version: snapshot.version,
           clientId: normalizeActor(payload.clientId),
           actor: normalizeActor(payload.actor),
+          ...(planningObservationResult.attempted ? { planningSnapshotObservation: planningObservationResult.recorded ? "recorded" : "pending" } : {}),
         },
       }).catch(() => {});
       // The browser has no new domain values to apply after an isolated UI
