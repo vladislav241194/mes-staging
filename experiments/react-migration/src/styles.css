@@ -27,6 +27,8 @@ h2 { font-size: 16px; }
 .panel, .detail { border-radius: 18px; overflow: hidden; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
 .action { border: 0; border-radius: 10px; padding: 9px 13px; color: #fff; background: #2f6fe4; }
+.action--secondary { color: #18314d; background: #e8eef5; }
+.action--danger { background: #b83a3a; }
 .action:disabled { opacity: .45; }
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }

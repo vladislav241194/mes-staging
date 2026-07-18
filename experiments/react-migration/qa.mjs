@@ -97,6 +97,63 @@ try {
     ["РЭА компоненты", 1],
   ]);
 
+  const componentTypesAdapterOutput = join(temporaryRoot, "component-types-adapter.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/component-types/adapter.ts")],
+    outfile: componentTypesAdapterOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { adaptComponentTypes } = await import(`${pathToFileURL(componentTypesAdapterOutput).href}?qa=${Date.now()}`);
+  const componentTypes = adaptComponentTypes({ componentTypes: [
+    { id: "ct-valid", name: "QFN", package: "QFN", family: "Микросхемы", coefficient: 0.06, placementsPerHour: 5500.9, setupSeconds: 34.8, defaultCount: 1.7, status: "Активен" },
+    { id: "", name: "Missing id" },
+    null,
+  ] });
+  assert.deepEqual(componentTypes, [{
+    id: "ct-valid",
+    name: "QFN",
+    packageName: "QFN",
+    family: "Микросхемы",
+    coefficient: 0.06,
+    placementsPerHour: 5500,
+    setupSeconds: 34,
+    defaultCount: 1,
+    statusLabel: "Активен",
+    statusTone: "success",
+  }]);
+  assert.deepEqual(adaptComponentTypes({ componentTypes: {} }), [], "invalid component-types payload must fail closed");
+
+  const componentTypesViewModelOutput = join(temporaryRoot, "component-types-view-model.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/component-types/view-model.ts")],
+    outfile: componentTypesViewModelOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const componentTypesViewModel = await import(`${pathToFileURL(componentTypesViewModelOutput).href}?qa=${Date.now()}`);
+  assert.deepEqual(componentTypesViewModel.buildComponentTypeFilters(componentTypes).map((entry) => [entry.label, entry.count]), [["Все типы", 1], ["Микросхемы", 1]]);
+  assert.equal(componentTypesViewModel.filterComponentTypes(componentTypes, "Дискреты").length, 0);
+  assert.equal(componentTypesViewModel.resolveVisibleComponentType(componentTypes, "missing")?.id, "ct-valid");
+  assert.match(componentTypesViewModel.formatInteger(64400), /64[^\d]?400/);
+
+  const selectionOutput = join(temporaryRoot, "selection.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "ui/selection.ts")],
+    outfile: selectionOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { resolveAvailableFilter } = await import(`${pathToFileURL(selectionOutput).href}?qa=${Date.now()}`);
+  assert.equal(resolveAvailableFilter(["all", "Микросхемы"], "Микросхемы", "all"), "Микросхемы");
+  assert.equal(resolveAvailableFilter(["all", "Крупные"], "Микросхемы", "all"), "all", "removed filter must fall back to all");
+
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
     ["legacy app import", /src\/app\.js/],
@@ -112,13 +169,14 @@ try {
     }
   }
 
-  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "EmptyState", "SystemState", "StatusToken"];
+  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "ActionButton", "SelectableRow", "DetailPanel", "EmptyState", "SystemState", "StatusToken"];
   const uiSource = await readFile(join(sourceRoot, "ui/components.tsx"), "utf8");
   for (const marker of requiredMarkers) {
     assert.match(uiSource, new RegExp(`data-ui-component=[{]?['\"]${marker}`), `missing ${marker} contract marker`);
   }
 
   const mountSource = await readFile(join(sourceRoot, "mount.tsx"), "utf8");
+  assert.match(mountSource, /export function mountReactMigrationIsland/);
   assert.match(mountSource, /export function mountNomenclatureReactIsland/);
   assert.match(mountSource, /update\(payload/);
   assert.match(mountSource, /unmount\(\)/);
@@ -129,7 +187,8 @@ try {
 
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
-  assert.match(mainSource, /island\.update\(nomenclatureUpdateFixture\)/);
+  assert.match(mainSource, /scenario.*component-types/);
+  assert.match(mainSource, /island\.update\(updatePayload\)/);
   assert.match(mainSource, /island\.unmount\(\)/);
   assert.match(mainSource, /Lifecycle QA render failure/);
 

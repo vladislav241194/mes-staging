@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { resolveAvailableFilter } from "../../ui/selection";
 import { adaptNomenclatureReadModel } from "./adapter";
 import { buildNomenclatureFilters, filterNomenclatureItems, formatRecordCount, resolveVisibleSelection, type NomenclatureFilter } from "./view-model";
 
@@ -8,7 +9,8 @@ export function NomenclatureScenario({ payload }: { payload: unknown }) {
   const filters = useMemo(() => buildNomenclatureFilters(model), [model]);
   const [filter, setFilter] = useState<NomenclatureFilter>("all");
   const [selectedId, setSelectedId] = useState(model.items[0]?.id ?? "");
-  const visibleItems = filterNomenclatureItems(model.items, filter);
+  const activeFilter = resolveAvailableFilter(filters.map((entry) => entry.id), filter, "all");
+  const visibleItems = filterNomenclatureItems(model.items, activeFilter);
   const selected = resolveVisibleSelection(visibleItems, selectedId);
 
   const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge">React migration lab</span>} />;
@@ -16,7 +18,7 @@ export function NomenclatureScenario({ payload }: { payload: unknown }) {
     <ModuleSidebar label="Разделы номенклатуры" title="Разделы">
       {filters.map((entry) => (
         <SidebarItem
-          active={filter === entry.id}
+          active={activeFilter === entry.id}
           count={entry.count}
           key={entry.id}
           label={entry.label}
@@ -31,7 +33,7 @@ export function NomenclatureScenario({ payload }: { payload: unknown }) {
       <Panel heading={
         <div className="panel-heading">
           <div><h2>Позиции</h2><p>{formatRecordCount(visibleItems.length)} в выбранном разделе</p></div>
-          <button className="action" type="button" disabled title="Команды будут подключены после API checkpoint">Добавить позицию</button>
+          <ActionButton disabled title="Команды будут подключены после API checkpoint">Добавить позицию</ActionButton>
         </div>
       }>
         {visibleItems.length ? <TableWrap>
@@ -39,40 +41,28 @@ export function NomenclatureScenario({ payload }: { payload: unknown }) {
             <thead><tr><th>Наименование</th><th>Артикул</th><th>Раздел</th><th>Корпус</th><th>Ед.</th><th>Производитель</th><th>Статус</th></tr></thead>
             <tbody>
               {visibleItems.map((item) => (
-                <tr
-                  aria-selected={selected?.id === item.id}
-                  className={selected?.id === item.id ? "is-selected" : ""}
-                  key={item.id}
-                  onClick={() => setSelectedId(item.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setSelectedId(item.id);
-                    }
-                  }}
-                  tabIndex={0}
-                >
+                <SelectableRow key={item.id} onSelect={() => setSelectedId(item.id)} selected={selected?.id === item.id}>
                   <td>{item.name}</td><td>{item.article}</td><td>{item.type}</td><td>{item.packageName}</td><td>{item.unit}</td><td>{item.manufacturer}</td>
                   <td><StatusToken label={item.statusLabel} tone={item.statusTone} /></td>
-                </tr>
+                </SelectableRow>
               ))}
             </tbody>
           </table>
         </TableWrap> : <EmptyState title="Позиций пока нет" text="В выбранном разделе ещё нет позиций номенклатуры." />}
       </Panel>
 
-      <aside className="detail" aria-live="polite">
-        {selected ? <>
-          <p>Карточка позиции</p><h2>{selected.name}</h2>
-          <dl>
-            <div><dt>Артикул</dt><dd>{selected.article}</dd></div>
-            <div><dt>Раздел</dt><dd>{selected.type}</dd></div>
-            <div><dt>Корпус</dt><dd>{selected.packageName}</dd></div>
-            <div><dt>Единица</dt><dd>{selected.unit}</dd></div>
-            <div><dt>Производитель</dt><dd>{selected.manufacturer}</dd></div>
-          </dl>
-        </> : <p>В разделе нет позиций</p>}
-      </aside>
+      <DetailPanel
+        emptyText="В разделе нет позиций"
+        eyebrow="Карточка позиции"
+        fields={selected ? [
+          { label: "Артикул", value: selected.article },
+          { label: "Раздел", value: selected.type },
+          { label: "Корпус", value: selected.packageName },
+          { label: "Единица", value: selected.unit },
+          { label: "Производитель", value: selected.manufacturer },
+        ] : []}
+        title={selected?.name}
+      />
     </ModulePage>
   );
 }

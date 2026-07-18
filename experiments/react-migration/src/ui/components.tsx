@@ -52,6 +52,46 @@ export function TableWrap({ children }: { children: ReactNode }) {
   return <div className="table-wrap" data-ui-component="TableWrap">{children}</div>;
 }
 
+export function ActionButton({ children, disabled = false, title, variant = "primary" }: { children: ReactNode; disabled?: boolean; title?: string; variant?: "primary" | "secondary" | "danger" }) {
+  return <button className={`action action--${variant}`} data-ui-component="ActionButton" disabled={disabled} title={title} type="button">{children}</button>;
+}
+
+export function SelectableRow({ children, onSelect, selected }: { children: ReactNode; onSelect(): void; selected: boolean }) {
+  return (
+    <tr
+      aria-selected={selected}
+      className={selected ? "is-selected" : ""}
+      data-ui-component="SelectableRow"
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      tabIndex={0}
+    >
+      {children}
+    </tr>
+  );
+}
+
+export interface DetailField {
+  label: string;
+  value: ReactNode;
+}
+
+export function DetailPanel({ emptyText, eyebrow, fields, title }: { emptyText: string; eyebrow: string; fields: DetailField[]; title?: string }) {
+  return (
+    <aside className="detail" aria-live="polite" data-ui-component="DetailPanel">
+      {title ? <>
+        <p>{eyebrow}</p><h2>{title}</h2>
+        <dl>{fields.map((field) => <div key={field.label}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl>
+      </> : <p>{emptyText}</p>}
+    </aside>
+  );
+}
+
 export function EmptyState({ title, text }: { title: string; text: string }) {
   return (
     <div className="empty-state" data-ui-component="EmptyState" role="status">

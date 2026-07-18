@@ -5,7 +5,7 @@ Status: isolated lifecycle verified; not connected to MES
 
 ## Purpose
 
-Define the smallest reversible boundary for mounting the first React scenario
+Define the smallest reversible boundary for mounting React scenarios
 after the PostgreSQL slice is accepted and the frontend branch is rebased.
 
 ## Host responsibilities
@@ -13,7 +13,7 @@ after the PostgreSQL slice is accepted and the frontend branch is rebased.
 The legacy host will remain responsible for:
 
 - navigation and authorization;
-- obtaining the accepted read-only nomenclature payload;
+- obtaining the accepted read-only payload for the selected scenario;
 - deciding whether the disabled-by-default feature flag is enabled;
 - creating one empty mount element;
 - falling back to the existing renderer if mount fails;
@@ -24,15 +24,19 @@ callbacks, or storage handles into the React island.
 
 ## React island responsibilities
 
-`mountNomenclatureReactIsland(target, payload, { onError })` owns only
+`mountReactMigrationIsland(target, scenario, payload, { onError })` owns only
 descendants of the explicit target, reports render failures to the host, and
-returns:
+returns the same lifecycle handle for every scenario:
 
 - `update(payload)` to rerender from a new read-only snapshot;
 - `unmount()` to release the target cleanly.
 
 The island does not read global MES state, call an API, write data, persist
 browser storage, or manipulate DOM outside its target.
+
+`mountNomenclatureReactIsland(...)` remains a narrow convenience wrapper for
+the first feature-flag integration. Component Types proves the generic boundary
+in the lab but is not approved for production activation yet.
 
 The isolated browser gate has verified initial mount, a payload update, clean
 unmount, preservation of the host node/controls, rejection of updates after

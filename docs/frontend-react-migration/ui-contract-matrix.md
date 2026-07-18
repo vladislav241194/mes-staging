@@ -27,7 +27,7 @@ unresolved.
 
 | Family | Shared | Remains specialized | First proof |
 | --- | --- | --- | --- |
-| Registry/sidebar | Page, header, sidebar, filters, panel, table, status | Entity-specific columns and detail card | Nomenclature read-only scenario |
+| Registry/sidebar | Page, header, sidebar, filters, panel, table, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types read-only scenarios |
 | Dense planning | Header, toolbar, status, loading/error | Dense grids, calendar and planning calculations | After registry proof |
 | Operational | Status, action, overlay frames | Workshop board, worker fact entry, shift documents | After PostgreSQL final acceptance |
 | Protected canvas | Shell-level states only | Gantt geometry and Specifications tree/editor | Late migration with dedicated guardrails |
@@ -42,9 +42,12 @@ unresolved.
   Do not encode both as permanent React variants; select a target during the
   module acceptance pass.
 
-The initial lab implements `ModulePage`, `ModuleHeader`, `ModuleSidebar`,
-`SidebarItem`, `Panel`, `TableWrap`, and `StatusToken`. It deliberately leaves
-write actions disabled until an accepted API contract is connected.
+The lab now implements `ModulePage`, `ModuleHeader`, `ModuleSidebar`,
+`SidebarItem`, `Panel`, `TableWrap`, `ActionButton`, `SelectableRow`,
+`DetailPanel`, `EmptyState`, `SystemState`, and `StatusToken`. Nomenclature and
+Component Types use the same primitives; entity-specific columns, filters, and
+detail fields remain inside their scenario. Write actions stay disabled until
+an accepted API contract is connected.
 
 ## Nomenclature read-model evidence
 
@@ -58,3 +61,16 @@ REA aliases to `РЭА компоненты`, and infers only missing type defin
 The first React table therefore keeps the legacy visible columns:
 `Наименование`, `Артикул`, `Раздел`, `Корпус`, `Ед.`, `Производитель`, and
 `Статус`. This prevents the migration lab from inventing a narrower data model.
+
+## Component Types read-model evidence
+
+The second proof mirrors `directoryState.componentTypes`: `id`, `name`,
+`package`, `family`, `coefficient`, `placementsPerHour`, `setupSeconds`,
+`defaultCount`, and the Russian status label. The table keeps all eight legacy
+columns from `getDirectoryData("componentTypes")` and groups the sidebar by the
+existing `family` value rather than adding a new domain field.
+
+This second implementation is the reuse gate for the registry family. Both
+screens share page/header/sidebar/panel/action/table/keyboard-row/detail/status
+behavior. A difference is allowed only in entity columns and entity-specific
+detail fields; it is not encoded as a new visual variant by default.

@@ -1,16 +1,21 @@
+import { componentTypesFixture, componentTypesUpdateFixture } from "./modules/component-types/fixture";
 import { nomenclatureFixture, nomenclatureUpdateFixture } from "./modules/nomenclature/fixture";
-import { mountNomenclatureReactIsland } from "./mount";
+import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
 
 const root = document.querySelector<HTMLElement>("#root");
 if (!root) throw new Error("React migration lab root is missing");
+const searchParams = new URL(window.location.href).searchParams;
+const scenario: ReactMigrationScenarioId = searchParams.get("scenario") === "component-types" ? "componentTypes" : "nomenclature";
+const initialPayload = scenario === "componentTypes" ? componentTypesFixture : nomenclatureFixture;
+const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : nomenclatureUpdateFixture;
 let lifecycleStatus: HTMLElement | null = null;
-const island = mountNomenclatureReactIsland(root, nomenclatureFixture, {
+const island = mountReactMigrationIsland(root, scenario, initialPayload, {
   onError(error) {
     if (lifecycleStatus) lifecycleStatus.textContent = `error: ${error.message}`;
   },
 });
 
-const lifecycleQaEnabled = new URL(window.location.href).searchParams.get("lifecycle_qa") === "1";
+const lifecycleQaEnabled = searchParams.get("lifecycle_qa") === "1";
 if (lifecycleQaEnabled) {
   const controls = document.querySelector<HTMLElement>("[data-lifecycle-controls]");
   const updateButton = document.querySelector<HTMLButtonElement>("[data-lifecycle-update]");
@@ -23,7 +28,7 @@ if (lifecycleQaEnabled) {
   controls.hidden = false;
   updateButton.addEventListener("click", () => {
     try {
-      island.update(nomenclatureUpdateFixture);
+      island.update(updatePayload);
       status.textContent = "updated";
     } catch (error) {
       status.textContent = error instanceof Error ? `rejected: ${error.message}` : "rejected";
