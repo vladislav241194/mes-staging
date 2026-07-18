@@ -7,6 +7,7 @@ import {
   MES_ICON_RUNTIME_ALIASES,
   MES_ICON_SVG_BY_SLUG,
 } from "../src/icons/registry.js";
+import { MES_MODULE_BLUEPRINT_REGISTRY } from "../src/module_registry.js";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(projectRoot, "src");
@@ -47,7 +48,14 @@ function normalizeIconName(value) {
 }
 
 export async function syncMesIconRuntimeRegistry() {
-  const requestedNames = new Set(Object.values(MES_ICON_RUNTIME_ALIASES));
+  // Blueprint navigation is rendered dynamically, so its icon names cannot
+  // be discovered by the literal `icon(...)` source scan below. Seed them
+  // explicitly to keep the runtime registry complete without loading the
+  // full icon catalog on every startup.
+  const requestedNames = new Set([
+    ...Object.values(MES_ICON_RUNTIME_ALIASES),
+    ...MES_MODULE_BLUEPRINT_REGISTRY.map(({ icon }) => icon),
+  ]);
   const files = await collectJsFiles(sourceRoot);
   for (const filePath of files) {
     const projectRelativePath = relative(sourceRoot, filePath).replaceAll("\\", "/");

@@ -281,8 +281,8 @@ function replaceRequired(html, pattern, replacement, label) {
 }
 
 await syncProductionStructureBootstrapData();
-await syncMesIconRuntimeRegistry();
 await syncGeneratedModuleBlueprintIndexes();
+await syncMesIconRuntimeRegistry();
 await rm(stagingDistDir, { recursive: true, force: true });
 await rm(previousDistDir, { recursive: true, force: true });
 await mkdir(stagingDistDir, { recursive: true });
