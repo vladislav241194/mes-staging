@@ -20,7 +20,11 @@ const saveFact = section(render, "function saveShiftMasterBoardFact(", "function
 const createCarryover = section(render, "function createShiftMasterBoardCarryover(", "function bindShiftMasterBoardEvents(", "carryover creation lifecycle");
 const mirrorFact = section(app, "async function mirrorShiftMasterBoardFactToServer(", "async function mirrorShiftMasterBoardCarryoverToServer(", "fact server mirror");
 const mirrorCarryover = section(app, "async function mirrorShiftMasterBoardCarryoverToServer(", "async function mirrorShiftMasterBoardCarryoverRemovalToServer(", "carryover server mirror");
-const mirrorRemoval = section(app, "async function mirrorShiftMasterBoardCarryoverRemovalToServer(", "function hydratePlanningWorkOrderDetail(", "carryover removal mirror");
+// Keep the removal adapter bounded by the function that immediately follows it.
+// `hydratePlanningWorkOrderDetail` was removed during the planning read-model
+// consolidation, so using it as an end marker made this contract test fail
+// before it could inspect the lifecycle it is meant to protect.
+const mirrorRemoval = section(app, "async function mirrorShiftMasterBoardCarryoverRemovalToServer(", "async function changePlanningRouteQuantity(", "carryover removal mirror");
 
 assert(saveFact.includes("void onShiftMasterBoardFactSaved(finalRow, finalFact);"), "fact persistence must not relay an automatic carryover through the fact callback");
 assert(saveFact.includes("onShiftMasterBoardCarryoverRemoved(finalRow, removedCarryover)"), "completed fact correction must notify the carryover cancellation lifecycle");
