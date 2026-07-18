@@ -64,8 +64,8 @@ stale immutable browser response.
 - the build contains the independent island export;
 - the production island uses the automatic JSX runtime and does not depend on
   a browser-global `React` variable;
-- root bundle performance budget passes (`app 202,545 B` Brotli in the current build);
-- root production build passes at application version `v.1.499.70`;
+- root bundle performance budget passes (`app 202,535 B` Brotli in the current build);
+- root production build passes at release-candidate version `v.1.499.71`;
 - frozen backend guard passes.
 
 This is local integration evidence, not Pilot acceptance. The two flags remain
