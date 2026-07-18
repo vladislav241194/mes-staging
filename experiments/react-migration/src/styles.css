@@ -41,6 +41,10 @@ tbody tr.is-selected { background: #e8f1ff; box-shadow: inset 3px 0 #2f6fe4; }
 .empty-state { display: grid; justify-items: center; gap: 6px; padding: 48px 20px; color: #52667a; text-align: center; }
 .empty-state strong { color: #18314d; font-size: 14px; }
 .empty-state p { margin: 0; color: #718296; font-size: 12px; }
+.system-state { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 320px; margin: 22px; padding: 32px; border: 1px solid #d8e1eb; border-radius: 14px; color: #52667a; background: #f8fafc; text-align: center; }
+.system-state--error { border-color: #efc7c7; color: #8a3434; background: #fff6f6; }
+.system-state strong { color: #18314d; font-size: 16px; }
+.system-state p { max-width: 430px; margin: 0; font-size: 12px; }
 .detail { padding: 18px; }
 .detail h2 { margin-bottom: 18px; }
 dl { display: grid; gap: 12px; margin: 0; }

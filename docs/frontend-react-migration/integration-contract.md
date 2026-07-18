@@ -24,8 +24,9 @@ callbacks, or storage handles into the React island.
 
 ## React island responsibilities
 
-`mountNomenclatureReactIsland(target, payload)` owns only descendants of the
-explicit target and returns:
+`mountNomenclatureReactIsland(target, payload, { onError })` owns only
+descendants of the explicit target, reports render failures to the host, and
+returns:
 
 - `update(payload)` to rerender from a new read-only snapshot;
 - `unmount()` to release the target cleanly.
@@ -34,15 +35,17 @@ The island does not read global MES state, call an API, write data, persist
 browser storage, or manipulate DOM outside its target.
 
 The isolated browser gate has verified initial mount, a payload update, clean
-unmount, preservation of the host node/controls, and rejection of updates after
-unmount without console errors.
+unmount, preservation of the host node/controls, rejection of updates after
+unmount, and a render failure contained by a user-visible `SystemState` while
+the host receives the error. All checks passed without console errors.
 
 ## Feature flag rules
 
 - Default: off.
 - Scope: Nomenclature module only.
 - Activation: explicit local/runtime configuration after PostgreSQL acceptance.
-- Failure: catch mount/update error, unmount if necessary, render legacy module.
+- Failure: `onError` records the failure; the island shows its local fallback,
+  then the host unmounts it and restores the legacy module.
 - Rollback: disable flag and use the unchanged legacy renderer.
 - No automatic promotion from Pilot to Stage.
 

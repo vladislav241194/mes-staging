@@ -20,7 +20,7 @@ node experiments/react-migration/qa.mjs
 
 Result:
 
-- six typed sources compiled;
+- seven typed sources compiled;
 - invalid position records fail closed;
 - legacy REA aliases normalize to `РЭА компоненты`;
 - inactive type rows are excluded;
@@ -60,6 +60,20 @@ visible host controls:
 4. A second update after unmount was rejected with
    `Nomenclature React island is already unmounted`; the root stayed empty and
    no `main` element was recreated.
+5. Browser console warnings/errors: none.
+
+## React island failure evidence
+
+The lifecycle host deliberately passed a payload whose property access throws:
+
+1. The error stayed inside the React target and rendered `SystemState` with
+   `Интерфейс временно недоступен` and a return-to-legacy instruction.
+2. The host callback received `Lifecycle QA render failure` and exposed it in
+   the host-owned lifecycle status.
+3. The target remained mounted with one fallback child and host controls stayed
+   available.
+4. `unmount()` then emptied `#root`, preserved the host controls, and disabled
+   further update/error actions.
 5. Browser console warnings/errors: none.
 
 ## Not yet proven

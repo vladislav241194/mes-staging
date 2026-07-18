@@ -61,6 +61,15 @@ export function EmptyState({ title, text }: { title: string; text: string }) {
   );
 }
 
+export function SystemState({ title, text, tone = "error" }: { title: string; text: string; tone?: "error" | "neutral" }) {
+  return (
+    <div className={`system-state system-state--${tone}`} data-ui-component="SystemState" role={tone === "error" ? "alert" : "status"}>
+      <strong>{title}</strong>
+      <p>{text}</p>
+    </div>
+  );
+}
+
 export function StatusToken({ label, tone }: { label: string; tone: "success" | "warning" | "neutral" }) {
   return <span className={`status status--${tone}`} data-ui-component="StatusToken">{label}</span>;
 }

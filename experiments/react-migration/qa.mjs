@@ -112,7 +112,7 @@ try {
     }
   }
 
-  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "EmptyState", "StatusToken"];
+  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "EmptyState", "SystemState", "StatusToken"];
   const uiSource = await readFile(join(sourceRoot, "ui/components.tsx"), "utf8");
   for (const marker of requiredMarkers) {
     assert.match(uiSource, new RegExp(`data-ui-component=[{]?['\"]${marker}`), `missing ${marker} contract marker`);
@@ -122,12 +122,16 @@ try {
   assert.match(mountSource, /export function mountNomenclatureReactIsland/);
   assert.match(mountSource, /update\(payload/);
   assert.match(mountSource, /unmount\(\)/);
+  assert.match(mountSource, /onCaughtError/);
+  assert.match(mountSource, /onUncaughtError/);
+  assert.match(mountSource, /class IslandErrorBoundary/);
   assert.doesNotMatch(mountSource, /document\.|querySelector|appendChild|replaceWith/, "island mount must not manipulate host DOM");
 
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /island\.update\(nomenclatureUpdateFixture\)/);
   assert.match(mainSource, /island\.unmount\(\)/);
+  assert.match(mainSource, /Lifecycle QA render failure/);
 
   const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });
   assert.equal(blockedDiff.trim(), "", `migration branch changed blocked paths:\n${blockedDiff}`);
