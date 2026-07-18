@@ -148,8 +148,18 @@ html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"]
   background: var(--visual-live-panel-bg) !important;
   border-color: var(--visual-live-panel-border) !important;
   box-shadow: var(--visual-live-panel-shadow) !important;
-  border-radius: var(--visual-live-radius) !important;
   backdrop-filter: var(--visual-live-backdrop) !important;
+}
+
+/* Keep glass material, not its generic geometry, on reusable Module surfaces.
+   The core UI contract owns Panel, Sidebar, Header and TableWrap geometry. */
+html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] .shift-master-board-top-controls{
+  border-radius: var(--visual-live-radius) !important;
+}
+
+html[data-visual-theme="base-industrial"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls),
+html[data-visual-theme="base-blueprint"] main.app-shell[data-layout="app-shell"] :is(.directory-sidebar, .directory-header, .module-panel, .ui-panel, .shift-master-board-top-controls){
+  border-radius: var(--visual-live-radius) !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] :is(input, select, textarea, .ui-action-button, .primary-button, .secondary-button, .ui-sidebar-item),

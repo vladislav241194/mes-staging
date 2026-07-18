@@ -148,17 +148,39 @@ export function createPlanningWorkbenchModule(dependencies = {}) {
       ? `${getRouteDocumentKindShortLabel(activeRoute)} · ${activeQuantity.toLocaleString("ru-RU")} шт. · ${formatPlanningObjectCount(tasks.length)} · ${formatPlanningOperationCount(routeSteps.length)}`
       : "Выберите заказ-наряд в боковой панели.";
     if (!routes.length) {
-      return `
-        <section class="planning-empty-page planning-order-empty" data-layout="main-content" data-planning-projection-source="${escapeAttribute(projectionSource)}" aria-label="${WORK_ORDERS_MODULE_LABEL}">
-          <section class="planning-empty-panel">
-            <div class="planning-empty-icon">${icon("calendar")}</div>
-            <div>
-              <h2>${WORK_ORDERS_MODULE_LABEL}</h2>
-              <p>Нет маршрутных заданий для сборки заказ-наряда.</p>
-            </div>
+      const emptyDescription = "Нет маршрутных заданий для сборки заказ-наряда.";
+      return renderUiModulePage({
+        ariaLabel: WORK_ORDERS_MODULE_LABEL,
+        className: "planning-page planning-order-page planning-order-empty is-heroui is-flat-workbench is-route-structure",
+        sidebar: renderPlanningWorkbenchQueue(routes, null),
+        workspaceClassName: "planning-order-main",
+        visualContract: "ops-soft-v1 workbench-sidebar",
+        attributes: `data-planning-projection-source="${escapeAttribute(projectionSource)}"`,
+        header: renderUiModuleHeader({
+          eyebrow: "Планирование",
+          title: WORK_ORDERS_MODULE_LABEL,
+          description: emptyDescription,
+          className: "planning-order-module-header is-compact",
+          attributes: `data-visual-qa-target="planning-order-module-header"`,
+        }),
+        contentClassName: "planning-order-workspace is-empty",
+        content: `
+          <section class="planning-empty-page">
+            <section class="planning-empty-panel" data-ui-component="Panel" data-ui-surface="empty">
+              ${renderUiPanelBody({
+                className: "planning-empty-panel-body",
+                body: `
+                  <div class="planning-empty-icon">${icon("calendar")}</div>
+                  <div>
+                    <h2>${WORK_ORDERS_MODULE_LABEL}</h2>
+                    <p>${emptyDescription}</p>
+                  </div>
+                `,
+              })}
+            </section>
           </section>
-        </section>
-      `;
+        `,
+      });
     }
   
     return renderUiModulePage({
