@@ -2703,9 +2703,14 @@ function schedulePlanningRouteToGantt(routeId) {
   }
 
   const specification = getRouteSpecification(route);
-  if (specification) ensureRouteTaskSeedSteps(route.id, specification);
+  // Seeded task metadata is required for preflight validation. If it changes
+  // the route, make that preparation durable before any validation branch can
+  // return; otherwise an unsuccessful handoff would leave invisible, in-place
+  // changes that neither persistence nor the Weekly projection could observe.
+  if (specification && ensureRouteTaskSeedSteps(route.id, specification)) {
+    persistState();
+  }
   const planningQuantity = getPlanningRouteQuantity(route);
-  syncPlanningRouteQuantity(route.id, planningQuantity, { updateSlots: true, persist: false, render: false, notify: false });
   const invalidSteps = getInvalidRouteOperationSteps(route.id);
   if (invalidSteps.length) {
     alert(`Не удалось передать заказ-наряд в Гант: ${invalidSteps.length} операций не выбраны из справочника операций.`);
@@ -2757,6 +2762,15 @@ function schedulePlanningRouteToGantt(routeId) {
     return;
   }
 
+  // Recalculate slot quantities only after the route has passed all
+  // preflight checks. The final persistState() below publishes these changes
+  // atomically with the scheduled work-order snapshot.
+  syncPlanningRouteQuantity(route.id, planningQuantity, {
+    updateSlots: true,
+    persist: false,
+    render: false,
+    notify: false,
+  });
   const stamp = new Date().toISOString();
   const workOrderSnapshot = route.workOrderSnapshot || {
     id: makeId("wo-snapshot"),

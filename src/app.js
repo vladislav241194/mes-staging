@@ -4153,7 +4153,7 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
       hydratePlanningRuntimeProjection({ force: true }),
     ]);
     if (serverProjectionApplied) return true;
-    return syncPlanningRouteQuantity(routeId, quantity, {
+    const fallbackApplied = syncPlanningRouteQuantity(routeId, quantity, {
       ...options,
       domainConcurrencyRevision: result.item.concurrencyRevision,
       // PostgreSQL has already committed the command and the API outbox
@@ -4162,6 +4162,10 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
       // server-calculated duration or race with the outbox.
       persist: false,
     });
+    // This fallback intentionally avoids a competing browser write, so it
+    // cannot rely on persistState() to invalidate the compact Weekly view.
+    if (fallbackApplied) invalidateWeeklyPlanningPeriod();
+    return fallbackApplied;
   }
   if (result.kind === "unavailable") {
     return syncPlanningRouteQuantity(routeId, quantity, options);
