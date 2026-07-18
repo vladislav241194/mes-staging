@@ -151,6 +151,7 @@ async function bundleReactMigrationIsland(entryPoint, outputFile) {
     charset: "utf8",
     legalComments: "none",
     target: "es2020",
+    jsx: "automatic",
   });
 }
 
@@ -342,9 +343,21 @@ await Promise.all([
 
 await bundleStylesheet(join(projectRoot, "styles.css"), join(stagingDistDir, "styles.css"));
 
+const nomenclatureReactIslandOutput = join(stagingDistDir, "src", "react-islands", "nomenclature.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "nomenclature-island.tsx"),
-  join(stagingDistDir, "src", "react-islands", "nomenclature.js"),
+  nomenclatureReactIslandOutput,
+);
+const nomenclatureReactIslandVersion = await fileHash(nomenclatureReactIslandOutput);
+const nomenclatureReactIslandHostPath = join(stagingDistDir, "src", "modules", "nomenclature", "react_island_host.js");
+const nomenclatureReactIslandHostSource = await readFile(nomenclatureReactIslandHostPath, "utf8");
+const nomenclatureReactIslandVersionMarker = "__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__";
+if (!nomenclatureReactIslandHostSource.includes(nomenclatureReactIslandVersionMarker)) {
+  throw new Error("Cannot find Nomenclature React island bundle version marker");
+}
+await writeFile(
+  nomenclatureReactIslandHostPath,
+  nomenclatureReactIslandHostSource.replaceAll(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion),
 );
 
 // The token is intentionally calculated before esbuild emits dynamic chunks.
@@ -431,5 +444,6 @@ console.log(`- ${distDir}`);
 console.log(`- styles.css?v=${stylesVersion}${deployCacheSuffix}`);
 if (uiCoreStylesVersion) console.log(`- styles/mes-ui-core.css?v=${uiCoreStylesVersion}${deployCacheSuffix}`);
 console.log(`- src/app.js?v=${appVersion}${deployCacheSuffix}`);
+console.log(`- src/react-islands/nomenclature.js?v=${nomenclatureReactIslandVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);

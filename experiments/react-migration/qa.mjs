@@ -764,12 +764,24 @@ try {
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /localHosts\.has\(window\.location\.hostname\)/);
+  assert.match(productionAppSource, /params\.get\("qa-auth-bypass"\) !== "1"/);
+  assert.match(productionAppSource, /params\.get\("react-nomenclature"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-nomenclature-readonly"\) === "1"/);
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /reason === "unsupported-scope".*activeNomenclaturePane = "boards"/s);
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
   assert.match(productionBuildSource, /react-islands", "nomenclature\.js/);
+  assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
+  assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
+  assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
+
+  const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
+  assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
@@ -783,6 +795,8 @@ try {
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   const productionIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/nomenclature.js"), "utf8");
   assert.match(productionIslandBundle, /mountNomenclatureReactIsland/);
+  const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
+  assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

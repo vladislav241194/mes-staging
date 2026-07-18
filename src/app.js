@@ -2287,17 +2287,31 @@ function ensureSpecifications2Module() {
 }
 let renderNomenclatureModulePage = null;
 let nomenclatureRenderModuleLoad = null;
+function getNomenclatureReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-nomenclature") === "1",
+    readOnlyEvaluation: params.get("react-nomenclature-readonly") === "1",
+  };
+}
 const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
-  getActivation: () => ({
-    featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE === true,
-    activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
-    accessMode: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true
-      ? "read-only-evaluation"
-      : "editor",
-  }),
+  getActivation: () => {
+    const localQa = getNomenclatureReactLocalQaOverrides();
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE === true || localQa.featureFlagEnabled,
+      activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
+      accessMode: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
   getPayload: () => directoryState,
   getTargetRoot: () => app,
-  requestLegacyRender: () => {
+  requestLegacyRender: (reason) => {
+    if (reason === "unsupported-scope") ui.activeNomenclaturePane = "boards";
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
   },
 });

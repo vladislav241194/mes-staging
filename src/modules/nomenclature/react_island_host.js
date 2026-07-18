@@ -1,4 +1,5 @@
 const NOMENCLATURE_REACT_TARGET = "[data-react-nomenclature-island]";
+const NOMENCLATURE_REACT_BUNDLE_VERSION = "__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__";
 
 function normalizeError(error) {
   return error instanceof Error ? error : new Error(String(error));
@@ -62,7 +63,10 @@ export function createNomenclatureReactIslandHost({
       try {
         const islandUrl = new URL("./react-islands/nomenclature.js", import.meta.url);
         const deployVersion = String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev");
-        islandUrl.searchParams.set("v", deployVersion);
+        const bundleVersion = NOMENCLATURE_REACT_BUNDLE_VERSION.startsWith("__MES_")
+          ? deployVersion
+          : NOMENCLATURE_REACT_BUNDLE_VERSION;
+        islandUrl.searchParams.set("v", bundleVersion);
         const { mountNomenclatureReactIsland } = await import(islandUrl.href);
         if (revision !== loadRevision || !getDecision().activateReact || !target.isConnected) return false;
         island = mountNomenclatureReactIsland(target, getPayload?.(), {

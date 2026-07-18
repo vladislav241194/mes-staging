@@ -116,6 +116,7 @@
     "qa:gantt-runtime-lazy": "node scripts/gantt-runtime-lazy-qa.mjs",
     "qa:gantt-drag-cancel": "node scripts/gantt-drag-cancel-qa.mjs",
     "qa:products-events-lazy": "node scripts/products-events-lazy-qa.mjs",
+    "qa:nomenclature-react-island": "node scripts/nomenclature-react-runtime-policy-qa.mjs && node experiments/react-migration/qa.mjs",
     "qa:routes-events-lazy": "node scripts/routes-events-lazy-qa.mjs",
     "qa:directory-presentation-lazy": "node scripts/directory-presentation-lazy-qa.mjs",
     "qa:routes-events-lazy:directories": "node scripts/run-with-local-server.mjs -- node scripts/module-smoke-qa.mjs --module=directories",
