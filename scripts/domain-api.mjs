@@ -126,18 +126,51 @@ function hasSystemDomainsServerAuthority(consistency = {}, enabledSurfaces = [])
     && consistency?.details?.reconciliation?.promotion?.readEligible === true;
 }
 
-function sendJson(res, headers, statusCode, payload, extraHeaders = {}) {
-  const responseHeaders = typeof headers === "function"
+function getJsonResponseHeaders(headers) {
+  return typeof headers === "function"
     ? headers("application/json; charset=utf-8")
     : {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
     };
+}
+
+function sendJson(res, headers, statusCode, payload, extraHeaders = {}) {
+  const responseHeaders = getJsonResponseHeaders(headers);
   const serialized = Buffer.from(JSON.stringify(payload));
   const gzip = /\bgzip\b/i.test(String(res.__mesAcceptEncoding || "")) && serialized.byteLength >= 1024;
   const body = gzip ? gzipSync(serialized) : serialized;
   const compressionHeaders = gzip ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding", "Content-Length": String(body.byteLength) } : {};
   res.writeHead?.(statusCode, { ...responseHeaders, ...extraHeaders, ...compressionHeaders });
+  res.end?.(body);
+}
+
+// A verified runtime-projection cache owns transport-ready bytes as well as
+// its ETag.  The cache is process-local and still revalidates its durable
+// marker for every request; retaining these immutable buffers only removes
+// duplicate JSON.stringify/gzip work from an already admitted hot response.
+function sendCachedPlanningRuntimeProjection(res, headers, cached, extraHeaders = {}) {
+  const responseHeaders = getJsonResponseHeaders(headers);
+  const requestedGzip = /\bgzip\b/i.test(String(res.__mesAcceptEncoding || ""))
+    && Number(cached?.serialized?.byteLength || 0) >= 1024;
+  // Build compressed bytes only when a client actually asks for them. The
+  // first gzip response stores the result; all later gzip hits reuse it.
+  // This keeps an uncompressed cold response from paying compression cost and
+  // avoids a cold gzip response being compressed twice during cache setup.
+  if (requestedGzip && !Buffer.isBuffer(cached?.gzipBody) && Buffer.isBuffer(cached?.serialized)) {
+    cached.gzipBody = gzipSync(cached.serialized);
+  }
+  const gzip = requestedGzip && Buffer.isBuffer(cached?.gzipBody);
+  const body = gzip ? cached.gzipBody : cached?.serialized;
+  if (!Buffer.isBuffer(body)) {
+    // This is intentionally not a fallback response path: an incomplete
+    // cache entry is rejected by its reader before it can reach the wire.
+    throw new Error("Planning runtime projection cache body is unavailable");
+  }
+  const compressionHeaders = gzip
+    ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding", "Content-Length": String(body.byteLength) }
+    : {};
+  res.writeHead?.(200, { ...responseHeaders, ...extraHeaders, ...compressionHeaders });
   res.end?.(body);
 }
 
@@ -179,9 +212,12 @@ function getPlanningRuntimeProjectionCacheScope({ filePath = "", env = process.e
   // Do not retain a raw database URL (which can contain credentials) in the
   // process cache. The digest still keeps two independently configured
   // contours from sharing a response in a long-lived test or service process.
+  // The configured storage mode is also part of the scope: an explicitly
+  // snapshot-only request must never inherit a PostgreSQL-primary response.
   const databaseUrl = String(env?.DATABASE_URL || env?.MES_DOMAIN_DATABASE_URL || "");
   const databaseScope = createHash("sha256").update(databaseUrl).digest("base64url").slice(0, 16);
-  return `${String(filePath || "")}::${databaseScope}`;
+  const storageMode = String(env?.MES_DOMAIN_STORAGE || "").trim().toLowerCase();
+  return `${String(filePath || "")}::${databaseScope}::${storageMode}`;
 }
 
 function getPlanningProjectionVerificationKey(verification = null) {
@@ -225,22 +261,58 @@ export function resetPlanningRuntimeProjectionCache() {
 function cachePlanningRuntimeProjection({ filePath = "", env = process.env, planningSafety = null, listed = null, payload = null, etag = "" } = {}) {
   if (!canCachePlanningRuntimeProjection({ planningSafety, listed }) || !payload || !etag) {
     invalidatePlanningRuntimeProjectionCache({ filePath, env });
-    return;
+    return null;
   }
+  const serialized = Buffer.from(JSON.stringify(payload));
   planningRuntimeProjectionCache = {
     scope: getPlanningRuntimeProjectionCacheScope({ filePath, env }),
     primaryHealthRevision: Number(planningSafety.primaryHealth?.revision || 0),
     verification: planningSafety.readVerification,
     verificationKey: getPlanningProjectionVerificationKey(planningSafety.readVerification),
-    payload,
     etag,
+    serialized,
+    // Compression stays lazy. Most Planning polls accept the uncompressed
+    // short response; the first gzip client materializes its own immutable
+    // bytes in `sendCachedPlanningRuntimeProjection` for subsequent hot hits.
+    gzipBody: null,
   };
+  return planningRuntimeProjectionCache;
+}
+
+async function readObservedPlanningRuntimeProjectionCache({ filePath = "", env = process.env, primary = null } = {}) {
+  const cached = planningRuntimeProjectionCache;
+  const scope = getPlanningRuntimeProjectionCacheScope({ filePath, env });
+  if (!cached || cached.scope !== scope || cached.verification?.mode !== "observed-snapshot-generation") return null;
+  if (!Buffer.isBuffer(cached.serialized)) {
+    invalidatePlanningRuntimeProjectionCache({ filePath, env });
+    return null;
+  }
+
+  // This is the deliberately narrow hot path. An observed marker is a
+  // durable, trigger-maintained proof for a specific primary revision and
+  // compatibility-snapshot generation. One marker read is enough to prove
+  // that the cached bytes are still that exact graph; do not repeat health or
+  // full cross-store guards here. Any unavailable/moved marker fails closed,
+  // clears the entry, and lets the established generic safety path run below.
+  const markerCurrent = await isPlanningProjectionReadVerificationCurrent({
+    primary,
+    verification: cached.verification,
+  });
+  if (!markerCurrent) {
+    invalidatePlanningRuntimeProjectionCache({ filePath, env });
+    return null;
+  }
+  return cached;
 }
 
 async function readCachedPlanningRuntimeProjection({ filePath = "", env = process.env, planningSafety = null } = {}) {
   const cached = planningRuntimeProjectionCache;
   const scope = getPlanningRuntimeProjectionCacheScope({ filePath, env });
   if (!cached || cached.scope !== scope) return null;
+  if (!Buffer.isBuffer(cached.serialized)) {
+    invalidatePlanningRuntimeProjectionCache({ filePath, env });
+    return null;
+  }
 
   // A changed health revision or any fallback transition invalidates eagerly.
   // The marker verification below is repeated after the route's initial
@@ -1242,6 +1314,7 @@ export async function handleDomainApiRequest(req, res, url, {
 } = {}) {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
   const isPlanningWorkbenchBootstrap = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`;
+  const isPlanningRuntimeProjectionRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/projection`;
   const planningBootstrapTiming = isPlanningWorkbenchBootstrap
     ? { startedAt: getRequestTimingNow(), planningSafetyMs: 0 }
     : null;
@@ -1324,6 +1397,29 @@ export async function handleDomainApiRequest(req, res, url, {
       "Server-Timing": getPlanningBootstrapServerTiming({ startedAt: planningBootstrapTiming.startedAt }),
     } : {});
     return true;
+  }
+
+  // A verified observed-marker cache must be checked before the broad
+  // `workOrders.health()` gate.  On the ordinary path that gate triggers a
+  // health aggregate plus compatibility checks even though the durable marker
+  // already proves that this exact cached graph is still current. The cache
+  // reader does one marker lookup and fails closed into the existing path on
+  // every mismatch, missing migration, repository change, or read error.
+  if (isPlanningRuntimeProjectionRead) {
+    const projectionCacheTimingStartedAt = getRequestTimingNow();
+    const cached = await readObservedPlanningRuntimeProjectionCache({ filePath, env, primary: workOrders });
+    if (cached) {
+      const serverTiming = getPlanningRuntimeProjectionCacheServerTiming({
+        cache: "hit",
+        startedAt: projectionCacheTimingStartedAt,
+      });
+      if (matchesEtag(req, cached.etag)) {
+        sendNotModified(res, headers, cached.etag, { "Server-Timing": serverTiming });
+        return true;
+      }
+      sendCachedPlanningRuntimeProjection(res, headers, cached, { ETag: cached.etag, "Server-Timing": serverTiming });
+      return true;
+    }
   }
 
   // The first Planning render is the only route that can take a bounded
@@ -2272,10 +2368,7 @@ export async function handleDomainApiRequest(req, res, url, {
         sendNotModified(res, headers, cached.etag, { "Server-Timing": serverTiming });
         return true;
       }
-      // Cache stores the logical payload, never encoded bytes. `sendJson`
-      // therefore preserves per-request gzip/Vary behavior for clients with
-      // different Accept-Encoding headers.
-      sendJson(res, headers, 200, cached.payload, { ETag: cached.etag, "Server-Timing": serverTiming });
+      sendCachedPlanningRuntimeProjection(res, headers, cached, { ETag: cached.etag, "Server-Timing": serverTiming });
       return true;
     }
     const guardedRead = await readPlanningProjectionSafely({
@@ -2299,13 +2392,17 @@ export async function handleDomainApiRequest(req, res, url, {
     const projection = buildPlanningRuntimeProjection(details.filter(Boolean));
     const payload = withPlanningFallback({ ok: true, apiVersion: "v1", storageMode: listed.storageMode, storageBackend: listed.storageBackend, revision: listed.revision, updatedAt: listed.updatedAt, projection }, planningSafety);
     const etag = getPlanningRuntimeProjectionEtag({ listed, payload, planningSafety });
-    cachePlanningRuntimeProjection({ filePath, env, planningSafety, listed, payload, etag });
+    const cachedProjection = cachePlanningRuntimeProjection({ filePath, env, planningSafety, listed, payload, etag });
     const serverTiming = getPlanningRuntimeProjectionCacheServerTiming({
       cache: "miss",
       startedAt: projectionCacheTimingStartedAt,
     });
     if (matchesEtag(req, etag)) {
       sendNotModified(res, headers, etag, { "Server-Timing": serverTiming });
+      return true;
+    }
+    if (cachedProjection) {
+      sendCachedPlanningRuntimeProjection(res, headers, cachedProjection, { ETag: etag, "Server-Timing": serverTiming });
       return true;
     }
     sendJson(res, headers, 200, payload, { ETag: etag, "Server-Timing": serverTiming });

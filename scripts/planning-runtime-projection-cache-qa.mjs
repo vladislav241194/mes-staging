@@ -43,17 +43,20 @@ function assertCacheTiming(headers = {}, cacheState, message) {
   );
 }
 
-function makeMarker(revision) {
+function makeMarker(revision, {
+  snapshotGeneration = revision,
+  snapshotFingerprint = `sha256:compat-${revision}`,
+} = {}) {
   return {
     observationAvailable: true,
     primaryRevision: revision,
     verifiedPrimaryRevision: revision,
-    verifiedSnapshotFingerprint: `sha256:compat-${revision}`,
-    verifiedSnapshotGeneration: revision,
+    verifiedSnapshotFingerprint: snapshotFingerprint,
+    verifiedSnapshotGeneration: snapshotGeneration,
     verifiedContractVersion: 5,
-    snapshotGeneration: revision,
+    snapshotGeneration,
     snapshotObservationState: "observed",
-    observedSnapshotFingerprint: `sha256:compat-${revision}`,
+    observedSnapshotFingerprint: snapshotFingerprint,
   };
 }
 
@@ -111,6 +114,8 @@ const state = {
   primaryItem: makeItem({ source: "primary" }),
   snapshotItem: makeItem({ source: "snapshot" }),
   marker: makeMarker(10),
+  primaryHealthReads: 0,
+  primaryMarkerReads: 0,
   primaryRuntimeReads: 0,
   primaryAggregateReads: 0,
   snapshotAggregateReads: 0,
@@ -121,9 +126,11 @@ const snapshotMetadata = { storageMode: "snapshot-adapter", storageBackend: "sha
 
 const primary = {
   async health() {
+    state.primaryHealthReads += 1;
     return { ...metadata, revision: state.revision, updatedAt: `2026-07-18T09:${String(state.revision).padStart(2, "0")}:00.000Z` };
   },
   async getPlanningProjectionParityState() {
+    state.primaryMarkerReads += 1;
     return { ...state.marker };
   },
   async markPlanningProjectionParity() { return true; },
@@ -206,35 +213,63 @@ const cold = await request("/api/v1/planning/work-orders/projection");
 assert(cold.handled && cold.statusCode === 200 && cold.json.projection?.routes?.[0]?.source === "primary", "cold safe-primary projection must return the PostgreSQL graph");
 assert(state.primaryRuntimeReads === 1, "cold projection must read PostgreSQL exactly once");
 assert(!getHeader(cold.headers, "content-encoding") && !getHeader(cold.headers, "vary"), "uncompressed cold projection must retain the normal response headers");
+assert(String(getHeader(cold.headers, "cache-control") || "").includes("no-store"), "cold projection must retain the established no-store response policy");
 assertCacheTiming(cold.headers, "miss", "cold projection");
 const firstEtag = getHeader(cold.headers, "etag");
 assert(/^"[A-Za-z0-9_-]{24}"$/.test(String(firstEtag || "")), "safe-primary projection must expose an opaque marker-backed ETag");
+const primaryHealthReadsAfterCold = state.primaryHealthReads;
+const primaryMarkerReadsAfterCold = state.primaryMarkerReads;
+assert(primaryHealthReadsAfterCold > 0 && primaryMarkerReadsAfterCold > 0, "cold projection must establish the ordinary health and marker safety proof");
 
 const cached = await request("/api/v1/planning/work-orders/projection");
 assert(cached.statusCode === 200 && cached.headers.ETag === firstEtag && cached.json.projection?.routes?.[0]?.id === "route-1", "cache hit must preserve the projection contract and ETag");
 assert(state.primaryRuntimeReads === 1, "cache hit must not repeat the PostgreSQL runtime graph query");
+assert(state.primaryHealthReads === primaryHealthReadsAfterCold, "observed-marker cache hit must bypass the broad health aggregate");
+assert(state.primaryMarkerReads === primaryMarkerReadsAfterCold + 1, "observed-marker cache hit must perform exactly one durable marker check");
+assert(cached.body.equals(cold.body), "uncompressed cache hit must reuse the serialized JSON bytes without changing the response body");
+assert(String(getHeader(cached.headers, "cache-control") || "").includes("no-store"), "cached projection must retain the established no-store response policy");
 assertCacheTiming(cached.headers, "hit", "cache hit");
 
 const notModified = await request("/api/v1/planning/work-orders/projection", { headers: { "if-none-match": firstEtag } });
 assert(notModified.statusCode === 304 && notModified.body.byteLength === 0 && notModified.headers.ETag === firstEtag, "validated cache hit must return the existing conditional GET 304 contract");
 assert(state.primaryRuntimeReads === 1, "validated 304 must avoid the PostgreSQL runtime graph query");
+assert(state.primaryHealthReads === primaryHealthReadsAfterCold && state.primaryMarkerReads === primaryMarkerReadsAfterCold + 2, "validated 304 must use only the current observed marker");
 assertCacheTiming(notModified.headers, "hit", "validated 304");
 
 const gzipCached = await request("/api/v1/planning/work-orders/projection", { headers: { "accept-encoding": "gzip" } });
 assert(gzipCached.statusCode === 200 && getHeader(gzipCached.headers, "content-encoding") === "gzip" && getHeader(gzipCached.headers, "vary") === "Accept-Encoding", "cached projection must still negotiate gzip and Vary per request");
 assert(gzipCached.headers.ETag === firstEtag && gzipCached.json.projection?.routes?.[0]?.id === "route-1", "gzip cache hit must retain the same payload and ETag");
 assert(state.primaryRuntimeReads === 1, "gzip cache hit must reuse the logical payload instead of reading PostgreSQL again");
+assert(state.primaryHealthReads === primaryHealthReadsAfterCold && state.primaryMarkerReads === primaryMarkerReadsAfterCold + 3, "gzip cache hit must use only the observed-marker validation");
+assert(Number(getHeader(gzipCached.headers, "content-length")) === gzipCached.body.byteLength, "cached gzip projection must preserve its exact Content-Length contract");
 assertCacheTiming(gzipCached.headers, "hit", "gzip cache hit");
+const gzipCachedAgain = await request("/api/v1/planning/work-orders/projection", { headers: { "accept-encoding": "gzip" } });
+assert(gzipCachedAgain.statusCode === 200 && gzipCachedAgain.body.equals(gzipCached.body), "later gzip cache hit must reuse the cached compressed bytes");
+assert(state.primaryHealthReads === primaryHealthReadsAfterCold && state.primaryMarkerReads === primaryMarkerReadsAfterCold + 4, "later gzip cache hit must still use only one observed-marker validation");
+assert(Number(getHeader(gzipCachedAgain.headers, "content-length")) === gzipCachedAgain.body.byteLength, "reused gzip cache bytes must retain their Content-Length header");
+assertCacheTiming(gzipCachedAgain.headers, "hit", "reused gzip cache hit");
+
+// A changed compatibility snapshot generation/fingerprint invalidates an
+// otherwise unchanged primary response. This covers the observed marker's
+// snapshot half separately from a later primary revision change.
+state.marker = makeMarker(state.revision, {
+  snapshotGeneration: 11,
+  snapshotFingerprint: "sha256:compat-snapshot-11",
+});
+const snapshotChanged = await request("/api/v1/planning/work-orders/projection", { headers: { "if-none-match": firstEtag } });
+assert(snapshotChanged.statusCode === 200 && snapshotChanged.headers.ETag !== firstEtag && snapshotChanged.json.projection?.routes?.[0]?.planningQuantity === 10, "changed observed snapshot generation must bypass the old ETag and rebuild the same primary graph");
+assert(state.primaryRuntimeReads === 2, "snapshot-generation change must invalidate the runtime projection cache");
+assertCacheTiming(snapshotChanged.headers, "miss", "snapshot-generation invalidation");
 
 // A new durable marker/revision invalidates the cached response before the
 // conditional request can return 304.
 state.revision = 11;
 state.primaryItem = makeItem({ quantity: 11, source: "primary" });
 state.snapshotItem = makeItem({ quantity: 11, source: "snapshot" });
-state.marker = makeMarker(11);
-const markerChanged = await request("/api/v1/planning/work-orders/projection", { headers: { "if-none-match": firstEtag } });
-assert(markerChanged.statusCode === 200 && markerChanged.headers.ETag !== firstEtag && markerChanged.json.projection?.routes?.[0]?.planningQuantity === 11, "changed marker/revision must bypass the old ETag and rebuild the projection");
-assert(state.primaryRuntimeReads === 2, "marker/revision change must invalidate the runtime projection cache");
+state.marker = makeMarker(11, { snapshotGeneration: 12, snapshotFingerprint: "sha256:compat-snapshot-12" });
+const markerChanged = await request("/api/v1/planning/work-orders/projection", { headers: { "if-none-match": snapshotChanged.headers.ETag } });
+assert(markerChanged.statusCode === 200 && markerChanged.headers.ETag !== snapshotChanged.headers.ETag && markerChanged.json.projection?.routes?.[0]?.planningQuantity === 11, "changed marker/revision must bypass the old ETag and rebuild the projection");
+assert(state.primaryRuntimeReads === 3, "marker/revision change must invalidate the runtime projection cache");
 assertCacheTiming(markerChanged.headers, "miss", "marker invalidation");
 
 // Direct API writes invalidate immediately even before a later reader has a
@@ -247,7 +282,7 @@ const write = await request("/api/v1/planning/work-orders/WO-001", {
 assert(write.statusCode === 200 && write.json.item?.quantity === 22, "quantity command must succeed in the safe-primary fixture");
 const afterWrite = await request("/api/v1/planning/work-orders/projection");
 assert(afterWrite.statusCode === 200 && afterWrite.json.projection?.routes?.[0]?.planningQuantity === 22, "projection after a direct write must contain the new aggregate value");
-assert(state.primaryRuntimeReads === 3, "successful direct write must invalidate the process-local projection cache");
+assert(state.primaryRuntimeReads === 4, "successful direct write must invalidate the process-local projection cache");
 assertCacheTiming(afterWrite.headers, "miss", "write invalidation");
 
 // Pending observation is an explicit compatibility fallback. It must neither
@@ -256,7 +291,7 @@ state.marker = { ...makeMarker(state.revision), snapshotObservationState: "pendi
 state.snapshotItem = makeItem({ quantity: 77, source: "snapshot-fallback" });
 const fallback = await request("/api/v1/planning/work-orders/projection", { headers: { "if-none-match": afterWrite.headers.ETag } });
 assert(fallback.statusCode === 200 && fallback.json.fallbackReason === "postgres-projection-stale" && fallback.json.projection?.routes?.[0]?.source === "snapshot-fallback", "snapshot fallback must not return a stale primary 304 or payload");
-assert(state.primaryRuntimeReads === 3 && state.snapshotAggregateReads === 2, "fallback must avoid PostgreSQL runtime reads and use the established snapshot list/detail path");
+assert(state.primaryRuntimeReads === 4 && state.snapshotAggregateReads === 2, "fallback must avoid PostgreSQL runtime reads and use the established snapshot list/detail path");
 assertCacheTiming(fallback.headers, "miss", "snapshot fallback");
 const fallbackAgain = await request("/api/v1/planning/work-orders/projection");
 assert(fallbackAgain.statusCode === 200 && fallbackAgain.json.fallbackReason === "postgres-projection-stale", "fallback response must preserve its established transport contract");
