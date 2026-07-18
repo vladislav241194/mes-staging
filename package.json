@@ -106,7 +106,7 @@
     "qa:domain-shift-repository": "node scripts/domain-shift-execution-repository-qa.mjs",
     "qa:domain-shift-read-model": "node scripts/shift-execution-read-model-qa.mjs",
     "qa:shift-master-board-server-command": "node scripts/shift-master-board-server-command-contract-qa.mjs",
-    "qa:shift-master-board-server-bridge": "node scripts/shift-master-board-server-execution-bridge-qa.mjs && node scripts/shift-master-board-server-projection-qa.mjs && node scripts/shift-master-board-server-execution-outbox-qa.mjs",
+    "qa:shift-master-board-server-bridge": "node scripts/shift-master-board-server-execution-bridge-qa.mjs && node scripts/shift-master-board-server-projection-qa.mjs && node scripts/shift-master-board-server-execution-outbox-qa.mjs && node scripts/shift-execution-hydration-qa.mjs",
     "qa:specifications2-publish-revision": "node scripts/specifications2-publish-revision-qa.mjs",
     "qa:planning-quantity-domain": "node scripts/planning-quantity-domain-qa.mjs",
     "qa:working-calendar-domain": "node scripts/working-calendar-domain-qa.mjs",

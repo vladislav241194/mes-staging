@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.41";
+const APP_VERSION_FALLBACK = "v.1.499.42";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -3561,12 +3561,15 @@ async function hydratePlanningRuntimeProjection({ force = false } = {}) {
 }
 function hydrateShiftExecutionServerProjection() {
   if (shiftExecutionServerState.status === "loading") return;
+  // Capture this before switching to loading. Otherwise every cached board
+  // refresh looks like the first authority transition and persists the full
+  // shared UI snapshot again, even though no server data has changed.
+  const wasAuthoritative = shiftExecutionServerState.status === "ready" && shiftExecutionServerState.commandsEnabled === true;
   shiftExecutionServerState = { ...shiftExecutionServerState, status: "loading", error: "" };
   void ensureShiftExecutionDomainApiModule().then((ready) => ready
     ? Promise.all([shiftExecutionReadModel.refresh(), shiftExecutionCommands.refreshCapability()])
     : [{ ok: false, items: [] }, { ok: false, primaryPostgres: false, schemaReady: false, enabled: false, error: "Shift execution domain API module is unavailable" }]
   ).then(([projection, capability]) => {
-    const wasAuthoritative = shiftExecutionServerState.status === "ready" && shiftExecutionServerState.commandsEnabled === true;
     shiftExecutionServerState = {
       status: projection.ok && capability.ok ? "ready" : "fallback",
       primaryPostgres: capability.primaryPostgres === true,
