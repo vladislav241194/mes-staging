@@ -305,6 +305,66 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
     `;
   }
 
+  // The Planning workbench renders this list before the selected order detail.
+  // Do not carry large route/document JSONB snapshots through that first query:
+  // the list mapper has always exposed only these metadata keys.  Counts are
+  // aggregated once per table instead of running two correlated subqueries for
+  // every work order.
+  async function listWorkbenchRows(query = sql) {
+    return query`
+      SELECT
+        wo.id,
+        wo.number,
+        wo.name,
+        wo.designation,
+        wo.quantity,
+        wo.unit,
+        wo.lifecycle_status,
+        wo.planning_status,
+        wo.source_revision,
+        wo.aggregate_revision,
+        wo.source_kind,
+        wo.updated_at,
+        COALESCE((
+          SELECT jsonb_object_agg(list_metadata_field.name, wo.metadata -> list_metadata_field.name)
+          FROM unnest(ARRAY[
+            'id', 'name', 'revision', 'createdAt', 'updatedAt', 'canceledAt', 'isDefault',
+            'projectId', 'rootRouteId', 'routeTaskId', 'parentRouteId', 'routeTaskName',
+            'routeTaskSourceItemId', 'planningStatus', 'lifecycleStatus', 'specificationId',
+            'planningQuantity', 'routeDocumentKind', 'specificationName',
+            'sourceSpecifications2EntryId', 'sourceSpecifications2RouteDraftId'
+          ]::text[]) AS list_metadata_field(name)
+          WHERE jsonb_typeof(COALESCE(wo.metadata, '{}'::jsonb)) = 'object'
+            AND COALESCE(wo.metadata, '{}'::jsonb) ? list_metadata_field.name
+        ), '{}'::jsonb) AS metadata,
+        COALESCE(operation_counts.operation_count, 0)::int AS operation_count,
+        COALESCE(slot_counts.scheduled_operation_count, 0)::int AS scheduled_operation_count
+      FROM work_orders wo
+      LEFT JOIN (
+        SELECT op.work_order_id, count(*)::int AS operation_count
+        FROM work_order_operations op
+        GROUP BY op.work_order_id
+      ) operation_counts ON operation_counts.work_order_id = wo.id
+      LEFT JOIN (
+        SELECT op.work_order_id, count(*)::int AS scheduled_operation_count
+        FROM planning_slots ps
+        JOIN work_order_operations op ON op.id = ps.work_order_operation_id
+        GROUP BY op.work_order_id
+      ) slot_counts ON slot_counts.work_order_id = wo.id
+      ORDER BY wo.updated_at DESC, wo.number ASC
+    `;
+  }
+
+  async function getWorkbenchDetailRow(query = sql, id) {
+    const rows = await query`
+      SELECT wo.*
+      FROM work_orders wo
+      WHERE wo.id = ${id}
+      LIMIT 1
+    `;
+    return rows[0] || null;
+  }
+
   return {
     async health() {
       const [orders, migrations] = await Promise.all([
@@ -384,12 +444,13 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       const { orders, selected, operations, slots } = await sql.begin(
         "isolation level repeatable read read only",
         async (tx) => {
-          const orderRows = await listRows(tx);
+          const orderRows = await listWorkbenchRows(tx);
           const selectedOrder = orderRows.find((row) => String(row.id) === requestedId || String(row.number) === requestedId)
             || orderRows[0]
             || null;
           if (!selectedOrder) return { orders: orderRows, selected: null, operations: [], slots: [] };
-          const [operationRows, slotRows] = await Promise.all([
+          const [selectedDetail, operationRows, slotRows] = await Promise.all([
+            getWorkbenchDetailRow(tx, selectedOrder.id),
             tx`SELECT * FROM work_order_operations WHERE work_order_id = ${selectedOrder.id} ORDER BY sequence_no`,
             tx`
               SELECT ps.* FROM planning_slots ps
@@ -398,7 +459,14 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
               ORDER BY ps.planned_start ASC NULLS LAST, ps.id ASC
             `,
           ]);
-          return { orders: orderRows, selected: selectedOrder, operations: operationRows, slots: slotRows };
+          // The compact row already has the aggregate counts, so the selected
+          // full-metadata query stays a single narrow aggregate read.
+          const selectedRow = selectedDetail ? {
+            ...selectedDetail,
+            operation_count: selectedOrder.operation_count,
+            scheduled_operation_count: selectedOrder.scheduled_operation_count,
+          } : null;
+          return { orders: orderRows, selected: selectedRow, operations: operationRows, slots: slotRows };
         },
       );
       const slotsByOperation = firstRuntimeSlotByOperation(slots);

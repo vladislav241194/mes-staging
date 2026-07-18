@@ -24,6 +24,26 @@ function makeResponse() {
   };
 }
 
+function getHeader(headers = {}, name = "") {
+  const expectedName = String(name).toLowerCase();
+  const matchingName = Object.keys(headers).find((headerName) => headerName.toLowerCase() === expectedName);
+  return matchingName ? headers[matchingName] : undefined;
+}
+
+function assertBootstrapServerTiming(headers = {}, message) {
+  const value = String(getHeader(headers, "Server-Timing") || "");
+  const entries = value.split(/\s*,\s*/).filter(Boolean);
+  assert(entries.length === 4, `${message} must expose four Server-Timing metrics`);
+  assert(
+    entries.every((entry) => /^(?:planning-safety|planning-parity|planning-bootstrap|total);dur=\d+(?:\.\d+)?$/.test(entry)),
+    `${message} must expose only safe Server-Timing duration metrics`,
+  );
+  assert(
+    entries.map((entry) => entry.split(";", 1)[0]).join(",") === "planning-safety,planning-parity,planning-bootstrap,total",
+    `${message} must expose the planning timing metrics in a stable order`,
+  );
+}
+
 async function request(filePath, pathname, method = "GET", body = null, headers = {}, env = undefined) {
   const res = makeResponse();
   const handled = await handleDomainApiRequest({ method, body, headers }, res, new URL(`http://mes.local${pathname}`), { filePath, env });
@@ -88,21 +108,26 @@ try {
 
   const list = await request(filePath, "/api/v1/planning/work-orders");
   assert(list.statusCode === 200 && list.json.items?.length === 1, "work-order list must return one projected order");
+  assert(!getHeader(list.headers, "Server-Timing"), "work-order list must not expose bootstrap timing");
   assert(list.json.items[0].operationCount === 1 && list.json.items[0].scheduledOperationCount === 1, "work-order list must contain operation and slot counts");
   assert(list.json.items[0].concurrencyRevision === 4, "snapshot adapter must expose a per-order concurrency revision instead of its global snapshot revision");
   assert(list.json.items[0].metadata?.sourceSpecifications2EntryId === "specification-1", "work-order list must expose the route identity metadata required by the server-side planning renderer");
   assert(!Object.hasOwn(list.json.items[0].metadata || {}, "documentRevisionSnapshot") && !Object.hasOwn(list.json.items[0].metadata || {}, "planningLaborByStepId"), "work-order list must not transfer full document and labour metadata before an order is selected");
   const unchangedList = await request(filePath, "/api/v1/planning/work-orders", "GET", null, { "if-none-match": list.headers.ETag });
   assert(unchangedList.statusCode === 304 && unchangedList.body === "", "unchanged list must support conditional GET");
+  assert(!getHeader(unchangedList.headers, "Server-Timing"), "unchanged work-order list must not expose bootstrap timing");
 
   const workbenchBootstrap = await request(filePath, "/api/v1/planning/work-orders/bootstrap?active=WO-001");
   assert(workbenchBootstrap.statusCode === 200 && workbenchBootstrap.json.activeId === "route-1" && workbenchBootstrap.json.items?.length === 1, "workbench bootstrap must return one compact list and the canonical selected order");
   assert(workbenchBootstrap.json.item?.id === "route-1" && workbenchBootstrap.json.item?.operations?.[0]?.slot?.id === "slot-1", "workbench bootstrap must return the selected operation schedule in the same response");
   assert(!Object.hasOwn(workbenchBootstrap.json.item?.operations?.[0]?.slot || {}, "metadata"), "workbench bootstrap must keep the compact workbench slot contract");
+  assertBootstrapServerTiming(workbenchBootstrap.headers, "workbench bootstrap");
   const unchangedWorkbenchBootstrap = await request(filePath, "/api/v1/planning/work-orders/bootstrap?active=WO-001", "GET", null, { "if-none-match": workbenchBootstrap.headers.ETag });
-  assert(unchangedWorkbenchBootstrap.statusCode === 304 && unchangedWorkbenchBootstrap.body === "", "unchanged workbench bootstrap must support one combined conditional GET");
+  assert(unchangedWorkbenchBootstrap.statusCode === 304 && unchangedWorkbenchBootstrap.body === "" && unchangedWorkbenchBootstrap.headers.ETag === workbenchBootstrap.headers.ETag, "unchanged workbench bootstrap must support one combined conditional GET without changing its ETag");
+  assertBootstrapServerTiming(unchangedWorkbenchBootstrap.headers, "unchanged workbench bootstrap");
   const staleWorkbenchSelection = await request(filePath, "/api/v1/planning/work-orders/bootstrap?active=removed-route");
   assert(staleWorkbenchSelection.statusCode === 200 && staleWorkbenchSelection.json.activeId === "route-1" && staleWorkbenchSelection.json.item?.id === "route-1", "stale workbench selection must safely fall back to the first available order");
+  assertBootstrapServerTiming(staleWorkbenchSelection.headers, "stale workbench bootstrap");
 
   const summary = await request(filePath, "/api/v1/planning/work-orders/summary");
   assert(summary.statusCode === 200 && summary.json.summary?.workOrderCount === 1, "work-order summary must return a compact aggregate");

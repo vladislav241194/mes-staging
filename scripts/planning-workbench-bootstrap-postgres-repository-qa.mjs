@@ -36,6 +36,14 @@ const orders = [
   order({ id: "route-new", number: "WO-NEW", updatedAt: "2026-07-18T10:00:00.000Z", aggregateRevision: 9 }),
   order({ id: "route-old", number: "WO-OLD", updatedAt: "2026-07-18T09:00:00.000Z", aggregateRevision: 7 }),
 ];
+const compactOrders = orders.map(({ metadata, ...row }) => ({
+  ...row,
+  metadata: {
+    id: metadata.id,
+    name: metadata.name,
+    planningQuantity: metadata.planningQuantity,
+  },
+}));
 const operations = [{
   id: "route-old-step-1",
   work_order_id: "route-old",
@@ -65,7 +73,8 @@ const transactions = [];
 const sql = (strings, ...values) => {
   const query = strings.join("?");
   calls.push({ query, values });
-  if (/FROM work_orders wo/.test(query)) return Promise.resolve(orders);
+  if (/jsonb_object_agg\(list_metadata_field\.name/.test(query)) return Promise.resolve(compactOrders);
+  if (/SELECT wo\.\*/.test(query) && /WHERE wo\.id = \?/.test(query)) return Promise.resolve(orders.filter((item) => item.id === values[0]));
   if (/SELECT \* FROM work_order_operations WHERE/.test(query)) return Promise.resolve(operations);
   if (/FROM planning_slots ps/.test(query)) return Promise.resolve(slots);
   throw new Error(`Unexpected SQL: ${query}`);
@@ -79,13 +88,23 @@ const repository = createPostgresWorkOrdersRepository({ sql });
 const result = await repository.listWorkbenchBootstrap("WO-OLD");
 
 assert(transactions.length === 1 && transactions[0] === "isolation level repeatable read read only", "workbench bootstrap must use one repeatable read-only PostgreSQL snapshot");
-assert(calls.length === 3, "workbench bootstrap must use exactly list, selected operations and selected slots reads");
-assert(/FROM work_orders wo/.test(calls[0].query) && calls[0].values.length === 0, "first bootstrap query must be the compact list without caller interpolation");
-assert(/work_order_operations WHERE/.test(calls[1].query) && calls[1].values[0] === "route-old", "second bootstrap query must target the selected canonical order");
-assert(/FROM planning_slots ps/.test(calls[2].query) && calls[2].values[0] === "route-old", "third bootstrap query must target slots of the same selected order");
+assert(calls.length === 4, "workbench bootstrap must use compact list, selected detail, selected operations and selected slots reads");
+const compactListQuery = calls.find((call) => /jsonb_object_agg\(list_metadata_field\.name/.test(call.query));
+const selectedDetailQuery = calls.find((call) => /SELECT wo\.\*/.test(call.query) && /WHERE wo\.id = \?/.test(call.query));
+const operationsQuery = calls.find((call) => /work_order_operations WHERE/.test(call.query));
+const slotsQuery = calls.find((call) => /SELECT ps\.\* FROM planning_slots ps/.test(call.query));
+assert(compactListQuery && compactListQuery.values.length === 0, "first bootstrap wave must use a compact list without caller interpolation");
+assert(/SELECT\s+wo\.id,/.test(compactListQuery.query) && !/SELECT wo\.\*/.test(compactListQuery.query), "compact list must select explicit work-order scalar columns instead of raw work_order rows");
+assert(/jsonb_typeof\(COALESCE\(wo\.metadata, '\{\}'::jsonb\)\) = 'object'/.test(compactListQuery.query), "compact list must preserve only the allowed metadata field presence");
+assert(/GROUP BY op\.work_order_id/.test(compactListQuery.query) && !/\(SELECT count\(\*\) FROM work_order_operations/.test(compactListQuery.query), "compact list must preaggregate operation counts instead of using per-row correlated counts");
+assert(selectedDetailQuery?.values[0] === "route-old", "selected detail must target the canonical route ID after compact list selection");
+assert(operationsQuery?.values[0] === "route-old", "selected operation query must target the same canonical order");
+assert(slotsQuery?.values[0] === "route-old", "selected slot query must target the same canonical order");
 assert(result.items.map((item) => item.id).join(",") === "route-new,route-old", "bootstrap must preserve compact list ordering");
+assert(result.items[0]?.metadata?.planningQuantity === 12 && !Object.hasOwn(result.items[0]?.metadata || {}, "planningLaborByStepId"), "compact list must retain whitelisted metadata while excluding selected-detail-only fields");
 assert(!Object.hasOwn(result.items[0]?.metadata || {}, "largeDocumentPayload"), "bootstrap list must not transfer full document metadata");
 assert(result.activeId === "route-old" && result.item?.id === "route-old", "bootstrap must resolve a work-order number to its canonical route ID");
+assert(result.items[1]?.operationCount === 1 && result.item?.scheduledOperationCount === 1, "preaggregated compact counts must preserve list and selected-detail count parity");
 assert(result.item?.operations?.[0]?.slot?.id === "slot-old", "bootstrap must join selected operations with their planning slots");
 assert(result.item?.metadata?.planningLaborByStepId?.["route-old-step-1"]?.source === "labor-sentinel", "bootstrap detail must retain selected-order labour metadata");
 

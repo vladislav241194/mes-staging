@@ -171,11 +171,43 @@ function matchesEtag(req, etag) {
   return String(req.headers?.["if-none-match"] || req.headers?.["If-None-Match"] || "").trim() === etag;
 }
 
-function sendNotModified(res, headers, etag) {
+function getRequestTimingNow() {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
+
+function getElapsedTimingMs(startedAt, endedAt = getRequestTimingNow()) {
+  const elapsed = Number(endedAt) - Number(startedAt);
+  return Number.isFinite(elapsed) && elapsed > 0 ? elapsed : 0;
+}
+
+function formatServerTimingDuration(durationMs) {
+  const duration = Number(durationMs);
+  return (Number.isFinite(duration) && duration > 0 ? duration : 0).toFixed(2);
+}
+
+function getPlanningBootstrapServerTiming({
+  planningSafetyMs = 0,
+  parityGuardMs = 0,
+  bootstrapReadMs = 0,
+  startedAt = 0,
+} = {}) {
+  // Keep the header to timing names and numeric durations. In particular,
+  // never expose a repository, fallback reason, selected ID, or payload data.
+  return [
+    `planning-safety;dur=${formatServerTimingDuration(planningSafetyMs)}`,
+    `planning-parity;dur=${formatServerTimingDuration(parityGuardMs)}`,
+    `planning-bootstrap;dur=${formatServerTimingDuration(bootstrapReadMs)}`,
+    `total;dur=${formatServerTimingDuration(getElapsedTimingMs(startedAt))}`,
+  ].join(", ");
+}
+
+function sendNotModified(res, headers, etag, extraHeaders = {}) {
   const responseHeaders = typeof headers === "function"
     ? headers("application/json; charset=utf-8")
     : { "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate" };
-  res.writeHead?.(304, { ...responseHeaders, ETag: etag });
+  res.writeHead?.(304, { ...responseHeaders, ...extraHeaders, ETag: etag });
   res.end?.();
 }
 
@@ -939,6 +971,10 @@ export async function handleDomainApiRequest(req, res, url, {
   shiftExecutionCommandRepositoryFactory = createShiftExecutionCommandRepository,
 } = {}) {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
+  const isPlanningWorkbenchBootstrap = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`;
+  const planningBootstrapTiming = isPlanningWorkbenchBootstrap
+    ? { startedAt: getRequestTimingNow(), planningSafetyMs: 0 }
+    : null;
   const orderMatch = url.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)$/);
   const slotMatch = url.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)\/operations\/([^/]+)\/slot$/);
   const specifications2RevisionMatch = url.pathname.match(/^\/api\/v1\/specifications2\/revisions\/(?!summary$)([^/]+)$/);
@@ -1014,10 +1050,18 @@ export async function handleDomainApiRequest(req, res, url, {
   try {
     workOrders = await workOrdersRepositoryFactory({ env, filePath });
   } catch (error) {
-    sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Domain storage is unavailable" });
+    sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Domain storage is unavailable" }, planningBootstrapTiming ? {
+      "Server-Timing": getPlanningBootstrapServerTiming({ startedAt: planningBootstrapTiming.startedAt }),
+    } : {});
     return true;
   }
+  const planningSafetyStartedAt = planningBootstrapTiming ? getRequestTimingNow() : 0;
   const health = await workOrders.health();
+  if (planningBootstrapTiming) {
+    // Primary health is the planning safety gate's precondition. Keep it
+    // separate from the parity proof so a slow primary is visible on its own.
+    planningBootstrapTiming.planningSafetyMs = getElapsedTimingMs(planningSafetyStartedAt);
+  }
   const meta = { apiVersion: "v1", ...getPublicDomainHealth(health) };
   // Build the parity result only for a planning-sensitive route and reuse it
   // within that request. The shared helper additionally caches its bounded
@@ -1740,7 +1784,12 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (!health.configured) {
-    sendJson(res, headers, 503, { ok: false, configured: false, ...meta, error: "Domain storage is not configured" });
+    sendJson(res, headers, 503, { ok: false, configured: false, ...meta, error: "Domain storage is not configured" }, planningBootstrapTiming ? {
+      "Server-Timing": getPlanningBootstrapServerTiming({
+        planningSafetyMs: planningBootstrapTiming.planningSafetyMs,
+        startedAt: planningBootstrapTiming.startedAt,
+      }),
+    } : {});
     return true;
   }
 
@@ -1786,29 +1835,42 @@ export async function handleDomainApiRequest(req, res, url, {
   // old endpoints for navigation and mixed-version rollout compatibility.
   if (url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`) {
     const requestedId = String(url.searchParams.get("active") || "").trim();
+    const parityGuardStartedAt = getRequestTimingNow();
     let planningSafety = await getPlanningSafety();
+    let parityGuardMs = getElapsedTimingMs(parityGuardStartedAt);
+    let bootstrapReadMs = 0;
+    const guardedReadStartedAt = getRequestTimingNow();
     const guardedRead = await readPlanningProjectionSafely({
       planningSafety,
       getPlanningSafety,
       read: async (repository) => {
-        if (typeof repository.listWorkbenchBootstrap === "function") {
-          return repository.listWorkbenchBootstrap(requestedId);
+        const bootstrapReadStartedAt = getRequestTimingNow();
+        try {
+          if (typeof repository.listWorkbenchBootstrap === "function") {
+            return repository.listWorkbenchBootstrap(requestedId);
+          }
+          // Additive fallback for a temporarily older repository during a
+          // rolling deploy. It remains one HTTP response even if its internal
+          // compatibility adapter has not yet learned the atomic read.
+          const listed = await repository.list();
+          const selected = listed.items.find((candidate) => String(candidate?.id || "") === requestedId || String(candidate?.number || "") === requestedId)
+            || listed.items[0]
+            || null;
+          const detail = selected ? await repository.get(selected.id) : null;
+          return {
+            ...listed,
+            activeId: detail?.item?.id || "",
+            item: detail?.item || null,
+          };
+        } finally {
+          bootstrapReadMs += getElapsedTimingMs(bootstrapReadStartedAt);
         }
-        // Additive fallback for a temporarily older repository during a
-        // rolling deploy. It remains one HTTP response even if its internal
-        // compatibility adapter has not yet learned the atomic read.
-        const listed = await repository.list();
-        const selected = listed.items.find((candidate) => String(candidate?.id || "") === requestedId || String(candidate?.number || "") === requestedId)
-          || listed.items[0]
-          || null;
-        const detail = selected ? await repository.get(selected.id) : null;
-        return {
-          ...listed,
-          activeId: detail?.item?.id || "",
-          item: detail?.item || null,
-        };
       },
     });
+    // The guarded-read wall time includes revalidation and a forced re-proof
+    // on churn. Subtract repository reads so the parity metric stays useful
+    // even when a fallback requires another bootstrap read.
+    parityGuardMs += Math.max(0, getElapsedTimingMs(guardedReadStartedAt) - bootstrapReadMs);
     planningSafety = guardedRead.planningSafety;
     const result = guardedRead.result;
     const payload = withPlanningFallback({
@@ -1821,11 +1883,17 @@ export async function handleDomainApiRequest(req, res, url, {
     // Hash the exact combined response so a stale selection never receives a
     // misleading 304 after navigation or a concurrent detail update.
     const etag = getPayloadEtag(payload);
+    const serverTiming = getPlanningBootstrapServerTiming({
+      planningSafetyMs: planningBootstrapTiming?.planningSafetyMs,
+      parityGuardMs,
+      bootstrapReadMs,
+      startedAt: planningBootstrapTiming?.startedAt,
+    });
     if (matchesEtag(req, etag)) {
-      sendNotModified(res, headers, etag);
+      sendNotModified(res, headers, etag, { "Server-Timing": serverTiming });
       return true;
     }
-    sendJson(res, headers, 200, payload, { ETag: etag });
+    sendJson(res, headers, 200, payload, { ETag: etag, "Server-Timing": serverTiming });
     return true;
   }
 
