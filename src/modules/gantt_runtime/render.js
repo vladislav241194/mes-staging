@@ -4634,6 +4634,7 @@ function setGanttDependencyDraftOffset(routeKey, pointIndex, offset) {
 }
 
 function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
+  if (ui.drag) return;
   const slot = planningState.slots.find((item) => item.id === slotId);
   if (!slot) return;
   if (slot.locked || isGanttSlotCompleted(slot)) {
@@ -4643,10 +4644,12 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
   const shell = app.querySelector("[data-gantt-shell]");
   const shellRect = shell.getBoundingClientRect();
   const route = getSlotRoute(slot);
+  const pointerCaptureTarget = app;
 
   ui.drag = {
     mode,
     slotId,
+    pointerId: event.pointerId,
     snapMs: getGanttSnapMs(),
     startClientX: event.clientX,
     startClientY: event.clientY,
@@ -4654,6 +4657,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     originalEnd: toDate(slot.plannedEnd),
     originalWorkCenterId: slot.workCenterId,
     originalSlot: { ...slot },
+    originalSlotRef: slot,
     productionId: getSlotProductionContextId(slot),
     routeId: route?.id || "",
     targetRowId: getVisibleSlotRowId(slot),
@@ -4667,7 +4671,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
   const restoreCancelledDrag = (drag) => {
     if (!drag?.moved || !drag.originalSlot) return false;
     const targetSlot = planningState.slots.find((item) => item.id === slotId);
-    if (!targetSlot) return false;
+    if (!targetSlot || targetSlot !== drag.originalSlotRef) return false;
     Object.keys(targetSlot).forEach((key) => {
       if (!(key in drag.originalSlot)) delete targetSlot[key];
     });
@@ -4675,17 +4679,23 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     return true;
   };
 
-  const clearDragListeners = () => {
+  const clearDragListeners = (drag) => {
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onUp);
     document.removeEventListener("pointercancel", onCancel);
     document.removeEventListener("visibilitychange", onVisibilityChange);
     window.removeEventListener("blur", onWindowBlur);
+    pointerCaptureTarget?.removeEventListener("lostpointercapture", onLostPointerCapture);
+    if (drag?.pointerId != null && pointerCaptureTarget?.hasPointerCapture?.(drag.pointerId)) {
+      try {
+        pointerCaptureTarget.releasePointerCapture(drag.pointerId);
+      } catch {}
+    }
   };
 
   const finishDrag = ({ persist = false } = {}) => {
     const drag = ui.drag;
-    clearDragListeners();
+    clearDragListeners(drag);
     document.body.classList.remove("is-manipulating");
     if (!drag) return;
     ui.drag = null;
@@ -4701,7 +4711,7 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
   };
 
   const onMove = (moveEvent) => {
-    if (!ui.drag) return;
+    if (!ui.drag || moveEvent.pointerId !== ui.drag.pointerId) return;
     moveEvent.preventDefault();
 
     const dx = moveEvent.clientX - ui.drag.startClientX;
@@ -4745,8 +4755,18 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
     render();
   };
 
-  const onUp = () => finishDrag({ persist: true });
-  const onCancel = () => finishDrag();
+  const onUp = (upEvent) => {
+    if (upEvent.pointerId !== ui.drag?.pointerId) return;
+    finishDrag({ persist: true });
+  };
+  const onCancel = (cancelEvent) => {
+    if (cancelEvent.pointerId !== ui.drag?.pointerId) return;
+    finishDrag();
+  };
+  const onLostPointerCapture = (captureEvent) => {
+    if (captureEvent.pointerId !== ui.drag?.pointerId) return;
+    finishDrag();
+  };
   const onWindowBlur = () => finishDrag();
   const onVisibilityChange = () => {
     if (document.visibilityState === "hidden") finishDrag();
@@ -4757,6 +4777,12 @@ function beginDrag(event, slotId, mode, rows, rowLayout, scaleInfo) {
   document.addEventListener("pointercancel", onCancel);
   document.addEventListener("visibilitychange", onVisibilityChange);
   window.addEventListener("blur", onWindowBlur);
+  pointerCaptureTarget?.addEventListener("lostpointercapture", onLostPointerCapture);
+  if (event.pointerId != null && pointerCaptureTarget?.setPointerCapture) {
+    try {
+      pointerCaptureTarget.setPointerCapture(event.pointerId);
+    } catch {}
+  }
 }
 
 function suppressNextGanttSlotClick(slotId) {

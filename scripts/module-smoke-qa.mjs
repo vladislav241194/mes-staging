@@ -2082,6 +2082,97 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       assert(dragReport.ghostWidth > 0 && dragReport.ghostHeight > 0, `gantt: drag ghost geometry looks broken ${JSON.stringify(dragReport)}`);
     }
 
+    const cancelledDragReport = await evaluate(client, () => new Promise((resolve) => {
+      const slot = [...document.querySelectorAll("[data-ui-component='GanttSlot']")]
+        .find((item) => (
+          !item.classList.contains("aggregate-slot")
+          && !item.classList.contains("week-slot")
+          && !item.classList.contains("is-locked")
+        ))
+        || document.querySelector("[data-ui-component='GanttSlot']");
+      if (!slot || typeof PointerEvent !== "function") {
+        resolve({ hasSlot: Boolean(slot), pointerEventSupported: typeof PointerEvent === "function" });
+        return;
+      }
+      const pointerId = 4711;
+      const slotId = slot.dataset.slotId || "";
+      const getSlotStyle = () => [...document.querySelectorAll("[data-ui-component='GanttSlot']")]
+        .find((item) => item.dataset.slotId === slotId)?.getAttribute("style") || "";
+      slot.scrollIntoView({ block: "center", inline: "center" });
+      const rect = slot.getBoundingClientRect();
+      const startX = rect.left + Math.min(Math.max(12, rect.width / 2), Math.max(12, rect.width - 8));
+      const startY = rect.top + Math.min(Math.max(8, rect.height / 2), Math.max(8, rect.height - 4));
+      const originalStyle = getSlotStyle();
+      slot.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        buttons: 1,
+        pointerId,
+        clientX: startX,
+        clientY: startY,
+      }));
+      document.dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        buttons: 1,
+        pointerId: pointerId + 1,
+        clientX: startX + 80,
+        clientY: startY + 2,
+      }));
+      setTimeout(() => {
+        const styleAfterForeignPointer = getSlotStyle();
+        document.dispatchEvent(new PointerEvent("pointermove", {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+          buttons: 1,
+          pointerId,
+          clientX: startX + 80,
+          clientY: startY + 2,
+        }));
+        setTimeout(() => {
+          const movedStyle = getSlotStyle();
+          document.querySelector("#app")?.dispatchEvent(new PointerEvent("lostpointercapture", {
+            pointerId,
+          }));
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            resolve({
+              hasSlot: true,
+              pointerEventSupported: true,
+              originalStyle,
+              styleAfterForeignPointer,
+              movedStyle,
+              restoredStyle: getSlotStyle(),
+              hasOverlay: Boolean(document.querySelector("[data-ui-component='GanttSnapOverlay']")),
+              manipulating: document.body.classList.contains("is-manipulating"),
+            });
+          }));
+        }, 80);
+      }, 40);
+    }));
+    assert(cancelledDragReport.hasSlot, "gantt: cannot test cancelled drag because no GanttSlot was found");
+    assert(cancelledDragReport.pointerEventSupported, "gantt: PointerEvent is not supported in smoke browser for cancelled drag");
+    if (hasDetailedGanttRows) {
+      assert(
+        cancelledDragReport.styleAfterForeignPointer === cancelledDragReport.originalStyle,
+        `gantt: a foreign pointer moved the active drag ${JSON.stringify(cancelledDragReport)}`,
+      );
+      assert(
+        cancelledDragReport.movedStyle !== cancelledDragReport.originalStyle,
+        `gantt: the active pointer did not move the drag ${JSON.stringify(cancelledDragReport)}`,
+      );
+      assert(
+        cancelledDragReport.restoredStyle === cancelledDragReport.originalStyle,
+        `gantt: lost pointer capture did not restore the original slot ${JSON.stringify(cancelledDragReport)}`,
+      );
+      assert(
+        !cancelledDragReport.hasOverlay && !cancelledDragReport.manipulating,
+        `gantt: cancelled drag left interaction UI behind ${JSON.stringify(cancelledDragReport)}`,
+      );
+    }
+
     const resizeReport = await evaluate(client, () => new Promise((resolve) => {
       const handle = document.querySelector("[data-ui-component='GanttResizeHandle']");
       if (!handle || typeof PointerEvent !== "function") {
