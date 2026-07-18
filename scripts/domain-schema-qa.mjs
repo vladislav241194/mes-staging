@@ -39,6 +39,8 @@ const planningPeriodOverlapIndexMigrationPath = fileURLToPath(new URL("../db/mig
 const planningPeriodOverlapIndexSql = await readFile(planningPeriodOverlapIndexMigrationPath, "utf-8");
 const planningParityWatermarkMigrationPath = fileURLToPath(new URL("../db/migrations/021_planning_projection_parity_watermark.sql", import.meta.url));
 const planningParityWatermarkSql = await readFile(planningParityWatermarkMigrationPath, "utf-8");
+const shiftExecutionCarryoverLifecycleMigrationPath = fileURLToPath(new URL("../db/migrations/022_shift_execution_carryover_lifecycle.sql", import.meta.url));
+const shiftExecutionCarryoverLifecycleSql = await readFile(shiftExecutionCarryoverLifecycleMigrationPath, "utf-8");
 
 [
   "CREATE TABLE IF NOT EXISTS work_orders",
@@ -165,4 +167,14 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningPeriodOverlapIndexSql), "
   "INSERT INTO mes_schema_migrations(version)\nVALUES ('021_planning_projection_parity_watermark')",
 ].forEach((fragment) => assert(planningParityWatermarkSql.includes(fragment), `Planning parity-watermark migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningParityWatermarkSql), "Planning parity-watermark migration must not contain destructive statements");
+[
+  "ADD COLUMN IF NOT EXISTS canceled_at",
+  "ADD COLUMN IF NOT EXISTS canceled_by",
+  "CREATE UNIQUE INDEX IF NOT EXISTS shift_carryovers_active_assignment_date_key",
+  "WHERE canceled_at IS NULL",
+  "CREATE TABLE IF NOT EXISTS shift_execution_carryover_cancellation_requests",
+  "shift_carryover_id TEXT NOT NULL REFERENCES shift_carryovers(id)",
+  "INSERT INTO mes_schema_migrations(version)\nVALUES ('022_shift_execution_carryover_lifecycle')",
+].forEach((fragment) => assert(shiftExecutionCarryoverLifecycleSql.includes(fragment), `Shift-execution carryover lifecycle migration is missing: ${fragment}`));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(shiftExecutionCarryoverLifecycleSql), "Shift-execution carryover lifecycle migration must not contain destructive statements");
 console.log("Domain schema QA: OK");

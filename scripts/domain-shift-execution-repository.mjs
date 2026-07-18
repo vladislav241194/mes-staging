@@ -1,5 +1,11 @@
 import postgres from "postgres";
-import { buildShiftAssignmentCommand, buildShiftAssignmentUpdateCommand, buildShiftFactCommand, buildShiftCarryoverCommand } from "../src/domain/shift_execution_assignment.js";
+import {
+  buildShiftAssignmentCommand,
+  buildShiftAssignmentUpdateCommand,
+  buildShiftFactCommand,
+  buildShiftCarryoverCommand,
+  buildShiftCarryoverCancelCommand,
+} from "../src/domain/shift_execution_assignment.js";
 
 const READ_CLIENTS_BY_URL = new Map();
 
@@ -23,6 +29,141 @@ function number(value = 0) {
 function iso(value, { dateOnly = false } = {}) {
   const text = value?.toISOString?.() || String(value || "");
   return dateOnly ? text.slice(0, 10) : text;
+}
+
+function normalizeDispatchSourceRowIds(value) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 200) {
+    throw new Error("sourceRowIds must contain from 1 to 200 entries");
+  }
+  const seen = new Set();
+  const sourceRowIds = [];
+  for (const rawId of value) {
+    if (typeof rawId !== "string") throw new Error("sourceRowIds must contain nonempty strings");
+    const sourceRowId = rawId.trim();
+    if (!sourceRowId) throw new Error("sourceRowIds must contain nonempty strings");
+    if (seen.has(sourceRowId)) continue;
+    seen.add(sourceRowId);
+    sourceRowIds.push(sourceRowId);
+  }
+  if (!sourceRowIds.length) throw new Error("sourceRowIds must contain at least one nonempty string");
+  return sourceRowIds;
+}
+
+function normalizeDispatchWorkCenterIds(value) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 100) {
+    throw new Error("workCenterIds must contain from 1 to 100 entries");
+  }
+  const seen = new Set();
+  const workCenterIds = [];
+  for (const rawId of value) {
+    if (typeof rawId !== "string") throw new Error("workCenterIds must contain nonempty strings");
+    const workCenterId = rawId.trim();
+    if (!workCenterId) throw new Error("workCenterIds must contain nonempty strings");
+    if (seen.has(workCenterId)) continue;
+    seen.add(workCenterId);
+    workCenterIds.push(workCenterId);
+  }
+  if (!workCenterIds.length) throw new Error("workCenterIds must contain at least one nonempty string");
+  return workCenterIds;
+}
+
+function normalizeDispatchDateKey(value) {
+  if (typeof value !== "string") throw new Error("dateKey must be a strict YYYY-MM-DD string");
+  const dateKey = value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) throw new Error("dateKey must be a strict YYYY-MM-DD string");
+  const parsed = new Date(`${dateKey}T00:00:00.000Z`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== dateKey) {
+    throw new Error("dateKey must be a valid calendar date");
+  }
+  return dateKey;
+}
+
+function compactExecutor(row) {
+  return { employeeId: row.employee_id, quantity: number(row.quantity), note: row.note || "" };
+}
+
+function compactFact(row) {
+  return {
+    id: row.id,
+    assignmentId: row.shift_assignment_id,
+    actualQuantity: number(row.actual_quantity),
+    defectQuantity: number(row.defect_quantity),
+    laborMinutes: number(row.labor_minutes),
+    executorCount: number(row.executor_count),
+    comment: row.comment || "",
+    deviationComment: row.deviation_comment || "",
+    reportedAt: iso(row.reported_at),
+  };
+}
+
+function compactCarryover(row) {
+  return {
+    id: row.id,
+    sourceAssignmentId: row.source_assignment_id,
+    sourceRowId: row.source_row_id || "",
+    sourceSlotId: row.source_slot_id,
+    workOrderId: row.work_order_id,
+    operationId: row.work_order_operation_id,
+    dateKey: iso(row.date_key, { dateOnly: true }),
+    remainingQuantity: number(row.remaining_quantity),
+    reason: row.reason || "",
+    workCenterId: row.work_center_id || "",
+    createdAt: iso(row.created_at),
+  };
+}
+
+function hasSameCarryoverIntent(row = {}, carryover = {}) {
+  return String(row.source_assignment_id || "") === String(carryover.sourceAssignmentId || "")
+    && String(row.source_slot_id || "") === String(carryover.sourceSlotId || "")
+    && String(row.work_order_id || "") === String(carryover.workOrderId || "")
+    && String(row.work_order_operation_id || "") === String(carryover.operationId || "")
+    && String(row.work_center_id || "") === String(carryover.workCenterId || "")
+    && iso(row.date_key, { dateOnly: true }) === String(carryover.dateKey || "")
+    && number(row.remaining_quantity) === number(carryover.remainingQuantity)
+    && String(row.reason || "") === String(carryover.reason || "");
+}
+
+// A compact, bounded overlay for one currently visible board scope. It is
+// deliberately separate from the legacy full aggregate: the client already
+// owns slot/source context, so JSONB replay payloads and historic activity do
+// not need to cross the wire on every board refresh.
+export function assembleShiftExecutionDispatchProjection(rows = [], executorRows = [], factRows = [], carryoverRows = []) {
+  const executorsByAssignment = new Map();
+  executorRows.forEach((row) => {
+    const list = executorsByAssignment.get(row.shift_assignment_id) || [];
+    list.push(compactExecutor(row));
+    executorsByAssignment.set(row.shift_assignment_id, list);
+  });
+  const factByAssignment = new Map();
+  factRows.forEach((row) => {
+    // listDispatch selects DISTINCT ON (assignment), but retaining the first
+    // row here makes the boundary deterministic if a fixture or adapter ever
+    // returns a duplicate.
+    if (!factByAssignment.has(row.shift_assignment_id)) factByAssignment.set(row.shift_assignment_id, compactFact(row));
+  });
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      sourceRowId: row.source_row_id,
+      sourceSlotId: row.source_slot_id,
+      workOrderId: row.work_order_id,
+      operationId: row.work_order_operation_id,
+      workCenterId: row.work_center_id,
+      resourceId: row.resource_id,
+      masterId: row.master_id,
+      plannedQuantity: number(row.planned_quantity),
+      assignedQuantity: number(row.assigned_quantity),
+      unit: row.unit,
+      status: row.status,
+      revision: number(row.revision),
+      issuedAt: iso(row.issued_at),
+      createdAt: iso(row.created_at),
+      updatedAt: iso(row.updated_at),
+      executors: executorsByAssignment.get(row.id) || [],
+      facts: factByAssignment.has(row.id) ? [factByAssignment.get(row.id)] : [],
+    })),
+    carryovers: carryoverRows.map(compactCarryover),
+  };
 }
 
 // Pure projection boundary shared by API reads and regression QA. Tables stay
@@ -72,9 +213,10 @@ export function assembleShiftExecutionAggregates(rows = [], executorRows = [], f
 
 export function createShiftExecutionReadRepository({
   databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
+  sql: injectedSql = null,
 } = {}) {
-  if (!databaseUrl) throw new Error("DATABASE_URL is required for shift execution read storage");
-  const sql = getReadClient(databaseUrl);
+  if (!databaseUrl && !injectedSql) throw new Error("DATABASE_URL is required for shift execution read storage");
+  const sql = injectedSql || getReadClient(databaseUrl);
 
   return {
     storageMode: "postgres",
@@ -85,7 +227,7 @@ export function createShiftExecutionReadRepository({
           (SELECT count(*) FROM shift_assignments)::int AS assignment_count,
           (SELECT count(*) FROM shift_assignment_executors)::int AS executor_count,
           (SELECT count(*) FROM shift_facts)::int AS fact_count,
-          (SELECT count(*) FROM shift_carryovers)::int AS carryover_count,
+          (SELECT count(*) FROM shift_carryovers WHERE canceled_at IS NULL)::int AS carryover_count,
           COALESCE((SELECT max(updated_at) FROM shift_assignments), (SELECT max(reported_at) FROM shift_facts)) AS updated_at
       `;
       return {
@@ -132,7 +274,8 @@ export function createShiftExecutionReadRepository({
                    work_order_operation_id, date_key, remaining_quantity, reason,
                    work_center_id, created_at, source_payload
             FROM shift_carryovers
-            WHERE source_assignment_id IN (
+            WHERE canceled_at IS NULL
+              AND source_assignment_id IN (
               SELECT id FROM shift_assignments ORDER BY updated_at DESC, id LIMIT ${boundedLimit}
             )
             ORDER BY source_assignment_id, created_at DESC, id DESC`,
@@ -144,10 +287,81 @@ export function createShiftExecutionReadRepository({
         items: assembleShiftExecutionAggregates(rows, executorRows, factRows, carryoverRows),
       };
     },
+    async listDispatch({ sourceRowIds, workCenterIds, dateKey } = {}) {
+      const scope = {
+        sourceRowIds: normalizeDispatchSourceRowIds(sourceRowIds),
+        workCenterIds: normalizeDispatchWorkCenterIds(workCenterIds),
+        dateKey: normalizeDispatchDateKey(dateKey),
+      };
+      const { rows, executorRows, factRows, carryoverRows } = await sql.begin(
+        "isolation level repeatable read read only",
+        async (tx) => {
+          // Never fall back to the globally most-recent assignment list here:
+          // a master board owns its visible source rows and needs a snapshot
+          // only for that bounded scope.
+          const foundRows = await tx`
+            SELECT id, source_row_id, source_slot_id, work_order_id, work_order_operation_id,
+                   work_center_id, resource_id, master_id, planned_quantity, assigned_quantity,
+                   unit, status, revision, issued_at, created_at, updated_at
+            FROM shift_assignments
+            WHERE source_row_id = ANY(${scope.sourceRowIds})
+          `;
+          const rowsBySourceRowId = new Map(foundRows.map((row) => [row.source_row_id, row]));
+          const orderedRows = scope.sourceRowIds.map((sourceRowId) => rowsBySourceRowId.get(sourceRowId)).filter(Boolean);
+          const assignmentIds = orderedRows.map((row) => row.id);
+          // Run the same fixed four-query shape for an empty scope too. The
+          // two child reads receive an empty actual-ID array and therefore do
+          // no aggregate scan, while callers retain one predictable snapshot
+          // contract and still receive date-scoped carryovers.
+          const [executorRows, factRows, carryoverRows] = await Promise.all([
+            tx`
+              SELECT shift_assignment_id, employee_id, quantity, note
+              FROM shift_assignment_executors
+              WHERE shift_assignment_id = ANY(${assignmentIds})
+              ORDER BY shift_assignment_id, employee_id
+            `,
+            tx`
+              SELECT DISTINCT ON (shift_assignment_id)
+                     id, shift_assignment_id, actual_quantity, defect_quantity, labor_minutes,
+                     executor_count, comment, deviation_comment, reported_at
+              FROM shift_facts
+              WHERE shift_assignment_id = ANY(${assignmentIds})
+              ORDER BY shift_assignment_id, reported_at DESC, id DESC
+            `,
+            tx`
+              SELECT carryover.id, carryover.source_assignment_id, assignment.source_row_id,
+                     carryover.source_slot_id, carryover.work_order_id,
+                     carryover.work_order_operation_id, carryover.date_key, carryover.remaining_quantity,
+                     carryover.reason, carryover.work_center_id, carryover.created_at
+              FROM shift_carryovers AS carryover
+              JOIN shift_assignments AS assignment ON assignment.id = carryover.source_assignment_id
+              WHERE carryover.date_key = ${scope.dateKey}
+                AND carryover.work_center_id = ANY(${scope.workCenterIds})
+                AND carryover.canceled_at IS NULL
+              ORDER BY carryover.work_center_id, carryover.source_slot_id, carryover.created_at DESC, carryover.id DESC
+            `,
+          ]);
+          return { rows: orderedRows, executorRows, factRows, carryoverRows };
+        },
+      );
+      const projection = assembleShiftExecutionDispatchProjection(rows, executorRows, factRows, carryoverRows);
+      return {
+        storageMode: "postgres",
+        storageBackend: "postgresql",
+        configured: true,
+        scope,
+        coveredSourceRowIds: scope.sourceRowIds,
+        // The endpoint is intentionally a partial overlay, not a replacement
+        // for the legacy global read model while the client migration rolls
+        // out. A caller may only remove records in coveredSourceRowIds.
+        coverageComplete: false,
+        ...projection,
+      };
+    },
     async commandReadiness() {
-      const rows = await sql`SELECT version FROM mes_schema_migrations WHERE version IN ('014_shift_execution_command_idempotency', '015_shift_execution_assignment_revisions', '016_shift_execution_fact_idempotency', '017_shift_execution_carryover_idempotency')`;
+      const rows = await sql`SELECT version FROM mes_schema_migrations WHERE version IN ('014_shift_execution_command_idempotency', '015_shift_execution_assignment_revisions', '016_shift_execution_fact_idempotency', '017_shift_execution_carryover_idempotency', '022_shift_execution_carryover_lifecycle')`;
       const versions = new Set(rows.map((row) => row.version));
-      return { schemaReady: versions.has('014_shift_execution_command_idempotency') && versions.has('015_shift_execution_assignment_revisions') && versions.has('016_shift_execution_fact_idempotency') && versions.has('017_shift_execution_carryover_idempotency') };
+      return { schemaReady: versions.has('014_shift_execution_command_idempotency') && versions.has('015_shift_execution_assignment_revisions') && versions.has('016_shift_execution_fact_idempotency') && versions.has('017_shift_execution_carryover_idempotency') && versions.has('022_shift_execution_carryover_lifecycle') };
     },
     async close() {},
   };
@@ -158,9 +372,10 @@ export function createShiftExecutionReadRepository({
 // before a browser is allowed to create assignments through this path.
 export function createShiftExecutionCommandRepository({
   databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
+  sql: injectedSql = null,
 } = {}) {
-  if (!databaseUrl) throw new Error("DATABASE_URL is required for shift execution command storage");
-  const sql = postgres(databaseUrl, { max: 1, connect_timeout: 5, prepare: false });
+  if (!databaseUrl && !injectedSql) throw new Error("DATABASE_URL is required for shift execution command storage");
+  const sql = injectedSql || postgres(databaseUrl, { max: 1, connect_timeout: 5, prepare: false });
   const metadata = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   const project = (row) => ({
     id: row.id, sourceRowId: row.source_row_id, sourceSlotId: row.source_slot_id,
@@ -287,14 +502,79 @@ export function createShiftExecutionCommandRepository({
           return { ...metadata, created: false, item: item[0] || null };
         }
         const item = command.carryover;
-        const [created] = await tx`
+        const assignment = await tx`SELECT id FROM shift_assignments WHERE id = ${item.sourceAssignmentId} FOR SHARE`;
+        if (!assignment[0]) return { ...metadata, created: false, item: null, error: "Shift assignment was not found" };
+        // The partial unique index installed by the lifecycle migration makes
+        // this atomic even when two browser retries race.  A semantic retry
+        // with a fresh idempotency key gets the canonical active row; a
+        // materially different carryover must explicitly cancel first so no
+        // audit obligation is silently overwritten.
+        const inserted = await tx`
           INSERT INTO shift_carryovers (id, source_assignment_id, source_slot_id, work_order_id, work_order_operation_id, date_key, remaining_quantity, reason, work_center_id, source_payload)
-          VALUES (${item.id}, ${item.sourceAssignmentId}, ${item.sourceSlotId}, ${item.workOrderId}, ${item.operationId}, ${item.dateKey}, ${item.remainingQuantity}, ${item.reason}, ${item.workCenterId}, ${tx.json({ command: "create_carryover" })}) RETURNING *
+          VALUES (${item.id}, ${item.sourceAssignmentId}, ${item.sourceSlotId}, ${item.workOrderId}, ${item.operationId}, ${item.dateKey}, ${item.remainingQuantity}, ${item.reason}, ${item.workCenterId}, ${tx.json({ command: "create_carryover" })})
+          ON CONFLICT (source_assignment_id, date_key) WHERE canceled_at IS NULL DO NOTHING
+          RETURNING *
         `;
-        await tx`INSERT INTO shift_execution_carryover_requests (idempotency_key, request_fingerprint, shift_carryover_id, actor_id) VALUES (${command.idempotencyKey}, ${command.requestFingerprint}, ${item.id}, ${String(input.actorId || "")})`;
-        return { ...metadata, created: true, item: created };
+        if (inserted[0]) {
+          await tx`INSERT INTO shift_execution_carryover_requests (idempotency_key, request_fingerprint, shift_carryover_id, actor_id) VALUES (${command.idempotencyKey}, ${command.requestFingerprint}, ${item.id}, ${String(input.actorId || "")})`;
+          return { ...metadata, created: true, item: inserted[0] };
+        }
+        const active = await tx`
+          SELECT * FROM shift_carryovers
+          WHERE source_assignment_id = ${item.sourceAssignmentId}
+            AND date_key = ${item.dateKey}
+            AND canceled_at IS NULL
+          LIMIT 1
+        `;
+        const existing = active[0] || null;
+        if (!existing) return { ...metadata, created: false, item: null, error: "Active shift carryover was not found after a concurrent create" };
+        if (!hasSameCarryoverIntent(existing, item)) {
+          return { ...metadata, created: false, conflict: true, item: existing, error: "Active shift carryover already exists for this assignment and date" };
+        }
+        await tx`INSERT INTO shift_execution_carryover_requests (idempotency_key, request_fingerprint, shift_carryover_id, actor_id) VALUES (${command.idempotencyKey}, ${command.requestFingerprint}, ${existing.id}, ${String(input.actorId || "")})`;
+        return { ...metadata, created: false, item: existing };
       });
     },
-    async close() { await sql.end({ timeout: 5 }); },
+    async cancelCarryover(input = {}) {
+      const command = buildShiftCarryoverCancelCommand(input);
+      return sql.begin(async (tx) => {
+        const replay = await tx`
+          SELECT request_fingerprint, shift_carryover_id
+          FROM shift_execution_carryover_cancellation_requests
+          WHERE idempotency_key = ${command.idempotencyKey}
+          LIMIT 1
+        `;
+        if (replay[0]) {
+          if (replay[0].request_fingerprint !== command.requestFingerprint) {
+            throw new Error("Idempotency key was already used for another shift carryover cancellation");
+          }
+          const item = await tx`SELECT * FROM shift_carryovers WHERE id = ${replay[0].shift_carryover_id} LIMIT 1`;
+          return { ...metadata, created: false, item: item[0] || null };
+        }
+        const current = await tx`SELECT * FROM shift_carryovers WHERE id = ${command.carryoverId} FOR UPDATE`;
+        if (!current[0]) return { ...metadata, created: false, item: null, error: "Shift carryover was not found" };
+        let item = current[0];
+        let canceled = false;
+        if (!item.canceled_at) {
+          const updated = await tx`
+            UPDATE shift_carryovers
+            SET canceled_at = now(),
+                canceled_by = ${String(input.actorId || "")},
+                cancellation_reason = ${command.cancellationReason}
+            WHERE id = ${command.carryoverId}
+              AND canceled_at IS NULL
+            RETURNING *
+          `;
+          item = updated[0] || item;
+          canceled = Boolean(updated[0]);
+        }
+        await tx`
+          INSERT INTO shift_execution_carryover_cancellation_requests (idempotency_key, request_fingerprint, shift_carryover_id, actor_id)
+          VALUES (${command.idempotencyKey}, ${command.requestFingerprint}, ${command.carryoverId}, ${String(input.actorId || "")})
+        `;
+        return { ...metadata, created: canceled, item };
+      });
+    },
+    async close() { if (!injectedSql) await sql.end({ timeout: 5 }); },
   };
 }

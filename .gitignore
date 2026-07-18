@@ -12,3 +12,7 @@ tmp/
 .mes-data/
 .mes-backups/
 .mes-audit.log
+/reports/bundle-performance-budget.json
+/reports/module-factory-enrollment.json
+/reports/performance/
+/reports/domain-migration/pilot-readiness-latest.json

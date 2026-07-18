@@ -87,5 +87,19 @@ export function createShiftExecutionCommands({
     return result;
   }
 
-  return { refreshCapability, getCapability: () => ({ ...capability, loading: null }), createAssignment, updateAssignment, recordFact, createCarryover };
+  async function cancelCarryover(carryoverId, payload = {}) {
+    const id = String(carryoverId || "").trim();
+    const idempotencyKey = String(payload.idempotencyKey || "").trim();
+    if (!id || !idempotencyKey) throw new Error("Carryover id and idempotency key are required to cancel a shift carryover");
+    const response = await fetchImpl(`${baseUrl}/carryovers/${encodeURIComponent(id)}`, {
+      method: "PATCH", cache: "no-store", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ ...payload, idempotencyKey }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result?.ok) throw new Error(result?.error || `Shift carryover cancellation returned ${response.status}`);
+    return result;
+  }
+
+  return { refreshCapability, getCapability: () => ({ ...capability, loading: null }), createAssignment, updateAssignment, recordFact, createCarryover, cancelCarryover };
 }

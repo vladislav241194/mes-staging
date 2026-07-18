@@ -71,6 +71,7 @@ const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const sourceRowId = `qa-server-shift-${stamp}`;
 const db = postgres(env.DATABASE_URL, { max: 1, prepare: false });
 let assignmentId = "";
+let carryoverId = "";
 
 try {
   const [operation] = await db`SELECT id, work_order_id FROM work_order_operations ORDER BY id LIMIT 1`;
@@ -129,13 +130,39 @@ try {
     },
   });
   assert(carryover.status === 201 && carryover.json?.ok, `Carryover command failed (${carryover.status}): ${carryover.json?.error || "unexpected response"}`);
+  carryoverId = carryover.json.item.id;
+
+  const dispatchBeforeCancel = await request({
+    method: "GET",
+    path: `/api/v1/workshop/shift-execution/dispatch?sourceRowId=${encodeURIComponent(sourceRowId)}&workCenterId=qa-work-center&dateKey=2026-07-18`,
+    token: sessionToken,
+  });
+  assert(dispatchBeforeCancel.status === 200 && dispatchBeforeCancel.json?.carryovers?.some((item) => item.id === carryoverId), "Bounded dispatch must include its active carryover before correction");
+
+  const cancelKey = `qa-carryover-cancel-${stamp}`;
+  const canceled = await request({
+    method: "PATCH",
+    path: `/api/v1/workshop/shift-execution/carryovers/${encodeURIComponent(carryoverId)}`,
+    token: sessionToken,
+    idempotencyKey: cancelKey,
+    payload: { idempotencyKey: cancelKey, reason: "isolated E2E fact correction" },
+  });
+  assert(canceled.status === 200 && canceled.json?.ok && canceled.json?.item?.canceled_at, `Carryover cancellation failed (${canceled.status}): ${canceled.json?.error || "unexpected response"}`);
+
+  const dispatchAfterCancel = await request({
+    method: "GET",
+    path: `/api/v1/workshop/shift-execution/dispatch?sourceRowId=${encodeURIComponent(sourceRowId)}&workCenterId=qa-work-center&dateKey=2026-07-18`,
+    token: sessionToken,
+  });
+  assert(dispatchAfterCancel.status === 200 && !dispatchAfterCancel.json?.carryovers?.some((item) => item.id === carryoverId), "Canceled carryovers must not reappear in the bounded dispatch overlay");
 
   const aggregate = await request({ method: "GET", path: "/api/v1/workshop/shift-execution?limit=10", token: sessionToken });
   const item = (aggregate.json?.items || []).find((entry) => entry.sourceRowId === sourceRowId);
-  assert(aggregate.status === 200 && item && item.status === "issued" && item.facts?.length === 1 && item.carryovers?.length === 1, "Aggregate read did not contain the created assignment, fact and carryover");
-  console.log(JSON.stringify({ ok: true, httpBoundary: true, create: created.status, fact: fact.status, carryover: carryover.status, aggregate: aggregate.status }));
+  assert(aggregate.status === 200 && item && item.status === "issued" && item.facts?.length === 1 && item.carryovers?.length === 0, "Aggregate read must omit canceled carryovers while retaining assignment and fact history");
+  console.log(JSON.stringify({ ok: true, httpBoundary: true, create: created.status, fact: fact.status, carryover: carryover.status, canceled: canceled.status, aggregate: aggregate.status }));
 } finally {
   if (assignmentId) {
+    await db`DELETE FROM shift_execution_carryover_cancellation_requests WHERE shift_carryover_id IN (SELECT id FROM shift_carryovers WHERE source_assignment_id = ${assignmentId})`;
     await db`DELETE FROM shift_execution_fact_requests WHERE shift_fact_id IN (SELECT id FROM shift_facts WHERE shift_assignment_id = ${assignmentId})`;
     await db`DELETE FROM shift_facts WHERE shift_assignment_id = ${assignmentId}`;
     await db`DELETE FROM shift_execution_carryover_requests WHERE shift_carryover_id IN (SELECT id FROM shift_carryovers WHERE source_assignment_id = ${assignmentId})`;

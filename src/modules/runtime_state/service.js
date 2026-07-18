@@ -1196,6 +1196,24 @@ function loadState() {
     }
     const parsed = JSON.parse(raw);
     if (parsed?.version !== 1) {
+      // A compact server projection and older browser snapshots may omit the
+      // compatibility envelope version while still carrying a complete route
+      // graph.  It is a legacy snapshot, not corrupt input: restore the
+      // envelope first and run the same normalizer as a current snapshot.
+      // Falling straight into backup recovery here used to bypass labor
+      // rehydration and leave the browser with a repeatedly unnormalized plan.
+      // Every compatibility projection has these three identity collections.
+      // Requiring the complete shape prevents a truncated/corrupt payload
+      // such as `{ slots: [] }` from being silently promoted to a new valid
+      // browser state instead of being recovered from a backup.
+      const hasCompletePlanningCollections = ["routes", "routeSteps", "slots"]
+        .every((key) => Array.isArray(parsed?.[key]));
+      if (hasCompletePlanningCollections) {
+        const normalized = normalizePlanningState(recoverPlanningRuntimeSnapshot(parsed));
+        const normalizedRaw = JSON.stringify(normalized);
+        if (normalizedRaw !== raw) localStorage.setItem(STORAGE_KEY, normalizedRaw);
+        return normalized;
+      }
       const restored = restorePlanningStateFromBackups("invalid-planning-version");
       if (restored) return restored;
       return normalizePlanningState(createDefaultPlanningState());
@@ -1206,7 +1224,11 @@ function loadState() {
       localStorage.setItem(STORAGE_KEY, normalizedRaw);
     }
     return normalized;
-  } catch {
+  } catch (error) {
+    // A valid persisted snapshot must never silently bypass its normalization
+    // path.  Keep the recovery fallback, but surface the root cause so a
+    // startup regression cannot masquerade as an unchanged local state.
+    console.warn("[MES] Planning-state normalization failed; attempting recovery.", error);
     const restored = restorePlanningStateFromBackups("broken-planning-storage");
     if (restored) return restored;
     return normalizePlanningState(createDefaultPlanningState());

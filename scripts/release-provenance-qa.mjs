@@ -1,0 +1,139 @@
+import { execFile as execFileCallback } from "node:child_process";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
+import { assertNoIgnoredReleaseInputs, collectPublishedGitProvenance } from "./release-provenance.mjs";
+import { computeTreeSha } from "./release-tree-sha.mjs";
+
+const execFile = promisify(execFileCallback);
+const commit = "a".repeat(40);
+const cachedCommit = "b".repeat(40);
+const fetchedCommit = "c".repeat(40);
+
+function assert(value, message) {
+  if (!value) throw new Error(message);
+}
+
+function gitResult(stdout = "", code = 0, stderr = "") {
+  return { stdout, code, stderr };
+}
+
+function createGitRunner({ mergeBaseCode = 0, fetchCode = 0, ignoredInputs = "" } = {}) {
+  const calls = [];
+  const runGit = async (args) => {
+    calls.push(args);
+    const key = args.join(" ");
+    if (key === "rev-parse HEAD") return gitResult(`${commit}\n`);
+    if (key === "symbolic-ref --quiet --short HEAD") return gitResult("feat/release\n");
+    if (key === "config --get branch.feat/release.remote") return gitResult("origin\n");
+    if (key === "config --get branch.feat/release.merge") return gitResult("refs/heads/feat/release\n");
+    if (key === "rev-parse --abbrev-ref --symbolic-full-name @{upstream}") return gitResult("origin/feat/release\n");
+    if (key === "rev-parse origin/feat/release") return gitResult(`${cachedCommit}\n`);
+    if (key === "fetch --quiet --no-tags origin refs/heads/feat/release") {
+      return fetchCode === 0 ? gitResult() : gitResult("", fetchCode, "network unavailable");
+    }
+    if (key === "rev-parse FETCH_HEAD") return gitResult(`${fetchedCommit}\n`);
+    if (args[0] === "merge-base") return gitResult("", mergeBaseCode);
+    if (args[0] === "ls-files") return gitResult(ignoredInputs);
+    return gitResult("", 1, `Unexpected Git command: ${key}`);
+  };
+  return { runGit, calls };
+}
+
+async function expectFailure(action, messagePart) {
+  try {
+    await action();
+  } catch (error) {
+    const details = [error?.message, error?.stderr, error?.stdout, error].filter(Boolean).join("\n");
+    assert(details.includes(messagePart), `Expected ${messagePart}, got ${details}`);
+    return;
+  }
+  throw new Error(`Expected failure containing: ${messagePart}`);
+}
+
+async function verifyManifestContract() {
+  const appRoot = await mkdtemp(join(tmpdir(), "mes-release-provenance-qa-"));
+  await mkdir(join(appRoot, "dist"));
+  await writeFile(join(appRoot, "source.txt"), "source\n");
+  await writeFile(join(appRoot, "dist", "index.js"), "dist\n");
+  const runtimeIncludes = ["source.txt"];
+  const manifest = {
+    schemaVersion: 2,
+    releaseId: "qa-release",
+    gitCommit: commit,
+    gitProvenance: {
+      schemaVersion: 1,
+      gitCommit: commit,
+      branch: "feat/release",
+      remote: "origin",
+      upstreamRef: "origin/feat/release",
+      upstreamBranchRef: "refs/heads/feat/release",
+      upstreamCommit: fetchedCommit,
+      verification: "fresh-upstream-fetch",
+      verifiedAt: "2026-07-18T00:00:00.000Z",
+    },
+    runtimeIncludes,
+    sourceTreeSha256: await computeTreeSha({ root: appRoot, includes: runtimeIncludes }),
+    distTreeSha256: await computeTreeSha({ root: appRoot, includes: ["dist"] }),
+    packageLockSha256: "d".repeat(64),
+    compatibilityArtifacts: [],
+  };
+  const manifestPath = join(appRoot, "release-manifest.json");
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  const command = ["scripts/release-verify.mjs", `--manifest=${manifestPath}`, `--app-root=${appRoot}`, "--json"];
+  const passing = await execFile("node", command, { cwd: process.cwd() });
+  const parsed = JSON.parse(passing.stdout);
+  assert(parsed.gitProvenanceVerification === "fresh-upstream-fetch", "Verifier must report fresh Git provenance");
+
+  manifest.gitProvenance.verification = "cached-upstream";
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  await expectFailure(
+    () => execFile("node", command, { cwd: process.cwd() }),
+    "Manifest Git provenance was not verified against a fresh upstream fetch",
+  );
+
+  manifest.schemaVersion = 1;
+  delete manifest.gitProvenance;
+  await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+  const legacy = await execFile("node", command, { cwd: process.cwd() });
+  assert(JSON.parse(legacy.stdout).gitProvenanceVerification === "legacy-unverified", "Legacy manifests must remain rollback-compatible");
+}
+
+const cached = createGitRunner();
+const cachedProvenance = await collectPublishedGitProvenance({ runGit: cached.runGit, refreshRemote: false });
+assert(cachedProvenance.verification === "cached-upstream", "Dry runs must use cached upstream provenance");
+assert(!cached.calls.some((args) => args[0] === "fetch"), "Dry-run provenance must not require Git-network access");
+
+const fresh = createGitRunner();
+const freshProvenance = await collectPublishedGitProvenance({ runGit: fresh.runGit, refreshRemote: true });
+assert(freshProvenance.verification === "fresh-upstream-fetch", "Staging must use freshly fetched upstream provenance");
+assert(freshProvenance.upstreamCommit === fetchedCommit, "Staging must record the freshly fetched upstream commit");
+assert(fresh.calls.some((args) => args[0] === "fetch"), "Staging must fetch the configured upstream branch");
+
+await expectFailure(
+  () => collectPublishedGitProvenance({ runGit: createGitRunner({ mergeBaseCode: 1 }).runGit, refreshRemote: false }),
+  "not contained in cached upstream",
+);
+await expectFailure(
+  () => collectPublishedGitProvenance({ runGit: createGitRunner({ fetchCode: 128 }).runGit, refreshRemote: true }),
+  "Unable to refresh upstream",
+);
+
+await assertNoIgnoredReleaseInputs({ runGit: createGitRunner().runGit, sourceIncludes: ["src", "scripts"] });
+await expectFailure(
+  () => assertNoIgnoredReleaseInputs({
+    runGit: createGitRunner({ ignoredInputs: "src/debug-local.js\n" }).runGit,
+    sourceIncludes: ["src", "scripts"],
+  }),
+  "ignored source inputs: src/debug-local.js",
+);
+
+const stageSource = await readFile(resolve(process.cwd(), "scripts/release-stage.mjs"), "utf8");
+assert(stageSource.includes("collectPublishedGitProvenance"), "Release staging must use the Git provenance guard");
+assert(stageSource.includes("refreshRemote: !args.dryRun"), "Only real staging may require live Git remote verification");
+assert(stageSource.includes("schemaVersion: 2"), "New staged manifests must carry the provenance schema");
+assert(stageSource.includes("assertReleaseSourceStillMatchesProvenance(gitCommit)"), "Release staging must recheck source provenance after building");
+
+await verifyManifestContract();
+console.log("Release provenance QA: OK");

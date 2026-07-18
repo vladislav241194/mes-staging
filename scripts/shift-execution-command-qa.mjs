@@ -1,4 +1,4 @@
-import { buildShiftAssignmentCommand, buildShiftAssignmentUpdateCommand, buildShiftFactCommand, buildShiftCarryoverCommand } from "../src/domain/shift_execution_assignment.js";
+import { buildShiftAssignmentCommand, buildShiftAssignmentUpdateCommand, buildShiftFactCommand, buildShiftCarryoverCommand, buildShiftCarryoverCancelCommand } from "../src/domain/shift_execution_assignment.js";
 
 function assert(value, message) { if (!value) throw new Error(message); }
 
@@ -39,4 +39,9 @@ assert(carryover.carryover.sourceAssignmentId === "shift-1" && carryover.carryov
 let badCarryover = "";
 try { buildShiftCarryoverCommand({ idempotencyKey: "carryover-2", sourceAssignmentId: "shift-1", sourceSlotId: "slot-1", workOrderId: "WO-1", operationId: "OP-1", workCenterId: "D5", dateKey: "2026-07-18", remainingQuantity: 0 }); } catch (error) { badCarryover = error.message; }
 assert(/must be positive/.test(badCarryover), "carryover command must reject an empty carryover");
+const canceledCarryover = buildShiftCarryoverCancelCommand({ idempotencyKey: "carryover-cancel-1", carryoverId: "shift-carryover-1", reason: "Факт скорректирован" });
+assert(canceledCarryover.carryoverId === "shift-carryover-1" && canceledCarryover.cancellationReason === "Факт скорректирован" && canceledCarryover.requestFingerprint, "carryover cancellation must preserve its audited target and reason");
+let badCancel = "";
+try { buildShiftCarryoverCancelCommand({ idempotencyKey: "carryover-cancel-2" }); } catch (error) { badCancel = error.message; }
+assert(/carryoverId is required/.test(badCancel), "carryover cancellation must reject a missing target");
 console.log("Shift execution command QA: OK");

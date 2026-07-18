@@ -745,6 +745,26 @@ function readPlanningPeriodView(url) {
   return value === "projection" || value === "weekly" ? value : "";
 }
 
+function readShiftExecutionDispatchQuery(url) {
+  const sourceRowIds = url.searchParams.getAll("sourceRowId");
+  if (sourceRowIds.length < 1 || sourceRowIds.length > 200 || sourceRowIds.some((value) => !String(value || "").trim())) {
+    return { error: "sourceRowId must be supplied from one to 200 times" };
+  }
+  const workCenterIds = url.searchParams.getAll("workCenterId");
+  if (workCenterIds.length < 1 || workCenterIds.length > 100 || workCenterIds.some((value) => !String(value || "").trim())) {
+    return { error: "workCenterId must be supplied from one to 100 times" };
+  }
+  const dateKeys = url.searchParams.getAll("dateKey");
+  if (dateKeys.length !== 1) return { error: "dateKey must be supplied exactly once as YYYY-MM-DD" };
+  const dateKey = String(dateKeys[0] || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return { error: "dateKey must use YYYY-MM-DD" };
+  const parsed = new Date(`${dateKey}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== dateKey) {
+    return { error: "dateKey must be a calendar date in YYYY-MM-DD" };
+  }
+  return { sourceRowIds, workCenterIds, dateKey };
+}
+
 function getPlanningSlotInterval(slot = {}) {
   const start = Date.parse(String(slot?.plannedStart || ""));
   const end = Date.parse(String(slot?.plannedEnd || ""));
@@ -832,6 +852,11 @@ export async function handleDomainApiRequest(req, res, url, {
   // Injection keeps the parity guard independently testable without needing
   // a live PostgreSQL connection in HTTP-level QA.
   workOrdersRepositoryFactory = createWorkOrdersRepository,
+  // The additive dispatch endpoint has its own focused HTTP contract. Keeping
+  // its factory injectable lets that contract run without a live PostgreSQL
+  // database and does not alter the existing global shift-execution route.
+  shiftExecutionReadRepositoryFactory = createShiftExecutionReadRepository,
+  shiftExecutionCommandRepositoryFactory = createShiftExecutionCommandRepository,
 } = {}) {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
   const orderMatch = url.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)$/);
@@ -851,13 +876,16 @@ export async function handleDomainApiRequest(req, res, url, {
   const shiftAssignmentMatch = url.pathname.match(/^\/api\/v1\/workshop\/shift-execution\/assignments\/([^/]+)$/);
   const shiftFactMatch = url.pathname.match(/^\/api\/v1\/workshop\/shift-execution\/assignments\/([^/]+)\/facts$/);
   const isShiftExecutionCarryoverCommand = req.method === "POST" && url.pathname === `${API_PREFIX}/workshop/shift-execution/carryovers`;
+  const shiftCarryoverMatch = url.pathname.match(/^\/api\/v1\/workshop\/shift-execution\/carryovers\/([^/]+)$/);
+  const isShiftExecutionCarryoverCancel = req.method === "PATCH" && Boolean(shiftCarryoverMatch);
   const isShiftExecutionAssignmentUpdate = req.method === "PATCH" && Boolean(shiftAssignmentMatch);
   const isShiftExecutionFactCommand = req.method === "POST" && Boolean(shiftFactMatch);
+  const isShiftExecutionDispatchRead = req.method === "GET" && url.pathname === `${API_PREFIX}/workshop/shift-execution/dispatch`;
   const isOrderPatch = req.method === "PATCH" && Boolean(orderMatch);
   const isSlotPatch = req.method === "PATCH" && Boolean(slotMatch);
   const isPlanningPeriodRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/period`;
   const isSpecifications2WorkOrderCommand = req.method === "POST" && Boolean(specifications2WorkOrderCommandMatch);
-  if (req.method !== "GET" && !isOrderPatch && !isSlotPatch && !isSpecifications2WorkOrderCommand && !isSpecifications2PublishCommand && !isSpecifications2AttachmentCommand && !isSystemDomainsWrite && !isShiftExecutionAssignmentCommand && !isShiftExecutionAssignmentUpdate && !isShiftExecutionFactCommand && !isShiftExecutionCarryoverCommand) {
+  if (req.method !== "GET" && !isOrderPatch && !isSlotPatch && !isSpecifications2WorkOrderCommand && !isSpecifications2PublishCommand && !isSpecifications2AttachmentCommand && !isSystemDomainsWrite && !isShiftExecutionAssignmentCommand && !isShiftExecutionAssignmentUpdate && !isShiftExecutionFactCommand && !isShiftExecutionCarryoverCommand && !isShiftExecutionCarryoverCancel) {
     sendJson(res, headers, 405, { ok: false, error: "Method is not allowed" });
     return true;
   }
@@ -870,6 +898,35 @@ export async function handleDomainApiRequest(req, res, url, {
   const planningPeriodView = isPlanningPeriodRead ? readPlanningPeriodView(url) : "";
   if (isPlanningPeriodRead && !planningPeriodView) {
     sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "planning period view must be projection or weekly" });
+    return true;
+  }
+  const shiftExecutionDispatchQuery = isShiftExecutionDispatchRead ? readShiftExecutionDispatchQuery(url) : null;
+  if (shiftExecutionDispatchQuery?.error) {
+    sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: shiftExecutionDispatchQuery.error });
+    return true;
+  }
+
+  // This compact read belongs to the workshop alone.  It must not open the
+  // broader work-order repository or run its health/parity aggregates before
+  // reading one visible shift scope.
+  if (isShiftExecutionDispatchRead) {
+    let shifts;
+    try {
+      shifts = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      const result = await shifts.listDispatch({
+        sourceRowIds: shiftExecutionDispatchQuery.sourceRowIds,
+        workCenterIds: shiftExecutionDispatchQuery.workCenterIds,
+        dateKey: shiftExecutionDispatchQuery.dateKey,
+      });
+      const payload = { ok: true, apiVersion: "v1", ...result };
+      const etag = getPayloadEtag(payload);
+      if (matchesEtag(req, etag)) sendNotModified(res, headers, etag);
+      else sendJson(res, headers, 200, payload, { ETag: etag });
+    } catch (error) {
+      sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution dispatch storage is unavailable" });
+    } finally {
+      await shifts?.close?.();
+    }
     return true;
   }
 
@@ -1051,7 +1108,7 @@ export async function handleDomainApiRequest(req, res, url, {
       readiness.specifications2.error = error?.message || "Specifications 2.0 readiness is unavailable";
     } finally { await specifications?.close?.(); }
     try {
-      shifts = createShiftExecutionReadRepository({ databaseUrl });
+      shifts = shiftExecutionReadRepositoryFactory({ databaseUrl });
       const summary = await shifts.summary();
       const commandReadiness = await shifts.commandReadiness();
       readiness.shiftExecution = {
@@ -1115,16 +1172,18 @@ export async function handleDomainApiRequest(req, res, url, {
   if (url.pathname === `${API_PREFIX}/workshop/shift-execution/capabilities`) {
     if (health.storageBackend !== "postgresql") {
       sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
-        assignmentCreationEnabled: false, primaryPostgres: false, schemaReady: false,
+        assignmentCreationEnabled: false, carryoverCancellationEnabled: false, primaryPostgres: false, schemaReady: false,
       } });
       return true;
     }
     let shifts;
     try {
-      shifts = createShiftExecutionReadRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      shifts = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       const commandReadiness = await shifts.commandReadiness();
+      const commandsEnabled = String(env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1" && health.storageBackend === "postgresql" && commandReadiness.schemaReady === true;
       sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
-        assignmentCreationEnabled: String(env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1" && health.storageBackend === "postgresql" && commandReadiness.schemaReady === true,
+        assignmentCreationEnabled: commandsEnabled,
+        carryoverCancellationEnabled: commandsEnabled,
         primaryPostgres: health.storageBackend === "postgresql",
         schemaReady: commandReadiness.schemaReady === true,
       } });
@@ -1134,14 +1193,14 @@ export async function handleDomainApiRequest(req, res, url, {
     return true;
   }
 
-  if (isShiftExecutionAssignmentCommand || isShiftExecutionAssignmentUpdate || isShiftExecutionFactCommand || isShiftExecutionCarryoverCommand) {
+  if (isShiftExecutionAssignmentCommand || isShiftExecutionAssignmentUpdate || isShiftExecutionFactCommand || isShiftExecutionCarryoverCommand || isShiftExecutionCarryoverCancel) {
     if (String(env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") !== "1" || health.storageBackend !== "postgresql") {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Shift execution server commands are not enabled during snapshot migration" });
       return true;
     }
     let commandReadiness;
     try {
-      const readRepository = createShiftExecutionReadRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      const readRepository = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       commandReadiness = await readRepository.commandReadiness();
       await readRepository.close();
     } catch (error) {
@@ -1153,7 +1212,7 @@ export async function handleDomainApiRequest(req, res, url, {
       return true;
     }
     const actor = getPublicAuthPrincipal(req, env);
-    if (!actor) { sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to create a shift assignment" }); return true; }
+    if (!actor) { sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to modify shift execution" }); return true; }
     let payload;
     try { payload = await readRequestBody(req); }
     catch { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Request body must be valid JSON" }); return true; }
@@ -1161,17 +1220,19 @@ export async function handleDomainApiRequest(req, res, url, {
     if (!idempotencyKey || idempotencyKey.length > 160) { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Idempotency key is required" }); return true; }
     let shifts;
     try {
-      shifts = createShiftExecutionCommandRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
-      const result = isShiftExecutionCarryoverCommand
+      shifts = shiftExecutionCommandRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      const result = isShiftExecutionCarryoverCancel
+        ? await shifts.cancelCarryover({ ...payload, carryoverId: decodeURIComponent(shiftCarryoverMatch[1]), idempotencyKey, actorId: actor.id })
+        : isShiftExecutionCarryoverCommand
         ? await shifts.createCarryover({ ...payload, idempotencyKey, actorId: actor.id })
         : isShiftExecutionFactCommand
         ? await shifts.recordFact({ ...payload, assignmentId: decodeURIComponent(shiftFactMatch[1]), idempotencyKey, actorId: actor.id })
         : isShiftExecutionAssignmentUpdate
         ? await shifts.updateAssignment({ ...payload, assignmentId: decodeURIComponent(shiftAssignmentMatch[1]), idempotencyKey, actorId: actor.id })
         : await shifts.createAssignment({ ...payload, idempotencyKey, actorId: actor.id });
-      if (result.conflict) sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...result, error: result.error || "Shift assignment changed by another user" });
+      if (result.conflict) sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...result, error: result.error || "Shift execution command conflicts with the current server state" });
       else if (!result.item) sendJson(res, headers, 422, { ok: false, apiVersion: "v1", error: result.error || "Shift assignment cannot be saved" });
-      else sendJson(res, headers, result.created ? 201 : 200, { ok: true, apiVersion: "v1", ...result });
+      else sendJson(res, headers, result.created && !isShiftExecutionCarryoverCancel ? 201 : 200, { ok: true, apiVersion: "v1", ...result });
     } catch (error) { sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" }); }
     finally { await shifts?.close?.(); }
     return true;
@@ -1286,7 +1347,7 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     let shifts;
     try {
-      shifts = createShiftExecutionReadRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      shifts = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       const result = url.pathname.endsWith("/summary")
         ? await shifts.summary()
         : await shifts.list({ limit: url.searchParams.get("limit") });

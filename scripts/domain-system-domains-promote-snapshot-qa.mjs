@@ -189,6 +189,8 @@ async function main() {
   assert(rootWrapper.includes("EUID") && rootWrapper.includes("Run as root"), "Promotion wrapper must remain root-only");
   assert(rootWrapper.includes("MES_ALLOW_SYSTEM_DOMAINS_SNAPSHOT_PROMOTION=1"), "Promotion wrapper must provide the explicit second gate");
   assert(rootWrapper.includes("domain:system-domains:promote-snapshot"), "Promotion wrapper must execute only the reviewed promotion command");
+  assert(rootWrapper.includes("MES_SHARED_STATE_DIR") && rootWrapper.includes("/srv/mes/pilot/shared-state"), "Promotion wrapper must target the active pilot shared-state directory when the domain env only supplies PostgreSQL access");
+  assert(rootWrapper.includes("MES_BACKUP_DIR") && rootWrapper.includes("/srv/mes/pilot/backups"), "Promotion wrapper must preserve backups alongside the active pilot state");
 
   console.log("System Domains PostgreSQL-to-snapshot promotion QA: OK");
 }

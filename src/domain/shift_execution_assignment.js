@@ -122,3 +122,17 @@ export function buildShiftCarryoverCommand(input = {}) {
   const requestFingerprint = createHash("sha256").update(JSON.stringify(carryover)).digest("hex");
   return { idempotencyKey, requestFingerprint, carryover: { ...carryover, id: `shift-carryover-${createHash("sha256").update(`${idempotencyKey}:${requestFingerprint}`).digest("hex").slice(0, 20)}` } };
 }
+
+// Correcting a fact can make a previously created carryover obsolete.  Keep
+// this separate from create so the server records the historical obligation
+// and who closed it, rather than deleting the row from the audit trail.
+export function buildShiftCarryoverCancelCommand(input = {}) {
+  const idempotencyKey = required(input.idempotencyKey, "idempotencyKey");
+  const carryoverId = required(input.carryoverId, "carryoverId");
+  const cancellationReason = String(input.reason || input.cancellationReason || "").trim();
+  const requestFingerprint = createHash("sha256").update(JSON.stringify({
+    carryoverId,
+    cancellationReason,
+  })).digest("hex");
+  return { idempotencyKey, requestFingerprint, carryoverId, cancellationReason };
+}

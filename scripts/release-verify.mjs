@@ -24,6 +24,10 @@ function assert(value, message) {
   if (!value) throw new Error(message);
 }
 
+function isGitObjectId(value) {
+  return /^[a-f0-9]{40,64}$/i.test(String(value || ""));
+}
+
 function isSafeRelativePath(value) {
   const normalized = String(value || "").replace(/\\/g, "/");
   return Boolean(normalized)
@@ -49,14 +53,30 @@ async function main() {
   const manifestPath = resolve(args.manifest);
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
-  assert(manifest?.schemaVersion === 1, "Unsupported release manifest schema");
+  assert([1, 2].includes(manifest?.schemaVersion), "Unsupported release manifest schema");
   assert(typeof manifest.releaseId === "string" && manifest.releaseId, "Manifest release id is missing");
+  assert(isGitObjectId(manifest.gitCommit), "Manifest Git commit is invalid");
   if (args.expectedReleaseId) {
     assert(manifest.releaseId === args.expectedReleaseId, `Unexpected release id: ${manifest.releaseId}`);
   }
   assert(Array.isArray(manifest.runtimeIncludes) && manifest.runtimeIncludes.length, "Manifest runtime includes are missing");
   for (const include of manifest.runtimeIncludes) {
     assert(isSafeRelativePath(include), `Unsafe runtime include: ${include}`);
+  }
+
+  let gitProvenanceVerification = "legacy-unverified";
+  if (manifest.schemaVersion >= 2) {
+    const provenance = manifest.gitProvenance;
+    assert(provenance?.schemaVersion === 1, "Manifest Git provenance schema is unsupported");
+    assert(provenance.gitCommit === manifest.gitCommit, "Manifest Git provenance commit does not match release commit");
+    assert(typeof provenance.branch === "string" && provenance.branch, "Manifest Git provenance branch is missing");
+    assert(typeof provenance.remote === "string" && provenance.remote, "Manifest Git provenance remote is missing");
+    assert(typeof provenance.upstreamRef === "string" && provenance.upstreamRef, "Manifest Git provenance upstream ref is missing");
+    assert(/^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(provenance.upstreamBranchRef || ""), "Manifest Git provenance upstream branch is invalid");
+    assert(isGitObjectId(provenance.upstreamCommit), "Manifest Git provenance upstream commit is invalid");
+    assert(provenance.verification === "fresh-upstream-fetch", "Manifest Git provenance was not verified against a fresh upstream fetch");
+    assert(typeof provenance.verifiedAt === "string" && provenance.verifiedAt, "Manifest Git provenance verification time is missing");
+    gitProvenanceVerification = provenance.verification;
   }
 
   const compatibilityArtifacts = Array.isArray(manifest.compatibilityArtifacts)
@@ -84,6 +104,7 @@ async function main() {
     sourceTreeSha256,
     distTreeSha256,
     compatibilityArtifactCount: compatibilityArtifacts.length,
+    gitProvenanceVerification,
   };
   process.stdout.write(args.json ? `${JSON.stringify(result)}\n` : `${result.releaseId}\n`);
 }

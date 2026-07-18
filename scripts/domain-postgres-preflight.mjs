@@ -12,7 +12,7 @@ const postgres = (await import("postgres")).default;
 const sql = postgres(databaseUrl, { max: 1, connect_timeout: 5, prepare: false });
 try {
   const version = await sql`SELECT current_setting('server_version_num') AS version`;
-  const requiredMigrations = ["009_specifications2_revision_read_model", "014_shift_execution_command_idempotency"];
+  const requiredMigrations = ["009_specifications2_revision_read_model", "014_shift_execution_command_idempotency", "022_shift_execution_carryover_lifecycle"];
   const migrations = await sql`SELECT version FROM mes_schema_migrations WHERE version = ANY(${requiredMigrations})`;
   const applied = new Set(migrations.map((row) => row.version));
   const missing = requiredMigrations.filter((migration) => !applied.has(migration));

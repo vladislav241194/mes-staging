@@ -24,14 +24,15 @@ export function buildShiftMasterBoardFactWrite(row = {}, fact = {}, serverAssign
   if (!assignmentId) throw new Error("Server assignment is required before recording a shift fact");
   const updatedAt = text(fact.updatedAt);
   if (!updatedAt) throw new Error("Fact timestamp is required before recording a shift fact");
+  const idempotencyKey = stableKey("shift-fact", assignmentId, updatedAt);
   return {
     type: "fact",
     assignmentId,
-    idempotencyKey: stableKey("shift-fact", assignmentId, updatedAt),
+    idempotencyKey,
     payload: {
       actualQuantity: Number(fact.actualQuantity || 0), defectQuantity: Number(fact.defectQuantity || 0),
       laborMinutes: Number(fact.laborMinutes || 0), executorCount: Number(fact.executorCount || 0),
-      comment: text(fact.comment), deviationComment: text(fact.deviationComment), reportedAt: updatedAt,
+      comment: text(fact.comment), deviationComment: text(fact.deviationComment), reportedAt: updatedAt, idempotencyKey,
     },
   };
 }
@@ -45,13 +46,28 @@ export function buildShiftMasterBoardCarryoverWrite(carryover = {}, serverAssign
   const workCenterId = text(carryover.workCenterId || serverAssignment?.workCenterId);
   const dateKey = text(carryover.dateKey);
   if (!sourceSlotId || !workOrderId || !operationId || !workCenterId || !dateKey) throw new Error("Carryover is missing a stable server reference");
+  const idempotencyKey = stableKey("shift-carryover", sourceAssignmentId, dateKey, carryover.remainingQuantity, carryover.createdAt);
   return {
     type: "carryover",
-    idempotencyKey: stableKey("shift-carryover", sourceAssignmentId, dateKey, carryover.remainingQuantity, carryover.createdAt),
+    idempotencyKey,
     payload: {
       sourceAssignmentId, sourceSlotId, workOrderId, operationId, workCenterId, dateKey,
-      remainingQuantity: Number(carryover.remainingQuantity || 0), reason: text(carryover.reason),
+      remainingQuantity: Number(carryover.remainingQuantity || 0), reason: text(carryover.reason), idempotencyKey,
     },
+  };
+}
+
+export function buildShiftMasterBoardCarryoverCancelWrite(carryover = {}, { reason = "" } = {}) {
+  // A provisional browser id has never been accepted by PostgreSQL.  Only a
+  // dispatch projection is allowed to mark the id as canonical and cancel it.
+  const carryoverId = text(carryover.serverId);
+  if (!carryoverId) throw new Error("Server carryover id is required before cancelling a carryover");
+  const idempotencyKey = stableKey("shift-carryover-cancel", carryoverId);
+  return {
+    type: "carryover-cancel",
+    carryoverId,
+    idempotencyKey,
+    payload: { idempotencyKey, reason: text(reason) },
   };
 }
 
@@ -61,5 +77,6 @@ export async function executeShiftMasterBoardServerWrite(commands, write) {
   if (write.type === "update") return commands.updateAssignment(write.assignmentId, write.payload);
   if (write.type === "fact") return commands.recordFact(write.assignmentId, { ...write.payload, idempotencyKey: write.idempotencyKey });
   if (write.type === "carryover") return commands.createCarryover({ ...write.payload, idempotencyKey: write.idempotencyKey });
+  if (write.type === "carryover-cancel") return commands.cancelCarryover(write.carryoverId, { ...write.payload, idempotencyKey: write.idempotencyKey });
   throw new Error(`Unsupported shift execution write: ${write.type}`);
 }

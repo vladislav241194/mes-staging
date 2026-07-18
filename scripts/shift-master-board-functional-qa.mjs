@@ -476,7 +476,16 @@ async function main() {
     const result = await evaluate(client, async () => {
       const click = (selector) => {
         const element = document.querySelector(selector);
-        if (!element) throw new Error(`Missing selector: ${selector}`);
+        if (!element) {
+          const board = document.querySelector(".shift-master-board-page");
+          throw new Error(`Missing selector: ${selector}; board=${JSON.stringify({
+            cards: document.querySelectorAll("[data-shift-board-card]").length,
+            panels: document.querySelectorAll("[data-shift-board-assignment-panel]").length,
+            selectedCard: document.querySelector(".shift-master-board-card.is-active")?.getAttribute("data-shift-board-card") || "",
+            selectedPanel: document.querySelector("[data-shift-board-assignment-panel]")?.getAttribute("data-shift-board-assignment-panel") || "",
+            body: (board?.innerText || document.body?.innerText || "").replace(/\s+/g, " ").slice(0, 420),
+          })}`);
+        }
         element.click();
       };
       const clickIfExists = (selector) => {

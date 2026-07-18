@@ -22,6 +22,14 @@ set -a
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
 set +a
+# The domain-only environment intentionally contains database credentials but
+# does not duplicate the pilot service's shared-state paths.  Promotion has
+# to operate on that active compatibility snapshot, never on an implicit
+# `.mes-shared-state.json` inside the immutable release artifact.
+export APP_ENV="${APP_ENV:-pilot}"
+export MES_SHARED_STATE_DIR="${MES_SHARED_STATE_DIR:-/srv/mes/pilot/shared-state}"
+export MES_BACKUP_DIR="${MES_BACKUP_DIR:-/srv/mes/pilot/backups}"
+export MES_AUDIT_LOG_PATH="${MES_AUDIT_LOG_PATH:-/srv/mes/pilot/audit/audit.log}"
 export MES_ALLOW_SYSTEM_DOMAINS_SNAPSHOT_PROMOTION=1
 
 exec /usr/bin/npm run domain:system-domains:promote-snapshot -- "$@"

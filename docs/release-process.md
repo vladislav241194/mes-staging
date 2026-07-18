@@ -2,7 +2,8 @@
 
 ## Rule
 
-A pilot release is built from a clean Git commit, never from a dirty working
+A pilot release is built from a clean Git commit that is present on the
+freshly fetched upstream branch, never from a dirty or local-only working
 directory and never by editing the active application folder in place.
 
 Operational data remains outside a release:
@@ -27,17 +28,24 @@ clean worktree run:
 npm run release:stage:pilot -- --release-id=<version-and-commit>
 ```
 
-The command deliberately refuses a dirty Git worktree. It performs:
+The command deliberately refuses a dirty Git worktree, ignored files inside
+the allowlisted source paths, a detached branch, or a local commit that has
+not reached its configured upstream. It performs:
 
-1. `npm ci` and two production builds locally; their complete `dist/` digests
+1. fetches the configured upstream branch and confirms that the release HEAD
+   is contained in it; a dry run uses only the locally cached upstream ref and
+   does not require Git-network access;
+2. `npm ci` and two production builds locally; their complete `dist/` digests
    must match before the release can continue;
-2. a SHA-256 digest of the allowlisted runtime source and `dist/` artifact;
-3. upload into a new, inactive `/srv/mes/pilot/releases/<id>/app` directory;
-4. production-only dependency installation and server preflight in that new
+3. repeats the clean-worktree, ignored-input and HEAD checks after the build,
+   then calculates SHA-256 digests of the allowlisted runtime source and
+   `dist/` artifact;
+4. uploads into a new, inactive `/srv/mes/pilot/releases/<id>/app` directory;
+5. production-only dependency installation and server preflight in that new
    directory;
-5. a remote digest comparison against the local artifact;
-6. a release manifest containing commit, app version, lockfile and artifact
-   digests.
+6. a remote digest comparison against the local artifact;
+7. a release manifest containing commit, upstream provenance, app version,
+   lockfile and artifact digests.
 
 Staging does not switch `/srv/mes/pilot/app`, does not restart the service,
 and does not modify production data.

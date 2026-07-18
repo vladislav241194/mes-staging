@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.42";
+const APP_VERSION_FALLBACK = "v.1.499.43";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -510,6 +510,65 @@ function getPlanningTableSlotRoute(slot = {}, step = null) {
     || null;
 }
 
+// These compact resolvers are deliberately independent of the lazy Gantt
+// runtime.  The workshop and weekly control both need the same small slot
+// context before a user has ever opened the Gantt page.
+function getPlanningSlotStep(slot = {}, state = planningState) {
+  const routeStepId = String(slot?.routeStepId || "").trim();
+  return routeStepId
+    ? (state?.routeSteps || []).find((item) => item?.id === routeStepId) || null
+    : null;
+}
+
+function getPlanningSlotRoute(slot = {}, state = planningState) {
+  const step = getPlanningSlotStep(slot, state);
+  if (state === planningState) return getPlanningTableSlotRoute(slot, step);
+  const routes = state?.routes || [];
+  const routeId = String(step?.routeId || getSlotRouteId(slot, state) || "").trim();
+  if (routeId) return routes.find((route) => route?.id === routeId) || null;
+  const matchesProduction = (route = {}) => (
+    route.specificationId === slot?.specificationId
+    || route.specificationId === slot?.projectId
+    || route.projectId === slot?.projectId
+  );
+  return routes.find((route) => matchesProduction(route) && route.isDefault)
+    || routes.find(matchesProduction)
+    || null;
+}
+
+function getPlanningSlotWorkCenterId(slot = {}, step = null) {
+  const resolvedStep = step || getPlanningSlotStep(slot);
+  return mapLegacyWorkCenterId(
+    slot?.workCenterId
+    || slot?.routeWorkCenterId
+    || resolvedStep?.planningWorkCenterId
+    || resolvedStep?.workCenterId
+    || resolvedStep?.departmentId
+    || "",
+  );
+}
+
+// This is the calendar identity normalizer used by views that render before
+// the lazy Gantt runtime is available.  Keep it intentionally small and in
+// sync with the Gantt resolver: an ephemeral SMT-line row is scheduled on
+// its actual line, while ordinary ids only need legacy normalization.
+function getPlanningCalendarWorkCenterId(workCenterId = "") {
+  const mappedId = mapLegacyWorkCenterId(workCenterId);
+  if (!mappedId.startsWith(SMT_LINE_WORKCENTER_PREFIX)) return mappedId;
+  const lineId = mapLegacyWorkCenterId(mappedId.slice(SMT_LINE_WORKCENTER_PREFIX.length));
+  return lineId || MES_SMT_WORK_CENTER_IDS[0] || mappedId;
+}
+
+function getPlanningSlotResourceId(slot = {}, step = null) {
+  const resolvedStep = step || getPlanningSlotStep(slot);
+  return String(slot?.resourceId || resolvedStep?.resourceId || "").trim();
+}
+
+function getPlanningSlotResource(slot = {}, step = null) {
+  const resourceId = getPlanningSlotResourceId(slot, step);
+  return resourceId ? getProductionResource(resourceId) || null : null;
+}
+
 function getPlanningTableSlotRows() {
   const stepById = new Map((planningState.routeSteps || []).map((step) => [step.id, step]));
   const warningsContext = getSlotWarnings(planningState);
@@ -518,13 +577,13 @@ function getPlanningTableSlotRows() {
   return (planningState.slots || [])
     .map((slot) => {
       const step = stepById.get(slot.routeStepId) || null;
-      const route = getPlanningTableSlotRoute(slot, step);
+      const route = getPlanningSlotRoute(slot, planningState);
       const routeId = route?.id || getSlotRouteId(slot, planningState);
       const task = route && step ? getRouteStepPlanningTask(route, step) : null;
       const status = getGanttSlotStatusView(slot);
-      const workCenterId = mapLegacyWorkCenterId(getSlotGanttWorkCenterId(slot) || slot.workCenterId || step?.workCenterId || "");
+      const workCenterId = getPlanningSlotWorkCenterId(slot, step);
       const workCenter = getWorkCenter(workCenterId) || getWorkCenter(slot.workCenterId) || null;
-      const resource = getGanttResourceForSlot(slot);
+      const resource = getPlanningSlotResource(slot, step);
       const plannedStart = toDate(slot.plannedStart);
       const plannedEnd = toDate(slot.plannedEnd);
       const warningCount = (slotWarningMap[slot.id] || []).length;
@@ -867,9 +926,9 @@ function initializeShiftMasterBoardModule(factory) {
   getShiftRowWorkCenterId,
   getShiftSlotPlannedQuantity,
   getSlotDurationHours,
-  getSlotGanttWorkCenterId: (...args) => getSlotGanttWorkCenterId(...args),
+  getSlotGanttWorkCenterId: (slot) => getPlanningSlotWorkCenterId(slot),
   getSlotPlanningOrderId,
-  getSlotRoute: (...args) => getSlotRoute(...args),
+  getSlotRoute: (slot) => getPlanningSlotRoute(slot),
   getSlotRouteId,
   getSlotWarnings,
   getTimesheetAvailabilityForShiftMasterEmployee,
@@ -919,6 +978,7 @@ function initializeShiftMasterBoardModule(factory) {
   onShiftMasterBoardAssignmentSaved: (...args) => mirrorShiftMasterBoardAssignmentToServer(...args),
   onShiftMasterBoardFactSaved: (...args) => mirrorShiftMasterBoardFactToServer(...args),
   onShiftMasterBoardCarryoverCreated: (...args) => mirrorShiftMasterBoardCarryoverToServer(...args),
+  onShiftMasterBoardCarryoverRemoved: (...args) => mirrorShiftMasterBoardCarryoverRemovalToServer(...args),
   operationName: "",
   patch: null,
   persistUiState,
@@ -968,9 +1028,22 @@ function initializeShiftMasterBoardModule(factory) {
   }));
 }
 
-renderShiftMasterBoardPage = () => renderMesModulePatternPage({
-  moduleId: "shiftMasterBoard",
-  content: renderUiEmptyState({ title: "Загружаем мастерскую", description: "Рабочее пространство откроется автоматически." }),
+function renderShiftMasterBoardShellState({ title, description }) {
+  return renderMesModulePatternPage({
+    moduleId: "shiftMasterBoard",
+    header: renderUiModuleHeader({
+      eyebrow: "Оперативное управление",
+      title: "Мастерская",
+      description,
+      className: "shift-master-board-header is-compact",
+    }),
+    content: renderUiEmptyState({ title, description }),
+  });
+}
+
+renderShiftMasterBoardPage = () => renderShiftMasterBoardShellState({
+  title: "Загружаем мастерскую",
+  description: "Рабочее пространство откроется автоматически.",
 });
 renderShiftMasterBoardSheetModal = () => "";
 renderShiftMasterBoardActionModal = () => "";
@@ -1326,26 +1399,23 @@ function getWeeklyPlanningPeriodLookups() {
 
 // The compact PostgreSQL weekly transport intentionally does not carry the
 // legacy route/operation graph. It does carry the small original slot envelope
-// needed here, so reuse the already-loaded planning/product resolvers for the
-// visible SMT line, resource and task unit. This is not the lazy Gantt runtime
-// and does not alter global planningState.
+// needed here, so reuse only already-loaded planning/product resolvers for the
+// visible work center, resource and task unit. This must not touch the lazy
+// Gantt runtime: weekly control is deliberately usable before the Gantt chunk
+// has loaded.
 function resolveWeeklyCompactSlotPresentation(slot = {}) {
-  const step = (planningState.routeSteps || []).find((item) => item.id === slot.routeStepId) || null;
-  const route = getPlanningTableSlotRoute(slot, step);
+  const step = getPlanningSlotStep(slot);
+  const route = getPlanningSlotRoute(slot, planningState);
   const task = route && step ? getRouteStepPlanningTask(route, step) : null;
-  const resolvedWorkCenter = typeof getSlotGanttWorkCenterId === "function"
-    ? getSlotGanttWorkCenterId(slot)
-    : "";
-  const workCenterId = mapLegacyWorkCenterId(resolvedWorkCenter || slot.workCenterId || step?.workCenterId || "");
+  const workCenterId = getPlanningSlotWorkCenterId(slot, step);
   const workCenter = getWorkCenter(workCenterId) || getWorkCenter(slot.workCenterId) || null;
-  const resource = typeof getGanttResourceForSlot === "function"
-    ? getGanttResourceForSlot(slot)
-    : null;
+  const resourceId = getPlanningSlotResourceId(slot, step);
+  const resource = getPlanningSlotResource(slot, step);
   return {
     workCenterId,
     workCenter,
     resource,
-    resourceId: String(resource?.id || slot.resourceId || ""),
+    resourceId: String(resource?.id || resourceId || ""),
     unit: String(slot.unit || task?.unit || "шт."),
   };
 }
@@ -2560,7 +2630,15 @@ function initializeAuthEventsModule(factory) {
       authPrototypeKeypadDigits = [];
     },
     saveAuthSessionTaskReport: (...args) => saveAuthSessionTaskReport(...args),
-    saveShiftMasterBoardFact,
+    // The auth event chunk can initialize before the lazy Master Board chunk.
+    // Resolve the board action at the time the executor saves a fact, loading
+    // only that slice when it has not been needed by the current page yet.
+    saveShiftMasterBoardFact: async (...args) => {
+      if (typeof saveShiftMasterBoardFact !== "function") await ensureShiftMasterBoardModule();
+      return typeof saveShiftMasterBoardFact === "function"
+        ? saveShiftMasterBoardFact(...args)
+        : false;
+    },
     scheduleAuthPrototypePinValidation,
     setAuthSessionFactDraft: (...args) => setAuthSessionFactDraft(...args),
     setAuthSessionReportDraft: (...args) => setAuthSessionReportDraft(...args),
@@ -3419,16 +3497,18 @@ let planningDomainApiModuleLoad = null;
 let planningRuntimeProjectionState = { status: "idle", error: "", revision: 0 };
 const systemDomainsReadModel = createSystemDomainsReadModel();
 const systemDomainsCommands = createSystemDomainsCommands();
-let shiftExecutionReadModel = null;
+let shiftExecutionDispatchReadModel = null;
 let shiftExecutionCommands = null;
 let shiftExecutionOutbox = null;
 let buildShiftMasterBoardAssignmentWrite = null;
 let buildShiftMasterBoardFactWrite = null;
 let buildShiftMasterBoardCarryoverWrite = null;
+let buildShiftMasterBoardCarryoverCancelWrite = null;
 let executeShiftMasterBoardServerWrite = null;
-let projectShiftExecutionServerProjection = null;
+let projectShiftExecutionDispatchProjection = null;
+let reconcileShiftMasterBoardCarryovers = null;
 let shiftExecutionDomainApiModuleLoad = null;
-let shiftExecutionServerState = { status: "idle", primaryPostgres: false, schemaReady: false, commandsEnabled: false, error: "" };
+let shiftExecutionServerState = { status: "idle", primaryPostgres: false, schemaReady: false, commandsEnabled: false, coverageComplete: false, error: "" };
 let shiftExecutionOutboxFlushInFlight = false;
 let systemDomainsServerReadState = { status: "idle", error: "", revision: 0 };
 let systemDomainsServerCommandState = { status: "idle", enabled: false, surfaces: [], error: "" };
@@ -3559,86 +3639,288 @@ async function hydratePlanningRuntimeProjection({ force = false } = {}) {
     return false;
   }
 }
+function getShiftExecutionDispatchScope() {
+  // Ask the loaded board for its actual current rows.  `slotRows` is only a
+  // fallback inside that model; using it directly would miss rows generated
+  // from work orders whenever both sources exist.
+  if (typeof getShiftMasterBoardModel !== "function") return null;
+  const model = getShiftMasterBoardModel();
+  const dateKey = toDateInput(model?.window?.start || "");
+  const sourceRowIds = [...new Set((model?.allRows || [])
+    // Carryovers are returned by the date-scoped server query.  A synthetic
+    // fallback has no durable source row and must stay client-only.
+    .filter((row) => row && !row.isBoardCarryover && !row.isBoardFallback)
+    .map((row) => String(row?.id || row?.sourceRowId || "").trim())
+    .filter(Boolean))];
+  const workCenterIds = [...new Set((model?.allRows || [])
+    .filter((row) => row && !row.isBoardCarryover && !row.isBoardFallback)
+    .map((row) => String(row?.workCenterId || row?.workCenter?.id || "").trim())
+    .filter(Boolean))];
+  if (!dateKey || !sourceRowIds.length || sourceRowIds.length > 200 || !workCenterIds.length || workCenterIds.length > 100) return null;
+  return { dateKey, sourceRowIds: sourceRowIds.sort(), workCenterIds: workCenterIds.sort() };
+}
+
+function isSameShiftExecutionDispatchScope(left = null, right = null) {
+  return Boolean(left && right)
+    && left.dateKey === right.dateKey
+    && left.sourceRowIds.length === right.sourceRowIds.length
+    && left.sourceRowIds.every((value, index) => value === right.sourceRowIds[index])
+    && left.workCenterIds.length === right.workCenterIds.length
+    && left.workCenterIds.every((value, index) => value === right.workCenterIds[index]);
+}
+
+function isShiftExecutionServerAuthoritative() {
+  return shiftExecutionServerState.status === "ready"
+    && shiftExecutionServerState.commandsEnabled === true
+    && shiftExecutionServerState.coverageComplete === true;
+}
+
+function isShiftExecutionDispatchScopeReadyForRow(row = {}) {
+  const sourceRowId = String(row?.id || "").trim();
+  const currentScope = getShiftExecutionDispatchScope();
+  const state = shiftExecutionDispatchReadModel?.getState?.();
+  return Boolean(
+    sourceRowId
+    && currentScope
+    && state?.available
+    && state.ok === true
+    // A failed forced refresh intentionally keeps its last payload for the
+    // read-only board, but that payload must never authorize a write.
+    && !state.error
+    && isSameShiftExecutionDispatchScope(currentScope, state.scope)
+    && Array.isArray(state.coveredSourceRowIds)
+    && state.coveredSourceRowIds.includes(sourceRowId),
+  );
+}
+
+function getShiftExecutionServerAssignment(row = {}) {
+  // A slot can span or be re-planned across board dates.  The compact server
+  // reader is keyed by the durable row id, so a stale slot match must never
+  // turn a new-shift create into an update of the previous-shift assignment.
+  if (!isShiftExecutionDispatchScopeReadyForRow(row)) return null;
+  return shiftExecutionDispatchReadModel.getBySourceRowId(row.id) || null;
+}
+
+function mergeShiftExecutionProjectionRecords(current = {}, incoming = {}, coveredSourceRowIds = [], { removeCovered = false } = {}) {
+  const next = { ...normalizePlainRecord(current) };
+  const covered = new Set(coveredSourceRowIds.map((id) => String(id || "").trim()).filter(Boolean));
+  if (removeCovered && covered.size) {
+    Object.entries(next).forEach(([key, value]) => {
+      const sourceRowId = String(value?.sourceRowId || key || "").trim();
+      if (covered.has(sourceRowId)) delete next[key];
+    });
+  }
+  Object.entries(incoming || {}).forEach(([key, value]) => {
+    next[key] = { ...(next[key] || {}), ...value };
+  });
+  return next;
+}
+
+function mergeShiftExecutionCarryovers(current = {}, incoming = {}, dateKey = "", { replaceDate = false } = {}) {
+  if (typeof reconcileShiftMasterBoardCarryovers === "function") {
+    return reconcileShiftMasterBoardCarryovers(current, incoming, { dateKey, replaceDate });
+  }
+  const next = { ...normalizePlainRecord(current) };
+  if (replaceDate && dateKey) {
+    Object.entries(next).forEach(([key, value]) => {
+      if (String(value?.dateKey || "") === dateKey) delete next[key];
+    });
+  }
+  Object.entries(incoming || {}).forEach(([key, value]) => {
+    next[key] = { ...(next[key] || {}), ...value };
+  });
+  return next;
+}
+
+function applyShiftExecutionDispatchProjection(result = {}) {
+  if (!ui || !projectShiftExecutionDispatchProjection) return false;
+  const projection = projectShiftExecutionDispatchProjection(result);
+  const coveredSourceRowIds = Array.isArray(result.coveredSourceRowIds) ? result.coveredSourceRowIds : [];
+  const replaceCovered = result.coverageComplete === true;
+  ui.shiftMasterBoardAssignments = mergeShiftExecutionProjectionRecords(
+    ui.shiftMasterBoardAssignments,
+    projection.assignments,
+    coveredSourceRowIds,
+    { removeCovered: replaceCovered },
+  );
+  ui.shiftMasterBoardFacts = mergeShiftExecutionProjectionRecords(
+    ui.shiftMasterBoardFacts,
+    projection.facts,
+    coveredSourceRowIds,
+    { removeCovered: replaceCovered },
+  );
+  ui.shiftMasterBoardCarryovers = mergeShiftExecutionCarryovers(
+    ui.shiftMasterBoardCarryovers,
+    projection.carryovers,
+    String(result.scope?.dateKey || ""),
+    { replaceDate: replaceCovered },
+  );
+  return true;
+}
+
 function hydrateShiftExecutionServerProjection() {
   if (shiftExecutionServerState.status === "loading") return;
+  const scope = getShiftExecutionDispatchScope();
+  if (!scope) {
+    // A synthetic/oversized board has no safe bounded query contract.  Keep
+    // the compatibility snapshot active and never reuse command readiness
+    // from the previously viewed real scope.
+    shiftExecutionServerState = {
+      ...shiftExecutionServerState,
+      status: "idle",
+      commandsEnabled: false,
+      coverageComplete: false,
+      error: "",
+    };
+    return;
+  }
   // Capture this before switching to loading. Otherwise every cached board
   // refresh looks like the first authority transition and persists the full
   // shared UI snapshot again, even though no server data has changed.
-  const wasAuthoritative = shiftExecutionServerState.status === "ready" && shiftExecutionServerState.commandsEnabled === true;
-  shiftExecutionServerState = { ...shiftExecutionServerState, status: "loading", error: "" };
+  const wasAuthoritative = isShiftExecutionServerAuthoritative();
+  // Do not accept a write while the active read-model entry still describes a
+  // previous date.  Existing snapshot data remains editable/persisted; the
+  // server mirror resumes after the exact current scope is ready.
+  shiftExecutionServerState = {
+    ...shiftExecutionServerState,
+    status: "loading",
+    commandsEnabled: false,
+    coverageComplete: false,
+    error: "",
+  };
   void ensureShiftExecutionDomainApiModule().then((ready) => ready
-    ? Promise.all([shiftExecutionReadModel.refresh(), shiftExecutionCommands.refreshCapability()])
+    ? Promise.all([shiftExecutionDispatchReadModel.refresh(scope), shiftExecutionCommands.refreshCapability()])
     : [{ ok: false, items: [] }, { ok: false, primaryPostgres: false, schemaReady: false, enabled: false, error: "Shift execution domain API module is unavailable" }]
   ).then(([projection, capability]) => {
+    // Date navigation may finish while the previous request is in flight.
+    // Never merge an older shift into the newly selected board.
+    if (!isSameShiftExecutionDispatchScope(scope, getShiftExecutionDispatchScope())) {
+      shiftExecutionServerState = { ...shiftExecutionServerState, status: "idle", error: "" };
+      if (ui?.activeModule === "shiftMasterBoard") hydrateShiftExecutionServerProjection();
+      return;
+    }
+    const projectionReady = projection.ok === true;
+    const capabilityReady = capability.ok === true;
+    const coverageComplete = projectionReady && projection.coverageComplete === true;
+    const commandsEnabled = projectionReady && capabilityReady && capability.enabled === true;
     shiftExecutionServerState = {
-      status: projection.ok && capability.ok ? "ready" : "fallback",
+      status: projectionReady && capabilityReady ? "ready" : "fallback",
       primaryPostgres: capability.primaryPostgres === true,
       schemaReady: capability.schemaReady === true,
-      commandsEnabled: capability.enabled === true,
-      // Do not replace the compatibility snapshot here. During rollout this
-      // is a read-through health check; authority moves only with the command
-      // bridge and explicit parity evidence.
-      error: projection.ok && capability.ok ? "" : (projection.error || capability.error || "Shift execution server projection is unavailable"),
+      commandsEnabled,
+      coverageComplete,
+      // The bounded dispatch read is an overlay during migration. It cannot
+      // retire compatibility state until a later full parity gate proves that
+      // the server covers every board record.
+      error: projectionReady && capabilityReady ? "" : (projection.error || capability.error || "Shift execution server projection is unavailable"),
     };
-    if (projection.ok && capability.enabled === true) {
-      applyShiftExecutionServerProjection(projection.items);
-      // Remove the local/shared compatibility maps only after a successful
-      // aggregate read and an enabled server command path.  The server remains
-      // the authority; a failed read never performs this cleanup.
-      if (!wasAuthoritative) persistUiState();
+    if (projectionReady && commandsEnabled) {
+      applyShiftExecutionDispatchProjection(projection);
+      if (coverageComplete && !wasAuthoritative) persistUiState();
       void flushShiftExecutionOutbox();
     }
     if (projection.ok && projection.changed && ui?.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });
   }).catch(() => {
-    shiftExecutionServerState = { ...shiftExecutionServerState, status: "fallback", error: "Shift execution server projection is unavailable" };
+    shiftExecutionServerState = {
+      ...shiftExecutionServerState,
+      status: "fallback",
+      commandsEnabled: false,
+      coverageComplete: false,
+      error: "Shift execution server projection is unavailable",
+    };
   });
 }
 function ensureShiftExecutionDomainApiModule() {
-  if (shiftExecutionReadModel && shiftExecutionCommands && shiftExecutionOutbox) return Promise.resolve(true);
+  if (shiftExecutionDispatchReadModel && shiftExecutionCommands && shiftExecutionOutbox) return Promise.resolve(true);
   if (shiftExecutionDomainApiModuleLoad) return shiftExecutionDomainApiModuleLoad;
   shiftExecutionDomainApiModuleLoad = Promise.all([
-    import("./modules/domain_api/shift_execution_read_model.js"),
+    import("./modules/domain_api/shift_execution_dispatch_read_model.js"),
     import("./modules/domain_api/shift_execution_commands.js"),
     import("./modules/shift_master_board/server_execution_bridge.js"),
     import("./modules/shift_master_board/server_projection_adapter.js"),
+    import("./modules/shift_master_board/carryover_reconciliation.js"),
     import("./modules/shift_master_board/server_execution_outbox.js"),
   ]).then(([
-    { createShiftExecutionReadModel },
+    { createShiftExecutionDispatchReadModel },
     { createShiftExecutionCommands },
     bridge,
-    { projectShiftExecutionServerProjection: projectProjection },
+    { projectShiftExecutionDispatchProjection: projectProjection },
+    { reconcileShiftMasterBoardCarryovers: reconcileCarryovers },
     { createShiftExecutionOutbox },
   ]) => {
-    shiftExecutionReadModel = createShiftExecutionReadModel();
+    shiftExecutionDispatchReadModel = createShiftExecutionDispatchReadModel();
     shiftExecutionCommands = createShiftExecutionCommands();
     shiftExecutionOutbox = createShiftExecutionOutbox();
     ({
       buildShiftMasterBoardAssignmentWrite,
       buildShiftMasterBoardFactWrite,
       buildShiftMasterBoardCarryoverWrite,
+      buildShiftMasterBoardCarryoverCancelWrite,
       executeShiftMasterBoardServerWrite,
     } = bridge);
-    projectShiftExecutionServerProjection = projectProjection;
+    projectShiftExecutionDispatchProjection = projectProjection;
+    reconcileShiftMasterBoardCarryovers = reconcileCarryovers;
     return true;
   }).catch((error) => {
     shiftExecutionDomainApiModuleLoad = null;
-    shiftExecutionServerState = { ...shiftExecutionServerState, status: "fallback", error: error?.message || "Shift execution domain API module is unavailable" };
+    shiftExecutionServerState = {
+      ...shiftExecutionServerState,
+      status: "fallback",
+      commandsEnabled: false,
+      coverageComplete: false,
+      error: error?.message || "Shift execution domain API module is unavailable",
+    };
     return false;
   });
   return shiftExecutionDomainApiModuleLoad;
 }
-function applyShiftExecutionServerProjection(items = []) {
-  if (!ui || !Array.isArray(items) || !projectShiftExecutionServerProjection) return false;
-  const projection = projectShiftExecutionServerProjection(items);
-  ui.shiftMasterBoardAssignments = projection.assignments;
-  ui.shiftMasterBoardFacts = projection.facts;
-  ui.shiftMasterBoardCarryovers = projection.carryovers;
-  return true;
-}
 async function refreshShiftExecutionServerProjection() {
-  if (!await ensureShiftExecutionDomainApiModule()) return { ok: false, error: "Shift execution domain API module is unavailable" };
-  const result = await shiftExecutionReadModel.refresh({ force: true });
-  if (result.ok) shiftExecutionServerState = { ...shiftExecutionServerState, status: "ready", error: "" };
+  if (!await ensureShiftExecutionDomainApiModule()) {
+    const error = "Shift execution domain API module is unavailable";
+    shiftExecutionServerState = {
+      ...shiftExecutionServerState,
+      status: "fallback",
+      commandsEnabled: false,
+      coverageComplete: false,
+      error,
+    };
+    return { ok: false, error };
+  }
+  const scope = getShiftExecutionDispatchScope();
+  if (!scope) {
+    const error = "Current shift dispatch scope is unavailable";
+    shiftExecutionServerState = {
+      ...shiftExecutionServerState,
+      status: "idle",
+      commandsEnabled: false,
+      coverageComplete: false,
+      error,
+    };
+    return { ok: false, error };
+  }
+  const result = await shiftExecutionDispatchReadModel.refresh({ ...scope, force: true });
+  if (!result.ok) {
+    shiftExecutionServerState = {
+      ...shiftExecutionServerState,
+      status: "fallback",
+      commandsEnabled: false,
+      coverageComplete: false,
+      error: result.error || "Shift execution server projection is unavailable",
+    };
+    return result;
+  }
+  if (!isSameShiftExecutionDispatchScope(scope, getShiftExecutionDispatchScope())) {
+    shiftExecutionServerState = {
+      ...shiftExecutionServerState,
+      status: "idle",
+      commandsEnabled: false,
+      coverageComplete: false,
+      error: "",
+    };
+    return { ...result, changed: false };
+  }
+  applyShiftExecutionDispatchProjection(result);
+  shiftExecutionServerState = { ...shiftExecutionServerState, status: "ready", coverageComplete: result.coverageComplete === true, error: "" };
   return result;
 }
 async function flushShiftExecutionOutbox() {
@@ -3654,11 +3936,11 @@ async function flushShiftExecutionOutbox() {
   }
 }
 async function mirrorShiftMasterBoardAssignmentToServer(row, assignment) {
-  if (!shiftExecutionServerState.commandsEnabled || !row || !assignment) return { skipped: true };
+  if (!shiftExecutionServerState.commandsEnabled || !isShiftExecutionDispatchScopeReadyForRow(row) || !assignment) return { skipped: true };
   if (!await ensureShiftExecutionDomainApiModule()) return { ok: false, error: "Shift execution domain API module is unavailable" };
   let write = null;
   try {
-    const serverAssignment = shiftExecutionReadModel.getBySourceRowId(row.id) || shiftExecutionReadModel.getBySourceSlotId(row.slotId || row.slot?.id);
+    const serverAssignment = getShiftExecutionServerAssignment(row);
     write = buildShiftMasterBoardAssignmentWrite(row, assignment, serverAssignment);
     const result = await executeShiftMasterBoardServerWrite(shiftExecutionCommands, write);
     if (result?.conflict) {
@@ -3674,17 +3956,16 @@ async function mirrorShiftMasterBoardAssignmentToServer(row, assignment) {
     return { ok: false, error: shiftExecutionServerState.error };
   }
 }
-async function mirrorShiftMasterBoardFactToServer(row, fact, carryover = null) {
-  if (!shiftExecutionServerState.commandsEnabled || !row || !fact) return { skipped: true };
+async function mirrorShiftMasterBoardFactToServer(row, fact) {
+  if (!shiftExecutionServerState.commandsEnabled || !isShiftExecutionDispatchScopeReadyForRow(row) || !fact) return { skipped: true };
   if (!await ensureShiftExecutionDomainApiModule()) return { ok: false, error: "Shift execution domain API module is unavailable" };
   let write = null;
   try {
-    const serverAssignment = shiftExecutionReadModel.getBySourceRowId(row.id) || shiftExecutionReadModel.getBySourceSlotId(row.slotId || row.slot?.id);
+    const serverAssignment = getShiftExecutionServerAssignment(row);
     write = buildShiftMasterBoardFactWrite(row, fact, serverAssignment);
     const result = await executeShiftMasterBoardServerWrite(shiftExecutionCommands, write);
     if (!result?.ok) throw new Error(result?.error || "Shift fact was not accepted by the server");
     await refreshShiftExecutionServerProjection();
-    if (carryover) await mirrorShiftMasterBoardCarryoverToServer(row, carryover);
     return result;
   } catch (error) {
     if (write) shiftExecutionOutbox.enqueue(write, error?.message || "Shift fact server mirror failed");
@@ -3692,20 +3973,55 @@ async function mirrorShiftMasterBoardFactToServer(row, fact, carryover = null) {
     return { ok: false, error: shiftExecutionServerState.error };
   }
 }
-async function mirrorShiftMasterBoardCarryoverToServer(row, carryover) {
-  if (!shiftExecutionServerState.commandsEnabled || !row || !carryover) return { skipped: true };
+async function mirrorShiftMasterBoardCarryoverToServer(row, carryover, replacedCarryover = null) {
+  if (!shiftExecutionServerState.commandsEnabled || !isShiftExecutionDispatchScopeReadyForRow(row) || !carryover) return { skipped: true };
   if (!await ensureShiftExecutionDomainApiModule()) return { ok: false, error: "Shift execution domain API module is unavailable" };
   let write = null;
   try {
-    const serverAssignment = shiftExecutionReadModel.getBySourceRowId(row.id) || shiftExecutionReadModel.getBySourceSlotId(row.slotId || row.slot?.id);
+    const serverAssignment = getShiftExecutionServerAssignment(row);
+    // A corrected partial fact must first cancel the active canonical
+    // carryover. The server enforces the logical (source assignment, date)
+    // key, so creating before this transition would be a deterministic
+    // conflict rather than a second active remainder.
+    if (replacedCarryover?.serverId) {
+      const cancellation = await mirrorShiftMasterBoardCarryoverRemovalToServer(row, replacedCarryover, {
+        reason: "Остаток пересчитан после корректировки факта",
+      });
+      if (!cancellation?.ok) {
+        write = buildShiftMasterBoardCarryoverWrite(carryover, serverAssignment);
+        if (write) shiftExecutionOutbox.enqueue(write, cancellation?.error || "Waiting for shift carryover cancellation");
+        return cancellation;
+      }
+    }
     write = buildShiftMasterBoardCarryoverWrite(carryover, serverAssignment);
     const result = await executeShiftMasterBoardServerWrite(shiftExecutionCommands, write);
+    if (result?.conflict) {
+      await refreshShiftExecutionServerProjection();
+      return result;
+    }
     if (!result?.ok) throw new Error(result?.error || "Shift carryover was not accepted by the server");
     await refreshShiftExecutionServerProjection();
     return result;
   } catch (error) {
     if (write) shiftExecutionOutbox.enqueue(write, error?.message || "Shift carryover server mirror failed");
     shiftExecutionServerState = { ...shiftExecutionServerState, status: "fallback", error: error?.message || "Shift carryover server mirror failed" };
+    return { ok: false, error: shiftExecutionServerState.error };
+  }
+}
+async function mirrorShiftMasterBoardCarryoverRemovalToServer(row, carryover, { reason = "" } = {}) {
+  if (!carryover?.serverId) return { skipped: true };
+  if (!shiftExecutionServerState.commandsEnabled || !isShiftExecutionDispatchScopeReadyForRow(row)) return { skipped: true };
+  if (!await ensureShiftExecutionDomainApiModule()) return { ok: false, error: "Shift execution domain API module is unavailable" };
+  let write = null;
+  try {
+    write = buildShiftMasterBoardCarryoverCancelWrite(carryover, { reason });
+    const result = await executeShiftMasterBoardServerWrite(shiftExecutionCommands, write);
+    if (!result?.ok) throw new Error(result?.error || "Shift carryover cancellation was not accepted by the server");
+    await refreshShiftExecutionServerProjection();
+    return result;
+  } catch (error) {
+    if (write) shiftExecutionOutbox.enqueue(write, error?.message || "Shift carryover cancellation mirror failed");
+    shiftExecutionServerState = { ...shiftExecutionServerState, status: "fallback", error: error?.message || "Shift carryover cancellation mirror failed" };
     return { ok: false, error: shiftExecutionServerState.error };
   }
 }
@@ -4788,7 +5104,7 @@ function initializeRuntimeStateServiceModule() {
   getBootstrapSnapshotCountsFromState,
   isMeaningfulBootstrapSnapshotCounts,
   isUsableBootstrapSnapshotPayload,
-  isShiftExecutionServerAuthoritative: () => shiftExecutionServerState.status === "ready" && shiftExecutionServerState.commandsEnabled === true,
+  isShiftExecutionServerAuthoritative,
   isSystemDomainsServerAuthoritative: () => systemDomainsServerReadState.status === "server" && hasSystemDomainsServerAuthority(),
   loadUiState,
   measureBootStep,
@@ -5179,7 +5495,7 @@ function initializePlanningCoreServiceModule() {
   getWorkOrderPlanningStatusValue: (route = {}) => { const rawStatus = String(route?.planningStatus || "").trim(); return WORK_ORDER_PLANNING_STATUS_VALUES.has(rawStatus) ? rawStatus : "queued"; },
   icon,
   isGanttSlotCompleted: (slot = {}) => slot?.status === "completed" || slot?.completed === true,
-  isShiftExecutionServerAuthoritative: () => shiftExecutionServerState.status === "ready" && shiftExecutionServerState.commandsEnabled === true,
+  isShiftExecutionServerAuthoritative,
   isWorkOrderPlanningCanceled: (route = {}) => { const rawStatus = String(route?.planningStatus || "").trim(); return rawStatus === "canceled"; },
   isoLocal,
   makeId,
@@ -5346,12 +5662,15 @@ function initializeModuleRuntime() {
     shiftMasterBoard: {
       render: () => {
         hydrateSharedStateForModule("shiftMasterBoard", [SYSTEM_DOMAINS_STORAGE_KEY]);
-        hydrateShiftExecutionServerProjection();
         ensureShiftMasterBoardModule();
+        // The board is lazy-loaded.  Its own render cycle follows module
+        // initialization, so scope the server read only after the board can
+        // tell us which durable rows are actually on the current shift.
+        if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();
         if (shiftMasterBoardModuleError) {
-          return renderMesModulePatternPage({
-            moduleId: "shiftMasterBoard",
-            content: renderUiEmptyState({ title: "Не удалось загрузить мастерскую", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
+          return renderShiftMasterBoardShellState({
+            title: "Не удалось загрузить мастерскую",
+            description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
           });
         }
         return renderShiftMasterBoardPage();
@@ -5906,7 +6225,11 @@ operationalRuntimeService = createOperationalRuntimeServiceModule({
   fromDateInput,
   getAuthGateSession,
   getBomList: (...args) => typeof getBomList === "function" ? getBomList(...args) : null, getBomResultNomenclatureItem: (...args) => typeof getBomResultNomenclatureItem === "function" ? getBomResultNomenclatureItem(...args) : null,
-  getCalendarWorkCenterId: (...args) => typeof getCalendarWorkCenterId === "function" ? getCalendarWorkCenterId(...args) : args[0],
+  // Workshop must be renderable before the Gantt chunk is requested.  Do not
+  // forward this through the lazy Gantt facade: it throws until `load()` has
+  // completed.  The compact resolver above has the required calendar-id
+  // semantics without importing the timeline implementation.
+  getCalendarWorkCenterId: (workCenterId) => getPlanningCalendarWorkCenterId(workCenterId),
   getDefaultOperationCalculationType,
   getDefaultSecondsPerPanel,
   getFulfillmentLabel,
@@ -6142,9 +6465,34 @@ function bindDirectoryForm(...args) { return appEventsService.bindDirectoryForm(
 function saveDirectoryRow(...args) { return appEventsService.saveDirectoryRow(...args); }
 function deleteDirectoryRow(...args) { return appEventsService.deleteDirectoryRow(...args); }
 function deleteDirectoryStateRow(...args) { return appEventsService.deleteDirectoryStateRow(...args); }
-function rememberScroll(...args) { return appEventsService.rememberScroll(...args); }
-function restoreScroll(...args) { return appEventsService.restoreScroll(...args); }
+// Rendering can run while an optional event service is still being assembled
+// during startup.  Scroll preservation is an enhancement, not a prerequisite
+// for drawing the first module, so keep that boundary deliberately no-op-safe.
+function rememberScroll(...args) { return appEventsService?.rememberScroll?.(...args); }
+function restoreScroll(...args) { return appEventsService?.restoreScroll?.(...args); }
 function updateDependencyClip(...args) { return appEventsService.updateDependencyClip(...args); }
+
+// Modal dismissal is used by every module, including lazy modules that open
+// before the Gantt implementation has loaded.  Keep this small shared reset
+// independent of the Gantt facade.  The Gantt runtime retains its own
+// closeModals implementation for Gantt-local bindings after that chunk loads.
+function closeAppModals() {
+  ui.selectedSlotId = null;
+  ui.editor = null;
+  ui.splitSlotId = null;
+  ui.ganttOptimizationDialog = null;
+  ui.routePrintPreviewId = "";
+  ui.workOrderPrintPreviewId = "";
+  ui.shiftMasterBoardPrintPreviewId = "";
+  ui.shiftWorkOrderPrintPreviewId = "";
+  ui.shiftWorkOrderIssuePhotoViewer = null;
+  ui.timesheetEditor = null;
+  ui.directoryEditor = null;
+  ui.authSessionModal = null;
+  ui.confirmDialog = null;
+  render();
+}
+
 appEventsService = createAppEventsServiceModule({
   AUTH_PIN_TEMPORARILY_DISABLED,
   BOARD_SPEC_TERM,
@@ -6175,7 +6523,7 @@ appEventsService = createAppEventsServiceModule({
   cancelAuthPrototypePinFeedback,
   completeAuthPrototypeLogin,
   deleteRouteMapConfirmed,
-  closeModals: (...args) => closeModals(...args),
+  closeModals: () => closeAppModals(),
   doesAuthSessionFactNeedDeviationComment: (...args) => doesAuthSessionFactNeedDeviationComment(...args),
   directorySections,
   ensurePlanningRuntimeProjection: () => hydratePlanningRuntimeProjection(),
@@ -7000,7 +7348,7 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.key === "Escape") {
-    closeModals();
+    closeAppModals();
   }
 });
 

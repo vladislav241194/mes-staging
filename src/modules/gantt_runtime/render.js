@@ -176,7 +176,13 @@ export function createGanttRuntimeModule(dependencies = {}) {
     normalizePlanningLaborPositiveNumber,
     normalizeQuantity,
     normalizeShiftMasterAssignment,
-    normalizeShiftMasterBoardQuantity,
+    // The Gantt may be the first module opened in a session, before the
+    // lazily loaded Master Board has provided its quantity normalizer. Facts
+    // still need a stable integer contract in that path.
+    normalizeShiftMasterBoardQuantity = (value = 0) => {
+      const quantity = Math.round(Number(String(value ?? "").replace(",", ".")));
+      return Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+    },
     normalizeShiftMasterExecutorQuantity,
     normalizeShiftMasterFactQuantity,
     normalizeWorkMode,

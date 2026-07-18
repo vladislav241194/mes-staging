@@ -19,6 +19,10 @@ const client = createShiftExecutionCommands({ fetchImpl: async (url, options) =>
     return { ok: true, status: 201, json: async () => ({ ok: true, item: { id: "shift-1" } }) };
   }
   if (options?.method === "PATCH") {
+    if (url.endsWith("/carryovers/carryover-1")) {
+      assert(options.headers["Idempotency-Key"] === "carryover-cancel-key", "carryover cancellation must forward idempotency header");
+      return { ok: true, status: 200, json: async () => ({ ok: true, item: { id: "carryover-1", canceledAt: "2026-07-18T12:00:00.000Z" } }) };
+    }
     assert(url.endsWith("/assignments/shift-1"), "assignment update must target the canonical assignment route");
     assert(options.headers["Idempotency-Key"] === "assignment-update-key", "assignment update must forward idempotency header");
     return { ok: true, status: 200, json: async () => ({ ok: true, item: { id: "shift-1", revision: 2 } }) };
@@ -39,6 +43,8 @@ const fact = await client.recordFact("shift-1", { idempotencyKey: "fact-key", ac
 assert(fact.item?.id === "fact-1", "client must return a recorded shift fact");
 const carryover = await client.createCarryover({ idempotencyKey: "carryover-key", sourceAssignmentId: "shift-1", remainingQuantity: 1 });
 assert(carryover.item?.id === "carryover-1", "client must return a created carryover");
+const canceledCarryover = await client.cancelCarryover("carryover-1", { idempotencyKey: "carryover-cancel-key", reason: "Fact corrected" });
+assert(canceledCarryover.item?.canceledAt, "client must return the canceled canonical carryover");
 let missing = "";
 try { await client.createAssignment({}); } catch (error) { missing = error.message; }
 assert(/Idempotency/.test(missing), "client must reject an unsafe write without an idempotency key");

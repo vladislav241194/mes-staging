@@ -6,6 +6,7 @@ import { basename, dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { assertNoIgnoredReleaseInputs, collectPublishedGitProvenance } from "./release-provenance.mjs";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sshControlPath = join(process.env.HOME || "/tmp", ".ssh", "mes-codex-%C");
@@ -142,9 +143,22 @@ async function gitText(args) {
   return result.stdout.trim();
 }
 
+async function runGit(args) {
+  return await run("git", args, { allowFailure: true });
+}
+
 async function assertCleanGitWorktree() {
   const status = await gitText(["status", "--porcelain"]);
   if (status) throw new Error("Refusing release staging from a dirty Git worktree");
+}
+
+async function assertReleaseSourceStillMatchesProvenance(gitCommit) {
+  await assertCleanGitWorktree();
+  await assertNoIgnoredReleaseInputs({ runGit, sourceIncludes: SOURCE_INCLUDES });
+  const currentCommit = await gitText(["rev-parse", "HEAD"]);
+  if (currentCommit !== gitCommit) {
+    throw new Error(`Refusing release staging: Git HEAD changed during the build (${gitCommit} -> ${currentCommit})`);
+  }
 }
 
 async function treeSha(includes, { excludes = [] } = {}) {
@@ -223,8 +237,15 @@ async function main() {
   if (!contour) throw new Error(`Unknown contour: ${args.contour}`);
 
   await assertCleanGitWorktree();
-  const gitCommit = await gitText(["rev-parse", "HEAD"]);
-  const gitCommitShort = await gitText(["rev-parse", "--short", "HEAD"]);
+  await assertNoIgnoredReleaseInputs({ runGit, sourceIncludes: SOURCE_INCLUDES });
+  const gitProvenance = await collectPublishedGitProvenance({
+    runGit,
+    // A dry run remains useful without Git-network access. A real staged
+    // release must verify that HEAD is on the freshly fetched upstream branch.
+    refreshRemote: !args.dryRun,
+  });
+  const { gitCommit } = gitProvenance;
+  const gitCommitShort = gitCommit.slice(0, 7);
   const version = JSON.parse(await readFile(join(projectRoot, "app-version.json"), "utf8")).version;
   const releaseId = safeReleaseId(args.releaseId || `${version}-${gitCommitShort}`);
   const releasePath = `${contour.releasesPath}/${releaseId}`;
@@ -235,16 +256,17 @@ async function main() {
   console.log(`- contour: ${args.contour}`);
   console.log(`- release: ${releaseId}`);
   console.log(`- commit: ${gitCommit}`);
-
-  const remoteExists = await run("ssh", sshArgs(args.remote, `test ! -e ${shellQuote(releasePath)}`), { allowFailure: true });
-  if (remoteExists.code !== 0) throw new Error(`Release path already exists: ${releasePath}`);
+  console.log(`- Git provenance: ${gitProvenance.verification} (${gitProvenance.upstreamRef} @ ${gitProvenance.upstreamCommit})`);
 
   if (args.dryRun) {
-    console.log(`- would build clean worktree and upload ${SOURCE_INCLUDES.join(", ")} plus dist/`);
+    console.log(`- would build tracked source inputs and upload ${SOURCE_INCLUDES.join(", ")} plus dist/`);
     console.log(`- would preserve the external bootstrap snapshot at ${contour.bootstrapSnapshotPath}`);
     console.log(`- would stage into ${releaseAppPath} without changing ${contour.appPath}`);
     return;
   }
+
+  const remoteExists = await run("ssh", sshArgs(args.remote, `test ! -e ${shellQuote(releasePath)}`), { allowFailure: true });
+  if (remoteExists.code !== 0) throw new Error(`Release path already exists: ${releasePath}`);
 
   await run("npm", ["ci"]);
   await run("npm", ["run", "build"]);
@@ -254,16 +276,22 @@ async function main() {
   if (firstDistTreeSha256 !== secondDistTreeSha256) {
     throw new Error("Refusing non-deterministic build output; the two dist digests differ");
   }
+  await assertReleaseSourceStillMatchesProvenance(gitCommit);
   const sourceTreeSha256 = await treeSha(SOURCE_INCLUDES);
   const distTreeSha256 = secondDistTreeSha256;
   const packageLockSha256 = await sha256(join(projectRoot, "package-lock.json"));
   const bootstrapSnapshotArtifact = await ensureBootstrapSnapshotArtifact({ contour, remote: args.remote });
   const manifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     releaseId,
     createdAt: new Date().toISOString(),
     contour: args.contour,
     gitCommit,
+    gitProvenance: {
+      schemaVersion: 1,
+      ...gitProvenance,
+      verifiedAt: new Date().toISOString(),
+    },
     appVersion: version,
     runtimeIncludes: SOURCE_INCLUDES,
     sourceTreeSha256,

@@ -241,7 +241,7 @@ function startAuthSessionTask(taskId = "") {
   render();
 }
 
-function saveAuthSessionTaskFact(taskId = "") {
+async function saveAuthSessionTaskFact(taskId = "") {
   if (!taskId) return;
   const model = getAuthSessionPrototypeModel();
   const task = model.allTasks.find((item) => item.id === taskId) || model.selectedTask || null;
@@ -298,7 +298,10 @@ function saveAuthSessionTaskFact(taskId = "") {
     const deviationCommentText = deviationNotes.map((note) => (
       `${formatShiftWorkOrderPersonName(note.employeeName)}: ${note.text}`
     )).join("; ");
-    saveShiftMasterBoardFact(task.rowId, {
+    // The board action may be a lazy resolver.  Await it before redrawing so
+    // the Work Desk cannot report a closed operation while the common fact
+    // projection is still absent.
+    const savedFact = await saveShiftMasterBoardFact(task.rowId, {
       actualQuantity,
       defectQuantity,
       laborMinutes,
@@ -308,6 +311,15 @@ function saveAuthSessionTaskFact(taskId = "") {
       deviationNotes,
       updatedAt: now,
     });
+    if (!savedFact) {
+      // Keep the worker's draft recoverable if the lazy board chunk cannot be
+      // loaded.  Most importantly, do not claim that the operation closed
+      // until the shared fact projection accepted the write.
+      persistUiState();
+      console.error("Рабочий стол не смог записать общий факт операции.");
+      render();
+      return false;
+    }
     notifySaveSuccess("Факт операции закрыт по всем исполнителям и отражен в Ганте.");
   } else {
     persistUiState();
@@ -377,7 +389,7 @@ function bindAuthSessionEvents() {
 
   app.querySelectorAll("[data-auth-session-save-fact]").forEach((button) => {
     button.addEventListener("click", () => {
-      saveAuthSessionTaskFact(button.dataset.authSessionSaveFact || ui.authSessionSelectedTaskId || "");
+      void saveAuthSessionTaskFact(button.dataset.authSessionSaveFact || ui.authSessionSelectedTaskId || "");
     });
   });
 

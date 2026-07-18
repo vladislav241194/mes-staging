@@ -241,6 +241,34 @@ try {
     setPlanningEntityRemovalAllowed: () => {},
   });
 
+  // The migration accepts compact, pre-envelope planning projections only
+  // when their route graph is complete. This preserves older browser state
+  // without turning a truncated local value into a new source of truth.
+  const compactProjection = {
+    routes: [{ id: "legacy-route" }],
+    routeSteps: [{ id: "legacy-step", routeId: "legacy-route" }],
+    slots: [{ id: "legacy-slot", routeStepId: "legacy-step" }],
+  };
+  localStorage.setItem("qa-planning", JSON.stringify(compactProjection));
+  const normalizedLegacyProjection = service.loadState();
+  assert(normalizedLegacyProjection.version === 1, "A complete compact projection must regain the compatibility envelope");
+  assert(normalizedLegacyProjection.slots[0]?.id === "legacy-slot", "A complete compact projection must retain slot identities");
+
+  const backupPlanningState = {
+    version: 1,
+    routes: [{ id: "backup-route" }],
+    routeSteps: [{ id: "backup-step", routeId: "backup-route" }],
+    slots: [{ id: "backup-slot", routeStepId: "backup-step" }],
+  };
+  localStorage.setItem("qa-planning-backup", JSON.stringify([{
+    createdAt: "2026-07-18T00:00:00.000Z",
+    reason: "qa-backup",
+    raw: JSON.stringify(backupPlanningState),
+  }]));
+  localStorage.setItem("qa-planning", JSON.stringify({ slots: [{ id: "truncated-slot" }] }));
+  const recoveredPlanningState = service.loadState();
+  assert(recoveredPlanningState.routes[0]?.id === "backup-route", "A truncated no-version state must recover the complete backup instead of being promoted");
+
   // A normal domain write is stale after browser A commits an independent
   // compact timesheet edit. Its retry receives the merged full projection.
   service.scheduleSharedStatePush("module-state");

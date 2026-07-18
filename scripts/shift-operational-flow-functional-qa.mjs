@@ -829,8 +829,17 @@ async function closeFactFromWorkDesk(client, scenario) {
 	      }
 	    }
 	    const saveClicked = clickByAttribute("[data-auth-session-save-fact]", "data-auth-session-save-fact", taskId);
-	    await wait(220);
-	    const ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+	    // Saving a fact from the Work Desk can lazily load the Master Board
+	    // writer on a fresh page. Poll the common projection rather than relying
+	    // on an arbitrary fixed delay, so this verifies that the fact actually
+	    // crosses the lazy module boundary.
+	    let ui = {};
+	    const factDeadline = Date.now() + 3000;
+	    do {
+	      ui = JSON.parse(localStorage.getItem(uiKey) || "{}");
+	      if (ui.shiftMasterBoardFacts?.[rowId]?.updatedAt) break;
+	      await wait(40);
+	    } while (Date.now() < factDeadline);
     const authSession = JSON.parse(localStorage.getItem(authKey) || "{}");
     const storedFact = ui.shiftMasterBoardFacts?.[rowId] || null;
     const carryovers = Object.values(ui.shiftMasterBoardCarryovers || {}).filter((item) => item?.sourceRowId === rowId);
@@ -940,7 +949,9 @@ async function attachWorkOrderLabor(client, scenario) {
     const slot = (state.slots || []).find((item) => item.id === target.slotId)
       || (state.slots || []).find((item) => item.routeId === target.routeId && item.routeStepId === target.stepId)
       || null;
-    const routeLabor = (state.routes || []).find((route) => route.id === target.routeId)?.planningLaborByStepId?.[target.stepId] || null;
+    const route = (state.routes || []).find((item) => item.id === target.routeId) || null;
+    const step = (state.routeSteps || []).find((item) => item.id === target.stepId) || null;
+    const routeLabor = route?.planningLaborByStepId?.[target.stepId] || null;
     return {
       slotFound: Boolean(slot),
       slotId: slot?.id || "",
@@ -951,6 +962,11 @@ async function attachWorkOrderLabor(client, scenario) {
       laborMode: slot?.planningLaborMode || "",
       laborDurationMs: Number(slot?.planningLaborDurationMs || 0),
       minutesPerUnit: Number(slot?.planningLaborMinutesPerUnit || 0),
+      slotLocked: Boolean(slot?.locked),
+      slotStatus: String(slot?.status || ""),
+      routeFound: Boolean(route),
+      stepFound: Boolean(step),
+      routeStepIds: (state.routeSteps || []).map((item) => item?.id || "").slice(0, 12),
       routeLabor,
     };
   }, { stateKey: stateStorageKey, fixture });
