@@ -259,15 +259,21 @@ try {
 
   const mountSource = await readFile(join(sourceRoot, "mount.tsx"), "utf8");
   assert.match(mountSource, /export function mountReactMigrationIsland/);
-  assert.match(mountSource, /export function mountNomenclatureReactIsland/);
-  assert.match(mountSource, /update\(payload/);
-  assert.match(mountSource, /unmount\(\)/);
-  assert.match(mountSource, /onCaughtError/);
-  assert.match(mountSource, /onUncaughtError/);
-  assert.match(mountSource, /class IslandErrorBoundary/);
-  assert.match(mountSource, /try\s*{\s*render\(initialPayload\)/);
-  assert.match(mountSource, /root\.unmount\(\)/);
   assert.doesNotMatch(mountSource, /document\.|querySelector|appendChild|replaceWith/, "island mount must not manipulate host DOM");
+
+  const runtimeSource = await readFile(join(sourceRoot, "island-runtime.tsx"), "utf8");
+  assert.match(runtimeSource, /update\(payload/);
+  assert.match(runtimeSource, /unmount\(\)/);
+  assert.match(runtimeSource, /onCaughtError/);
+  assert.match(runtimeSource, /onUncaughtError/);
+  assert.match(runtimeSource, /class IslandErrorBoundary/);
+  assert.match(runtimeSource, /function CommitReporter/);
+  assert.match(runtimeSource, /try\s*{\s*render\(initialPayload\)/);
+  assert.match(runtimeSource, /root\.unmount\(\)/);
+  assert.doesNotMatch(runtimeSource, /document\.|querySelector|appendChild|replaceWith/, "island runtime must not manipulate host DOM");
+
+  const nomenclatureIslandSource = await readFile(join(sourceRoot, "nomenclature-island.tsx"), "utf8");
+  assert.match(nomenclatureIslandSource, /export function mountNomenclatureReactIsland/);
 
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
@@ -277,9 +283,13 @@ try {
   assert.match(mainSource, /featureGate\.dispose\(\)/);
   assert.match(mainSource, /Legacy-интерфейс восстановлен/);
   assert.match(mainSource, /Lifecycle QA render failure/);
+  assert.match(mainSource, /reactIslandCommitMs/);
 
   const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });
   assert.equal(blockedDiff.trim(), "", `migration branch changed blocked paths:\n${blockedDiff}`);
+
+  const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });
+  assert.match(performanceBudget, /"nomenclature"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   console.log(`React migration QA passed: ${sources.length} typed sources, adapter boundary, UI markers, stop-list, build.`);

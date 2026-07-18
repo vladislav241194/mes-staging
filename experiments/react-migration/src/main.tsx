@@ -9,6 +9,26 @@ const scenario: ReactMigrationScenarioId = searchParams.get("scenario") === "com
 const initialPayload = scenario === "componentTypes" ? componentTypesFixture : nomenclatureFixture;
 const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : nomenclatureUpdateFixture;
 let lifecycleStatus: HTMLElement | null = null;
+const performancePrefix = `mes-react-island:${scenario}`;
+let nextExpectedRevision = 1;
+const markRevisionStart = (revision: number) => {
+  const markName = `${performancePrefix}:start:${revision}`;
+  performance.clearMarks(markName);
+  performance.mark(markName);
+};
+const recordRevisionCommit = (revision: number) => {
+  const startName = `${performancePrefix}:start:${revision}`;
+  const commitName = `${performancePrefix}:commit:${revision}`;
+  const measureName = `${performancePrefix}:duration:${revision}`;
+  performance.mark(commitName);
+  performance.clearMeasures(measureName);
+  if (performance.getEntriesByName(startName, "mark").length) performance.measure(measureName, startName, commitName);
+  const duration = performance.getEntriesByName(measureName, "measure").at(-1)?.duration;
+  root.dataset.reactIslandScenario = scenario;
+  root.dataset.reactIslandRevision = String(revision);
+  if (typeof duration === "number") root.dataset.reactIslandCommitMs = duration.toFixed(2);
+  nextExpectedRevision = revision + 1;
+};
 const renderLegacyFallback = (context: LegacyFallbackContext) => {
   const fallback = document.createElement("section");
   fallback.className = "legacy-fallback";
@@ -28,10 +48,14 @@ const featureGate = createReactIslandFeatureGate({
   enabled: searchParams.get("react") !== "0",
   target: root,
   mount(target, payload, onError) {
-    return mountReactMigrationIsland(target, scenario, payload, { onError });
+    return mountReactMigrationIsland(target, scenario, payload, {
+      onError,
+      onReady: ({ revision }) => recordRevisionCommit(revision),
+    });
   },
   renderLegacy: renderLegacyFallback,
 });
+markRevisionStart(nextExpectedRevision);
 featureGate.activate(initialPayload);
 
 const lifecycleQaEnabled = searchParams.get("lifecycle_qa") === "1";
@@ -47,6 +71,7 @@ if (lifecycleQaEnabled) {
   controls.hidden = false;
   updateButton.addEventListener("click", () => {
     try {
+      markRevisionStart(nextExpectedRevision);
       status.textContent = featureGate.update(updatePayload) ? "updated" : `rejected: ${featureGate.getState()}`;
     } catch (error) {
       status.textContent = error instanceof Error ? `rejected: ${error.message}` : "rejected";

@@ -24,12 +24,17 @@ callbacks, or storage handles into the React island.
 
 ## React island responsibilities
 
-`mountReactMigrationIsland(target, scenario, payload, { onError })` owns only
+`mountReactMigrationIsland(target, scenario, payload, { onError, onReady })` owns only
 descendants of the explicit target, reports render failures to the host, and
 returns the same lifecycle handle for every scenario:
 
 - `update(payload)` to rerender from a new read-only snapshot;
 - `unmount()` to release the target cleanly.
+
+`onReady({ revision })` fires from a React effect after the corresponding DOM
+commit. Revision `1` is the initial mount; every accepted `update(payload)`
+increments it. The host can therefore measure mount/update completion without
+using a timeout or treating `root.render()` return as user-visible readiness.
 
 The island does not read global MES state, call an API, write data, persist
 browser storage, or manipulate DOM outside its target.
@@ -37,6 +42,9 @@ browser storage, or manipulate DOM outside its target.
 `mountNomenclatureReactIsland(...)` remains a narrow convenience wrapper for
 the first feature-flag integration. Component Types proves the generic boundary
 in the lab but is not approved for production activation yet.
+
+The Nomenclature wrapper has its own entry point and does not bundle Component
+Types. The multi-scenario lab keeps a separate entry for development QA.
 
 The isolated browser gate has verified initial mount, a payload update, clean
 unmount, preservation of the host node/controls, rejection of updates after

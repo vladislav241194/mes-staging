@@ -16,6 +16,13 @@ Run the isolated contract and stop-list checks:
 node experiments/react-migration/qa.mjs
 ```
 
+Run deterministic minified raw/gzip budgets for the production Nomenclature
+entry, full lab, and CSS:
+
+```sh
+node experiments/react-migration/performance-budget.mjs
+```
+
 Then serve `experiments/react-migration/dist` with any static server.
 
 Available routes:
