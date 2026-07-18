@@ -4,17 +4,18 @@ Date: 2026-07-19
 PostgreSQL worktree: `/Users/vladislav/Documents/Codex/2026-05-30/mes-postgres-primary`  
 Branch: `codex/postgres-primary-slice`  
 Base / merge-base with `origin/main`: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`  
-Runtime candidate commit: `1358f6206f1bccd3b2685730b02eb5dd68a4daf0`
+Current PostgreSQL branch commit: `96ed910`
 
 Handoff commit at first publication: `4f0fbae`
 
-Visible application version: `v.1.499.68`
+Visible pilot version: `v.1.499.69`
+Active pilot release: `v.1.499.69-9404ee4`
 
 This handoff contains no credentials. Pilot QA access must be obtained directly from the owner and must not be copied into Git, task handoffs, logs, screenshots, or memory.
 
 ## Current state
 
-The PostgreSQL slice is still in progress and must be integrated as one vertical unit only after live worker-scenario acceptance, staging rollback drill, shared-state retirement checks, and the final release gates.
+The PostgreSQL slice is still in progress and must be integrated as one vertical unit only after the remaining command-surface activation, final release gates, merge to `main`, and final live acceptance.
 
 Already confirmed on the live pilot:
 
@@ -25,12 +26,16 @@ Already confirmed on the live pilot:
 - Temporary live-QA assignment/fact/carryover rows were removed with an exact-key guarded transaction; post-cleanup Shift Execution counts are `0/0/0/0` and all four domain readiness checks remain green.
 - PostgreSQL command authority for System Domains and Shift Execution fails closed when the database authority is unavailable.
 - Work Orders and bounded Planning/Shift Execution projections are PostgreSQL reads.
+- System Domains compatibility state is retired, and its module reads no longer hydrate from shared-state.
+- Shift Execution shared-state payloads are tombstoned under server authority; its compatibility archive and authority digest match.
+- Bootstrap snapshot restore is disabled by default on protected pilot/staging environments and is retained only as an explicit emergency fallback.
+- A real staging rollback drill between two manifest-verified, commit-derived releases completed successfully; health checks passed after rollback.
 
-Still under live validation:
+Still pending in the PostgreSQL task:
 
-- Specifications 2.0 revision publication/attachment command surfaces.
-- Removal of shared-state/bootstrap snapshot from the working-source role while preserving compatibility fallback.
-- Staging rollback drill, merge to `main`, commit-derived production release, and final live acceptance.
+- Root-level activation and live validation of the Specifications 2.0 publication and attachment command flags. The `deploy` account cannot install the required systemd drop-ins, so this exact operation requires the authorized root operator.
+- Restricting permissions on compatibility backup/export files and committing the corresponding storage hardening.
+- Final full QA, merge to `main`, visible version bump, commit-derived pilot release, and final live UI/API acceptance.
 
 ## Files owned by the PostgreSQL task
 
@@ -135,9 +140,10 @@ Pure visual work outside these files may proceed in a separate branch after chec
 
 ## Required integration order
 
-1. PostgreSQL task proves parity, compatibility archive/data preservation, and performs the staging rollback drill.
-2. PostgreSQL slice passes full QA, is merged to `main`, and is released as a commit-derived artifact with live acceptance.
-3. Frontend task rebases onto that accepted commit and consumes the frozen contracts.
-4. Any isolated React proof of concept is evaluated and integrated separately; it must not be merged ahead of the PostgreSQL authority slice.
+1. PostgreSQL task completes backup permission hardening and obtains authorized root activation of the two Specifications 2.0 command surfaces.
+2. PostgreSQL task completes live command-surface acceptance and the full release QA gate.
+3. PostgreSQL slice is merged to `main`, released as a commit-derived artifact, and accepted on the live pilot.
+4. Frontend task rebases onto that accepted commit and consumes the frozen contracts.
+5. Any isolated React proof of concept is evaluated and integrated separately; it must not be merged ahead of the PostgreSQL authority slice.
 
 Before starting frontend edits, verify `git status`, branch, merge-base, and `git diff --name-status` in the frontend worktree. If any intended file overlaps the ownership list above, stop and coordinate the exact hunk or wait for the PostgreSQL checkpoint.
