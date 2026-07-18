@@ -54,7 +54,7 @@ function makeItem(resourceId) {
   };
 }
 
-function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes, nativePeriodReads = null, nativeRuntimeProjectionReads = null, aggregateReads = null, markerRef = null, hooks = {} }) {
+function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes, nativePeriodReads = null, nativeRuntimeProjectionReads = null, nativeGanttWindowReads = null, aggregateReads = null, markerRef = null, hooks = {} }) {
   const metadata = { storageMode, storageBackend, configured: true };
   const listProjection = () => {
     const item = itemRef.current;
@@ -143,6 +143,60 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
       return { ...metadata, ...health.current, items: [itemRef.current] };
     };
   }
+  if (nativeGanttWindowReads) {
+    repository.listGanttWindow = async ({ fromAt = "", toAt = "" } = {}) => {
+      nativeGanttWindowReads.count += 1;
+      const item = itemRef.current;
+      const operation = item.operations[0] || {};
+      const sourceSlot = operation.slot || {};
+      const slot = {
+        id: String(sourceSlot.id || ""),
+        routeId: String(item.id || ""),
+        routeStepId: String(operation.id || ""),
+        plannedStart: String(sourceSlot.plannedStart || ""),
+        plannedEnd: String(sourceSlot.plannedEnd || ""),
+        status: String(sourceSlot.status || "planned"),
+        quantity: Number(sourceSlot.quantity || item.quantity || 0),
+        locked: Boolean(sourceSlot.isLocked),
+        workCenterId: String(operation.workCenterId || ""),
+        resourceId: String(operation.executionContext?.resourceId || ""),
+        continuesFromPrevious: Date.parse(String(sourceSlot.plannedStart || "")) < Date.parse(String(fromAt || "")),
+        continuesAfterWindow: Date.parse(String(sourceSlot.plannedEnd || "")) > Date.parse(String(toAt || "")),
+      };
+      return {
+        ...metadata,
+        ...health.current,
+        window: {
+          routes: [{
+            id: String(item.id || ""),
+            number: String(item.number || item.id || ""),
+            name: String(item.name || "Заказ-наряд"),
+            designation: String(item.designation || ""),
+            planningQuantity: Number(item.quantity || 0),
+            unit: String(item.unit || "шт."),
+            lifecycleStatus: String(item.lifecycleStatus || "draft"),
+            planningStatus: String(item.planningStatus || "draft"),
+            domainConcurrencyRevision: Number(item.concurrencyRevision || 0),
+          }],
+          routeSteps: [{
+            id: String(operation.id || ""),
+            routeId: String(item.id || ""),
+            operationId: String(operation.operationId || ""),
+            operationName: String(operation.name || "Операция"),
+            workCenterId: String(operation.workCenterId || ""),
+            nextWorkCenterId: String(operation.nextWorkCenterId || ""),
+            sequenceNo: 1,
+            quantityMultiplier: Number(operation.quantityMultiplier || 1),
+          }],
+          slots: [slot],
+          boundaryContinuations: {
+            entering: slot.continuesFromPrevious ? [{ id: slot.id, routeId: slot.routeId, routeStepId: slot.routeStepId }] : [],
+            leaving: slot.continuesAfterWindow ? [{ id: slot.id, routeId: slot.routeId, routeStepId: slot.routeStepId }] : [],
+          },
+        },
+      };
+    };
+  }
   if (markerRef) {
     repository.getPlanningProjectionParityState = async () => ({ ...markerRef.current });
     repository.markPlanningProjectionParity = async ({ primaryRevision, snapshotFingerprint, contractVersion }) => {
@@ -188,6 +242,8 @@ const snapshotItem = { current: makeItem("") };
 const writes = { quantity: 0, slot: 0 };
 const primaryPeriodReads = { full: 0, weekly: 0 };
 const primaryRuntimeProjectionReads = { count: 0 };
+const primaryGanttWindowReads = { count: 0 };
+const snapshotGanttWindowReads = { count: 0 };
 const primaryAggregateReads = { list: 0, get: 0 };
 const markerRef = { current: {
   primaryRevision: 4,
@@ -197,10 +253,10 @@ const markerRef = { current: {
 } };
 const primaryHooks = {};
 const primary = createFixtureRepository({
-  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes, nativePeriodReads: primaryPeriodReads, nativeRuntimeProjectionReads: primaryRuntimeProjectionReads, aggregateReads: primaryAggregateReads, markerRef, hooks: primaryHooks,
+  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes, nativePeriodReads: primaryPeriodReads, nativeRuntimeProjectionReads: primaryRuntimeProjectionReads, nativeGanttWindowReads: primaryGanttWindowReads, aggregateReads: primaryAggregateReads, markerRef, hooks: primaryHooks,
 });
 const snapshot = createFixtureRepository({
-  storageMode: "snapshot-adapter", storageBackend: "shared-state", health: snapshotHealth, itemRef: snapshotItem, writes,
+  storageMode: "snapshot-adapter", storageBackend: "shared-state", health: snapshotHealth, itemRef: snapshotItem, writes, nativeGanttWindowReads: snapshotGanttWindowReads,
 });
 
 const factory = async ({ env }) => (
@@ -239,6 +295,9 @@ assert(stalePeriod.statusCode === 200 && stalePeriod.json.fallbackReason === "po
 const staleWeeklyPeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19&view=weekly");
 assert(staleWeeklyPeriod.statusCode === 200 && staleWeeklyPeriod.json.fallbackReason === "postgres-projection-stale" && staleWeeklyPeriod.json.projection, "stale compact Weekly request must retain the snapshot projection fallback");
 assert(primaryPeriodReads.full === 0 && primaryPeriodReads.weekly === 0, "stale PostgreSQL projection must not bypass the snapshot fallback through any native period read");
+const staleGanttWindow = await request("/api/v1/planning/gantt-window?from=2026-07-18&to=2026-07-19");
+assert(staleGanttWindow.statusCode === 200 && staleGanttWindow.json.fallbackReason === "postgres-gantt-window-physical-slots-unverified" && staleGanttWindow.json.ganttWindow?.slots?.[0]?.resourceId === "", "stale Gantt window must read the compatible snapshot contract rather than stale PostgreSQL");
+assert(primaryGanttWindowReads.count === 0 && snapshotGanttWindowReads.count === 1, "stale Gantt window must not invoke the PostgreSQL-native window read");
 
 const parity = await request("/api/v1/planning/work-orders/parity");
 assert(parity.statusCode === 200 && parity.json.ok === false, "parity endpoint must remain a primary-vs-snapshot diagnostic while fallback is active");
@@ -281,6 +340,13 @@ const recoveredWeeklyPeriod = await request("/api/v1/planning/period?from=2026-0
 assert(recoveredWeeklyPeriod.statusCode === 200 && !recoveredWeeklyPeriod.json.fallbackReason, "healthy compact Weekly read must retain PostgreSQL authority");
 assert(recoveredWeeklyPeriod.json.view === "weekly" && recoveredWeeklyPeriod.json.rows?.[0]?.id === "slot-1", "healthy compact Weekly read must return the narrow rows contract");
 assert(primaryPeriodReads.weekly === 1, "healthy compact Weekly read must use its dedicated bounded repository capability");
+
+primaryGanttWindowReads.count = 0;
+snapshotGanttWindowReads.count = 0;
+const recoveredGanttWindow = await request("/api/v1/planning/gantt-window?from=2026-07-18&to=2026-07-19");
+assert(recoveredGanttWindow.statusCode === 200 && recoveredGanttWindow.json.fallbackReason === "postgres-gantt-window-physical-slots-unverified" && recoveredGanttWindow.json.storageMode === "snapshot-adapter", "healthy aggregate parity must not over-authorize PostgreSQL Gantt physical slots");
+assert(recoveredGanttWindow.json.ganttWindow?.routeSteps?.[0]?.id === "operation-1" && recoveredGanttWindow.json.ganttWindow?.slots?.[0]?.id === "slot-1", "healthy Gantt window must retain its isolated route-step and physical-slot contract");
+assert(primaryGanttWindowReads.count === 0 && snapshotGanttWindowReads.count === 1, "healthy aggregate parity must keep the Gantt window on snapshot authority until physical-slot parity exists");
 
 // After the recovered primary has established its marker-backed safety cache,
 // the full runtime projection must take its bounded PostgreSQL capability

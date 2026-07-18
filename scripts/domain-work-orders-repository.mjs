@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readSharedStateSnapshot, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
+import { buildPlanningGanttWindow, readPlanningGanttWindowBounds } from "./planning-gantt-window-projection.mjs";
 
 export const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
 const PLANNING_LIST_METADATA_FIELDS = [
@@ -133,6 +134,54 @@ function operationProjection(step = {}, slot = null) {
   };
 }
 
+function ganttWindowRouteProjection(route = {}) {
+  return {
+    id: String(route.id || ""),
+    number: String(route.workOrderSnapshot?.id || route.id || ""),
+    name: String(route.specificationName || route.name || "Заказ-наряд"),
+    designation: String(route.designation || ""),
+    planningQuantity: Number(route.planningQuantity ?? route.workOrderSnapshot?.quantity ?? 0) || 0,
+    unit: String(route.unit || "шт."),
+    lifecycleStatus: String(route.lifecycleStatus || "draft"),
+    planningStatus: String(route.planningStatus || "draft"),
+    domainConcurrencyRevision: getRouteConcurrencyRevision(route),
+  };
+}
+
+function ganttWindowRouteStepProjection(step = {}) {
+  return {
+    id: String(step.id || step.routeStepId || ""),
+    operationId: String(step.operationId || ""),
+    operationName: String(step.operationName || step.name || "Операция"),
+    workCenterId: String(step.workCenterId || step.routeWorkCenterId || ""),
+    nextWorkCenterId: String(step.nextWorkCenterId || ""),
+    sequenceNo: Number(step.stepOrder ?? step.sequenceNo ?? 0) || 0,
+    quantityMultiplier: Math.max(1, Number(step.quantityMultiplier ?? step.specTaskQuantity ?? 1) || 1),
+  };
+}
+
+function ganttWindowSlotProjection(slot = {}, step = {}) {
+  return {
+    id: String(slot.id || ""),
+    plannedStart: String(slot.plannedStart || ""),
+    plannedEnd: String(slot.plannedEnd || ""),
+    status: String(slot.status || "planned"),
+    quantity: Number(slot.quantity || 0),
+    locked: Boolean(slot.locked),
+    // Preserve the same scalar placement precedence as the existing compact
+    // schedule read, without carrying the full route/operation/slot JSON.
+    workCenterId: String(
+      slot.planningWorkCenterId
+      || slot.workCenterId
+      || step.planningWorkCenterId
+      || step.planningLineWorkCenterId
+      || step.workCenterId
+      || "",
+    ),
+    resourceId: String(slot.resourceId || step.resourceId || step.executionContext?.resourceId || ""),
+  };
+}
+
 function readModel(snapshot = {}) {
   if (snapshot === cachedPlanningSnapshot && cachedPlanningModel) return cachedPlanningModel;
   const planning = parsePlanningState(snapshot.values?.[PLANNING_STATE_KEY]);
@@ -259,6 +308,34 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
     async summary() {
       const state = await read();
       return { ...metaFromSnapshot(state), summary: summarizeModel(readModel(state.snapshot)) };
+    },
+
+    // This is intentionally separate from the historical global runtime
+    // projection. The old aggregate maps one route step to its first slot;
+    // a Gantt window must retain every physical slot so split work remains
+    // visible while the rest of the page continues to use its compatibility
+    // state unchanged.
+    async listGanttWindow(period = {}) {
+      const bounds = readPlanningGanttWindowBounds(period);
+      const state = await read();
+      const model = readModel(state.snapshot);
+      const routesById = new Map(model.routes.map((route) => [String(route.id || ""), route]));
+      const stepsById = new Map(model.routeSteps.map((step) => [String(step.id || step.routeStepId || ""), step]));
+      const entries = model.slots.map((slot) => {
+        const routeId = String(slot.routeId || "");
+        const routeStepId = String(slot.routeStepId || "");
+        const route = routesById.get(routeId) || {};
+        const step = stepsById.get(routeStepId) || {};
+        return {
+          route: ganttWindowRouteProjection(route),
+          routeStep: { ...ganttWindowRouteStepProjection(step), routeId },
+          slot: ganttWindowSlotProjection(slot, step),
+        };
+      });
+      return {
+        ...metaFromSnapshot(state),
+        window: buildPlanningGanttWindow(entries, bounds),
+      };
     },
 
     async get(id) {

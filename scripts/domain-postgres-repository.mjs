@@ -2,6 +2,7 @@ import postgres from "postgres";
 import { calculateOperationDurationMs } from "../src/domain/operation_duration.js";
 import { addCalendarWorkingDuration, createWorkingCalendar } from "../src/domain/working_calendar.js";
 import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
+import { buildPlanningGanttWindow, readPlanningGanttWindowBounds } from "./planning-gantt-window-projection.mjs";
 
 const CLIENTS_BY_URL = new Map();
 const PLANNING_LIST_METADATA_FIELDS = [
@@ -185,6 +186,42 @@ function mapWeeklyPeriodRow(row = {}) {
     sourcePlanningOrderId: String(row.weekly_source_planning_order_id || ""),
     sourceBatchId: String(row.weekly_source_batch_id || ""),
     sourceRouteId: String(row.weekly_source_route_id || ""),
+  };
+}
+
+function mapGanttWindowEntry(row = {}) {
+  return {
+    route: {
+      id: String(row.gantt_route_id || ""),
+      number: String(row.gantt_route_number || row.gantt_route_id || ""),
+      name: String(row.gantt_route_name || "Заказ-наряд"),
+      designation: String(row.gantt_route_designation || ""),
+      planningQuantity: Number(row.gantt_route_quantity || 0),
+      unit: String(row.gantt_route_unit || "шт."),
+      lifecycleStatus: String(row.gantt_route_lifecycle_status || "draft"),
+      planningStatus: String(row.gantt_route_planning_status || "draft"),
+      domainConcurrencyRevision: Number(row.gantt_route_aggregate_revision || 0),
+    },
+    routeStep: {
+      id: String(row.gantt_route_step_id || ""),
+      routeId: String(row.gantt_route_id || ""),
+      operationId: String(row.gantt_operation_id || ""),
+      operationName: String(row.gantt_operation_name || "Операция"),
+      workCenterId: String(row.gantt_operation_work_center_id || ""),
+      nextWorkCenterId: String(row.gantt_operation_next_work_center_id || ""),
+      sequenceNo: Number(row.gantt_operation_sequence_no || 0),
+      quantityMultiplier: Number(row.gantt_operation_quantity_multiplier || 1),
+    },
+    slot: {
+      id: String(row.gantt_slot_id || ""),
+      plannedStart: isoDateTime(row.gantt_slot_planned_start),
+      plannedEnd: isoDateTime(row.gantt_slot_planned_end),
+      status: String(row.gantt_slot_status || "planned"),
+      quantity: Number(row.gantt_slot_quantity || 0),
+      locked: Boolean(row.gantt_slot_is_locked),
+      workCenterId: String(row.gantt_slot_work_center_id || row.gantt_operation_work_center_id || ""),
+      resourceId: String(row.gantt_slot_resource_id || ""),
+    },
   };
 }
 
@@ -896,6 +933,71 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         ORDER BY ps.planned_start ASC, wo.number ASC, op.sequence_no ASC, op.id ASC, ps.id ASC
       `;
       return { ...metadata, ...listMetadata(rows), rows: rows.map(mapWeeklyPeriodRow) };
+    },
+
+    // A Gantt window intentionally reads physical slot rows, not the legacy
+    // one-slot-per-operation runtime aggregate. The GiST range predicate
+    // makes this proportional to the visible horizon and preserves split
+    // work, while the compact scalar selection avoids transferring the full
+    // order, operation and slot JSON documents.
+    async listGanttWindow(period = {}) {
+      const { fromAt, toAt } = readPlanningGanttWindowBounds(period);
+      const from = new Date(fromAt);
+      const to = new Date(toAt);
+      const rows = await sql`
+        SELECT
+          wo.id AS gantt_route_id,
+          wo.number AS gantt_route_number,
+          wo.name AS gantt_route_name,
+          wo.designation AS gantt_route_designation,
+          wo.quantity AS gantt_route_quantity,
+          wo.unit AS gantt_route_unit,
+          wo.lifecycle_status AS gantt_route_lifecycle_status,
+          wo.planning_status AS gantt_route_planning_status,
+          wo.aggregate_revision AS gantt_route_aggregate_revision,
+          wo.aggregate_revision,
+          wo.updated_at,
+          op.id AS gantt_route_step_id,
+          op.operation_id AS gantt_operation_id,
+          op.name AS gantt_operation_name,
+          op.work_center_id AS gantt_operation_work_center_id,
+          op.next_work_center_id AS gantt_operation_next_work_center_id,
+          op.sequence_no AS gantt_operation_sequence_no,
+          op.quantity_multiplier AS gantt_operation_quantity_multiplier,
+          ps.id AS gantt_slot_id,
+          ps.planned_start AS gantt_slot_planned_start,
+          ps.planned_end AS gantt_slot_planned_end,
+          ps.status AS gantt_slot_status,
+          ps.quantity AS gantt_slot_quantity,
+          ps.is_locked AS gantt_slot_is_locked,
+          COALESCE(
+            NULLIF(ps.metadata ->> 'planningWorkCenterId', ''),
+            NULLIF(ps.metadata ->> 'workCenterId', ''),
+            NULLIF(op.metadata ->> 'planningWorkCenterId', ''),
+            NULLIF(op.metadata ->> 'planningLineWorkCenterId', ''),
+            NULLIF(op.work_center_id, ''),
+            ''
+          ) AS gantt_slot_work_center_id,
+          COALESCE(
+            NULLIF(ps.metadata ->> 'resourceId', ''),
+            NULLIF(op.metadata ->> 'resourceId', ''),
+            NULLIF(op.execution_context ->> 'resourceId', ''),
+            ''
+          ) AS gantt_slot_resource_id
+        FROM planning_slots AS ps
+        JOIN work_order_operations AS op ON op.id = ps.work_order_operation_id
+        JOIN work_orders AS wo ON wo.id = op.work_order_id
+        WHERE ps.planned_start IS NOT NULL
+          AND ps.planned_end IS NOT NULL
+          AND tstzrange(ps.planned_start, ps.planned_end, '[)')
+            && tstzrange(${from}, ${to}, '[)')
+        ORDER BY ps.planned_start ASC, wo.number ASC, op.sequence_no ASC, op.id ASC, ps.id ASC
+      `;
+      return {
+        ...metadata,
+        ...listMetadata(rows),
+        window: buildPlanningGanttWindow(rows.map(mapGanttWindowEntry), { fromAt, toAt }),
+      };
     },
 
     async changeQuantity(id, { quantity, expectedRevision }) {

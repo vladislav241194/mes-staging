@@ -109,6 +109,7 @@
     "qa:domain-read-repository-pooling": "node scripts/domain-read-repository-pooling-qa.mjs",
     "qa:planning-workbench-lazy": "node scripts/planning-workbench-lazy-qa.mjs",
     "qa:planning-domain-api-lazy": "node scripts/planning-domain-api-lazy-qa.mjs",
+    "qa:planning-gantt-window": "node scripts/planning-gantt-window-postgres-repository-qa.mjs && node scripts/planning-gantt-window-api-qa.mjs && node scripts/planning-postgres-projection-safety-qa.mjs",
     "qa:gantt-runtime-lazy": "node scripts/gantt-runtime-lazy-qa.mjs",
     "qa:gantt-drag-cancel": "node scripts/gantt-drag-cancel-qa.mjs",
     "qa:products-events-lazy": "node scripts/products-events-lazy-qa.mjs",

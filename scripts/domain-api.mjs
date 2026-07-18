@@ -33,6 +33,12 @@ const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 // must trigger a fresh full proof before this runtime projection is trusted.
 const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 5;
 const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
+// The established planning parity proof intentionally canonicalizes a route
+// to one slot per operation. It cannot therefore authorize a physical-slot
+// Gantt window: a PostgreSQL split slot could differ from the compatibility
+// snapshot without changing that old proof. Keep snapshot authority for this
+// new read model until a dedicated physical-slot parity marker is introduced.
+const PLANNING_GANTT_WINDOW_FALLBACK_REASON = "postgres-gantt-window-physical-slots-unverified";
 let planningPostgresParityCache = null;
 // The complete Planning runtime graph is substantially more expensive than
 // the compact list or detail reads.  Keep at most one verified PostgreSQL
@@ -1008,6 +1014,44 @@ function withPlanningFallback(payload, safety = null) {
   };
 }
 
+async function resolvePlanningGanttWindowReadSource({
+  primary,
+  primaryHealth,
+  env = process.env,
+  filePath = "",
+  createRepository = createWorkOrdersRepository,
+} = {}) {
+  if (String(primaryHealth?.storageBackend || "") !== "postgresql") {
+    return { repository: primary, primaryHealth, fallbackReason: "" };
+  }
+
+  // Do not reuse readPlanningProjectionSafely() here. Its durable marker is
+  // correct for the legacy one-slot-per-operation graph but cannot prove a
+  // complete split-slot sequence. When a compatibility snapshot exists it is
+  // the only source that can safely retain the existing physical slot shape.
+  let snapshot;
+  let snapshotHealth;
+  try {
+    snapshot = await createRepository({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+    snapshotHealth = await snapshot.health();
+  } catch (error) {
+    throw new Error(`Gantt window snapshot authority is unavailable: ${error?.message || "unknown error"}`);
+  }
+  // A PostgreSQL-only contour has no second physical-slot source to protect,
+  // so it may use its native bounded query directly.
+  if (snapshotHealth?.configured === false) {
+    return { repository: primary, primaryHealth, snapshot, snapshotHealth, fallbackReason: "" };
+  }
+  return {
+    repository: snapshot,
+    primary,
+    primaryHealth,
+    snapshot,
+    snapshotHealth,
+    fallbackReason: PLANNING_GANTT_WINDOW_FALLBACK_REASON,
+  };
+}
+
 function getPlanningResponseEtag(revision, safety = null) {
   // Preserve the long-standing revision ETag on a healthy primary. During a
   // fallback, also vary on the primary revision and reason so a client cannot
@@ -1315,6 +1359,7 @@ export async function handleDomainApiRequest(req, res, url, {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
   const isPlanningWorkbenchBootstrap = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`;
   const isPlanningRuntimeProjectionRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/work-orders/projection`;
+  const isPlanningGanttWindowRead = req.method === "GET" && url.pathname === `${API_PREFIX}/planning/gantt-window`;
   const planningBootstrapTiming = isPlanningWorkbenchBootstrap
     ? { startedAt: getRequestTimingNow(), planningSafetyMs: 0 }
     : null;
@@ -1349,7 +1394,7 @@ export async function handleDomainApiRequest(req, res, url, {
     return true;
   }
 
-  const planningPeriod = isPlanningPeriodRead ? readPlanningPeriod(url) : null;
+  const planningPeriod = (isPlanningPeriodRead || isPlanningGanttWindowRead) ? readPlanningPeriod(url) : null;
   if (planningPeriod?.error) {
     sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: planningPeriod.error });
     return true;
@@ -2406,6 +2451,59 @@ export async function handleDomainApiRequest(req, res, url, {
       return true;
     }
     sendJson(res, headers, 200, payload, { ETag: etag, "Server-Timing": serverTiming });
+    return true;
+  }
+
+  if (isPlanningGanttWindowRead) {
+    // This contract is intentionally isolated from the historical global
+    // planning projection. A future windowed Gantt can keep it in its own
+    // read model without partially replacing planningState for editors and
+    // other consumers that still require the complete graph.
+    let ganttWindowSafety;
+    let result;
+    try {
+      ganttWindowSafety = await resolvePlanningGanttWindowReadSource({
+        primary: workOrders,
+        primaryHealth: health,
+        env,
+        filePath,
+        createRepository: workOrdersRepositoryFactory,
+      });
+      const repository = ganttWindowSafety.repository;
+      if (typeof repository.listGanttWindow !== "function") {
+        throw new Error("Work-order repository does not support a bounded Gantt window");
+      }
+      result = await repository.listGanttWindow({
+        fromAt: new Date(planningPeriod.from.time).toISOString(),
+        toAt: new Date(planningPeriod.to.time).toISOString(),
+      });
+    } catch (error) {
+      sendJson(res, headers, 503, {
+        ok: false,
+        apiVersion: "v1",
+        error: error?.message || "Gantt window storage is unavailable",
+      });
+      return true;
+    }
+    const payload = withPlanningFallback({
+      ok: true,
+      apiVersion: "v1",
+      storageMode: result.storageMode,
+      storageBackend: result.storageBackend,
+      revision: result.revision,
+      updatedAt: result.updatedAt,
+      period: {
+        fromAt: new Date(planningPeriod.from.time).toISOString(),
+        toAt: new Date(planningPeriod.to.time).toISOString(),
+      },
+      ganttWindow: result.window,
+    }, ganttWindowSafety);
+    const etag = getPayloadEtag(payload);
+    if (matchesEtag(req, etag)) {
+      sendNotModified(res, headers, etag);
+      return true;
+    }
+    sendJson(res, headers, 200, payload, { ETag: etag });
     return true;
   }
 
