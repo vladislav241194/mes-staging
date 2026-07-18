@@ -10,8 +10,9 @@ Coordination handoff: PostgreSQL commit `4f0fbae`
 
 PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
 cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
-The PostgreSQL branch has since advanced to `9404ee4` (`v.1.499.69`) with a
-guarded Specifications 2.0 command rollout, but `origin/main` still points to
+The PostgreSQL branch has since advanced to `96ed910`, including guarded
+Specifications 2.0 commands, verified runtime rollback, and retirement fixes
+for System Domains shared-state compatibility. `origin/main` still points to
 the shared baseline and no final integration checkpoint has been published.
 The PostgreSQL slice is still not ready for frontend integration: Specifications
 2.0 command validation, shared-state working-source retirement, staging rollback,
@@ -67,7 +68,7 @@ active goal. Shared build files require explicit coordination.
 | Protected canvas | Gantt, Specifications 2.0 | Migrate last; retain geometry and interaction guardrails |
 | Admin/standalone | Contours, Authorization | Keep isolated security and standalone-shell contracts |
 
-## First vertical scenario
+## Isolated vertical scenarios
 
 `Nomenclature: open -> filter by type -> select an item -> inspect its card.`
 
@@ -84,6 +85,17 @@ The initial implementation lives under `experiments/react-migration/`. It is a
 standalone architecture lab using a fixture through a typed adapter. It is not
 wired into the MES application and is not a release candidate.
 
+The second proof is `Component Types: open -> filter by family -> select a type
+-> inspect its calculation fields.` It mirrors all eight legacy columns and
+reuses the same action, selectable-row, detail, table, status, sidebar, panel,
+header and page contracts. This closes the one-off-prototype risk for the
+registry family: shared behavior now has two consumers, while entity columns
+remain scenario-specific.
+
+Both scenarios are available through the generic reversible island boundary.
+Nomenclature remains the only proposed first production feature-flag scope;
+Component Types is an isolated reuse proof, not a production activation claim.
+
 ## Acceptance gates for the first integrated slice
 
 - legacy and React routes can be switched independently by a feature flag;
@@ -97,7 +109,7 @@ wired into the MES application and is not a release candidate.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract.
+1. Finish the isolated lab and component contract. **Complete for two registry proofs.**
 2. Wait for PostgreSQL live worker acceptance and contract checkpoint.
 3. Rebase this branch onto the accepted PostgreSQL/main commit.
 4. Replace fixtures with read-only API adapters.
