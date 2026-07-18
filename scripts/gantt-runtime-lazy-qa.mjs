@@ -41,6 +41,25 @@ expect(Boolean(operationalRuntimeInitialization), "Operational-runtime initializ
 expect(operationalRuntimeInitialization.includes("getSlotRoute: (slot) => getPlanningSlotRoute(slot)"), "Operational runtime must use the lightweight planning route resolver before Gantt loads");
 expect(!operationalRuntimeInitialization.includes("getSlotRoute: (...args) => getSlotRoute(...args)"), "Operational runtime must not forward getSlotRoute through the lazy Gantt facade");
 
+const planningRoutesInitializationStart = appSource.indexOf("planningRoutesService = createPlanningRoutesServiceModule({");
+const planningRoutesInitializationEnd = appSource.indexOf("function updateModuleUrlParam", planningRoutesInitializationStart);
+const planningRoutesInitialization = planningRoutesInitializationStart >= 0 && planningRoutesInitializationEnd > planningRoutesInitializationStart
+  ? appSource.slice(planningRoutesInitializationStart, planningRoutesInitializationEnd)
+  : "";
+expect(Boolean(planningRoutesInitialization), "Planning-routes initialization must exist");
+expect(planningRoutesInitialization.includes("focusRoute: (...args) => ganttRuntime?.isReady?.() ? focusRoute(...args) : render(),"), "Cold route-to-Gantt flow must render the loading shell instead of calling the lazy focus facade");
+expect(planningRoutesInitialization.includes("snapToWorkingTime: (...args) => ganttRuntime?.isReady?.() ? snapToWorkingTime(...args) : args[1],"), "Cold route scheduling must not call the lazy calendar snap facade");
+expect(planningRoutesInitialization.includes("getWarningProductionId: (warning = {}) => warning.productionId || warning.projectId || \"\","), "Planning warnings must use the local production resolver before Gantt loads");
+expect(!planningRoutesInitialization.includes("getWarningProductionId: (...args) => typeof getWarningProductionId"), "Planning warnings must not forward through the lazy Gantt facade");
+
+const planningCoreInitializationStart = appSource.indexOf("planningCoreService = createPlanningCoreServiceModule({");
+const planningCoreInitializationEnd = appSource.indexOf("function renderUiAppShell", planningCoreInitializationStart);
+const planningCoreInitialization = planningCoreInitializationStart >= 0 && planningCoreInitializationEnd > planningCoreInitializationStart
+  ? appSource.slice(planningCoreInitializationStart, planningCoreInitializationEnd)
+  : "";
+expect(Boolean(planningCoreInitialization), "Planning-core initialization must exist");
+expect(planningCoreInitialization.includes("routeMatchesGanttFilters: (...args) => ganttRuntime?.isReady?.() ? routeMatchesGanttFilters(...args) : true,"), "Planning-core must not call Gantt filters before the lazy runtime loads");
+
 const appEventsInitializationStart = appSource.indexOf("appEventsService = createAppEventsServiceModule({");
 const appEventsInitializationEnd = appSource.indexOf("function updateClockOnly", appEventsInitializationStart);
 const appEventsInitialization = appEventsInitializationStart >= 0 && appEventsInitializationEnd > appEventsInitializationStart

@@ -119,6 +119,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     getSlotPlanningOrderId,
     getSlotRouteId,
     getSlotWarnings,
+    getWarningProductionId = (warning = {}) => warning.productionId || warning.projectId || "",
     getSpecificationByProjectId,
     getSpecificationItemFulfillmentMode,
     getSpecificationRouteForModule,

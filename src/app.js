@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.46";
+const APP_VERSION_FALLBACK = "v.1.499.47";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -402,7 +402,10 @@ function initializePlanningRoutesServiceModule() {
   formatDateTimeShort,
   formatDuration,
   formatReportNumber,
-  focusRoute: (...args) => typeof focusRoute === "function" ? focusRoute(...args) : undefined,
+  // A cold "Передать в Гант" switches the module before the lazy Gantt chunk
+  // has loaded. Rendering here starts its loading shell; the route selection
+  // is already persisted by the caller and will be rendered after `load()`.
+  focusRoute: (...args) => ganttRuntime?.isReady?.() ? focusRoute(...args) : render(),
   fromDateInput,
   getBatch, getBomList: (...args) => typeof getBomList === "function" ? getBomList(...args) : null, getBomResultNomenclatureItem: (...args) => typeof getBomResultNomenclatureItem === "function" ? getBomResultNomenclatureItem(...args) : null,
   getDefaultOperationCalculationType,
@@ -438,9 +441,7 @@ function initializePlanningRoutesServiceModule() {
   getSlotProductionContextId,
   getSlotRouteId,
   getSlotWarnings,
-  getWarningProductionId: (...args) => typeof getWarningProductionId === "function"
-    ? getWarningProductionId(...args)
-    : (args[0]?.productionId || args[0]?.projectId || ""),
+  getWarningProductionId: (warning = {}) => warning.productionId || warning.projectId || "",
   getSpecificationItemBoardsPerPanel, getSpecificationBomEntries: (...args) => typeof getSpecificationBomEntries === "function" ? getSpecificationBomEntries(...args) : [], getSpecificationById: (...args) => typeof getSpecificationById === "function" ? getSpecificationById(...args) : null, getSpecificationItemBomId: (...args) => typeof getSpecificationItemBomId === "function" ? getSpecificationItemBomId(...args) : "", getSpekiStructureItemDisplayName: (...args) => typeof getSpekiStructureItemDisplayName === "function" ? getSpekiStructureItemDisplayName(...args) : "", getSpekiStructureItemLabel: (...args) => typeof getSpekiStructureItemLabel === "function" ? getSpekiStructureItemLabel(...args) : "", getSpekiStructureTableRows: (...args) => typeof getSpekiStructureTableRows === "function" ? getSpekiStructureTableRows(...args) : [],
   getWorkCenter,
   getWorkCenterManualCapacity,
@@ -478,7 +479,10 @@ function initializePlanningRoutesServiceModule() {
   slotMatchesPlanningOrder,
   slotMatchesProductionContext,
   snapDate,
-  snapToWorkingTime: (...args) => typeof snapToWorkingTime === "function" ? snapToWorkingTime(...args) : args[1],
+  // Planning can calculate a route anchor before a user has opened Gantt.
+  // The date has already been snapped to the common grid; defer the
+  // work-calendar refinement until the timeline implementation is available.
+  snapToWorkingTime: (...args) => ganttRuntime?.isReady?.() ? snapToWorkingTime(...args) : args[1],
   toDate,
   toDateInput,
   toSlotDateTime,
@@ -5599,7 +5603,7 @@ function initializePlanningCoreServiceModule() {
     authPrototypePinDraft = "";
     authPrototypeKeypadDigits = [];
   },
-  routeMatchesGanttFilters: (...args) => typeof routeMatchesGanttFilters === "function" ? routeMatchesGanttFilters(...args) : true,
+  routeMatchesGanttFilters: (...args) => ganttRuntime?.isReady?.() ? routeMatchesGanttFilters(...args) : true,
   saveFeedbackTimer,
   saveUxRefreshTimer,
   scaleConfig,
@@ -6693,6 +6697,7 @@ appEventsService = createAppEventsServiceModule({
   getSlotPlanningOrderId,
   getSlotRouteId,
   getSlotWarnings,
+  getWarningProductionId: (warning = {}) => warning.productionId || warning.projectId || "",
   getSpecificationByProjectId,
   getSpecificationDeleteUsage,
   getSpecificationItemFulfillmentMode,
