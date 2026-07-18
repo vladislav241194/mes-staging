@@ -4,22 +4,27 @@ import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-run
 
 export type ReactMigrationScenarioId = "nomenclature" | "componentTypes";
 
-function ReactMigrationScenario({ payload, scenario }: { payload: unknown; scenario: ReactMigrationScenarioId }) {
+export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
+  onRequestLegacy?(): void;
+}
+
+function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequestLegacy?(): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
-  return <NomenclatureScenario payload={payload} />;
+  return <NomenclatureScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
 }
 
 export function mountReactMigrationIsland(
   target: HTMLElement,
   scenario: ReactMigrationScenarioId,
   initialPayload: unknown,
-  options: ReactMigrationIslandOptions = {},
+  options: ReactMigrationScenarioOptions = {},
 ): ReturnType<typeof mountReactIsland> {
+  const { onRequestLegacy, ...runtimeOptions } = options;
   return mountReactIsland(
     target,
-    (payload) => <ReactMigrationScenario payload={payload} scenario={scenario} />,
+    (payload) => <ReactMigrationScenario onRequestLegacy={onRequestLegacy} payload={payload} scenario={scenario} />,
     initialPayload,
-    options,
+    runtimeOptions,
   );
 }
 

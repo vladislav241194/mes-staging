@@ -41,6 +41,7 @@ export interface NomenclatureTypeOption {
 export interface NomenclatureReadModel {
   items: NomenclatureItem[];
   types: NomenclatureTypeOption[];
+  boardCount: number;
 }
 
 const inactiveStatuses = new Set(["отключен", "удален", "архив"]);
@@ -116,5 +117,6 @@ export function adaptNomenclatureReadModel(payload: unknown): NomenclatureReadMo
     typeKeys.add(key);
     return [{ id: `inferred-${key.replace(/[^a-zа-я0-9]+/gi, "-")}`, label: item.type, code: "", description: "" }];
   });
-  return { items, types: [...declaredTypes, ...inferredTypes] };
+  const boardCount = Array.isArray(record.bomLists) ? record.bomLists.length : 0;
+  return { items, types: [...declaredTypes, ...inferredTypes], boardCount };
 }

@@ -58,6 +58,7 @@ passed without console errors.
 - render/update failure: schedule exactly one fallback, unmount React, then
   render legacy outside the React render phase;
 - legacy state: reject later React updates instead of silently remounting;
+- unsupported scope: let a migrated child request the unchanged legacy route;
 - dispose: release a mounted island without removing an already restored
   legacy view.
 

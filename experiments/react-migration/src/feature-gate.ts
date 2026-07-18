@@ -4,7 +4,7 @@ export interface ReactIslandHandle {
 }
 
 export type ReactIslandFeatureState = "idle" | "react" | "legacy" | "disposed";
-export type LegacyFallbackReason = "disabled" | "mount-error" | "render-error";
+export type LegacyFallbackReason = "disabled" | "mount-error" | "render-error" | "unsupported-scope";
 
 export interface LegacyFallbackContext {
   reason: LegacyFallbackReason;
@@ -22,6 +22,7 @@ export interface ReactIslandFeatureGateOptions<TTarget> {
 export interface ReactIslandFeatureGate {
   activate(payload: unknown): ReactIslandFeatureState;
   update(payload: unknown): boolean;
+  requestLegacy(reason: "unsupported-scope"): boolean;
   dispose(): void;
   getState(): ReactIslandFeatureState;
 }
@@ -82,6 +83,11 @@ export function createReactIslandFeatureGate<TTarget>(options: ReactIslandFeatur
         scheduleRenderFallback(error);
         return false;
       }
+    },
+    requestLegacy(reason) {
+      if (state !== "react") return false;
+      renderLegacy({ reason });
+      return true;
     },
     dispose() {
       if (state === "disposed") return;

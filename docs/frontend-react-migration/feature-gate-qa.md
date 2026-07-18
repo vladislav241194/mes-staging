@@ -13,6 +13,8 @@ The isolated QA covers the future host boundary without importing MES runtime:
 - legacy state rejects later React updates;
 - disabled activation never calls the mount function;
 - synchronous mount failure renders legacy with the original error;
+- an unsupported child scope can explicitly request legacy without pretending
+  that the scope was migrated;
 - the PostgreSQL stop-list remains unchanged.
 
 ## Browser evidence
@@ -33,3 +35,7 @@ With `?lifecycle_qa=1`, an intentional render failure produced:
 This proves the rollback mechanics in the isolated host only. It is not yet a
 claim that the production legacy renderer, navigation, or Pilot feature flag is
 wired; those remain gated by PostgreSQL acceptance and rebase.
+
+The Nomenclature browser gate also verified `unsupported-scope`: choosing the
+legacy Boards pane removed the React `main`, preserved host controls, rendered
+one legacy fallback, and produced no console warnings/errors.

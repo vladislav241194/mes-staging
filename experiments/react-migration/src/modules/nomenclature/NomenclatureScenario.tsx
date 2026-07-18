@@ -4,7 +4,7 @@ import { resolveAvailableFilter } from "../../ui/selection";
 import { adaptNomenclatureReadModel } from "./adapter";
 import { buildNomenclatureFilters, filterNomenclatureItems, formatRecordCount, resolveVisibleSelection, type NomenclatureFilter } from "./view-model";
 
-export function NomenclatureScenario({ payload }: { payload: unknown }) {
+export function NomenclatureScenario({ payload, onRequestLegacy }: { payload: unknown; onRequestLegacy?(): void }) {
   const model = useMemo(() => adaptNomenclatureReadModel(payload), [payload]);
   const filters = useMemo(() => buildNomenclatureFilters(model), [model]);
   const [filter, setFilter] = useState<NomenclatureFilter>("all");
@@ -22,7 +22,7 @@ export function NomenclatureScenario({ payload }: { payload: unknown }) {
           count={entry.count}
           key={entry.id}
           label={entry.label}
-          onClick={() => setFilter(entry.id)}
+          onClick={() => entry.action === "legacy" ? onRequestLegacy?.() : setFilter(entry.id)}
         />
       ))}
     </ModuleSidebar>

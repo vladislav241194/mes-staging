@@ -10,11 +10,10 @@ Coordination handoff: PostgreSQL commit `4f0fbae`
 
 PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
 cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
-The PostgreSQL branch has since advanced to `e0661f3`, including guarded
+The PostgreSQL branch has since advanced to `2b8596d`, including guarded
 Specifications 2.0 commands, verified runtime rollback, and retirement fixes
 for System Domains shared-state compatibility plus compatibility-backup
-hardening. Its worktree also still contains uncommitted changes in owned
-version, shell, UI-QA, and `src/app.js` files. `origin/main` still points to the
+hardening and preparation of `v1.499.70`. `origin/main` still points to the
 shared baseline and no final integration checkpoint has been published.
 The PostgreSQL slice is still not ready for frontend integration: Specifications
 2.0 command validation, shared-state working-source retirement, staging rollback,
@@ -106,10 +105,16 @@ gate but does not wire or activate a production flag.
 
 The production-candidate Nomenclature entry is now separated from the
 multi-scenario lab. Its minified budget is `225,000 B` raw / `68,000 B` gzip;
-the current artifact is `204,954 B` / `63,501 B` and is checked not to contain
+the current artifact is `205,450 B` / `63,632 B` and is checked not to contain
 the Component Types scenario. The shared runtime reports post-commit revision
 events, so Pilot mount/update time can later be measured without arbitrary
 timeouts. Local timings are QA evidence only, not Pilot acceptance.
+
+The legacy source audit also found that `Печатные платы` in the Nomenclature
+sidebar opens the separate Boards/BOM pane and counts `bomLists`; it is not an
+item filter. The React item-list scenario now requests `unsupported-scope` and
+returns to legacy for that action. Boards remains a separate future vertical
+scenario, preserving the current business navigation in the meantime.
 
 ## Acceptance gates for the first integrated slice
 

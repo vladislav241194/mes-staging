@@ -1,4 +1,8 @@
 export const nomenclatureFixture = {
+  bomLists: [
+    { id: "board-control", name: "Плата управления" },
+    { id: "board-power", name: "Плата питания" },
+  ],
   nomenclatureTypes: [
     { id: "nom-type-rea", name: "РЭА компоненты", code: "REA", description: "Резисторы, конденсаторы, микросхемы", status: "Активен" },
     { id: "nom-type-pcb", name: "Печатные платы", code: "PCB", description: "Голые платы и заготовки", status: "Активен" },
@@ -15,6 +19,7 @@ export const nomenclatureFixture = {
 };
 
 export const nomenclatureUpdateFixture = {
+  bomLists: nomenclatureFixture.bomLists,
   nomenclatureTypes: nomenclatureFixture.nomenclatureTypes,
   nomenclature: [
     { id: "cable-001", article: "CBL-USB-01", name: "Кабель сервисный USB", type: "Кабели и жгуты", unit: "шт.", package: "1 м", manufacturer: "MES Line", status: "Активен" },

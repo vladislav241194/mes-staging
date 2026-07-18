@@ -39,6 +39,8 @@ const renderLegacyFallback = (context: LegacyFallbackContext) => {
   const text = document.createElement("p");
   text.textContent = context.reason === "disabled"
     ? "React-сценарий выключен feature flag."
+    : context.reason === "unsupported-scope"
+      ? "Выбранный раздел остаётся в прежнем интерфейсе до отдельной миграции."
     : "React-сценарий остановлен; пользователь может продолжить в прежнем интерфейсе.";
   fallback.append(title, text);
   root.replaceChildren(fallback);
@@ -51,6 +53,7 @@ const featureGate = createReactIslandFeatureGate({
     return mountReactMigrationIsland(target, scenario, payload, {
       onError,
       onReady: ({ revision }) => recordRevisionCommit(revision),
+      onRequestLegacy: () => featureGate.requestLegacy("unsupported-scope"),
     });
   },
   renderLegacy: renderLegacyFallback,

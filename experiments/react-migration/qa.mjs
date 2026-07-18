@@ -96,6 +96,19 @@ try {
     ["Вся номенклатура", 1],
     ["РЭА компоненты", 1],
   ]);
+  const boardReadModel = adaptNomenclatureReadModel({
+    nomenclature: [{ id: "pcb", name: "Плата", type: "Печатные платы" }],
+    nomenclatureTypes: [{ id: "pcb-type", name: "Печатные платы", status: "Активен" }],
+    bomLists: [{ id: "board-1" }, { id: "board-2" }],
+  });
+  const boardFilter = viewModel.buildNomenclatureFilters(boardReadModel).find((entry) => entry.label === "Печатные платы");
+  assert.deepEqual(boardFilter, {
+    id: "__boards__",
+    label: "Печатные платы",
+    count: 2,
+    description: "",
+    action: "legacy",
+  }, "Boards sidebar entry must preserve the legacy BOM pane semantics");
 
   const componentTypesAdapterOutput = join(temporaryRoot, "component-types-adapter.mjs");
   await build({
@@ -216,6 +229,24 @@ try {
   assert.equal(mountFailureGate.activate("payload"), "legacy");
   assert.deepEqual(mountFailureEvents, [["mount-error", "mount failed"]]);
 
+  const unsupportedEvents = [];
+  const unsupportedGate = createReactIslandFeatureGate({
+    enabled: true,
+    target: {},
+    mount() {
+      return {
+        update() {},
+        unmount() { unsupportedEvents.push("unmount"); },
+      };
+    },
+    renderLegacy(context) { unsupportedEvents.push(context.reason); },
+  });
+  assert.equal(unsupportedGate.activate("payload"), "react");
+  assert.equal(unsupportedGate.requestLegacy("unsupported-scope"), true);
+  assert.equal(unsupportedGate.getState(), "legacy");
+  assert.equal(unsupportedGate.requestLegacy("unsupported-scope"), false);
+  assert.deepEqual(unsupportedEvents, ["unmount", "unsupported-scope"]);
+
   const updateFailureScheduled = [];
   const updateFailureEvents = [];
   const updateFailureGate = createReactIslandFeatureGate({
@@ -274,6 +305,7 @@ try {
 
   const nomenclatureIslandSource = await readFile(join(sourceRoot, "nomenclature-island.tsx"), "utf8");
   assert.match(nomenclatureIslandSource, /export function mountNomenclatureReactIsland/);
+  assert.match(nomenclatureIslandSource, /onRequestLegacy/);
 
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
@@ -284,6 +316,7 @@ try {
   assert.match(mainSource, /Legacy-интерфейс восстановлен/);
   assert.match(mainSource, /Lifecycle QA render failure/);
   assert.match(mainSource, /reactIslandCommitMs/);
+  assert.match(mainSource, /featureGate\.requestLegacy\("unsupported-scope"\)/);
 
   const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });
   assert.equal(blockedDiff.trim(), "", `migration branch changed blocked paths:\n${blockedDiff}`);

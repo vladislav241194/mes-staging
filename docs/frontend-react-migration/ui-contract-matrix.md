@@ -74,3 +74,18 @@ This second implementation is the reuse gate for the registry family. Both
 screens share page/header/sidebar/panel/action/table/keyboard-row/detail/status
 behavior. A difference is allowed only in entity columns and entity-specific
 detail fields; it is not encoded as a new visual variant by default.
+
+## Nomenclature scope boundary
+
+The legacy Nomenclature sidebar composes two different domains: ordinary
+nomenclature type filters and a `Печатные платы` action that opens the embedded
+Boards/BOM pane. The React item-list scenario keeps this distinction:
+
+- ordinary types filter the typed nomenclature payload;
+- the Boards badge counts `bomLists`;
+- selecting Boards requests legacy through the feature gate;
+- Boards must be migrated as a separate vertical scenario before React can own
+  that pane.
+
+This is classified as process-specific composition, not a `SidebarItem` visual
+variant and not permission to reinterpret Boards as a nomenclature filter.

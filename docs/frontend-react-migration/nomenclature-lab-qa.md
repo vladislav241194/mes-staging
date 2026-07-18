@@ -36,6 +36,8 @@ Checked in the local in-app browser at a 1280px viewport:
 
 - all four positions render with the seven legacy data columns;
 - declared active types render with correct counts;
+- `Печатные платы` uses the separate legacy `bomLists` count instead of the
+  count of nomenclature rows with that type;
 - the archived type is absent;
 - `РЭА компоненты` filters the list from four rows to two;
 - keyboard `Enter` selects `Микроконтроллер STM32`;
@@ -46,6 +48,19 @@ Checked in the local in-app browser at a 1280px viewport:
 - an active zero-count type shows `EmptyState`, no table, no selected row, and
   no page overflow;
 - browser console warnings/errors: none.
+
+## Legacy Boards pane parity
+
+The source audit of `src/modules/nomenclature/render.js` showed that
+`Печатные платы` is not a normal nomenclature filter. It switches to the
+embedded Boards/BOM pane and its badge counts `directoryState.bomLists`.
+
+The fixture deliberately contains one nomenclature PCB row and two `bomLists`.
+The browser rendered `Печатные платы 2`. Clicking it requested
+`unsupported-scope`, unmounted React, restored the host-owned legacy view, and
+left no React `main`. The console remained clean. The Boards pane is therefore
+preserved in legacy until it receives its own vertical migration; React no
+longer silently changes this business navigation into a row filter.
 
 ## React island lifecycle evidence
 
