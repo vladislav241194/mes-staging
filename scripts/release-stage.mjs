@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -231,6 +231,41 @@ async function installBootstrapSnapshotArtifact({ contour, remote, releaseAppPat
   await run("ssh", sshArgs(remote, remoteCommand));
 }
 
+async function prepareLocalBootstrapSnapshotArtifact({ contour, remote, artifact }) {
+  const localPath = join(projectRoot, "bootstrap-snapshot.json");
+  try {
+    await access(localPath);
+    throw new Error("Refusing release staging with an unmanaged local bootstrap-snapshot.json");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  // The snapshot is an external operational artifact. A clean Git checkout
+  // deliberately has no local copy, but the deterministic web build still
+  // needs it. Materialize the exact remote artifact only for the build, then
+  // remove it before re-validating the clean source provenance.
+  const downloadDir = await mkdtemp(join(tmpdir(), "mes-release-bootstrap-"));
+  const downloadPath = join(downloadDir, "bootstrap-snapshot.json");
+  try {
+    await run("scp", [...sshOptions, `${remote}:${contour.bootstrapSnapshotPath}`, downloadPath]);
+    JSON.parse(await readFile(downloadPath, "utf8"));
+    if (await sha256(downloadPath) !== artifact.sha256) {
+      throw new Error("Local bootstrap snapshot digest does not match the operational artifact");
+    }
+    await copyFile(downloadPath, localPath);
+  } catch (error) {
+    await rm(downloadDir, { recursive: true, force: true });
+    throw error;
+  }
+
+  return {
+    cleanup: async () => {
+      await rm(localPath, { force: true });
+      await rm(downloadDir, { recursive: true, force: true });
+    },
+  };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const contour = CONTOURS[args.contour];
@@ -268,11 +303,25 @@ async function main() {
   const remoteExists = await run("ssh", sshArgs(args.remote, `test ! -e ${shellQuote(releasePath)}`), { allowFailure: true });
   if (remoteExists.code !== 0) throw new Error(`Release path already exists: ${releasePath}`);
 
-  await run("npm", ["ci"]);
-  await run("npm", ["run", "build"]);
-  const firstDistTreeSha256 = await treeSha(["dist"]);
-  await run("npm", ["run", "build"]);
-  const secondDistTreeSha256 = await treeSha(["dist"]);
+  const bootstrapSnapshotArtifact = await ensureBootstrapSnapshotArtifact({ contour, remote: args.remote });
+  const localBootstrapSnapshot = await prepareLocalBootstrapSnapshotArtifact({
+    contour,
+    remote: args.remote,
+    artifact: bootstrapSnapshotArtifact,
+  });
+  const distCompatibilityExcludes = bootstrapSnapshotArtifact.stagedPaths
+    .filter((path) => path.startsWith("dist/"));
+  let firstDistTreeSha256;
+  let secondDistTreeSha256;
+  try {
+    await run("npm", ["ci"]);
+    await run("npm", ["run", "build"]);
+    firstDistTreeSha256 = await treeSha(["dist"], { excludes: distCompatibilityExcludes });
+    await run("npm", ["run", "build"]);
+    secondDistTreeSha256 = await treeSha(["dist"], { excludes: distCompatibilityExcludes });
+  } finally {
+    await localBootstrapSnapshot.cleanup();
+  }
   if (firstDistTreeSha256 !== secondDistTreeSha256) {
     throw new Error("Refusing non-deterministic build output; the two dist digests differ");
   }
@@ -280,7 +329,6 @@ async function main() {
   const sourceTreeSha256 = await treeSha(SOURCE_INCLUDES);
   const distTreeSha256 = secondDistTreeSha256;
   const packageLockSha256 = await sha256(join(projectRoot, "package-lock.json"));
-  const bootstrapSnapshotArtifact = await ensureBootstrapSnapshotArtifact({ contour, remote: args.remote });
   const manifest = {
     schemaVersion: 2,
     releaseId,

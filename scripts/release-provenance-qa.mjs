@@ -134,6 +134,9 @@ assert(stageSource.includes("collectPublishedGitProvenance"), "Release staging m
 assert(stageSource.includes("refreshRemote: !args.dryRun"), "Only real staging may require live Git remote verification");
 assert(stageSource.includes("schemaVersion: 2"), "New staged manifests must carry the provenance schema");
 assert(stageSource.includes("assertReleaseSourceStillMatchesProvenance(gitCommit)"), "Release staging must recheck source provenance after building");
+assert(stageSource.includes("prepareLocalBootstrapSnapshotArtifact"), "Release staging must materialize the external bootstrap snapshot for clean local builds");
+assert(stageSource.includes("await localBootstrapSnapshot.cleanup()"), "Release staging must remove the temporary local bootstrap snapshot before provenance is rechecked");
+assert(stageSource.includes("treeSha([\"dist\"], { excludes: distCompatibilityExcludes })"), "Release staging must exclude the external dist bootstrap artifact from the reproducible build digest");
 
 await verifyManifestContract();
 console.log("Release provenance QA: OK");
