@@ -31,17 +31,17 @@ async function collectCssFiles(relativeDir = "styles") {
   return files;
 }
 
-async function collectJsFiles(relativeDir = "src") {
+async function collectRuntimeFiles(relativeDir = "src") {
   const absoluteDir = path.join(rootDir, relativeDir);
   const entries = await fs.readdir(absoluteDir, { withFileTypes: true }).catch(() => []);
   const files = [];
   for (const entry of entries) {
     const relativePath = `${relativeDir}/${entry.name}`;
     if (entry.isDirectory()) {
-      files.push(...await collectJsFiles(relativePath));
+      files.push(...await collectRuntimeFiles(relativePath));
       continue;
     }
-    if (entry.isFile() && entry.name.endsWith(".js")) files.push(relativePath);
+    if (entry.isFile() && [".js", ".ts", ".tsx"].includes(path.extname(entry.name))) files.push(relativePath);
   }
   return files;
 }
@@ -60,8 +60,11 @@ function maskCssNonSelectorText(source) {
     .replace(/(["'])(?:\\.|(?!\1)[\s\S])*\1/g, (match) => match.replace(/[^\n]/g, " "));
 }
 
-const jsFiles = await collectJsFiles();
-const runtimeSource = (await Promise.all(jsFiles.map((file) => fs.readFile(path.join(rootDir, file), "utf8")))).join("\n");
+const runtimeFiles = [
+  ...await collectRuntimeFiles("src"),
+  ...await collectRuntimeFiles("experiments/react-migration/src"),
+];
+const runtimeSource = (await Promise.all(runtimeFiles.map((file) => fs.readFile(path.join(rootDir, file), "utf8")))).join("\n");
 const cssFiles = ["styles.css", ...await collectCssFiles()];
 const classes = new Map();
 const allClasses = new Map();
@@ -140,6 +143,6 @@ if (unexpectedCssOnlyClasses.length) {
   process.exit(1);
 }
 
-console.log(`Runtime JS files checked: ${jsFiles.length}`);
-console.log("OK: selected hard-runtime CSS classes are backed by src/**/*.js runtime classes.");
+console.log(`Runtime JS/TS/TSX files checked: ${runtimeFiles.length}`);
+console.log("OK: selected hard-runtime CSS classes are backed by production runtime sources.");
 console.log("OK: global CSS-only classes are limited to documented dynamic patterns.");
