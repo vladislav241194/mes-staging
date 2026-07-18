@@ -1498,18 +1498,22 @@ border-color: var(--mes-ui-primary-alpha-40);
 .speki-structure-table .dense-select-spekiStructureType.is-assembly > summary{
 border-color: var(--mes-ui-border-strong);
   background: var(--mes-ui-surface-soft);
+  color: var(--mes-ui-status-neutral-text);
 }
 .speki-structure-table .dense-select-spekiStructureType.is-bom > summary{
 border-color: var(--mes-ui-status-info-border);
   background: var(--mes-ui-status-info-bg);
+  color: var(--mes-ui-status-info-text);
 }
 .speki-structure-table .dense-select-spekiStructureType.is-specification > summary{
 border-color: var(--mes-ui-status-warning-border);
   background: var(--mes-ui-status-warning-bg);
+  color: var(--mes-ui-status-warning-text);
 }
 .speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary{
 border-color: var(--mes-ui-status-success-border);
   background: var(--mes-ui-status-success-bg);
+  color: var(--mes-ui-status-success-text);
 }
 .route-step-order-badge,
 .route-step-compact-order .route-step-order-badge{

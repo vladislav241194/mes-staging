@@ -216,22 +216,6 @@ directories and table refinements.
   line-height: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}.speki-structure-table .dense-select-spekiStructureType.is-assembly > summary{
-  border-color: var(--mes-ui-status-neutral-border);
-  background: var(--mes-ui-status-neutral-bg);
-  color: var(--mes-ui-status-neutral-text);
-}.speki-structure-table .dense-select-spekiStructureType.is-bom > summary{
-  border-color: var(--mes-ui-status-info-border);
-  background: var(--mes-ui-status-info-bg);
-  color: var(--mes-ui-status-info-text);
-}.speki-structure-table .dense-select-spekiStructureType.is-specification > summary{
-  border-color: var(--mes-ui-status-warning-border);
-  background: var(--mes-ui-status-warning-bg);
-  color: var(--mes-ui-status-warning-text);
-}.speki-structure-table .dense-select-spekiStructureType.is-nomenclature > summary{
-  border-color: var(--mes-ui-status-success-border);
-  background: var(--mes-ui-status-success-bg);
-  color: var(--mes-ui-status-success-text);
 }.speki-structure-table td.is-speki-field-missing{
   position: relative;
 }.speki-structure-table td.is-speki-field-missing::after{
