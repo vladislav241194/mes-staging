@@ -21,12 +21,6 @@
       ]
     },
     {
-      "source": "/workflow-preset.json",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
-      ]
-    },
-    {
       "source": "/styles.css",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
