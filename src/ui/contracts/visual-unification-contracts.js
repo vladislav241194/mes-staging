@@ -61,7 +61,10 @@ export const UI_VISUAL_HARD_EXCEPTIONS = [
   },
   {
     id: "print-geometry",
-    moduleIds: ["routes", "shiftWorkOrders"],
+    // Standalone `routes` is no longer an enrolled runtime module. Its retired
+    // print subtree must not keep a hard-exception entry outside the visual
+    // waves; the active shift-work-order print view remains protected here.
+    moduleIds: ["shiftWorkOrders"],
     scope: "print-subtree",
     protectedAreas: ["print-table", "print-page", "print-breaks"],
   },
