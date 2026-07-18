@@ -63,13 +63,21 @@ async function verifyManifestContract() {
   await writeFile(join(appRoot, "source.txt"), "source\n");
   await writeFile(join(appRoot, "dist", "index.js"), "dist\n");
   const bootstrapSnapshot = "{\"schemaVersion\":1}\n";
+  const bootstrapSnapshotGzip = "gzip-fixture\n";
+  const bootstrapSnapshotBrotli = "brotli-fixture\n";
   await writeFile(join(appRoot, "bootstrap-snapshot.json"), bootstrapSnapshot);
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), bootstrapSnapshot);
+  await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.gz"), bootstrapSnapshotGzip);
+  await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.br"), bootstrapSnapshotBrotli);
   const runtimeIncludes = ["source.txt"];
   const bootstrapSnapshotArtifact = {
     id: "bootstrap-snapshot",
     sha256: sha256(bootstrapSnapshot),
     stagedPaths: ["bootstrap-snapshot.json", "dist/bootstrap-snapshot.json"],
+    generatedPaths: [
+      { path: "dist/bootstrap-snapshot.json.gz", sha256: sha256(bootstrapSnapshotGzip) },
+      { path: "dist/bootstrap-snapshot.json.br", sha256: sha256(bootstrapSnapshotBrotli) },
+    ],
   };
   const manifest = {
     schemaVersion: 2,
@@ -91,7 +99,11 @@ async function verifyManifestContract() {
     distTreeSha256: await computeTreeSha({
       root: appRoot,
       includes: ["dist"],
-      excludes: ["dist/bootstrap-snapshot.json"],
+      excludes: [
+        "dist/bootstrap-snapshot.json",
+        "dist/bootstrap-snapshot.json.gz",
+        "dist/bootstrap-snapshot.json.br",
+      ],
     }),
     packageLockSha256: "d".repeat(64),
     compatibilityArtifacts: [bootstrapSnapshotArtifact],
@@ -110,6 +122,13 @@ async function verifyManifestContract() {
     "Compatibility artifact bootstrap-snapshot hash mismatch at dist/bootstrap-snapshot.json",
   );
   await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), bootstrapSnapshot);
+
+  await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.gz"), "corrupt-generated\n");
+  await expectFailure(
+    () => execFile("node", command, { cwd: process.cwd() }),
+    "Compatibility artifact bootstrap-snapshot generated hash mismatch at dist/bootstrap-snapshot.json.gz",
+  );
+  await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json.gz"), bootstrapSnapshotGzip);
 
   manifest.gitProvenance.verification = "cached-upstream";
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
@@ -162,6 +181,8 @@ assert(stageSource.includes("assertReleaseSourceStillMatchesProvenance(gitCommit
 assert(stageSource.includes("prepareLocalBootstrapSnapshotArtifact"), "Release staging must materialize the external bootstrap snapshot for clean local builds");
 assert(stageSource.includes("await localBootstrapSnapshot.cleanup()"), "Release staging must remove the temporary local bootstrap snapshot before provenance is rechecked");
 assert(stageSource.includes("assertLocalDistBootstrapSnapshotArtifact"), "Release staging must verify the built bootstrap artifact before digesting dist");
+assert(stageSource.includes("BOOTSTRAP_SNAPSHOT_GENERATED_PATHS"), "Release staging must classify compressed bootstrap sidecars as compatibility artifacts");
+assert(stageSource.includes("bootstrapSnapshotArtifact.generatedPaths = await collectGeneratedCompatibilityArtifacts"), "Release staging must record compressed bootstrap sidecar digests in the manifest");
 assert(
   stageSource.indexOf("await localBootstrapSnapshot.cleanup()") < stageSource.indexOf("await assertReleaseSourceStillMatchesProvenance(gitCommit)"),
   "Release staging must clean the temporary bootstrap artifact before rechecking Git provenance",

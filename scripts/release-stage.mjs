@@ -58,6 +58,10 @@ const RUNTIME_FILES = [
   "vercel.json",
 ];
 const SOURCE_INCLUDES = [...RUNTIME_DIRECTORIES, ...RUNTIME_FILES];
+const BOOTSTRAP_SNAPSHOT_GENERATED_PATHS = [
+  "dist/bootstrap-snapshot.json.gz",
+  "dist/bootstrap-snapshot.json.br",
+];
 
 function shellQuote(value) {
   return `'${String(value).replace(/'/g, "'\\''")}'`;
@@ -238,6 +242,13 @@ async function assertLocalDistBootstrapSnapshotArtifact(artifact) {
   }
 }
 
+async function collectGeneratedCompatibilityArtifacts(paths) {
+  return await Promise.all(paths.map(async (path) => ({
+    path,
+    sha256: await sha256(join(projectRoot, path)),
+  })));
+}
+
 async function prepareLocalBootstrapSnapshotArtifact({ contour, remote, artifact }) {
   const localPath = join(projectRoot, "bootstrap-snapshot.json");
   try {
@@ -317,7 +328,8 @@ async function main() {
     artifact: bootstrapSnapshotArtifact,
   });
   const distCompatibilityExcludes = bootstrapSnapshotArtifact.stagedPaths
-    .filter((path) => path.startsWith("dist/"));
+    .filter((path) => path.startsWith("dist/"))
+    .concat(BOOTSTRAP_SNAPSHOT_GENERATED_PATHS);
   let firstDistTreeSha256;
   let secondDistTreeSha256;
   try {
@@ -335,6 +347,9 @@ async function main() {
   if (firstDistTreeSha256 !== secondDistTreeSha256) {
     throw new Error("Refusing non-deterministic build output; the two dist digests differ");
   }
+  bootstrapSnapshotArtifact.generatedPaths = await collectGeneratedCompatibilityArtifacts(
+    BOOTSTRAP_SNAPSHOT_GENERATED_PATHS,
+  );
   await assertReleaseSourceStillMatchesProvenance(gitCommit);
   const sourceTreeSha256 = await treeSha(SOURCE_INCLUDES);
   const distTreeSha256 = secondDistTreeSha256;

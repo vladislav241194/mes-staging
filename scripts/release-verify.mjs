@@ -92,6 +92,14 @@ async function main() {
       assert(actualDigest === artifact.sha256, `Compatibility artifact ${artifact.id} hash mismatch at ${stagedPath}`);
       if (stagedPath.startsWith("dist/")) distExcludes.push(stagedPath);
     }
+    const generatedPaths = Array.isArray(artifact.generatedPaths) ? artifact.generatedPaths : [];
+    for (const generated of generatedPaths) {
+      assert(typeof generated?.path === "string" && generated.path, `Compatibility artifact ${artifact.id} generated path is missing`);
+      assert(typeof generated?.sha256 === "string" && /^[a-f0-9]{64}$/i.test(generated.sha256), `Compatibility artifact ${artifact.id} generated digest is invalid at ${generated.path}`);
+      const actualDigest = await sha256(resolveAppFile(appRoot, generated.path));
+      assert(actualDigest === generated.sha256, `Compatibility artifact ${artifact.id} generated hash mismatch at ${generated.path}`);
+      if (generated.path.startsWith("dist/")) distExcludes.push(generated.path);
+    }
   }
 
   const sourceTreeSha256 = await computeTreeSha({ root: appRoot, includes: manifest.runtimeIncludes });
