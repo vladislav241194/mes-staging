@@ -7,11 +7,13 @@ import {
   PARTIAL_UI_RUNTIME_CONTRACTS,
   PARTIAL_UI_RUNTIME_MODULE_IDS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
+  UI_HARDENING_KEY_RUNTIME_MODULE_IDS,
   UI_HARDENING_PLAN_STAGES,
   UI_RUNTIME_COMPONENT_CONTRACTS,
   UI_RUNTIME_DOM_NORMALIZER_CONTRACTS,
   UI_RUNTIME_STYLE_TOKENS,
 } from "../src/ui_runtime_contracts.js";
+import { MES_MODULE_FLOW_SEQUENCE } from "../src/mes_contracts.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -118,6 +120,7 @@ const evidenceLabels = {
   "dropdown-helper": "dropdown собирается через renderUiDropdownFrame",
   "opened-overlay-smoke-gates": "открытые состояния modal/drawer/dropdown попали в QA",
   "key-modules-explicit-runtime": "ключевые модули имеют явный runtime coverage",
+  "legacy-module-alias-smoke-coverage": "устаревшие deep links проверяются как aliases канонических runtime-модулей",
   "partial-runtime-modules-documented": "partial runtime modules имеют причину и следующий шаг",
   "no-legacy-runtime-modules": "legacy runtime modules отсутствуют",
   "qa-ui-script": "qa:ui запускает все UI gates, включая план",
@@ -235,17 +238,26 @@ const evidenceChecks = {
     });
   },
   "key-modules-explicit-runtime": () => {
+    const duplicateKeyModuleIds = UI_HARDENING_KEY_RUNTIME_MODULE_IDS.filter((moduleId, index, ids) => ids.indexOf(moduleId) !== index);
+    assert(!duplicateKeyModuleIds.length, `duplicate key runtime modules: ${[...new Set(duplicateKeyModuleIds)].join(", ")}`);
+    UI_HARDENING_KEY_RUNTIME_MODULE_IDS.forEach((moduleId) => {
+      assert(MES_MODULE_FLOW_SEQUENCE.includes(moduleId), `key runtime module is not an active Blueprint module ${moduleId}`);
+      assert(hasExplicitRuntimeModule(moduleId), `missing explicit runtime module ${moduleId}`);
+    });
+    ["nomenclature", "specifications2", "directories"].forEach((moduleId) => {
+      assert(UI_HARDENING_KEY_RUNTIME_MODULE_IDS.includes(moduleId), `technology/reference runtime coverage is missing ${moduleId}`);
+    });
+  },
+  "legacy-module-alias-smoke-coverage": () => {
     [
-      "planning",
-      "products",
-      "specifications2",
-      "routes",
-      "shiftMasterBoard",
-      "shiftWorkOrders",
-      "timesheet",
-      "roles",
-      "productionStructureMatrix",
-    ].forEach((moduleId) => assert(hasExplicitRuntimeModule(moduleId), `missing explicit runtime module ${moduleId}`));
+      { source: "products", target: "specifications2" },
+      { source: "routes", target: "specifications2" },
+    ].forEach(({ source, target }) => {
+      assert(!MES_MODULE_FLOW_SEQUENCE.includes(source), `legacy deep link must not return as an active Blueprint module ${source}`);
+      assert(!UI_HARDENING_KEY_RUNTIME_MODULE_IDS.includes(source), `legacy deep link must not be treated as a runtime module ${source}`);
+      includes(moduleSmokeSource, `{ source: "${source}", target: "${target}" }`, `${source} -> ${target} legacy alias smoke coverage`);
+      assert(hasExplicitRuntimeModule(target), `legacy alias target lacks explicit runtime coverage ${source} -> ${target}`);
+    });
   },
   "partial-runtime-modules-documented": () => {
     assert(PARTIAL_UI_RUNTIME_MODULE_IDS.length === 0 || Object.keys(PARTIAL_UI_RUNTIME_CONTRACTS).length >= PARTIAL_UI_RUNTIME_MODULE_IDS.length, "partial runtime contracts do not cover listed modules");

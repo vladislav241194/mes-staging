@@ -7,7 +7,10 @@ import {
   SPECIAL_UI_RUNTIME_MODULE_IDS,
   UI_RUNTIME_COVERAGE_NOTES,
 } from "./ui/contracts/runtime-contracts.js";
-import { UI_HARDENING_PLAN_STAGES } from "./ui/contracts/hardening-plan-contracts.js";
+import {
+  UI_HARDENING_KEY_RUNTIME_MODULE_IDS,
+  UI_HARDENING_PLAN_STAGES,
+} from "./ui/contracts/hardening-plan-contracts.js";
 import {
   UI_VISUAL_HARD_EXCEPTIONS,
   UI_VISUAL_MASTER_STAGES,
@@ -26,6 +29,7 @@ export {
   SPECIAL_UI_RUNTIME_CONTRACTS,
   SPECIAL_UI_RUNTIME_MODULE_IDS,
   UI_RUNTIME_COVERAGE_NOTES,
+  UI_HARDENING_KEY_RUNTIME_MODULE_IDS,
   UI_HARDENING_PLAN_STAGES,
   UI_VISUAL_HARD_EXCEPTIONS,
   UI_VISUAL_MASTER_STAGES,

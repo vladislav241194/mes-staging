@@ -1,3 +1,19 @@
+// Keep this list in terms of current Blueprint IDs only. Legacy deep links such
+// as `products` and `routes` are compatibility aliases for Specifications 2.0
+// and are exercised through the module-smoke alias suite instead of being
+// treated as independent runtime pages.
+export const UI_HARDENING_KEY_RUNTIME_MODULE_IDS = Object.freeze([
+  "planning",
+  "nomenclature",
+  "specifications2",
+  "directories",
+  "shiftMasterBoard",
+  "shiftWorkOrders",
+  "timesheet",
+  "roles",
+  "productionStructureMatrix",
+]);
+
 export const UI_HARDENING_PLAN_STAGES = [
   {
     order: 1,
@@ -60,7 +76,7 @@ export const UI_HARDENING_PLAN_STAGES = [
     id: "key-module-migration",
     title: "Миграция ключевых модулей",
     status: "closed",
-    requiredEvidence: ["key-modules-explicit-runtime", "partial-runtime-modules-documented", "no-legacy-runtime-modules"],
+    requiredEvidence: ["key-modules-explicit-runtime", "legacy-module-alias-smoke-coverage", "partial-runtime-modules-documented", "no-legacy-runtime-modules"],
   },
   {
     order: 10,
