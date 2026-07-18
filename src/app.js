@@ -205,6 +205,7 @@ const app = document.querySelector("#app");
 let appBootstrapped = false;
 let mesCustomIconLoadScheduled = false;
 let moduleRuntime = null;
+let mesRenderDepth = 0;
 let suppressedGanttSlotClick = null;
 let sharedStateApplyingRemote = false;
 let externalStorageSyncTimer = null;
@@ -672,7 +673,7 @@ let renderRoutesPage = () => routesRenderLoadingPage();
 let renderWorkOrderPrintPackageModal = () => "";
 let routesRenderModuleLoad = null;
 let routesRenderModuleError = null;
-function initializeRoutesRenderModule() {
+function initializeRoutesRenderModule(factory) {
   ({
     getWorkOrderPrintPackageViewModel,
     getRouteTaskTypeLabel,
@@ -681,7 +682,7 @@ function initializeRoutesRenderModule() {
     renderRouteTreeCell,
     renderRoutesPage,
     renderWorkOrderPrintPackageModal,
-  } = createRoutesRenderModule({
+  } = factory({
   MAIN_ROUTE_TASK_ID,
   distance,
   escapeHtml,
@@ -1451,7 +1452,15 @@ function invalidateWeeklyPlanningPeriod() {
     preferLocal: true,
     epoch: Number(weeklyPlanningPeriodState.epoch || 0) + 1,
   };
-  if (ui?.activeModule === "weeklyProductionControl") {
+  // Service facades publish their current state after a call, including
+  // read-only helpers used while a page is rendering.  A visible weekly page
+  // must become stale, but it must not synchronously re-enter its own render
+  // from that publication.
+  const canRefreshVisibleWeeklyPage = ui?.activeModule === "weeklyProductionControl"
+    && Boolean(appBootstrapped)
+    && Boolean(moduleRuntime)
+    && mesRenderDepth === 0;
+  if (canRefreshVisibleWeeklyPage) {
     // Switch to the compatibility snapshot immediately; the server refresh is
     // background-only and must never hide a just-written local value.
     render({ skipRememberScroll: true });
@@ -1474,6 +1483,12 @@ function getWeeklyPlanningLocalRows(bounds = {}) {
 }
 
 function setPlanningStateAndInvalidate(nextState) {
+  // The generic module facades publish their current state after every call,
+  // including read-only helpers used during rendering. A matching root object
+  // is not a planning change. Actual in-place writes are invalidated after a
+  // successful persistState() below, while root replacements continue to
+  // invalidate immediately.
+  if (nextState === planningState) return;
   planningState = nextState;
   invalidateWeeklyPlanningPeriod();
 }
@@ -5150,7 +5165,17 @@ function applyBootstrapSnapshotValues(...args) { return runtimeStateService.appl
 function restoreBootstrapSnapshotIfCurrentPlanningEmpty(...args) { return runtimeStateService.restoreBootstrapSnapshotIfCurrentPlanningEmpty(...args); }
 function createDefaultDirectoryState(...args) { return runtimeStateService.createDefaultDirectoryState(...args); }
 function loadState(...args) { return runtimeStateService.loadState(...args); }
-function persistState(...args) { return runtimeStateService.persistState(...args); }
+function persistState(...args) {
+  const stateBeforePersist = planningState;
+  const result = runtimeStateService.persistState(...args);
+  // Most commands update collections in-place. Their service wrapper commits
+  // the same root object, which is deliberately ignored above; make the
+  // weekly projection stale exactly once after the durable snapshot changes.
+  if (result?.changed && planningState === stateBeforePersist) {
+    invalidateWeeklyPlanningPeriod();
+  }
+  return result;
+}
 function recoverPlanningStateFromStorageIfRuntimeEmpty(...args) { return runtimeStateService.recoverPlanningStateFromStorageIfRuntimeEmpty(...args); }
 function recoverPlanningRuntimeSnapshot(...args) { return runtimeStateService.recoverPlanningRuntimeSnapshot(...args); }
 function parsePlanningStateSnapshot(...args) { return runtimeStateService.parsePlanningStateSnapshot(...args); }
@@ -5931,6 +5956,15 @@ function isPerformanceQaMode() {
 }
 
 function render(options = {}) {
+  mesRenderDepth += 1;
+  try {
+    return renderCurrentModule(options);
+  } finally {
+    mesRenderDepth = Math.max(0, mesRenderDepth - 1);
+  }
+}
+
+function renderCurrentModule(options = {}) {
   const renderStartedAt = isPerformanceQaMode() ? performance.now() : 0;
   const renderProfile = [];
   const recordRenderPhase = (name, startedAt) => {

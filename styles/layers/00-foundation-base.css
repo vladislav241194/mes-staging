@@ -7,7 +7,7 @@ base browser primitives.
   src: url("../../assets/fonts/onest/Onest-Variable.woff2") format("woff2-variations");
   font-style: normal;
   font-weight: 100 900;
-  font-display: block;
+  font-display: swap;
 }
 :root{
   --bg: #eef3f8;

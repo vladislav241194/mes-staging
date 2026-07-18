@@ -1395,6 +1395,7 @@ function persistState() {
     localStorage.setItem(STORAGE_KEY, nextRaw);
   }
   scheduleSharedStatePush("planning-state");
+  return { changed: previousRaw !== nextRaw };
 }
 
 function recoverPlanningStateFromStorageIfRuntimeEmpty(reason = "runtime-empty") {

@@ -3,7 +3,12 @@ import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-const defaultUrl = new URL("/?module=gantt&qa-auth-bypass=1&qa=boot-performance", process.env.MES_QA_URL || "http://localhost:4174/").toString();
+const defaultModule = getArg("--module", "gantt");
+const defaultUrlObject = new URL("/", process.env.MES_QA_URL || "http://localhost:4174/");
+defaultUrlObject.searchParams.set("module", defaultModule);
+defaultUrlObject.searchParams.set("qa-auth-bypass", "1");
+defaultUrlObject.searchParams.set("qa", "boot-performance");
+const defaultUrl = defaultUrlObject.toString();
 const bootStorageKey = "mes-boot-performance-last";
 const sharedSyncStorageKey = "mes-shared-state-sync-last";
 const bootErrorStorageKey = "mes-boot-performance-error";
@@ -92,6 +97,7 @@ class CdpClient {
   constructor(webSocketUrl) {
     this.nextId = 1;
     this.pending = new Map();
+    this.listeners = new Map();
     this.socket = new WebSocket(webSocketUrl);
     this.ready = new Promise((resolve, reject) => {
       this.socket.addEventListener("open", resolve, { once: true });
@@ -102,11 +108,24 @@ class CdpClient {
 
   onMessage(event) {
     const message = JSON.parse(event.data);
-    if (!message.id || !this.pending.has(message.id)) return;
+    if (!message.id) {
+      (this.listeners.get(message.method) || []).forEach((listener) => listener(message.params || {}));
+      return;
+    }
+    if (!this.pending.has(message.id)) return;
     const { resolve, reject } = this.pending.get(message.id);
     this.pending.delete(message.id);
     if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
     else resolve(message.result || {});
+  }
+
+  on(method, listener) {
+    const listeners = this.listeners.get(method) || [];
+    listeners.push(listener);
+    this.listeners.set(method, listeners);
+    return () => {
+      this.listeners.set(method, (this.listeners.get(method) || []).filter((item) => item !== listener));
+    };
   }
 
   async send(method, params = {}, timeoutMs = 15000) {
@@ -241,6 +260,44 @@ async function waitForSharedSyncReport(client) {
   throw new Error("Shared-state sync performance report was not written to sessionStorage.");
 }
 
+async function waitForFontIndependentFirstFrame(client) {
+  const startedAt = Date.now();
+  let lastState = null;
+  while (Date.now() - startedAt < 3000) {
+    lastState = await evaluate(client, () => {
+      const firstFrame = window.__MES_QA_FONT_FIRST_FRAME__ || null;
+      if (firstFrame) return firstFrame;
+      return null;
+    });
+    if (lastState) return lastState;
+    await delay(30);
+  }
+  throw new Error("App did not produce a first frame while the web font was unavailable.");
+}
+
+async function waitForFontIndependentVisibleApp(client) {
+  const startedAt = Date.now();
+  let lastState = null;
+  while (Date.now() - startedAt < 3000) {
+    lastState = await evaluate(client, () => {
+      const app = document.querySelector("#app");
+      const overlay = document.querySelector("[data-mes-boot-overlay]");
+      return {
+        appHasContent: Boolean(app?.children.length),
+        appVisibility: app ? getComputedStyle(app).visibility : "missing",
+        appDisplay: app ? getComputedStyle(app).display : "missing",
+        bootOverlayPresent: Boolean(overlay),
+      };
+    });
+    if (lastState.appHasContent
+      && lastState.appVisibility !== "hidden"
+      && lastState.appDisplay !== "none"
+      && !lastState.bootOverlayPresent) return lastState;
+    await delay(30);
+  }
+  throw new Error(`App did not become fully visible without the web font: ${JSON.stringify(lastState)}`);
+}
+
 async function waitForDeferredSystemDomains(client) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 10000) {
@@ -262,6 +319,24 @@ async function waitForDeferredSystemDomains(client) {
   throw new Error("Deferred System Domains migration did not finish for a blank browser profile.");
 }
 
+async function waitForWeeklyRuntime(client) {
+  const startedAt = Date.now();
+  let lastState = null;
+  while (Date.now() - startedAt < 10000) {
+    lastState = await evaluate(client, () => ({
+      loaded: Boolean(document.querySelector(".weekly-production-control-panel")),
+      startupError: document.body?.innerText?.includes("Интерфейс не удалось запустить") || false,
+      loadingText: document.body?.innerText?.includes("Загружаем модуль") || false,
+    }));
+    if (lastState.startupError) {
+      throw new Error("Weekly control entered the startup-error boundary while its lazy runtime was loading.");
+    }
+    if (lastState.loaded) return lastState;
+    await delay(80);
+  }
+  throw new Error(`Weekly control runtime did not render after lazy load: ${JSON.stringify(lastState)}`);
+}
+
 function getStep(report, stepName) {
   return (report.entries || []).find((entry) => entry.step === stepName) || null;
 }
@@ -278,12 +353,76 @@ async function main() {
   const url = getArg("--url", inspectorUrl.toString());
   const reportPath = getArg("--report", defaultReportPath);
   const withSharedState = process.argv.includes("--with-shared-state");
+  const blockFont = process.argv.includes("--block-font");
+  const trackWeeklyPeriodRequests = defaultModule === "weeklyProductionControl";
   const verifyWarmStart = !process.argv.includes("--skip-warm-start-check");
   const chrome = await launchChrome();
   try {
     const { client } = chrome;
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    const fontRequests = new Map();
+    const blockedFontRequests = [];
+    const weeklyPeriodRequests = [];
+    if (blockFont || trackWeeklyPeriodRequests) {
+      await client.send("Network.enable");
+    }
+    if (trackWeeklyPeriodRequests) {
+      client.on("Network.requestWillBeSent", (params) => {
+        const url = String(params.request?.url || "");
+        if (new URL(url).pathname === "/api/v1/planning/period") {
+          weeklyPeriodRequests.push(url);
+        }
+      });
+    }
+    if (blockFont) {
+      client.on("Network.requestWillBeSent", (params) => {
+        const url = String(params.request?.url || "");
+        if (url.includes("Onest-Variable.woff2")) fontRequests.set(params.requestId, url);
+      });
+      client.on("Network.loadingFailed", (params) => {
+        const url = fontRequests.get(params.requestId);
+        if (url) blockedFontRequests.push({ url, errorText: String(params.errorText || "") });
+      });
+      await client.send("Network.setBlockedURLs", { urls: ["*Onest-Variable.woff2*"] });
+      await client.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: `
+          (() => {
+            let appObserver = null;
+            const captureFirstFrame = (app) => {
+              if (!app || window.__MES_QA_FONT_FIRST_FRAME__ || !app.children.length) return;
+              const style = getComputedStyle(app);
+              window.__MES_QA_FONT_FIRST_FRAME__ = {
+                appHasContent: true,
+                appVisibility: style.visibility,
+                appDisplay: style.display,
+                bootOverlayPresent: Boolean(document.querySelector("[data-mes-boot-overlay]")),
+                atMs: Number(performance.now().toFixed(2)),
+              };
+              appObserver?.disconnect();
+            };
+            const attach = () => {
+              const app = document.querySelector("#app");
+              if (!app || app.__mesQaFontObserverAttached) return;
+              app.__mesQaFontObserverAttached = true;
+              appObserver = new MutationObserver(() => captureFirstFrame(app));
+              appObserver.observe(app, { childList: true });
+              captureFirstFrame(app);
+            };
+            const observeRoot = () => {
+              const root = document.documentElement;
+              if (!root) {
+                document.addEventListener("DOMContentLoaded", observeRoot, { once: true });
+                return;
+              }
+              new MutationObserver(attach).observe(root, { childList: true, subtree: true });
+              attach();
+            };
+            observeRoot();
+          })();
+        `,
+      });
+    }
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `
         window.addEventListener("error", (event) => {
@@ -306,6 +445,7 @@ async function main() {
       mobile: false,
     });
     await client.send("Page.navigate", { url });
+    const fontFirstFrame = blockFont ? await waitForFontIndependentFirstFrame(client) : null;
     let report;
     try {
       report = await waitForBootReport(client);
@@ -320,6 +460,9 @@ async function main() {
     }
     const sharedSync = withSharedState ? await waitForSharedSyncReport(client) : null;
     const deferredSystemDomains = withSharedState ? null : await waitForDeferredSystemDomains(client);
+    const weeklyRuntime = defaultModule === "weeklyProductionControl" ? await waitForWeeklyRuntime(client) : null;
+    if (trackWeeklyPeriodRequests) await delay(1200);
+    const fontVisibility = blockFont ? await waitForFontIndependentVisibleApp(client) : null;
     if (expectQaInspector) {
       const inspectorLoaded = await evaluate(client, () => Boolean(document.querySelector('[data-mes-qa-ui="launcher"]')));
       assert(inspectorLoaded, "QA-инспектор не загрузился по требованию.");
@@ -375,12 +518,26 @@ async function main() {
     assert(report.totalMs <= startupTotalBudgetMs, `Startup took ${report.totalMs} ms, budget is ${startupTotalBudgetMs} ms.`);
     assert(loadStateMs !== null && loadStateMs <= loadStateBudgetMs, `loadState took ${loadStateMs ?? "unknown"} ms, budget is ${loadStateBudgetMs} ms. Steps: ${stepNames}`);
     assert(firstRenderMs !== null && firstRenderMs <= firstRenderBudgetMs, `first render took ${firstRenderMs ?? "unknown"} ms, budget is ${firstRenderBudgetMs} ms. Steps: ${stepNames}`);
+    if (blockFont) {
+      assert(fontFirstFrame?.appHasContent, "App did not render while the web font was unavailable.");
+      assert(fontFirstFrame?.appVisibility !== "hidden" && fontFirstFrame?.appDisplay !== "none",
+        `App first frame remained hidden while the web font was unavailable: ${JSON.stringify(fontFirstFrame)}`);
+      assert(!fontVisibility?.bootOverlayPresent, "Boot overlay remained visible after the first render while the web font was unavailable.");
+      assert(blockedFontRequests.length > 0,
+        `The expected web-font request was not blocked: ${JSON.stringify([...fontRequests.values()])}`);
+    }
+    if (trackWeeklyPeriodRequests) {
+      assert(weeklyPeriodRequests.length === 1,
+        `Weekly control must request its period once during a cold boot, got ${weeklyPeriodRequests.length}: ${JSON.stringify({ weeklyPeriodRequests })}`);
+    }
 
     const audit = {
       checkedAt: new Date().toISOString(),
       url,
+      module: defaultModule,
       coldProfile: true,
       withSharedState,
+      fontBlocked: blockFont,
       budgets: {
         startupTotalMs: startupTotalBudgetMs,
         loadStateMs: loadStateBudgetMs,
@@ -390,6 +547,11 @@ async function main() {
       navigation,
       resources: resourceSummary,
       deferredSystemDomains,
+      weeklyRuntime,
+      weeklyPeriodRequests,
+      fontFirstFrame,
+      fontVisibility,
+      blockedFontRequests,
       sharedStateSync: sharedSync,
       warmBoot: warmBoot ? {
         totalMs: warmBoot.totalMs,
@@ -412,6 +574,9 @@ async function main() {
     }
     if (warmBoot) {
       console.log(`- warm reload: ${warmBoot.totalMs} ms; one-time migrations skipped`);
+    }
+    if (fontVisibility) {
+      console.log(`- font-blocked first frame: ${fontFirstFrame.appVisibility} at ${fontFirstFrame.atMs} ms; overlay ${fontVisibility.bootOverlayPresent ? "visible" : "removed"}`);
     }
     console.log(`- report: ${reportPath}`);
     if (sharedSync) {

@@ -32,7 +32,6 @@
     </script>
     <link rel="preload" href="./assets/fonts/onest/Onest-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <style>
-      html:not(.mes-font-ready) #app{visibility:hidden}
       .mes-boot-inline{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:#edf3fa;color:#18314d;font:12px Onest,system-ui,sans-serif}
       .mes-boot-inline>div{display:grid;justify-items:center;gap:12px;padding:28px 34px;border:1px solid rgba(71,112,154,.14);border-radius:22px;background:rgba(255,255,255,.9);box-shadow:0 24px 70px rgba(22,50,82,.13)}
       .mes-boot-inline i{width:38px;height:38px;border:2px solid rgba(47,111,228,.14);border-top-color:#2f6fe4;border-radius:50%;animation:mes-boot-spin 1s linear infinite}
@@ -54,21 +53,6 @@
     <link rel="stylesheet" href="./styles/mes-ui-core.css?v=1.399" />
     <link rel="stylesheet" href="./styles.css?v=1.399" />
     <link rel="stylesheet" href="./styles/visual-overrides.live.css?v=1.399" data-visual-live="1" />
-    <script>
-      try {
-        const revealInterface = () => document.documentElement.classList.add("mes-font-ready");
-        if (document.fonts?.load) {
-          Promise.race([
-            document.fonts.load('400 12px "Onest"'),
-            new Promise((resolve) => window.setTimeout(resolve, 1500)),
-          ]).then(revealInterface, revealInterface);
-        } else {
-          revealInterface();
-        }
-      } catch {
-        document.documentElement.classList.add("mes-font-ready");
-      }
-    </script>
     <script>
       try {
         const params = new URL(window.location.href).searchParams;
