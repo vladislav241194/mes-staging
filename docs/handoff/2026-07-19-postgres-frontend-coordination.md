@@ -4,7 +4,10 @@ Date: 2026-07-19
 PostgreSQL worktree: `/Users/vladislav/Documents/Codex/2026-05-30/mes-postgres-primary`  
 Branch: `codex/postgres-primary-slice`  
 Base / merge-base with `origin/main`: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`  
-Current PostgreSQL HEAD: `1358f6206f1bccd3b2685730b02eb5dd68a4daf0`  
+Runtime candidate commit: `1358f6206f1bccd3b2685730b02eb5dd68a4daf0`
+
+Handoff commit at first publication: `4f0fbae`
+
 Visible application version: `v.1.499.68`
 
 This handoff contains no credentials. Pilot QA access must be obtained directly from the owner and must not be copied into Git, task handoffs, logs, screenshots, or memory.
@@ -17,14 +20,14 @@ Already confirmed on the live pilot:
 
 - System Domains external login reads the PostgreSQL-backed production structure: 9 departments and 76 employees.
 - A master can create an executor assignment in Workshop, and the PostgreSQL readiness surface reads it back (`assignmentCount=1`, `executorCount=1`).
+- After a cold employee login, the assigned task appears on the worker desktop; the employee records 1 of 1 units and the UI reads the closed fact back into Workshop/Gantt state.
+- The top-bar logout interaction returns the employee to the external authorization screen.
+- Temporary live-QA assignment/fact/carryover rows were removed with an exact-key guarded transaction; post-cleanup Shift Execution counts are `0/0/0/0` and all four domain readiness checks remain green.
 - PostgreSQL command authority for System Domains and Shift Execution fails closed when the database authority is unavailable.
 - Work Orders and bounded Planning/Shift Execution projections are PostgreSQL reads.
 
 Still under live validation:
 
-- The worker desktop must show the newly assigned PostgreSQL task after a cold login. Commit `1358f62` fixes the missing lazy board-scope load and is the current candidate.
-- Fact entry/read-back and cleanup of the temporary QA assignment.
-- The top-bar logout interaction, which did not navigate during the current live check.
 - Specifications 2.0 revision publication/attachment command surfaces.
 - Removal of shared-state/bootstrap snapshot from the working-source role while preserving compatibility fallback.
 - Staging rollback drill, merge to `main`, commit-derived production release, and final live acceptance.
@@ -87,10 +90,8 @@ Contracts treated as stable for frontend consumption:
 
 Contracts or flows not yet declared stable:
 
-- Cold-login hydration of the employee task desktop until live acceptance of `1358f62`.
 - Specifications 2.0 publication and downstream attachment commands while their pilot capability flags remain disabled.
 - Any frontend path that directly treats shared-state or the bootstrap snapshot as current domain authority.
-- Logout behavior until the live interaction defect is resolved.
 
 Frontend modules depending on this migration:
 
@@ -134,10 +135,9 @@ Pure visual work outside these files may proceed in a separate branch after chec
 
 ## Required integration order
 
-1. PostgreSQL task completes the worker assignment → employee read-back → fact/read-back scenario on the live pilot and removes the temporary QA data.
-2. PostgreSQL task proves parity, compatibility archive/data preservation, and performs the staging rollback drill.
-3. PostgreSQL slice passes full QA, is merged to `main`, and is released as a commit-derived artifact with live acceptance.
-4. Frontend task rebases onto that accepted commit and consumes the frozen contracts.
-5. Any isolated React proof of concept is evaluated and integrated separately; it must not be merged ahead of the PostgreSQL authority slice.
+1. PostgreSQL task proves parity, compatibility archive/data preservation, and performs the staging rollback drill.
+2. PostgreSQL slice passes full QA, is merged to `main`, and is released as a commit-derived artifact with live acceptance.
+3. Frontend task rebases onto that accepted commit and consumes the frozen contracts.
+4. Any isolated React proof of concept is evaluated and integrated separately; it must not be merged ahead of the PostgreSQL authority slice.
 
 Before starting frontend edits, verify `git status`, branch, merge-base, and `git diff --name-status` in the frontend worktree. If any intended file overlaps the ownership list above, stop and coordinate the exact hunk or wait for the PostgreSQL checkpoint.
