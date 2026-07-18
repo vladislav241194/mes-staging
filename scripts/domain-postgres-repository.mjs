@@ -118,6 +118,62 @@ function mapOperation(row, slot = null) {
   };
 }
 
+function mapPeriodOperation(row) {
+  return mapOperation({
+    id: row.period_operation_id,
+    operation_id: row.period_operation_code,
+    name: row.period_operation_name,
+    work_center_id: row.period_operation_work_center_id,
+    next_work_center_id: row.period_operation_next_work_center_id,
+    quantity_multiplier: row.period_operation_quantity_multiplier,
+    execution_context: row.period_operation_execution_context,
+    labor: row.period_operation_labor,
+    metadata: row.period_operation_metadata,
+  }, {
+    id: row.period_slot_id,
+    planned_start: row.period_slot_planned_start,
+    planned_end: row.period_slot_planned_end,
+    status: row.period_slot_status,
+    quantity: row.period_slot_quantity,
+    is_locked: row.period_slot_is_locked,
+    metadata: row.period_slot_metadata,
+  });
+}
+
+function mapPeriodOrder(row) {
+  const item = mapOrderDetail(row);
+  // The period endpoint must retain the same route-compatible fields as a
+  // detail projection, while omitting a potentially large labour map that
+  // weekly control never reads. This mirrors buildPlanningPeriodProjection's
+  // historical filtering when it receives an aggregate detail.
+  const { planningLaborByStepId: _planningLaborByStepId, ...metadata } = item.metadata || {};
+  return { ...item, metadata, operations: [] };
+}
+
+function groupPlanningPeriodRows(rows = []) {
+  const byOrderId = new Map();
+  for (const row of rows) {
+    const orderId = String(row.id || "");
+    if (!orderId) continue;
+    let item = byOrderId.get(orderId);
+    if (!item) {
+      item = mapPeriodOrder(row);
+      byOrderId.set(orderId, item);
+    }
+    item.operations.push(mapPeriodOperation(row));
+  }
+  return [...byOrderId.values()];
+}
+
+function readPeriodBounds({ fromAt, toAt } = {}) {
+  const from = new Date(String(fromAt || ""));
+  const to = new Date(String(toAt || ""));
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+    throw new Error("Planning period bounds must be valid ordered ISO instants");
+  }
+  return { from, to };
+}
+
 function listMetadata(rows = []) {
   const revision = rows.reduce((max, row) => Math.max(max, Number(row.aggregate_revision) || 0), 0);
   const updatedAt = rows.reduce((latest, row) => {
@@ -145,9 +201,9 @@ function resourcesByWorkCenter(rows = []) {
   return grouped;
 }
 
-export function createPostgresWorkOrdersRepository({ databaseUrl } = {}) {
-  if (!databaseUrl) throw new Error("DATABASE_URL is required for PostgreSQL domain storage");
-  const sql = getClient(databaseUrl);
+export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverride } = {}) {
+  if (!databaseUrl && !sqlOverride) throw new Error("DATABASE_URL is required for PostgreSQL domain storage");
+  const sql = sqlOverride || getClient(databaseUrl);
   const metadata = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   async function listRows() {
     return sql`
@@ -234,6 +290,46 @@ export function createPostgresWorkOrdersRepository({ databaseUrl } = {}) {
         updatedAt: order.updated_at?.toISOString?.() || "",
         item: { ...mapOrderDetail(order), operations: operations.map((operation) => mapOperation(operation, slotsByOperation.get(String(operation.id)) || null)) },
       };
+    },
+
+    async listPeriod(period = {}) {
+      const { from, to } = readPeriodBounds(period);
+      // Each matching planning slot remains an independent record. This is
+      // important for a future split-operation model: collapsing several
+      // slots for one route step would silently hide scheduled work. The
+      // range condition is half-open, matching the existing JavaScript
+      // projection: start < to && end > from.
+      const rows = await sql`
+        SELECT
+          wo.*,
+          op.id AS period_operation_id,
+          op.operation_id AS period_operation_code,
+          op.name AS period_operation_name,
+          op.work_center_id AS period_operation_work_center_id,
+          op.next_work_center_id AS period_operation_next_work_center_id,
+          op.sequence_no AS period_operation_sequence_no,
+          op.quantity_multiplier AS period_operation_quantity_multiplier,
+          op.execution_context AS period_operation_execution_context,
+          op.labor AS period_operation_labor,
+          op.metadata AS period_operation_metadata,
+          ps.id AS period_slot_id,
+          ps.planned_start AS period_slot_planned_start,
+          ps.planned_end AS period_slot_planned_end,
+          ps.status AS period_slot_status,
+          ps.quantity AS period_slot_quantity,
+          ps.is_locked AS period_slot_is_locked,
+          ps.metadata AS period_slot_metadata
+        FROM planning_slots AS ps
+        JOIN work_order_operations AS op ON op.id = ps.work_order_operation_id
+        JOIN work_orders AS wo ON wo.id = op.work_order_id
+        WHERE ps.planned_start IS NOT NULL
+          AND ps.planned_end IS NOT NULL
+          AND tstzrange(ps.planned_start, ps.planned_end, '[)')
+            && tstzrange(${from}, ${to}, '[)')
+        ORDER BY period_slot_planned_start ASC, number ASC, id ASC,
+          period_operation_sequence_no ASC, period_operation_id ASC, period_slot_id ASC
+      `;
+      return { ...metadata, ...listMetadata(rows), items: groupPlanningPeriodRows(rows) };
     },
 
     async changeQuantity(id, { quantity, expectedRevision }) {

@@ -1213,11 +1213,26 @@ export async function handleDomainApiRequest(req, res, url, {
   if (isPlanningPeriodRead) {
     const planningSafety = await getPlanningSafety();
     const planningReadRepository = planningSafety.repository;
-    const listed = await planningReadRepository.list();
-    // List rows expose a scheduled-operation count, so do not fetch an
-    // aggregate that cannot possibly contribute to this calendar slice.
-    const scheduled = listed.items.filter((item) => Number(item?.scheduledOperationCount || 0) > 0);
-    const details = await Promise.all(scheduled.map(async (item) => (await planningReadRepository.get(item.id)).item));
+    // PostgreSQL exposes a native bounded join for this read. It avoids the
+    // former list() + per-order get() fan-out while preserving the established
+    // aggregate-shaped projection. Snapshot fallback deliberately retains the
+    // generic route until it implements the same optional capability.
+    const periodResult = typeof planningReadRepository.listPeriod === "function"
+      ? await planningReadRepository.listPeriod({
+        fromAt: new Date(planningPeriod.from.time).toISOString(),
+        toAt: new Date(planningPeriod.to.time).toISOString(),
+      })
+      : null;
+    const listed = periodResult || await planningReadRepository.list();
+    const details = periodResult
+      ? periodResult.items
+      : await Promise.all(
+        // List rows expose a scheduled-operation count, so do not fetch an
+        // aggregate that cannot possibly contribute to this calendar slice.
+        listed.items
+          .filter((item) => Number(item?.scheduledOperationCount || 0) > 0)
+          .map(async (item) => (await planningReadRepository.get(item.id)).item),
+      );
     const projection = buildPlanningPeriodProjection(details.filter(Boolean), planningPeriod);
     const payload = withPlanningFallback({
       ok: true,

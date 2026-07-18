@@ -54,7 +54,7 @@ function makeItem(resourceId) {
   };
 }
 
-function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes }) {
+function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes, nativePeriodReads = null }) {
   const metadata = { storageMode, storageBackend, configured: true };
   const listProjection = () => {
     const item = itemRef.current;
@@ -71,7 +71,7 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
       metadata: item.metadata,
     };
   };
-  return {
+  const repository = {
     async health() { return { ...metadata, ...health.current }; },
     async list() { return { ...metadata, ...health.current, items: [listProjection()] }; },
     async summary() {
@@ -103,6 +103,13 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
     },
     async listPendingSnapshotSyncs() { return []; },
   };
+  if (nativePeriodReads) {
+    repository.listPeriod = async () => {
+      nativePeriodReads.count += 1;
+      return { ...metadata, ...health.current, items: [itemRef.current] };
+    };
+  }
+  return repository;
 }
 
 async function request(pathname, { method = "GET", body = null, headers = {} } = {}) {
@@ -132,8 +139,9 @@ const snapshotHealth = { current: { revision: 7, updatedAt: "2026-07-18T08:01:00
 const primaryItem = { current: makeItem("resource-D3_L1-matrix-missing") };
 const snapshotItem = { current: makeItem("") };
 const writes = { quantity: 0, slot: 0 };
+const primaryPeriodReads = { count: 0 };
 const primary = createFixtureRepository({
-  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes,
+  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes, nativePeriodReads: primaryPeriodReads,
 });
 const snapshot = createFixtureRepository({
   storageMode: "snapshot-adapter", storageBackend: "shared-state", health: snapshotHealth, itemRef: snapshotItem, writes,
@@ -171,6 +179,7 @@ assert(staleProjection.statusCode === 200 && staleProjection.json.fallbackReason
 
 const stalePeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19");
 assert(stalePeriod.statusCode === 200 && stalePeriod.json.fallbackReason === "postgres-projection-stale", "bounded planning period must honor the same safe fallback");
+assert(primaryPeriodReads.count === 0, "stale PostgreSQL projection must not bypass the snapshot fallback through native period reads");
 
 const parity = await request("/api/v1/planning/work-orders/parity");
 assert(parity.statusCode === 200 && parity.json.ok === false, "parity endpoint must remain a primary-vs-snapshot diagnostic while fallback is active");
@@ -203,5 +212,9 @@ snapshotHealth.current = { revision: 8, updatedAt: "2026-07-18T08:02:00.000Z" };
 const recoveredList = await request("/api/v1/planning/work-orders");
 assert(recoveredList.statusCode === 200 && !recoveredList.json.fallbackReason, "parity recovery must restore the configured PostgreSQL read path");
 assert(recoveredList.json.storageMode === "postgres", "healthy PostgreSQL must retain its normal read path");
+
+const recoveredPeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19");
+assert(recoveredPeriod.statusCode === 200 && !recoveredPeriod.json.fallbackReason, "healthy PostgreSQL period read must keep the normal authority");
+assert(primaryPeriodReads.count === 1, "healthy PostgreSQL period read must use the native bounded repository capability");
 
 console.log("Planning PostgreSQL projection safety QA: OK");

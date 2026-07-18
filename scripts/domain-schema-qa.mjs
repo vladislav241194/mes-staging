@@ -35,6 +35,8 @@ const planningProjectionMetadataMigrationPath = fileURLToPath(new URL("../db/mig
 const planningProjectionMetadataSql = await readFile(planningProjectionMetadataMigrationPath, "utf-8");
 const specifications2AttachmentsMigrationPath = fileURLToPath(new URL("../db/migrations/019_specifications2_attachment_blobs.sql", import.meta.url));
 const specifications2AttachmentsSql = await readFile(specifications2AttachmentsMigrationPath, "utf-8");
+const planningPeriodOverlapIndexMigrationPath = fileURLToPath(new URL("../db/migrations/020_planning_period_overlap_index.sql", import.meta.url));
+const planningPeriodOverlapIndexSql = await readFile(planningPeriodOverlapIndexMigrationPath, "utf-8");
 
 [
   "CREATE TABLE IF NOT EXISTS work_orders",
@@ -145,4 +147,10 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningProjectionMetadataSql), "
   "INSERT INTO mes_schema_migrations(version) VALUES ('019_specifications2_attachment_blobs')",
 ].forEach((fragment) => assert(specifications2AttachmentsSql.includes(fragment), `Specifications 2.0 attachment migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(specifications2AttachmentsSql), "Specifications 2.0 attachment migration must not contain destructive statements");
+[
+  "CREATE INDEX IF NOT EXISTS planning_slots_period_overlap_idx",
+  "USING GIST (tstzrange(planned_start, planned_end, '[)'))",
+  "INSERT INTO mes_schema_migrations(version) VALUES ('020_planning_period_overlap_index')",
+].forEach((fragment) => assert(planningPeriodOverlapIndexSql.includes(fragment), `Planning period overlap-index migration is missing: ${fragment}`));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningPeriodOverlapIndexSql), "Planning period overlap-index migration must not contain destructive statements");
 console.log("Domain schema QA: OK");
