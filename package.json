@@ -12,6 +12,7 @@
     "qa:module-blueprints": "node scripts/module-blueprint-qa.mjs",
     "module:factory:metrics": "node scripts/module-factory-metrics.mjs",
     "version:bump": "node scripts/bump-app-version.mjs",
+    "git:activity": "node scripts/git-activity-status.mjs",
     "deploy:pilot": "node scripts/deploy-contour.mjs --contour=pilot",
     "deploy:pilot:dist": "node scripts/deploy-contour.mjs --contour=pilot --mode=dist-only",
     "deploy:staging": "node scripts/deploy-contour.mjs --contour=staging",

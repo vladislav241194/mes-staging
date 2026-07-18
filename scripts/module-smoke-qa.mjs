@@ -790,7 +790,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         .slice(0, 8);
       const unmarkedPanels = [...(page?.querySelectorAll(".module-panel, .ui-panel") || [])]
         .filter(isVisibleBox)
-        .filter((panel) => panel.dataset?.uiComponent !== "Panel")
+        .filter((panel) => !["Panel", "Canvas"].includes(panel.dataset?.uiComponent || ""))
         .map((panel) => ({
           className: panel.className || "",
           text: (panel.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120),
@@ -1453,6 +1453,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
       const routePanel = document.querySelector(".planning-order-route-map");
       const routeStrip = document.querySelector("[data-visual-qa-target='planning-work-order-route-strip']");
       const legacySidebar = document.querySelector(".planning-order-queue");
+      const planningEmptyState = document.querySelector(".planning-empty-page");
       const detailStack = document.querySelector("[data-visual-qa-target='planning-order-detail-stack']");
       const detailPanel = document.querySelector("[data-visual-qa-target='planning-order-detail-panel']");
       const stripRect = strip?.getBoundingClientRect();
@@ -1637,6 +1638,7 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         routeStripOverflowX: routeStrip ? Math.max(0, routeStrip.scrollWidth - routeStrip.clientWidth) : 0,
         hasLegacySidebar: Boolean(legacySidebar),
         sidebarRouteCount: legacySidebar?.querySelectorAll("[data-planning-route-open]").length || 0,
+        hasPlanningEmptyState: Boolean(planningEmptyState),
         hasDetailStack: Boolean(detailStack),
         hasDetailPanel: Boolean(detailPanel),
         detailPanelText: (detailPanel?.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
@@ -1719,7 +1721,13 @@ async function runModuleSpecificSmokeChecks(client, moduleId) {
         routeStripAboveGrid: Boolean(routeStripRect && mainGridRect && routeStripRect.bottom <= mainGridRect.top),
       };
     });
-    assert(workOrderUxReport.hasStrip, "planning: work-order decision strip is missing");
+    if (!workOrderUxReport.hasStrip) {
+      assert(
+        workOrderUxReport.hasPlanningEmptyState && workOrderUxReport.sidebarRouteCount === 0,
+        `planning: route-aware work-order UI is missing without the valid empty state: ${JSON.stringify(workOrderUxReport)}`,
+      );
+      return;
+    }
     assert(workOrderUxReport.stripText.includes("Решение"), `planning: work-order decision strip has no decision label: ${workOrderUxReport.stripText}`);
     assert(workOrderUxReport.stripWidth > 320 && workOrderUxReport.stripHeight > 30, `planning: work-order decision strip geometry is broken: ${JSON.stringify(workOrderUxReport)}`);
     assert(workOrderUxReport.stripOverflowX <= 2, `planning: work-order decision strip horizontal overflow ${workOrderUxReport.stripOverflowX}px`);

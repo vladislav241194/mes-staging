@@ -380,6 +380,23 @@ async function main() {
       slotCandidates = await getSlotCandidates();
     }
     assert(slotCandidates.length, "В состоянии нет планового слота для проверки трудозатрат.");
+    const decisionStripReport = await evaluate(client, () => {
+      const strip = document.querySelector(".planning-order-decision-strip");
+      const metrics = [...document.querySelectorAll(".planning-order-decision-metric[data-planning-work-item]")];
+      return {
+        hasStrip: Boolean(strip),
+        text: (strip?.textContent || "").replace(/\s+/g, " ").trim(),
+        metricCount: metrics.length,
+        routeCount: document.querySelectorAll(".planning-order-route-list [data-planning-route-open]").length,
+      };
+    });
+    assert(
+      decisionStripReport.hasStrip
+        && decisionStripReport.text.includes("Решение")
+        && decisionStripReport.metricCount >= 5
+        && decisionStripReport.routeCount > 0,
+      `Planning fixture lost the route-aware decision strip: ${JSON.stringify(decisionStripReport)}`,
+    );
     await evaluate(client, ({ routeId, stepId }) => {
       const state = JSON.parse(localStorage.getItem("mes-planning-prototype-state-v2") || "{}");
       state.routeSteps = (state.routeSteps || []).map((step) => (
