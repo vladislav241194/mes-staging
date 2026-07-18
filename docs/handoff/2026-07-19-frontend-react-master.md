@@ -10,13 +10,14 @@ Coordination handoff: PostgreSQL commit `4f0fbae`
 
 PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
 cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
-The PostgreSQL branch has since advanced to `c3b4059`, including guarded
+The accepted PostgreSQL release `c3b4059` is live, and `origin/main` has since
+advanced to the final-gate handoff commit `e4e65aa`. The slice includes guarded
 Specifications 2.0 commands, verified runtime rollback, and retirement fixes
 for System Domains shared-state compatibility plus compatibility-backup
 hardening, preparation of `v1.499.70`, and isolation of bootstrap compression
-artifacts. Its worktree still has an untracked `bootstrap-snapshot.json`;
-`origin/main` points to the shared baseline and no final integration checkpoint
-has been published.
+artifacts. Root activation and authenticated acceptance of the two
+Specifications 2.0 command flags remain pending, so the published integration
+order still places frontend rebase after that final audit.
 The PostgreSQL slice is still not ready for frontend integration: Specifications
 2.0 command validation, shared-state working-source retirement, staging rollback,
 merge to `main`, commit-derived release, and final live acceptance remain open.
@@ -128,6 +129,11 @@ with the React adapter on the same fixture. The seven read headers, four row
 IDs, cell values, order and initial selection match. The legacy editor and
 `Действия` column are recorded as intentional non-parity protected by the
 activation policy, not hidden behind a broad parity claim.
+
+A dry-run rebase preflight against `origin/main@e4e65aa` found 33 frontend paths,
+50 main paths, zero overlapping paths and zero merge conflict markers. The
+actual rebase is structurally ready but remains deferred until the final root
+Specifications acceptance required by the PostgreSQL handoff.
 
 ## Acceptance gates for the first integrated slice
 
