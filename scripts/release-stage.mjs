@@ -231,6 +231,13 @@ async function installBootstrapSnapshotArtifact({ contour, remote, releaseAppPat
   await run("ssh", sshArgs(remote, remoteCommand));
 }
 
+async function assertLocalDistBootstrapSnapshotArtifact(artifact) {
+  const distPath = join(projectRoot, "dist", "bootstrap-snapshot.json");
+  if (await sha256(distPath) !== artifact.sha256) {
+    throw new Error("Built dist bootstrap snapshot does not match the operational artifact");
+  }
+}
+
 async function prepareLocalBootstrapSnapshotArtifact({ contour, remote, artifact }) {
   const localPath = join(projectRoot, "bootstrap-snapshot.json");
   try {
@@ -315,9 +322,12 @@ async function main() {
   let secondDistTreeSha256;
   try {
     await run("npm", ["ci"]);
+    await run("npm", ["run", "qa:stabilize"]);
     await run("npm", ["run", "build"]);
+    await assertLocalDistBootstrapSnapshotArtifact(bootstrapSnapshotArtifact);
     firstDistTreeSha256 = await treeSha(["dist"], { excludes: distCompatibilityExcludes });
     await run("npm", ["run", "build"]);
+    await assertLocalDistBootstrapSnapshotArtifact(bootstrapSnapshotArtifact);
     secondDistTreeSha256 = await treeSha(["dist"], { excludes: distCompatibilityExcludes });
   } finally {
     await localBootstrapSnapshot.cleanup();
@@ -347,7 +357,7 @@ async function main() {
     packageLockSha256,
     compatibilityArtifacts: [bootstrapSnapshotArtifact],
     verification: {
-      localBuild: "npm ci && npm run build twice with matching dist digest",
+      localBuild: "npm ci && npm run qa:stabilize && npm run build twice with matching dist digest",
       remotePreflight: "npm ci --omit=dev && npm run server:preflight",
       activation: "not activated by stage command",
     },

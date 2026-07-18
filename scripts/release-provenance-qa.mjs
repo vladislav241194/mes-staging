@@ -1,4 +1,5 @@
 import { execFile as execFileCallback } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -13,6 +14,10 @@ const fetchedCommit = "c".repeat(40);
 
 function assert(value, message) {
   if (!value) throw new Error(message);
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function gitResult(stdout = "", code = 0, stderr = "") {
@@ -57,7 +62,15 @@ async function verifyManifestContract() {
   await mkdir(join(appRoot, "dist"));
   await writeFile(join(appRoot, "source.txt"), "source\n");
   await writeFile(join(appRoot, "dist", "index.js"), "dist\n");
+  const bootstrapSnapshot = "{\"schemaVersion\":1}\n";
+  await writeFile(join(appRoot, "bootstrap-snapshot.json"), bootstrapSnapshot);
+  await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), bootstrapSnapshot);
   const runtimeIncludes = ["source.txt"];
+  const bootstrapSnapshotArtifact = {
+    id: "bootstrap-snapshot",
+    sha256: sha256(bootstrapSnapshot),
+    stagedPaths: ["bootstrap-snapshot.json", "dist/bootstrap-snapshot.json"],
+  };
   const manifest = {
     schemaVersion: 2,
     releaseId: "qa-release",
@@ -75,9 +88,13 @@ async function verifyManifestContract() {
     },
     runtimeIncludes,
     sourceTreeSha256: await computeTreeSha({ root: appRoot, includes: runtimeIncludes }),
-    distTreeSha256: await computeTreeSha({ root: appRoot, includes: ["dist"] }),
+    distTreeSha256: await computeTreeSha({
+      root: appRoot,
+      includes: ["dist"],
+      excludes: ["dist/bootstrap-snapshot.json"],
+    }),
     packageLockSha256: "d".repeat(64),
-    compatibilityArtifacts: [],
+    compatibilityArtifacts: [bootstrapSnapshotArtifact],
   };
   const manifestPath = join(appRoot, "release-manifest.json");
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
@@ -85,6 +102,14 @@ async function verifyManifestContract() {
   const passing = await execFile("node", command, { cwd: process.cwd() });
   const parsed = JSON.parse(passing.stdout);
   assert(parsed.gitProvenanceVerification === "fresh-upstream-fetch", "Verifier must report fresh Git provenance");
+  assert(parsed.compatibilityArtifactCount === 1, "Verifier must report the bootstrap compatibility artifact");
+
+  await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), "{\"corrupt\":true}\n");
+  await expectFailure(
+    () => execFile("node", command, { cwd: process.cwd() }),
+    "Compatibility artifact bootstrap-snapshot hash mismatch at dist/bootstrap-snapshot.json",
+  );
+  await writeFile(join(appRoot, "dist", "bootstrap-snapshot.json"), bootstrapSnapshot);
 
   manifest.gitProvenance.verification = "cached-upstream";
   await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
@@ -136,7 +161,15 @@ assert(stageSource.includes("schemaVersion: 2"), "New staged manifests must carr
 assert(stageSource.includes("assertReleaseSourceStillMatchesProvenance(gitCommit)"), "Release staging must recheck source provenance after building");
 assert(stageSource.includes("prepareLocalBootstrapSnapshotArtifact"), "Release staging must materialize the external bootstrap snapshot for clean local builds");
 assert(stageSource.includes("await localBootstrapSnapshot.cleanup()"), "Release staging must remove the temporary local bootstrap snapshot before provenance is rechecked");
-assert(stageSource.includes("treeSha([\"dist\"], { excludes: distCompatibilityExcludes })"), "Release staging must exclude the external dist bootstrap artifact from the reproducible build digest");
+assert(stageSource.includes("assertLocalDistBootstrapSnapshotArtifact"), "Release staging must verify the built bootstrap artifact before digesting dist");
+assert(
+  stageSource.indexOf("await localBootstrapSnapshot.cleanup()") < stageSource.indexOf("await assertReleaseSourceStillMatchesProvenance(gitCommit)"),
+  "Release staging must clean the temporary bootstrap artifact before rechecking Git provenance",
+);
+assert(
+  (stageSource.match(/treeSha\(\["dist"\], \{ excludes: distCompatibilityExcludes \}\)/g) || []).length === 2,
+  "Both deterministic dist hashes must exclude the external bootstrap compatibility artifact",
+);
 
 await verifyManifestContract();
 console.log("Release provenance QA: OK");
