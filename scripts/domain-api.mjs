@@ -27,10 +27,12 @@ function getEnabledSystemDomainsCommandSurfaces(env = process.env) {
     .filter((value) => SYSTEM_DOMAINS_COMMAND_SURFACES.has(value)))];
 }
 
-function hasSystemDomainsServerAuthority(consistency = {}, enabledSurfaces = []) {
-  const everySurfaceEnabled = [...SYSTEM_DOMAINS_COMMAND_SURFACES].every((surface) => enabledSurfaces.includes(surface));
+function hasSystemDomainsServerAuthority(consistency = {}) {
+  // A retired snapshot is never sufficient evidence on its own.  The read-only
+  // reconciliation report carries the two-read proof that the active snapshot
+  // and PostgreSQL projection matched before a command surface can be exposed.
   return consistency?.ok === true
-    && (consistency.matches === true || (consistency.reason === "snapshot_retired" && everySurfaceEnabled));
+    && consistency?.details?.reconciliation?.promotion?.readEligible === true;
 }
 
 function sendJson(res, headers, statusCode, payload, extraHeaders = {}) {
@@ -1220,6 +1222,16 @@ export async function handleDomainApiRequest(req, res, url, {
     let domains;
     try {
       domains = createSystemDomainsRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+      const preflightConsistency = await inspectSystemDomainsSnapshotConsistency({ primary: domains, env, filePath });
+      if (!hasSystemDomainsServerAuthority(preflightConsistency)) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          apiVersion: "v1",
+          error: "System Domains command authority requires a stable compatibility proof",
+          consistency: preflightConsistency,
+        });
+        return true;
+      }
       const result = await domains.replace(payload.domains, {
         source: `api-command:${surface}`, expectedRevision: expected.value, actorId: actor.id, commandType: `replace_projection:${surface}`, idempotencyKey,
       });
@@ -1231,8 +1243,21 @@ export async function handleDomainApiRequest(req, res, url, {
           ? await syncPendingSystemDomainsSnapshotChanges({ primary: domains, env, filePath })
           : { total: 0, applied: 0, conflicts: 0, failed: 0, jobs: [] };
         const etag = getRevisionEtag(projection.revision);
+        const postCommitConsistency = await inspectSystemDomainsSnapshotConsistency({ primary: domains, env, filePath });
+        if (!hasSystemDomainsServerAuthority(postCommitConsistency)) {
+          sendJson(res, headers, 503, {
+            ok: false,
+            apiVersion: "v1",
+            committed: result.imported === true,
+            revision: projection.revision,
+            snapshotSync,
+            consistency: postCommitConsistency,
+            error: "System Domains command was committed but compatibility proof was not restored",
+          }, { ETag: etag });
+          return true;
+        }
         sendJson(res, headers, 200, {
-          ok: true, apiVersion: "v1", ...result, item: projection.item, snapshotSync,
+          ok: true, apiVersion: "v1", ...result, item: projection.item, snapshotSync, consistency: postCommitConsistency,
         }, { ETag: etag });
       }
     } catch (error) {

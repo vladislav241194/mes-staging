@@ -10,6 +10,7 @@ function registryCounts(domains) {
 function consistencyDetails(sourceJson, targetJson, source, target, {
   snapshotVersion = 0,
   postgresRevision = 0,
+  stability = "unverified",
 } = {}) {
   const sourceCounts = registryCounts(source);
   const targetCounts = registryCounts(target);
@@ -28,44 +29,92 @@ function consistencyDetails(sourceJson, targetJson, source, target, {
       postgresDomains: target,
       snapshotVersion,
       postgresRevision,
-      // This endpoint deliberately performs one observation. A controller
-      // must prove a double-read before treating the result as promotable.
-      stability: "unverified",
+      stability,
     }),
   };
 }
 
+function inspectSnapshotState(snapshot) {
+  const values = snapshot?.values || {};
+  const snapshotVersion = Number(snapshot?.version || 0);
+  const hasSystemDomains = Object.prototype.hasOwnProperty.call(values, SYSTEM_DOMAINS_STORAGE_KEY);
+  const raw = values[SYSTEM_DOMAINS_STORAGE_KEY];
+  if (raw === null && hasSystemDomains) return { state: "retired", snapshotVersion, serialized: "", domains: null };
+  if (!raw) return { state: "missing", snapshotVersion, serialized: "", domains: null };
+  const loaded = loadSystemDomains(raw);
+  if (!loaded?.domains || loaded.report?.valid === false) return { state: "invalid", snapshotVersion, serialized: "", domains: null };
+  return {
+    state: "active",
+    snapshotVersion,
+    domains: loaded.domains,
+    serialized: serializeSystemDomains(loaded.domains),
+  };
+}
+
+async function readConsistencyObservation({ primary, env, filePath, readSnapshot }) {
+  const [projection, snapshotResult] = await Promise.all([
+    primary.get(),
+    readSnapshot({ env, filePath }),
+  ]);
+  const item = projection?.item || null;
+  return {
+    primary: {
+      item,
+      revision: Number(projection?.revision || 0),
+      serialized: item ? serializeSystemDomains(item) : "",
+    },
+    snapshot: inspectSnapshotState(snapshotResult?.snapshot || null),
+  };
+}
+
+function hasStableObservations(first, second) {
+  return first.primary.revision === second.primary.revision
+    && first.primary.serialized === second.primary.serialized
+    && first.snapshot.state === second.snapshot.state
+    && first.snapshot.snapshotVersion === second.snapshot.snapshotVersion
+    && first.snapshot.serialized === second.snapshot.serialized;
+}
+
 // This is an observation-only guard for rollout. It never repairs either
 // store: callers can distinguish an absent/invalid legacy projection from a
-// real divergence before enabling a command writer.
-export async function inspectSystemDomainsSnapshotConsistency({ primary, env = process.env, filePath = "" } = {}) {
+// real divergence before enabling a command writer.  A matching result is
+// valid only after two equal observations, so a concurrent browser snapshot
+// write or PostgreSQL command cannot be mistaken for a promotion proof.
+export async function inspectSystemDomainsSnapshotConsistency({
+  primary,
+  env = process.env,
+  filePath = "",
+  readSnapshot = readSharedStateSnapshot,
+} = {}) {
   if (!primary?.get) throw new Error("System Domains consistency check requires a primary repository");
-  const projection = await primary.get();
-  if (!projection.item) return { ok: false, matches: false, error: "Authoritative System Domains projection is not initialized", revision: Number(projection.revision || 0) };
-  const snapshotResult = await readSharedStateSnapshot({ env, filePath });
-  const snapshot = snapshotResult?.snapshot || null;
-  const raw = snapshot?.values?.[SYSTEM_DOMAINS_STORAGE_KEY];
-  if (raw === null && Object.prototype.hasOwnProperty.call(snapshot?.values || {}, SYSTEM_DOMAINS_STORAGE_KEY)) {
-    return { ok: true, matches: false, reason: "snapshot_retired", revision: Number(projection.revision || 0), snapshotVersion: Number(snapshot?.version || 0) };
+  const first = await readConsistencyObservation({ primary, env, filePath, readSnapshot });
+  const second = await readConsistencyObservation({ primary, env, filePath, readSnapshot });
+  const stability = hasStableObservations(first, second) ? "verified" : "changed";
+  const { primary: projection, snapshot } = second;
+  if (!projection.item) return { ok: false, matches: false, error: "Authoritative System Domains projection is not initialized", revision: projection.revision };
+  if (snapshot.state === "retired") {
+    return { ok: true, matches: false, reason: "snapshot_retired", revision: projection.revision, snapshotVersion: snapshot.snapshotVersion };
   }
-  if (!raw) return { ok: true, matches: false, reason: "snapshot_missing", revision: Number(projection.revision || 0), snapshotVersion: Number(snapshot?.version || 0) };
-  const loaded = loadSystemDomains(raw);
-  if (!loaded?.domains || loaded.report?.valid === false) {
-    return { ok: true, matches: false, reason: "snapshot_invalid", revision: Number(projection.revision || 0), snapshotVersion: Number(snapshot?.version || 0) };
+  if (snapshot.state === "missing") {
+    return { ok: true, matches: false, reason: "snapshot_missing", revision: projection.revision, snapshotVersion: snapshot.snapshotVersion };
   }
-  const sourceJson = serializeSystemDomains(loaded.domains);
-  const targetJson = serializeSystemDomains(projection.item);
-  const matches = targetJson === sourceJson;
+  if (snapshot.state === "invalid") {
+    return { ok: true, matches: false, reason: "snapshot_invalid", revision: projection.revision, snapshotVersion: snapshot.snapshotVersion };
+  }
+  const details = consistencyDetails(snapshot.serialized, projection.serialized, snapshot.domains, projection.item, {
+    snapshotVersion: snapshot.snapshotVersion,
+    postgresRevision: projection.revision,
+    stability,
+  });
+  const projectionMatches = projection.serialized === snapshot.serialized;
+  const matches = stability === "verified" && projectionMatches && details.reconciliation.matches;
   return {
     ok: true,
     matches,
-    reason: matches ? "" : "projection_diff",
-    ...(matches ? {} : { details: consistencyDetails(sourceJson, targetJson, loaded.domains, projection.item, {
-      snapshotVersion: Number(snapshot?.version || 0),
-      postgresRevision: Number(projection.revision || 0),
-    }) }),
-    revision: Number(projection.revision || 0),
-    snapshotVersion: Number(snapshot?.version || 0),
+    reason: matches ? "" : (projectionMatches ? "source_changed" : "projection_diff"),
+    details,
+    revision: projection.revision,
+    snapshotVersion: snapshot.snapshotVersion,
   };
 }
 

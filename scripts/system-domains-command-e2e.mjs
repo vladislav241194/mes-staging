@@ -90,6 +90,8 @@ try {
     assert(second.imported && second.revision === 2, "new payload with current revision must create the next revision");
     const stale = await primary.replace(domains, { expectedRevision: 1, actorId: "public:e2e", idempotencyKey: "e2e-stale", source: "e2e" });
     assert(stale.conflict && stale.revision === 2, "stale optimistic revision must be rejected");
+    const secondSync = await syncPendingSystemDomainsSnapshotChanges({ primary, filePath: snapshotFile });
+    assert(secondSync.applied === 1 && secondSync.failed === 0, "the feature-flagged command fixture must begin with a synchronized compatibility projection");
 
     // The repository checks above are not sufficient by themselves: verify
     // the real HTTP boundary with an authenticated public session, the
@@ -135,6 +137,20 @@ try {
       env: apiEnv,
     });
     assert(apiStale.statusCode === 409 && apiStale.json.conflict === true && apiStale.json.revision === 3, "HTTP command must reject stale revisions after a concurrent write");
+
+    const staleSnapshot = JSON.parse(await readFile(snapshotFile, "utf8"));
+    staleSnapshot.version += 1;
+    staleSnapshot.values["mes-planning-prototype-system-domains-v1"] = JSON.stringify(changed);
+    await writeFile(snapshotFile, JSON.stringify(staleSnapshot), "utf8");
+    const blockedByProof = await invokeApi({
+      pathname: "/api/v1/system-domains",
+      method: "PUT",
+      headers: { cookie: sessionCookie, "content-type": "application/json", "if-match": '"3"', "idempotency-key": "e2e-http-proof-block" },
+      payload: { domains: apiChanged, surface: "production-structure", expectedRevision: 3 },
+      env: apiEnv,
+    });
+    assert(blockedByProof.statusCode === 409 && /stable compatibility proof/.test(blockedByProof.json.error || ""), "a stale snapshot must block a feature-flagged PostgreSQL command before it can mutate the projection");
+    assert((await primary.get()).revision === 3, "a failed authority preflight must leave the PostgreSQL System Domains revision untouched");
     console.log(JSON.stringify({ ok: true, schema, revisions: [first.revision, second.revision, apiFirst.json.revision], snapshotSync: synced.applied, httpCommand: true }));
   } finally { await primary.close(); }
 } finally {
