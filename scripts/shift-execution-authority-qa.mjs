@@ -1,7 +1,7 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { inspectShiftExecutionAuthority, partitionResolvablePayload } from "./domain-shift-execution-authority.mjs";
+import { inspectShiftExecutionAuthority, partitionResolvablePayload, writeShiftExecutionAuthorityExport } from "./domain-shift-execution-authority.mjs";
 import { assertShiftExecutionCommandAuthorityWritable } from "./domain-shift-execution-repository.mjs";
 
 function assert(value, message) { if (!value) throw new Error(message); }
@@ -21,6 +21,17 @@ const authority = {
 const primary = { getAuthority: async () => authority };
 
 try {
+  const secureExportPath = join(directory, "shift-execution-export.json");
+  await writeShiftExecutionAuthorityExport(secureExportPath, {
+    schemaVersion: "008_shift_execution_read_model",
+    shiftAssignments: [],
+    shiftAssignmentExecutors: [],
+    shiftFacts: [],
+    shiftCarryovers: [],
+  });
+  const secureExportStat = await stat(secureExportPath);
+  assert((secureExportStat.mode & 0o777) === 0o600, "Shift Execution compatibility exports must be owner-readable only");
+
   await writeFile(filePath, JSON.stringify({
     version: 13,
     values: {},

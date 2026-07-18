@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 
 import { handleSharedStateRequest, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
-import { withSharedStateFileLock } from "./shared-state-storage.mjs";
+import { backupSharedStateFile, withSharedStateFileLock } from "./shared-state-storage.mjs";
 import {
   applySharedUiPatch,
   cloneSharedUiSnapshot,
@@ -82,6 +82,24 @@ async function main() {
   const dir = await mkdtemp(join(tmpdir(), "mes-shared-state-qa-"));
   const filePath = join(dir, "state.json");
   try {
+    const backupSourcePath = join(dir, "backup-permissions-source.json");
+    await writeFile(backupSourcePath, `${JSON.stringify({ employee: "permission-fixture" })}\n`, { mode: 0o664 });
+    await chmod(backupSourcePath, 0o664);
+    const secureBackup = await backupSharedStateFile({
+      filePath: backupSourcePath,
+      backupDir: join(dir, "secure-backups"),
+      reason: "permissions-qa",
+      actor: "shared-state-functional-qa",
+      env: { APP_ENV: "pilot", MES_SHARED_STATE_KEY: "mes-permissions-qa" },
+      allowMissing: false,
+    });
+    const [secureBackupStat, secureBackupMetaStat] = await Promise.all([
+      stat(secureBackup.backupPath),
+      stat(secureBackup.metaPath),
+    ]);
+    assert((secureBackupStat.mode & 0o777) === 0o600, "Shared-state compatibility backups must be owner-readable only");
+    assert((secureBackupMetaStat.mode & 0o777) === 0o600, "Shared-state backup metadata must be owner-readable only");
+
     const unconfiguredCompatibility = await callSharedState("", "GET", null, {
       headers: { "x-mes-system-domains-compatibility": "status" },
     });

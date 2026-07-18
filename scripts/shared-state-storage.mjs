@@ -232,7 +232,18 @@ export async function backupSharedStateFile({
   const backupPath = join(targetDir, `${stamp}__${key}__${safeSlug(reason)}.json`);
   const metaPath = `${backupPath}.meta.json`;
 
-  await copyFile(filePath, backupPath);
+  // copyFile() creates a destination with permissions derived from the source.
+  // Compatibility snapshots contain personnel and production data, so create
+  // the target ourselves with a restrictive mode before copying any bytes.
+  const backupHandle = await open(backupPath, "wx", 0o600);
+  await backupHandle.close();
+  try {
+    await copyFile(filePath, backupPath);
+    await chmod(backupPath, 0o600);
+  } catch (error) {
+    await rm(backupPath, { force: true }).catch(() => {});
+    throw error;
+  }
   await writeFile(metaPath, `${JSON.stringify({
     createdAt: new Date().toISOString(),
     appEnv: getAppEnv(env),
@@ -241,7 +252,7 @@ export async function backupSharedStateFile({
     backupPath,
     reason,
     actor,
-  }, null, 2)}\n`, "utf-8");
+  }, null, 2)}\n`, { encoding: "utf-8", flag: "wx", mode: 0o600 });
 
   return { backupPath, metaPath };
 }

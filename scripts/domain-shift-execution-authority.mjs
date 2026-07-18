@@ -38,6 +38,15 @@ function safeFileStamp(value = new Date()) {
   return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
+export async function writeShiftExecutionAuthorityExport(filePath, payload) {
+  await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+    mode: 0o600,
+  });
+  return filePath;
+}
+
 function projectSnapshot(snapshot = {}) {
   const payload = exportShiftExecutionSnapshot(snapshot);
   validateShiftExecutionExport(payload);
@@ -342,7 +351,7 @@ export async function reconcileShiftExecutionPostgresAuthority({ env = process.e
       });
       await mkdir(paths.backupDir, { recursive: true });
       const exportPath = join(paths.backupDir, `${safeFileStamp()}__shift-execution__${transitionId}.json`);
-      await writeFile(exportPath, `${JSON.stringify(projection.payload, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+      await writeShiftExecutionAuthorityExport(exportPath, projection.payload);
       await beginAuthorityTransition(sql, {
         transitionId,
         sourceVersion: Number(source.snapshot?.version || 0),
