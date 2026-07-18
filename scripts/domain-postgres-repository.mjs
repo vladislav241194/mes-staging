@@ -295,8 +295,8 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
   if (!databaseUrl && !sqlOverride) throw new Error("DATABASE_URL is required for PostgreSQL domain storage");
   const sql = sqlOverride || getClient(databaseUrl);
   const metadata = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
-  async function listRows() {
-    return sql`
+  async function listRows(query = sql) {
+    return query`
       SELECT wo.*,
         (SELECT count(*) FROM work_order_operations op WHERE op.work_order_id = wo.id) AS operation_count,
         (SELECT count(*) FROM planning_slots ps JOIN work_order_operations op ON op.id = ps.work_order_operation_id WHERE op.work_order_id = wo.id) AS scheduled_operation_count
@@ -373,6 +373,49 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       // selected order detail; returning them for every order delayed the
       // first Planning render by hundreds of kilobytes.
       return { ...metadata, ...listMetadata(rows), items: rows.map(mapOrderList) };
+    },
+
+    // Read the Planning sidebar and selected aggregate in one repeatable
+    // snapshot.  This is the compact bootstrap path: it removes a public
+    // list->detail round trip while also preventing the first rendered tree
+    // from combining two different aggregate revisions.
+    async listWorkbenchBootstrap(activeId = "") {
+      const requestedId = String(activeId || "").trim();
+      const { orders, selected, operations, slots } = await sql.begin(
+        "isolation level repeatable read read only",
+        async (tx) => {
+          const orderRows = await listRows(tx);
+          const selectedOrder = orderRows.find((row) => String(row.id) === requestedId || String(row.number) === requestedId)
+            || orderRows[0]
+            || null;
+          if (!selectedOrder) return { orders: orderRows, selected: null, operations: [], slots: [] };
+          const [operationRows, slotRows] = await Promise.all([
+            tx`SELECT * FROM work_order_operations WHERE work_order_id = ${selectedOrder.id} ORDER BY sequence_no`,
+            tx`
+              SELECT ps.* FROM planning_slots ps
+              JOIN work_order_operations op ON op.id = ps.work_order_operation_id
+              WHERE op.work_order_id = ${selectedOrder.id}
+              ORDER BY ps.planned_start ASC NULLS LAST, ps.id ASC
+            `,
+          ]);
+          return { orders: orderRows, selected: selectedOrder, operations: operationRows, slots: slotRows };
+        },
+      );
+      const slotsByOperation = firstRuntimeSlotByOperation(slots);
+      const item = selected ? {
+        ...mapOrderDetail(selected),
+        operations: operations.map((operation) => mapOperation(
+          operation,
+          slotsByOperation.get(String(operation.id || "")) || null,
+        )),
+      } : null;
+      return {
+        ...metadata,
+        ...listMetadata(orders),
+        items: orders.map(mapOrderList),
+        activeId: item?.id || "",
+        item,
+      };
     },
 
     // A normal planning/Gantt refresh needs the complete route graph, but

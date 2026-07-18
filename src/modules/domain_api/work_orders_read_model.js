@@ -6,7 +6,26 @@ function normalizeItems(value) {
 
 // Projection cache: a failed request never mutates snapshot-backed planning data.
 export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = "/api/v1/planning/work-orders", now = () => Date.now() } = {}) {
-  const state = { items: [], etag: "", fetchedAt: 0, loading: null, error: "", details: new Map(), summary: null, summaryEtag: "", summaryFetchedAt: 0, summaryLoading: null, summaryError: "" };
+  const state = {
+    items: [], etag: "", fetchedAt: 0, loading: null, error: "", details: new Map(),
+    summary: null, summaryEtag: "", summaryFetchedAt: 0, summaryLoading: null, summaryError: "",
+    bootstrapEntries: new Map(), bootstrapLoading: new Map(), bootstrapError: "", bootstrapActiveId: "", bootstrapCapability: "unknown", bootstrapRequestSequence: 0, bootstrapDataEpoch: 0,
+  };
+
+  function findItemByIdOrNumber(id) {
+    const key = String(id || "");
+    return state.items.find((item) => String(item?.id || "") === key || String(item?.number || "") === key) || null;
+  }
+
+  function invalidateWorkbenchBootstrap() {
+    // A write or direct detail refresh is newer than every in-flight
+    // bootstrap response. Its epoch is checked before such a response may
+    // update either the selected aggregate or the compact list cache.
+    state.bootstrapDataEpoch += 1;
+    state.bootstrapEntries.clear();
+    state.bootstrapActiveId = "";
+  }
+
   async function refresh({ force = false } = {}) {
     if (!force && state.items.length && now() - state.fetchedAt < DEFAULT_MAX_AGE_MS) return { ok: true, changed: false, items: state.items };
     if (state.loading) return state.loading;
@@ -23,6 +42,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         state.etag = response.headers?.get?.("ETag") || state.etag;
         state.fetchedAt = now();
         state.error = "";
+        invalidateWorkbenchBootstrap();
         return { ok: true, changed, items };
       } catch (error) {
         state.error = error?.message || "Work-order read API is unavailable";
@@ -49,6 +69,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
         cached.etag = response.headers?.get?.("ETag") || cached.etag;
         cached.fetchedAt = now();
         cached.error = "";
+        invalidateWorkbenchBootstrap();
         return { ok: true, changed, item: cached.item };
       } catch (error) {
         cached.error = error?.message || "Work-order detail API is unavailable";
@@ -58,6 +79,117 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
     state.details.set(key, cached);
     return cached.loading;
   }
+
+  async function refreshLegacyWorkbenchBootstrap(requestedId, { force = false } = {}) {
+    const listResult = await refresh({ force });
+    if (!listResult.ok) return { ok: false, changed: false, items: state.items, activeId: "", item: null, error: listResult.error };
+    const selected = findItemByIdOrNumber(requestedId) || state.items[0] || null;
+    if (!selected) return { ok: true, changed: listResult.changed, items: state.items, activeId: "", item: null };
+    const detailResult = await refreshDetail(selected.id, { force });
+    return {
+      ok: detailResult.ok,
+      changed: Boolean(listResult.changed || detailResult.changed),
+      items: state.items,
+      activeId: detailResult.item?.id || "",
+      item: detailResult.item || null,
+      error: detailResult.error || "",
+    };
+  }
+
+  async function refreshWorkbenchBootstrap(activeId = "", { force = false } = {}) {
+    const requestedId = String(activeId || "").trim();
+    const requestedItem = requestedId ? findItemByIdOrNumber(requestedId) : null;
+    const requestKey = requestedItem?.id || requestedId || "__default__";
+    const cached = state.bootstrapEntries.get(requestKey) || null;
+    const cachedDetail = cached?.activeId ? state.details.get(cached.activeId)?.item || null : null;
+    if (!force && cached && now() - cached.fetchedAt < DEFAULT_MAX_AGE_MS && ((cached.activeId && cachedDetail) || (!state.items.length && !cached.activeId))) {
+      // A cache hit is still the newest visible selection. Invalidate an
+      // older in-flight response so it cannot replace this selection's
+      // shared list state after the caller has already moved on.
+      state.bootstrapRequestSequence += 1;
+      return { ok: true, changed: false, items: state.items, activeId: cached.activeId, item: cachedDetail };
+    }
+    if (state.bootstrapCapability === "unsupported") return refreshLegacyWorkbenchBootstrap(requestedId, { force });
+    const inFlight = state.bootstrapLoading.get(requestKey);
+    if (inFlight) return inFlight;
+    const requestSequence = ++state.bootstrapRequestSequence;
+    const dataEpoch = state.bootstrapDataEpoch;
+    let request;
+    request = (async () => {
+      try {
+        const params = requestedId ? `?active=${encodeURIComponent(requestedId)}` : "";
+        const response = await fetchImpl(`${url}/bootstrap${params}`, {
+          headers: cached?.etag ? { "If-None-Match": cached.etag } : {},
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        // The endpoint is additive. During a mixed-version release an older
+        // server can safely retain the established list + detail path without
+        // repeatedly probing a capability it already proved unavailable.
+        if (response.status === 404 || response.status === 405) {
+          state.bootstrapCapability = "unsupported";
+          return refreshLegacyWorkbenchBootstrap(requestedId, { force });
+        }
+        if (response.status === 304) {
+          if (dataEpoch !== state.bootstrapDataEpoch) {
+            const selected = findItemByIdOrNumber(requestedId) || null;
+            return { ok: true, changed: false, items: state.items, activeId: selected?.id || "", item: selected ? state.details.get(String(selected.id))?.item || null : null };
+          }
+          if (!cached) throw new Error("Work-order bootstrap API returned 304 without a cached response");
+          cached.fetchedAt = now();
+          return { ok: true, changed: false, items: state.items, activeId: cached.activeId, item: cached.activeId ? state.details.get(cached.activeId)?.item || null : null };
+        }
+        if (!response.ok) throw new Error(`Work-order bootstrap API returned ${response.status}`);
+        const payload = await response.json();
+        if (!payload?.ok) throw new Error(payload?.error || "Work-order bootstrap API returned an invalid payload");
+        const items = normalizeItems(payload.items);
+        const selectedId = String(payload.activeId || "");
+        const item = payload.item?.id ? payload.item : null;
+        if ((selectedId && !item) || (item && String(item.id) !== selectedId)) {
+          throw new Error("Work-order bootstrap API returned an inconsistent selected aggregate");
+        }
+        if (dataEpoch !== state.bootstrapDataEpoch) {
+          const selected = findItemByIdOrNumber(requestedId) || null;
+          return { ok: true, changed: false, items: state.items, activeId: selected?.id || "", item: selected ? state.details.get(String(selected.id))?.item || null : null };
+        }
+        const fetchedAt = now();
+        const existingDetail = selectedId ? state.details.get(selectedId)?.item || null : null;
+        const changed = JSON.stringify(items) !== JSON.stringify(state.items)
+          || JSON.stringify(item) !== JSON.stringify(existingDetail);
+        const entry = {
+          activeId: selectedId,
+          etag: response.headers?.get?.("ETag") || "",
+          fetchedAt,
+        };
+        state.bootstrapEntries.set(requestKey, entry);
+        if (selectedId) state.bootstrapEntries.set(selectedId, entry);
+        if (selectedId && item) state.details.set(selectedId, { item, etag: "", fetchedAt, loading: null, error: "" });
+        // Different selections can be in flight on a slow link. Keep their
+        // individual detail caches, but only the most recently requested one
+        // may replace the shared list/current bootstrap state.
+        const isCurrentRequest = requestSequence === state.bootstrapRequestSequence;
+        if (isCurrentRequest) {
+          state.items = items;
+          // A combined response ETag must never be presented to the narrower
+          // list/detail endpoints. They maintain their own validators.
+          state.etag = "";
+          state.fetchedAt = fetchedAt;
+          state.bootstrapActiveId = selectedId;
+          state.bootstrapCapability = "supported";
+          state.bootstrapError = "";
+        }
+        return { ok: true, changed: isCurrentRequest && changed, items: state.items, activeId: selectedId, item };
+      } catch (error) {
+        state.bootstrapError = error?.message || "Work-order bootstrap API is unavailable";
+        return { ok: false, changed: false, items: state.items, activeId: "", item: null, error: state.bootstrapError };
+      } finally {
+        if (state.bootstrapLoading.get(requestKey) === request) state.bootstrapLoading.delete(requestKey);
+      }
+    })();
+    state.bootstrapLoading.set(requestKey, request);
+    return request;
+  }
+
   async function refreshSummary({ force = false } = {}) {
     if (!force && state.summary && now() - state.summaryFetchedAt < DEFAULT_MAX_AGE_MS) return { ok: true, changed: false, summary: state.summary };
     if (state.summaryLoading) return state.summaryLoading;
@@ -100,6 +232,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
       state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
       state.etag = response.headers?.get?.("ETag") || state.etag;
       state.fetchedAt = now();
+      invalidateWorkbenchBootstrap();
       const cached = state.details.get(key);
       if (cached?.item) {
         cached.item = { ...cached.item, ...item, operations: cached.item.operations };
@@ -137,6 +270,7 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
       state.items = state.items.map((existing) => String(existing.id) === String(item.id) ? { ...existing, ...item } : existing);
       state.etag = response.headers?.get?.("ETag") || state.etag;
       state.fetchedAt = now();
+      invalidateWorkbenchBootstrap();
       const cached = state.details.get(key);
       if (cached) { cached.etag = ""; cached.fetchedAt = 0; }
       return { ok: true, item };
@@ -144,5 +278,5 @@ export function createWorkOrdersReadModel({ fetchImpl = globalThis.fetch, url = 
       return { ok: false, kind: "unavailable", error: error?.message || "Work-order schedule API is unavailable" };
     }
   }
-  return { refresh, refreshSummary, refreshDetail, changeQuantity, changeSlotSchedule, getItems: () => state.items.map((item) => ({ ...item })), getSummary: () => state.summary ? { ...state.summary } : null, getDetail: (id) => state.details.get(String(id || ""))?.item || null, getStatus: () => ({ available: Boolean(state.items.length), loading: Boolean(state.loading), error: state.error, fetchedAt: state.fetchedAt, summaryAvailable: Boolean(state.summary), summaryLoading: Boolean(state.summaryLoading), summaryError: state.summaryError, summaryFetchedAt: state.summaryFetchedAt }) };
+  return { refresh, refreshWorkbenchBootstrap, refreshSummary, refreshDetail, changeQuantity, changeSlotSchedule, getItems: () => state.items.map((item) => ({ ...item })), getSummary: () => state.summary ? { ...state.summary } : null, getDetail: (id) => state.details.get(String(id || ""))?.item || null, getStatus: () => ({ available: Boolean(state.items.length), loading: Boolean(state.loading), error: state.error, fetchedAt: state.fetchedAt, bootstrapAvailable: state.bootstrapEntries.size > 0, bootstrapLoading: state.bootstrapLoading.size > 0, bootstrapError: state.bootstrapError, bootstrapCapability: state.bootstrapCapability, summaryAvailable: Boolean(state.summary), summaryLoading: Boolean(state.summaryLoading), summaryError: state.summaryError, summaryFetchedAt: state.summaryFetchedAt }) };
 }

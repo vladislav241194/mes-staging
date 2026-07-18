@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 const source = await readFile(resolve(process.cwd(), "src/app.js"), "utf8");
 const appEventsSource = await readFile(resolve(process.cwd(), "src/modules/app_events/service.js"), "utf8");
+const readModelSource = await readFile(resolve(process.cwd(), "src/modules/domain_api/work_orders_read_model.js"), "utf8");
 const failures = [];
 const expect = (condition, message) => { if (!condition) failures.push(message); };
 expect(!source.includes('import { createPlanningWorkbenchModule } from "./modules/planning_workbench/render.js";'), "Planning Workbench must not remain a static app import");
@@ -13,6 +14,13 @@ expect(source.includes('sidebar: renderUiModuleSidebar({'), "Planning Workbench 
 expect(source.includes('header: renderUiModuleHeader({'), "Planning Workbench loading state must provide its required ModuleHeader slot");
 expect(source.includes('if (ui.activeModule === "planning") render({ skipRememberScroll: true });'), "Planning Workbench must rerender the active screen after lazy load");
 expect(source.includes('async function hydratePlanningWorkbenchBootstrap'), "Planning needs a compact server bootstrap for its list and selected order.");
+expect(source.includes('workOrdersReadModel.refreshWorkbenchBootstrap(requestedActiveRouteId, { force })'), "Planning startup must request list and selected detail through one server bootstrap.");
+expect(!source.includes('function hydratePlanningWorkOrderDetail('), "Planning must not race its compact bootstrap with the retired direct-detail loader.");
+expect(source.includes('if (String(ui.activeRouteId || "") !== requestedActiveRouteId) return true;'), "A stale bootstrap response must not restore an earlier route selection.");
+expect(source.includes('hydratePlanningWorkOrderReadModel();\n  const currentPage = app.querySelector'), "A route click must request the newly selected aggregate through the compact bootstrap.");
+expect(readModelSource.includes('async function refreshWorkbenchBootstrap(activeId = "", { force = false } = {})'), "Work-order read model must expose the combined workbench bootstrap reader.");
+expect(readModelSource.includes('`${url}/bootstrap${params}`'), "Workbench bootstrap must use the dedicated one-request endpoint.");
+expect(readModelSource.includes('bootstrapEntries: new Map()') && readModelSource.includes('bootstrapLoading: new Map()'), "Independent selections must retain keyed bootstrap cache and in-flight requests.");
 expect(source.includes('onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap()'), "Planning startup must use the compact bootstrap instead of the full runtime projection.");
 expect(appEventsSource.includes('ensurePlanningRuntimeProjection = async () => false'), "Scheduling must declare the on-demand runtime-projection dependency.");
 expect(appEventsSource.includes('const projectionReady = await ensurePlanningRuntimeProjection();'), "Scheduling must load the complete projection only immediately before placement.");

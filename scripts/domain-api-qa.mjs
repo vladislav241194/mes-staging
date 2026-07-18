@@ -89,6 +89,15 @@ try {
   const unchangedList = await request(filePath, "/api/v1/planning/work-orders", "GET", null, { "if-none-match": list.headers.ETag });
   assert(unchangedList.statusCode === 304 && unchangedList.body === "", "unchanged list must support conditional GET");
 
+  const workbenchBootstrap = await request(filePath, "/api/v1/planning/work-orders/bootstrap?active=WO-001");
+  assert(workbenchBootstrap.statusCode === 200 && workbenchBootstrap.json.activeId === "route-1" && workbenchBootstrap.json.items?.length === 1, "workbench bootstrap must return one compact list and the canonical selected order");
+  assert(workbenchBootstrap.json.item?.id === "route-1" && workbenchBootstrap.json.item?.operations?.[0]?.slot?.id === "slot-1", "workbench bootstrap must return the selected operation schedule in the same response");
+  assert(!Object.hasOwn(workbenchBootstrap.json.item?.operations?.[0]?.slot || {}, "metadata"), "workbench bootstrap must keep the compact workbench slot contract");
+  const unchangedWorkbenchBootstrap = await request(filePath, "/api/v1/planning/work-orders/bootstrap?active=WO-001", "GET", null, { "if-none-match": workbenchBootstrap.headers.ETag });
+  assert(unchangedWorkbenchBootstrap.statusCode === 304 && unchangedWorkbenchBootstrap.body === "", "unchanged workbench bootstrap must support one combined conditional GET");
+  const staleWorkbenchSelection = await request(filePath, "/api/v1/planning/work-orders/bootstrap?active=removed-route");
+  assert(staleWorkbenchSelection.statusCode === 200 && staleWorkbenchSelection.json.activeId === "route-1" && staleWorkbenchSelection.json.item?.id === "route-1", "stale workbench selection must safely fall back to the first available order");
+
   const summary = await request(filePath, "/api/v1/planning/work-orders/summary");
   assert(summary.statusCode === 200 && summary.json.summary?.workOrderCount === 1, "work-order summary must return a compact aggregate");
   assert(summary.json.summary?.totalQuantity === 12 && summary.json.summary?.unscheduledOperationCount === 0, "work-order summary must preserve quantity and scheduling totals");

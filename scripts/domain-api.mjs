@@ -1720,6 +1720,55 @@ export async function handleDomainApiRequest(req, res, url, {
     return true;
   }
 
+  // The Planning workbench's first render needs a compact sidebar and one
+  // selected aggregate.  Serving them here avoids the former public
+  // list->detail chain (and a second parity/safety gate) while preserving the
+  // old endpoints for navigation and mixed-version rollout compatibility.
+  if (url.pathname === `${API_PREFIX}/planning/work-orders/bootstrap`) {
+    const requestedId = String(url.searchParams.get("active") || "").trim();
+    let planningSafety = await getPlanningSafety();
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: async (repository) => {
+        if (typeof repository.listWorkbenchBootstrap === "function") {
+          return repository.listWorkbenchBootstrap(requestedId);
+        }
+        // Additive fallback for a temporarily older repository during a
+        // rolling deploy. It remains one HTTP response even if its internal
+        // compatibility adapter has not yet learned the atomic read.
+        const listed = await repository.list();
+        const selected = listed.items.find((candidate) => String(candidate?.id || "") === requestedId || String(candidate?.number || "") === requestedId)
+          || listed.items[0]
+          || null;
+        const detail = selected ? await repository.get(selected.id) : null;
+        return {
+          ...listed,
+          activeId: detail?.item?.id || "",
+          item: detail?.item || null,
+        };
+      },
+    });
+    planningSafety = guardedRead.planningSafety;
+    const result = guardedRead.result;
+    const payload = withPlanningFallback({
+      ok: true,
+      apiVersion: "v1",
+      ...result,
+      item: result.item ? buildPlanningWorkbenchDetail(result.item) : null,
+    }, planningSafety);
+    // A list revision alone cannot describe a different selected aggregate.
+    // Hash the exact combined response so a stale selection never receives a
+    // misleading 304 after navigation or a concurrent detail update.
+    const etag = getPayloadEtag(payload);
+    if (matchesEtag(req, etag)) {
+      sendNotModified(res, headers, etag);
+      return true;
+    }
+    sendJson(res, headers, 200, payload, { ETag: etag });
+    return true;
+  }
+
   if (url.pathname === `${API_PREFIX}/planning/work-orders/summary`) {
     let planningSafety = await getPlanningSafety();
     const guardedRead = await readPlanningProjectionSafely({

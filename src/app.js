@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.47";
+const APP_VERSION_FALLBACK = "v.1.499.48";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -3647,14 +3647,18 @@ function hydratePlanningWorkOrderReadModel() {
 }
 async function hydratePlanningWorkbenchBootstrap({ force = false, renderOnChange = false } = {}) {
   if (!await ensurePlanningDomainApiModule()) return false;
-  const result = await workOrdersReadModel.refresh({ force });
+  const requestedActiveRouteId = String(ui.activeRouteId || "");
+  const result = await workOrdersReadModel.refreshWorkbenchBootstrap(requestedActiveRouteId, { force });
   if (!result.ok) return false;
-  const activeRouteId = String(ui.activeRouteId || result.items?.[0]?.id || "");
-  if (!ui.activeRouteId && activeRouteId) ui.activeRouteId = activeRouteId;
-  if (activeRouteId) {
-    const detailResult = await workOrdersReadModel.refreshDetail(activeRouteId, { force });
-    if (!detailResult.ok) return false;
-  }
+  // A user can choose another order while a slow bootstrap is in flight.
+  // Its response remains cached by the read model, but it must never restore
+  // the earlier selection over the newer click.
+  if (String(ui.activeRouteId || "") !== requestedActiveRouteId) return true;
+  // The server canonicalizes a stale persisted selection to the first
+  // available order. Keep that canonical ID in UI state so the next render
+  // does not issue a second list/detail request for a removed route.
+  const activeRouteId = String(result.activeId || result.items?.[0]?.id || "");
+  if (ui.activeRouteId !== activeRouteId) ui.activeRouteId = activeRouteId;
   if (renderOnChange && result.changed && ui.activeModule === "planning") render();
   return true;
 }
@@ -4075,12 +4079,6 @@ async function mirrorShiftMasterBoardCarryoverRemovalToServer(row, carryover, { 
     shiftExecutionServerState = { ...shiftExecutionServerState, status: "fallback", error: error?.message || "Shift carryover cancellation mirror failed" };
     return { ok: false, error: shiftExecutionServerState.error };
   }
-}
-function hydratePlanningWorkOrderDetail(routeId) {
-  if (!routeId) return;
-  void ensurePlanningDomainApiModule().then((ready) => ready ? workOrdersReadModel.refreshDetail(routeId) : { ok: false }).then((result) => {
-    if (result.ok && result.changed && ui.activeModule === "planning") render();
-  });
 }
 async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
   if (!await ensurePlanningDomainApiModule()) return syncPlanningRouteQuantity(routeId, quantity, options);
@@ -5732,7 +5730,6 @@ function initializeModuleRuntime() {
     planning: {
       render: () => {
         hydratePlanningWorkOrderReadModel();
-        hydratePlanningWorkOrderDetail(ui.activeRouteId || "");
         ensurePlanningWorkbenchModule();
         if (planningWorkbenchModuleError) {
           return renderPlanningWorkbenchShellState({
@@ -6075,6 +6072,10 @@ function renderPreservingModuleScroll(options = {}) {
 }
 
 function refreshPlanningWorkbench() {
+  // Route selection has changed without a full module render. Let the one
+  // compact bootstrap load its corresponding detail; do not race it with the
+  // legacy direct-detail reader.
+  hydratePlanningWorkOrderReadModel();
   const currentPage = app.querySelector('.planning-order-page[data-ui-component="ModulePage"]');
   const currentWorkspace = currentPage?.querySelector(':scope > [data-ui-component="ModuleWorkspace"]');
   if (!currentPage || !currentWorkspace || ui.activeModule !== "planning") {

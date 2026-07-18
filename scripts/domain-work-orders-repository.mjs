@@ -229,6 +229,33 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
       };
     },
 
+    // The Planning workbench needs a compact list and exactly one selected
+    // aggregate. Build both from one immutable shared-state snapshot so the
+    // compatibility path cannot mix a sidebar from one revision with a
+    // selected order from another.
+    async listWorkbenchBootstrap(activeId = "") {
+      const state = await read();
+      const model = readModel(state.snapshot);
+      const requestedId = String(activeId || "").trim();
+      const route = (requestedId && findRoute(model, requestedId)) || model.routes[0] || null;
+      const routeId = String(route?.id || "");
+      const slotsByStepId = new Map(model.slots
+        .filter((slot) => String(slot.routeId || "") === routeId)
+        .map((slot) => [String(slot.routeStepId || ""), slot]));
+      const item = route ? {
+        ...orderDetailProjection(route, model.routeSteps, model.slots),
+        operations: model.routeSteps
+          .filter((step) => String(step.routeId || "") === routeId)
+          .map((step) => operationProjection(step, slotsByStepId.get(String(step.id || step.routeStepId || "")) || null)),
+      } : null;
+      return {
+        ...metaFromSnapshot(state),
+        items: model.routes.map((candidate) => orderListProjection(candidate, model.routeSteps, model.slots)),
+        activeId: item?.id || "",
+        item,
+      };
+    },
+
     async summary() {
       const state = await read();
       return { ...metaFromSnapshot(state), summary: summarizeModel(readModel(state.snapshot)) };
