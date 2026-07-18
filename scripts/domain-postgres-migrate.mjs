@@ -23,13 +23,32 @@ try {
 }
 
 // A command-enabled contour must not report Shift Execution ready merely
-// because its tables exist. Reconcile the compatibility projection through
-// the resumable authority protocol while this named migration service owns
-// the protected database environment.
-if (String(process.env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1"
-  && String(process.env.MES_SHARED_STATE_DIR || "").trim()) {
+// because its tables exist. The legacy migration unit predates the explicit
+// shared-state path variables, so derive them only from the two fixed server
+// roots; never guess a path for a local checkout.
+const workingDirectory = resolve(".");
+const authorityEnv = String(process.env.MES_SHARED_STATE_DIR || "").trim()
+  ? process.env
+  : workingDirectory.startsWith("/srv/mes/pilot/")
+    ? {
+      ...process.env,
+      APP_ENV: "pilot",
+      MES_SHARED_STATE_DIR: "/srv/mes/pilot/shared-state",
+      MES_BACKUP_DIR: "/srv/mes/pilot/backups",
+      MES_AUDIT_LOG_PATH: "/srv/mes/pilot/audit/audit.log",
+    }
+    : workingDirectory.startsWith("/srv/mes/dev/")
+      ? {
+        ...process.env,
+        APP_ENV: "staging",
+        MES_SHARED_STATE_DIR: "/srv/mes/dev/shared-state",
+        MES_BACKUP_DIR: "/srv/mes/dev/backups",
+        MES_AUDIT_LOG_PATH: "/srv/mes/dev/audit/audit.log",
+      }
+      : null;
+if (String(process.env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1" && authorityEnv) {
   const authorityModule = await import("./domain-shift-execution-authority.mjs");
-  const rollbackTriggerPath = resolve(process.env.MES_SHARED_STATE_DIR, ".shift-execution-authority-rollback.json");
+  const rollbackTriggerPath = resolve(authorityEnv.MES_SHARED_STATE_DIR, ".shift-execution-authority-rollback.json");
   let rollbackTrigger = null;
   try { rollbackTrigger = JSON.parse(await readFile(rollbackTriggerPath, "utf8")); }
   catch (error) { if (error?.code !== "ENOENT") throw error; }
@@ -42,11 +61,12 @@ if (String(process.env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1"
     const result = await authorityModule.rollbackShiftExecutionPostgresAuthority({
       transitionId: rollbackTrigger.transitionId,
       sourceDigest: rollbackTrigger.sourceDigest,
+      env: authorityEnv,
     });
     await unlink(rollbackTriggerPath);
     console.log(`Shift Execution authority rollback: ${result.transitionId}`);
   } else {
-    const result = await authorityModule.reconcileShiftExecutionPostgresAuthority();
+    const result = await authorityModule.reconcileShiftExecutionPostgresAuthority({ env: authorityEnv });
     console.log(`Shift Execution authority: ${result.authority.mode}`);
   }
 }
