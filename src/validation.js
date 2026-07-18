@@ -8,6 +8,18 @@ export function byId(items) {
   return Object.fromEntries(asArray(items).map((item) => [item.id, item]));
 }
 
+// Warning identifiers are read by startup-safe planning modules as well as the
+// lazily loaded Gantt runtime. Keep their legacy aliases at this shared
+// compatibility boundary, so a cold Planning visit never has to invoke a
+// Gantt facade method before its chunk is ready.
+export function getWarningProductionId(warning = {}) {
+  return warning?.productionId || warning?.projectId || "";
+}
+
+export function getWarningPlanningOrderId(warning = {}) {
+  return warning?.planningOrderId || warning?.batchId || "";
+}
+
 function getValidationProductionId(entity = {}) {
   return entity?.specificationId || entity?.projectId || "";
 }

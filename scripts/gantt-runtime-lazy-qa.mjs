@@ -61,7 +61,8 @@ const planningRoutesInitialization = planningRoutesInitializationStart >= 0 && p
 expect(Boolean(planningRoutesInitialization), "Planning-routes initialization must exist");
 expect(planningRoutesInitialization.includes("focusRoute: (...args) => ganttRuntime?.isReady?.() ? focusRoute(...args) : render(),"), "Cold route-to-Gantt flow must render the loading shell instead of calling the lazy focus facade");
 expect(planningRoutesInitialization.includes("snapToWorkingTime: (...args) => ganttRuntime?.isReady?.() ? snapToWorkingTime(...args) : args[1],"), "Cold route scheduling must not call the lazy calendar snap facade");
-expect(planningRoutesInitialization.includes("getWarningProductionId: (warning = {}) => warning.productionId || warning.projectId || \"\","), "Planning warnings must use the local production resolver before Gantt loads");
+expect(appSource.includes("getWarningProductionId,\n} from \"./validation.js\";"), "App must import the startup-safe warning production resolver");
+expect(planningRoutesInitialization.includes("getWarningProductionId,"), "Planning warnings must use the startup-safe production resolver before Gantt loads");
 expect(!planningRoutesInitialization.includes("getWarningProductionId: (...args) => typeof getWarningProductionId"), "Planning warnings must not forward through the lazy Gantt facade");
 
 const planningCoreInitializationStart = appSource.indexOf("planningCoreService = createPlanningCoreServiceModule({");

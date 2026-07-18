@@ -37,6 +37,7 @@ import {
   getDependencyPairs,
   getProjectRouteSteps,
   getSlotWarnings,
+  getWarningProductionId,
 } from "./validation.js";
 import {
   MES_LEGACY_WORK_CENTER_ID_MAP,
@@ -168,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.55";
+const APP_VERSION_FALLBACK = "v.1.499.56";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -441,7 +442,7 @@ function initializePlanningRoutesServiceModule() {
   getSlotProductionContextId,
   getSlotRouteId,
   getSlotWarnings,
-  getWarningProductionId: (warning = {}) => warning.productionId || warning.projectId || "",
+  getWarningProductionId,
   getSpecificationItemBoardsPerPanel, getSpecificationBomEntries: (...args) => typeof getSpecificationBomEntries === "function" ? getSpecificationBomEntries(...args) : [], getSpecificationById: (...args) => typeof getSpecificationById === "function" ? getSpecificationById(...args) : null, getSpecificationItemBomId: (...args) => typeof getSpecificationItemBomId === "function" ? getSpecificationItemBomId(...args) : "", getSpekiStructureItemDisplayName: (...args) => typeof getSpekiStructureItemDisplayName === "function" ? getSpekiStructureItemDisplayName(...args) : "", getSpekiStructureItemLabel: (...args) => typeof getSpekiStructureItemLabel === "function" ? getSpekiStructureItemLabel(...args) : "", getSpekiStructureTableRows: (...args) => typeof getSpekiStructureTableRows === "function" ? getSpekiStructureTableRows(...args) : [],
   getWorkCenter,
   getWorkCenterManualCapacity,
@@ -6986,7 +6987,7 @@ appEventsService = createAppEventsServiceModule({
   getSlotPlanningOrderId,
   getSlotRouteId,
   getSlotWarnings,
-  getWarningProductionId: (warning = {}) => warning.productionId || warning.projectId || "",
+  getWarningProductionId,
   getSpecificationByProjectId,
   getSpecificationDeleteUsage,
   getSpecificationItemFulfillmentMode,
@@ -7247,8 +7248,6 @@ const {
   renderIssueDock,
   renderPlanningAssistantDock,
   formatWarningType,
-  getWarningProductionId,
-  getWarningPlanningOrderId,
   renderSlotDrawer,
   renderDrawerRouteSequence,
   renderEditorModal,
