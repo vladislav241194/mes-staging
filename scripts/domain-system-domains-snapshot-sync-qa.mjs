@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
-import { inspectSystemDomainsSnapshotConsistency, syncPendingSystemDomainsSnapshotChanges } from "./domain-system-domains-snapshot-sync.mjs";
+import { inspectSystemDomainsSnapshotConsistency, inspectSystemDomainsSnapshotPromotionCandidate, syncPendingSystemDomainsSnapshotChanges } from "./domain-system-domains-snapshot-sync.mjs";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
 const directory = await mkdtemp(join(tmpdir(), "mes-system-domains-sync-"));
@@ -50,6 +50,12 @@ try {
     readSnapshot: async () => makeSnapshot(7),
   });
   assert(stableConsistency.matches && stableConsistency.details?.reconciliation?.comparison?.stable === true, "only two identical System Domains reads may prove parity");
+  assert(!Object.prototype.hasOwnProperty.call(stableConsistency, "candidate"), "Public consistency output must never expose the private promotion candidate");
+  const privateCandidate = await inspectSystemDomainsSnapshotPromotionCandidate({
+    primary: { async get() { return { revision: 3, item: domains }; } },
+    readSnapshot: async () => makeSnapshot(7),
+  });
+  assert(privateCandidate.candidate?.snapshot?.rawSnapshot?.version === 7, "The root-only promotion path must receive the stable raw snapshot for CAS proof");
 
   let snapshotReads = 0;
   const changingSnapshotConsistency = await inspectSystemDomainsSnapshotConsistency({

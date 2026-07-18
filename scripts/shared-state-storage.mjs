@@ -1,5 +1,6 @@
-import { appendFile, copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { appendFile, chmod, chown, copyFile, mkdir, open, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
 const PROTECTED_APP_ENVS = new Set(["pilot", "staging", "user-testing", "production"]);
 const DESTRUCTIVE_ACTION_RE = /\b(reset|restore|seed|snapshot|wipe|clear|delete|destructive|initial-state|initial-bootstrap-snapshot)\b/i;
@@ -23,6 +24,88 @@ function resolvePath(value, baseDir = process.cwd()) {
 
 function timestampForFile(date = new Date()) {
   return date.toISOString().replace(/[:.]/g, "-");
+}
+
+function pause(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+}
+
+export async function withSharedStateFileLock(filePath, action, {
+  timeoutMs = 12_000,
+  retryDelayMs = 25,
+  staleMs = 120_000,
+} = {}) {
+  if (!filePath) throw new Error("Shared state file path is required for a file lock");
+  if (typeof action !== "function") throw new Error("Shared state file lock requires an action callback");
+  const lockPath = `${filePath}.lock`;
+  const startedAt = Date.now();
+  await mkdir(dirname(lockPath), { recursive: true });
+
+  while (true) {
+    let acquired = false;
+    try {
+      await mkdir(lockPath);
+      acquired = true;
+      try {
+        await writeFile(join(lockPath, "owner.json"), `${JSON.stringify({
+          processId: process.pid,
+          acquiredAt: new Date().toISOString(),
+        })}\n`, "utf-8");
+        return await action({ lockPath });
+      } finally {
+        await rm(lockPath, { recursive: true, force: true });
+      }
+    } catch (error) {
+      if (acquired) throw error;
+      if (error?.code !== "EEXIST") throw error;
+      const lockStat = await stat(lockPath).catch((statError) => statError?.code === "ENOENT" ? null : Promise.reject(statError));
+      if (lockStat && Date.now() - Number(lockStat.mtimeMs || 0) > staleMs) {
+        // Never steal a lock based on time alone: a slow backup or a stalled
+        // filesystem must fail closed rather than allowing a second writer to
+        // overwrite a still-running promotion. An operator can inspect and
+        // clear a confirmed orphan lock under controlled conditions.
+        const staleError = new Error(`Shared-state file lock appears stale and was not removed automatically: ${lockPath}`);
+        staleError.code = "MES_SHARED_STATE_LOCK_STALE";
+        throw staleError;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        const timeoutError = new Error(`Timed out waiting for shared-state file lock: ${lockPath}`);
+        timeoutError.code = "MES_SHARED_STATE_LOCK_TIMEOUT";
+        throw timeoutError;
+      }
+      await pause(retryDelayMs + Math.floor(Math.random() * retryDelayMs));
+    }
+  }
+}
+
+export async function writeSharedStateFileAtomic(filePath, payload) {
+  if (!filePath) throw new Error("Shared state file path is required for an atomic write");
+  const directory = dirname(filePath);
+  const serialized = typeof payload === "string" ? payload : `${JSON.stringify(payload, null, 2)}\n`;
+  const tempPath = join(directory, `.${basename(filePath)}.tmp-${process.pid}-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  const existing = await stat(filePath).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
+  let handle = null;
+  try {
+    handle = await open(tempPath, "w", 0o600);
+    await handle.writeFile(serialized, "utf-8");
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    if (existing) {
+      await chmod(tempPath, Number(existing.mode) & 0o777);
+      // A root-controlled promotion must not convert deploy-owned shared
+      // state into an unreadable root:root file after the atomic rename.
+      if (typeof process.getuid === "function" && process.getuid() === 0) {
+        await chown(tempPath, Number(existing.uid), Number(existing.gid));
+      }
+    }
+    await rename(tempPath, filePath);
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    await rm(tempPath, { force: true }).catch(() => {});
+    throw error;
+  }
 }
 
 export function getAppEnv(env = process.env) {

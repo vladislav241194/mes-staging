@@ -4,6 +4,11 @@ import {
 } from "./service.js";
 
 const MAX_CHANGED_FIELD_PATHS = 24;
+const COMPATIBILITY_SNAPSHOT_METADATA_PATHS = new Set([
+  "$.lastMutationRegistry",
+  "$.migratedAt",
+  "$.updatedAt",
+]);
 
 function asRecord(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -95,7 +100,36 @@ function reconcileMetadata(snapshotMetadata = {}, postgresMetadata = {}) {
   return {
     changedFields: changedFieldPaths.length,
     changedFieldPaths,
+    hasUnallowlistedDifference: metadataHasUnallowlistedDifference(left, right),
     matches: changedFieldPaths.length === 0,
+  };
+}
+
+function isCompatibilitySnapshotMetadataPathAllowed(path) {
+  return COMPATIBILITY_SNAPSHOT_METADATA_PATHS.has(path)
+    || /^\$\.lastMutationKeys(?:\.|\[|$)/.test(path);
+}
+
+function metadataHasUnallowlistedDifference(left, right, path = "$") {
+  if (canonicalJson(left) === canonicalJson(right)) return false;
+  if (isCompatibilitySnapshotMetadataPathAllowed(path)) return false;
+  if (Array.isArray(left) || Array.isArray(right)
+    || !left || !right || typeof left !== "object" || typeof right !== "object") return true;
+  return [...new Set([...Object.keys(left), ...Object.keys(right)])]
+    .some((key) => metadataHasUnallowlistedDifference(left[key], right[key], `${path}.${key}`));
+}
+
+function inspectCompatibilitySnapshotPromotion({ registries, metadata, snapshotState, stable }) {
+  const entries = Object.values(registries);
+  const reasons = [];
+  if (snapshotState !== "active") reasons.push(`snapshot-${snapshotState}`);
+  if (!stable) reasons.push("source-not-stable");
+  if (entries.some((entry) => entry.missingFromPostgres > 0)) reasons.push("snapshot-has-entities-missing-in-postgres");
+  if (entries.some((entry) => entry.changedEntities > 0)) reasons.push("shared-entities-differ");
+  if (metadata.hasUnallowlistedDifference) reasons.push("metadata-diff-not-allowlisted");
+  return {
+    eligible: reasons.length === 0,
+    reasonCodes: reasons,
   };
 }
 
@@ -141,6 +175,7 @@ export function reconcileSystemDomains({
   if (!stable) reasonCodes.push(`source-${stability}`);
   if (!metadata.matches || Object.values(registries).some((entry) => !entry.matches)) reasonCodes.push("projection-diff");
   if (!reasonCodes.length) reasonCodes.push("manual-promotion-proof-required");
+  const snapshotPromotion = inspectCompatibilitySnapshotPromotion({ registries, metadata, snapshotState, stable });
   return {
     contractVersion: 1,
     comparison: {
@@ -162,6 +197,12 @@ export function reconcileSystemDomains({
       writeEligible: false,
       retirementEligible: false,
       reasonCodes,
+      // A distinct, one-shot operation may write PostgreSQL's additive facts
+      // to the compatibility snapshot. It is deliberately not command
+      // authority: callers still need an explicit backup, version proof and
+      // post-write parity check before making any write.
+      snapshotPromotionEligible: snapshotPromotion.eligible,
+      snapshotPromotionReasonCodes: snapshotPromotion.reasonCodes,
     },
   };
 }

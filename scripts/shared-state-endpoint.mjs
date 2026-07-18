@@ -1,5 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import {
   appendSharedStateAudit,
@@ -8,6 +7,8 @@ import {
   isProtectedAppEnv,
   isSharedStateActionDestructive,
   resolveSharedStateBackupDir,
+  withSharedStateFileLock,
+  writeSharedStateFileAtomic,
 } from "./shared-state-storage.mjs";
 
 const MAX_SHARED_STATE_BODY_BYTES = 20 * 1024 * 1024;
@@ -72,8 +73,7 @@ async function readFileSnapshot(filePath) {
 }
 
 async function writeFileSnapshot(filePath, snapshot) {
-  await mkdir(dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf-8");
+  await writeSharedStateFileAtomic(filePath, snapshot);
   const fileStat = await stat(filePath);
   FILE_SNAPSHOT_CACHE.set(filePath, {
     fingerprint: getFileFingerprint(fileStat),
@@ -320,23 +320,29 @@ export async function readSharedStateSnapshot({ env = process.env, filePath = ""
   };
 }
 
-export async function updateSharedStateSnapshot({ env = process.env, filePath = "", expectedVersion = null, update } = {}) {
+export async function updateSharedStateSnapshot({ env = process.env, filePath = "", expectedVersion = null, update, beforeWrite = null } = {}) {
   const store = createStore({ env, filePath });
   if (!store.configured) return { ok: false, configured: false, snapshot: createEmptySnapshot() };
-  const current = await store.read();
-  if (expectedVersion !== null && Number(expectedVersion) !== Number(current.version || 0)) {
-    return { ok: false, configured: true, conflict: true, snapshot: current };
-  }
-  const next = typeof update === "function" ? update(current) : null;
-  if (!next || typeof next !== "object") throw new Error("Shared-state domain update must return a snapshot");
-  const snapshot = {
-    ...current,
-    ...next,
-    version: Number(current.version || 0) + 1,
-    updatedAt: new Date().toISOString(),
+  const applyUpdate = async () => {
+    const current = await store.read();
+    if (expectedVersion !== null && Number(expectedVersion) !== Number(current.version || 0)) {
+      return { ok: false, configured: true, conflict: true, snapshot: current };
+    }
+    const next = typeof update === "function" ? await update(current) : null;
+    if (!next || typeof next !== "object") throw new Error("Shared-state domain update must return a snapshot");
+    const snapshot = {
+      ...current,
+      ...next,
+      version: Number(current.version || 0) + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    if (typeof beforeWrite === "function") await beforeWrite({ current, snapshot, store });
+    await store.write(snapshot);
+    return { ok: true, configured: true, snapshot };
   };
-  await store.write(snapshot);
-  return { ok: true, configured: true, snapshot };
+  return store.kind === "file"
+    ? withSharedStateFileLock(store.filePath, applyUpdate)
+    : applyUpdate();
 }
 
 function normalizeActor(value) {
@@ -478,86 +484,93 @@ export async function handleSharedStateRequest(req, res, {
       return;
     }
 
-    const current = await store.read();
-    const baseVersion = Number(payload.baseVersion);
-    const currentVersion = Number(current.version || 0);
+    const persistSharedState = async () => {
+      const current = await store.read();
+      const baseVersion = Number(payload.baseVersion);
+      const currentVersion = Number(current.version || 0);
 
-    if (!Number.isFinite(baseVersion) || baseVersion !== currentVersion) {
-      sendJson(res, headers, 409, {
-        ok: false,
-        configured: true,
-        conflict: true,
-        error: "Shared state version conflict",
-        current,
-      });
-      return;
-    }
+      if (!Number.isFinite(baseVersion) || baseVersion !== currentVersion) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          error: "Shared state version conflict",
+          current,
+        });
+        return;
+      }
 
-    const planningKey = "mes-planning-prototype-state-v2";
-    const incomingPlanning = payload.values?.[planningKey];
-    if (!destructiveAction
-      && hasMeaningfulPlanningState(current.values?.[planningKey])
-      && typeof incomingPlanning === "string"
-      && !hasMeaningfulPlanningState(incomingPlanning)) {
+      const planningKey = "mes-planning-prototype-state-v2";
+      const incomingPlanning = payload.values?.[planningKey];
+      if (!destructiveAction
+        && hasMeaningfulPlanningState(current.values?.[planningKey])
+        && typeof incomingPlanning === "string"
+        && !hasMeaningfulPlanningState(incomingPlanning)) {
+        await appendSharedStateAudit({
+          auditLogPath,
+          event: {
+            action,
+            status: "denied",
+            reason: "nonempty-planning-state-cannot-be-cleared",
+            appEnv: env.APP_ENV || env.MES_APP_ENV || "",
+            clientId: normalizeActor(payload.clientId),
+            actor: normalizeActor(payload.actor),
+          },
+        }).catch(() => {});
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          error: "Non-empty planning state cannot be replaced by an empty snapshot",
+          current,
+        });
+        return;
+      }
+      const currentSpecifications2Revision = getMaxSpecifications2PlanningRevision(current.values?.[planningKey]);
+      const incomingSpecifications2Revision = getMaxSpecifications2PlanningRevision(incomingPlanning);
+      if (!destructiveAction
+        && incomingSpecifications2Revision > 0
+        && incomingSpecifications2Revision < currentSpecifications2Revision) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          error: "An older Specifications 2.0 planning revision cannot replace a newer revision",
+          current,
+        });
+        return;
+      }
+
+      const snapshot = buildClientSnapshot(current, payload);
+      if (store.kind === "file" && store.filePath && (destructiveAction || env.MES_BACKUP_BEFORE_SHARED_STATE_WRITE === "true")) {
+        await backupSharedStateFile({
+          filePath: store.filePath,
+          backupDir: backupDir || resolveSharedStateBackupDir({ sharedStateFile: store.filePath, env }),
+          reason: destructiveAction ? `before-${action}` : "before-shared-state-write",
+          actor: normalizeActor(payload.actor),
+          env,
+          allowMissing: true,
+        });
+      }
+      await store.write(snapshot);
       await appendSharedStateAudit({
         auditLogPath,
         event: {
           action,
-          status: "denied",
-          reason: "nonempty-planning-state-cannot-be-cleared",
-          appEnv: env.APP_ENV || env.MES_APP_ENV || "",
+          status: "saved",
+          destructiveAction,
+          version: snapshot.version,
           clientId: normalizeActor(payload.clientId),
           actor: normalizeActor(payload.actor),
         },
       }).catch(() => {});
-      sendJson(res, headers, 409, {
-        ok: false,
-        configured: true,
-        conflict: true,
-        error: "Non-empty planning state cannot be replaced by an empty snapshot",
-        current,
-      });
-      return;
+      sendJson(res, headers, 200, { ok: true, configured: true, ...snapshot });
+    };
+    if (store.kind === "file" && store.filePath) {
+      await withSharedStateFileLock(store.filePath, persistSharedState);
+    } else {
+      await persistSharedState();
     }
-    const currentSpecifications2Revision = getMaxSpecifications2PlanningRevision(current.values?.[planningKey]);
-    const incomingSpecifications2Revision = getMaxSpecifications2PlanningRevision(incomingPlanning);
-    if (!destructiveAction
-      && incomingSpecifications2Revision > 0
-      && incomingSpecifications2Revision < currentSpecifications2Revision) {
-      sendJson(res, headers, 409, {
-        ok: false,
-        configured: true,
-        conflict: true,
-        error: "An older Specifications 2.0 planning revision cannot replace a newer revision",
-        current,
-      });
-      return;
-    }
-
-    const snapshot = buildClientSnapshot(current, payload);
-    if (store.kind === "file" && store.filePath && (destructiveAction || env.MES_BACKUP_BEFORE_SHARED_STATE_WRITE === "true")) {
-      await backupSharedStateFile({
-        filePath: store.filePath,
-        backupDir: backupDir || resolveSharedStateBackupDir({ sharedStateFile: store.filePath, env }),
-        reason: destructiveAction ? `before-${action}` : "before-shared-state-write",
-        actor: normalizeActor(payload.actor),
-        env,
-        allowMissing: true,
-      });
-    }
-    await store.write(snapshot);
-    await appendSharedStateAudit({
-      auditLogPath,
-      event: {
-        action,
-        status: "saved",
-        destructiveAction,
-        version: snapshot.version,
-        clientId: normalizeActor(payload.clientId),
-        actor: normalizeActor(payload.actor),
-      },
-    }).catch(() => {});
-    sendJson(res, headers, 200, { ok: true, configured: true, ...snapshot });
   } catch (error) {
     sendJson(res, headers, 500, {
       ok: false,

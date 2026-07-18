@@ -1,10 +1,11 @@
 import { EventEmitter } from "node:events";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 
 import { handleSharedStateRequest } from "./shared-state-endpoint.mjs";
+import { withSharedStateFileLock } from "./shared-state-storage.mjs";
 
 const SHARED_STATE_KEYS = {
   state: "mes-planning-prototype-state-v2",
@@ -139,6 +140,7 @@ async function main() {
 
     assert(posted.statusCode === 200, "POST snapshot should return 200");
     assert(posted.json.version === 1, "POST snapshot should increment version");
+    await chmod(filePath, 0o640);
     assert(!posted.json.values["mes-planning-prototype-supply-control-v1"], "Removed supply control key should be dropped");
     assert(!posted.json.values["forbidden-key"], "Forbidden value key should be dropped");
     assert(posted.json.values[SHARED_STATE_KEYS.systemDomains]?.includes("mes.system-domains"), "System Domains store should be persisted as an allowed value key");
@@ -176,6 +178,7 @@ async function main() {
     });
     assert(preserved.statusCode === 200, "Second POST should still return 200");
     assert(preserved.json.version === 2, "Second POST should increment version");
+    assert((Number((await stat(filePath)).mode) & 0o777) === 0o640, "Atomic shared-state replacement must preserve the existing file mode");
     assert(!preserved.json.values["mes-planning-prototype-supply-control-v1"], "Removed supply control key should remain absent");
     assert(preserved.json.values[SHARED_STATE_KEYS.systemDomains] === values[SHARED_STATE_KEYS.systemDomains], "Client without the new System Domains key should preserve the current store");
     assert(!preserved.json.sharedUi.shopMapWidgetLayouts, "Removed shop map shared UI should remain absent");
@@ -294,6 +297,43 @@ async function main() {
     });
     assert(invalidated.json.version === 5 && invalidated.json.unchanged !== true, "File snapshot cache must invalidate after an external write");
 
+    // Two independent HTTP requests can reach different Node workers. The
+    // file lock must turn the shared base revision into one success and one
+    // normal conflict instead of allowing two read-check-write sequences.
+    const concurrentPayload = {
+      baseVersion: 5,
+      clientId: "concurrent-client",
+      actor: "QA",
+      action: "concurrent-shared-state-write",
+      values: externallyUpdated.values,
+      sharedUi: externallyUpdated.sharedUi,
+    };
+    const [firstConcurrent, secondConcurrent] = await Promise.all([
+      callSharedState(filePath, "POST", concurrentPayload),
+      callSharedState(filePath, "POST", concurrentPayload),
+    ]);
+    const concurrentStatuses = [firstConcurrent.statusCode, secondConcurrent.statusCode].sort();
+    assert(JSON.stringify(concurrentStatuses) === JSON.stringify([200, 409]), "Concurrent writes from the same base revision must serialize into one success and one conflict");
+    const afterConcurrent = await callSharedState(filePath, "GET");
+    assert(afterConcurrent.json.version === 6, "A serialized concurrent write must increment the snapshot exactly once");
+    const residualFiles = await readdir(dir);
+    assert(!residualFiles.some((name) => name.includes(".tmp-") || name.endsWith(".lock")), "Atomic shared-state writes must not leave temporary files or locks behind");
+
+    const staleLockPath = `${filePath}.lock`;
+    await writeFile(staleLockPath, "not-a-lock-directory", "utf8").catch(() => {});
+    await rm(staleLockPath, { force: true });
+    await (await import("node:fs/promises")).mkdir(staleLockPath);
+    await utimes(staleLockPath, new Date(0), new Date(0));
+    await withSharedStateFileLock(filePath, async () => {
+      throw new Error("A confirmed stale lock must not be stolen");
+    }, { timeoutMs: 20, staleMs: 0 }).then(() => {
+      throw new Error("A stale lock must block rather than be removed automatically");
+    }).catch((error) => {
+      assert(error.code === "MES_SHARED_STATE_LOCK_STALE", "Stale locks must fail closed with an explicit code");
+    });
+    assert((await stat(staleLockPath)).isDirectory(), "A stale lock must remain for controlled operator inspection");
+    await rm(staleLockPath, { recursive: true, force: true });
+
     console.log("Shared State Functional QA");
     console.log("- empty snapshot: pass");
     console.log("- value whitelist: pass");
@@ -310,6 +350,8 @@ async function main() {
     console.log("- access roles sharing: pass");
     console.log("- version conflict: pass");
     console.log("- unchanged-poll file cache and external invalidation: pass");
+    console.log("- atomic cross-process file write lock: pass");
+    console.log("- shared-state file mode preservation and stale-lock fail-closed: pass");
     console.log("- protected destructive action guard: pass");
     console.log("OK: shared-state endpoint preserves whitelisted collaborative data.");
   } finally {

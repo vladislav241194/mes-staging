@@ -63,7 +63,11 @@ async function readConsistencyObservation({ primary, env, filePath, readSnapshot
       revision: Number(projection?.revision || 0),
       serialized: item ? serializeSystemDomains(item) : "",
     },
-    snapshot: inspectSnapshotState(snapshotResult?.snapshot || null),
+    snapshot: {
+      ...inspectSnapshotState(snapshotResult?.snapshot || null),
+      rawSnapshot: snapshotResult?.snapshot || null,
+      storageKind: snapshotResult?.kind || "",
+    },
   };
 }
 
@@ -80,15 +84,7 @@ function hasStableObservations(first, second) {
 // real divergence before enabling a command writer.  A matching result is
 // valid only after two equal observations, so a concurrent browser snapshot
 // write or PostgreSQL command cannot be mistaken for a promotion proof.
-export async function inspectSystemDomainsSnapshotConsistency({
-  primary,
-  env = process.env,
-  filePath = "",
-  readSnapshot = readSharedStateSnapshot,
-} = {}) {
-  if (!primary?.get) throw new Error("System Domains consistency check requires a primary repository");
-  const first = await readConsistencyObservation({ primary, env, filePath, readSnapshot });
-  const second = await readConsistencyObservation({ primary, env, filePath, readSnapshot });
+function buildSystemDomainsSnapshotConsistency({ first, second }) {
   const stability = hasStableObservations(first, second) ? "verified" : "changed";
   const { primary: projection, snapshot } = second;
   if (!projection.item) return { ok: false, matches: false, error: "Authoritative System Domains projection is not initialized", revision: projection.revision };
@@ -116,6 +112,32 @@ export async function inspectSystemDomainsSnapshotConsistency({
     revision: projection.revision,
     snapshotVersion: snapshot.snapshotVersion,
   };
+}
+
+// This private candidate includes the authoritative values and is intended
+// only for an explicit, root-controlled PostgreSQL -> snapshot promotion.
+// Public API endpoints must use inspectSystemDomainsSnapshotConsistency()
+// below, which never exposes it.
+export async function inspectSystemDomainsSnapshotPromotionCandidate({
+  primary,
+  env = process.env,
+  filePath = "",
+  readSnapshot = readSharedStateSnapshot,
+} = {}) {
+  if (!primary?.get) throw new Error("System Domains consistency check requires a primary repository");
+  const first = await readConsistencyObservation({ primary, env, filePath, readSnapshot });
+  const second = await readConsistencyObservation({ primary, env, filePath, readSnapshot });
+  return {
+    consistency: buildSystemDomainsSnapshotConsistency({ first, second }),
+    candidate: {
+      postgres: second.primary,
+      snapshot: second.snapshot,
+    },
+  };
+}
+
+export async function inspectSystemDomainsSnapshotConsistency(options = {}) {
+  return (await inspectSystemDomainsSnapshotPromotionCandidate(options)).consistency;
 }
 
 // PostgreSQL is authoritative for a committed System Domains command. The

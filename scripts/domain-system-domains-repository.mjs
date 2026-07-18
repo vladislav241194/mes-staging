@@ -110,6 +110,17 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
   const storage = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   return {
     ...storage,
+    async withExclusiveProjectionLock(action) {
+      if (typeof action !== "function") throw new Error("System Domains projection lock requires an action callback");
+      return sql.begin(async (tx) => {
+        // Full projection commands use the same advisory lock in replace().
+        // Promotion holds it while it obtains the final PostgreSQL reading and
+        // swaps the compatibility snapshot, so a command cannot commit a new
+        // revision between that proof and the snapshot write.
+        await tx`SELECT pg_advisory_xact_lock(hashtext('mes-system-domains:primary'))`;
+        return action();
+      });
+    },
     async replace(value, {
       source = "snapshot-import",
       force = false,
