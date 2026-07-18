@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { createRuntimeStateServiceModule } from "../src/modules/runtime_state/service.js";
 
 function assert(value, message) {
@@ -180,6 +181,16 @@ try {
   assert(staleActiveRead === true && requests.length === 2, "The bootstrap reader must remain available for a later projected read");
   assert(sessionStorage.getItem(tombstoneKey) === "1" && localStorage.getItem(systemDomainsKey) === null, "A stale active projection must not clear or recreate the observed primary tombstone");
   assert(retirementNotifications === 1, "A stale active projection must not retrigger the primary transition hook");
+
+  const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+  assert(
+    appSource.includes('hydrateSharedStateForModule("authPrototype", [SYSTEM_DOMAINS_STORAGE_KEY])'),
+    "The login screen must re-render from PostgreSQL System Domains after the shared-state projection is retired",
+  );
+  assert(
+    appSource.includes('hydrateSharedStateForModule("authSessionPrototype", [SYSTEM_DOMAINS_STORAGE_KEY])'),
+    "The authenticated workspace must retain the PostgreSQL System Domains hydration contract",
+  );
 
   console.log("System Domains primary runtime QA: OK");
 } finally {

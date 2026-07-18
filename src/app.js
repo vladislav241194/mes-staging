@@ -168,7 +168,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.66";
+const APP_VERSION_FALLBACK = "v.1.499.68";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -5955,11 +5955,24 @@ function initializeModuleRuntime() {
       bind: () => bindSpecifications2Events(),
     },
     authPrototype: {
-      render: () => { ensureAuthModules(); return renderAuthPrototypePage(); },
+      render: () => {
+        // Authentication is itself a System Domains consumer: departments,
+        // employees and roles come from the PostgreSQL projection after the
+        // compatibility snapshot is retired.  Request the same targeted
+        // hydration used by the other domain-backed modules so the initial
+        // empty auth frame is re-rendered when the server read completes.
+        hydrateSharedStateForModule("authPrototype", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        ensureAuthModules();
+        return renderAuthPrototypePage();
+      },
       bind: () => bindAuthPrototypeEvents(),
     },
     authSessionPrototype: {
-      render: () => { ensureAuthModules(); return renderAuthSessionPrototypePage(); },
+      render: () => {
+        hydrateSharedStateForModule("authSessionPrototype", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        ensureAuthModules();
+        return renderAuthSessionPrototypePage();
+      },
       renderModals: () => renderAuthSessionModal(),
       bind: () => {
         bindAuthPrototypeEvents();
