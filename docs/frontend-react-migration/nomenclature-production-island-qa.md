@@ -42,7 +42,7 @@ remote host.
 
 The production bundle is emitted separately at
 `dist/src/react-islands/nomenclature.js`, so it is not part of the default app
-startup path. Current minified size is about `197 KiB` raw / `63,288 B` gzip,
+startup path. Current minified size is `201,600 B` raw / `63,457 B` gzip,
 inside the isolated `225,000 B` raw / `68,000 B` gzip budget.
 Its request URL uses the content hash of the island artifact rather than the
 human-readable application version, so an island-only update cannot reuse a
@@ -56,7 +56,7 @@ stale immutable browser response.
 - the build contains the independent island export;
 - the production island uses the automatic JSX runtime and does not depend on
   a browser-global `React` variable;
-- root bundle performance budget passes (`app 202,329 B` Brotli);
+- root bundle performance budget passes (`app 202,480 B` Brotli);
 - root production build passes at application version `v.1.499.70`;
 - frozen backend guard passes.
 
@@ -87,7 +87,20 @@ After the fixes, browser evidence confirms:
 - enabling only the feature flag without the read-only evaluation flag never
   mounts React.
 
-The shared local state used by this checkpoint currently contains zero
-Nomenclature rows. Non-empty row parity remains covered by the actual legacy
-renderer/typed-adapter fixture QA; an authenticated same-data Pilot evaluation
-is still required before activation.
+The manual local checkpoint used an empty Nomenclature store. A repeatable
+production-shell functional QA now closes that gap with a disposable `0600`
+shared-state file containing four positions and two boards. It proves the
+same seven visible cells and row order in legacy and React, initial
+selection/detail agreement, counts `4 / 2 / 2`, the
+single-row Mechanics filter, disabled writes, legacy Boards fallback and an
+unchanged state file after the complete scenario. The temporary directory and
+browser profile are removed after every run.
+
+Run the complete checkpoint with:
+
+```sh
+npm run qa:nomenclature-react-island
+```
+
+An authenticated same-data Pilot evaluation is still required before
+activation.

@@ -172,5 +172,5 @@ will be repeated after the Structure Employees commit and before rebasing.
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature using current `directoryState`; no fixture reaches production.**
 5. Mount the first React island behind a disabled-by-default feature flag. **Complete locally; two explicit runtime flags are required and every unsupported/write scope falls back to legacy.**
-6. Run legacy parity, functional, visual, performance, and pilot checks.
+6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
