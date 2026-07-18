@@ -10,6 +10,12 @@ Build from the repository root:
 node experiments/react-migration/build.mjs
 ```
 
+Run the isolated contract and stop-list checks:
+
+```sh
+node experiments/react-migration/qa.mjs
+```
+
 Then serve `experiments/react-migration/dist` with any static server.
 
 The fixture boundary intentionally mirrors a future API adapter. Replacing the

@@ -1,4 +1,4 @@
-import type { NomenclatureItemDto } from "./contracts";
+import type { NomenclatureItemDto } from "./adapter";
 
 export const nomenclatureFixture: NomenclatureItemDto[] = [
   { id: "mat-001", article: "MAT-AL-01", name: "Алюминий листовой 1 мм", kind: "Материал", unit: "кг", status: "active" },

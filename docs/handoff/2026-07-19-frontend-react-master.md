@@ -6,6 +6,15 @@ Worktree: `/Users/vladislav/Documents/Codex/2026-05-30/mes-frontend-react`
 Baseline: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`
 Coordination handoff: PostgreSQL commit `4f0fbae`
 
+## Coordination checkpoint
+
+PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
+cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
+The PostgreSQL slice is still not ready for frontend integration: Specifications
+2.0 command validation, shared-state working-source retirement, staging rollback,
+merge to `main`, commit-derived release, and final live acceptance remain open.
+The temporary stop-list below therefore remains active.
+
 ## Goal
 
 Move the MES frontend from legacy JavaScript and manual DOM rendering to React
