@@ -105,7 +105,14 @@ const [appSource, indexSource, rawStylesSource, uiCoreStylesSource, buildSource,
   fs.readFile(paths.componentMapDocs, "utf8").catch(() => ""),
   fs.readFile(paths.hardRuntimeCoverageDocs, "utf8").catch(() => ""),
   fs.readFile(paths.hardRuntimeLegacyRoadmapDocs, "utf8").catch(() => ""),
-  fs.readFile(paths.bootstrapSnapshot, "utf8"),
+  // The production bootstrap snapshot is an external compatibility artifact:
+  // release staging verifies and injects it after the clean Git build. When a
+  // local fixture is present, keep auditing it; a clean worktree must not need
+  // an unmanaged copy merely to run the source contract gate.
+  fs.readFile(paths.bootstrapSnapshot, "utf8").catch((error) => {
+    if (error?.code === "ENOENT") return "";
+    throw error;
+  }),
   fs.readFile(paths.uiRuntimeContracts, "utf8"),
   fs.readFile(paths.uiRuntimeCoverageQa, "utf8"),
   fs.readFile(paths.uiHardeningPlanQa, "utf8"),

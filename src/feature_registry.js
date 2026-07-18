@@ -146,8 +146,8 @@ const SYSTEM_FEATURES = [
   {
     id: "bootstrapSnapshot",
     label: "Bootstrap snapshot",
-    status: "active-system-seed",
-    purpose: "Initial seed for empty local/protected contours and browser QA; not a user-facing UI preset.",
+    status: "external-compatibility-artifact",
+    purpose: "Contour-owned emergency restore artifact for protected environments and an optional local QA seed; never a working domain source.",
     domains: ["data-seed", "localStorage", "build", "qa"],
     ui: [],
     storage: [
@@ -165,6 +165,7 @@ const SYSTEM_FEATURES = [
       "scripts/run-with-local-server.mjs",
       "scripts/bump-app-version.mjs",
     ],
+    externalFiles: ["bootstrap-snapshot.json"],
     qa: [
       "scripts/flow-contract-qa.mjs",
       "scripts/ui-contract-qa.mjs",
@@ -172,7 +173,7 @@ const SYSTEM_FEATURES = [
       "scripts/gantt-ui-regression-smoke.mjs",
       "scripts/ui-module-regression-smoke.mjs",
     ],
-    removalContract: "Do not remove with UI preset cleanup. Replace only after an explicit data-seed migration.",
+    removalContract: "Keep only as a verified external compatibility artifact until the documented disaster-recovery contour no longer needs it; protected environments must not restore it automatically.",
   },
   {
     id: "workflowPresetUi",

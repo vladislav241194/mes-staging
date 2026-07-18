@@ -933,7 +933,15 @@ function buildCrossModuleIssues(checks) {
 }
 
 async function getBootstrapSnapshotStorageSeed() {
-  const raw = await readFile(join(projectRoot, "bootstrap-snapshot.json"), "utf8");
+  const raw = await readFile(join(projectRoot, "bootstrap-snapshot.json"), "utf8").catch((error) => {
+    if (error?.code === "ENOENT") return "";
+    throw error;
+  });
+  // A clean commit-derived worktree intentionally has no operational
+  // bootstrap snapshot. In that case the visual contract runs against the
+  // deterministic application defaults; release staging separately verifies
+  // and injects the contour-owned compatibility artifact.
+  if (!raw) return {};
   const snapshot = JSON.parse(raw);
   return snapshot.values && typeof snapshot.values === "object" ? snapshot.values : {};
 }

@@ -80,9 +80,14 @@ for (const feature of MES_FEATURE_REGISTRY) {
   ["domains", "ui", "storage", "api", "files", "qa"].forEach((key) => {
     assertArray(feature[key], key, feature.id);
   });
+  if (feature.externalFiles !== undefined) assertArray(feature.externalFiles, "externalFiles", feature.id);
+  for (const externalFile of feature.externalFiles || []) {
+    if (!feature.files?.includes(externalFile)) fail(`${feature.id}: external file must also be owned by files: ${externalFile}`);
+  }
 
   for (const file of [...(feature.files || []), ...(feature.ui || []), ...(feature.qa || [])]) {
     if (file.startsWith("/api/")) continue;
+    if (feature.externalFiles?.includes(file)) continue;
     if (!await fileExists(file)) fail(`${feature.id}: missing registry file ${file}`);
   }
 }
@@ -123,6 +128,12 @@ for (const moduleId of MES_MODULE_FLOW_SEQUENCE) {
 const bootstrapFeature = registryById.get("bootstrapSnapshot");
 if (bootstrapFeature && !bootstrapFeature.files.includes("bootstrap-snapshot.json")) {
   fail("bootstrapSnapshot feature must own bootstrap-snapshot.json");
+}
+if (bootstrapFeature && !bootstrapFeature.externalFiles?.includes("bootstrap-snapshot.json")) {
+  fail("bootstrapSnapshot must classify bootstrap-snapshot.json as a contour-owned external artifact");
+}
+if (bootstrapFeature?.status !== "external-compatibility-artifact") {
+  fail("bootstrapSnapshot must not be classified as an active working-source seed");
 }
 
 const removedPresetFeature = registryById.get("workflowPresetUi");
