@@ -15,7 +15,7 @@ This handoff contains no credentials. Pilot QA access must be obtained directly 
 
 ## Current state
 
-The PostgreSQL code and release slice is integrated and live. One root-controlled rollout operation remains before the global PostgreSQL goal can be declared complete: enable the Specifications 2.0 revision-publication and attachment command surfaces, then repeat their live acceptance.
+The PostgreSQL code and release slice is integrated, live and finally accepted. The root-controlled Specifications 2.0 rollout was completed on 2026-07-19; there is no remaining PostgreSQL migration gate for frontend work.
 
 Already confirmed on the live pilot:
 
@@ -35,18 +35,25 @@ Already confirmed on the live pilot:
 - Staging and pilot were built from the same commit with identical source and dist digests.
 - The live browser loaded `v.1.499.70` assets and rendered PostgreSQL-backed Workshop, Structure and Employees (`19/19/49/76/6`) and Specifications 2.0 (`91/18/66`).
 - The exact active release commit was fast-forwarded to `origin/main`.
+- Every file directly under `/srv/mes/pilot/backups` is now restricted to `0600`.
+- Specifications 2.0 revision publication is live with `enabled=true`, `schemaReady=true` and `revisionPublicationServerPrimary=true`.
+- Specifications 2.0 attachment upload/download is live with `enabled=true` and `schemaReady=true`.
+- An authenticated browser session rendered the PostgreSQL-confirmed revision 6, the enabled publication action and enabled production-file add/replace controls. Acceptance deliberately did not create revision 7 or a test attachment in production data.
+- Final readiness remains green for Work Orders, System Domains, Specifications 2.0 and Shift Execution with `sourceSynchronized=true`. The final read observed one current Shift Execution assignment/executor and no facts or carryovers; it was preserved as live user data rather than treated as QA debris.
 
-Still pending in the PostgreSQL task:
+## Final rollout acceptance
 
-- An authorized root operator must run these exact commands on the pilot VM:
+- The authorized operator completed the required rollout commands:
 
   ```bash
-  sudo find /srv/mes/pilot/backups -maxdepth 1 -type f ! -perm 0600 -exec chmod 0600 -- {} +
-  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-attachments.sh
-  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-publication.sh
+  find /srv/mes/pilot/backups -maxdepth 1 -type f ! -perm 0600 -exec chmod 0600 -- {} +
+  /srv/mes/pilot/app/ops/postgres/activate-specifications2-attachments.sh
+  /srv/mes/pilot/app/ops/postgres/activate-specifications2-publication.sh
   ```
 
-- The PostgreSQL agent then verifies both readiness flags, authenticated UI server-first behavior, data counts and final health. The `deploy` account cannot perform the three root operations; exact non-interactive sudo was preflighted and rejected without changing service state.
+- The post-rollout audit confirmed both command schemas, both feature flags, PostgreSQL primary authority, authenticated UI wiring, backup permissions, domain counts and final health (`v.1.499.70`, `status=ok`).
+- Active runtime remains `/srv/mes/pilot/releases/v.1.499.70-c3b4059/app`; `active-release.json` and the release manifest agree on commit `c3b405993c1b723dbb8dc6dedc5b4bb423f87f51`, source digest `750ff3071bbc96ca12cb1eca17e7cff2b35ed3fceda3e320007df9c11b922aeb` and dist digest `aec2d15e9f69d6bd0e0284a8e8e005e1353106b91e0f05c1e43ddbfb14350d6e`.
+- `origin/main` contains the accepted release commit. No PostgreSQL-specific code, rollout or production-data debt remains in this goal.
 
 ## Files changed by the integrated PostgreSQL slice
 
@@ -102,12 +109,12 @@ Contracts treated as stable for frontend consumption:
 - Shift Execution assignment, fact, carryover and cancellation commands with idempotency and database authority markers.
 - Work Orders PostgreSQL read projection.
 - Specifications 2.0 reads and work-order creation from published data.
+- Specifications 2.0 server-primary revision publication and PostgreSQL attachment upload/download.
 - Bounded Planning/Gantt PostgreSQL window projection.
 
-Contracts or flows not yet declared stable:
+Contracts or flows not declared valid:
 
-- Specifications 2.0 publication and downstream attachment commands while their pilot capability flags remain disabled.
-- Any frontend path that directly treats shared-state or the bootstrap snapshot as current domain authority.
+- Any frontend path that directly treats shared-state or the bootstrap snapshot as current domain authority. These are compatibility/emergency artifacts, not live domain sources.
 
 Frontend modules depending on this migration:
 
@@ -124,7 +131,7 @@ Frontend modules depending on this migration:
 
 | Area | PostgreSQL task | Frontend task |
 | --- | --- | --- |
-| Database schema, migrations, repositories | Owns remaining root rollout validation | Does not touch without a new coordinated backend task |
+| Database schema, migrations, repositories | Completed and frozen at the accepted release | Does not touch without a new coordinated backend task |
 | `/api/v1/*` domain contracts and server adapters | Contracts frozen at `c3b4059` | Consumes through adapters only |
 | `src/app.js`, login hydration, runtime reconciliation | No pending code edit | May change after rebasing onto `origin/main` and checking overlap |
 | Shift Execution server projection/bridge | Accepted and frozen | Consumes only |
@@ -137,13 +144,12 @@ The current product frontend is legacy JavaScript/HTML/CSS, not React/TypeScript
 
 ## Parallel frontend edits
 
-The blanket PostgreSQL file lock is released because the accepted slice is in `origin/main`. A frontend task must rebase onto `c3b4059` or newer and inspect its actual diff. Until the two remaining Specifications 2.0 flags are live-accepted, coordinate any edit to publication/attachment adapters or runtime capability policy; unrelated rendering and CSS work may proceed normally.
+The blanket PostgreSQL file lock is released because the accepted slice is in `origin/main` and the two Specifications 2.0 flags are live-accepted. A frontend task must rebase onto `c3b4059` or newer and inspect its actual diff. Publication/attachment adapters and runtime capability policy are stable contracts; change them only as an explicit new backend task. Rendering and CSS work may proceed normally.
 
 ## Required integration order
 
-1. Authorized root operator runs the three exact commands above.
-2. PostgreSQL task completes live Specifications 2.0 command-surface acceptance and the final goal audit.
-3. Frontend task rebases onto `origin/main` and consumes the frozen contracts.
-4. Any isolated React proof of concept is evaluated and integrated separately.
+1. PostgreSQL task is complete and its contracts are frozen at the accepted release.
+2. Frontend task rebases onto `origin/main` and consumes the frozen contracts.
+3. Any isolated React proof of concept is evaluated and integrated separately.
 
-Before starting frontend edits, verify `git status`, branch, merge-base, and `git diff --name-status` in the frontend worktree. If an intended edit overlaps Specifications 2.0 publication/attachment capability policy, coordinate the exact hunk until the root rollout acceptance is recorded.
+Before starting frontend edits, verify `git status`, branch, merge-base, and `git diff --name-status` in the frontend worktree. If an intended edit changes Specifications 2.0 publication/attachment capability policy, treat it as a new coordinated backend change rather than reopening this completed migration goal implicitly.
