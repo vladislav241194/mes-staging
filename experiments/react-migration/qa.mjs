@@ -11,15 +11,29 @@ const execFileAsync = promisify(execFile);
 const labRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(labRoot, "..", "..");
 const sourceRoot = join(labRoot, "src");
-const baseline = "49d0e1eeecd7b653bdb09d61e73068bb12d22741";
-const blockedPaths = [
-  "src/app.js",
-  "src/modules/runtime_state/service.js",
-  "package.json",
-  "package-lock.json",
-  "index.html",
-  "app-version.json",
+const acceptedPostgresBaseline = "fc71e01de31f573a4e1c0a5510e328630932aee9";
+const frozenBackendPrefixes = [
+  "db/",
+  "ops/postgres/",
+  "src/domain/",
+  "src/modules/domain_api/",
 ];
+const frozenBackendFiles = new Set([
+  "server.js",
+  "src/modules/runtime_state/service.js",
+]);
+const frozenBackendScriptPatterns = [
+  /^scripts\/domain-/,
+  /^scripts\/.*postgres.*\.mjs$/,
+  /^scripts\/shift-execution-/,
+  /^scripts\/specifications2-(?:attachment|publish|server-first)/,
+];
+
+function isFrozenBackendPath(path) {
+  return frozenBackendFiles.has(path)
+    || frozenBackendPrefixes.some((prefix) => path.startsWith(prefix))
+    || frozenBackendScriptPatterns.some((pattern) => pattern.test(path));
+}
 
 async function collectSources(root) {
   const entries = await readdir(root, { withFileTypes: true });
@@ -722,8 +736,9 @@ try {
   assert.match(mainSource, /write-parity-incomplete/);
   assert.match(mainSource, /access.*editor/);
 
-  const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });
-  assert.equal(blockedDiff.trim(), "", `migration branch changed blocked paths:\n${blockedDiff}`);
+  const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
+  const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
+  assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });
   assert.match(performanceBudget, /"nomenclature"/);
@@ -731,7 +746,7 @@ try {
   assert.match(performanceBudget, /"structureEmployees"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
-  console.log(`React migration QA passed: ${sources.length} typed sources, adapter boundary, UI markers, stop-list, build.`);
+  console.log(`React migration QA passed: ${sources.length} typed sources, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
 }

@@ -6,15 +6,16 @@ Frontend branch: `codex/frontend-react-migration`
 ## Compared commits
 
 - merge base: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`;
-- frontend HEAD: `6a701893ca3a2f29127c5a68d35cc8447c2a91b0`;
-- current `origin/main`: `511e281de76df307a87379849075cd22e1a510bd`;
+- frontend HEAD before rebase: `7ed2545`;
+- accepted `origin/main`: `fc71e01de31f573a4e1c0a5510e328630932aee9`;
+- frontend HEAD after rebase: `5e3e1b7935d8c891af79c4bb735730867a4d8cd9`;
 - accepted live PostgreSQL release contained in main: `c3b4059`.
 
 ## Dry-run evidence
 
 The preflight compared every path changed from the shared merge base:
 
-- frontend paths: 40;
+- frontend paths: 46;
 - main/PostgreSQL paths: 50;
 - paths changed by both sides: 0;
 - merge-tree conflict markers: 0.
@@ -25,14 +26,20 @@ clause, not a Git conflict. The final check only counted real
 
 ## Decision
 
-The rebase is structurally ready but intentionally not executed yet. The
-authoritative handoff still requires:
+Final handoff `fc71e01` closed the PostgreSQL goal and released the frontend
+integration gate. The frontend branch was rebased onto that exact accepted
+main commit. All 21 frontend commits were replayed without a conflict.
 
-1. root activation of the two Specifications 2.0 command surfaces;
-2. authenticated live validation and final PostgreSQL goal audit;
-3. only then frontend rebase onto the latest `origin/main`.
+The old temporary stop-list assertion was replaced after rebase: host/build
+files are now available for pure frontend integration, while changes after
+`fc71e01` to the database schema, PostgreSQL operations, domain repositories,
+server authority and Shift Execution/Specifications authority scripts fail the
+React migration QA as frozen backend contract changes.
 
-The remaining root operation does not overlap this React branch, but executing
-the rebase early would violate the published integration order. Once the final
-acceptance is recorded, repeat this preflight against the then-current main,
-perform the rebase, and rerun the complete isolated QA and performance budget.
+Post-rebase validation passed:
+
+- React migration QA: 27 typed sources and the frozen backend guard;
+- all four isolated bundle budgets;
+- Production Structure canonical QA: 76 employees and seven registries;
+- root production build at application version `v.1.499.70`;
+- `git diff --check`.

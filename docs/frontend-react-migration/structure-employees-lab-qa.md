@@ -51,7 +51,7 @@ Result:
 - canonical counts are `19` organization units, `19` work centers, `49`
   positions, `76` employees, `6` equipment records and `152` diagnostic source
   rows;
-- stop-list, isolation, independent bundle and full lab budgets pass.
+- frozen backend contract guard, isolation, independent bundle and full lab budgets pass.
 
 ## Browser evidence
 
