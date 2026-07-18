@@ -3,6 +3,12 @@ export { formatRecordCount } from "../../ui/format";
 
 export type NomenclatureFilter = "all" | string;
 
+export const NOMENCLATURE_READ_COLUMNS = ["Наименование", "Артикул", "Раздел", "Корпус", "Ед.", "Производитель", "Статус"] as const;
+
+export function getNomenclatureReadCells(item: NomenclatureItem): string[] {
+  return [item.name, item.article, item.type, item.packageName, item.unit, item.manufacturer, item.statusLabel];
+}
+
 export interface NomenclatureFilterOption {
   id: NomenclatureFilter;
   label: string;

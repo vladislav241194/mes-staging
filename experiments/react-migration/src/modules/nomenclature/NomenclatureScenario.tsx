@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ActionButton, DetailPanel, EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { resolveAvailableFilter } from "../../ui/selection";
 import { adaptNomenclatureReadModel } from "./adapter";
-import { buildNomenclatureFilters, filterNomenclatureItems, formatRecordCount, resolveVisibleSelection, type NomenclatureFilter } from "./view-model";
+import { buildNomenclatureFilters, filterNomenclatureItems, formatRecordCount, NOMENCLATURE_READ_COLUMNS, resolveVisibleSelection, type NomenclatureFilter } from "./view-model";
 
 export function NomenclatureScenario({ payload, onRequestLegacy }: { payload: unknown; onRequestLegacy?(): void }) {
   const model = useMemo(() => adaptNomenclatureReadModel(payload), [payload]);
@@ -38,7 +38,7 @@ export function NomenclatureScenario({ payload, onRequestLegacy }: { payload: un
       }>
         {visibleItems.length ? <TableWrap>
           <table>
-            <thead><tr><th>Наименование</th><th>Артикул</th><th>Раздел</th><th>Корпус</th><th>Ед.</th><th>Производитель</th><th>Статус</th></tr></thead>
+            <thead><tr>{NOMENCLATURE_READ_COLUMNS.map((column) => <th key={column}>{column}</th>)}</tr></thead>
             <tbody>
               {visibleItems.map((item) => (
                 <SelectableRow key={item.id} onSelect={() => setSelectedId(item.id)} selected={selected?.id === item.id}>

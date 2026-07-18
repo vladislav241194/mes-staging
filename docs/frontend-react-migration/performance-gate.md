@@ -15,8 +15,8 @@ Current minified measurements:
 
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
-| Nomenclature production island | 205,450 B | 63,632 B | 225,000 B | 68,000 B |
-| Full two-scenario lab | 220,924 B | 67,049 B | 240,000 B | 75,000 B |
+| Nomenclature production island | 205,294 B | 63,649 B | 225,000 B | 68,000 B |
+| Full two-scenario lab | 220,768 B | 67,065 B | 240,000 B | 75,000 B |
 | Shared lab CSS | 4,593 B | 1,438 B | 6,000 B | 2,000 B |
 
 The budget script also inspects the minified Nomenclature artifact and rejects

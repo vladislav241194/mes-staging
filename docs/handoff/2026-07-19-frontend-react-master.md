@@ -107,7 +107,7 @@ gate but does not wire or activate a production flag.
 
 The production-candidate Nomenclature entry is now separated from the
 multi-scenario lab. Its minified budget is `225,000 B` raw / `68,000 B` gzip;
-the current artifact is `205,450 B` / `63,632 B` and is checked not to contain
+the current artifact is `205,294 B` / `63,649 B` and is checked not to contain
 the Component Types scenario. The shared runtime reports post-commit revision
 events, so Pilot mount/update time can later be measured without arbitrary
 timeouts. Local timings are QA evidence only, not Pilot acceptance.
@@ -122,6 +122,12 @@ The same audit confirmed that the legacy module owns create/edit/delete
 commands. The read-only React slice is therefore eligible only for an explicit
 evaluation access mode. Editor access returns `write-parity-incomplete` before
 mount, so no working user loses commands while write parity is unfinished.
+
+The QA now executes the actual legacy Nomenclature renderer and compares it
+with the React adapter on the same fixture. The seven read headers, four row
+IDs, cell values, order and initial selection match. The legacy editor and
+`Действия` column are recorded as intentional non-parity protected by the
+activation policy, not hidden behind a broad parity claim.
 
 ## Acceptance gates for the first integrated slice
 

@@ -25,10 +25,16 @@ Result:
 - legacy REA aliases normalize to `РЭА компоненты`;
 - inactive type rows are excluded;
 - dynamic filters and Russian record-count forms pass;
+- the actual legacy renderer and React adapter expose the same seven read
+  columns, row order, cell values and initial selection for the shared fixture;
 - required MES UI contract markers are present;
 - no legacy runtime, shared-state, persistence, or direct network coupling;
 - PostgreSQL stop-list unchanged from baseline;
 - standalone production bundle builds.
+
+The legacy eighth `Действия` column and editor form are explicitly outside the
+read-only slice. Activation policy keeps those users in legacy rather than
+claiming false parity.
 
 ## Browser evidence
 

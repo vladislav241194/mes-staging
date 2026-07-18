@@ -75,12 +75,12 @@ export function adaptNomenclatureItems(payload: unknown): NomenclatureItem[] {
 
     return [{
       id,
-      article: text(dto.article) || "—",
+      article: text(dto.article) || "-",
       name,
       type: normalizeType(dto.type),
       unit: text(dto.unit) || "шт.",
-      packageName: text(dto.package) || "—",
-      manufacturer: text(dto.manufacturer) || "—",
+      packageName: text(dto.package) || "-",
+      manufacturer: text(dto.manufacturer) || "-",
       description: text(dto.description),
       statusLabel,
       statusTone: lookup(statusLabel).includes("актив") ? "success" : "neutral",

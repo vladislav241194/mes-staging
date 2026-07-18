@@ -57,8 +57,8 @@ try {
     name: "Valid",
     type: "РЭА компоненты",
     unit: "шт.",
-    packageName: "—",
-    manufacturer: "—",
+    packageName: "-",
+    manufacturer: "-",
     description: "",
     statusLabel: "Активен",
     statusTone: "success",
@@ -109,6 +109,87 @@ try {
     description: "",
     action: "legacy",
   }, "Boards sidebar entry must preserve the legacy BOM pane semantics");
+
+  const fixtureOutput = join(temporaryRoot, "nomenclature-fixture.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/nomenclature/fixture.ts")],
+    outfile: fixtureOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { nomenclatureFixture } = await import(`${pathToFileURL(fixtureOutput).href}?qa=${Date.now()}`);
+  const { renderNomenclatureModulePage } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/nomenclature/render.js")).href}?qa=${Date.now()}`);
+  const escapeLegacyText = (value) => String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+  const activeTypes = nomenclatureFixture.nomenclatureTypes
+    .filter((entry) => !["архив", "отключен", "удален"].includes(String(entry.status || "").toLocaleLowerCase("ru-RU")))
+    .map((entry) => ({ value: entry.name, label: entry.name }));
+  const firstLegacyItem = nomenclatureFixture.nomenclature[0];
+  const legacyHtml = renderNomenclatureModulePage({
+    BOARD_BOM_TERM: "BOM платы",
+    BOARD_SPEC_LIST_TERM: "Платы",
+    BOM_COMPONENT_FIELDS: [],
+    BOM_IMPORT_COLUMN_COUNT: 0,
+    BOM_IMPORT_FALLBACK_HEADERS: [],
+    NOMENCLATURE_REA_COMPONENT_TYPE: "РЭА компоненты",
+    directoryState: nomenclatureFixture,
+    escapeAttribute: escapeLegacyText,
+    escapeHtml: escapeLegacyText,
+    getActiveNomenclatureItem: () => firstLegacyItem,
+    getActiveNomenclaturePane: () => "items",
+    getFilteredNomenclatureItems: (items) => items,
+    getNomenclatureTypeCounts: (items) => Object.fromEntries(activeTypes.map((type) => [type.value, items.filter((item) => item.type === type.value).length])),
+    getNomenclatureTypeFilterValue: () => "all",
+    getNomenclatureTypeOptions: () => activeTypes,
+    icon: () => "",
+    normalizeNomenclatureType: (value) => String(value || "РЭА компоненты"),
+    renderDenseInlineSelect: () => "<select></select>",
+    renderMesModulePatternPage: ({ content }) => `<main>${content}</main>`,
+    renderUiActionButton: ({ label = "" }) => `<button>${escapeLegacyText(label)}</button>`,
+    renderUiEmptyState: ({ title = "", text = "" }) => `<div>${escapeLegacyText(title)}${escapeLegacyText(text)}</div>`,
+    renderUiFilterBar: ({ body = "" }) => body,
+    renderUiFormActions: ({ actions = "" }) => actions,
+    renderUiFormField: ({ control = "" }) => control,
+    renderUiFormGrid: ({ body = "" }) => body,
+    renderUiPanel: ({ body = "" }) => `<section>${body}</section>`,
+    renderUiPanelBody: ({ body = "" }) => body,
+    renderUiSidebarItem: ({ title = "", badge = "", attributes = "" }) => `<button ${attributes}>${escapeLegacyText(title)} ${escapeLegacyText(badge)}</button>`,
+    renderUiStatusToken: (label) => `<span>${escapeLegacyText(label)}</span>`,
+    renderUiTableWrap: ({ body = "" }) => `<div>${body}</div>`,
+    ui: { activeNomenclatureId: firstLegacyItem.id },
+  });
+  const legacyTable = legacyHtml.match(/<table class="directory-table nomenclature-table ui-table">([\s\S]*?)<\/table>/)?.[1] || "";
+  assert.ok(legacyTable, "actual legacy Nomenclature table must render");
+  const decodeLegacyText = (html) => html
+    .replace(/<[^>]+>/g, "")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  const legacyHeaders = [...legacyTable.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => decodeLegacyText(match[1]));
+  assert.deepEqual(legacyHeaders.slice(0, -1), viewModel.NOMENCLATURE_READ_COLUMNS, "React read columns must match the actual legacy table order");
+  assert.equal(legacyHeaders.at(-1), "Действия", "legacy write column must remain explicitly outside the read-only React slice");
+  const legacyBody = legacyTable.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] || "";
+  const legacyRows = [...legacyBody.matchAll(/<tr([^>]*)>([\s\S]*?)<\/tr>/g)].map((match) => ({
+    id: match[1].match(/data-nomenclature-row-open="([^"]+)"/)?.[1] || "",
+    selected: /\bis-selected\b/.test(match[1]),
+    cells: [...match[2].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => decodeLegacyText(cell[1])).slice(0, -1),
+  }));
+  const adaptedFixtureItems = adaptNomenclatureReadModel(nomenclatureFixture).items;
+  assert.deepEqual(legacyRows.map((row) => ({ id: row.id, cells: row.cells })), adaptedFixtureItems.map((item) => ({
+    id: item.id,
+    cells: viewModel.getNomenclatureReadCells(item),
+  })), "React adapter rows must preserve actual legacy visible data");
+  assert.deepEqual(legacyRows.filter((row) => row.selected).map((row) => row.id), [firstLegacyItem.id], "legacy selected row must match React initial selection");
 
   const componentTypesAdapterOutput = join(temporaryRoot, "component-types-adapter.mjs");
   await build({
