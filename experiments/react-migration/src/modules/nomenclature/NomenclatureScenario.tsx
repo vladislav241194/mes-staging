@@ -13,7 +13,7 @@ export function NomenclatureScenario({ payload, onRequestLegacy }: { payload: un
   const visibleItems = filterNomenclatureItems(model.items, activeFilter);
   const selected = resolveVisibleSelection(visibleItems, selectedId);
 
-  const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge">React migration lab</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge">React preview · только чтение</span>} />;
   const sidebar = (
     <ModuleSidebar label="Разделы номенклатуры" title="Разделы">
       {filters.map((entry) => (

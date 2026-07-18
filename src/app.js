@@ -72,6 +72,7 @@ import {
 import { createAppInteractionsModule } from "./modules/app_interactions/render.js";
 import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";
 import { createProductsRenderModule } from "./modules/products/render.js";
+import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2286,6 +2287,20 @@ function ensureSpecifications2Module() {
 }
 let renderNomenclatureModulePage = null;
 let nomenclatureRenderModuleLoad = null;
+const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
+  getActivation: () => ({
+    featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE === true,
+    activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
+    accessMode: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true
+      ? "read-only-evaluation"
+      : "editor",
+  }),
+  getPayload: () => directoryState,
+  getTargetRoot: () => app,
+  requestLegacyRender: () => {
+    if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
+  },
+});
 function ensureNomenclatureRenderModule() {
   if (renderNomenclatureModulePage) return Promise.resolve(true);
   if (nomenclatureRenderModuleLoad) return nomenclatureRenderModuleLoad;
@@ -6053,12 +6068,16 @@ function initializeModuleRuntime() {
       render: () => {
         hydrateSharedStateForModule("nomenclature", [DIRECTORY_STORAGE_KEY]);
         void ensureNomenclatureRenderModule();
+        const reactDecision = nomenclatureReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return nomenclatureReactIslandHost.renderTarget();
         return renderNomenclaturePage();
       },
       bind: () => {
+        if (nomenclatureReactIslandHost.isReactEligible()) return;
         bindNomenclatureEvents();
         bindBomListsEvents();
       },
+      afterRender: () => { void nomenclatureReactIslandHost.mount(); },
     },
     planning: {
       render: () => {

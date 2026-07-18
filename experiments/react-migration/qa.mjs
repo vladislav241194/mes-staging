@@ -736,6 +736,41 @@ try {
   assert.match(mainSource, /write-parity-incomplete/);
   assert.match(mainSource, /access.*editor/);
 
+  const productionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/nomenclature/react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeProductionHost = (activation) => productionHostModule.createNomenclatureReactIslandHost({
+    getActivation: () => activation,
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(
+    makeProductionHost({ featureFlagEnabled: false, activePane: "items", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "disabled" },
+    "production Nomenclature island must stay disabled by default",
+  );
+  assert.deepEqual(
+    makeProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "unsupported-scope" },
+    "Boards must remain in legacy",
+  );
+  assert.deepEqual(
+    makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "editor" }).prepareRender(),
+    { activateReact: false, reason: "write-parity-incomplete" },
+    "edit-capable Nomenclature sessions must retain legacy commands",
+  );
+  const eligibleProductionHost = makeProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleProductionHost.renderTarget(), /data-react-nomenclature-island/);
+
+  const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
+  assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
+  assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /nomenclatureReactIslandHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /nomenclatureReactIslandHost\.mount\(\)/);
+
+  const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
+  assert.match(productionBuildSource, /bundleReactMigrationIsland/);
+  assert.match(productionBuildSource, /react-islands", "nomenclature\.js/);
+
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
@@ -746,7 +781,9 @@ try {
   assert.match(performanceBudget, /"structureEmployees"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
-  console.log(`React migration QA passed: ${sources.length} typed sources, adapter boundary, UI markers, frozen backend guard, build.`);
+  const productionIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/nomenclature.js"), "utf8");
+  assert.match(productionIslandBundle, /mountNomenclatureReactIsland/);
+  console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
 }

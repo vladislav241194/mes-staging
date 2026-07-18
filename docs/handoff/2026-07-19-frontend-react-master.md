@@ -170,7 +170,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Boards/BOM and Structure Employees read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
-4. Replace fixtures with read-only API adapters.
-5. Mount the first React island behind a disabled-by-default feature flag.
+4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature using current `directoryState`; no fixture reaches production.**
+5. Mount the first React island behind a disabled-by-default feature flag. **Complete locally; two explicit runtime flags are required and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks.
 7. Only then propose default-on activation or the next integrated registry scope.

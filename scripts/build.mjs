@@ -140,6 +140,20 @@ async function bundleApplication(entryPoint, outputFile) {
   });
 }
 
+async function bundleReactMigrationIsland(entryPoint, outputFile) {
+  await mkdir(dirname(outputFile), { recursive: true });
+  await build({
+    entryPoints: [entryPoint],
+    outfile: outputFile,
+    bundle: true,
+    format: "esm",
+    minify: true,
+    charset: "utf8",
+    legalComments: "none",
+    target: "es2020",
+  });
+}
+
 // Keep the source stylesheet as an explicit cascade manifest, but flatten its
 // imports for the browser. The former manifest generated a 21-request CSS
 // waterfall before the first screen could paint. Bundling only the published
@@ -327,6 +341,11 @@ await Promise.all([
 ]);
 
 await bundleStylesheet(join(projectRoot, "styles.css"), join(stagingDistDir, "styles.css"));
+
+await bundleReactMigrationIsland(
+  join(projectRoot, "experiments", "react-migration", "src", "nomenclature-island.tsx"),
+  join(stagingDistDir, "src", "react-islands", "nomenclature.js"),
+);
 
 // The token is intentionally calculated before esbuild emits dynamic chunks.
 // Deriving it from output chunk names creates a circular hash graph and makes
