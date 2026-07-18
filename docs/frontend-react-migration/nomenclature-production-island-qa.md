@@ -128,6 +128,13 @@ healthy, no React root or commit marker was present, and the create action was
 still available. The current Pilot Nomenclature payload in that session was
 empty, so a non-empty live parity claim was deliberately not made.
 
+Release `v.1.499.72-6985693` then replaced it with the versioned rollout
+operations included. Its public health is `ok`, shared state is `ready`, both
+scripts are executable in the immutable active release, and the browser loaded
+`src/app.js?v=db3bbb28f842-v.1.499.72`. Both flags remain `false`, legacy still
+renders with the create action, there is no React root or commit marker, and
+the browser console is clean. Release `.71` is the immediate rollback target.
+
 The repository now ships a controlled root-only permission toggle:
 
 ```sh
