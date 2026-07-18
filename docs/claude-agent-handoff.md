@@ -1038,7 +1038,7 @@ http://localhost:4174/?module=shopMap
 
 Также проверяй, что основной URL `?module=shiftMasterBoard` и legacy-alias `?module=shiftMaster`, `?module=shiftMasterContext`, `?module=shiftMasterV2` открывают текущую доску Мастерской, а не создают отдельные пункты навигации. `shiftMasterHmi`, `shiftMasterScenario` и CSS/классы `shift-master-v2` не должны возвращаться.
 
-РКД удален из системы. Не возвращай `rkd` как module alias, `data-layout-page`, CSS-префикс или пункт навигации; упоминание допустимо только в документации как удаленный слой.
+Не возвращай самостоятельный `rkd` как module alias, отдельный `data-layout-page` или пункт навигации. Встроенный черновик РКД в «Спецификациях 2.0» — действующая функция с префиксом `specifications2-rkd-*`; его нельзя удалять или считать legacy-слоем.
 
 ### Shared-state
 

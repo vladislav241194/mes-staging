@@ -802,13 +802,6 @@ html[data-visual-theme="base-glass"] main.app-shell[data-layout-page="shiftMaste
   color: color-mix(in srgb, var(--card-accent) 78%, var(--mes-glass-muted));
 }
 
-html[data-visual-theme="base-glass"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes-actions .ui-action-button {
-  height: 30px;
-  min-height: 30px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.68);
-}
-
 html[data-visual-theme="base-glass"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-empty > .ui-panel-body,
 html[data-visual-theme="base-glass"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes-panel > .ui-panel-body:has(.ui-empty-state) {
   min-height: min(48vh, 430px);

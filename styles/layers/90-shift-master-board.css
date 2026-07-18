@@ -1173,8 +1173,7 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-sheet-pr
     overflow: visible !important;
   }
   body.is-shift-master-board-printing .shift-master-board-sheet-modal > :is(header, footer),
-  body.is-shift-master-board-printing .shift-master-board-sheet-modal .ui-modal-head,
-  body.is-shift-master-board-printing .shift-master-board-sheet-modal .ui-modal-actions {
+  body.is-shift-master-board-printing .shift-master-board-sheet-modal .ui-modal-head {
     display: none !important;
   }
   body.is-shift-master-board-printing .shift-master-board-sheet-modal .ui-modal-body {
@@ -1583,10 +1582,6 @@ main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-card-met
   line-height: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-task-context-body{
-  display: grid;
-  gap: 8px;
-  min-width: 0;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-task-context + .shift-master-board-section{
   margin-top: 0;
 }main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-inline-summary{

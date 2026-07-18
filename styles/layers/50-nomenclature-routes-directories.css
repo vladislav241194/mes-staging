@@ -1680,21 +1680,6 @@ body,
 .speki-spec-mini-card{
   grid-template-columns: minmax(280px, 1fr) auto;
   align-items: end;
-}.products-app-shell .speki-page .module-data-workspace{
-  display: block;
-  overflow: auto;
-  padding: 0;
-}.products-app-shell .speki-page .speki-module-content{
-  display: grid;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: visible;
-  padding: 12px;
-}.products-app-shell .speki-page .speki-spec-table-panel{
-  height: auto;
-  overflow: visible;
 }@media (max-width: 1280px) {.speki-spec-mini-card{
     grid-template-columns: minmax(0, 1fr);
     align-items: start;

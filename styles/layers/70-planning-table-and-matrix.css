@@ -1070,35 +1070,6 @@ input[type="radio"]{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 8px;
-}.products-app-shell .dense-inline-select > summary strong,
-.products-app-shell .dense-inline-select > summary small{
-  overflow: visible;
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  white-space: normal;
-}.products-app-shell .speki-structure-table .dense-inline-select > summary strong,
-.products-app-shell .speki-structure-table .dense-inline-select > summary small{
-  overflow: hidden;
-  overflow-wrap: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}.products-app-shell .speki-structure-table .dense-inline-select > summary{
-  min-height: 32px;
-  height: 32px;
-}.products-app-shell .speki-structure-table th:nth-child(6),
-.products-app-shell .speki-structure-table td:nth-child(6){
-  width: 150px;
-}.products-app-shell .speki-structure-table .dense-inline-options{
-  width: min(440px, calc(100vw - 32px));
-  max-width: min(440px, calc(100vw - 32px));
-}.products-app-shell .speki-table-row-actions{
-  gap: 2px;
-  justify-content: flex-start;
-  overflow: visible;
-}.products-app-shell .speki-table-row-actions .icon-button{
-  flex-basis: 20px;
-  width: 20px;
-  min-width: 20px;
 }.app-shell[data-layout-page="planning"] .planning-supply-route{
   min-width: 0;
   grid-column: 1;

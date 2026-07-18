@@ -136,7 +136,7 @@
 - `shiftMaster` / `shiftMasterContext` / `shiftMasterV2` должны оставаться только URL/module alias на `shiftMasterBoard`;
 - `shift-master-v2` CSS/классы должны оставаться равными 0;
 - `shift-method-*` runtime/CSS слой старой Мастерской должен оставаться равным 0;
-- `rkd` / РКД должен оставаться удаленным из runtime/CSS/module alias;
+- standalone `rkd` / РКД должен оставаться удаленным из runtime/CSS/module alias; встроенный `specifications2-rkd-*` — действующая вкладка «Черновик РКД» внутри «Спецификаций 2.0»;
 - удаленный `module-entity-*` sidebar layer;
 - удаленные `reports/debug` CSS-селекторы должны оставаться равными 0.
 - standalone `bomLists` layout (`data-layout-page="bomLists"`, `bom-list-app-shell`) должен оставаться равным 0: платы/BOM являются вкладкой Номенклатуры, а не отдельным экраном.

@@ -58,6 +58,7 @@ const files = await Promise.all(trackedFiles.map(readExisting));
 const byPath = new Map(files.map((file) => [file.relativePath, file.source]));
 const removedReportDebugModulePattern = /reports-page|report-sidebar|report-workspace|report-(?:app-shell|content|main|chart-grid|chart-card|table-card|insights|dashboard-workspace|header|kpi|kpi-grid)|debug-(?:action-menu|app-shell|check-list|chip-select|combobox|command-input|content|dense-row|drawer|drawer-backdrop|dropdown-menu|dropdown-panel|error-tip|index|inline-options|inline-select|menu-panel|metric-popover|mini-list|modal-grid|popover|popover-stage|segment-label|select-button|spec-grid|status-select|stepper-card|stepper-grid|steps|tree-select|usage-grid|validation|wizard-modal)|debug-page|debug-sidebar|debug-workspace|debug-card|debug-section|data-layout-page="(?:reports|debug)"|module=(?:reports|debug)|id:\s*["'](?:reports|debug)["']|activeModule\s*={2,3}\s*["'](?:reports|debug)["']/;
 const removedDashboardLayoutPattern = /dashboard-app-shell|dashboard-page|dashboard-control-room|dashboard-header|dashboard-time|dashboard-grid|dashboard-status-grid|dashboard-workspace|data-layout-page="dashboard"|module=dashboard|id:\s*["']dashboard["']|activeModule\s*={2,3}\s*["']dashboard["']/;
+const removedStandaloneRkdModulePattern = /data-layout-page\s*=\s*["']rkd["']|(?:[?&]module|module)\s*=\s*["']?rkd\b|id:\s*["']rkd["']|activeModule\s*={2,3}\s*["']rkd["']/i;
 const removedStandaloneShellPattern = /(?:project|specification)-app-shell/;
 const removedProjectUiPattern = /project-(?:binding|list|card|row|panel|relation|route|main|name-line|meta|status|readiness|module-content|editor-panel)|projectBinding|projectList|director-project-|data-focus-project/;
 
@@ -130,10 +131,10 @@ const hardForbidden = [
   },
   {
     id: "rkd-module",
-    label: "Удаленный модуль РКД",
-    regexp: /\brkd\b|РКД|rkd-|data-layout-page="rkd"|module=rkd/i,
+    label: "Удаленный standalone-модуль РКД",
+    regexp: removedStandaloneRkdModulePattern,
     files: ["index.html", "src/app.js", "styles.css", "styles/mes-ui-core.css"],
-    note: "РКД выпилен из системы; не возвращать runtime/CSS/module alias.",
+    note: "РКД не должен возвращаться как самостоятельный runtime/CSS/module alias. Встроенный черновик specifications2-rkd-* — часть Спецификаций 2.0 и проверяется отдельным контрактом.",
   },
   {
     id: "planning-v2-batch-row-layer",
@@ -173,9 +174,9 @@ const hardForbidden = [
   {
     id: "old-shift-master-board-css-tails",
     label: "Мертвые CSS-хвосты текущей доски Мастерской",
-    regexp: /shift-master-board-(?:load|detail-head)/,
+    regexp: /shift-master-board-(?:load(?!-tooltip\b)|detail-head)/,
     files: ["styles.css", "styles/mes-ui-core.css"],
-    note: "Старый общий load-блок и старый detail-head удалены; рабочая карточка и загрузка исполнителей живут в текущих карточных секциях.",
+    note: "Старый общий load-блок и старый detail-head удалены; рабочая карточка и загрузка исполнителей живут в текущих карточных секциях. shift-master-board-load-tooltip — действующий tooltip нагрузки.",
   },
   {
     id: "standalone-bom-lists-layout",
@@ -398,7 +399,12 @@ const requiredFacades = [
   "getWarningPlanningOrderId",
 ];
 
-const missingFacades = requiredFacades.filter((name) => !appSource.includes(name) && !(byPath.get("src/mes_contracts.js") || "").includes(name));
+const facadeSources = [
+  appSource,
+  byPath.get("src/mes_contracts.js") || "",
+  byPath.get("src/validation.js") || "",
+];
+const missingFacades = requiredFacades.filter((name) => !facadeSources.some((source) => source.includes(name)));
 const failures = [];
 
 console.log("MES Legacy Inventory");

@@ -443,13 +443,7 @@ body,
     justify-items: center;
   }.app-shell[data-layout-page="planning"] .planning-order-placement-summary{
     grid-template-columns: minmax(0, 1fr);
-  }}.app-shell[data-layout-page="planning"] .planning-section-head > div:first-child{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  align-items: start;
-  min-width: 0;
-}.app-shell[data-layout-page="planning"] .planning-section-tag{
+  }}.app-shell[data-layout-page="planning"] .planning-section-tag{
   display: inline-flex;
   align-items: center;
   justify-content: center;
