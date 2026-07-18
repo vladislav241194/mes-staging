@@ -118,6 +118,12 @@ try {
     assert.match(uiSource, new RegExp(`data-ui-component=[{]?['\"]${marker}`), `missing ${marker} contract marker`);
   }
 
+  const mountSource = await readFile(join(sourceRoot, "mount.tsx"), "utf8");
+  assert.match(mountSource, /export function mountNomenclatureReactIsland/);
+  assert.match(mountSource, /update\(payload/);
+  assert.match(mountSource, /unmount\(\)/);
+  assert.doesNotMatch(mountSource, /document\.|querySelector|appendChild|replaceWith/, "island mount must not manipulate host DOM");
+
   const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });
   assert.equal(blockedDiff.trim(), "", `migration branch changed blocked paths:\n${blockedDiff}`);
 
