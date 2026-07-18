@@ -63,7 +63,12 @@ function listItem(item) {
   };
 }
 
-function createFixture({ state = "observed", recordSucceeds = true } = {}) {
+function createFixture({
+  state = "observed",
+  recordSucceeds = true,
+  rejectParityProofAdmission = false,
+  writerArrivesBeforeProofRecord = false,
+} = {}) {
   const primaryItem = { current: makeItem() };
   const snapshotItem = { current: makeItem() };
   const counters = {
@@ -75,6 +80,7 @@ function createFixture({ state = "observed", recordSucceeds = true } = {}) {
     markerBegin: 0,
     markerRecord: 0,
     markerMark: 0,
+    competingWriterBegins: 0,
     snapshotHealth: 0,
     snapshotList: 0,
     snapshotGet: 0,
@@ -98,8 +104,28 @@ function createFixture({ state = "observed", recordSucceeds = true } = {}) {
   const primary = {
     async health() { counters.primaryHealth += 1; return metadata; },
     async getPlanningProjectionParityState() { counters.markerRead += 1; return { ...marker.current }; },
-    async beginPlanningSnapshotObservation() {
+    async beginPlanningSnapshotObservation({ rejectWhenPending = false } = {}) {
       counters.markerBegin += 1;
+      // Model the exact interleaving that matters in production: a managed
+      // writer obtains the next generation after the proof read its healthy
+      // marker but before the proof tries to take ownership.  The proof's
+      // conditional admission must refuse it, rather than superseding this
+      // writer and later proving an obsolete snapshot.
+      if (rejectWhenPending && rejectParityProofAdmission) {
+        counters.competingWriterBegins += 1;
+        marker.current = {
+          ...marker.current,
+          snapshotGeneration: Number(marker.current.snapshotGeneration || 0) + 1,
+          snapshotObservationState: "pending",
+          observedSnapshotVersion: null,
+          observedSnapshotFingerprint: "",
+          verifiedPrimaryRevision: null,
+          verifiedSnapshotFingerprint: "",
+          verifiedSnapshotGeneration: null,
+          verifiedContractVersion: 0,
+        };
+        return null;
+      }
       marker.current = {
         ...marker.current,
         snapshotGeneration: Number(marker.current.snapshotGeneration || 0) + 1,
@@ -115,6 +141,23 @@ function createFixture({ state = "observed", recordSucceeds = true } = {}) {
     },
     async recordPlanningSnapshotObservation({ snapshotGeneration, snapshotVersion, snapshotFingerprint }) {
       counters.markerRecord += 1;
+      // A writer may also begin after the proof has admitted itself but
+      // before that proof records the observed snapshot.  Generation-CAS
+      // must reject the obsolete proof, leaving the newer writer pending.
+      if (writerArrivesBeforeProofRecord && counters.markerRecord === 1) {
+        counters.competingWriterBegins += 1;
+        marker.current = {
+          ...marker.current,
+          snapshotGeneration: Number(marker.current.snapshotGeneration || 0) + 1,
+          snapshotObservationState: "pending",
+          observedSnapshotVersion: null,
+          observedSnapshotFingerprint: "",
+          verifiedPrimaryRevision: null,
+          verifiedSnapshotFingerprint: "",
+          verifiedSnapshotGeneration: null,
+          verifiedContractVersion: 0,
+        };
+      }
       if (!recordSucceeds || Number(snapshotGeneration) !== Number(marker.current.snapshotGeneration) || marker.current.snapshotObservationState !== "pending") return false;
       marker.current = {
         ...marker.current,
@@ -193,6 +236,30 @@ assert(healthyRead.result.item?.quantity === 10, "healthy observed marker must r
 assert(healthy.counters.bootstrap === 1 && healthy.counters.primaryList === 0 && healthy.counters.primaryGet === 0, "healthy observed marker must not run an aggregate parity proof");
 assert(healthy.counters.snapshotHealth === 0 && healthy.counters.snapshotList === 0 && healthy.counters.snapshotGet === 0, "post-read revalidation must stay snapshot-free");
 assert(healthy.counters.markerRead === 2, "healthy observed marker must read the durable marker once before and once after the target query");
+
+// A pending snapshot writer may begin after a proof reads its initial marker.
+// The proof must not supersede that generation: it would otherwise compare
+// the old file, mark it verified, and let the writer change the file later.
+// Instead it immediately returns the compatibility snapshot and leaves the
+// managed writer's pending generation untouched.
+const interleavedWriter = createFixture({ rejectParityProofAdmission: true });
+const interleavedSafety = await interleavedWriter.inspect(true);
+assert(interleavedSafety.repository === interleavedWriter.snapshot && interleavedSafety.fallbackReason === "postgres-projection-stale", "a proof must fail closed when a writer owns a pending observation generation");
+assert(interleavedSafety.parity?.error === "Planning snapshot observation could not be admitted", "the rejected proof must report its safe admission failure");
+assert(interleavedWriter.counters.competingWriterBegins === 1 && interleavedWriter.counters.markerBegin === 1, "the proof must make one conditional admission attempt without starting a second generation");
+assert(interleavedWriter.marker.current.snapshotObservationState === "pending" && interleavedWriter.marker.current.verifiedSnapshotGeneration === null, "the competing writer's pending generation must remain unverified");
+assert(interleavedWriter.counters.primaryList === 0 && interleavedWriter.counters.primaryGet === 0, "a rejected proof must not compare or return PostgreSQL bytes");
+
+const alreadyPending = createFixture({ state: "pending" });
+const alreadyPendingSafety = await alreadyPending.inspect();
+assert(alreadyPendingSafety.repository === alreadyPending.snapshot && alreadyPendingSafety.fallbackReason === "postgres-projection-stale", "a request admitted after a writer's pending marker must read the compatibility snapshot");
+assert(alreadyPending.counters.markerBegin === 0 && alreadyPending.counters.snapshotHealth === 1, "an already-pending marker must not start another proof and must preserve the PostgreSQL-only compatibility guard");
+
+const writerAfterProofAdmission = createFixture({ state: "unknown", writerArrivesBeforeProofRecord: true });
+const writerAfterProofSafety = await writerAfterProofAdmission.inspect();
+assert(writerAfterProofSafety.repository === writerAfterProofAdmission.snapshot && writerAfterProofSafety.fallbackReason === "postgres-projection-stale", "a newer writer generation must discard an already-admitted proof");
+assert(writerAfterProofAdmission.counters.markerBegin === 1 && writerAfterProofAdmission.counters.markerRecord === 1 && writerAfterProofAdmission.counters.markerMark === 0, "a generation-CAS rejection must prevent an obsolete proof marker from being published");
+assert(writerAfterProofAdmission.counters.competingWriterBegins === 1 && writerAfterProofAdmission.marker.current.snapshotObservationState === "pending", "the later managed writer must remain the only pending owner after the proof is discarded");
 
 // An unknown migration state must never skip the established full proof.  The
 // proof itself creates a pending generation, records the snapshot only after

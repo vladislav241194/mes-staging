@@ -641,17 +641,61 @@ export async function inspectPlanningProjectionSafety({
     };
   }
 
+  // A managed writer invalidates the marker *before* changing the
+  // compatibility snapshot.  It owns that pending generation until it has
+  // either recorded the new file or left the marker pending on failure.  A
+  // parity proof must never take over this generation: doing so could prove
+  // the old file while the writer subsequently commits a new one.  Reading
+  // the snapshot directly is safe in both states and preserves availability.
+  // This check deliberately follows the PostgreSQL-only guard above: a
+  // contour with no compatibility snapshot has no second source to protect.
+  if (observationRequested && String(markerState?.snapshotObservationState || "") === "pending") {
+    return {
+      repository: snapshot,
+      primary,
+      primaryHealth,
+      snapshot,
+      snapshotHealth,
+      parity: {
+        matches: false,
+        mismatches: [],
+        error: "Planning snapshot observation is pending",
+      },
+      fallbackReason: PLANNING_POSTGRES_FALLBACK_REASON,
+    };
+  }
+
   let observation = null;
+  let observationAdmissionFailed = false;
   if (observationRequested) {
     try {
-      observation = await primary.beginPlanningSnapshotObservation({ source: "planning-parity-proof" });
-      if (!observation?.snapshotGeneration) observation = null;
+      observation = await primary.beginPlanningSnapshotObservation({
+        source: "planning-parity-proof",
+        // The conditional marker update is the race boundary with a managed
+        // snapshot writer.  Unlike a writer, a proof may not supersede a
+        // pending generation it does not own.
+        rejectWhenPending: true,
+      });
+      if (!observation?.snapshotGeneration) observationAdmissionFailed = true;
     } catch {
-      // A rolling release that has not run migration 024 retains the existing
-      // fingerprint proof below.  It never treats the newer fast path as
-      // healthy until an observed generation can be read and revalidated.
-      observation = null;
+      observationAdmissionFailed = true;
     }
+  }
+
+  if (observationAdmissionFailed) {
+    return {
+      repository: snapshot,
+      primary,
+      primaryHealth,
+      snapshot,
+      snapshotHealth,
+      parity: {
+        matches: false,
+        mismatches: [],
+        error: "Planning snapshot observation could not be admitted",
+      },
+      fallbackReason: PLANNING_POSTGRES_FALLBACK_REASON,
+    };
   }
 
   if (!forceFullParity && !observation && hasMatchingPlanningProjectionMarker(markerState, snapshotHealth)) {

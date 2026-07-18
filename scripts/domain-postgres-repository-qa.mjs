@@ -26,6 +26,7 @@ assert(source.includes("const nextEnd = addCalendarWorkingDuration(calendar, nex
 assert(source.includes("'change_slot_schedule'"), "Slot schedule command must persist an outbox event");
 assert(source.includes("async getPlanningProjectionParityState()"), "PostgreSQL repository must expose a planning parity watermark reader");
 assert(source.includes("async beginPlanningSnapshotObservation"), "PostgreSQL repository must invalidate a planning observation before a managed snapshot write");
+assert(source.includes("rejectWhenPending = false") && source.includes("AND snapshot_observation_state <> 'pending'"), "Parity proof admission must refuse to supersede a managed writer's pending snapshot generation");
 assert(source.includes("async recordPlanningSnapshotObservation"), "PostgreSQL repository must record an observed planning snapshot after it is written");
 assert(source.includes("async markPlanningProjectionParity"), "PostgreSQL repository must expose an atomic planning parity watermark writer");
 assert(source.includes("WHERE singleton = TRUE") && source.includes("AND primary_revision = ${revision}"), "Parity marker write must be guarded by the exact primary epoch");

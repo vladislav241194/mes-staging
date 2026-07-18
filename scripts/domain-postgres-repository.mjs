@@ -441,25 +441,48 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       } : null;
     },
 
-    async beginPlanningSnapshotObservation({ source = "planning-snapshot-write" } = {}) {
+    async beginPlanningSnapshotObservation({ source = "planning-snapshot-write", rejectWhenPending = false } = {}) {
       const normalizedSource = String(source || "planning-snapshot-write").trim().slice(0, 160) || "planning-snapshot-write";
-      const rows = await sql`
-        UPDATE planning_projection_parity_state
-        SET snapshot_generation = snapshot_generation + 1,
-            snapshot_observation_state = 'pending',
-            observed_snapshot_version = NULL,
-            observed_snapshot_fingerprint = '',
-            observed_snapshot_source = ${normalizedSource},
-            observed_snapshot_at = NULL,
-            observed_snapshot_error = '',
-            verified_primary_revision = NULL,
-            verified_snapshot_fingerprint = '',
-            verified_snapshot_generation = NULL,
-            verified_contract_version = 0,
-            verified_at = NULL
-        WHERE singleton = TRUE
-        RETURNING primary_revision, snapshot_generation
-      `;
+      // Managed writers take ownership of the next generation while holding
+      // their snapshot-file lock, so they may supersede an earlier pending
+      // attempt.  A *reader* proving parity must never do that: another
+      // writer may already be between its durable invalidation and the file
+      // write.  Let that reader fail closed to the compatibility snapshot.
+      const rows = rejectWhenPending
+        ? await sql`
+          UPDATE planning_projection_parity_state
+          SET snapshot_generation = snapshot_generation + 1,
+              snapshot_observation_state = 'pending',
+              observed_snapshot_version = NULL,
+              observed_snapshot_fingerprint = '',
+              observed_snapshot_source = ${normalizedSource},
+              observed_snapshot_at = NULL,
+              observed_snapshot_error = '',
+              verified_primary_revision = NULL,
+              verified_snapshot_fingerprint = '',
+              verified_snapshot_generation = NULL,
+              verified_contract_version = 0,
+              verified_at = NULL
+          WHERE singleton = TRUE
+            AND snapshot_observation_state <> 'pending'
+          RETURNING primary_revision, snapshot_generation
+        `
+        : await sql`
+          UPDATE planning_projection_parity_state
+          SET snapshot_generation = snapshot_generation + 1,
+              snapshot_observation_state = 'pending',
+              observed_snapshot_version = NULL,
+              observed_snapshot_fingerprint = '',
+              observed_snapshot_source = ${normalizedSource},
+              observed_snapshot_at = NULL,
+              observed_snapshot_error = '',
+              verified_primary_revision = NULL,
+              verified_snapshot_fingerprint = '',
+              verified_contract_version = 0,
+              verified_at = NULL
+          WHERE singleton = TRUE
+          RETURNING primary_revision, snapshot_generation
+        `;
       const row = rows[0] || null;
       return row ? {
         primaryRevision: Number(row.primary_revision || 0),
