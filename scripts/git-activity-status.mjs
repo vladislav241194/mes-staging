@@ -6,7 +6,7 @@ const execFileAsync = promisify(execFile);
 async function git(args, fallback = "—") {
   try {
     const { stdout } = await execFileAsync("git", args, { cwd: process.cwd() });
-    return stdout.trim() || fallback;
+    return stdout.trim();
   } catch {
     return fallback;
   }
