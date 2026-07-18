@@ -41,9 +41,9 @@ Still pending in the PostgreSQL task:
 - An authorized root operator must run these exact commands on the pilot VM:
 
   ```bash
-  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-publication.sh
-  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-attachments.sh
   sudo find /srv/mes/pilot/backups -maxdepth 1 -type f ! -perm 0600 -exec chmod 0600 -- {} +
+  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-attachments.sh
+  sudo /srv/mes/pilot/app/ops/postgres/activate-specifications2-publication.sh
   ```
 
 - The PostgreSQL agent then verifies both readiness flags, authenticated UI server-first behavior, data counts and final health. The `deploy` account cannot perform the three root operations; exact non-interactive sudo was preflighted and rejected without changing service state.
