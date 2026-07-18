@@ -47,6 +47,21 @@ Checked in the local in-app browser at a 1280px viewport:
   no page overflow;
 - browser console warnings/errors: none.
 
+## React island lifecycle evidence
+
+The standalone host was opened with `?lifecycle_qa=1` and exercised through
+visible host controls:
+
+1. Initial mount rendered four positions and status `mounted`.
+2. `update(payload)` replaced the snapshot with one cable position, updated all
+   type counters, changed the count to `1 запись`, and selected the new item.
+3. `unmount()` removed every child from `#root` while preserving the root and
+   the host-owned lifecycle controls; status became `unmounted`.
+4. A second update after unmount was rejected with
+   `Nomenclature React island is already unmounted`; the root stayed empty and
+   no `main` element was recreated.
+5. Browser console warnings/errors: none.
+
 ## Not yet proven
 
 - parity against a live MES payload;

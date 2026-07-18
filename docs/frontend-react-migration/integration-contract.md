@@ -1,7 +1,7 @@
 # React island integration contract
 
 Date: 2026-07-19
-Status: isolated preparation; not connected to MES
+Status: isolated lifecycle verified; not connected to MES
 
 ## Purpose
 
@@ -32,6 +32,10 @@ explicit target and returns:
 
 The island does not read global MES state, call an API, write data, persist
 browser storage, or manipulate DOM outside its target.
+
+The isolated browser gate has verified initial mount, a payload update, clean
+unmount, preservation of the host node/controls, and rejection of updates after
+unmount without console errors.
 
 ## Feature flag rules
 

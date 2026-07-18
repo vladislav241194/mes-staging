@@ -124,6 +124,11 @@ try {
   assert.match(mountSource, /unmount\(\)/);
   assert.doesNotMatch(mountSource, /document\.|querySelector|appendChild|replaceWith/, "island mount must not manipulate host DOM");
 
+  const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
+  assert.match(mainSource, /lifecycle_qa/);
+  assert.match(mainSource, /island\.update\(nomenclatureUpdateFixture\)/);
+  assert.match(mainSource, /island\.unmount\(\)/);
+
   const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });
   assert.equal(blockedDiff.trim(), "", `migration branch changed blocked paths:\n${blockedDiff}`);
 

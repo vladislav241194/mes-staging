@@ -13,3 +13,10 @@ export const nomenclatureFixture = {
     { id: "mech-001", article: "CASE-AL-01", name: "Корпус алюминиевый", type: "Механика", unit: "шт.", package: "120×80", manufacturer: "MES Line", status: "Активен" },
   ],
 };
+
+export const nomenclatureUpdateFixture = {
+  nomenclatureTypes: nomenclatureFixture.nomenclatureTypes,
+  nomenclature: [
+    { id: "cable-001", article: "CBL-USB-01", name: "Кабель сервисный USB", type: "Кабели и жгуты", unit: "шт.", package: "1 м", manufacturer: "MES Line", status: "Активен" },
+  ],
+};

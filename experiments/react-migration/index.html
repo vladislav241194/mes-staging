@@ -8,6 +8,12 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div class="lifecycle-controls" data-lifecycle-controls hidden>
+      <strong>Lifecycle QA</strong>
+      <button type="button" data-lifecycle-update>Обновить payload</button>
+      <button type="button" data-lifecycle-unmount>Демонтировать island</button>
+      <span data-lifecycle-status>mounted</span>
+    </div>
     <div id="root"></div>
     <script type="module" src="./app.js"></script>
   </body>

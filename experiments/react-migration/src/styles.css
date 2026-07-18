@@ -2,6 +2,11 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 960px; }
 button { font: inherit; }
+.lifecycle-controls { position: fixed; right: 18px; bottom: 18px; z-index: 20; display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid #cdd9e6; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px rgba(22,50,82,.14); font-size: 11px; }
+.lifecycle-controls[hidden] { display: none; }
+.lifecycle-controls button { padding: 6px 8px; border: 1px solid #b9c9da; border-radius: 7px; color: #18314d; background: #f5f8fc; cursor: pointer; }
+.lifecycle-controls button:disabled { opacity: .45; cursor: default; }
+.lifecycle-controls span { min-width: 62px; color: #52667a; }
 .module-page { min-height: 100vh; padding: 22px; }
 .module-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .module-header p, .panel-heading p, .detail > p { margin: 0 0 4px; color: #718296; font-size: 12px; }
