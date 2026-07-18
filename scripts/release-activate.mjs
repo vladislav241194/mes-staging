@@ -257,8 +257,8 @@ const record = {
   },
   health: { local: "ok", public: "ok" },
 };
-await writeFile(activePath, JSON.stringify(record, null, 2) + "\\n");
-await writeFile(activationPath, JSON.stringify(record, null, 2) + "\\n");
+await writeFile(activePath, JSON.stringify(record, null, 2) + "\n");
+await writeFile(activationPath, JSON.stringify(record, null, 2) + "\n");
 NODE
 mv -f "$releases_path/active-release.json.next" "$releases_path/active-release.json"
 mv -f "$release_path/activation.json.next" "$release_path/activation.json"

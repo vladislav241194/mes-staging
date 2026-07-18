@@ -111,6 +111,7 @@
     "qa:operation-duration-domain": "node scripts/operation-duration-domain-qa.mjs",
     "qa:postgres-autonomy-bootstrap": "node scripts/postgres-autonomy-bootstrap-qa.mjs",
     "qa:deploy-server": "node scripts/deploy-server-contract-qa.mjs",
+    "qa:release-activation-record": "node scripts/release-activation-record-qa.mjs",
     "backup:shared-state": "node scripts/backup-shared-state.mjs",
     "list:shared-state-backups": "node scripts/list-shared-state-backups.mjs",
     "restore:shared-state": "node scripts/restore-shared-state.mjs",
