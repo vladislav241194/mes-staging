@@ -7441,3 +7441,97 @@ html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout="app
     inset -1px 0 0 rgba(255, 255, 255, 0.24),
     inset 0 -1px 0 rgba(47, 88, 128, 0.06) !important;
 }
+
+/* Canonical parity surfaces win over the accumulated route-specific glass
+   experiments above. The theme still owns material (color, shadow and
+   backdrop); reusable shell components own their geometry. */
+html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone){
+  /* A legacy planning-table scope still aliases the default control token to
+     the dense 32px control. Default actions are deliberately 36px; compact
+     actions declare their own 30px variant. */
+  --mes-ui-control-height-default: 36px;
+}
+
+html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"]:not([data-layout-page="shiftMasterBoard"]) [data-ui-contract~="visual-parity-v2"] :is(
+  [data-ui-component="ModuleSidebar"],
+  [data-ui-component="ModuleHeader"],
+  [data-ui-component="Panel"],
+  [data-ui-component="TableWrap"]
+){
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"]:not([data-layout-page="shiftMasterBoard"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"]{
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default) !important;
+}
+
+/* The board has deliberately native panel internals. Other module panels use
+   one shared header/body/footer rhythm. */
+html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"]:not([data-layout-page="shiftMasterBoard"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelHead"]{
+  padding: var(--mes-ui-panel-head-padding) !important;
+}
+
+html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"]:not([data-layout-page="shiftMasterBoard"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelBody"]{
+  padding: var(--mes-ui-panel-body-padding) !important;
+}
+
+html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"]:not([data-layout-page="shiftMasterBoard"]) [data-ui-contract~="visual-parity-v2"] [data-ui-component="Panel"] > [data-ui-component="PanelFooter"]{
+  padding: var(--mes-ui-panel-footer-padding) !important;
+}
+
+html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"]:not(.is-admin-standalone):not(.is-auth-standalone) [data-ui-contract~="visual-parity-v2"] [data-ui-component="ActionButton"][data-ui-size="default"]{
+  height: var(--mes-ui-control-height-default) !important;
+  min-height: var(--mes-ui-control-height-default) !important;
+  max-height: var(--mes-ui-control-height-default) !important;
+}
+
+@media (max-width: 860px){
+  html[data-visual-theme] body #app > main.app-shell[data-layout="app-shell"] [data-ui-contract~="visual-parity-v2"][data-ui-component="ModulePage"].has-sidebar > [data-ui-component="ModuleSidebar"]{
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Route skins may vary material, but shared components keep the same geometry.
+   These selectors intentionally match the old late glass rules' specificity. */
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout="app-shell"][data-layout-page] [data-ui-component="ModuleSidebar"].ui-module-sidebar{
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="planning"] :is(.planning-order-queue, .planning-order-module-header){
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel{
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-head{
+  padding: var(--mes-ui-panel-head-padding) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="authSessionPrototype"] .auth-session-panel > .ui-panel-body{
+  padding: var(--mes-ui-panel-body-padding) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel{
+  border: var(--mes-ui-border-width) solid var(--mes-ui-border-default) !important;
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-head{
+  padding: var(--mes-ui-panel-head-padding) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="shiftWorkOrders"] .shift-work-orders-panel > .ui-panel-body{
+  padding: var(--mes-ui-panel-body-padding) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="timesheet"] :is(.timesheet-hero-panel, .timesheet-board-panel, .timesheet-table-wrap){
+  border-radius: var(--mes-ui-radius-md) !important;
+}
+
+html[data-visual-theme="base-glass"] body #app > main.app-shell[data-layout-page="timesheet"] :is(.timesheet-hero-panel, .timesheet-board-panel) > .ui-panel-body{
+  padding: var(--mes-ui-panel-body-padding) !important;
+}

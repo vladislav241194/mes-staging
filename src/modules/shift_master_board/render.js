@@ -1939,6 +1939,8 @@ function renderShiftMasterBoardPage() {
       ` : renderUiPanel({
         title: "",
         className: "shift-master-board-panel shift-master-board-empty",
+        component: "Canvas",
+        surface: "empty-board",
         body: renderUiPanelBody({
           body: renderUiEmptyState({
             iconName: "calendar",

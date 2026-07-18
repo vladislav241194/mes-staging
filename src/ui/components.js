@@ -35,6 +35,7 @@ export function createUiRenderers({ icon }) {
     attributes = "",
     surface = "",
     density = "",
+    component = "Panel",
   }) {
     const contractAttributes = [
       surface ? `data-ui-surface="${escapeAttribute(surface)}"` : "",
@@ -42,7 +43,7 @@ export function createUiRenderers({ icon }) {
       attributes,
     ].filter(Boolean).join(" ");
     return `
-    <section class="${escapeAttribute(joinUiClasses("module-panel", "ui-panel", cornerMarker ? "ui-demo-marker-host" : "", className))}" data-ui-component="Panel" ${contractAttributes}>
+    <section class="${escapeAttribute(joinUiClasses("module-panel", "ui-panel", cornerMarker ? "ui-demo-marker-host" : "", className))}" data-ui-component="${escapeAttribute(component || "Panel")}" ${contractAttributes}>
       ${cornerMarker}
       ${title ? renderUiPanelHead({ title, meta, actions, actionsClassName }) : ""}
       ${body}

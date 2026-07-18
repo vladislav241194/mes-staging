@@ -478,7 +478,7 @@ async function collectSnapshot(client, moduleId, viewport) {
     const activeDesktopTabs = [...document.querySelectorAll(`.module-tab[data-module="${CSS.escape(moduleId)}"].is-active`)];
     const activeMobileTabs = [...document.querySelectorAll(`.mobile-module-tab[data-module="${CSS.escape(moduleId)}"].is-active`)];
 
-    const surfaces = [...document.querySelectorAll('[data-ui-component="ModuleSidebar"], [data-ui-component="ModuleWorkspace"], [data-ui-component="ModuleHeader"], [data-ui-component="Panel"], [data-ui-component="FormSection"], [data-ui-component="TableWrap"]')]
+    const surfaces = [...document.querySelectorAll('[data-ui-component="ModuleSidebar"], [data-ui-component="ModuleWorkspace"], [data-ui-component="ModuleHeader"], [data-ui-component="Panel"], [data-ui-component="Canvas"], [data-ui-component="FormSection"], [data-ui-component="TableWrap"]')]
       .filter(visible)
       .map((element) => ({
         component: element.dataset.uiComponent || "",
@@ -491,6 +491,7 @@ async function collectSnapshot(client, moduleId, viewport) {
       .filter(visible)
       .map((element) => ({
         component: element.dataset.uiComponent || "",
+        parentComponent: element.closest('[data-ui-component="Panel"], [data-ui-component="Canvas"]')?.dataset.uiComponent || "",
         selector: selectorFor(element),
         rect: rectFor(element),
         style: styleFor(element, panelPartStyleProperties),
@@ -674,9 +675,14 @@ function validateSnapshot(snapshot, profile) {
     if (profile.family === "admin-preview" && surface.component === "ModuleWorkspace") return;
     if (profile.family === "auth-standalone" && surface.component === "ModuleWorkspace") return;
     const radii = ["borderTopLeftRadius", "borderTopRightRadius", "borderBottomRightRadius", "borderBottomLeftRadius"].map((key) => px(surface.style[key]));
+    const widths = ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"].map((key) => px(surface.style[key]));
+    if (surface.component === "Canvas") {
+      if (radii.some((radius) => !near(radius, 0, 0.1))) addHard("canvas-radius", "Canvas must not masquerade as a rounded panel", { selector: surface.selector, actual: radii, expected: 0 });
+      if (widths.some((width) => !near(width, 0, 0.1))) addHard("canvas-border", "Canvas must not render a panel border", { selector: surface.selector, actual: widths, expected: 0 });
+      return;
+    }
     if (expectedRadius && radii.some((radius) => !near(radius, expectedRadius, 0.6))) addHard("surface-radius", `${surface.component} radius differs from shared md token`, { selector: surface.selector, actual: radii, expected: tokens.radiusMd });
     if (radii.some((radius) => radius > 8.6)) addHard("surface-radius-max", `${surface.component} exceeds 8px standard surface radius`, { selector: surface.selector, actual: radii });
-    const widths = ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"].map((key) => px(surface.style[key]));
     if (surface.component !== "TableWrap" && widths.some((width) => width > 1.1)) addHard("surface-border-width", `${surface.component} uses a border wider than 1px`, { selector: surface.selector, actual: widths });
   });
 
@@ -688,10 +694,12 @@ function validateSnapshot(snapshot, profile) {
   for (const component of profile.skipPanelPadding ? [] : ["PanelHead", "PanelBody", "PanelFooter"]) {
     const expected = expectedPanelPadding[component];
     if (!expected.some(Boolean)) continue;
-    const outliers = snapshot.panelParts.filter((part) => part.component === component).filter((part) => {
-      const actual = [part.style.paddingTop, part.style.paddingRight, part.style.paddingBottom, part.style.paddingLeft];
-      return actual.some((value, index) => !near(px(value), px(expected[index]), 0.6));
-    });
+    const outliers = snapshot.panelParts
+      .filter((part) => part.component === component && part.parentComponent !== "Canvas")
+      .filter((part) => {
+        const actual = [part.style.paddingTop, part.style.paddingRight, part.style.paddingBottom, part.style.paddingLeft];
+        return actual.some((value, index) => !near(px(value), px(expected[index]), 0.6));
+      });
     if (outliers.length) addHard("panel-part-padding", `${component} padding differs from shared token`, {
       component,
       expected,
