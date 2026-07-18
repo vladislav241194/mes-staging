@@ -21,6 +21,30 @@ INTERNAL_HOST="mes-internal"
 [[ -f "${STATE_FILE}" ]] || { echo "Missing shared-state snapshot: ${STATE_FILE}" >&2; exit 1; }
 [[ -r "${ENV_FILE}" ]] || { echo "Missing domain environment file: ${ENV_FILE}" >&2; exit 1; }
 
+request_json() {
+  local path="$1"
+  local attempt
+  for attempt in {1..12}; do
+    if curl -fsS --max-time 12 -H "Host: ${INTERNAL_HOST}" "${INTERNAL_ORIGIN}${path}"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "MES API did not become ready for the controlled reconciliation: ${path}" >&2
+  return 1
+}
+
+# A reverse import is only valid while PostgreSQL is a proven byte-for-byte
+# compatibility projection.  Starting the generic import unit first would be
+# too late: it could replace newer PostgreSQL facts from a stale snapshot.
+system_domains_guard="$(request_json "/api/v1/system-domains/consistency")"
+node -e '
+  const payload = JSON.parse(process.argv[1]);
+  if (payload?.consistency?.matches !== true) {
+    throw new Error("Refusing reverse import: System Domains PostgreSQL projection is not a proven exact compatibility match");
+  }
+' "${system_domains_guard}"
+
 # The existing service exports and imports the work-order/operation/slot
 # projection under the deploy account and its hardened systemd environment.
 systemctl start "${IMPORT_SERVICE}"
@@ -29,8 +53,8 @@ systemctl is-failed --quiet "${IMPORT_SERVICE}" && {
   exit 1
 }
 
-# System Domains use a separate aggregate and are intentionally imported from
-# the same snapshot before its command path is activated.
+# System Domains use a separate aggregate. The importer is now allowed only
+# after the API has proven that the current compatibility snapshot is exact.
 cd "${APP_DIR}"
 set -a
 # shellcheck disable=SC1090
@@ -42,19 +66,6 @@ set +a
 # reconciliation so the following parity probes validate the same code and
 # projection that users will receive, rather than an older in-memory module.
 systemctl restart "${PILOT_SERVICE}"
-
-request_json() {
-  local path="$1"
-  local attempt
-  for attempt in {1..12}; do
-    if curl -fsS --max-time 12 -H "Host: ${INTERNAL_HOST}" "${INTERNAL_ORIGIN}${path}"; then
-      return 0
-    fi
-    sleep 1
-  done
-  echo "MES API did not become ready after reconciliation: ${path}" >&2
-  return 1
-}
 
 work_order_parity="$(request_json "/api/v1/planning/work-orders/parity")"
 system_domains_consistency="$(request_json "/api/v1/system-domains/consistency")"

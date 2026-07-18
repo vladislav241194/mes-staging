@@ -10,7 +10,7 @@ function assert(value, message) { if (!value) throw new Error(message); }
 const input = arg("--input");
 const apply = process.argv.includes("--apply");
 const force = process.argv.includes("--force");
-assert(input, "Usage: node scripts/domain-system-domains-import.mjs --input=/path/to/shared-state.json [--apply]");
+assert(input, "Usage: node scripts/domain-system-domains-import.mjs --input=/path/to/shared-state.json [--apply] [--force]");
 const snapshot = JSON.parse(await readFile(input, "utf8"));
 const stored = snapshot?.values?.[SYSTEM_DOMAINS_STORAGE_KEY];
 assert(stored, `Shared state does not contain ${SYSTEM_DOMAINS_STORAGE_KEY}`);
@@ -24,6 +24,11 @@ if (!apply) {
 
 const repository = createSystemDomainsRepository();
 try {
-  const result = await repository.replace(loaded.domains, { source: `shared-state:${basename(input)}`, force });
-  console.log(JSON.stringify({ ok: true, mode: "apply", ...result, counts }));
+  const result = await repository.replace(loaded.domains, {
+    source: `shared-state:${basename(input)}`,
+    force,
+    snapshotImport: true,
+    emergencySnapshotReplace: String(process.env.MES_ALLOW_SYSTEM_DOMAINS_SNAPSHOT_REPLACE || "") === "1",
+  });
+  console.log(JSON.stringify({ ok: true, mode: result.mode || "apply", ...result, counts }));
 } finally { await repository.close(); }

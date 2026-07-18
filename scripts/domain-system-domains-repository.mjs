@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import postgres from "postgres";
 import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
+import { inspectSystemDomainsSnapshotImportGuard } from "../src/modules/system_domains/snapshot_import_guard.js";
 
 const SET_ID = "primary";
 const CLIENTS_BY_URL = new Map();
@@ -36,6 +37,26 @@ function normalizeInput(value) {
 }
 
 function mapById(items) { return new Map(items.map((item) => [text(item.id), item]).filter(([id]) => id)); }
+
+async function hasStoredDomainEntities(tx) {
+  const [row] = await tx`
+    SELECT
+      EXISTS(SELECT 1 FROM system_org_units)
+      OR EXISTS(SELECT 1 FROM system_work_centers)
+      OR EXISTS(SELECT 1 FROM system_schedule_templates)
+      OR EXISTS(SELECT 1 FROM system_positions)
+      OR EXISTS(SELECT 1 FROM system_employees)
+      OR EXISTS(SELECT 1 FROM system_employment_assignments)
+      OR EXISTS(SELECT 1 FROM system_equipment)
+      OR EXISTS(SELECT 1 FROM system_schedule_assignments)
+      OR EXISTS(SELECT 1 FROM system_attendance_events)
+      OR EXISTS(SELECT 1 FROM system_access_roles)
+      OR EXISTS(SELECT 1 FROM system_access_grants)
+      OR EXISTS(SELECT 1 FROM system_role_assignments)
+      OR EXISTS(SELECT 1 FROM system_responsibility_policies)
+      AS present`;
+  return Boolean(row?.present);
+}
 
 async function insertAll(tx, domains) {
   for (const item of rows(domains, "orgUnits")) await tx`
@@ -89,10 +110,23 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
   const storage = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   return {
     ...storage,
-    async replace(value, { source = "snapshot-import", force = false, expectedRevision = null, actorId = "", commandType = "replace_projection", idempotencyKey = "" } = {}) {
+    async replace(value, {
+      source = "snapshot-import",
+      force = false,
+      expectedRevision = null,
+      actorId = "",
+      commandType = "replace_projection",
+      idempotencyKey = "",
+      snapshotImport = false,
+      emergencySnapshotReplace = false,
+    } = {}) {
       const domains = normalizeInput(value);
       const digest = fingerprint(domains);
       const result = await sql.begin(async (tx) => {
+        // Every full-projection replacement acquires the same transaction lock.
+        // This closes the empty-set gap where a row-level lock cannot exist yet,
+        // and lets snapshot-import safety evaluate the exact state it will write.
+        await tx`SELECT pg_advisory_xact_lock(hashtext('mes-system-domains:primary'))`;
         const normalizedIdempotencyKey = text(idempotencyKey);
         if (normalizedIdempotencyKey) {
           const prior = await tx`SELECT source_fingerprint, expected_revision, resulting_revision FROM system_domain_command_requests WHERE idempotency_key = ${normalizedIdempotencyKey} FOR UPDATE`;
@@ -107,6 +141,25 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
         const currentRevision = Number(current[0]?.revision || 0);
         if (expectedRevision !== null && Number(expectedRevision) !== currentRevision) {
           return { imported: false, conflict: true, revision: currentRevision, fingerprint: current[0]?.source_fingerprint || "" };
+        }
+        let snapshotImportMode = "";
+        if (snapshotImport) {
+          const initialized = Boolean(current[0]) || await hasStoredDomainEntities(tx);
+          const guard = inspectSystemDomainsSnapshotImportGuard({
+            existingItem: initialized ? { id: SET_ID } : null,
+            alreadyMatches: Boolean(current[0]) && current[0].source_fingerprint === digest,
+            force,
+            emergencyEnabled: emergencySnapshotReplace,
+          });
+          if (!guard.allowed) {
+            const error = new Error(guard.reason);
+            error.code = "SYSTEM_DOMAINS_SNAPSHOT_REPLACE_BLOCKED";
+            throw error;
+          }
+          snapshotImportMode = guard.mode;
+          if (guard.mode === "idempotent-import") {
+            return { imported: false, replayed: false, conflict: false, revision: currentRevision, fingerprint: digest, mode: snapshotImportMode };
+          }
         }
         if (!force && current[0]?.source_fingerprint === digest) return { imported: false, conflict: false, revision: currentRevision, fingerprint: digest };
         await tx`DELETE FROM system_responsibility_targets`;
@@ -138,7 +191,7 @@ export function createSystemDomainsRepository({ databaseUrl = process.env.DATABA
         if (normalizedIdempotencyKey) await tx`
           INSERT INTO system_domain_command_requests (idempotency_key, source_fingerprint, expected_revision, resulting_revision, actor_id)
           VALUES (${normalizedIdempotencyKey}, ${digest}, ${Number(expectedRevision)}, ${revision}, ${text(actorId)})`;
-        return { imported: true, replayed: false, conflict: false, revision, fingerprint: digest, changeId: Number(change.id) };
+        return { imported: true, replayed: false, conflict: false, revision, fingerprint: digest, changeId: Number(change.id), mode: snapshotImportMode || "apply" };
       });
       return { ...storage, ...result };
     },
