@@ -159,6 +159,13 @@ the `19`-row legacy Organization Units registry. The independent production
 artifact is `204,788 B` raw / `64,411 B` gzip / `61,098 B` Brotli. It has not
 been released or activated on Pilot.
 
+Nomenclature and Structure Employees now use one production island-host
+contract for activation decisions, cancellation-safe lazy loading, commit
+telemetry, single-shot error fallback, unmount and exact legacy-scope return.
+Module wrappers retain only their payload policy, bundle entry and scenario-
+specific eligibility rules. This prevents the second module from becoming a
+copied runtime fork while preserving independent feature flags and rollback.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight

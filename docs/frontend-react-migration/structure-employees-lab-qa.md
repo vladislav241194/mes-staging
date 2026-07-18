@@ -110,7 +110,7 @@ Result:
 - requesting `Подразделения` unmounts React and opens the exact legacy registry
   with `19` rows;
 - the browser console is clean;
-- latest local production-shell commit was `17.40 ms`, below the `2000 ms` local
+- latest local production-shell commit was `34.70 ms`, below the `2000 ms` local
   gate;
 - the independent artifact is `204,788 B` raw / `64,411 B` gzip /
   `61,098 B` Brotli, within its `225,000 B` raw / `68,000 B` gzip budget.
