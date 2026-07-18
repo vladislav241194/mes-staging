@@ -14,12 +14,14 @@ const model = createSystemDomainsReadModel({
   },
 });
 const first = await model.refresh();
-assert(first.ok && first.changed && calls === 1 && model.get().etag === '"1"', "first read must cache the server projection and ETag");
+assert(first.ok && first.changed && first.revision === 1 && calls === 1 && model.get().etag === '"1"' && model.get().revision === 1, "first read must cache the server projection, revision, and ETag");
 const cached = await model.refresh();
-assert(cached.ok && cached.notModified && calls === 1, "fresh projection must not issue a duplicate request");
+assert(cached.ok && cached.notModified && cached.revision === 1 && calls === 1, "fresh projection must keep the cached revision without issuing a duplicate request");
+const forced = await model.refresh({ force: true });
+assert(forced.ok && forced.notModified && forced.revision === 1 && calls === 2, "a command preflight must be able to force an ETag revalidation and retain its revision on 304");
 now = 31_000;
 const revalidated = await model.refresh();
-assert(revalidated.ok && revalidated.notModified && calls === 2, "expired projection must use conditional GET");
+assert(revalidated.ok && revalidated.notModified && revalidated.revision === 1 && calls === 3, "expired projection must use conditional GET and preserve the revision");
 const unavailable = createSystemDomainsReadModel({ fetchImpl: async () => ({ status: 503, ok: false, headers: { get: () => "" } }) });
 const failed = await unavailable.refresh();
 assert(!failed.ok && /503/.test(failed.error), "unavailable server read must be explicit and non-destructive");

@@ -15,6 +15,9 @@ const repositorySource = await readFile(fileURLToPath(new URL("./domain-system-d
 assert(importerSource.includes("snapshotImport: true"), "The CLI importer must request the transactional snapshot-import guard.");
 assert(importerSource.includes("emergencySnapshotReplace"), "The CLI importer must pass the explicit emergency environment gate.");
 assert(repositorySource.includes("pg_advisory_xact_lock"), "Snapshot replacement must serialize with concurrent System Domains writes.");
+assert(repositorySource.includes("SYSTEM_DOMAINS_AUTHORITY_TRANSITION_PENDING"), "A command admitted before root cutover must be rejected if it acquires the projection lock after the durable transition marker.");
+assert(repositorySource.indexOf("SYSTEM_DOMAINS_AUTHORITY_TRANSITION_PENDING") < repositorySource.indexOf("DELETE FROM system_responsibility_targets"), "Pending authority must block writes before a projection delete can run.");
+assert(repositorySource.includes("SYSTEM_DOMAINS_SNAPSHOT_IMPORT_RETIRED"), "Legacy snapshot import must be fail-closed after PostgreSQL-primary cutover.");
 assert(repositorySource.includes("SYSTEM_DOMAINS_SNAPSHOT_REPLACE_BLOCKED"), "A divergent persisted projection must fail before DELETE statements run.");
 assert(repositorySource.indexOf("SYSTEM_DOMAINS_SNAPSHOT_REPLACE_BLOCKED") < repositorySource.indexOf("DELETE FROM system_responsibility_targets"), "The transactional snapshot guard must run before destructive deletes.");
 

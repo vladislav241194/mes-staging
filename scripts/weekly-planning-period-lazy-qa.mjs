@@ -24,6 +24,9 @@ expect(weekly.includes("getPlanningTableSlotRows({ weekStart, weekEnd })"), "Wee
 
 const weeklyHydration = app.slice(app.indexOf("function hydrateWeeklyPlanningPeriod()"), app.indexOf("function getWeeklyProductionControlRuntimeInstance()"));
 expect(!/planningState\s*=/.test(weeklyHydration), "Weekly period hydration must never replace the global planning state");
+const localWeeklyRows = app.slice(app.indexOf("function getPlanningTableSlotRows()"), app.indexOf("function getWeeklyPlanningPeriodBounds()"));
+expect(localWeeklyRows.includes("getPlanningTableSlotRoute(slot, step)"), "Weekly local fallback must reuse the already indexed route step for each slot");
+expect(!localWeeklyRows.includes("getPlanningSlotRoute(slot, planningState)"), "Weekly local fallback must not rescan route steps for every slot");
 const compactPresentation = app.slice(app.indexOf("function resolveWeeklyCompactSlotPresentation"), app.indexOf("function clearWeeklyPlanningPeriodRefreshTimer()"));
 expect(!compactPresentation.includes("getGanttRuntime"), "compact Weekly presentation must not invoke the lazy Gantt runtime");
 const weeklyInvalidation = app.slice(app.indexOf("function invalidateWeeklyPlanningPeriod()"), app.indexOf("function setPlanningStateAndInvalidate("));

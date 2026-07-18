@@ -42,6 +42,32 @@ try {
   assert(retiredResult.applied === 1 && retiredResult.jobs[0]?.snapshotRetired === true, "a retired System Domains snapshot must close the outbox without being revived");
   assert(retiredMarks[0]?.state === "applied" && retiredSnapshot.version === 6 && retiredSnapshot.values[SYSTEM_DOMAINS_STORAGE_KEY] === null, "the explicit tombstone must survive a later server outbox retry");
 
+  const primaryMarks = [];
+  const primaryResult = await syncPendingSystemDomainsSnapshotChanges({
+    primary: {
+      async listPendingSnapshotSyncs() { return [{ id: 13, aggregateRevision: 3 }]; },
+      async get() { return { revision: 3, item: domains }; },
+      async getAuthority() { return { mode: "postgres-primary" }; },
+      async markSnapshotSync(id, value) { primaryMarks.push({ id, ...value }); },
+    },
+    filePath,
+  });
+  assert(primaryResult.applied === 1 && primaryResult.jobs[0]?.postgresPrimary === true && primaryMarks[0]?.state === "applied", "a PostgreSQL-primary outbox may close only while its tombstone is still present");
+
+  await writeFile(filePath, JSON.stringify({ version: 7, values: { ...retiredSnapshot.values, [SYSTEM_DOMAINS_STORAGE_KEY]: JSON.stringify(domains) } }), "utf8");
+  const revivedMarks = [];
+  const revivedResult = await syncPendingSystemDomainsSnapshotChanges({
+    primary: {
+      async listPendingSnapshotSyncs() { return [{ id: 14, aggregateRevision: 3 }]; },
+      async get() { return { revision: 3, item: domains }; },
+      async getAuthority() { return { mode: "postgres-primary" }; },
+      async markSnapshotSync(id, value) { revivedMarks.push({ id, ...value }); },
+    },
+    filePath,
+  });
+  assert(revivedResult.failed === 1 && revivedResult.jobs[0]?.snapshotTombstoneMissing === true && revivedMarks[0]?.state === "pending", "a reappeared snapshot must block PostgreSQL-primary outbox completion rather than being silently accepted");
+  await writeFile(filePath, JSON.stringify({ version: 8, values: { ...retiredSnapshot.values, [SYSTEM_DOMAINS_STORAGE_KEY]: null } }), "utf8");
+
   const makeSnapshot = (version, value = domains) => ({
     snapshot: { version, values: { [SYSTEM_DOMAINS_STORAGE_KEY]: JSON.stringify(value) } },
   });

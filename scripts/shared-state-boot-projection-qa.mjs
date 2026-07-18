@@ -27,6 +27,17 @@ assert(runtimeState.includes("values[SYSTEM_DOMAINS_STORAGE_KEY] = null;"), "Ser
 assert(runtimeState.includes("!isSystemDomainsServerAuthoritative()"), "A retired System Domains snapshot must not overwrite the server projection during hydration.");
 assert(app.includes("function hasSystemDomainsServerAuthority()"), "System Domains authority must require every command surface.");
 assert(app.includes("SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES"), "System Domains authority surfaces must be explicit and reviewable.");
+assert(app.includes("function hasSystemDomainsServerCommandCoverage()"), "System Domains must distinguish command coverage from primary authority.");
+assert(/return hasSystemDomainsServerCommandCoverage\(\) && hasObservedSystemDomainsPrimaryAuthority\(\);/.test(app), "Complete command surfaces must not be treated as PostgreSQL-primary before the durable marker exists.");
+assert(/if \(!hasObservedSystemDomainsPrimaryAuthority\(\) && localSignature && localSignature !== serverSignature\)/.test(app), "Compatibility snapshot parity must remain enforced until PostgreSQL-primary is observed.");
+assert(/if \(!hasObservedSystemDomainsPrimaryAuthority\(\)\) scheduleSystemDomainsServerReadRetry\(moduleId\);/.test(app), "A successful compatibility read must retry authority discovery instead of creating a tombstone from the browser.");
+assert(app.includes("isSystemDomainsServerAuthoritative: () => hasObservedSystemDomainsPrimaryAuthority()"), "Runtime tombstone behavior must become fail-closed as soon as observed PostgreSQL-primary authority is durable, not wait for a cached server read.");
+assert(app.includes("allowBeforeInitialSync: true"), "Cold boot must explicitly fetch the System Domains tombstone before initial shared-state synchronization enables normal polling.");
+assert(runtimeState.includes("async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false } = {})"), "Projected System Domains hydration must support the explicit cold-boot path.");
+assert(runtimeState.includes("onSystemDomainsSnapshotRetired = () => {}"), "Runtime state must notify the app when it observes a new System Domains tombstone.");
+const reloadSystemDomainsState = app.match(/function reloadSystemDomainsState\([\s\S]*?\n}\n\nfunction updateSystemDomainRegistry/);
+assert(reloadSystemDomainsState, "System Domains reload path is missing.");
+assert((reloadSystemDomainsState[0].match(/hasObservedSystemDomainsPrimaryAuthority\(\)/g) || []).length >= 2, "Legacy System Domains reload must stop both before and after its async matrix import when PostgreSQL-primary is observed.");
 assert(app.includes("onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap()"), "Runtime startup must wire the compact Planning workbench bootstrap.");
 assert(!app.includes("onPlanningBootstrap: () => hydratePlanningRuntimeProjection()"), "Planning startup must not fetch the complete runtime projection.");
 assert(runtimeState.includes("function isCompactSharedUiReason(reason = \"\")"), "Shared UI writes must have an explicit compact transport gate.");

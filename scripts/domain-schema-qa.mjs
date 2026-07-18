@@ -41,6 +41,10 @@ const planningParityWatermarkMigrationPath = fileURLToPath(new URL("../db/migrat
 const planningParityWatermarkSql = await readFile(planningParityWatermarkMigrationPath, "utf-8");
 const shiftExecutionCarryoverLifecycleMigrationPath = fileURLToPath(new URL("../db/migrations/022_shift_execution_carryover_lifecycle.sql", import.meta.url));
 const shiftExecutionCarryoverLifecycleSql = await readFile(shiftExecutionCarryoverLifecycleMigrationPath, "utf-8");
+const systemDomainsPrimaryAuthorityMigrationPath = fileURLToPath(new URL("../db/migrations/023_system_domains_postgres_primary_authority.sql", import.meta.url));
+const systemDomainsPrimaryAuthoritySql = await readFile(systemDomainsPrimaryAuthorityMigrationPath, "utf-8");
+const postgresPreflightPath = fileURLToPath(new URL("./domain-postgres-preflight.mjs", import.meta.url));
+const postgresPreflightSql = await readFile(postgresPreflightPath, "utf-8");
 
 [
   "CREATE TABLE IF NOT EXISTS work_orders",
@@ -177,4 +181,18 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningParityWatermarkSql), "Pla
   "INSERT INTO mes_schema_migrations(version)\nVALUES ('022_shift_execution_carryover_lifecycle')",
 ].forEach((fragment) => assert(shiftExecutionCarryoverLifecycleSql.includes(fragment), `Shift-execution carryover lifecycle migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(shiftExecutionCarryoverLifecycleSql), "Shift-execution carryover lifecycle migration must not contain destructive statements");
+[
+  "CREATE TABLE IF NOT EXISTS system_domain_authority_state",
+  "mode text NOT NULL CHECK (mode IN ('transition-pending', 'postgres-primary'))",
+  "transition_id text NOT NULL UNIQUE",
+  "proof_postgres_fingerprint text NOT NULL",
+  "proof_snapshot_fingerprint text NOT NULL",
+  "CREATE INDEX IF NOT EXISTS system_domain_authority_state_mode_idx",
+  "INSERT INTO mes_schema_migrations(version)\nVALUES ('023_system_domains_postgres_primary_authority')",
+].forEach((fragment) => assert(systemDomainsPrimaryAuthoritySql.includes(fragment), `System Domains PostgreSQL primary-authority migration is missing: ${fragment}`));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(systemDomainsPrimaryAuthoritySql), "System Domains PostgreSQL primary-authority migration must not contain destructive statements");
+assert(
+  postgresPreflightSql.includes('"023_system_domains_postgres_primary_authority"'),
+  "PostgreSQL domain preflight must require the System Domains primary-authority migration",
+);
 console.log("Domain schema QA: OK");

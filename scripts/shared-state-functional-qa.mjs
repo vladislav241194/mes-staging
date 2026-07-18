@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 
-import { handleSharedStateRequest } from "./shared-state-endpoint.mjs";
+import { handleSharedStateRequest, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
 import { withSharedStateFileLock } from "./shared-state-storage.mjs";
 import {
   applySharedUiPatch,
@@ -229,7 +229,7 @@ async function main() {
     assert(!Object.prototype.hasOwnProperty.call(retiredShiftProjection.json.sharedUi, "shiftMasterBoardFacts"), "Retired shift facts must not remain in shared state");
     assert(!Object.prototype.hasOwnProperty.call(retiredShiftProjection.json.sharedUi, "shiftMasterBoardCarryovers"), "Retired carryovers must not remain in shared state");
 
-    const retiredSystemDomainsProjection = await callSharedState(filePath, "POST", {
+    const browserSystemDomainsRetirement = await callSharedState(filePath, "POST", {
       baseVersion: 3,
       clientId: "system-domains-server-authority",
       actor: "QA",
@@ -240,8 +240,39 @@ async function main() {
       },
       sharedUi: retiredShiftProjection.json.sharedUi,
     });
-    assert(retiredSystemDomainsProjection.statusCode === 200 && retiredSystemDomainsProjection.json.version === 4, "System Domains authority tombstone must create a new shared-state revision");
-    assert(retiredSystemDomainsProjection.json.values[SHARED_STATE_KEYS.systemDomains] === null, "Retired System Domains must be an explicit shared-state tombstone");
+    assert(browserSystemDomainsRetirement.statusCode === 403, "A browser POST must not retire System Domains outside the root-controlled cutover");
+    assert(browserSystemDomainsRetirement.json.systemDomainsRetirementRequiresRootCutover === true, "Browser tombstone denial must identify the root-only cutover boundary");
+    assert(browserSystemDomainsRetirement.json.current?.version === 3, "Rejected browser retirement must not change the shared-state revision");
+    const rootSystemDomainsRetirement = await updateSharedStateSnapshot({
+      filePath,
+      expectedVersion: 3,
+      allowSystemDomainsCompatibilitySnapshotRetirement: true,
+      update: (snapshot) => ({
+        ...snapshot,
+        values: { ...snapshot.values, [SHARED_STATE_KEYS.systemDomains]: null },
+      }),
+    });
+    assert(rootSystemDomainsRetirement.ok && rootSystemDomainsRetirement.snapshot?.version === 4, "The internal root-controlled path must be able to create the System Domains tombstone");
+    assert(rootSystemDomainsRetirement.snapshot?.values?.[SHARED_STATE_KEYS.systemDomains] === null, "Retired System Domains must be an explicit shared-state tombstone");
+    const retiredSystemDomainsProjection = { json: rootSystemDomainsRetirement.snapshot };
+
+    // A stale tab can still hold the old, complete compatibility payload. It
+    // must receive a recoverable conflict instead of bringing the retired
+    // System Domains projection back into the shared snapshot.
+    const staleSystemDomainsRestore = await callSharedState(filePath, "POST", {
+      baseVersion: 4,
+      clientId: "stale-system-domains-client",
+      actor: "QA",
+      action: "stale-system-domains-full-write",
+      values: {
+        ...retiredSystemDomainsProjection.json.values,
+        [SHARED_STATE_KEYS.systemDomains]: values[SHARED_STATE_KEYS.systemDomains],
+      },
+      sharedUi: retiredSystemDomainsProjection.json.sharedUi,
+    });
+    assert(staleSystemDomainsRestore.statusCode === 409, "A stale full snapshot must not restore retired System Domains");
+    assert(staleSystemDomainsRestore.json.systemDomainsSnapshotRetired === true, "The tombstone conflict should tell the browser to reload the server authority state");
+    assert(staleSystemDomainsRestore.json.current?.values?.[SHARED_STATE_KEYS.systemDomains] === null, "The tombstone conflict must return the durable null marker");
 
     const conflict = await callSharedState(filePath, "POST", {
       baseVersion: 0,
@@ -282,6 +313,48 @@ async function main() {
     assert(fetched.json.sharedUi.shiftMasterAssignmentMatrix?.["master-qa"]?.employeeIds?.includes("employee-qa"), "GET should return shift master assignment matrix");
     assert(fetched.json.sharedUi.accessRoleProfiles?.[0]?.id === "master", "GET should return access role profiles");
     assert(fetched.json.sharedUi.accessRoleAssignments?.["employee-qa"] === "master", "GET should return access role assignments");
+
+    // Domain repositories use updateSharedStateSnapshot directly, outside the
+    // HTTP request parser. Keep the same server-side invariant there so a
+    // future repository change cannot resurrect the retired payload either.
+    const authorityFilePath = join(dir, "system-domains-primary-authority.json");
+    const authoritySeed = await callSharedState(authorityFilePath, "POST", {
+      baseVersion: 0,
+      clientId: "authority-seed",
+      actor: "QA",
+      action: "seed",
+      values,
+      sharedUi: {},
+    });
+    assert(authoritySeed.statusCode === 200 && authoritySeed.json.version === 1, "Authority guard fixture should seed a normal snapshot");
+    const forbiddenInternalTombstone = await updateSharedStateSnapshot({
+      filePath: authorityFilePath,
+      expectedVersion: 1,
+      update: (snapshot) => ({
+        ...snapshot,
+        values: { ...snapshot.values, [SHARED_STATE_KEYS.systemDomains]: null },
+      }),
+    });
+    assert(forbiddenInternalTombstone.ok !== true && forbiddenInternalTombstone.forbidden === true, "Generic internal snapshot updates must not retire System Domains without an explicit root cutover capability");
+    const authorityTombstone = await updateSharedStateSnapshot({
+      filePath: authorityFilePath,
+      expectedVersion: 1,
+      allowSystemDomainsCompatibilitySnapshotRetirement: true,
+      update: (snapshot) => ({
+        ...snapshot,
+        values: { ...snapshot.values, [SHARED_STATE_KEYS.systemDomains]: null },
+      }),
+    });
+    assert(authorityTombstone.ok && authorityTombstone.snapshot?.version === 2, "Authority guard fixture should create the tombstone through the explicit root capability");
+    const directRestore = await updateSharedStateSnapshot({
+      filePath: authorityFilePath,
+      expectedVersion: 2,
+      update: (snapshot) => ({
+        ...snapshot,
+        values: { ...snapshot.values, [SHARED_STATE_KEYS.systemDomains]: values[SHARED_STATE_KEYS.systemDomains] },
+      }),
+    });
+    assert(directRestore.ok && directRestore.snapshot?.values?.[SHARED_STATE_KEYS.systemDomains] === null, "Direct server-side snapshot updates must preserve a retired System Domains tombstone");
 
     const deferredSpecifications2 = await callSharedState(filePath, "GET", null, {
       headers: { "x-mes-shared-state-keys": SHARED_STATE_KEYS.specifications2 },
@@ -605,6 +678,54 @@ async function main() {
     assert((await stat(staleLockPath)).isDirectory(), "A stale lock must remain for controlled operator inspection");
     await rm(staleLockPath, { recursive: true, force: true });
 
+    // The root-only System Domains tombstone carries a compact transition
+    // proof outside the rolling event window. Ordinary browser saves must
+    // preserve it even after the 50-event audit slice has rolled over.
+    const retirementMarkerPath = join(dir, "retirement-marker-state.json");
+    const retirementSeed = await callSharedState(retirementMarkerPath, "POST", {
+      baseVersion: 0,
+      clientId: "retirement-marker-seed",
+      actor: "QA",
+      action: "seed",
+      values,
+      sharedUi: {},
+    });
+    const retirementWrite = await updateSharedStateSnapshot({
+      filePath: retirementMarkerPath,
+      expectedVersion: retirementSeed.json.version,
+      allowSystemDomainsCompatibilitySnapshotRetirement: true,
+      update: async (current) => ({
+        ...current,
+        values: { ...current.values, [SHARED_STATE_KEYS.systemDomains]: null },
+        systemDomainsRetirement: {
+          transitionId: "shared-state-qa-pending-transition",
+          action: "system-domains-retire-compatibility-snapshot",
+          createdAt: "2026-07-18T00:00:00.000Z",
+        },
+      }),
+    });
+    assert(retirementWrite.ok && retirementWrite.snapshot.systemDomainsRetirement?.transitionId === "shared-state-qa-pending-transition", "Root-only tombstone update must persist its compact transition proof");
+    let retirementVersion = retirementWrite.snapshot.version;
+    for (let index = 0; index < 51; index += 1) {
+      const saved = await callSharedState(retirementMarkerPath, "POST", {
+        baseVersion: retirementVersion,
+        clientId: `retirement-marker-${index}`,
+        actor: "QA",
+        action: "shared-ui",
+        responseMode: "ack",
+        values: {},
+        sharedUiPatch: {
+          maps: { ganttDependencyRoutes: { set: { [`marker-${index}`]: [`route-${index}`] }, remove: [] } },
+          replace: {},
+        },
+      });
+      assert(saved.statusCode === 200, "Ordinary UI saves must remain available after a System Domains tombstone");
+      retirementVersion = saved.json.version;
+    }
+    const retirementAfterRollover = await callSharedState(retirementMarkerPath, "GET");
+    assert(retirementAfterRollover.json.events.length === 50 && !retirementAfterRollover.json.events.some((event) => event?.action === "system-domains-retire-compatibility-snapshot"), "The rolling shared-state event window must evict the older retirement event in this fixture");
+    assert(retirementAfterRollover.json.systemDomainsRetirement?.transitionId === "shared-state-qa-pending-transition", "The compact System Domains transition proof must survive event rollover and browser writes");
+
     console.log("Shared State Functional QA");
     console.log("- empty snapshot: pass");
     console.log("- value whitelist: pass");
@@ -625,6 +746,7 @@ async function main() {
     console.log("- atomic cross-process file write lock: pass");
     console.log("- shared-state file mode preservation and stale-lock fail-closed: pass");
     console.log("- protected destructive action guard: pass");
+    console.log("- System Domains transition proof survives event rollover: pass");
     console.log("OK: shared-state endpoint preserves whitelisted collaborative data.");
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});

@@ -40,6 +40,7 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     STORAGE_KEY,
     STORAGE_KEYS,
     SYSTEM_DOMAINS_STORAGE_KEY,
+    SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY,
     alignGanttWindowToPlan,
     appendLocalDataSafetyAudit,
     createDefaultPlanningState,
@@ -67,6 +68,7 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     notifySaveSuccess,
     onPlanningBootstrap = async () => false,
     onPlanningSnapshotSynchronized = () => {},
+    onSystemDomainsSnapshotRetired = () => {},
     persistUiState,
     publishBootPerformance,
     reloadSystemDomainsState,
@@ -326,10 +328,9 @@ function getSharedStateValues() {
     values[STORAGE_KEY] = JSON.stringify(planningState);
   }
   values[DIRECTORY_STORAGE_KEY] = JSON.stringify(directoryState);
-  // The server-side System Domains projection is now authoritative once all
-  // command surfaces are enabled. Keep the browser cache for fast local
-  // startup, but retire its shared-state copy so it cannot become a second
-  // cross-browser source of truth.
+  // The browser cache stays local for fast startup, but its shared-state copy
+  // is retired only after the runtime observes the durable PostgreSQL-primary
+  // marker. Complete command surfaces alone are still a compatibility phase.
   if (SYSTEM_DOMAINS_STORAGE_KEY && isSystemDomainsServerAuthoritative()) {
     values[SYSTEM_DOMAINS_STORAGE_KEY] = null;
   }
@@ -337,19 +338,43 @@ function getSharedStateValues() {
   return values;
 }
 
-function writeSharedStateValues(values = {}) {
-  SHARED_STATE_VALUE_KEYS.forEach((key) => {
-    if (!Object.prototype.hasOwnProperty.call(values, key)) return;
-    const value = values[key];
-    if (value === null || typeof value === "undefined") {
-      localStorage.removeItem(key);
+  function writeSharedStateValues(values = {}) {
+    SHARED_STATE_VALUE_KEYS.forEach((key) => {
+      if (!Object.prototype.hasOwnProperty.call(values, key)) return;
+      const value = values[key];
+      // A stale full compatibility projection can arrive after this tab has
+      // already observed the PostgreSQL-primary tombstone. Keep that retired
+      // value out of localStorage as well as out of the next shared retry.
+      if (key === SYSTEM_DOMAINS_STORAGE_KEY
+        && isSystemDomainsServerAuthoritative()
+        && value !== null
+        && typeof value !== "undefined") {
+        localStorage.removeItem(key);
+        return;
+      }
+      if (value === null || typeof value === "undefined") {
+        localStorage.removeItem(key);
     } else if (typeof value === "string") {
       localStorage.setItem(key, value);
     }
   });
 }
 
-function applySharedStateSnapshot(snapshot, options = {}) {
+  function rememberSystemDomainsPrimaryTombstone(values = {}) {
+    if (!SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY || !SYSTEM_DOMAINS_STORAGE_KEY
+      || !Object.prototype.hasOwnProperty.call(values, SYSTEM_DOMAINS_STORAGE_KEY)) return false;
+    if (values[SYSTEM_DOMAINS_STORAGE_KEY] === null) {
+      const alreadyObserved = window.sessionStorage?.getItem(SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY) === "1";
+      window.sessionStorage?.setItem(SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY, "1");
+      return !alreadyObserved;
+    }
+    // PostgreSQL-primary is intentionally monotonic for a browser session.
+    // A stale active compatibility projection must never clear a tombstone
+    // that has already been observed from the server.
+    return false;
+  }
+
+  function applySharedStateSnapshot(snapshot, options = {}) {
   const values = snapshot?.values || {};
   const hasPlanningState = Object.prototype.hasOwnProperty.call(values, STORAGE_KEY);
   const hasDirectoryState = Object.prototype.hasOwnProperty.call(values, DIRECTORY_STORAGE_KEY);
@@ -362,10 +387,12 @@ function applySharedStateSnapshot(snapshot, options = {}) {
   if (!hasPlanningState && !hasDirectoryState && options.allowSharedUiOnly !== true) return false;
   const preserveLocalSharedUi = options.preserveLocalSharedUi === true
     && (options.forcePreserveLocalSharedUi === true || shouldPreserveLocalSharedUi());
-  const localSharedUi = preserveLocalSharedUi ? getSharedUiSnapshot() : null;
-  sharedStateApplyingRemote = true;
-  try {
-    writeSharedStateValues(values);
+    const localSharedUi = preserveLocalSharedUi ? getSharedUiSnapshot() : null;
+    sharedStateApplyingRemote = true;
+    try {
+      const systemDomainsSnapshotRetired = rememberSystemDomainsPrimaryTombstone(values);
+      writeSharedStateValues(values);
+      if (systemDomainsSnapshotRetired) onSystemDomainsSnapshotRetired(snapshot);
     if (!isSystemDomainsServerAuthoritative()
       && SYSTEM_DOMAINS_STORAGE_KEY
       && Object.prototype.hasOwnProperty.call(values, SYSTEM_DOMAINS_STORAGE_KEY)) {
@@ -499,13 +526,15 @@ async function requestSharedState(method = "GET", payload = null, options = {}) 
   }
 }
 
-async function hydrateSharedStateValues(valueKeys = []) {
-  const requestedKeys = [...new Set((valueKeys || []).filter((key) => SHARED_STATE_VALUE_KEYS.includes(key)))];
-  if (!requestedKeys.length || !sharedStateStatus.enabled) return false;
-  try {
-    const snapshot = await requestSharedState("GET", null, { valueKeys: requestedKeys });
-    if (snapshot.configured === false || !snapshot.values) return false;
-    writeSharedStateValues(snapshot.values);
+  async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false } = {}) {
+    const requestedKeys = [...new Set((valueKeys || []).filter((key) => SHARED_STATE_VALUE_KEYS.includes(key)))];
+    if (!requestedKeys.length || (!sharedStateStatus.enabled && !allowBeforeInitialSync)) return false;
+    try {
+      const snapshot = await requestSharedState("GET", null, { valueKeys: requestedKeys });
+      if (snapshot.configured === false || !snapshot.values) return false;
+      const systemDomainsSnapshotRetired = rememberSystemDomainsPrimaryTombstone(snapshot.values);
+      writeSharedStateValues(snapshot.values);
+      if (systemDomainsSnapshotRetired) onSystemDomainsSnapshotRetired(snapshot);
     // This is intentionally not a revision acknowledgement: a projected read
     // may race with a complete snapshot update, which the next normal poll
     // must still reconcile in full.
@@ -637,13 +666,14 @@ function mergeSharedStateConflictValues(remoteValues = {}, localValues = {}) {
   if (remotePlanningIsNewer) {
     merged[STORAGE_KEY] = remoteValues[STORAGE_KEY];
   }
-  if (!isSystemDomainsServerAuthoritative()
-    && SYSTEM_DOMAINS_STORAGE_KEY
+  if (SYSTEM_DOMAINS_STORAGE_KEY
     && Object.prototype.hasOwnProperty.call(remoteValues, SYSTEM_DOMAINS_STORAGE_KEY)) {
-    merged[SYSTEM_DOMAINS_STORAGE_KEY] = mergeSystemDomainsAttendanceConflict(
-      remoteValues[SYSTEM_DOMAINS_STORAGE_KEY],
-      localValues[SYSTEM_DOMAINS_STORAGE_KEY],
-    );
+    merged[SYSTEM_DOMAINS_STORAGE_KEY] = isSystemDomainsServerAuthoritative()
+      ? remoteValues[SYSTEM_DOMAINS_STORAGE_KEY]
+      : mergeSystemDomainsAttendanceConflict(
+        remoteValues[SYSTEM_DOMAINS_STORAGE_KEY],
+        localValues[SYSTEM_DOMAINS_STORAGE_KEY],
+      );
   }
   return merged;
 }
@@ -701,6 +731,18 @@ async function pushSharedState(reason = "snapshot", options = {}) {
         values: pendingValues,
         sharedUi: pendingSharedUi,
       });
+    }
+
+    if (response.systemDomainsSnapshotRetired === true && response.current) {
+      // A stale browser attempted to write the retired compatibility key.
+      // Apply the server tombstone immediately and fetch the PostgreSQL
+      // authority; never retry the captured legacy payload.
+      applySharedStateSnapshot(response.current, {
+        silent: true,
+        allowSharedUiOnly: true,
+      });
+      sharedStateStatus.version = Number(response.current.version || sharedStateStatus.version);
+      return false;
     }
 
     if (response.conflict && response.current) {

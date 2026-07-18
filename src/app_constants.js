@@ -5,6 +5,10 @@ export const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
 export const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 export const DIRECTORY_DEFAULTS_STORAGE_KEY = "mes-planning-prototype-directories-defaults-restored-v1";
 export const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
+// Written per tab only after the shared snapshot explicitly returns the
+// PostgreSQL-primary tombstone. It prevents a brief API failure from causing
+// this browser to recreate the retired legacy matrix.
+export const SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY = "mes-planning-prototype-system-domains-primary-tombstone-v1";
 export const SHARED_STATE_API_URL = "./api/shared-state";
 export const SHARED_STATE_CLIENT_ID_KEY = "mes-planning-prototype-shared-client-id-v1";
 export const SHARED_STATE_DISABLED_UNTIL_KEY = "mes-planning-prototype-shared-disabled-until-v1";

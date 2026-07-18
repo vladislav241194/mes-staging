@@ -44,4 +44,15 @@ node -e '
   }
 ' "${readiness}"
 
+# Migration 023 is read by every System Domains readiness/command request.
+# Confirm it through the running application so a service that skipped the new
+# table cannot be reported as successfully migrated.
+node -e '
+  const payload = JSON.parse(process.argv[1]);
+  const domains = payload?.readiness?.systemDomains || {};
+  if (domains.storageBackend !== "postgresql" || domains.error) {
+    throw new Error(`System Domains primary-authority migration was not confirmed: ${domains.error || domains.storageBackend || "unavailable"}`);
+  }
+' "${readiness}"
+
 echo "Domain migrations are applied. Command feature flags remain unchanged."

@@ -70,4 +70,9 @@ assert(!snapshotOnlyReport.promotion.snapshotPromotionEligible && snapshotOnlyRe
 
 const unstable = reconcileSystemDomains({ snapshotDomains: base, postgresDomains: base, snapshotState: "active", stability: "changed" });
 assert(!unstable.matches && unstable.promotion.reasonCodes.includes("source-changed"), "An unstable double-read must block promotion even when values match.");
+
+const primaryRetired = reconcileSystemDomains({ snapshotDomains: {}, postgresDomains: base, snapshotState: "retired", stability: "verified", primaryAuthority: true });
+assert(primaryRetired.promotion.readEligible && primaryRetired.promotion.retirementEligible, "PostgreSQL-primary authority must become readable only with its explicit retired snapshot marker.");
+const primarySnapshotReappeared = reconcileSystemDomains({ snapshotDomains: base, postgresDomains: base, snapshotState: "active", stability: "verified", primaryAuthority: true });
+assert(!primarySnapshotReappeared.promotion.readEligible && !primarySnapshotReappeared.promotion.retirementEligible, "A reappeared compatibility snapshot must fail closed after PostgreSQL primary promotion.");
 console.log("System Domains reconciliation QA: OK");

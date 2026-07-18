@@ -8,9 +8,18 @@ import { createSystemDomainsRepository } from "./domain-system-domains-repositor
 import { inspectSystemDomainsSnapshotConsistency, syncPendingSystemDomainsSnapshotChanges } from "./domain-system-domains-snapshot-sync.mjs";
 import { syncPendingSnapshotChanges } from "./domain-snapshot-sync.mjs";
 import { getPublicAuthPrincipal } from "./public-auth-guard.mjs";
+import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
 
 const API_PREFIX = "/api/v1";
 const SYSTEM_DOMAINS_COMMAND_SURFACES = new Set(["production-structure", "timesheet", "access-control"]);
+const SYSTEM_DOMAINS_COMMAND_ACTOR_PATTERN = /^public:[^,\s]+$/;
+const SYSTEM_DOMAINS_SURFACE_REGISTRIES = Object.freeze({
+  "production-structure": new Set([
+    "orgUnits", "workCenters", "positions", "employees", "employmentAssignments", "equipment", "scheduleTemplates", "responsibilityPolicies",
+  ]),
+  timesheet: new Set(["scheduleAssignments", "attendanceEvents"]),
+  "access-control": new Set(["accessRoles", "grants", "roleAssignments"]),
+});
 const MAX_PLANNING_PERIOD_DAYS = 31;
 const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 // Bump this whenever fields included in planning parity change.  A durable
@@ -30,11 +39,74 @@ function getEnabledSystemDomainsCommandSurfaces(env = process.env) {
     .filter((value) => SYSTEM_DOMAINS_COMMAND_SURFACES.has(value)))];
 }
 
-function hasSystemDomainsServerAuthority(consistency = {}) {
+function getSystemDomainsCommandActorPolicy(env = process.env) {
+  const actors = new Set(String(env.MES_SYSTEM_DOMAINS_COMMAND_ACTORS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean));
+  const invalid = [...actors].some((actorId) => !SYSTEM_DOMAINS_COMMAND_ACTOR_PATTERN.test(actorId));
+  const reason = !actors.size
+    ? "actor-policy-missing"
+    : invalid
+      ? "actor-policy-invalid"
+      : "";
+  return { actors, configured: !reason, reason };
+}
+
+function getSystemDomainsCommandActorAuthorization(actor, env = process.env) {
+  const policy = getSystemDomainsCommandActorPolicy(env);
+  if (!policy.configured) return { policyConfigured: false, authorized: false, reason: policy.reason };
+  if (!actor?.id) return { policyConfigured: true, authorized: false, reason: "authenticated-session-required" };
+  return {
+    policyConfigured: true,
+    authorized: policy.actors.has(String(actor.id)),
+    reason: policy.actors.has(String(actor.id)) ? "" : "actor-not-authorized",
+  };
+}
+
+function isSystemDomainsCommandActorAuthorized(actor, env = process.env) {
+  return getSystemDomainsCommandActorAuthorization(actor, env).authorized === true;
+}
+
+function normalizeSystemDomainsCommandPayload(value) {
+  const loaded = loadSystemDomains(JSON.stringify(value || {}), { strict: true });
+  if (!loaded?.report?.valid || !loaded?.domains) {
+    throw new Error(`System Domains payload is invalid: ${(loaded?.report?.errors || []).map((entry) => entry.code).join(", ") || "validation failed"}`);
+  }
+  return loaded.domains;
+}
+
+function getChangedSystemDomainsRegistries(current = {}, candidate = {}) {
+  return SYSTEM_DOMAIN_REGISTRY_NAMES.filter((registryName) => (
+    stableJson(current?.registries?.[registryName] || []) !== stableJson(candidate?.registries?.[registryName] || [])
+  ));
+}
+
+function validateSystemDomainsSurfaceChange({ current, candidate, surface = "" } = {}) {
+  const allowed = SYSTEM_DOMAINS_SURFACE_REGISTRIES[surface];
+  if (!allowed) return { ok: false, error: "Unknown System Domains command surface" };
+  const changedRegistries = getChangedSystemDomainsRegistries(current, candidate);
+  const forbiddenRegistries = changedRegistries.filter((registryName) => !allowed.has(registryName));
+  return forbiddenRegistries.length
+    ? { ok: false, error: "System Domains command attempted to modify registries outside its authorized surface", changedRegistries, forbiddenRegistries }
+    : { ok: true, changedRegistries, forbiddenRegistries: [] };
+}
+
+function hasSystemDomainsServerAuthority(consistency = {}, enabledSurfaces = []) {
   // A retired snapshot is never sufficient evidence on its own.  The read-only
-  // reconciliation report carries the two-read proof that the active snapshot
-  // and PostgreSQL projection matched before a command surface can be exposed.
+  // reconciliation report carries either the two-read compatibility proof or
+  // the durable PostgreSQL-primary marker.  A persisted transition-pending
+  // record deliberately fails closed while the root cutover switches stores.
+  const authorityMode = consistency?.details?.authority?.mode || "compatibility-snapshot";
+  // Partial rollout remains safe while the compatibility snapshot is still
+  // present. Once PostgreSQL has become the durable primary, all visible
+  // writers must be on the command path; otherwise fail closed rather than
+  // letting a subset of the UI fall back to an obsolete local snapshot.
+  const primarySurfaceCoverage = authorityMode !== "postgres-primary"
+    || [...SYSTEM_DOMAINS_COMMAND_SURFACES].every((surface) => enabledSurfaces.includes(surface));
   return consistency?.ok === true
+    && authorityMode !== "transition-pending"
+    && primarySurfaceCoverage
     && consistency?.details?.reconciliation?.promotion?.readEligible === true;
 }
 
@@ -985,6 +1057,7 @@ export async function handleDomainApiRequest(req, res, url, {
   if (url.pathname === `${API_PREFIX}/system-domains/capabilities`) {
     const enabledSurfaces = getEnabledSystemDomainsCommandSurfaces(env);
     const commandRequested = enabledSurfaces.length > 0 && health.storageBackend === "postgresql";
+    const actorAuthorization = getSystemDomainsCommandActorAuthorization(getPublicAuthPrincipal(req, env), env);
     let consistency = null;
     if (commandRequested) {
       let domains;
@@ -996,12 +1069,20 @@ export async function handleDomainApiRequest(req, res, url, {
       } finally { await domains?.close?.(); }
     }
     const serverAuthoritative = hasSystemDomainsServerAuthority(consistency, enabledSurfaces);
+    const serverCommandsConfigured = commandRequested && serverAuthoritative && actorAuthorization.policyConfigured;
+    const serverCommandsEnabled = serverCommandsConfigured && actorAuthorization.authorized;
     sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
       // The rollout flag is deliberately insufficient by itself. A command
       // writer is exposed only when its compatibility projection matches the
-      // current PostgreSQL aggregate exactly.
-      serverCommandsEnabled: commandRequested && serverAuthoritative,
-      serverCommandSurfaces: commandRequested && serverAuthoritative ? enabledSurfaces : [],
+      // current PostgreSQL aggregate exactly and the signed public principal
+      // is explicitly present in a valid server-side actor policy.  The
+      // configured signal remains available to the loopback rollout check,
+      // which intentionally has no public browser session.
+      serverCommandsConfigured,
+      configuredServerCommandSurfaces: serverCommandsConfigured ? enabledSurfaces : [],
+      serverCommandsEnabled,
+      serverCommandSurfaces: serverCommandsEnabled ? enabledSurfaces : [],
+      actorAuthorization,
       primaryPostgres: health.storageBackend === "postgresql",
       consistency,
     } });
@@ -1279,6 +1360,10 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 401, { ok: false, apiVersion: "v1", error: "Authenticated public session is required to update System Domains" });
       return true;
     }
+    if (!isSystemDomainsCommandActorAuthorized(actor, env)) {
+      sendJson(res, headers, 403, { ok: false, apiVersion: "v1", error: "System Domains command is not authorized for this session" });
+      return true;
+    }
     let payload;
     try { payload = await readRequestBody(req); }
     catch { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Request body must be valid JSON" }); return true; }
@@ -1293,11 +1378,17 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "System Domains command surface is not enabled during snapshot migration", surface, enabledSurfaces });
       return true;
     }
+    let candidate;
+    try { candidate = normalizeSystemDomainsCommandPayload(payload.domains); }
+    catch (error) {
+      sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: error?.message || "System Domains payload is invalid" });
+      return true;
+    }
     let domains;
     try {
       domains = createSystemDomainsRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       const preflightConsistency = await inspectSystemDomainsSnapshotConsistency({ primary: domains, env, filePath });
-      if (!hasSystemDomainsServerAuthority(preflightConsistency)) {
+      if (!hasSystemDomainsServerAuthority(preflightConsistency, enabledSurfaces)) {
         sendJson(res, headers, 409, {
           ok: false,
           apiVersion: "v1",
@@ -1306,7 +1397,37 @@ export async function handleDomainApiRequest(req, res, url, {
         });
         return true;
       }
-      const result = await domains.replace(payload.domains, {
+      const currentProjection = await domains.get();
+      const currentRevisionMatches = Boolean(currentProjection.item) && Number(currentProjection.revision) === expected.value;
+      if (!currentRevisionMatches) {
+        const replay = await domains.inspectCommandReplay(candidate, {
+          idempotencyKey,
+          expectedRevision: expected.value,
+          actorId: actor.id,
+        });
+        if (replay.matches !== true) {
+          sendJson(res, headers, 409, { ok: false, apiVersion: "v1", conflict: true, error: "System Domains revision conflict", revision: currentProjection.revision });
+          return true;
+        }
+      }
+      if (!currentProjection.item) {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", conflict: true, error: "System Domains revision conflict", revision: currentProjection.revision });
+        return true;
+      }
+      if (currentRevisionMatches) {
+        const surfaceValidation = validateSystemDomainsSurfaceChange({ current: currentProjection.item, candidate, surface });
+        if (!surfaceValidation.ok) {
+          sendJson(res, headers, 403, {
+            ok: false,
+            apiVersion: "v1",
+            error: surfaceValidation.error,
+            surface,
+            forbiddenRegistries: surfaceValidation.forbiddenRegistries,
+          });
+          return true;
+        }
+      }
+      const result = await domains.replace(candidate, {
         source: `api-command:${surface}`, expectedRevision: expected.value, actorId: actor.id, commandType: `replace_projection:${surface}`, idempotencyKey,
       });
       if (result.conflict) {
@@ -1318,7 +1439,7 @@ export async function handleDomainApiRequest(req, res, url, {
           : { total: 0, applied: 0, conflicts: 0, failed: 0, jobs: [] };
         const etag = getRevisionEtag(projection.revision);
         const postCommitConsistency = await inspectSystemDomainsSnapshotConsistency({ primary: domains, env, filePath });
-        if (!hasSystemDomainsServerAuthority(postCommitConsistency)) {
+        if (!hasSystemDomainsServerAuthority(postCommitConsistency, enabledSurfaces)) {
           sendJson(res, headers, 503, {
             ok: false,
             apiVersion: "v1",
@@ -1335,7 +1456,13 @@ export async function handleDomainApiRequest(req, res, url, {
         }, { ETag: etag });
       }
     } catch (error) {
-      sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "System Domains command storage is unavailable" });
+      if (error?.code === "SYSTEM_DOMAINS_AUTHORITY_TRANSITION_PENDING") {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: error.message, retryable: true });
+      } else if (error?.code === "SYSTEM_DOMAINS_SNAPSHOT_IMPORT_RETIRED") {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: error.message });
+      } else {
+        sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "System Domains command storage is unavailable" });
+      }
     } finally { await domains?.close?.(); }
     return true;
   }

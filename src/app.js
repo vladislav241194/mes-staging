@@ -115,7 +115,7 @@ import {
   shouldPreferBundledBootstrapSnapshot as shouldPreferBundledBootstrapSnapshotPayload,
 } from "./modules/bootstrap_snapshot/service.js";
 import { ACCESS_ROLE_ACTIONS, ACCESS_ROLE_IDS, ACCESS_ROLE_SCOPES, AGGREGATE_SLOT_HEIGHT, AGGREGATE_SLOT_TOP, AUTH_DEPARTMENT_ICON_BY_ID, AUTH_GATE_DEFAULT_MODULE, AUTH_GATE_MAX_ATTEMPTS, AUTH_GATE_PIN, AUTH_GATE_SESSION_STORAGE_KEY, AUTH_PIN_CHECK_DELAY_MS, AUTH_PIN_RESULT_DELAY_MS, AUTH_PIN_TEMPORARILY_DISABLED, AUTH_UNIT_ICON_BY_ID, BOOTSTRAP_SNAPSHOT_RESTORE_ENABLED, CRITICAL_DIRECTORY_SECTION_IDS, DATA_SAFETY_AUDIT_STORAGE_KEY, DAY_MS, DEFAULT_INTERFACE_ROLE_ID, DEFAULT_RESOURCE_CPH, DEFAULT_ROUTE_BUFFER_MS, DEPENDENCY_CROSSING_GAP_RADIUS, DEPENDENCY_HORIZONTAL_TRACK_GAP, DIRECTORY_BACKUP_STORAGE_KEY, DIRECTORY_DEFAULTS_STORAGE_KEY, DIRECTORY_DELETED_ENTITIES_STORAGE_KEY, DIRECTORY_STORAGE_KEY, EMPLOYEE_DEPARTMENT_MIGRATION, GANTT_DEPENDENCY_ARROW_BASE_REF_X, GANTT_DEPENDENCY_ARROW_HEAD_ADVANCE, GANTT_DEPENDENCY_ARROW_LENGTH_MS, GANTT_DEPENDENCY_ARROW_TIP_X, GANTT_DEPENDENCY_ENTRY_MS, GANTT_SLOT_CONTENT_MODES, GANTT_SNAP_MS, GANTT_ZOOM_LEVELS, HUMAN_LABOR_RESOURCE_TYPES, INTERFACE_ROLES, LEFT_WIDTH, LEGACY_DEPARTMENT_TO_WORK_CENTER_ID, LEGACY_WORK_CENTER_NAME_MIGRATION, MACHINE_LABOR_RESOURCE_TYPES, MES_ADMIN_RUNTIME_HOSTS, MES_APP_ENV, MES_DESTRUCTIVE_ACTIONS_ALLOWED, MES_IS_PROTECTED_APP_ENV, MES_SIGNAL_TYPES, MIN_OPERATION_DURATION_MS, PLANNING_BACKUP_STORAGE_KEY, PRODUCTION_RESOURCE_TYPE_CODES, PRODUCTION_RESOURCE_TYPE_LABELS, PROJECT_ROW_HEIGHT, ROUTE_STEP_CALCULATION_TYPES, SHARED_STATE_API_URL, SHARED_STATE_CLIENT_ID_KEY, SHARED_STATE_DISABLED_RECHECK_MS, SHARED_STATE_DISABLED_UNTIL_KEY, SHARED_STATE_POLL_INTERVAL_MS, SHARED_STATE_SAVE_DEBOUNCE_MS, SHARED_STATE_VALUE_KEYS, SHARED_UI_LOCAL_DIRTY_KEY, SHARED_UI_LOCAL_DIRTY_TTL_MS, SHIFT_MASTER_ASSIGNMENT_SCOPE_MODES, SMT_LINE_WORKCENTER_PREFIX, STANDARD_SLOT_HEIGHT, STANDARD_SLOT_TOP, STATE_RESET_BACKUP_STORAGE_KEY, STORAGE_KEY, STORAGE_KEYS, TIMELINE_HEIGHT, TIMELINE_LOAD_CHUNK, TIMELINE_MAX_COUNT, UI_STORAGE_KEY, UNIT_TYPE_LABELS, WEEK_SLOT_GAP, WEEK_SLOT_HEIGHT, WEEK_SLOT_TOP, WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY, WORK_MODE_OPTIONS, WORK_ROW_HEIGHT, WORK_SCHEDULE_OPTIONS } from "./app_constants.js";
-import { SPECIFICATIONS2_STORAGE_KEY, SYSTEM_DOMAINS_STORAGE_KEY } from "./app_constants.js";
+import { SPECIFICATIONS2_STORAGE_KEY, SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY, SYSTEM_DOMAINS_STORAGE_KEY } from "./app_constants.js";
 import {
   getMesCustomIconEntryBySemanticSlug,
   getMesCustomIconName,
@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.43";
+const APP_VERSION_FALLBACK = "v.1.499.44";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -577,7 +577,9 @@ function getPlanningTableSlotRows() {
   return (planningState.slots || [])
     .map((slot) => {
       const step = stepById.get(slot.routeStepId) || null;
-      const route = getPlanningSlotRoute(slot, planningState);
+      // `step` is already indexed for this pass.  Reusing it avoids another
+      // route-step scan per slot while the compact weekly period is loading.
+      const route = getPlanningTableSlotRoute(slot, step);
       const routeId = route?.id || getSlotRouteId(slot, planningState);
       const task = route && step ? getRouteStepPlanningTask(route, step) : null;
       const status = getGanttSlotStatusView(slot);
@@ -3462,12 +3464,16 @@ function hydrateSharedStateForModule(moduleId, valueKeys = []) {
       ensureStatusDirectoryDefaults();
     }
     if (keys.includes(SYSTEM_DOMAINS_STORAGE_KEY)) {
+      // Do not eagerly recreate the legacy matrix when the remote value is a
+      // PostgreSQL-primary tombstone.  A present local cache remains useful
+      // for the first paint; a blank cache waits for the compact server read.
       reloadSystemDomainsState({
         source: "shared-module-hydration",
-        storageKey: SYSTEM_DOMAINS_STORAGE_KEY,
-        snapshotVersion: null,
+        migrateLegacy: false,
       });
-      hydrateSystemDomainsServerRead(moduleId);
+      void hydrateSystemDomainsServerRead(moduleId, {
+        fallbackToLegacy: !systemDomainsState && !hasObservedSystemDomainsPrimaryAuthority(),
+      });
     }
     if (ui.activeModule === moduleId) render({ skipRememberScroll: true });
   }).catch(() => {
@@ -3481,14 +3487,14 @@ function hydrateSharedStateForModule(moduleId, valueKeys = []) {
 // calendar/resource model.
 async function ensurePlanningSystemDomains() {
   const hydrated = await runtimeStateService?.hydrateSharedStateValues?.([SYSTEM_DOMAINS_STORAGE_KEY]);
-  if (!hydrated) return false;
-  reloadSystemDomainsState({
+  if (hydrated) reloadSystemDomainsState({
     source: "planning-scheduling-hydration",
-    storageKey: SYSTEM_DOMAINS_STORAGE_KEY,
-    snapshotVersion: null,
+    migrateLegacy: false,
   });
-  hydrateSystemDomainsServerRead("planning");
-  return true;
+  const server = await hydrateSystemDomainsServerRead("planning", {
+    fallbackToLegacy: !systemDomainsState && !hasObservedSystemDomainsPrimaryAuthority(),
+  });
+  return server.ok === true || Boolean(systemDomainsState);
 }
 let workOrdersReadModel = null;
 let planningRuntimeProjectionReadModel = null;
@@ -3511,15 +3517,36 @@ let shiftExecutionDomainApiModuleLoad = null;
 let shiftExecutionServerState = { status: "idle", primaryPostgres: false, schemaReady: false, commandsEnabled: false, coverageComplete: false, error: "" };
 let shiftExecutionOutboxFlushInFlight = false;
 let systemDomainsServerReadState = { status: "idle", error: "", revision: 0 };
-let systemDomainsServerCommandState = { status: "idle", enabled: false, surfaces: [], error: "" };
+let systemDomainsServerCommandState = { status: "idle", enabled: false, surfaces: [], primaryAuthority: false, error: "" };
 let systemDomainsServerCapabilitiesPromise = null;
+let systemDomainsServerCapabilitiesFetchedAt = 0;
+let systemDomainsServerReadRetryTimer = null;
 const SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES = ["production-structure", "timesheet", "access-control"];
-function hasSystemDomainsServerAuthority() {
+const SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS = 5_000;
+function hasSystemDomainsPrimaryTombstoneHint() {
+  return window.sessionStorage?.getItem(SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY) === "1";
+}
+function hasSystemDomainsServerCommandCoverage() {
   return systemDomainsServerCommandState.enabled === true
     && SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES.every((surface) => systemDomainsServerCommandState.surfaces.includes(surface));
 }
+function hasObservedSystemDomainsPrimaryAuthority() {
+  return systemDomainsServerCommandState.primaryAuthority === true || hasSystemDomainsPrimaryTombstoneHint();
+}
+function canFallbackToLegacySystemDomains(fallbackToLegacy = false) {
+  return fallbackToLegacy === true
+    && !systemDomainsState
+    && !hasObservedSystemDomainsPrimaryAuthority();
+}
+function hasSystemDomainsServerAuthority() {
+  // Complete command coverage is needed for writes, but must not be confused
+  // with a completed root-controlled primary cutover. The latter has a
+  // durable PostgreSQL authority marker (or an already-received tombstone).
+  return hasSystemDomainsServerCommandCoverage() && hasObservedSystemDomainsPrimaryAuthority();
+}
 function hydrateSystemDomainsServerCommands() {
-  if (systemDomainsServerCommandState.status === "ready") return Promise.resolve(systemDomainsServerCommandState);
+  if (systemDomainsServerCommandState.status === "ready"
+    && Date.now() - systemDomainsServerCapabilitiesFetchedAt < SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS) return Promise.resolve(systemDomainsServerCommandState);
   if (systemDomainsServerCapabilitiesPromise) return systemDomainsServerCapabilitiesPromise;
   systemDomainsServerCommandState = { ...systemDomainsServerCommandState, status: "loading", error: "" };
   systemDomainsServerCapabilitiesPromise = systemDomainsCommands.getCapabilities().then((result) => {
@@ -3527,46 +3554,66 @@ function hydrateSystemDomainsServerCommands() {
       status: "ready",
       enabled: result.ok && result.enabled === true,
       surfaces: result.ok && Array.isArray(result.capabilities?.serverCommandSurfaces) ? result.capabilities.serverCommandSurfaces : [],
+      primaryAuthority: result.ok && result.capabilities?.consistency?.details?.authority?.mode === "postgres-primary",
       error: result.ok ? "" : (result.error || "System Domains command capabilities are unavailable"),
     };
+    systemDomainsServerCapabilitiesFetchedAt = Date.now();
     return systemDomainsServerCommandState;
   }).catch(() => {
-    systemDomainsServerCommandState = { status: "ready", enabled: false, surfaces: [], error: "System Domains command capabilities are unavailable" };
+    systemDomainsServerCommandState = { status: "ready", enabled: false, surfaces: [], primaryAuthority: hasSystemDomainsPrimaryTombstoneHint(), error: "System Domains command capabilities are unavailable" };
+    systemDomainsServerCapabilitiesFetchedAt = Date.now();
     return systemDomainsServerCommandState;
-  });
+  }).finally(() => { systemDomainsServerCapabilitiesPromise = null; });
   return systemDomainsServerCapabilitiesPromise;
 }
-function hydrateSystemDomainsServerRead(moduleId = "") {
-  void Promise.all([systemDomainsReadModel.refresh(), hydrateSystemDomainsServerCommands()]).then(([result]) => {
+function scheduleSystemDomainsServerReadRetry(moduleId = "") {
+  if (systemDomainsServerReadRetryTimer) return;
+  systemDomainsServerReadRetryTimer = window.setTimeout(() => {
+    systemDomainsServerReadRetryTimer = null;
+    void hydrateSystemDomainsServerRead(moduleId, { fallbackToLegacy: false });
+  }, SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS);
+}
+async function hydrateSystemDomainsServerRead(moduleId = "", { fallbackToLegacy = false, force = false } = {}) {
+  try {
+    const [result] = await Promise.all([systemDomainsReadModel.refresh({ force }), hydrateSystemDomainsServerCommands()]);
     if (!result.ok || !result.item) {
       systemDomainsServerReadState = { status: "fallback", error: result.error || "", revision: 0 };
-      return;
+      if (canFallbackToLegacySystemDomains(fallbackToLegacy)) reloadSystemDomainsState({ source: "server-read-fallback", migrateLegacy: true });
+      scheduleSystemDomainsServerReadRetry(moduleId);
+      return { ok: false, error: systemDomainsServerReadState.error };
     }
     const loaded = loadSystemDomains(result.item);
     if (!hasActivatableSystemDomains(loaded.domains, loaded.report)) {
       systemDomainsServerReadState = { status: "fallback", error: "Server projection is not activatable", revision: 0 };
-      return;
+      if (canFallbackToLegacySystemDomains(fallbackToLegacy)) reloadSystemDomainsState({ source: "server-read-invalid", migrateLegacy: true });
+      scheduleSystemDomainsServerReadRetry(moduleId);
+      return { ok: false, error: systemDomainsServerReadState.error };
     }
-    // Until every visible writer uses commands, a differing compatibility
-    // snapshot remains safer than an incomplete server projection. Once all
-    // three command surfaces are active, PostgreSQL is authoritative and an
-    // older browser snapshot must never mask it.
+    // A complete command rollout is still a compatibility phase until the
+    // root-controlled PostgreSQL-primary marker is durable. Before that
+    // point a differing browser snapshot remains safer than an incomplete
+    // server projection; after it, an older snapshot must never mask PostgreSQL.
     const localSignature = systemDomainsState ? serializeSystemDomains(systemDomainsState) : "";
     const serverSignature = serializeSystemDomains(loaded.domains);
-    if (!hasSystemDomainsServerAuthority() && localSignature && localSignature !== serverSignature) {
+    if (!hasObservedSystemDomainsPrimaryAuthority() && localSignature && localSignature !== serverSignature) {
       systemDomainsServerReadState = { status: "fallback", error: "Server projection differs from compatibility snapshot", revision: Number(result.revision || 0) };
-      return;
+      scheduleSystemDomainsServerReadRetry(moduleId);
+      return { ok: false, error: systemDomainsServerReadState.error };
     }
     activateSystemDomains(loaded.domains, { source: "server-read", report: loaded.report });
     systemDomainsServerReadState = { status: "server", error: "", revision: Number(result.revision || 0) };
-    // Publish the narrow shared-state tombstone once PostgreSQL is confirmed
-    // authoritative. The local cache remains available for fast startup; only
-    // the obsolete cross-browser snapshot copy is retired.
-    if (hasSystemDomainsServerAuthority()) persistUiState();
+    // Retiring the shared snapshot is a root-controlled cutover command with
+    // an exact proof and backup. The browser only observes that marker; it
+    // never creates one merely because command surfaces became available.
+    if (!hasObservedSystemDomainsPrimaryAuthority()) scheduleSystemDomainsServerReadRetry(moduleId);
     if (moduleId && ui?.activeModule === moduleId) render({ skipRememberScroll: true });
-  }).catch(() => {
+    return { ok: true, revision: systemDomainsServerReadState.revision };
+  } catch {
     systemDomainsServerReadState = { status: "fallback", error: "System Domains read request failed", revision: 0 };
-  });
+    if (canFallbackToLegacySystemDomains(fallbackToLegacy)) reloadSystemDomainsState({ source: "server-read-error", migrateLegacy: true });
+    scheduleSystemDomainsServerReadRetry(moduleId);
+    return { ok: false, error: systemDomainsServerReadState.error };
+  }
 }
 function ensurePlanningDomainApiModule() {
   if (workOrdersReadModel && planningRuntimeProjectionReadModel) return Promise.resolve(true);
@@ -4288,6 +4335,12 @@ function rebuildSystemDomainsAccessControlService() {
 
 function persistSystemDomainsState({ push = true, reason = "system-domains" } = {}) {
   if (!systemDomainsState) return false;
+  if (hasObservedSystemDomainsPrimaryAuthority() && !hasSystemDomainsServerAuthority()) {
+    // PostgreSQL is known to be primary but its current readiness proof is
+    // unhealthy. Never recreate a compatibility snapshot from this browser.
+    console.warn("System Domains PostgreSQL-primary proof is unavailable; local compatibility write is blocked");
+    return false;
+  }
   try {
     window.localStorage.setItem(SYSTEM_DOMAINS_STORAGE_KEY, serializeSystemDomains(systemDomainsState));
     if (push && typeof scheduleSharedStatePush === "function") scheduleSharedStatePush(reason);
@@ -4309,6 +4362,17 @@ function commitSystemDomainsCandidate(candidate, {
     && systemDomainsServerCommandState.enabled === true
     && systemDomainsServerCommandState.surfaces.includes(surface);
   if (!canUseServerCommand) {
+    if (hasObservedSystemDomainsPrimaryAuthority()) {
+      systemDomainsServerReadState = {
+        status: "fallback",
+        error: "System Domains PostgreSQL-primary command path is temporarily unavailable",
+        revision: systemDomainsServerReadState.revision,
+      };
+      console.warn("System Domains PostgreSQL-primary command path is unavailable; local mutation is blocked");
+      notifySaveSuccess("Системные данные обновляются. Повторите действие через несколько секунд.");
+      void hydrateSystemDomainsServerRead("", { fallbackToLegacy: false, force: true });
+      return false;
+    }
     activateSystemDomains(candidate, { source });
     return persistSystemDomainsState({ push, reason });
   }
@@ -4316,7 +4380,7 @@ function commitSystemDomainsCandidate(candidate, {
     // A form is allowed to write to PostgreSQL only when its compatibility
     // snapshot is exactly the projection that the command will replace. This
     // protects still-unmigrated forms from being silently overwritten.
-    const current = await systemDomainsReadModel.refresh();
+    const current = await systemDomainsReadModel.refresh({ force: true });
     if (!current.ok || !current.item || !Number.isInteger(Number(current.revision)) || Number(current.revision) < 1) {
       throw new Error(current.error || "Не удалось проверить актуальную ревизию System Domains");
     }
@@ -4357,6 +4421,12 @@ function activateSystemDomains(domains, { source = "runtime", persist = false, p
 }
 
 function reloadSystemDomainsState({ source = "runtime", migrateLegacy = true } = {}) {
+  // Once PostgreSQL has become the primary authority, a delayed legacy
+  // bootstrap must never re-hydrate or re-persist the browser snapshot. This
+  // guard is intentionally before the localStorage read: the durable
+  // tombstone may have arrived while ensureLegacyProductionStructure() was
+  // still resolving.
+  if (hasObservedSystemDomainsPrimaryAuthority()) return systemDomainsState;
   const raw = window.localStorage.getItem(SYSTEM_DOMAINS_STORAGE_KEY);
   if (raw) {
     const loaded = loadSystemDomains(raw);
@@ -4370,6 +4440,10 @@ function reloadSystemDomainsState({ source = "runtime", migrateLegacy = true } =
       // A blank browser has no stored domains yet.  Finish its legacy import
       // asynchronously instead of putting the complete matrix on every first
       // paint. Existing users with System Domains never take this branch.
+      // A primary-authority tombstone can arrive while the lazy legacy matrix
+      // is loading. Re-check at the async boundary before it can activate the
+      // compatibility state or schedule a browser snapshot push.
+      if (hasObservedSystemDomainsPrimaryAuthority()) return;
       reloadSystemDomainsState({ source: `${source}:legacy-ready`, migrateLegacy: true });
       render();
     }).catch((error) => {
@@ -4690,7 +4764,8 @@ function getAccessControlSubject() {
 }
 
 function getAccessControlService() {
-  if (!systemDomainsState) return null;
+  if (!systemDomainsState
+    || (hasObservedSystemDomainsPrimaryAuthority() && systemDomainsServerReadState.status !== "server")) return null;
   const subject = getAccessControlSubject();
   const assignments = toAccessControlAssignments(systemDomainsState);
   if (subject.id.startsWith("session:")) {
@@ -5097,6 +5172,7 @@ function initializeRuntimeStateServiceModule() {
   STORAGE_KEY,
   STORAGE_KEYS,
   SYSTEM_DOMAINS_STORAGE_KEY,
+  SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY,
   alignGanttWindowToPlan,
   appendLocalDataSafetyAudit,
   createDefaultPlanningState,
@@ -5105,7 +5181,7 @@ function initializeRuntimeStateServiceModule() {
   isMeaningfulBootstrapSnapshotCounts,
   isUsableBootstrapSnapshotPayload,
   isShiftExecutionServerAuthoritative,
-  isSystemDomainsServerAuthoritative: () => systemDomainsServerReadState.status === "server" && hasSystemDomainsServerAuthority(),
+  isSystemDomainsServerAuthoritative: () => hasObservedSystemDomainsPrimaryAuthority(),
   loadUiState,
   measureBootStep,
   mergeMesWorkCenters,
@@ -5127,6 +5203,12 @@ function initializeRuntimeStateServiceModule() {
   // The full projection is requested only by an operation that needs it.
   onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap(),
   onPlanningSnapshotSynchronized: () => hydratePlanningWorkbenchBootstrap({ renderOnChange: true }),
+  onSystemDomainsSnapshotRetired: () => {
+    // A tombstone proves the browser may no longer authorize or mutate from
+    // its cached compatibility copy. Rehydrate only from PostgreSQL.
+    systemDomainsServerReadState = { status: "loading", error: "", revision: 0 };
+    void hydrateSystemDomainsServerRead("", { fallbackToLegacy: false, force: true });
+  },
   persistUiState,
   publishBootPerformance,
   reloadSystemDomainsState,
@@ -6331,8 +6413,23 @@ operationalRuntimeService = createOperationalRuntimeServiceModule({
 });
 measureBootStep("initializeSystemDomainsState", () => reloadSystemDomainsState({
   source: "startup",
-  migrateLegacy: startupDataMigrationRequired,
+  // A cold browser must give the server-primary read model a chance before
+  // importing the 1.5 MB legacy matrix.  If PostgreSQL is unavailable, the
+  // asynchronous read below preserves the old migration as a safe fallback.
+  migrateLegacy: false,
 }));
+// Ask the compact shared-state endpoint for its explicit tombstone before a
+// cold tab considers the legacy import. This keeps a transient System Domains
+// API failure from reviving the retired 1.5 MB matrix after cutover.
+void (async () => {
+  await runtimeStateService?.hydrateSharedStateValues?.([SYSTEM_DOMAINS_STORAGE_KEY], {
+    allowBeforeInitialSync: true,
+  });
+  reloadSystemDomainsState({ source: "startup-shared-tombstone", migrateLegacy: false });
+  await hydrateSystemDomainsServerRead("startup", {
+    fallbackToLegacy: startupDataMigrationRequired && !hasObservedSystemDomainsPrimaryAuthority(),
+  });
+})();
 if (startupDataMigrationRequired) {
   measureBootStep("migrateLegacyOperationsToDirectory", () => migrateLegacyOperationsToDirectory());
   measureBootStep("ensureWorkCenterOperations", () => ensureWorkCenterOperations());

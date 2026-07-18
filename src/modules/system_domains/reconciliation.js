@@ -143,6 +143,7 @@ export function reconcileSystemDomains({
   postgresRevision = 0,
   snapshotState = "active",
   stability = "unverified",
+  primaryAuthority = false,
 } = {}) {
   const snapshot = normalizeSystemDomains(snapshotDomains || {});
   const postgres = normalizeSystemDomains(postgresDomains || {});
@@ -170,11 +171,30 @@ export function reconcileSystemDomains({
     && stable
     && metadata.matches
     && Object.values(registries).every((entry) => entry.matches);
+  // A compatibility snapshot is required only until the root-controlled
+  // cutover records PostgreSQL as the primary.  After that marker exists,
+  // two stable PostgreSQL reads are the relevant availability proof; a null
+  // snapshot is an intentional retirement marker rather than a mismatch.
+  // A durable primary marker alone is not enough: it must be paired with the
+  // explicit shared-state tombstone. Otherwise a later/stale snapshot could
+  // silently become a second writer after PostgreSQL has been promoted.
+  const readEligible = primaryAuthority === true
+    ? snapshotState === "retired" && stable
+    : matches;
+  const retirementEligible = primaryAuthority === true
+    && snapshotState === "retired"
+    && stable;
   const reasonCodes = [];
-  if (snapshotState !== "active") reasonCodes.push(`snapshot-${snapshotState}`);
-  if (!stable) reasonCodes.push(`source-${stability}`);
-  if (!metadata.matches || Object.values(registries).some((entry) => !entry.matches)) reasonCodes.push("projection-diff");
-  if (!reasonCodes.length) reasonCodes.push("manual-promotion-proof-required");
+  if (primaryAuthority === true) {
+    if (!stable) reasonCodes.push(`source-${stability}`);
+    if (snapshotState === "retired") reasonCodes.push("postgres-primary-snapshot-retired");
+    else reasonCodes.push("postgres-primary-snapshot-not-yet-retired");
+  } else {
+    if (snapshotState !== "active") reasonCodes.push(`snapshot-${snapshotState}`);
+    if (!stable) reasonCodes.push(`source-${stability}`);
+    if (!metadata.matches || Object.values(registries).some((entry) => !entry.matches)) reasonCodes.push("projection-diff");
+    if (!reasonCodes.length) reasonCodes.push("manual-promotion-proof-required");
+  }
   const snapshotPromotion = inspectCompatibilitySnapshotPromotion({ registries, metadata, snapshotState, stable });
   return {
     contractVersion: 1,
@@ -183,6 +203,7 @@ export function reconcileSystemDomains({
       snapshotVersion: Number(snapshotVersion || 0),
       postgresRevision: Number(postgresRevision || 0),
       comparable: snapshotState === "active",
+      primaryAuthority: primaryAuthority === true,
       stability,
       stable,
     },
@@ -193,9 +214,9 @@ export function reconcileSystemDomains({
     // These are eligibility signals only. No caller may use them to mutate
     // a store without an explicit, backed-up promotion command.
     promotion: {
-      readEligible: matches,
+      readEligible,
       writeEligible: false,
-      retirementEligible: false,
+      retirementEligible,
       reasonCodes,
       // A distinct, one-shot operation may write PostgreSQL's additive facts
       // to the compatibility snapshot. It is deliberately not command

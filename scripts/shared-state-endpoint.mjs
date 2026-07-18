@@ -15,6 +15,7 @@ const MAX_SHARED_STATE_BODY_BYTES = 20 * 1024 * 1024;
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
 const COMPRESSIBLE_RESPONSE_BYTES = 1024;
 const DEFAULT_SHARED_STATE_KEY = "mes:staging:shared-state:v1";
+const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
 const ALLOWED_VALUE_KEYS = new Set([
   "mes-planning-prototype-state-v2",
   "mes-planning-prototype-directories-v2",
@@ -56,6 +57,18 @@ const SHARED_UI_MAP_KEYS = new Set([
 // value keyed by the file's stat fingerprint; an external write invalidates it
 // naturally on the next read without creating a second source of truth.
 const FILE_SNAPSHOT_CACHE = new Map();
+
+function normalizeSystemDomainsRetirement(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const transitionId = String(value.transitionId || "").trim().slice(0, 160);
+  const action = String(value.action || "").trim().slice(0, 120);
+  if (!transitionId || !action) return null;
+  return {
+    transitionId,
+    action,
+    createdAt: typeof value.createdAt === "string" ? value.createdAt.slice(0, 80) : "",
+  };
+}
 
 function getFileFingerprint(fileStat) {
   // Size + mtime alone can survive an out-of-band restore.  Include the
@@ -202,6 +215,10 @@ function parseSnapshot(raw) {
       values: parsed.values && typeof parsed.values === "object" ? parsed.values : null,
       sharedUi: parsed.sharedUi && typeof parsed.sharedUi === "object" ? parsed.sharedUi : {},
       events: Array.isArray(parsed.events) ? parsed.events.slice(0, 50) : [],
+      // This compact proof survives the rolling event window. It is written
+      // only by the root-controlled System Domains retirement path and lets a
+      // pending authority transition resume safely after ordinary UI saves.
+      systemDomainsRetirement: normalizeSystemDomainsRetirement(parsed.systemDomainsRetirement),
     };
   } catch {
     return null;
@@ -219,6 +236,44 @@ function sanitizeValues(values, currentValues = {}) {
     if (typeof currentValue === "string" || currentValue === null) sanitized[key] = currentValue;
   });
   return sanitized;
+}
+
+function hasRetiredSystemDomainsSnapshot(values) {
+  return Boolean(values)
+    && Object.prototype.hasOwnProperty.call(values, SYSTEM_DOMAINS_STORAGE_KEY)
+    && values[SYSTEM_DOMAINS_STORAGE_KEY] === null;
+}
+
+function attemptsToRestoreRetiredSystemDomains(values) {
+  return Boolean(values)
+    && Object.prototype.hasOwnProperty.call(values, SYSTEM_DOMAINS_STORAGE_KEY)
+    && values[SYSTEM_DOMAINS_STORAGE_KEY] !== null;
+}
+
+function attemptsToRetireSystemDomains(values) {
+  return Boolean(values)
+    && Object.prototype.hasOwnProperty.call(values, SYSTEM_DOMAINS_STORAGE_KEY)
+    && values[SYSTEM_DOMAINS_STORAGE_KEY] === null;
+}
+
+// The PostgreSQL-primary cutover leaves a narrow, durable tombstone in the
+// compatibility snapshot. A stale browser can still know the old full
+// payload, so the tombstone must be enforced at every server-side write
+// boundary rather than relying on the client to notice it first.
+function preserveRetiredSystemDomainsTombstone(current, next) {
+  if (!hasRetiredSystemDomainsSnapshot(current?.values)) return next;
+  const nextValues = next?.values && typeof next.values === "object" && !Array.isArray(next.values)
+    ? next.values
+    : current.values || {};
+  if (nextValues[SYSTEM_DOMAINS_STORAGE_KEY] === null
+    && Object.prototype.hasOwnProperty.call(nextValues, SYSTEM_DOMAINS_STORAGE_KEY)) return next;
+  return {
+    ...next,
+    values: {
+      ...nextValues,
+      [SYSTEM_DOMAINS_STORAGE_KEY]: null,
+    },
+  };
 }
 
 function isAllowedSharedUiValue(key, value) {
@@ -312,6 +367,7 @@ function createEmptySnapshot() {
     values: null,
     sharedUi: {},
     events: [],
+    systemDomainsRetirement: null,
   };
 }
 
@@ -386,7 +442,14 @@ export async function readSharedStateSnapshot({ env = process.env, filePath = ""
   };
 }
 
-export async function updateSharedStateSnapshot({ env = process.env, filePath = "", expectedVersion = null, update, beforeWrite = null } = {}) {
+export async function updateSharedStateSnapshot({
+  env = process.env,
+  filePath = "",
+  expectedVersion = null,
+  update,
+  beforeWrite = null,
+  allowSystemDomainsCompatibilitySnapshotRetirement = false,
+} = {}) {
   const store = createStore({ env, filePath });
   if (!store.configured) return { ok: false, configured: false, snapshot: createEmptySnapshot() };
   const applyUpdate = async () => {
@@ -394,8 +457,20 @@ export async function updateSharedStateSnapshot({ env = process.env, filePath = 
     if (expectedVersion !== null && Number(expectedVersion) !== Number(current.version || 0)) {
       return { ok: false, configured: true, conflict: true, snapshot: current };
     }
-    const next = typeof update === "function" ? await update(current) : null;
-    if (!next || typeof next !== "object") throw new Error("Shared-state domain update must return a snapshot");
+    const rawNext = typeof update === "function" ? await update(current) : null;
+    if (!rawNext || typeof rawNext !== "object") throw new Error("Shared-state domain update must return a snapshot");
+    if (!hasRetiredSystemDomainsSnapshot(current.values)
+      && attemptsToRetireSystemDomains(rawNext.values)
+      && allowSystemDomainsCompatibilitySnapshotRetirement !== true) {
+      return {
+        ok: false,
+        configured: true,
+        forbidden: true,
+        error: "System Domains compatibility snapshot retirement requires the root-controlled PostgreSQL-primary cutover",
+        snapshot: current,
+      };
+    }
+    const next = preserveRetiredSystemDomainsTombstone(current, rawNext);
     const snapshot = {
       ...current,
       ...next,
@@ -499,6 +574,7 @@ function buildClientSnapshot(current, payload) {
     values,
     sharedUi: sanitizeSharedUi(sharedUi, current.sharedUi),
     events: [event, ...(current.events || [])].slice(0, 50),
+    systemDomainsRetirement: current.systemDomainsRetirement || null,
   };
 }
 
@@ -586,6 +662,53 @@ export async function handleSharedStateRequest(req, res, {
           configured: true,
           conflict: true,
           error: "Shared state version conflict",
+          current,
+        });
+        return;
+      }
+
+      if (hasRetiredSystemDomainsSnapshot(current.values)
+        && attemptsToRestoreRetiredSystemDomains(payload.values)) {
+        await appendSharedStateAudit({
+          auditLogPath,
+          event: {
+            action,
+            status: "denied",
+            reason: "system-domains-compatibility-snapshot-retired",
+            appEnv: env.APP_ENV || env.MES_APP_ENV || "",
+            clientId: normalizeActor(payload.clientId),
+            actor: normalizeActor(payload.actor),
+          },
+        }).catch(() => {});
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          systemDomainsSnapshotRetired: true,
+          error: "System Domains compatibility snapshot is retired and cannot be restored",
+          current,
+        });
+        return;
+      }
+
+      if (!hasRetiredSystemDomainsSnapshot(current.values)
+        && attemptsToRetireSystemDomains(payload.values)) {
+        await appendSharedStateAudit({
+          auditLogPath,
+          event: {
+            action,
+            status: "denied",
+            reason: "system-domains-compatibility-snapshot-retirement-requires-root-cutover",
+            appEnv: env.APP_ENV || env.MES_APP_ENV || "",
+            clientId: normalizeActor(payload.clientId),
+            actor: normalizeActor(payload.actor),
+          },
+        }).catch(() => {});
+        sendJson(res, headers, 403, {
+          ok: false,
+          configured: true,
+          systemDomainsRetirementRequiresRootCutover: true,
+          error: "System Domains compatibility snapshot retirement requires the root-controlled PostgreSQL-primary cutover",
           current,
         });
         return;
