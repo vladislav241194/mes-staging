@@ -184,12 +184,12 @@ try {
 
   const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   assert(
-    appSource.includes('hydrateSharedStateForModule("authPrototype", [SYSTEM_DOMAINS_STORAGE_KEY])'),
-    "The login screen must re-render from PostgreSQL System Domains after the shared-state projection is retired",
+    appSource.includes('hydrateSystemDomainsServerRead("authPrototype", { fallbackToLegacy: false })'),
+    "The login screen must read PostgreSQL System Domains directly after the shared-state projection is retired",
   );
   assert(
-    appSource.includes('hydrateSharedStateForModule("authSessionPrototype", [SYSTEM_DOMAINS_STORAGE_KEY])'),
-    "The authenticated workspace must retain the PostgreSQL System Domains hydration contract",
+    appSource.includes('hydrateSystemDomainsServerRead("authSessionPrototype", { fallbackToLegacy: false })'),
+    "The authenticated workspace must retain the direct PostgreSQL System Domains hydration contract",
   );
 
   console.log("System Domains primary runtime QA: OK");

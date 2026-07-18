@@ -5956,12 +5956,13 @@ function initializeModuleRuntime() {
     },
     authPrototype: {
       render: () => {
-        // Authentication is itself a System Domains consumer: departments,
-        // employees and roles come from the PostgreSQL projection after the
-        // compatibility snapshot is retired.  Request the same targeted
-        // hydration used by the other domain-backed modules so the initial
-        // empty auth frame is re-rendered when the server read completes.
-        hydrateSharedStateForModule("authPrototype", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        // Authentication is itself a System Domains consumer.  It must not
+        // wait for the shared-state startup handshake after that projection
+        // has been retired: read departments, employees and roles directly
+        // from PostgreSQL and re-render this exact module on completion.
+        if (systemDomainsServerReadState.status !== "server") {
+          void hydrateSystemDomainsServerRead("authPrototype", { fallbackToLegacy: false });
+        }
         ensureAuthModules();
         return renderAuthPrototypePage();
       },
@@ -5969,7 +5970,9 @@ function initializeModuleRuntime() {
     },
     authSessionPrototype: {
       render: () => {
-        hydrateSharedStateForModule("authSessionPrototype", [SYSTEM_DOMAINS_STORAGE_KEY]);
+        if (systemDomainsServerReadState.status !== "server") {
+          void hydrateSystemDomainsServerRead("authSessionPrototype", { fallbackToLegacy: false });
+        }
         ensureAuthModules();
         return renderAuthSessionPrototypePage();
       },
