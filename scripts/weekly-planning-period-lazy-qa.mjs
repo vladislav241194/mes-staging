@@ -8,6 +8,10 @@ const expect = (condition, message) => { if (!condition) failures.push(message);
 
 expect(app.includes('import("./modules/domain_api/planning_period_read_model.js")'), "Weekly planning period read model must load lazily");
 expect(app.includes('import("./modules/weekly_production_control/planning_period_rows.js")'), "Weekly period row adapter must load lazily");
+expect(app.includes('createPlanningPeriodReadModel({ view: "weekly" })'), "Weekly Control must request the compact period contract explicitly");
+expect(app.includes("buildWeeklyPlanningPeriodRowsFromCompact"), "Weekly Control must adapt direct compact rows without constructing a planning graph");
+expect(app.includes("function resolveWeeklyCompactSlotPresentation"), "compact Weekly rows must reuse the established SMT/resource presentation resolver");
+expect(app.includes("resolveSlotPresentation: resolveWeeklyCompactSlotPresentation"), "compact Weekly hydration must pass the source-slot presentation resolver");
 expect(app.includes("function hydrateWeeklyPlanningPeriod()"), "Weekly Control needs a bounded period hydration path");
 expect(app.includes("return getPlanningTableSlotRows();"), "Weekly period API must retain the local planning fallback");
 expect(app.includes("fromAt = weekStart.toISOString()"), "Weekly local calendar bounds must be transported as exact UTC instants");
@@ -20,6 +24,8 @@ expect(weekly.includes("getPlanningTableSlotRows({ weekStart, weekEnd })"), "Wee
 
 const weeklyHydration = app.slice(app.indexOf("function hydrateWeeklyPlanningPeriod()"), app.indexOf("function getWeeklyProductionControlRuntimeInstance()"));
 expect(!/planningState\s*=/.test(weeklyHydration), "Weekly period hydration must never replace the global planning state");
+const compactPresentation = app.slice(app.indexOf("function resolveWeeklyCompactSlotPresentation"), app.indexOf("function clearWeeklyPlanningPeriodRefreshTimer()"));
+expect(!compactPresentation.includes("getGanttRuntime"), "compact Weekly presentation must not invoke the lazy Gantt runtime");
 const weeklyInvalidation = app.slice(app.indexOf("function invalidateWeeklyPlanningPeriod()"), app.indexOf("function setPlanningStateAndInvalidate("));
 expect(!weeklyInvalidation.includes("if (!weeklyPlanningPeriodState.key) return;"), "a planning write before the first Weekly visit must still keep the local projection authoritative");
 

@@ -99,6 +99,13 @@ try {
   assert(!period.body.includes("period-labor-must-not-transfer"), "period projection must omit order-detail labour maps");
   assert(/^"[A-Za-z0-9_-]{24}"$/.test(String(period.headers.ETag || "")), "period response must emit a stable payload ETag");
 
+  // The snapshot adapter deliberately has no direct compact-row capability.
+  // A Weekly consumer must still receive the established bounded projection
+  // until PostgreSQL passes the parity guard and becomes the active read path.
+  const weeklyFallback = await request(filePath, "/api/v1/planning/period?from=2026-07-17&to=2026-07-24&view=weekly");
+  assert(weeklyFallback.statusCode === 200 && weeklyFallback.json.projection?.slots?.length === 3, "snapshot Weekly request must retain the safe bounded projection fallback");
+  assert(!Array.isArray(weeklyFallback.json.rows), "snapshot fallback must not masquerade as the PostgreSQL compact rows contract");
+
   const unchanged = await request(filePath, "/api/v1/planning/period?from=2026-07-17&to=2026-07-24", { "if-none-match": period.headers.ETag });
   assert(unchanged.statusCode === 304 && unchanged.body === "", "unchanged planning period must support conditional GET");
 
@@ -110,6 +117,8 @@ try {
   assert(reversed.statusCode === 400 && /after/.test(reversed.json.error || ""), "period endpoint must reject a reversed interval");
   const oversized = await request(filePath, "/api/v1/planning/period?from=2026-07-01&to=2026-08-02");
   assert(oversized.statusCode === 400 && /must not exceed/.test(oversized.json.error || ""), "period endpoint must cap the response period");
+  const unsupportedView = await request(filePath, "/api/v1/planning/period?from=2026-07-17&to=2026-07-24&view=full");
+  assert(unsupportedView.statusCode === 400 && /projection or weekly/.test(unsupportedView.json.error || ""), "period endpoint must reject unsupported view contracts");
 
   // A local Moscow week starts at Sunday 21:00Z in July. A slot at 00:30
   // local Monday must be present even though its UTC date is still Sunday.

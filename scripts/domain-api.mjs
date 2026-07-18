@@ -737,6 +737,11 @@ function readPlanningPeriod(url) {
   return { from, to, boundsKind: "date" };
 }
 
+function readPlanningPeriodView(url) {
+  const value = String(url?.searchParams?.get("view") || "projection").trim().toLowerCase();
+  return value === "projection" || value === "weekly" ? value : "";
+}
+
 function getPlanningSlotInterval(slot = {}) {
   const start = Date.parse(String(slot?.plannedStart || ""));
   const end = Date.parse(String(slot?.plannedEnd || ""));
@@ -857,6 +862,11 @@ export async function handleDomainApiRequest(req, res, url, {
   const planningPeriod = isPlanningPeriodRead ? readPlanningPeriod(url) : null;
   if (planningPeriod?.error) {
     sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: planningPeriod.error });
+    return true;
+  }
+  const planningPeriodView = isPlanningPeriodRead ? readPlanningPeriodView(url) : "";
+  if (isPlanningPeriodRead && !planningPeriodView) {
+    sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "planning period view must be projection or weekly" });
     return true;
   }
 
@@ -1575,19 +1585,24 @@ export async function handleDomainApiRequest(req, res, url, {
 
   if (isPlanningPeriodRead) {
     let planningSafety = await getPlanningSafety();
-    // PostgreSQL exposes a native bounded join for this read. It avoids the
-    // former list() + per-order get() fan-out while preserving the established
-    // aggregate-shaped projection. Snapshot fallback deliberately retains the
-    // generic route until it implements the same optional capability.
+    // PostgreSQL exposes two bounded representations. `projection` preserves
+    // the transitional legacy graph; `weekly` returns only slot rows for the
+    // seven-day dashboard. Snapshot fallback deliberately retains the proven
+    // projection route until it implements the same optional capability.
     const guardedRead = await readPlanningProjectionSafely({
       planningSafety,
       getPlanningSafety,
       read: async (repository) => {
+        const bounds = {
+          fromAt: new Date(planningPeriod.from.time).toISOString(),
+          toAt: new Date(planningPeriod.to.time).toISOString(),
+        };
+        if (planningPeriodView === "weekly" && typeof repository.listWeeklyPeriodRows === "function") {
+          const listed = await repository.listWeeklyPeriodRows(bounds);
+          return { listed, details: [], rows: Array.isArray(listed.rows) ? listed.rows : [], compactWeeklyRows: true };
+        }
         const periodResult = typeof repository.listPeriod === "function"
-          ? await repository.listPeriod({
-            fromAt: new Date(planningPeriod.from.time).toISOString(),
-            toAt: new Date(planningPeriod.to.time).toISOString(),
-          })
+          ? await repository.listPeriod(bounds)
           : null;
         const listed = periodResult || await repository.list();
         const details = periodResult
@@ -1600,22 +1615,32 @@ export async function handleDomainApiRequest(req, res, url, {
               .filter((item) => Number(item?.scheduledOperationCount || 0) > 0)
               .map(async (item) => (await repository.get(item.id)).item),
           );
-        return { listed, details };
+        return { listed, details, rows: null, compactWeeklyRows: false };
       },
     });
     planningSafety = guardedRead.planningSafety;
-    const { listed, details } = guardedRead.result;
-    const projection = buildPlanningPeriodProjection(details.filter(Boolean), planningPeriod);
-    const payload = withPlanningFallback({
-      ok: true,
-      apiVersion: "v1",
-      storageMode: listed.storageMode,
-      storageBackend: listed.storageBackend,
-      period: planningPeriod.boundsKind === "instant"
-        ? { fromAt: planningPeriod.from.instant, toAt: planningPeriod.to.instant }
-        : { from: planningPeriod.from.date, to: planningPeriod.to.date },
-      projection,
-    }, planningSafety);
+    const { listed, details, rows, compactWeeklyRows } = guardedRead.result;
+    const period = planningPeriod.boundsKind === "instant"
+      ? { fromAt: planningPeriod.from.instant, toAt: planningPeriod.to.instant }
+      : { from: planningPeriod.from.date, to: planningPeriod.to.date };
+    const payload = compactWeeklyRows
+      ? withPlanningFallback({
+        ok: true,
+        apiVersion: "v1",
+        storageMode: listed.storageMode,
+        storageBackend: listed.storageBackend,
+        period,
+        view: "weekly",
+        rows,
+      }, planningSafety)
+      : withPlanningFallback({
+        ok: true,
+        apiVersion: "v1",
+        storageMode: listed.storageMode,
+        storageBackend: listed.storageBackend,
+        period,
+        projection: buildPlanningPeriodProjection(details.filter(Boolean), planningPeriod),
+      }, planningSafety);
     const etag = getPayloadEtag(payload);
     if (matchesEtag(req, etag)) {
       sendNotModified(res, headers, etag);

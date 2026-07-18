@@ -106,8 +106,31 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
   };
   if (nativePeriodReads) {
     repository.listPeriod = async () => {
-      nativePeriodReads.count += 1;
+      nativePeriodReads.full += 1;
       return { ...metadata, ...health.current, items: [itemRef.current] };
+    };
+    repository.listWeeklyPeriodRows = async () => {
+      nativePeriodReads.weekly += 1;
+      const item = itemRef.current;
+      const operation = item.operations[0] || {};
+      const slot = operation.slot || {};
+      return {
+        ...metadata,
+        ...health.current,
+        rows: [{
+          id: String(slot.id || ""),
+          routeId: String(item.id || ""),
+          routeStepId: String(operation.id || ""),
+          plannedStart: String(slot.plannedStart || ""),
+          plannedEnd: String(slot.plannedEnd || ""),
+          quantity: Number(slot.quantity || item.quantity || 0),
+          unit: String(item.unit || "шт."),
+          workCenterId: String(operation.workCenterId || ""),
+          resourceId: String(operation.executionContext?.resourceId || ""),
+          status: String(slot.status || "planned"),
+          locked: Boolean(slot.isLocked),
+        }],
+      };
     };
   }
   if (markerRef) {
@@ -153,7 +176,7 @@ const snapshotHealth = { current: { revision: 7, updatedAt: "2026-07-18T08:01:00
 const primaryItem = { current: makeItem("resource-D3_L1-matrix-missing") };
 const snapshotItem = { current: makeItem("") };
 const writes = { quantity: 0, slot: 0 };
-const primaryPeriodReads = { count: 0 };
+const primaryPeriodReads = { full: 0, weekly: 0 };
 const markerRef = { current: {
   primaryRevision: 4,
   verifiedPrimaryRevision: null,
@@ -200,7 +223,9 @@ assert(staleProjection.statusCode === 200 && staleProjection.json.fallbackReason
 
 const stalePeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19");
 assert(stalePeriod.statusCode === 200 && stalePeriod.json.fallbackReason === "postgres-projection-stale", "bounded planning period must honor the same safe fallback");
-assert(primaryPeriodReads.count === 0, "stale PostgreSQL projection must not bypass the snapshot fallback through native period reads");
+const staleWeeklyPeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19&view=weekly");
+assert(staleWeeklyPeriod.statusCode === 200 && staleWeeklyPeriod.json.fallbackReason === "postgres-projection-stale" && staleWeeklyPeriod.json.projection, "stale compact Weekly request must retain the snapshot projection fallback");
+assert(primaryPeriodReads.full === 0 && primaryPeriodReads.weekly === 0, "stale PostgreSQL projection must not bypass the snapshot fallback through any native period read");
 
 const parity = await request("/api/v1/planning/work-orders/parity");
 assert(parity.statusCode === 200 && parity.json.ok === false, "parity endpoint must remain a primary-vs-snapshot diagnostic while fallback is active");
@@ -237,7 +262,12 @@ assert(recoveredList.json.storageMode === "postgres", "healthy PostgreSQL must r
 
 const recoveredPeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19");
 assert(recoveredPeriod.statusCode === 200 && !recoveredPeriod.json.fallbackReason, "healthy PostgreSQL period read must keep the normal authority");
-assert(primaryPeriodReads.count === 1, "healthy PostgreSQL period read must use the native bounded repository capability");
+assert(primaryPeriodReads.full === 1, "healthy PostgreSQL projection read must use the native bounded repository capability");
+
+const recoveredWeeklyPeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19&view=weekly");
+assert(recoveredWeeklyPeriod.statusCode === 200 && !recoveredWeeklyPeriod.json.fallbackReason, "healthy compact Weekly read must retain PostgreSQL authority");
+assert(recoveredWeeklyPeriod.json.view === "weekly" && recoveredWeeklyPeriod.json.rows?.[0]?.id === "slot-1", "healthy compact Weekly read must return the narrow rows contract");
+assert(primaryPeriodReads.weekly === 1, "healthy compact Weekly read must use its dedicated bounded repository capability");
 
 // The same marker revalidation also protects a command's pre-read. A direct
 // planning mutation that lands after the route's initial marker check must

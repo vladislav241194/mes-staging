@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.36";
+const APP_VERSION_FALLBACK = "v.1.499.39";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -1071,6 +1071,7 @@ let weeklyProductionControlRuntimeLoad = null;
 let weeklyProductionControlRuntimeError = null;
 let planningPeriodReadModel = null;
 let buildWeeklyPlanningPeriodRows = null;
+let buildWeeklyPlanningPeriodRowsFromCompact = null;
 let weeklyPlanningRowsEquivalent = null;
 let weeklyPlanningPeriodModuleLoad = null;
 let weeklyPlanningPeriodState = {
@@ -1282,17 +1283,22 @@ function createWeeklyProductionControlRuntimeInstance(factory) {
 }
 
 function ensureWeeklyPlanningPeriodModule() {
-  if (planningPeriodReadModel && buildWeeklyPlanningPeriodRows) return Promise.resolve(true);
+  if (planningPeriodReadModel && buildWeeklyPlanningPeriodRows && buildWeeklyPlanningPeriodRowsFromCompact) return Promise.resolve(true);
   if (weeklyPlanningPeriodModuleLoad) return weeklyPlanningPeriodModuleLoad;
   weeklyPlanningPeriodModuleLoad = Promise.all([
     import("./modules/domain_api/planning_period_read_model.js"),
     import("./modules/weekly_production_control/planning_period_rows.js"),
   ]).then(([
     { createPlanningPeriodReadModel },
-    { buildWeeklyPlanningPeriodRows: buildRows, weeklyPlanningRowsEquivalent: compareRows },
+    {
+      buildWeeklyPlanningPeriodRows: buildRows,
+      buildWeeklyPlanningPeriodRowsFromCompact: buildCompactRows,
+      weeklyPlanningRowsEquivalent: compareRows,
+    },
   ]) => {
-    planningPeriodReadModel = createPlanningPeriodReadModel();
+    planningPeriodReadModel = createPlanningPeriodReadModel({ view: "weekly" });
     buildWeeklyPlanningPeriodRows = buildRows;
+    buildWeeklyPlanningPeriodRowsFromCompact = buildCompactRows;
     weeklyPlanningRowsEquivalent = compareRows;
     return true;
   }).catch((error) => {
@@ -1312,6 +1318,32 @@ function getWeeklyPlanningPeriodLookups() {
   return {
     getWorkCenter: (id) => workCentersById.get(String(id || "")) || null,
     getResource: (id) => resourcesById.get(String(id || "")) || null,
+  };
+}
+
+// The compact PostgreSQL weekly transport intentionally does not carry the
+// legacy route/operation graph. It does carry the small original slot envelope
+// needed here, so reuse the already-loaded planning/product resolvers for the
+// visible SMT line, resource and task unit. This is not the lazy Gantt runtime
+// and does not alter global planningState.
+function resolveWeeklyCompactSlotPresentation(slot = {}) {
+  const step = (planningState.routeSteps || []).find((item) => item.id === slot.routeStepId) || null;
+  const route = getPlanningTableSlotRoute(slot, step);
+  const task = route && step ? getRouteStepPlanningTask(route, step) : null;
+  const resolvedWorkCenter = typeof getSlotGanttWorkCenterId === "function"
+    ? getSlotGanttWorkCenterId(slot)
+    : "";
+  const workCenterId = mapLegacyWorkCenterId(resolvedWorkCenter || slot.workCenterId || step?.workCenterId || "");
+  const workCenter = getWorkCenter(workCenterId) || getWorkCenter(slot.workCenterId) || null;
+  const resource = typeof getGanttResourceForSlot === "function"
+    ? getGanttResourceForSlot(slot)
+    : null;
+  return {
+    workCenterId,
+    workCenter,
+    resource,
+    resourceId: String(resource?.id || slot.resourceId || ""),
+    unit: String(slot.unit || task?.unit || "шт."),
   };
 }
 
@@ -1397,17 +1429,28 @@ function hydrateWeeklyPlanningPeriod() {
       hydrateWeeklyPlanningPeriod();
       return;
     }
-    if (!result?.ok || !result.projection || typeof buildWeeklyPlanningPeriodRows !== "function") {
+    const hasCompactRows = Array.isArray(result?.rows);
+    if (!result?.ok
+      || (!hasCompactRows && !result?.projection)
+      || (hasCompactRows && typeof buildWeeklyPlanningPeriodRowsFromCompact !== "function")
+      || (!hasCompactRows && typeof buildWeeklyPlanningPeriodRows !== "function")) {
       weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true, error: result?.error || "Weekly planning period API is unavailable" };
       scheduleWeeklyPlanningPeriodRefresh(bounds);
       return;
     }
     const lookups = getWeeklyPlanningPeriodLookups();
-    const rows = buildWeeklyPlanningPeriodRows(result.projection, {
-      toDate,
-      mapWorkCenterId: mapLegacyWorkCenterId,
-      ...lookups,
-    });
+    const rows = hasCompactRows
+      ? buildWeeklyPlanningPeriodRowsFromCompact(result.rows, {
+        toDate,
+        mapWorkCenterId: mapLegacyWorkCenterId,
+        ...lookups,
+        resolveSlotPresentation: resolveWeeklyCompactSlotPresentation,
+      })
+      : buildWeeklyPlanningPeriodRows(result.projection, {
+        toDate,
+        mapWorkCenterId: mapLegacyWorkCenterId,
+        ...lookups,
+      });
     // A 304 only means the server answer did not change; it does not prove
     // that an asynchronous snapshot sync already contains the local write.
     // Accept the compact response again only after its visible weekly rows

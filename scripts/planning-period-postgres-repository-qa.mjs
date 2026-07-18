@@ -14,6 +14,12 @@ function makeRow({
   end,
   sequenceNo,
   slotId = `slot-${operationId}`,
+  weeklyWorkCenterId = "D3",
+  weeklyResourceId = "D3-L1",
+  weeklyUnit = "шт.",
+  sourceWorkCenterId = "D3",
+  sourceResourceId = "D3-L1",
+  sourceUnit = "",
 } = {}) {
   return {
     id: orderId,
@@ -53,6 +59,27 @@ function makeRow({
     period_slot_quantity: 5,
     period_slot_is_locked: false,
     period_slot_metadata: { id: slotId, routeId: orderId, routeStepId: operationId },
+    weekly_slot_id: slotId,
+    weekly_route_id: orderId,
+    weekly_route_step_id: operationId,
+    weekly_planned_start: new Date(start),
+    weekly_planned_end: new Date(end),
+    weekly_quantity: 5,
+    weekly_unit: weeklyUnit,
+    weekly_work_center_id: weeklyWorkCenterId,
+    weekly_resource_id: weeklyResourceId,
+    weekly_status: "planned",
+    weekly_locked: false,
+    weekly_source_work_center_id: sourceWorkCenterId,
+    weekly_source_resource_id: sourceResourceId,
+    weekly_source_unit: sourceUnit,
+    weekly_source_comment: "Монтаж SMT линии 1",
+    weekly_source_operation_name: operationName,
+    weekly_source_specification_id: "spec-alpha",
+    weekly_source_project_id: "project-alpha",
+    weekly_source_planning_order_id: orderId,
+    weekly_source_batch_id: "batch-alpha",
+    weekly_source_route_id: orderId,
   };
 }
 
@@ -61,6 +88,11 @@ const rows = [
   makeRow({
     operationId: "step-alpha-early", operationCode: "OP-A1", operationName: "Ранняя операция", sequenceNo: 1,
     start: "2026-07-19T21:30:00.000Z", end: "2026-07-19T22:30:00.000Z",
+    // An SMT operation can be routed to a concrete line while its persisted
+    // slot still keeps the parent operation work centre. The direct contract
+    // must retain both values for the client presentation resolver.
+    weeklyWorkCenterId: "D3_L1", weeklyResourceId: "D3-L1", weeklyUnit: "плата",
+    sourceWorkCenterId: "D3", sourceResourceId: "D3-L1",
   }),
   makeRow({
     operationId: "step-alpha-early", operationCode: "OP-A1", operationName: "Ранняя операция", sequenceNo: 1,
@@ -95,6 +127,22 @@ assert(result.items[0]?.operations?.[0]?.slot?.plannedStart === "2026-07-19T21:3
 assert(result.items[0]?.operations?.map((operation) => operation.slot?.id).join(",") === "slot-step-alpha-early,slot-step-alpha-early-split,slot-step-alpha-late", "period result must retain split-operation slots rather than silently collapsing them");
 assert(!Object.hasOwn(result.items[0]?.metadata || {}, "planningLaborByStepId"), "period result must not transfer order labour maps");
 
+const weekly = await repository.listWeeklyPeriodRows({
+  fromAt: "2026-07-19T21:00:00.000Z",
+  toAt: "2026-07-26T21:00:00.000Z",
+});
+assert(calls.length === 2, "compact Weekly period read must execute one additional bounded query");
+assert(calls[1].query.includes("tstzrange(ps.planned_start, ps.planned_end, '[)')"), "compact Weekly query must retain half-open overlap semantics");
+assert(!calls[1].query.includes("wo.*"), "compact Weekly query must not select the full work-order aggregate");
+assert(calls[1].query.includes("ps.metadata ->> 'workCenterId'"), "compact Weekly query must retain the scalar source work centre for the existing SMT resolver");
+assert(calls[1].query.includes("ps.metadata ->> 'resourceId'"), "compact Weekly query must retain the scalar source resource for the existing SMT resolver");
+assert(!/ps\.metadata\s+AS|op\.metadata\s+AS|wo\.metadata\s+AS/.test(calls[1].query), "compact Weekly query must never transfer route, operation or slot metadata documents");
+assert(weekly.storageBackend === "postgresql" && weekly.revision === 7, "compact Weekly read must retain PostgreSQL metadata");
+assert(weekly.rows.map((row) => row.id).join(",") === "slot-step-alpha-early,slot-step-alpha-early-split,slot-step-alpha-late", "compact Weekly read must retain every matching split slot in SQL order");
+assert(weekly.rows[0]?.resourceId === "D3-L1" && weekly.rows[0]?.workCenterId === "D3_L1", "compact Weekly rows must retain resolved persisted work-centre placement");
+assert(weekly.rows[0]?.sourceWorkCenterId === "D3" && weekly.rows[0]?.sourceResourceId === "D3-L1" && weekly.rows[0]?.unit === "плата", "compact Weekly rows must retain scalar source placement and unit for legacy-equivalent presentation");
+assert(!JSON.stringify(weekly).includes("must not reach a weekly projection"), "compact Weekly read must not transfer order labour payloads");
+
 let invalidBounds = "";
 try {
   await repository.listPeriod({ fromAt: "2026-07-26T21:00:00.000Z", toAt: "2026-07-19T21:00:00.000Z" });
@@ -102,6 +150,6 @@ try {
   invalidBounds = String(error?.message || "");
 }
 assert(/valid ordered ISO instants/.test(invalidBounds), "repository must reject reversed direct period bounds");
-assert(calls.length === 1, "invalid direct period bounds must not execute a database query");
+assert(calls.length === 2, "invalid direct period bounds must not execute a database query");
 
 console.log("Planning PostgreSQL period repository QA: OK");

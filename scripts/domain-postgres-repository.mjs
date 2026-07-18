@@ -150,6 +150,43 @@ function mapPeriodOrder(row) {
   return { ...item, metadata, operations: [] };
 }
 
+function isoDateTime(value) {
+  return value instanceof Date ? value.toISOString() : String(value || "");
+}
+
+// The weekly control is a slot-level consumer.  Do not materialize an order
+// aggregate, operation metadata, labour maps or a route-step graph merely to
+// draw the seven visible days.  This shape is deliberately small enough to
+// serve as both the PostgreSQL read model and the API transport contract.
+function mapWeeklyPeriodRow(row = {}) {
+  return {
+    id: String(row.weekly_slot_id || ""),
+    routeId: String(row.weekly_route_id || ""),
+    routeStepId: String(row.weekly_route_step_id || ""),
+    plannedStart: isoDateTime(row.weekly_planned_start),
+    plannedEnd: isoDateTime(row.weekly_planned_end),
+    quantity: Number(row.weekly_quantity || 0),
+    unit: String(row.weekly_unit || "шт."),
+    workCenterId: String(row.weekly_work_center_id || ""),
+    resourceId: String(row.weekly_resource_id || ""),
+    status: String(row.weekly_status || "planned"),
+    locked: Boolean(row.weekly_locked),
+    // Preserve only the scalar source fields needed to resolve the same SMT
+    // line/resource and task unit that the established client resolver shows.
+    // Full JSON metadata stays in PostgreSQL and never crosses this transport.
+    sourceWorkCenterId: String(row.weekly_source_work_center_id || ""),
+    sourceResourceId: String(row.weekly_source_resource_id || ""),
+    sourceUnit: String(row.weekly_source_unit || ""),
+    sourceComment: String(row.weekly_source_comment || ""),
+    sourceOperationName: String(row.weekly_source_operation_name || ""),
+    sourceSpecificationId: String(row.weekly_source_specification_id || ""),
+    sourceProjectId: String(row.weekly_source_project_id || ""),
+    sourcePlanningOrderId: String(row.weekly_source_planning_order_id || ""),
+    sourceBatchId: String(row.weekly_source_batch_id || ""),
+    sourceRouteId: String(row.weekly_source_route_id || ""),
+  };
+}
+
 function groupPlanningPeriodRows(rows = []) {
   const byOrderId = new Map();
   for (const row of rows) {
@@ -381,6 +418,63 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
           period_operation_sequence_no ASC, period_operation_id ASC, period_slot_id ASC
       `;
       return { ...metadata, ...listMetadata(rows), items: groupPlanningPeriodRows(rows) };
+    },
+
+    async listWeeklyPeriodRows(period = {}) {
+      const { from, to } = readPeriodBounds(period);
+      // Keep this query deliberately narrower than listPeriod(). Weekly
+      // Control never reads or transfers the full order aggregate, operation
+      // metadata, norms or slot metadata. A few JSONB scalar reads retain the
+      // source values required by the existing SMT/task presentation resolver;
+      // fetching the documents themselves would turn this into a heavyweight
+      // planning projection again.
+      const rows = await sql`
+        SELECT
+          ps.id AS weekly_slot_id,
+          op.work_order_id AS weekly_route_id,
+          op.id AS weekly_route_step_id,
+          ps.planned_start AS weekly_planned_start,
+          ps.planned_end AS weekly_planned_end,
+          ps.quantity AS weekly_quantity,
+          COALESCE(NULLIF(ps.metadata ->> 'unit', ''), NULLIF(wo.unit, ''), 'шт.') AS weekly_unit,
+          COALESCE(
+            NULLIF(ps.metadata ->> 'planningWorkCenterId', ''),
+            NULLIF(ps.metadata ->> 'workCenterId', ''),
+            NULLIF(op.metadata ->> 'planningWorkCenterId', ''),
+            NULLIF(op.metadata ->> 'planningLineWorkCenterId', ''),
+            NULLIF(op.work_center_id, ''),
+            ''
+          ) AS weekly_work_center_id,
+          COALESCE(
+            NULLIF(ps.metadata ->> 'resourceId', ''),
+            NULLIF(op.metadata ->> 'resourceId', ''),
+            NULLIF(op.execution_context ->> 'resourceId', ''),
+            ''
+          ) AS weekly_resource_id,
+          ps.status AS weekly_status,
+          ps.is_locked AS weekly_locked,
+          COALESCE(ps.metadata ->> 'workCenterId', '') AS weekly_source_work_center_id,
+          COALESCE(ps.metadata ->> 'resourceId', '') AS weekly_source_resource_id,
+          COALESCE(ps.metadata ->> 'unit', '') AS weekly_source_unit,
+          COALESCE(ps.metadata ->> 'comment', '') AS weekly_source_comment,
+          COALESCE(ps.metadata ->> 'operationName', op.name, '') AS weekly_source_operation_name,
+          COALESCE(ps.metadata ->> 'specificationId', '') AS weekly_source_specification_id,
+          COALESCE(ps.metadata ->> 'projectId', '') AS weekly_source_project_id,
+          COALESCE(ps.metadata ->> 'planningOrderId', '') AS weekly_source_planning_order_id,
+          COALESCE(ps.metadata ->> 'batchId', '') AS weekly_source_batch_id,
+          COALESCE(ps.metadata ->> 'routeId', '') AS weekly_source_route_id,
+          wo.aggregate_revision,
+          wo.updated_at
+        FROM planning_slots AS ps
+        JOIN work_order_operations AS op ON op.id = ps.work_order_operation_id
+        JOIN work_orders AS wo ON wo.id = op.work_order_id
+        WHERE ps.planned_start IS NOT NULL
+          AND ps.planned_end IS NOT NULL
+          AND tstzrange(ps.planned_start, ps.planned_end, '[)')
+            && tstzrange(${from}, ${to}, '[)')
+        ORDER BY ps.planned_start ASC, wo.number ASC, op.sequence_no ASC, op.id ASC, ps.id ASC
+      `;
+      return { ...metadata, ...listMetadata(rows), rows: rows.map(mapWeeklyPeriodRow) };
     },
 
     async changeQuantity(id, { quantity, expectedRevision }) {

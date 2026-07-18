@@ -120,3 +120,80 @@ export function buildWeeklyPlanningPeriodRows(projection = {}, {
       || left.workCenterLabel.localeCompare(right.workCenterLabel, "ru")
       || left.id.localeCompare(right.id));
 }
+
+// PostgreSQL can serve Weekly Control a deliberately compact slot contract.
+// Keep its adapter separate from the transitional graph adapter above: that
+// makes it explicit that the weekly page no longer needs to materialize
+// route, operation and labour payloads just to render a calendar interval.
+export function buildWeeklyPlanningPeriodRowsFromCompact(rows = [], {
+  toDate = (value) => new Date(value),
+  mapWorkCenterId = (value) => String(value || ""),
+  getWorkCenter = () => null,
+  getResource = () => null,
+  resolveSlotPresentation = () => null,
+} = {}) {
+  return asArray(rows).map((input) => {
+    const routeId = String(input?.routeId || "");
+    const routeStepId = String(input?.routeStepId || "");
+    // The compact transport carries only scalars, but its rows must still use
+    // the established SMT line/resource and task-unit resolution when the
+    // current snapshot supplies it. The callback is intentionally optional so
+    // a direct API row remains usable during a partial client boot.
+    const sourceSlot = {
+      id: String(input?.id || ""),
+      routeId: String(input?.sourceRouteId || routeId),
+      routeStepId,
+      planningOrderId: String(input?.sourcePlanningOrderId || ""),
+      batchId: String(input?.sourceBatchId || ""),
+      specificationId: String(input?.sourceSpecificationId || ""),
+      projectId: String(input?.sourceProjectId || ""),
+      plannedStart: String(input?.plannedStart || ""),
+      plannedEnd: String(input?.plannedEnd || ""),
+      quantity: positiveQuantity(input?.quantity, 1),
+      status: String(input?.status || "planned"),
+      locked: Boolean(input?.locked),
+      unit: String(input?.sourceUnit || ""),
+      workCenterId: String(input?.sourceWorkCenterId || input?.workCenterId || ""),
+      resourceId: String(input?.sourceResourceId || input?.resourceId || ""),
+      comment: String(input?.sourceComment || ""),
+      operationName: String(input?.sourceOperationName || ""),
+    };
+    const presentation = resolveSlotPresentation(sourceSlot) || {};
+    const sourceWorkCenterId = String(presentation.workCenterId || input?.workCenterId || sourceSlot.workCenterId || "");
+    const workCenterId = mapWorkCenterId(sourceWorkCenterId);
+    const workCenter = presentation.workCenter
+      || getWorkCenter(workCenterId)
+      || getWorkCenter(sourceWorkCenterId)
+      || null;
+    const resourceId = String(presentation.resourceId || presentation.resource?.id || input?.resourceId || sourceSlot.resourceId || "");
+    const resource = presentation.resource || (resourceId ? getResource(resourceId) : null);
+    const plannedStart = safeDate(input?.plannedStart, toDate);
+    const plannedEnd = safeDate(input?.plannedEnd, toDate);
+    const quantity = sourceSlot.quantity;
+    const status = String(input?.status || "planned");
+    const locked = Boolean(input?.locked);
+
+    return {
+      id: String(input?.id || ""),
+      // Fact aggregation is keyed by slot ID. Retain the small slot envelope
+      // the existing Weekly renderer expects, without reintroducing the full
+      // planning slot metadata payload.
+      slot: { ...sourceSlot, isLocked: locked, workCenterId: sourceWorkCenterId, resourceId },
+      routeId,
+      routeStepId,
+      resourceId,
+      plannedStart,
+      plannedEnd,
+      quantity,
+      unit: String(presentation.unit || input?.unit || sourceSlot.unit || "шт."),
+      workCenterId,
+      workCenterLabel: String(workCenter?.name || workCenterId || "Участок не задан"),
+      resourceLabel: String(resource?.name || workCenter?.name || "Ресурс не назначен"),
+      routeName: routeId || "Маршрутная карта не найдена",
+      sourceKind: "planning-period-weekly-api",
+    };
+  }).filter((row) => row.id && row.plannedStart && row.plannedEnd)
+    .sort((left, right) => left.plannedStart - right.plannedStart
+      || left.workCenterLabel.localeCompare(right.workCenterLabel, "ru")
+      || left.id.localeCompare(right.id));
+}
