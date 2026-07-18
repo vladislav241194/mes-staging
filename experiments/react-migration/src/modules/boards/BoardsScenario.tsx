@@ -3,13 +3,30 @@ import { ActionButton, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHe
 import { adaptBoards, BOM_COMPONENT_FIELDS } from "./adapter";
 import { formatBomCell, formatComponentCount, getBoardSidebarMeta, getVisibleComponentTotal, resolveVisibleBoard } from "./view-model";
 
-export function BoardsScenario({ payload }: { payload: unknown }) {
+export function BoardsScenario({
+  payload,
+  onRequestItems,
+  onSelectionChange,
+}: {
+  payload: unknown;
+  onRequestItems?(): void;
+  onSelectionChange?(boardId: string): void;
+}) {
   const boards = useMemo(() => adaptBoards(payload), [payload]);
   const [selectedId, setSelectedId] = useState(boards[0]?.id ?? "");
   const selected = resolveVisibleBoard(boards, selectedId);
   const header = <ModuleHeader eyebrow="Материалы и компоненты" title="Номенклатура · Платы" badge={<span className="lab-badge">React migration lab</span>} />;
   const sidebar = (
     <ModuleSidebar label="Печатные платы" title="Платы">
+      {onRequestItems ? (
+        <SidebarItem
+          active={false}
+          count={Array.isArray((payload as { nomenclature?: unknown })?.nomenclature) ? (payload as { nomenclature: unknown[] }).nomenclature.length : 0}
+          label="Вся номенклатура"
+          meta="вернуться к позициям"
+          onClick={onRequestItems}
+        />
+      ) : null}
       {boards.map((board) => (
         <SidebarItem
           active={selected?.id === board.id}
@@ -17,7 +34,10 @@ export function BoardsScenario({ payload }: { payload: unknown }) {
           key={board.id}
           label={board.name}
           meta={getBoardSidebarMeta(board)}
-          onClick={() => setSelectedId(board.id)}
+          onClick={() => {
+            setSelectedId(board.id);
+            onSelectionChange?.(board.id);
+          }}
         />
       ))}
     </ModuleSidebar>

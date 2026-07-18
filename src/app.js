@@ -73,6 +73,7 @@ import { createAppInteractionsModule } from "./modules/app_interactions/render.j
 import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
+import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
@@ -2323,6 +2324,45 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     if (reason === "unsupported-scope") ui.activeNomenclaturePane = "boards";
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
   },
+});
+function getBoardsReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-boards") === "1",
+    readOnlyEvaluation: params.get("react-boards-readonly") === "1",
+  };
+}
+function isBoardsReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-boards-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const boardsReactIslandHost = createBoardsReactIslandHost({
+  getActivation: () => {
+    const localQa = getBoardsReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_BOARDS_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_BOARDS === true || localQa.featureFlagEnabled,
+      activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
+      accessMode: (serverEvaluationAllowed && isBoardsReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
+  getPayload: () => directoryState,
+  getTargetRoot: () => app,
+  requestItemsRender: () => {
+    ui.activeNomenclaturePane = "items";
+    if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
+  },
+  requestLegacyRender: () => {
+    ui.activeNomenclaturePane = "boards";
+    if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
+  },
+  onSelectionChange: (boardId) => { ui.activeBomId = String(boardId || ""); },
 });
 function getStructureEmployeesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -6131,16 +6171,23 @@ function initializeModuleRuntime() {
       render: () => {
         hydrateSharedStateForModule("nomenclature", [DIRECTORY_STORAGE_KEY]);
         void ensureNomenclatureRenderModule();
-        const reactDecision = nomenclatureReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return nomenclatureReactIslandHost.renderTarget();
+        const useBoardsHost = ui.activeNomenclaturePane === "boards";
+        const activeReactHost = useBoardsHost ? boardsReactIslandHost : nomenclatureReactIslandHost;
+        const inactiveReactHost = useBoardsHost ? nomenclatureReactIslandHost : boardsReactIslandHost;
+        inactiveReactHost.prepareRender();
+        const reactDecision = activeReactHost.prepareRender();
+        if (reactDecision.activateReact) return activeReactHost.renderTarget();
         return renderNomenclaturePage();
       },
       bind: () => {
-        if (nomenclatureReactIslandHost.isReactEligible()) return;
+        if (nomenclatureReactIslandHost.isReactEligible() || boardsReactIslandHost.isReactEligible()) return;
         bindNomenclatureEvents();
         bindBomListsEvents();
       },
-      afterRender: () => { void nomenclatureReactIslandHost.mount(); },
+      afterRender: () => {
+        if (ui.activeNomenclaturePane === "boards") void boardsReactIslandHost.mount();
+        else void nomenclatureReactIslandHost.mount();
+      },
     },
     planning: {
       render: () => {

@@ -360,6 +360,23 @@ await writeFile(
   nomenclatureReactIslandHostSource.replaceAll(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion),
 );
 
+const boardsReactIslandOutput = join(stagingDistDir, "src", "react-islands", "boards.js");
+await bundleReactMigrationIsland(
+  join(projectRoot, "experiments", "react-migration", "src", "boards-island.tsx"),
+  boardsReactIslandOutput,
+);
+const boardsReactIslandVersion = await fileHash(boardsReactIslandOutput);
+const boardsReactIslandHostPath = join(stagingDistDir, "src", "modules", "nomenclature", "boards_react_island_host.js");
+const boardsReactIslandHostSource = await readFile(boardsReactIslandHostPath, "utf8");
+const boardsReactIslandVersionMarker = "__MES_BOARDS_REACT_BUNDLE_VERSION__";
+if (!boardsReactIslandHostSource.includes(boardsReactIslandVersionMarker)) {
+  throw new Error("Cannot find Boards React island bundle version marker");
+}
+await writeFile(
+  boardsReactIslandHostPath,
+  boardsReactIslandHostSource.replaceAll(boardsReactIslandVersionMarker, boardsReactIslandVersion),
+);
+
 const structureEmployeesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "structure-employees.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "structure-employees-island.tsx"),
@@ -462,6 +479,7 @@ console.log(`- styles.css?v=${stylesVersion}${deployCacheSuffix}`);
 if (uiCoreStylesVersion) console.log(`- styles/mes-ui-core.css?v=${uiCoreStylesVersion}${deployCacheSuffix}`);
 console.log(`- src/app.js?v=${appVersion}${deployCacheSuffix}`);
 console.log(`- src/react-islands/nomenclature.js?v=${nomenclatureReactIslandVersion}`);
+console.log(`- src/react-islands/boards.js?v=${boardsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-employees.js?v=${structureEmployeesReactIslandVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);

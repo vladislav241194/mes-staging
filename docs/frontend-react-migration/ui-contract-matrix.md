@@ -92,6 +92,11 @@ Boards/BOM pane. The React item-list scenario keeps this distinction:
 This is classified as process-specific composition, not a `SidebarItem` visual
 variant and not permission to reinterpret Boards as a nomenclature filter.
 
+Boards/BOM is now the third production-integrated, disabled-by-default island.
+It uses the common host lifecycle and shared registry primitives, but retains
+its process-specific metric grid, nine-column table, board-selection semantics,
+independent runtime flags and explicit return to the Nomenclature items pane.
+
 ## Boards/BOM read-model evidence
 
 The isolated Boards adapter mirrors `directoryState.bomLists` and preserves the

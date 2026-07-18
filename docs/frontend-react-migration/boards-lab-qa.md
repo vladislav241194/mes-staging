@@ -79,7 +79,35 @@ The local commit duration proves the telemetry path, not Pilot performance.
 ## Production boundary
 
 `mountBoardsReactIsland(...)` is an isolated, independently budgeted entry point.
-The current production-candidate Nomenclature island still requests legacy when
-the user selects `Печатные платы`. Boards must pass host payload, feature-flag,
-same-data visual, authenticated Pilot, and rollback acceptance before that
-navigation can be transferred to React.
+It is now connected to the production Nomenclature host as a separate,
+disabled-by-default read-only island. It mounts only when the current pane is
+`boards`, both `MES_REACT_BOARDS=1` and
+`MES_REACT_BOARDS_READ_ONLY_EVALUATION=1`, and an authenticated session
+explicitly requests `react-boards-evaluation=1`. Editor access stays legacy.
+
+Localhost QA may use `qa-auth-bypass=1`, `react-boards=1`, and
+`react-boards-readonly=1`. These overrides are rejected on non-local hosts.
+
+Production-shell command:
+
+```sh
+npm run qa:boards-react-island
+```
+
+Result:
+
+- the same directory payload produces the same nine legacy and React BOM
+  headers and the same four normalized rows in the same order;
+- server flags without a per-session request preserve the legacy Boards editor;
+- the initial board exposes 16 components in four active groups;
+- selecting the empty board preserves its card and explicit empty state;
+- import remains disabled and the disposable `0600` state file stays unchanged;
+- `Вся номенклатура` unmounts React and returns to the two-row legacy items pane;
+- console and page-level overflow checks are clean;
+- observed local commits were `15.90–21.20 ms`, below the `2000 ms` local gate;
+- artifact size is `203,869 B` raw / `64,223 B` gzip / `60,893 B` Brotli,
+  within its `225,000 B` raw / `68,000 B` gzip budget.
+
+No Boards flag is included in the active Pilot release. Authenticated Pilot
+comparison and rollback remain downstream of the first Nomenclature live
+evaluation, so `v.1.499.72-6985693` is unchanged.

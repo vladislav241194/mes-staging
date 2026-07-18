@@ -117,6 +117,7 @@
     "qa:gantt-drag-cancel": "node scripts/gantt-drag-cancel-qa.mjs",
     "qa:products-events-lazy": "node scripts/products-events-lazy-qa.mjs",
     "qa:nomenclature-react-island": "node scripts/nomenclature-react-runtime-policy-qa.mjs && node scripts/nomenclature-react-rollout-ops-qa.mjs && node experiments/react-migration/qa.mjs && npm run build && node scripts/nomenclature-react-island-functional-qa.mjs",
+    "qa:boards-react-island": "node scripts/boards-react-runtime-policy-qa.mjs && node experiments/react-migration/qa.mjs && npm run build && node scripts/boards-react-island-functional-qa.mjs",
     "qa:structure-employees-react-island": "node scripts/structure-employees-react-runtime-policy-qa.mjs && node experiments/react-migration/qa.mjs && npm run build && node scripts/structure-employees-react-island-functional-qa.mjs",
     "qa:routes-events-lazy": "node scripts/routes-events-lazy-qa.mjs",
     "qa:directory-presentation-lazy": "node scripts/directory-presentation-lazy-qa.mjs",

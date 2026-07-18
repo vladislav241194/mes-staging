@@ -44,9 +44,9 @@ the first feature-flag integration. Component Types proves the generic boundary
 in the lab but is not approved for production activation yet.
 
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
-the read-only Boards/BOM scenario. Its existence does not transfer the
-Nomenclature `Печатные платы` navigation from legacy; the host must approve and
-gate that scope separately.
+the read-only Boards/BOM scenario. Its production host requires a separate
+false-by-default feature permission, read-only permission, session request and
+the `boards` pane. This does not transfer editor commands from legacy.
 
 `mountStructureEmployeesReactIsland(...)` provides the canonical Employees
 registry slice over a host-supplied System Domains snapshot. The host retains
@@ -82,8 +82,8 @@ creation, it unmounts that root before rethrowing to the feature gate.
 - Activation: explicit local/runtime configuration after PostgreSQL acceptance.
 - Editor mode: legacy until create/edit/delete command parity is implemented
   and accepted; do not mount the read-only island.
-- Boards pane: legacy until its separate vertical scenario passes host payload,
-  visual, authenticated Pilot, and rollback acceptance.
+- Boards pane: local host payload, feature flag, same-data and rollback gates
+  pass; authenticated Pilot acceptance remains pending.
 - Structure registries other than Employees: legacy until separately migrated;
   create/archive and all editor access remain legacy command surfaces.
 - Failure: `onError` schedules one host fallback; the feature gate unmounts the

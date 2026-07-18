@@ -761,6 +761,31 @@ try {
   assert.deepEqual(eligibleProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleProductionHost.renderTarget(), /data-react-nomenclature-island/);
 
+  const boardsProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeBoardsProductionHost = (activation) => boardsProductionHostModule.createBoardsReactIslandHost({
+    getActivation: () => activation,
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(
+    makeBoardsProductionHost({ featureFlagEnabled: false, activePane: "boards", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "disabled" },
+    "production Boards island must stay disabled by default",
+  );
+  assert.deepEqual(
+    makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "items", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "unsupported-scope" },
+    "Boards React must not take over the Nomenclature items pane",
+  );
+  assert.deepEqual(
+    makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "editor" }).prepareRender(),
+    { activateReact: false, reason: "write-parity-incomplete" },
+    "edit-capable Boards sessions must retain legacy commands",
+  );
+  const eligibleBoardsProductionHost = makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleBoardsProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleBoardsProductionHost.renderTarget(), /data-react-boards-island/);
+
   const structureProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeStructureProductionHost = (activation) => structureProductionHostModule.createStructureEmployeesReactIslandHost({
     getActivation: () => activation,
@@ -796,9 +821,15 @@ try {
   assert.match(productionAppSource, /params\.get\("react-nomenclature-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /params\.get\("qa-auth-bypass"\) === "1" \|\| Boolean\(getAuthenticatedAccessPerson\(\)\)/);
   assert.match(productionAppSource, /serverEvaluationAllowed && isNomenclatureReactEvaluationRequested\(\)/);
-  assert.match(productionAppSource, /nomenclatureReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /reason === "unsupported-scope".*activeNomenclaturePane = "boards"/s);
+  assert.match(productionAppSource, /MES_REACT_BOARDS === true/);
+  assert.match(productionAppSource, /MES_REACT_BOARDS_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-boards"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-boards-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-boards-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /const activeReactHost = useBoardsHost \? boardsReactIslandHost : nomenclatureReactIslandHost/);
+  assert.match(productionAppSource, /boardsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-structure-employees"\) === "1"/);
@@ -816,19 +847,25 @@ try {
   assert.match(nomenclatureProductionHostSource, /createReactIslandHost/);
   const structureProductionHostSource = await readFile(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js"), "utf8");
   assert.match(structureProductionHostSource, /createReactIslandHost/);
+  const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
+  assert.match(boardsProductionHostSource, /createReactIslandHost/);
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
   assert.match(productionBuildSource, /react-islands", "nomenclature\.js/);
+  assert.match(productionBuildSource, /react-islands", "boards\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-employees\.js/);
   assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
   assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
   assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(boardsReactIslandVersionMarker, boardsReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion\)/);
 
   const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_BOARDS:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_BOARDS_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION:.*=== "1"/);
 
@@ -845,10 +882,13 @@ try {
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });
   const productionIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/nomenclature.js"), "utf8");
   assert.match(productionIslandBundle, /mountNomenclatureReactIsland/);
+  const productionBoardsIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/boards.js"), "utf8");
+  assert.match(productionBoardsIslandBundle, /mountBoardsReactIsland/);
   const productionStructureIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-employees.js"), "utf8");
   assert.match(productionStructureIslandBundle, /mountStructureEmployeesReactIsland/);
   const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
   assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_BOARDS_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
