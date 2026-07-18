@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findTableWrapHelperCall, getTableWrapHelperNames, runTableWrapAliasRegressionChecks } from "./table-wrap-contract.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -77,7 +78,7 @@ async function collectCssSources(file, seen = new Set()) {
   return [{ file: normalizedFile, source }, ...importedSources];
 }
 
-async function collectRuntimeJsSources(relativeDir = "src") {
+async function collectRuntimeJsSourceEntries(relativeDir = "src") {
   const absoluteDir = path.join(rootDir, relativeDir);
   const entries = await fs.readdir(absoluteDir, { withFileTypes: true }).catch(() => []);
   const sources = [];
@@ -85,14 +86,18 @@ async function collectRuntimeJsSources(relativeDir = "src") {
     const relativePath = `${relativeDir}/${entry.name}`;
     const absolutePath = path.join(rootDir, relativePath);
     if (entry.isDirectory()) {
-      sources.push(...await collectRuntimeJsSources(relativePath));
+      sources.push(...await collectRuntimeJsSourceEntries(relativePath));
       continue;
     }
     if (entry.isFile() && entry.name.endsWith(".js")) {
-      sources.push(await fs.readFile(absolutePath, "utf8"));
+      sources.push({ relativePath, source: await fs.readFile(absolutePath, "utf8") });
     }
   }
   return sources;
+}
+
+async function collectRuntimeJsSources(relativeDir = "src") {
+  return (await collectRuntimeJsSourceEntries(relativeDir)).map((item) => item.source);
 }
 
 function collectRules(source, file) {
@@ -197,9 +202,10 @@ function getWindow(source, index, before = 1400, after = 700) {
   return source.slice(Math.max(0, index - before), Math.min(source.length, index + after));
 }
 
-function classifyTable(source, index) {
+function classifyTable(source, index, tableWrapHelperNames) {
   const context = getWindow(source, index);
-  if (/renderUiTableWrap\s*\(|data-ui-component=["']TableWrap["']/.test(context)) return { status: "contract", kind: "TableWrap" };
+  const helperName = findTableWrapHelperCall(source, index, tableWrapHelperNames);
+  if (helperName || /data-ui-component=["']TableWrap["']/.test(context)) return { status: "contract", kind: "TableWrap" };
   if (/data-ui-component=["']PrintTable["']/.test(context)) return { status: "non-production-exception", kind: "PrintTable" };
   if (/data-ui-component=["']VisualSampleTable["']/.test(context)) return { status: "non-production-exception", kind: "VisualSampleTable" };
   if (/data-ui-component=["'](?:CustomGrid|WideMatrix|TimelineGrid)["']/.test(context)) {
@@ -213,13 +219,16 @@ function classifyTable(source, index) {
 }
 
 async function collectTableMetrics() {
-  const source = (await collectRuntimeJsSources()).join("\n");
-  const tables = [...source.matchAll(/<table\b/g)].map((match) => {
-    const index = match.index || 0;
-    return {
-      line: getLineNumber(source, index),
-      ...classifyTable(source, index),
-    };
+  const sources = await collectRuntimeJsSourceEntries();
+  const tables = sources.flatMap(({ source }) => {
+    const tableWrapHelperNames = getTableWrapHelperNames(source);
+    return [...source.matchAll(/<table\b/g)].map((match) => {
+      const index = match.index || 0;
+      return {
+        line: getLineNumber(source, index),
+        ...classifyTable(source, index, tableWrapHelperNames),
+      };
+    });
   });
   return {
     tablesFound: tables.length,
@@ -307,6 +316,7 @@ function validateCollapsedFamilies(cssMetrics, duplicateBudget, failures) {
 }
 
 const cssMetrics = await collectCssMetrics();
+runTableWrapAliasRegressionChecks();
 const tableMetrics = await collectTableMetrics();
 const statusMetrics = await collectStatusMetrics(cssMetrics);
 const rawVisualMetrics = await collectRawVisualMetrics(cssMetrics);
