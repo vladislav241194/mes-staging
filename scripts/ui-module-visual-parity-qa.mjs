@@ -11,6 +11,7 @@ import {
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const baseUrl = process.env.MES_QA_URL || "http://localhost:4174/";
 const strict = process.argv.includes("--strict");
+const writeReport = process.argv.includes("--write-report");
 const sharedDisabledKey = "mes-planning-prototype-shared-disabled-until-v1";
 const reportJsonPath = join(projectRoot, "reports", "ui-module-visual-parity.json");
 const reportMarkdownPath = join(projectRoot, "docs", "ui-module-visual-parity-report.md");
@@ -1126,7 +1127,7 @@ async function run() {
       formControlSummary: summarizeFormControls(formControls, check.counts.formControls),
     })),
   };
-  await writeReports(report);
+  if (writeReport) await writeReports(report);
 
   console.log("MES UI Module Visual Parity QA");
   console.log(`- mode: ${strict ? "strict" : "report-only"}`);
@@ -1136,8 +1137,12 @@ async function run() {
   console.log(`- hard issues: ${hardIssues.length}`);
   console.log(`- warnings: ${warnings.length}`);
   console.log(`- explicit ActionButton variants missing: ${report.summary.explicitVariantMissing}`);
-  console.log(`- JSON: ${reportJsonPath}`);
-  console.log(`- Markdown: ${reportMarkdownPath}`);
+  if (writeReport) {
+    console.log(`- JSON: ${reportJsonPath}`);
+    console.log(`- Markdown: ${reportMarkdownPath}`);
+  } else {
+    console.log("- report: not written (pass --write-report to save JSON and Markdown artifacts)");
+  }
 
   if (strict && hardIssues.length) {
     const preview = hardIssues.slice(0, 20).map((entry) => `${entry.viewport || "-"}/${entry.moduleId || "-"}/${entry.code}: ${entry.message}`).join("\n- ");
