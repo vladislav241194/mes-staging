@@ -13,6 +13,9 @@ const API_PREFIX = "/api/v1";
 const SYSTEM_DOMAINS_COMMAND_SURFACES = new Set(["production-structure", "timesheet", "access-control"]);
 const MAX_PLANNING_PERIOD_DAYS = 31;
 const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
+// Bump this whenever fields included in planning parity change.  A durable
+// marker from an earlier contract must never be used to skip a newer proof.
+const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 3;
 const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
 let planningPostgresParityCache = null;
 
@@ -43,6 +46,14 @@ function sendJson(res, headers, statusCode, payload, extraHeaders = {}) {
   const compressionHeaders = gzip ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding", "Content-Length": String(body.byteLength) } : {};
   res.writeHead?.(statusCode, { ...responseHeaders, ...extraHeaders, ...compressionHeaders });
   res.end?.(body);
+}
+
+function getPublicDomainHealth(health = {}) {
+  // The planning fingerprint is an internal cross-store consistency token.
+  // It must be available to the parity guard, but never become part of the
+  // public health contract or a client cache key.
+  const { planningProjectionFingerprint: _planningProjectionFingerprint, ...publicHealth } = health || {};
+  return publicHealth;
 }
 
 function sendAttachment(res, headers, statusCode, item = null) {
@@ -174,7 +185,13 @@ function compareWorkOrderDetails(primary = {}, snapshot = {}) {
     if (Boolean(primarySlot) !== Boolean(snapshotSlot)) differing.push("slot");
     if (primarySlot && snapshotSlot) {
       ["quantity"].forEach((field) => { if (Number(primarySlot[field]) !== Number(snapshotSlot[field])) differing.push(`slot.${field}`); });
-      ["status", "isLocked"].forEach((field) => { if (String(primarySlot[field]) !== String(snapshotSlot[field])) differing.push(`slot.${field}`); });
+      // A marker can remain valid longer than the previous short cache, so
+      // every calendar-defining field must participate in its initial proof.
+      // Omitting start/end would allow a moved operation to be treated as a
+      // healthy PostgreSQL projection indefinitely.
+      ["id", "plannedStart", "plannedEnd", "status", "isLocked"].forEach((field) => {
+        if (String(primarySlot[field] || "") !== String(snapshotSlot[field] || "")) differing.push(`slot.${field}`);
+      });
     }
     if (differing.length) mismatches.push({ operationId: key, fields: differing });
     snapshotById.delete(key);
@@ -183,13 +200,150 @@ function compareWorkOrderDetails(primary = {}, snapshot = {}) {
   return mismatches;
 }
 
-function planningParityCacheKey({ filePath = "", primaryHealth = {}, snapshotHealth = {} } = {}) {
+function getSnapshotPlanningFingerprint(snapshotHealth = {}) {
+  return String(snapshotHealth?.planningProjectionFingerprint || "").trim();
+}
+
+function createPlanningProjectionReadVerification(markerState = null, snapshotHealth = {}) {
+  if (!hasMatchingPlanningProjectionMarker(markerState, snapshotHealth)) return null;
+  return {
+    primaryRevision: Number(markerState.primaryRevision || 0),
+    snapshotFingerprint: getSnapshotPlanningFingerprint(snapshotHealth),
+    contractVersion: PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
+  };
+}
+
+function hasMatchingPlanningProjectionMarker(markerState = null, snapshotHealth = {}) {
+  const fingerprint = getSnapshotPlanningFingerprint(snapshotHealth);
+  return Boolean(
+    markerState
+    && fingerprint
+    && Number(markerState.primaryRevision) >= 0
+    && Number(markerState.verifiedPrimaryRevision) === Number(markerState.primaryRevision)
+    && String(markerState.verifiedSnapshotFingerprint || "") === fingerprint
+    && Number(markerState.verifiedContractVersion) === PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
+  );
+}
+
+async function isPlanningProjectionReadVerificationCurrent({ primary, snapshot, verification } = {}) {
+  if (!verification || !primary || !snapshot
+    || typeof primary.getPlanningProjectionParityState !== "function") return false;
+  try {
+    const [markerState, snapshotHealth] = await Promise.all([
+      primary.getPlanningProjectionParityState(),
+      snapshot.health(),
+    ]);
+    return Boolean(
+      hasMatchingPlanningProjectionMarker(markerState, snapshotHealth)
+      && Number(markerState.primaryRevision) === Number(verification.primaryRevision)
+      && getSnapshotPlanningFingerprint(snapshotHealth) === String(verification.snapshotFingerprint || "")
+      && Number(markerState.verifiedContractVersion) === Number(verification.contractVersion),
+    );
+  } catch {
+    // A verification read must never make PostgreSQL more trusted.  The
+    // caller falls back to the compatibility snapshot when it cannot prove
+    // that the marker stayed current for the actual repository read.
+    return false;
+  }
+}
+
+function withPlanningSnapshotFallback(safety = {}, error = "Planning projection changed during read") {
+  if (!safety?.snapshot) return safety;
+  return {
+    ...safety,
+    repository: safety.snapshot,
+    readVerification: null,
+    parity: {
+      ...(safety.parity || {}),
+      matches: false,
+      error,
+    },
+    fallbackReason: PLANNING_POSTGRES_FALLBACK_REASON,
+  };
+}
+
+// A durable marker makes the expensive aggregate parity proof rare, but it
+// must not be trusted only at route entry.  A PostgreSQL or compatibility
+// snapshot change can otherwise land between marker inspection and the
+// actual list/get read.  Recheck the same epoch/fingerprint after that read;
+// if it moved, re-prove once and then fail closed to the snapshot on churn.
+export async function readPlanningProjectionSafely({
+  planningSafety,
+  getPlanningSafety,
+  read,
+  maxAttempts = 2,
+} = {}) {
+  let safety = planningSafety;
+  const attempts = Math.max(1, Math.min(3, Number(maxAttempts) || 2));
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const repository = safety?.repository;
+    if (!repository || typeof read !== "function") throw new Error("Planning projection read is unavailable");
+    const verification = safety?.readVerification;
+    if (!verification || repository !== safety.primary) {
+      return { result: await read(repository), planningSafety: safety };
+    }
+
+    const result = await read(repository);
+    if (await isPlanningProjectionReadVerificationCurrent({
+      primary: safety.primary,
+      snapshot: safety.snapshot,
+      verification,
+    })) {
+      return { result, planningSafety: safety };
+    }
+
+    // Do not reuse a process cache after detecting movement during a real
+    // read.  The next check must produce a fresh cross-store proof.
+    planningPostgresParityCache = null;
+    if (typeof getPlanningSafety !== "function") break;
+    safety = await getPlanningSafety({ forceFullParity: true });
+  }
+
+  const fallbackSafety = withPlanningSnapshotFallback(
+    safety,
+    "Planning projection changed while its PostgreSQL read was verified",
+  );
+  return { result: await read(fallbackSafety.repository), planningSafety: fallbackSafety };
+}
+
+async function verifyPlanningProjectionBeforeWrite({ planningSafety, getPlanningSafety } = {}) {
+  let safety = planningSafety;
+  if (safety?.fallbackReason || safety?.repository !== safety?.primary || !safety?.readVerification) {
+    return withPlanningSnapshotFallback(safety, "Planning projection parity checkpoint is unavailable before write");
+  }
+  if (await isPlanningProjectionReadVerificationCurrent({
+    primary: safety.primary,
+    snapshot: safety.snapshot,
+    verification: safety.readVerification,
+  })) return safety;
+
+  planningPostgresParityCache = null;
+  if (typeof getPlanningSafety !== "function") {
+    return withPlanningSnapshotFallback(safety, "Planning projection changed before write");
+  }
+  safety = await getPlanningSafety({ forceFullParity: true });
+  if (safety?.fallbackReason || safety?.repository !== safety?.primary || !safety?.readVerification) {
+    return withPlanningSnapshotFallback(safety, "Planning projection changed before write");
+  }
+  return (await isPlanningProjectionReadVerificationCurrent({
+    primary: safety.primary,
+    snapshot: safety.snapshot,
+    verification: safety.readVerification,
+  }))
+    ? safety
+    : withPlanningSnapshotFallback(safety, "Planning projection changed before write");
+}
+
+function planningParityCacheKey({ filePath = "", primaryHealth = {}, snapshotHealth = {}, markerState = null } = {}) {
+  const snapshotPlanningFingerprint = getSnapshotPlanningFingerprint(snapshotHealth);
   return JSON.stringify({
     filePath: String(filePath || ""),
     primaryRevision: Number(primaryHealth.revision || 0),
     primaryUpdatedAt: String(primaryHealth.updatedAt || ""),
+    primaryProjectionRevision: Number(markerState?.primaryRevision || 0),
     snapshotRevision: Number(snapshotHealth.revision || 0),
     snapshotUpdatedAt: String(snapshotHealth.updatedAt || ""),
+    snapshotPlanningFingerprint,
   });
 }
 
@@ -199,12 +353,33 @@ async function inspectWorkOrderProjectionParity({ primary, snapshot } = {}) {
   if (parity.matches) {
     const details = await Promise.all(primaryList.items.map(async (item) => {
       const [primaryDetail, snapshotDetail] = await Promise.all([primary.get(item.id), snapshot.get(item.id)]);
-      return { id: item.id, mismatches: compareWorkOrderDetails(primaryDetail.item, snapshotDetail.item) };
+      return {
+        id: item.id,
+        primary: primaryDetail.item,
+        snapshot: snapshotDetail.item,
+        mismatches: compareWorkOrderDetails(primaryDetail.item, snapshotDetail.item),
+      };
     }));
-    const operationMismatches = details.filter((entry) => entry.mismatches.length);
-    if (operationMismatches.length) {
+    const missingDetails = details.filter((entry) => !entry.primary || !entry.snapshot);
+    const operationMismatches = details.filter((entry) => entry.primary && entry.snapshot && entry.mismatches.length);
+    if (missingDetails.length || operationMismatches.length) {
       parity.matches = false;
-      parity.mismatches = operationMismatches.slice(0, 20).map((entry) => ({ id: entry.id, operations: entry.mismatches.slice(0, 20) }));
+      parity.mismatches = [
+        ...missingDetails.slice(0, 20).map((entry) => ({ id: entry.id, reason: "detail-missing" })),
+        ...operationMismatches.slice(0, 20).map((entry) => ({ id: entry.id, operations: entry.mismatches.slice(0, 20) })),
+      ].slice(0, 20);
+    } else {
+      // The persistent marker must protect the same projection that the
+      // legacy planning runtime consumes.  Compare its canonical shape after
+      // granular diagnostics have passed; this covers fields such as labels,
+      // labour and rendering metadata without treating the independently
+      // generated `updatedAt` timestamp as a data conflict.
+      const primaryProjection = canonicalPlanningRuntimeProjection(details.map((entry) => entry.primary));
+      const snapshotProjection = canonicalPlanningRuntimeProjection(details.map((entry) => entry.snapshot));
+      if (stableJson(primaryProjection) !== stableJson(snapshotProjection)) {
+        parity.matches = false;
+        parity.mismatches = [{ reason: "runtime-projection" }];
+      }
     }
   }
   return { primary: primaryList, snapshot: snapshotList, parity };
@@ -222,6 +397,7 @@ export async function inspectPlanningProjectionSafety({
   filePath = "",
   createRepository = createWorkOrdersRepository,
   now = () => Date.now(),
+  forceFullParity = false,
 } = {}) {
   if (primaryHealth?.storageBackend !== "postgresql") {
     return {
@@ -251,14 +427,84 @@ export async function inspectPlanningProjectionSafety({
     };
   }
 
-  const cacheKey = planningParityCacheKey({ filePath, primaryHealth, snapshotHealth });
+  const markerSupported = typeof primary?.getPlanningProjectionParityState === "function"
+    && typeof primary?.markPlanningProjectionParity === "function";
+  let markerState = null;
+  if (markerSupported && getSnapshotPlanningFingerprint(snapshotHealth)) {
+    try {
+      markerState = await primary.getPlanningProjectionParityState();
+    } catch {
+      // A release may reach the application before its optional migration.
+      // Never trust an unavailable marker; the established full parity route
+      // below remains the safe fallback until the schema is ready.
+      markerState = null;
+    }
+  }
+
+  if (!forceFullParity && hasMatchingPlanningProjectionMarker(markerState, snapshotHealth)) {
+    return {
+      repository: primary,
+      primary,
+      primaryHealth,
+      snapshot,
+      snapshotHealth,
+      readVerification: createPlanningProjectionReadVerification(markerState, snapshotHealth),
+      parity: { matches: true, skipped: "verified-projection-marker", mismatches: [] },
+      fallbackReason: "",
+    };
+  }
+
+  const cacheKey = planningParityCacheKey({ filePath, primaryHealth, snapshotHealth, markerState });
   const cached = planningPostgresParityCache;
   let checked;
-  if (cached?.cacheKey === cacheKey && now() - cached.checkedAt < PLANNING_POSTGRES_PARITY_CACHE_TTL_MS) {
+  if (!forceFullParity && cached?.cacheKey === cacheKey && now() - cached.checkedAt < PLANNING_POSTGRES_PARITY_CACHE_TTL_MS) {
     checked = cached.checked;
   } else {
     try {
       checked = await inspectWorkOrderProjectionParity({ primary, snapshot });
+      // Persist a proof only if neither source changed while the expensive
+      // comparison was running.  The PostgreSQL epoch is trigger-maintained
+      // for every order/operation/slot write; the snapshot SHA covers the
+      // planning value independently from unrelated UI state changes.
+      if (checked.parity.matches && markerSupported && markerState && getSnapshotPlanningFingerprint(snapshotHealth)) {
+        const [primaryAfter, snapshotAfter] = await Promise.all([
+          primary.getPlanningProjectionParityState().catch(() => null),
+          snapshot.health().catch(() => null),
+        ]);
+        if (!primaryAfter || !snapshotAfter
+          || Number(primaryAfter.primaryRevision) !== Number(markerState.primaryRevision)
+          || getSnapshotPlanningFingerprint(snapshotAfter) !== getSnapshotPlanningFingerprint(snapshotHealth)) {
+          checked.parity = {
+            matches: false,
+            mismatches: [],
+            error: "Planning projection changed during parity verification",
+          };
+        } else {
+          // A full comparison is not sufficient on its own: the endpoint
+          // performs its eventual PostgreSQL read later.  Persist an atomic
+          // checkpoint now so that the read can revalidate the exact source
+          // pair afterwards.  If it cannot be written, select the safe
+          // snapshot instead of silently returning an unguarded primary.
+          const marked = await primary.markPlanningProjectionParity({
+            primaryRevision: markerState.primaryRevision,
+            snapshotFingerprint: getSnapshotPlanningFingerprint(snapshotHealth),
+            contractVersion: PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
+          }).catch(() => false);
+          if (!marked) {
+            checked.parity = {
+              matches: false,
+              mismatches: [],
+              error: "Planning projection parity checkpoint could not be persisted",
+            };
+          }
+        }
+      } else if (checked.parity.matches) {
+        checked.parity = {
+          matches: false,
+          mismatches: [],
+          error: "Planning projection parity checkpoint is unavailable",
+        };
+      }
     } catch (error) {
       checked = {
         primary: null,
@@ -274,14 +520,37 @@ export async function inspectPlanningProjectionSafety({
   }
 
   const fallbackReason = checked.parity.matches ? "" : PLANNING_POSTGRES_FALLBACK_REASON;
+  let verifiedMarkerState = null;
+  let verifiedSnapshotHealth = snapshotHealth;
+  if (!fallbackReason) {
+    [verifiedMarkerState, verifiedSnapshotHealth] = await Promise.all([
+      Promise.resolve().then(() => primary.getPlanningProjectionParityState()).catch(() => null),
+      snapshot.health().catch(() => null),
+    ]);
+  }
+  // Re-read both sides after the CAS marker write.  A direct PostgreSQL or
+  // legacy snapshot change that interleaves with the full proof must not be
+  // promoted to a trusted primary read.
+  const readVerification = fallbackReason
+    ? null
+    : createPlanningProjectionReadVerification(verifiedMarkerState, verifiedSnapshotHealth);
+  if (!fallbackReason && !readVerification) {
+    checked.parity = {
+      matches: false,
+      mismatches: [],
+      error: "Planning projection parity checkpoint is unavailable",
+    };
+  }
+  const finalFallbackReason = checked.parity.matches ? "" : PLANNING_POSTGRES_FALLBACK_REASON;
   return {
-    repository: fallbackReason ? snapshot : primary,
+    repository: finalFallbackReason ? snapshot : primary,
     primary,
     primaryHealth,
     snapshot,
     snapshotHealth,
+    readVerification: finalFallbackReason ? null : readVerification,
     parity: checked.parity,
-    fallbackReason,
+    fallbackReason: finalFallbackReason,
   };
 }
 
@@ -373,6 +642,21 @@ function buildPlanningRuntimeProjection(items = []) {
     }
   }
   return { routes, routeSteps, slots };
+}
+
+function canonicalPlanningRuntimeProjection(items = []) {
+  const projection = buildPlanningRuntimeProjection(items.filter(Boolean));
+  const byId = (left, right) => compareStableText(left?.id, right?.id);
+  return {
+    // PostgreSQL owns a physical updated_at timestamp while the compatibility
+    // snapshot preserves the client-side one.  It is not used to plan or
+    // render a route, so remove it before a structural projection proof.
+    routes: projection.routes
+      .map(({ updatedAt: _updatedAt, ...route }) => route)
+      .sort(byId),
+    routeSteps: projection.routeSteps.slice().sort(byId),
+    slots: projection.slots.slice().sort(byId),
+  };
 }
 
 function compareStableText(left, right) {
@@ -558,19 +842,20 @@ export async function handleDomainApiRequest(req, res, url, {
     return true;
   }
   const health = await workOrders.health();
-  const meta = { apiVersion: "v1", ...health };
+  const meta = { apiVersion: "v1", ...getPublicDomainHealth(health) };
   // Build the parity result only for a planning-sensitive route and reuse it
   // within that request. The shared helper additionally caches its bounded
   // diagnostic comparison across requests.
   let planningSafetyPromise = null;
-  const getPlanningSafety = () => {
-    if (!planningSafetyPromise) {
+  const getPlanningSafety = ({ forceFullParity = false } = {}) => {
+    if (forceFullParity || !planningSafetyPromise) {
       planningSafetyPromise = inspectPlanningProjectionSafety({
         primary: workOrders,
         primaryHealth: health,
         env,
         filePath,
         createRepository: workOrdersRepositoryFactory,
+        forceFullParity,
       });
     }
     return planningSafetyPromise;
@@ -634,9 +919,14 @@ export async function handleDomainApiRequest(req, res, url, {
 
   if (isDomainReadinessRead) {
     const databaseUrl = env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "";
-    const planningSafety = await getPlanningSafety();
-    const workOrderReadRepository = planningSafety.repository || workOrders;
-    const workOrderSummary = await workOrderReadRepository.summary();
+    let planningSafety = await getPlanningSafety();
+    const guardedSummary = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: (repository) => repository.summary(),
+    });
+    planningSafety = guardedSummary.planningSafety;
+    const workOrderSummary = guardedSummary.result;
     const scheduledOperationCount = Number(workOrderSummary?.summary?.scheduledOperationCount || 0);
     const readiness = {
       workOrders: {
@@ -1089,7 +1379,7 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 server command requires PostgreSQL as the primary work-order authority" });
       return true;
     }
-    const planningSafety = await getPlanningSafety();
+    let planningSafety = await getPlanningSafety();
     if (planningSafety.fallbackReason) {
       sendPlanningWriteParityConflict(res, headers, planningSafety);
       return true;
@@ -1110,6 +1400,11 @@ export async function handleDomainApiRequest(req, res, url, {
     const quantity = Number(payload.quantity);
     if (!routeSourceDraftId || !idempotencyKey || idempotencyKey.length > 160 || !Number.isFinite(quantity) || quantity <= 0) {
       sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "routeSourceDraftId, positive quantity and idempotency key are required" });
+      return true;
+    }
+    planningSafety = await verifyPlanningProjectionBeforeWrite({ planningSafety, getPlanningSafety });
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
       return true;
     }
     let command;
@@ -1157,8 +1452,14 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (url.pathname === `${API_PREFIX}/planning/work-orders`) {
-    const planningSafety = await getPlanningSafety();
-    const result = await planningSafety.repository.list();
+    let planningSafety = await getPlanningSafety();
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: (repository) => repository.list(),
+    });
+    planningSafety = guardedRead.planningSafety;
+    const result = guardedRead.result;
     const payload = withPlanningFallback({ ok: true, apiVersion: "v1", ...result }, planningSafety);
     const etag = getPlanningResponseEtag(result.revision, planningSafety);
     if (matchesEtag(req, etag)) {
@@ -1170,11 +1471,16 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (url.pathname === `${API_PREFIX}/planning/work-orders/summary`) {
-    const planningSafety = await getPlanningSafety();
-    const planningReadRepository = planningSafety.repository;
-    const result = typeof planningReadRepository.summary === "function"
-      ? await planningReadRepository.summary()
-      : (() => { throw new Error("Work-order repository does not support summary projection"); })();
+    let planningSafety = await getPlanningSafety();
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: (repository) => typeof repository.summary === "function"
+        ? repository.summary()
+        : (() => { throw new Error("Work-order repository does not support summary projection"); })(),
+    });
+    planningSafety = guardedRead.planningSafety;
+    const result = guardedRead.result;
     const payload = withPlanningFallback({
       ok: true,
       apiVersion: "v1",
@@ -1195,10 +1501,18 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (url.pathname === `${API_PREFIX}/planning/work-orders/projection`) {
-    const planningSafety = await getPlanningSafety();
-    const planningReadRepository = planningSafety.repository;
-    const listed = await planningReadRepository.list();
-    const details = await Promise.all(listed.items.map(async (item) => (await planningReadRepository.get(item.id)).item));
+    let planningSafety = await getPlanningSafety();
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: async (repository) => {
+        const listed = await repository.list();
+        const details = await Promise.all(listed.items.map(async (item) => (await repository.get(item.id)).item));
+        return { listed, details };
+      },
+    });
+    planningSafety = guardedRead.planningSafety;
+    const { listed, details } = guardedRead.result;
     const projection = buildPlanningRuntimeProjection(details.filter(Boolean));
     const payload = withPlanningFallback({ ok: true, apiVersion: "v1", storageMode: listed.storageMode, storageBackend: listed.storageBackend, revision: listed.revision, updatedAt: listed.updatedAt, projection }, planningSafety);
     const etag = getPlanningResponseEtag(listed.revision, planningSafety);
@@ -1211,28 +1525,37 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (isPlanningPeriodRead) {
-    const planningSafety = await getPlanningSafety();
-    const planningReadRepository = planningSafety.repository;
+    let planningSafety = await getPlanningSafety();
     // PostgreSQL exposes a native bounded join for this read. It avoids the
     // former list() + per-order get() fan-out while preserving the established
     // aggregate-shaped projection. Snapshot fallback deliberately retains the
     // generic route until it implements the same optional capability.
-    const periodResult = typeof planningReadRepository.listPeriod === "function"
-      ? await planningReadRepository.listPeriod({
-        fromAt: new Date(planningPeriod.from.time).toISOString(),
-        toAt: new Date(planningPeriod.to.time).toISOString(),
-      })
-      : null;
-    const listed = periodResult || await planningReadRepository.list();
-    const details = periodResult
-      ? periodResult.items
-      : await Promise.all(
-        // List rows expose a scheduled-operation count, so do not fetch an
-        // aggregate that cannot possibly contribute to this calendar slice.
-        listed.items
-          .filter((item) => Number(item?.scheduledOperationCount || 0) > 0)
-          .map(async (item) => (await planningReadRepository.get(item.id)).item),
-      );
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: async (repository) => {
+        const periodResult = typeof repository.listPeriod === "function"
+          ? await repository.listPeriod({
+            fromAt: new Date(planningPeriod.from.time).toISOString(),
+            toAt: new Date(planningPeriod.to.time).toISOString(),
+          })
+          : null;
+        const listed = periodResult || await repository.list();
+        const details = periodResult
+          ? periodResult.items
+          : await Promise.all(
+            // List rows expose a scheduled-operation count, so do not fetch
+            // an aggregate that cannot possibly contribute to this calendar
+            // slice.
+            listed.items
+              .filter((item) => Number(item?.scheduledOperationCount || 0) > 0)
+              .map(async (item) => (await repository.get(item.id)).item),
+          );
+        return { listed, details };
+      },
+    });
+    planningSafety = guardedRead.planningSafety;
+    const { listed, details } = guardedRead.result;
     const projection = buildPlanningPeriodProjection(details.filter(Boolean), planningPeriod);
     const payload = withPlanningFallback({
       ok: true,
@@ -1254,14 +1577,24 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (slotMatch && isSlotPatch) {
-    const planningSafety = await getPlanningSafety();
+    let planningSafety = await getPlanningSafety();
     if (planningSafety.fallbackReason) {
       sendPlanningWriteParityConflict(res, headers, planningSafety);
       return true;
     }
     const id = decodeURIComponent(slotMatch[1]);
     const operationId = decodeURIComponent(slotMatch[2]);
-    const detail = await workOrders.get(id);
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: (repository) => repository.get(id),
+    });
+    planningSafety = guardedRead.planningSafety;
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
+    const detail = guardedRead.result;
     if (!detail.item) {
       sendJson(res, headers, 404, { ok: false, ...meta, error: "Work order was not found" });
       return true;
@@ -1281,6 +1614,11 @@ export async function handleDomainApiRequest(req, res, url, {
     }
     if (!plannedStart || Number.isNaN(new Date(plannedStart).getTime()) || !Number.isInteger(expected.value)) {
       sendJson(res, headers, 400, { ok: false, ...meta, error: "plannedStart and expectedRevision are required" });
+      return true;
+    }
+    planningSafety = await verifyPlanningProjectionBeforeWrite({ planningSafety, getPlanningSafety });
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
       return true;
     }
     try {
@@ -1311,14 +1649,23 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (orderMatch) {
-    const planningSafety = await getPlanningSafety();
+    let planningSafety = await getPlanningSafety();
     if (isOrderPatch && planningSafety.fallbackReason) {
       sendPlanningWriteParityConflict(res, headers, planningSafety);
       return true;
     }
     const id = decodeURIComponent(orderMatch[1]);
-    const planningReadRepository = planningSafety.repository;
-    const detail = await planningReadRepository.get(id);
+    const guardedRead = await readPlanningProjectionSafely({
+      planningSafety,
+      getPlanningSafety,
+      read: (repository) => repository.get(id),
+    });
+    planningSafety = guardedRead.planningSafety;
+    if (isOrderPatch && planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
+    const detail = guardedRead.result;
     if (!detail.item) {
       sendJson(res, headers, 404, { ok: false, ...meta, error: "Work order was not found" });
       return true;
@@ -1339,6 +1686,11 @@ export async function handleDomainApiRequest(req, res, url, {
       }
       if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(expected.value)) {
         sendJson(res, headers, 400, { ok: false, ...meta, error: "quantity and expectedRevision are required" });
+        return true;
+      }
+      planningSafety = await verifyPlanningProjectionBeforeWrite({ planningSafety, getPlanningSafety });
+      if (planningSafety.fallbackReason) {
+        sendPlanningWriteParityConflict(res, headers, planningSafety);
         return true;
       }
       const updated = await workOrders.changeQuantity(id, { quantity, expectedRevision: expected.value });

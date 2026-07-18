@@ -37,6 +37,8 @@ const specifications2AttachmentsMigrationPath = fileURLToPath(new URL("../db/mig
 const specifications2AttachmentsSql = await readFile(specifications2AttachmentsMigrationPath, "utf-8");
 const planningPeriodOverlapIndexMigrationPath = fileURLToPath(new URL("../db/migrations/020_planning_period_overlap_index.sql", import.meta.url));
 const planningPeriodOverlapIndexSql = await readFile(planningPeriodOverlapIndexMigrationPath, "utf-8");
+const planningParityWatermarkMigrationPath = fileURLToPath(new URL("../db/migrations/021_planning_projection_parity_watermark.sql", import.meta.url));
+const planningParityWatermarkSql = await readFile(planningParityWatermarkMigrationPath, "utf-8");
 
 [
   "CREATE TABLE IF NOT EXISTS work_orders",
@@ -153,4 +155,14 @@ assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(specifications2AttachmentsSql), "
   "INSERT INTO mes_schema_migrations(version) VALUES ('020_planning_period_overlap_index')",
 ].forEach((fragment) => assert(planningPeriodOverlapIndexSql.includes(fragment), `Planning period overlap-index migration is missing: ${fragment}`));
 assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningPeriodOverlapIndexSql), "Planning period overlap-index migration must not contain destructive statements");
+[
+  "CREATE TABLE IF NOT EXISTS planning_projection_parity_state",
+  "CREATE OR REPLACE FUNCTION mes_bump_planning_projection_parity_revision",
+  "verified_contract_version INTEGER NOT NULL DEFAULT 0",
+  "AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON work_orders",
+  "AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON work_order_operations",
+  "AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON planning_slots",
+  "INSERT INTO mes_schema_migrations(version)\nVALUES ('021_planning_projection_parity_watermark')",
+].forEach((fragment) => assert(planningParityWatermarkSql.includes(fragment), `Planning parity-watermark migration is missing: ${fragment}`));
+assert(!/DROP\s+(TABLE|DATABASE|SCHEMA)/i.test(planningParityWatermarkSql), "Planning parity-watermark migration must not contain destructive statements");
 console.log("Domain schema QA: OK");

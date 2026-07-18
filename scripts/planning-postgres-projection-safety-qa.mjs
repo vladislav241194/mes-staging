@@ -54,7 +54,7 @@ function makeItem(resourceId) {
   };
 }
 
-function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes, nativePeriodReads = null }) {
+function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes, nativePeriodReads = null, markerRef = null, hooks = {} }) {
   const metadata = { storageMode, storageBackend, configured: true };
   const listProjection = () => {
     const item = itemRef.current;
@@ -90,6 +90,7 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
       };
     },
     async get(id) {
+      await hooks.onGet?.();
       const item = String(id) === "route-1" || String(id) === "WO-001" ? itemRef.current : null;
       return { ...metadata, ...health.current, item };
     },
@@ -107,6 +108,19 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
     repository.listPeriod = async () => {
       nativePeriodReads.count += 1;
       return { ...metadata, ...health.current, items: [itemRef.current] };
+    };
+  }
+  if (markerRef) {
+    repository.getPlanningProjectionParityState = async () => ({ ...markerRef.current });
+    repository.markPlanningProjectionParity = async ({ primaryRevision, snapshotFingerprint, contractVersion }) => {
+      if (Number(primaryRevision) !== Number(markerRef.current.primaryRevision)) return false;
+      markerRef.current = {
+        ...markerRef.current,
+        verifiedPrimaryRevision: Number(primaryRevision),
+        verifiedSnapshotFingerprint: String(snapshotFingerprint),
+        verifiedContractVersion: Number(contractVersion),
+      };
+      return true;
     };
   }
   return repository;
@@ -135,13 +149,20 @@ async function request(pathname, { method = "GET", body = null, headers = {} } =
 }
 
 const primaryHealth = { current: { revision: 4, updatedAt: "2026-07-18T08:00:00.000Z" } };
-const snapshotHealth = { current: { revision: 7, updatedAt: "2026-07-18T08:01:00.000Z" } };
+const snapshotHealth = { current: { revision: 7, updatedAt: "2026-07-18T08:01:00.000Z", planningProjectionFingerprint: "sha256:snapshot-a" } };
 const primaryItem = { current: makeItem("resource-D3_L1-matrix-missing") };
 const snapshotItem = { current: makeItem("") };
 const writes = { quantity: 0, slot: 0 };
 const primaryPeriodReads = { count: 0 };
+const markerRef = { current: {
+  primaryRevision: 4,
+  verifiedPrimaryRevision: null,
+  verifiedSnapshotFingerprint: "",
+  verifiedContractVersion: 0,
+} };
+const primaryHooks = {};
 const primary = createFixtureRepository({
-  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes, nativePeriodReads: primaryPeriodReads,
+  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes, nativePeriodReads: primaryPeriodReads, markerRef, hooks: primaryHooks,
 });
 const snapshot = createFixtureRepository({
   storageMode: "snapshot-adapter", storageBackend: "shared-state", health: snapshotHealth, itemRef: snapshotItem, writes,
@@ -208,7 +229,8 @@ assert(readiness.json.readiness?.workOrders?.fallbackReason === "postgres-projec
 // again, without requiring a process restart.
 primaryItem.current = makeItem("");
 primaryHealth.current = { revision: 5, updatedAt: "2026-07-18T08:02:00.000Z" };
-snapshotHealth.current = { revision: 8, updatedAt: "2026-07-18T08:02:00.000Z" };
+markerRef.current = { ...markerRef.current, primaryRevision: 5 };
+snapshotHealth.current = { revision: 8, updatedAt: "2026-07-18T08:02:00.000Z", planningProjectionFingerprint: "sha256:snapshot-b" };
 const recoveredList = await request("/api/v1/planning/work-orders");
 assert(recoveredList.statusCode === 200 && !recoveredList.json.fallbackReason, "parity recovery must restore the configured PostgreSQL read path");
 assert(recoveredList.json.storageMode === "postgres", "healthy PostgreSQL must retain its normal read path");
@@ -216,5 +238,23 @@ assert(recoveredList.json.storageMode === "postgres", "healthy PostgreSQL must r
 const recoveredPeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19");
 assert(recoveredPeriod.statusCode === 200 && !recoveredPeriod.json.fallbackReason, "healthy PostgreSQL period read must keep the normal authority");
 assert(primaryPeriodReads.count === 1, "healthy PostgreSQL period read must use the native bounded repository capability");
+
+// The same marker revalidation also protects a command's pre-read. A direct
+// planning mutation that lands after the route's initial marker check must
+// turn the PATCH into a parity conflict instead of starting a new write.
+let mutateDuringCommandRead = true;
+primaryHooks.onGet = async () => {
+  if (!mutateDuringCommandRead) return;
+  mutateDuringCommandRead = false;
+  primaryItem.current = makeItem("resource-primary-changed-during-command");
+  markerRef.current = { ...markerRef.current, primaryRevision: 6 };
+};
+const protectedWrite = await request("/api/v1/planning/work-orders/WO-001", {
+  method: "PATCH",
+  body: { quantity: 20, expectedRevision: 3 },
+});
+assert(protectedWrite.statusCode === 409 && protectedWrite.json.fallbackReason === "postgres-projection-stale", "a marker move during PATCH pre-read must reject the command");
+assert(writes.quantity === 0, "a command must not execute after its parity proof moved");
+primaryHooks.onGet = null;
 
 console.log("Planning PostgreSQL projection safety QA: OK");

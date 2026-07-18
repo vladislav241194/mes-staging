@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readSharedStateSnapshot, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
 
 export const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
@@ -14,6 +15,8 @@ const PLANNING_LIST_METADATA_FIELDS = [
 // object, otherwise every domain GET reparses a multi-megabyte JSON string.
 let cachedPlanningSnapshot = null;
 let cachedPlanningModel = null;
+let cachedPlanningFingerprintSnapshot = null;
+let cachedPlanningFingerprint = "";
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
@@ -143,6 +146,20 @@ function readModel(snapshot = {}) {
   return model;
 }
 
+// The proof used by the PostgreSQL/snapshot parity guard must reflect exactly
+// the compatibility planning payload, not the whole shared UI snapshot.  The
+// file/KV adapter already retains an unchanged snapshot object, so the digest
+// is calculated only after a real snapshot replacement instead of on every
+// planning API request.
+function planningProjectionFingerprint(snapshot = {}) {
+  if (snapshot === cachedPlanningFingerprintSnapshot && cachedPlanningFingerprint) return cachedPlanningFingerprint;
+  const planning = snapshot?.values?.[PLANNING_STATE_KEY];
+  const serialized = typeof planning === "string" ? planning : JSON.stringify(planning ?? null);
+  cachedPlanningFingerprint = `sha256:${createHash("sha256").update(serialized).digest("hex")}`;
+  cachedPlanningFingerprintSnapshot = snapshot;
+  return cachedPlanningFingerprint;
+}
+
 function metaFromSnapshot({ configured, kind, snapshot }) {
   return {
     storageMode: "snapshot-adapter",
@@ -194,7 +211,13 @@ export function createWorkOrdersRepository({ env = process.env, filePath = "" } 
 
   return {
     async health() {
-      return metaFromSnapshot(await read());
+      const state = await read();
+      return {
+        ...metaFromSnapshot(state),
+        // This is intentionally an internal repository capability.  Other
+        // read methods keep the public snapshot contract unchanged.
+        planningProjectionFingerprint: planningProjectionFingerprint(state.snapshot),
+      };
     },
 
     async list() {

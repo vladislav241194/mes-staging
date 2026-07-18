@@ -45,7 +45,11 @@ const ALLOWED_SHARED_UI_KEYS = new Set([
 const FILE_SNAPSHOT_CACHE = new Map();
 
 function getFileFingerprint(fileStat) {
-  return `${Number(fileStat?.size || 0)}:${Number(fileStat?.mtimeMs || 0)}`;
+  // Size + mtime alone can survive an out-of-band restore.  Include the
+  // platform file identity and ctime as well, so the process cache cannot
+  // serve an older planning snapshot after an atomic replacement that keeps
+  // the visible timestamp and byte size.
+  return `${Number(fileStat?.dev || 0)}:${Number(fileStat?.ino || 0)}:${Number(fileStat?.size || 0)}:${Number(fileStat?.mtimeMs || 0)}:${Number(fileStat?.ctimeMs || 0)}`;
 }
 
 async function readFileSnapshot(filePath) {

@@ -59,6 +59,7 @@ try {
 
   const health = await request(filePath, "/api/v1/health");
   assert(health.handled && health.statusCode === 200 && health.json.revision === 7, "health endpoint must expose storage revision");
+  assert(!Object.hasOwn(health.json, "planningProjectionFingerprint"), "health endpoint must not expose the internal planning parity fingerprint");
   const readiness = await request(filePath, "/api/v1/domain-readiness");
   assert(readiness.statusCode === 200 && readiness.json.status === "attention", "domain readiness must report a partial snapshot migration without hiding unavailable domains");
   assert(readiness.json.readiness?.workOrders?.ready === false && /DATABASE_URL/.test(readiness.json.readiness?.systemDomains?.error || ""), "domain readiness must expose the exact unavailable server domains");

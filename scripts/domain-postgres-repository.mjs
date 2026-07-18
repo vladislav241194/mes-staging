@@ -218,11 +218,62 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
   return {
     async health() {
       const [orders, migrations] = await Promise.all([
-        sql`SELECT aggregate_revision, updated_at FROM work_orders`,
+        sql`
+          SELECT COALESCE(max(aggregate_revision), 0) AS revision,
+            max(updated_at) AS updated_at
+          FROM work_orders
+        `,
         sql`SELECT max(applied_at) AS updated_at FROM mes_schema_migrations`,
       ]);
-      const current = listMetadata(orders);
-      return { ...metadata, revision: current.revision, updatedAt: current.updatedAt || migrations[0]?.updated_at?.toISOString?.() || "" };
+      const current = orders[0] || {};
+      return {
+        ...metadata,
+        revision: Number(current.revision || 0),
+        updatedAt: current.updated_at?.toISOString?.() || String(current.updated_at || migrations[0]?.updated_at?.toISOString?.() || ""),
+      };
+    },
+
+    // A one-row, trigger-maintained parity watermark.  The API only trusts a
+    // verified snapshot fingerprint when it matches this exact primary epoch;
+    // any direct PostgreSQL edit to orders, operations or slots invalidates it
+    // before the next read.
+    async getPlanningProjectionParityState() {
+      const rows = await sql`
+        SELECT primary_revision, primary_updated_at,
+          verified_primary_revision, verified_snapshot_fingerprint,
+          verified_contract_version, verified_at
+        FROM planning_projection_parity_state
+        WHERE singleton = TRUE
+        LIMIT 1
+      `;
+      const row = rows[0] || null;
+      return row ? {
+        primaryRevision: Number(row.primary_revision || 0),
+        primaryUpdatedAt: row.primary_updated_at?.toISOString?.() || String(row.primary_updated_at || ""),
+        verifiedPrimaryRevision: row.verified_primary_revision === null || row.verified_primary_revision === undefined
+          ? null : Number(row.verified_primary_revision),
+        verifiedSnapshotFingerprint: String(row.verified_snapshot_fingerprint || ""),
+        verifiedContractVersion: Number(row.verified_contract_version || 0),
+        verifiedAt: row.verified_at?.toISOString?.() || String(row.verified_at || ""),
+      } : null;
+    },
+
+    async markPlanningProjectionParity({ primaryRevision, snapshotFingerprint, contractVersion } = {}) {
+      const revision = Math.max(0, Number(primaryRevision) || 0);
+      const fingerprint = String(snapshotFingerprint || "").trim();
+      const parityContractVersion = Math.max(1, Number(contractVersion) || 0);
+      if (!fingerprint) return false;
+      const rows = await sql`
+        UPDATE planning_projection_parity_state
+        SET verified_primary_revision = ${revision},
+            verified_snapshot_fingerprint = ${fingerprint},
+            verified_contract_version = ${parityContractVersion},
+            verified_at = now()
+        WHERE singleton = TRUE
+          AND primary_revision = ${revision}
+        RETURNING primary_revision
+      `;
+      return Boolean(rows[0]);
     },
 
     async list() {
