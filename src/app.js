@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.33";
+const APP_VERSION_FALLBACK = "v.1.499.34";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -575,7 +575,9 @@ function getWeeklyPlanningTableSlotRows({ weekStart, weekEnd } = {}) {
   // An empty array is a valid server answer for the requested week. Only
   // null means the asynchronous period slice is not available yet, in which
   // case the legacy in-memory projection remains the safe fallback.
-  if (weeklyPlanningPeriodState.key === key && Array.isArray(weeklyPlanningPeriodState.rows)) {
+  if (weeklyPlanningPeriodState.key === key
+    && Array.isArray(weeklyPlanningPeriodState.rows)
+    && !weeklyPlanningPeriodState.preferLocal) {
     return weeklyPlanningPeriodState.rows;
   }
   return getPlanningTableSlotRows();
@@ -1069,8 +1071,21 @@ let weeklyProductionControlRuntimeLoad = null;
 let weeklyProductionControlRuntimeError = null;
 let planningPeriodReadModel = null;
 let buildWeeklyPlanningPeriodRows = null;
+let weeklyPlanningRowsEquivalent = null;
 let weeklyPlanningPeriodModuleLoad = null;
-let weeklyPlanningPeriodState = { key: "", rows: null, loading: false, stale: false, epoch: 0, error: "", fallbackReason: "" };
+let weeklyPlanningPeriodState = {
+  key: "",
+  rows: null,
+  loading: false,
+  stale: false,
+  // A local planning write remains visible until the bounded server answer
+  // proves it contains the same rows. A stale HTTP 304 must not hide a
+  // just-saved compatibility-state change.
+  preferLocal: false,
+  epoch: 0,
+  error: "",
+  fallbackReason: "",
+};
 let weeklyPlanningPeriodRefreshTimer = null;
 
 const weeklyProductionControlLoadingInstance = Object.freeze({
@@ -1274,10 +1289,11 @@ function ensureWeeklyPlanningPeriodModule() {
     import("./modules/weekly_production_control/planning_period_rows.js"),
   ]).then(([
     { createPlanningPeriodReadModel },
-    { buildWeeklyPlanningPeriodRows: buildRows },
+    { buildWeeklyPlanningPeriodRows: buildRows, weeklyPlanningRowsEquivalent: compareRows },
   ]) => {
     planningPeriodReadModel = createPlanningPeriodReadModel();
     buildWeeklyPlanningPeriodRows = buildRows;
+    weeklyPlanningRowsEquivalent = compareRows;
     return true;
   }).catch((error) => {
     weeklyPlanningPeriodModuleLoad = null;
@@ -1318,9 +1334,32 @@ function scheduleWeeklyPlanningPeriodRefresh(bounds) {
 }
 
 function invalidateWeeklyPlanningPeriod() {
-  if (!weeklyPlanningPeriodState.key) return;
-  weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, stale: true, epoch: Number(weeklyPlanningPeriodState.epoch || 0) + 1 };
-  if (ui?.activeModule === "weeklyProductionControl") hydrateWeeklyPlanningPeriod();
+  weeklyPlanningPeriodState = {
+    ...weeklyPlanningPeriodState,
+    stale: true,
+    preferLocal: true,
+    epoch: Number(weeklyPlanningPeriodState.epoch || 0) + 1,
+  };
+  if (ui?.activeModule === "weeklyProductionControl") {
+    // Switch to the compatibility snapshot immediately; the server refresh is
+    // background-only and must never hide a just-written local value.
+    render({ skipRememberScroll: true });
+    hydrateWeeklyPlanningPeriod();
+  }
+}
+
+function getWeeklyPlanningLocalRows(bounds = {}) {
+  const from = toDate(bounds.fromAt || bounds.from);
+  const to = toDate(bounds.toAt || bounds.to);
+  if (!Number.isFinite(from?.getTime?.()) || !Number.isFinite(to?.getTime?.()) || to <= from) return [];
+  return getPlanningTableSlotRows().filter((row) => {
+    const start = toDate(row?.plannedStart);
+    const end = toDate(row?.plannedEnd);
+    return Number.isFinite(start?.getTime?.())
+      && Number.isFinite(end?.getTime?.())
+      && start < to
+      && end > from;
+  });
 }
 
 function setPlanningStateAndInvalidate(nextState) {
@@ -1344,6 +1383,7 @@ function hydrateWeeklyPlanningPeriod() {
   const hadRows = Array.isArray(weeklyPlanningPeriodState.rows) && weeklyPlanningPeriodState.key === bounds.key;
   const requestEpoch = Number(weeklyPlanningPeriodState.epoch || 0);
   const force = weeklyPlanningPeriodState.stale;
+  const preferLocalBeforeRefresh = Boolean(weeklyPlanningPeriodState.preferLocal);
   weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, key: bounds.key, loading: true, error: "" };
   void ensureWeeklyPlanningPeriodModule().then((ready) => ready
     ? planningPeriodReadModel.refresh({ ...bounds, force })
@@ -1363,21 +1403,31 @@ function hydrateWeeklyPlanningPeriod() {
       return;
     }
     const lookups = getWeeklyPlanningPeriodLookups();
+    const rows = buildWeeklyPlanningPeriodRows(result.projection, {
+      toDate,
+      mapWorkCenterId: mapLegacyWorkCenterId,
+      ...lookups,
+    });
+    // A 304 only means the server answer did not change; it does not prove
+    // that an asynchronous snapshot sync already contains the local write.
+    // Accept the compact response again only after its visible weekly rows
+    // match the in-memory compatibility projection.
+    const preferLocal = preferLocalBeforeRefresh
+      && !(typeof weeklyPlanningRowsEquivalent === "function"
+        && weeklyPlanningRowsEquivalent(rows, getWeeklyPlanningLocalRows(bounds), { toDate }));
     weeklyPlanningPeriodState = {
       key: bounds.key,
-      rows: buildWeeklyPlanningPeriodRows(result.projection, {
-        toDate,
-        mapWorkCenterId: mapLegacyWorkCenterId,
-        ...lookups,
-      }),
+      rows,
       loading: false,
       stale: false,
+      preferLocal,
       epoch: requestEpoch,
       error: "",
       fallbackReason: String(result.fallbackReason || ""),
     };
     scheduleWeeklyPlanningPeriodRefresh(bounds);
-    if ((!hadRows || result.changed) && ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
+    if ((!hadRows || result.changed || preferLocalBeforeRefresh !== preferLocal)
+      && ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
   }).catch(() => {
     if (weeklyPlanningPeriodState.key !== bounds.key) return;
     weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true, error: "Weekly planning period API is unavailable" };
