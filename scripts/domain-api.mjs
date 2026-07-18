@@ -15,7 +15,7 @@ const MAX_PLANNING_PERIOD_DAYS = 31;
 const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 // Bump this whenever fields included in planning parity change.  A durable
 // marker from an earlier contract must never be used to skip a newer proof.
-const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 3;
+const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 4;
 const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
 let planningPostgresParityCache = null;
 
@@ -190,7 +190,13 @@ function compareWorkOrderDetails(primary = {}, snapshot = {}) {
       // Omitting start/end would allow a moved operation to be treated as a
       // healthy PostgreSQL projection indefinitely.
       ["id", "plannedStart", "plannedEnd", "status", "isLocked"].forEach((field) => {
-        if (String(primarySlot[field] || "") !== String(snapshotSlot[field] || "")) differing.push(`slot.${field}`);
+        const primaryValue = field === "plannedStart" || field === "plannedEnd"
+          ? normalizePlanningParityInstant(primarySlot[field])
+          : String(primarySlot[field] || "");
+        const snapshotValue = field === "plannedStart" || field === "plannedEnd"
+          ? normalizePlanningParityInstant(snapshotSlot[field])
+          : String(snapshotSlot[field] || "");
+        if (primaryValue !== snapshotValue) differing.push(`slot.${field}`);
       });
     }
     if (differing.length) mismatches.push({ operationId: key, fields: differing });
@@ -198,6 +204,18 @@ function compareWorkOrderDetails(primary = {}, snapshot = {}) {
   }
   for (const key of snapshotById.keys()) mismatches.push({ operationId: key, reason: "missing-in-primary" });
   return mismatches;
+}
+
+// Legacy planning writes wall-clock values without an explicit offset, while
+// the PostgreSQL projection stores the same instant as TIMESTAMPTZ and returns
+// canonical UTC ISO.  Parity must compare instants rather than their textual
+// representation.  Invalid values intentionally stay textual: a malformed
+// snapshot value can never silently become equal to a different value.
+function normalizePlanningParityInstant(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const timestamp = Date.parse(raw);
+  return Number.isNaN(timestamp) ? raw : new Date(timestamp).toISOString();
 }
 
 function getSnapshotPlanningFingerprint(snapshotHealth = {}) {
@@ -655,7 +673,13 @@ function canonicalPlanningRuntimeProjection(items = []) {
       .map(({ updatedAt: _updatedAt, ...route }) => route)
       .sort(byId),
     routeSteps: projection.routeSteps.slice().sort(byId),
-    slots: projection.slots.slice().sort(byId),
+    slots: projection.slots
+      .map((slot) => ({
+        ...slot,
+        plannedStart: normalizePlanningParityInstant(slot.plannedStart),
+        plannedEnd: normalizePlanningParityInstant(slot.plannedEnd),
+      }))
+      .sort(byId),
   };
 }
 

@@ -4,7 +4,11 @@ function assert(value, message) {
   if (!value) throw new Error(message);
 }
 
-function makeItem({ plannedStart = "2026-07-18T08:00:00.000Z", updatedAt = "2026-07-18T08:00:00.000Z" } = {}) {
+function makeItem({
+  plannedStart = "2026-07-18T08:00:00.000Z",
+  plannedEnd = "2026-07-18T09:00:00.000Z",
+  updatedAt = "2026-07-18T08:00:00.000Z",
+} = {}) {
   return {
     id: "route-1",
     number: "WO-001",
@@ -33,7 +37,7 @@ function makeItem({ plannedStart = "2026-07-18T08:00:00.000Z", updatedAt = "2026
       slot: {
         id: "slot-1",
         plannedStart,
-        plannedEnd: "2026-07-18T09:00:00.000Z",
+        plannedEnd,
         status: "planned",
         quantity: 10,
         isLocked: false,
@@ -103,8 +107,12 @@ function createRepository({ backend, itemRef, healthRef, counters, markerRef = n
   return repository;
 }
 
-const primaryItem = { current: makeItem({ updatedAt: "2026-07-18T08:00:00.000Z" }) };
-const snapshotItem = { current: makeItem({ updatedAt: "2026-07-18T08:00:00.123Z" }) };
+const snapshotLocalStart = "2026-07-18T08:00:00";
+const snapshotLocalEnd = "2026-07-18T09:00:00";
+const primaryUtcStart = new Date(snapshotLocalStart).toISOString();
+const primaryUtcEnd = new Date(snapshotLocalEnd).toISOString();
+const primaryItem = { current: makeItem({ plannedStart: primaryUtcStart, plannedEnd: primaryUtcEnd, updatedAt: "2026-07-18T08:00:00.000Z" }) };
+const snapshotItem = { current: makeItem({ plannedStart: snapshotLocalStart, plannedEnd: snapshotLocalEnd, updatedAt: "2026-07-18T08:00:00.123Z" }) };
 const primaryHealth = { current: { revision: 4, updatedAt: "2026-07-18T08:00:00.000Z" } };
 const snapshotHealth = {
   current: {
@@ -139,14 +147,17 @@ async function inspect(filePath) {
   });
 }
 
+// Legacy strings intentionally omit an offset, while PostgreSQL returns the
+// same instant in canonical UTC.  Both granular details and the reconstructed
+// runtime projection must treat that representation-only difference as equal.
 // First visit has no proof: it must perform the full comparison and write an
 // epoch/fingerprint checkpoint only after it succeeds.
 const first = await inspect("planning-parity-watermark-initial");
-assert(first.repository === primary && first.parity.matches, "matching initial projections must use PostgreSQL");
+assert(first.repository === primary && first.parity.matches, "equivalent local and UTC slot timestamps must use PostgreSQL");
 assert(first.readVerification?.primaryRevision === 7, "successful full proof must bind a verification token to the primary epoch");
 assert(primaryCounters.list === 1 && primaryCounters.get === 1, "initial proof must execute aggregate list/detail reads");
 assert(markerRef.current.verifiedPrimaryRevision === 7 && markerRef.current.verifiedSnapshotFingerprint === "sha256:planning-a", "successful proof must persist the exact epoch and planning fingerprint");
-assert(markerRef.current.verifiedContractVersion === 3, "marker must bind the current parity contract");
+assert(markerRef.current.verifiedContractVersion === 4, "marker must bind the current parity contract");
 
 // An unrelated shared-state version bump must not re-run full parity: only the
 // planning payload fingerprint participates in the durable checkpoint.
@@ -195,7 +206,7 @@ markerRef.current = {
   primaryRevision: 10,
   verifiedPrimaryRevision: 10,
   verifiedSnapshotFingerprint: "sha256:planning-b",
-  verifiedContractVersion: 3,
+  verifiedContractVersion: 4,
 };
 let mutateDuringPrimaryRead = true;
 primaryHooks.onList = async () => {
