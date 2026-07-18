@@ -73,6 +73,7 @@ export function createRuntimeStateServiceModule(dependencies = {}) {
     onPlanningBootstrap = async () => false,
     onPlanningSnapshotSynchronized = () => {},
     shouldHydratePlanningAfterSharedSync = () => false,
+    onSystemDomainsCompatibilityStatus = async () => {},
     onSystemDomainsSnapshotRetired = () => {},
     persistUiState,
     publishBootPerformance,
@@ -343,6 +344,14 @@ function getSharedStateValues() {
     values[STORAGE_KEY] = JSON.stringify(planningState);
   }
   values[DIRECTORY_STORAGE_KEY] = JSON.stringify(directoryState);
+  const compatibilityState = String(sharedStateStatus.systemDomainsCompatibilityState || "unknown");
+  if (["active", "unknown"].includes(compatibilityState)
+    && sharedStateStatus.systemDomainsCompatibilityHydrated !== true) {
+    // Until the exact remote active value has been hydrated, a generic UI
+    // save must not resend a potentially stale local/bundled matrix. Omitting
+    // the key is safe because the server preserves its current value.
+    delete values[SYSTEM_DOMAINS_STORAGE_KEY];
+  }
   // The browser cache stays local for fast startup, but its shared-state copy
   // is retired only after the runtime observes the durable PostgreSQL-primary
   // marker. Complete command surfaces alone are still a compatibility phase.
@@ -387,6 +396,34 @@ function getSharedStateValues() {
     // A stale active compatibility projection must never clear a tombstone
     // that has already been observed from the server.
     return false;
+  }
+
+  function normalizeSystemDomainsCompatibilityState(snapshot = {}) {
+    const state = String(snapshot?.systemDomainsCompatibility?.state || "").trim().toLowerCase();
+    return ["retired", "active", "absent"].includes(state) ? state : "unknown";
+  }
+
+  async function observeSystemDomainsCompatibilityStatus(snapshot = {}) {
+    const state = normalizeSystemDomainsCompatibilityState(snapshot);
+    const previousState = String(sharedStateStatus.systemDomainsCompatibilityState || "");
+    sharedStateStatus.systemDomainsCompatibilityState = state;
+    if (previousState !== state) {
+      sharedStateStatus.systemDomainsCompatibilityHydrated = ["retired", "absent"].includes(state);
+    }
+    // The metadata response repeats the null tombstone even when the shared
+    // revision is unchanged. Apply it before any version gate so a stale tab
+    // cannot keep or later push its cached compatibility matrix.
+    if (state === "retired") {
+      const values = {
+        ...(snapshot.values && typeof snapshot.values === "object" ? snapshot.values : {}),
+        [SYSTEM_DOMAINS_STORAGE_KEY]: null,
+      };
+      rememberSystemDomainsPrimaryTombstone(values);
+      writeSharedStateValues(values);
+    }
+    if (previousState === state) return state;
+    await onSystemDomainsCompatibilityStatus({ state, snapshot });
+    return state;
   }
 
   function applySharedStateSnapshot(snapshot, options = {}) {
@@ -528,6 +565,9 @@ async function requestSharedState(method = "GET", payload = null, options = {}) 
   if (method === "GET" && options.emptyProjection === true) {
     request.headers["X-MES-Shared-State-Keys"] = "__none__";
   }
+  if (method === "GET" && options.systemDomainsCompatibilityStatus === true) {
+    request.headers["X-MES-System-Domains-Compatibility"] = "status";
+  }
   if (payload) request.body = JSON.stringify(payload);
   try {
     const response = await fetch(SHARED_STATE_API_URL, request);
@@ -553,7 +593,11 @@ async function requestSharedState(method = "GET", payload = null, options = {}) 
     // This is intentionally not a revision acknowledgement: a projected read
     // may race with a complete snapshot update, which the next normal poll
     // must still reconcile in full.
-    return requestedKeys.some((key) => Object.prototype.hasOwnProperty.call(snapshot.values, key));
+    const hydrated = requestedKeys.some((key) => Object.prototype.hasOwnProperty.call(snapshot.values, key));
+    if (hydrated && requestedKeys.includes(SYSTEM_DOMAINS_STORAGE_KEY)) {
+      sharedStateStatus.systemDomainsCompatibilityHydrated = true;
+    }
+    return hydrated;
   } catch (error) {
     console.warn("[MES] Deferred shared-state values are not available", error);
     return false;
@@ -966,8 +1010,10 @@ async function pollSharedState() {
     const valueProjectionEpoch = sharedStateValueProjectionEpoch;
     const snapshot = await requestSharedState("GET", null, {
       knownVersion: sharedStateStatus.version,
+      systemDomainsCompatibilityStatus: true,
       ...(metadataOnly ? { emptyProjection: true } : {}),
     });
+    await observeSystemDomainsCompatibilityStatus(snapshot);
     // A metadata-only request may have started just before Planning promoted
     // itself to a full compatibility projection. Its late response has no
     // route/step/slot values, so it must never advance the version after the
@@ -1045,8 +1091,18 @@ async function startSharedStateSync() {
     const requestedPlanningBootstrapMode = getInitialPlanningBootstrapMode() === "deferred"
       ? "deferred"
       : "required";
-    const metadataSnapshotPromise = requestSharedState("GET", null, { emptyProjection: true })
-      .then((snapshot) => ({ ok: true, snapshot }))
+    const metadataSnapshotPromise = requestSharedState("GET", null, {
+      emptyProjection: true,
+      systemDomainsCompatibilityStatus: true,
+    })
+      .then((snapshot) => ({
+        ok: true,
+        snapshot,
+        // Invocation applies the descriptor synchronously before the Planning
+        // BFF settles; the promise tracks any targeted hydration/read-model
+        // work required by the application callback.
+        compatibilityPromise: observeSystemDomainsCompatibilityStatus(snapshot),
+      }))
       .catch((error) => ({ ok: false, error }));
     const serverPlanningApplied = requestedPlanningBootstrapMode === "required"
       ? await onPlanningBootstrap().catch(() => false)
@@ -1057,11 +1113,14 @@ async function startSharedStateSync() {
     if (metadataOnly) {
       const metadataResult = await metadataSnapshotPromise;
       if (!metadataResult.ok) throw metadataResult.error;
+      await metadataResult.compatibilityPromise;
       snapshot = metadataResult.snapshot;
     } else {
       // The metadata request is deliberately allowed to finish in the
       // background here. Its failure is captured above, so this legacy
       // fallback never produces an unhandled rejection.
+      const metadataResult = await metadataSnapshotPromise;
+      if (metadataResult.ok) await metadataResult.compatibilityPromise;
       snapshot = await requestSharedState("GET", null, { valueKeys: [STORAGE_KEY] });
     }
     if (snapshot.configured === false) {

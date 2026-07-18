@@ -36,6 +36,7 @@ async function withHarness({
   mode = "required",
   onPlanningBootstrap = async () => true,
   shouldHydrate = () => false,
+  onCompatibilityStatus = async () => {},
   responseForRequest = null,
 }, verify) {
   const previousWindow = globalThis.window;
@@ -68,6 +69,7 @@ async function withHarness({
     lastSharedUiSignature: "",
   };
   let synchronizedCalls = 0;
+  const compatibilityStates = [];
 
   try {
     globalThis.window = {
@@ -99,20 +101,20 @@ async function withHarness({
       writable: true,
       value: localStorage,
     });
-    globalThis.fetch = async (_url, request = {}) => {
-      const entry = { headers: { ...(request.headers || {}) } };
+    globalThis.fetch = async (url, request = {}) => {
+      const entry = { url: String(url || ""), method: request.method || "GET", headers: { ...(request.headers || {}) } };
       requests.push(entry);
       const response = responseForRequest
         ? await responseForRequest(entry, requests)
         : entry.headers["X-MES-Shared-State-Keys"] === "qa-planning"
           ? { ok: true, configured: true, version: 2, values: { "qa-planning": JSON.stringify(planningSnapshot) }, sharedUi: {} }
-          : { ok: true, configured: true, version: 1, values: {}, sharedUi: {} };
+          : { ok: true, configured: true, version: 1, values: {}, sharedUi: {}, systemDomainsCompatibility: { state: "absent" } };
       return jsonResponse(response);
     };
 
     const service = createRuntimeStateServiceModule({
       APP_VERSION: "v.qa",
-      BOOTSTRAP_SNAPSHOT_FILE_URL: "/bootstrap.json",
+      BOOTSTRAP_SNAPSHOT_FILE_URL: "",
       BOOTSTRAP_SNAPSHOT_RESTORE_ENABLED: false,
       BOOTSTRAP_SNAPSHOT_STORAGE_KEY: "qa-bootstrap",
       BOOTSTRAP_SNAPSHOT_VALUE_KEYS: [],
@@ -170,6 +172,10 @@ async function withHarness({
       getInitialPlanningBootstrapMode: () => mode,
       onPlanningBootstrap,
       onPlanningSnapshotSynchronized: () => { synchronizedCalls += 1; },
+      onSystemDomainsCompatibilityStatus: async ({ state }) => {
+        compatibilityStates.push(state);
+        await onCompatibilityStatus({ state });
+      },
       shouldHydratePlanningAfterSharedSync: shouldHydrate,
       persistUiState: () => {},
       publishBootPerformance: () => {},
@@ -212,6 +218,7 @@ async function withHarness({
       sharedStateStatus,
       getPlanningState: () => planningState,
       getSynchronizedCalls: () => synchronizedCalls,
+      getCompatibilityStates: () => [...compatibilityStates],
     });
   } finally {
     globalThis.window = previousWindow;
@@ -233,14 +240,17 @@ await withHarness({
     planningBootstrapCalls += 1;
     return planningBootstrapPromise;
   },
-}, async ({ requests, sharedStateStatus, getSynchronizedCalls }) => {
+}, async ({ requests, sharedStateStatus, getSynchronizedCalls, getCompatibilityStates }) => {
   await waitFor(() => requests.length === 1, "Metadata read must start before the Planning BFF settles");
   assert(planningBootstrapCalls === 1, "Planning startup must begin exactly one BFF bootstrap");
   assert(requests[0].headers["X-MES-Shared-State-Keys"] === "__none__", "Healthy Planning startup must start with a metadata-only shared-state read");
+  assert(requests[0].headers["X-MES-System-Domains-Compatibility"] === "status", "Initial metadata must request the System Domains compatibility status");
+  await waitFor(() => getCompatibilityStates().length === 1, "Compatibility metadata must be observed before the Planning BFF settles");
   resolvePlanningBootstrap(true);
   await waitFor(() => sharedStateStatus.enabled, "Planning startup did not complete after its BFF resolved");
   assert(sharedStateStatus.valueProjection === "metadata", "Healthy Planning bootstrap must retain metadata-only polling");
   assert(getSynchronizedCalls() === 1, "Healthy Planning boot must preserve the post-sync parity hook");
+  assert(getCompatibilityStates().join(",") === "absent", "Initial metadata must publish the compatibility state exactly once");
 });
 
 let deferredBootstrapCalls = 0;
@@ -253,6 +263,22 @@ await withHarness({
   assert(requests.length === 1 && requests[0].headers["X-MES-Shared-State-Keys"] === "__none__", "A non-Planning startup must use just the metadata shared-state read");
   assert(sharedStateStatus.valueProjection === "metadata", "Deferred-module polling must remain metadata-only");
   assert(getSynchronizedCalls() === 0, "A non-Planning startup must not schedule a Planning rehydration");
+});
+
+await withHarness({
+  mode: "deferred",
+  responseForRequest: async () => ({
+    ok: true,
+    configured: true,
+    version: 0,
+    values: {},
+    sharedUi: {},
+    systemDomainsCompatibility: { state: "absent" },
+  }),
+}, async ({ requests, sharedStateStatus, getCompatibilityStates }) => {
+  await waitFor(() => sharedStateStatus.enabled, "Version-zero shared state did not finish startup");
+  assert(requests.filter((request) => request.method === "GET" && request.url === "/api/shared-state").length === 1, "Version-zero startup must keep the single shared-state metadata GET");
+  assert(getCompatibilityStates().join(",") === "absent", "Version-zero startup must still publish the compatibility state callback");
 });
 
 await withHarness({ mode: "required", onPlanningBootstrap: async () => false }, async ({ requests, sharedStateStatus }) => {

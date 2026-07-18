@@ -162,6 +162,15 @@ try {
   });
 
   localStorage.setItem(systemDomainsKey, JSON.stringify({ old: true }));
+  sharedStateStatus.systemDomainsCompatibilityState = "active";
+  sharedStateStatus.systemDomainsCompatibilityHydrated = false;
+  assert(!Object.prototype.hasOwnProperty.call(service.getSharedStateValues(), systemDomainsKey), "A generic save must suppress System Domains while active compatibility hydration is pending");
+  sharedStateStatus.systemDomainsCompatibilityState = "unknown";
+  assert(!Object.prototype.hasOwnProperty.call(service.getSharedStateValues(), systemDomainsKey), "A mixed-version unknown state must fail closed and suppress stale System Domains writes");
+  sharedStateStatus.systemDomainsCompatibilityState = "active";
+  sharedStateStatus.systemDomainsCompatibilityHydrated = true;
+  assert(Object.prototype.hasOwnProperty.call(service.getSharedStateValues(), systemDomainsKey), "The exact hydrated active compatibility value may participate in normal shared-state writes");
+  sharedStateStatus.systemDomainsCompatibilityHydrated = false;
   const coldRead = await service.hydrateSharedStateValues([systemDomainsKey], { allowBeforeInitialSync: true });
   assert(coldRead === true && requests.length === 1 && requests[0].method === "GET", "Cold boot must fetch the explicit System Domains projection before initial shared-state sync");
   assert(sessionStorage.getItem(tombstoneKey) === "1" && localStorage.getItem(systemDomainsKey) === null, "A cold tombstone must retire the local System Domains projection");

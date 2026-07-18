@@ -82,9 +82,21 @@ async function main() {
   const dir = await mkdtemp(join(tmpdir(), "mes-shared-state-qa-"));
   const filePath = join(dir, "state.json");
   try {
+    const unconfiguredCompatibility = await callSharedState("", "GET", null, {
+      headers: { "x-mes-system-domains-compatibility": "status" },
+    });
+    assert(unconfiguredCompatibility.json.configured === false && unconfiguredCompatibility.json.systemDomainsCompatibility?.state === "absent", "An unconfigured shared-state contour must explicitly report compatibility as absent");
     const initial = await callSharedState(filePath, "GET");
     assert(initial.statusCode === 200, "GET empty snapshot should return 200");
     assert(initial.json.version === 0, "Empty snapshot should start with version 0");
+    const absentCompatibilityMetadata = await callSharedState(filePath, "GET", null, {
+      headers: {
+        "x-mes-shared-state-keys": "__none__",
+        "x-mes-system-domains-compatibility": "status",
+      },
+    });
+    assert(absentCompatibilityMetadata.json.systemDomainsCompatibility?.state === "absent", "Metadata must distinguish an absent System Domains compatibility key");
+    assert(Object.keys(absentCompatibilityMetadata.json.values || {}).length === 0, "Absent compatibility metadata must not synthesize a value");
 
     const emptyCompactUi = await callSharedState(filePath, "POST", {
       baseVersion: 0,
@@ -175,6 +187,15 @@ async function main() {
     assert(posted.json.sharedUi.accessRoleProfiles?.[0]?.id === "master", "Access role profiles should be persisted");
     assert(posted.json.sharedUi.accessRoleAssignments?.["employee-qa"] === "master", "Access role assignments should be persisted");
     assert(!posted.json.sharedUi.forbiddenUi, "Forbidden shared UI should be dropped");
+
+    const activeCompatibilityMetadata = await callSharedState(filePath, "GET", null, {
+      headers: {
+        "x-mes-shared-state-keys": "__none__",
+        "x-mes-system-domains-compatibility": "status",
+      },
+    });
+    assert(activeCompatibilityMetadata.json.systemDomainsCompatibility?.state === "active", "Metadata must distinguish an active System Domains compatibility snapshot");
+    assert(Object.keys(activeCompatibilityMetadata.json.values || {}).length === 0, "Active compatibility metadata must not transfer the large System Domains matrix");
 
     const compressedRes = makeRes();
     await handleSharedStateRequest(makeReq("GET", null, { "accept-encoding": "gzip" }), compressedRes, {
@@ -364,9 +385,13 @@ async function main() {
     assert(deferredSpecifications2.json.values?.[SHARED_STATE_KEYS.specifications2]?.includes("specifications2-qa"), "Projected GET should return the requested Specifications 2.0 registry");
 
     const metadataOnly = await callSharedState(filePath, "GET", null, {
-      headers: { "x-mes-shared-state-keys": "__none__" },
+      headers: {
+        "x-mes-shared-state-keys": "__none__",
+        "x-mes-system-domains-compatibility": "status",
+      },
     });
-    assert(metadataOnly.statusCode === 200 && Object.keys(metadataOnly.json.values || {}).length === 0, "Metadata-only GET must omit every legacy value while retaining the shared snapshot revision");
+    assert(metadataOnly.statusCode === 200 && metadataOnly.json.systemDomainsCompatibility?.state === "retired", "Metadata-only GET must expose the durable System Domains retirement state");
+    assert(Object.keys(metadataOnly.json.values || {}).length === 1 && metadataOnly.json.values?.[SHARED_STATE_KEYS.systemDomains] === null, "Retired metadata must carry only the narrow System Domains tombstone");
 
     const unchanged = await callSharedState(filePath, "GET", null, {
       headers: { "x-mes-shared-state-version": String(fetched.json.version) },
@@ -374,6 +399,15 @@ async function main() {
     assert(unchanged.statusCode === 200, "Version check should return 200");
     assert(unchanged.json.unchanged === true, "Matching version should return a lightweight unchanged response");
     assert(!Object.prototype.hasOwnProperty.call(unchanged.json, "values"), "Unchanged response should omit the heavy shared-state values");
+
+    const unchangedCompatibility = await callSharedState(filePath, "GET", null, {
+      headers: {
+        "x-mes-shared-state-version": String(fetched.json.version),
+        "x-mes-system-domains-compatibility": "status",
+      },
+    });
+    assert(unchangedCompatibility.json.unchanged === true && unchangedCompatibility.json.systemDomainsCompatibility?.state === "retired", "A matching version must still return the System Domains compatibility state");
+    assert(unchangedCompatibility.json.values?.[SHARED_STATE_KEYS.systemDomains] === null, "An unchanged retired response must still clear stale local System Domains");
 
     // The endpoint caches unchanged file snapshots for revision-only polls,
     // but must still observe writes performed outside its own process path.

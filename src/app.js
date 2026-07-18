@@ -3608,6 +3608,8 @@ let systemDomainsServerCommandState = { status: "idle", enabled: false, surfaces
 let systemDomainsServerCapabilitiesPromise = null;
 let systemDomainsServerCapabilitiesFetchedAt = 0;
 let systemDomainsServerReadRetryTimer = null;
+let systemDomainsCompatibilityState = "unknown";
+let systemDomainsCompatibilityHydrated = false;
 const SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES = ["production-structure", "timesheet", "access-control"];
 const SYSTEM_DOMAINS_CAPABILITIES_RECHECK_MS = 5_000;
 function hasSystemDomainsPrimaryTombstoneHint() {
@@ -3622,8 +3624,32 @@ function hasObservedSystemDomainsPrimaryAuthority() {
 }
 function canFallbackToLegacySystemDomains(fallbackToLegacy = false) {
   return fallbackToLegacy === true
+    && systemDomainsCompatibilityState === "absent"
     && !systemDomainsState
     && !hasObservedSystemDomainsPrimaryAuthority();
+}
+
+async function handleSystemDomainsCompatibilityStatus({ state = "unknown" } = {}) {
+  systemDomainsCompatibilityState = ["retired", "active", "absent"].includes(state) ? state : "unknown";
+  systemDomainsCompatibilityHydrated = false;
+  // Active and mixed-version/unknown servers must provide the exact remote
+  // compatibility value before any legacy fallback is considered. A failed
+  // targeted read remains fail-closed; it never imports and pushes the bundled
+  // matrix as though the key were absent.
+  if (["active", "unknown"].includes(systemDomainsCompatibilityState)) {
+    systemDomainsCompatibilityHydrated = await runtimeStateService?.hydrateSharedStateValues?.(
+      [SYSTEM_DOMAINS_STORAGE_KEY],
+      { allowBeforeInitialSync: true },
+    ) === true;
+    if (systemDomainsCompatibilityHydrated) {
+      reloadSystemDomainsState({ source: "startup-active-compatibility", migrateLegacy: false });
+    }
+  }
+  return hydrateSystemDomainsServerRead("startup", {
+    fallbackToLegacy: systemDomainsCompatibilityState === "absent"
+      && startupDataMigrationRequired
+      && !systemDomainsState,
+  });
 }
 function hasSystemDomainsServerAuthority() {
   // Complete command coverage is needed for writes, but must not be confused
@@ -5473,6 +5499,7 @@ function initializeRuntimeStateServiceModule() {
   shouldHydratePlanningAfterSharedSync: () => (
     ui?.activeModule === "planning" || ui?.activeModule === "gantt"
   ),
+  onSystemDomainsCompatibilityStatus: (status) => handleSystemDomainsCompatibilityStatus(status),
   onSystemDomainsSnapshotRetired: () => {
     // A tombstone proves the browser may no longer authorize or mutate from
     // its cached compatibility copy. Rehydrate only from PostgreSQL.
@@ -6728,18 +6755,10 @@ measureBootStep("initializeSystemDomainsState", () => reloadSystemDomainsState({
   // asynchronous read below preserves the old migration as a safe fallback.
   migrateLegacy: false,
 }));
-// Ask the compact shared-state endpoint for its explicit tombstone before a
-// cold tab considers the legacy import. This keeps a transient System Domains
-// API failure from reviving the retired 1.5 MB matrix after cutover.
-void (async () => {
-  await runtimeStateService?.hydrateSharedStateValues?.([SYSTEM_DOMAINS_STORAGE_KEY], {
-    allowBeforeInitialSync: true,
-  });
-  reloadSystemDomainsState({ source: "startup-shared-tombstone", migrateLegacy: false });
-  await hydrateSystemDomainsServerRead("startup", {
-    fallbackToLegacy: startupDataMigrationRequired && !hasObservedSystemDomainsPrimaryAuthority(),
-  });
-})();
+// The initial shared-state metadata handshake now owns System Domains
+// compatibility discovery. It calls handleSystemDomainsCompatibilityStatus()
+// before version gating, avoiding a second cold request on PostgreSQL-primary
+// or confirmed-absent contours.
 if (startupDataMigrationRequired) {
   measureBootStep("migrateLegacyOperationsToDirectory", () => migrateLegacyOperationsToDirectory());
   measureBootStep("ensureWorkCenterOperations", () => ensureWorkCenterOperations());

@@ -10,7 +10,9 @@ const [runtimeState, app] = await Promise.all([
 ]);
 
 assert(runtimeState.includes('getInitialPlanningBootstrapMode = () => "required"'), "Runtime state must expose an explicit initial Planning-bootstrap policy.");
-assert(runtimeState.includes('const metadataSnapshotPromise = requestSharedState("GET", null, { emptyProjection: true })'), "Shared-state metadata must begin in parallel with the Planning workbench bootstrap.");
+assert(runtimeState.includes('const metadataSnapshotPromise = requestSharedState("GET", null, {'), "Shared-state metadata must begin in parallel with the Planning workbench bootstrap.");
+assert(runtimeState.includes('systemDomainsCompatibilityStatus: true'), "Metadata and polling must request the compact System Domains compatibility status.");
+assert(runtimeState.includes('await observeSystemDomainsCompatibilityStatus(snapshot);'), "System Domains compatibility status must be observed before shared-state version gating.");
 assert(runtimeState.includes('const serverPlanningApplied = requestedPlanningBootstrapMode === "required"'), "Only modules that require the Planning projection may invoke the workbench BFF during startup.");
 assert(runtimeState.includes('const metadataOnly = serverPlanningApplied || requestedPlanningBootstrapMode === "deferred";'), "Metadata-only polling must distinguish a healthy BFF from an intentionally deferred module.");
 assert(runtimeState.includes('snapshot = await requestSharedState("GET", null, { valueKeys: [STORAGE_KEY] });'), "Boot must retain the narrow planning-snapshot fallback when the server projection is unavailable.");
@@ -37,7 +39,10 @@ assert(/return hasSystemDomainsServerCommandCoverage\(\) && hasObservedSystemDom
 assert(/if \(!hasObservedSystemDomainsPrimaryAuthority\(\) && localSignature && localSignature !== serverSignature\)/.test(app), "Compatibility snapshot parity must remain enforced until PostgreSQL-primary is observed.");
 assert(/if \(!hasObservedSystemDomainsPrimaryAuthority\(\)\) scheduleSystemDomainsServerReadRetry\(moduleId\);/.test(app), "A successful compatibility read must retry authority discovery instead of creating a tombstone from the browser.");
 assert(app.includes("isSystemDomainsServerAuthoritative: () => hasObservedSystemDomainsPrimaryAuthority()"), "Runtime tombstone behavior must become fail-closed as soon as observed PostgreSQL-primary authority is durable, not wait for a cached server read.");
-assert(app.includes("allowBeforeInitialSync: true"), "Cold boot must explicitly fetch the System Domains tombstone before initial shared-state synchronization enables normal polling.");
+assert(app.includes("async function handleSystemDomainsCompatibilityStatus"), "Cold boot must route System Domains compatibility through the initial metadata handshake.");
+assert(app.includes('["active", "unknown"].includes(systemDomainsCompatibilityState)'), "Active and mixed-version compatibility states must hydrate the exact remote value before fallback.");
+assert(app.includes('systemDomainsCompatibilityState === "absent"'), "Legacy fallback must require a confirmed absent compatibility state.");
+assert(!app.includes('source: "startup-shared-tombstone"'), "The removed standalone cold System Domains request must not return.");
 assert(runtimeState.includes("async function hydrateSharedStateValues(valueKeys = [], { allowBeforeInitialSync = false } = {})"), "Projected System Domains hydration must support the explicit cold-boot path.");
 assert(runtimeState.includes("onSystemDomainsSnapshotRetired = () => {}"), "Runtime state must notify the app when it observes a new System Domains tombstone.");
 const reloadSystemDomainsState = app.match(/function reloadSystemDomainsState\([\s\S]*?\n}\n\nfunction updateSystemDomainRegistry/);

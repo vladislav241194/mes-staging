@@ -23,6 +23,7 @@ const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
 const SPECIFICATIONS2_STORAGE_KEY = "mes-specifications-2-registry-v1";
 const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
+const SYSTEM_DOMAINS_COMPATIBILITY_HEADER = "x-mes-system-domains-compatibility";
 const SPECIFICATIONS2_PUBLICATION_AUTHORITY_MAX = 500;
 const ALLOWED_VALUE_KEYS = new Set([
   "mes-planning-prototype-state-v2",
@@ -442,6 +443,34 @@ function getRequestedValueKeys(headers = {}) {
   return keys.length ? keys : null;
 }
 
+function requestsSystemDomainsCompatibilityStatus(headers = {}) {
+  return String(headers?.[SYSTEM_DOMAINS_COMPATIBILITY_HEADER] || "").trim().toLowerCase() === "status";
+}
+
+function getSystemDomainsCompatibilityStatus(snapshot) {
+  const values = snapshot?.values;
+  if (!values || typeof values !== "object" || Array.isArray(values)
+    || !Object.prototype.hasOwnProperty.call(values, SYSTEM_DOMAINS_STORAGE_KEY)) {
+    return { state: "absent" };
+  }
+  return { state: values[SYSTEM_DOMAINS_STORAGE_KEY] === null ? "retired" : "active" };
+}
+
+function attachSystemDomainsCompatibilityStatus(payload, snapshot) {
+  const compatibility = getSystemDomainsCompatibilityStatus(snapshot);
+  const response = { ...payload, systemDomainsCompatibility: compatibility };
+  // A retirement tombstone is authority, not ordinary payload. Include its
+  // tiny null value even on metadata/unchanged responses so a browser that
+  // missed the cutover cannot retain or resend a stale local matrix.
+  if (compatibility.state === "retired") {
+    response.values = {
+      ...(response.values && typeof response.values === "object" ? response.values : {}),
+      [SYSTEM_DOMAINS_STORAGE_KEY]: null,
+    };
+  }
+  return response;
+}
+
 function projectSnapshotValues(snapshot, requestedValueKeys = null) {
   if (!requestedValueKeys || !snapshot?.values) return snapshot;
   const allowed = new Set(requestedValueKeys);
@@ -850,12 +879,16 @@ export async function handleSharedStateRequest(req, res, {
   const store = createStore({ env, filePath });
 
   if (!store.configured) {
-    sendJson(res, headers, 200, {
+    const emptySnapshot = createEmptySnapshot();
+    const unconfigured = {
       ok: true,
       configured: false,
       message: "Shared state storage is not configured",
-      ...createEmptySnapshot(),
-    });
+      ...emptySnapshot,
+    };
+    sendJson(res, headers, 200, req.method === "GET" && requestsSystemDomainsCompatibilityStatus(req.headers)
+      ? attachSystemDomainsCompatibilityStatus(unconfigured, emptySnapshot)
+      : unconfigured);
     return;
   }
 
@@ -863,17 +896,24 @@ export async function handleSharedStateRequest(req, res, {
     const snapshot = await store.read();
     const knownVersion = Number(req.headers?.["x-mes-shared-state-version"] || 0);
     const requestedValueKeys = getRequestedValueKeys(req.headers);
+    const includeSystemDomainsCompatibility = requestsSystemDomainsCompatibilityStatus(req.headers);
     if (!requestedValueKeys && knownVersion > 0 && knownVersion === Number(snapshot.version || 0)) {
-      sendJson(res, headers, 200, {
+      const unchanged = {
         ok: true,
         configured: true,
         unchanged: true,
         version: Number(snapshot.version || 0),
         updatedAt: snapshot.updatedAt || "",
-      });
+      };
+      sendJson(res, headers, 200, includeSystemDomainsCompatibility
+        ? attachSystemDomainsCompatibilityStatus(unchanged, snapshot)
+        : unchanged);
       return;
     }
-    sendJson(res, headers, 200, { ok: true, configured: true, ...projectSnapshotValues(snapshot, requestedValueKeys) });
+    const projected = { ok: true, configured: true, ...projectSnapshotValues(snapshot, requestedValueKeys) };
+    sendJson(res, headers, 200, includeSystemDomainsCompatibility
+      ? attachSystemDomainsCompatibilityStatus(projected, snapshot)
+      : projected);
     return;
   }
 
