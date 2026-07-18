@@ -84,11 +84,12 @@ assert(!dispatchScope.includes("getShiftMasterBoardSlotRows("), "dispatch scope 
 // only run after the lazy factory exposes the real model, then re-renders the
 // active board to start the scoped server read.
 const loaderInitialize = moduleLoader.indexOf("initializeShiftMasterBoardModule(createShiftMasterBoardModule);");
-const loaderRerender = moduleLoader.indexOf('if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });');
+const loaderRerender = moduleLoader.indexOf('["shiftMasterBoard", "authSessionPrototype"].includes(ui.activeModule)');
 const renderModuleLoad = masterBoardRender.indexOf("ensureShiftMasterBoardModule();");
 const renderHydration = masterBoardRender.indexOf('if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();');
 assert(loaderInitialize >= 0 && loaderRerender > loaderInitialize, "lazy board factory must initialize before re-rendering the active board");
 assert(renderModuleLoad >= 0 && renderHydration > renderModuleLoad, "board hydration must be ordered after lazy module loading is requested");
+assert(authSessionRender.indexOf("ensureShiftMasterBoardModule();") < authSessionRender.indexOf("hydrateShiftExecutionServerProjection();"), "employee desktop must load the board model before requesting its bounded PostgreSQL dispatch scope");
 assert(authSessionRender.includes('hydrateShiftExecutionServerProjection();'), "employee desktop must hydrate the PostgreSQL assignment and fact projection");
 assert(hydration.includes('["shiftMasterBoard", "authSessionPrototype"].includes(ui?.activeModule)'), "a changed dispatch projection must re-render both the Master Board and employee desktop");
 
