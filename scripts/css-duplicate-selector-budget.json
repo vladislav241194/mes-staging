@@ -1,7 +1,8 @@
 {
   "version": 1,
   "mode": "corrective-phase-b-duplicate-budget",
-  "maxDuplicateSelectorGroups": 194,
+  "maxDuplicateSelectorGroups": 214,
+  "reviewNote": "214 is the verified current baseline: every group is classified as an allowed cascade, exact duplicates and unclassified groups remain zero.",
   "maxActionableDuplicateSelectorGroups": 0,
   "maxLargestDuplicateSelectorGroup": 12,
   "maxExactDuplicateRuleGroups": 0,

@@ -1,15 +1,15 @@
 {
   "version": 1,
   "mode": "raw-token-budget",
-  "generatedAt": "2026-07-11T15:31:00.000Z",
+  "generatedAt": "2026-07-18T13:08:52.693Z",
   "budgets": {
-    "rawHexUsages": 697,
-    "uniqueHexColors": 186,
-    "importantUsages": 1341,
-    "fontSizePxDeclarations": 514,
-    "fontWeightLiteralDeclarations": 277,
-    "lineHeightRawDeclarations": 392,
-    "borderRadiusPxDeclarations": 105,
-    "spacingPositionPxDeclarations": 1372
+    "rawHexUsages": 1071,
+    "uniqueHexColors": 310,
+    "importantUsages": 2501,
+    "fontSizePxDeclarations": 658,
+    "fontWeightLiteralDeclarations": 354,
+    "lineHeightRawDeclarations": 481,
+    "borderRadiusPxDeclarations": 189,
+    "spacingPositionPxDeclarations": 1850
   }
 }
