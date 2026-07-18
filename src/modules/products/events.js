@@ -208,18 +208,6 @@ function bindSpekiEvents() {
     });
   });
 
-  app.querySelectorAll("[data-speki-check-structure]").forEach((button) => {
-    button.addEventListener("click", () => {
-      checkSpekiStructureReferences(button.dataset.spekiCheckStructure || "");
-    });
-  });
-
-  app.querySelectorAll("[data-speki-bom-toggle]").forEach((button) => {
-    button.addEventListener("click", () => {
-      toggleSpekiBomCollapse(button.dataset.spekiBomToggle || "");
-    });
-  });
-
   app.querySelectorAll("[data-speki-structure-input]").forEach((field) => {
     const commit = () => {
       updateSpecificationStructureItem(
