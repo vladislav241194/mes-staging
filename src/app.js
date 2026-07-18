@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.39";
+const APP_VERSION_FALLBACK = "v.1.499.40";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -221,6 +221,9 @@ const sharedStateStatus = {
   saveInFlight: false,
   pollInFlight: false,
   pendingReason: "",
+  pendingWriteMode: "",
+  pendingSharedUiFull: null,
+  sharedUiBase: null,
   lastSharedUiSignature: "",
 };
 

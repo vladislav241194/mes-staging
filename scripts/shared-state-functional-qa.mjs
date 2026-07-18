@@ -6,6 +6,12 @@ import { gunzipSync } from "node:zlib";
 
 import { handleSharedStateRequest } from "./shared-state-endpoint.mjs";
 import { withSharedStateFileLock } from "./shared-state-storage.mjs";
+import {
+  applySharedUiPatch,
+  cloneSharedUiSnapshot,
+  getSharedUiPatch,
+  rebaseSharedUiAfterFullWrite,
+} from "../src/modules/runtime_state/shared_ui_delta.js";
 
 const SHARED_STATE_KEYS = {
   state: "mes-planning-prototype-state-v2",
@@ -79,6 +85,18 @@ async function main() {
     const initial = await callSharedState(filePath, "GET");
     assert(initial.statusCode === 200, "GET empty snapshot should return 200");
     assert(initial.json.version === 0, "Empty snapshot should start with version 0");
+
+    const emptyCompactUi = await callSharedState(filePath, "POST", {
+      baseVersion: 0,
+      clientId: "empty-compact-ui",
+      actor: "QA",
+      action: "shared-ui",
+      responseMode: "ack",
+      values: {},
+      sharedUi: { ganttDependencyRoutes: { "slot-empty": ["route-empty"] } },
+      sharedUiPatch: { maps: { ganttDependencyRoutes: { set: { "slot-empty": ["route-empty"] }, remove: [] } }, replace: {} },
+    });
+    assert(emptyCompactUi.statusCode === 409 && emptyCompactUi.json.compactAckUnavailable === true, "Empty storage must signal a compact-write fallback instead of failing the UI save");
 
     const values = {
       [SHARED_STATE_KEYS.state]: JSON.stringify({
@@ -319,6 +337,259 @@ async function main() {
     const residualFiles = await readdir(dir);
     assert(!residualFiles.some((name) => name.includes(".tmp-") || name.endsWith(".lock")), "Atomic shared-state writes must not leave temporary files or locks behind");
 
+    // A normal UI preference must not re-send or receive the complete
+    // compatibility snapshot. Its server-side merge keeps every domain
+    // value, while a conflict intentionally still returns the full current
+    // snapshot for the established recovery path.
+    const compactBaseUi = cloneSharedUiSnapshot(afterConcurrent.json.sharedUi);
+    const firstCompactUiPatch = getSharedUiPatch(
+      compactBaseUi,
+      applySharedUiPatch(compactBaseUi, { maps: { ganttDependencyRoutes: { set: { "slot-a": ["route-compact-a"] }, remove: [] } }, replace: {} }),
+    );
+    assert(JSON.stringify(Object.keys(firstCompactUiPatch.maps)) === JSON.stringify(["ganttDependencyRoutes"]), "A UI edit must produce only its changed map entries");
+    const firstCompactUi = await callSharedState(filePath, "POST", {
+      baseVersion: 6,
+      clientId: "compact-ui-a",
+      actor: "QA",
+      action: "shared-ui",
+      responseMode: "ack",
+      values: {},
+      sharedUi: applySharedUiPatch(compactBaseUi, firstCompactUiPatch),
+      sharedUiPatch: firstCompactUiPatch,
+    });
+    assert(firstCompactUi.statusCode === 200 && firstCompactUi.json.ok, "Compact shared-UI write should return success");
+    assert(firstCompactUi.json.version === 7, "Compact shared-UI write should increment the snapshot version");
+    assert(!Object.prototype.hasOwnProperty.call(firstCompactUi.json, "values"), "Compact shared-UI acknowledgement must omit values");
+    assert(!Object.prototype.hasOwnProperty.call(firstCompactUi.json, "sharedUi"), "Compact shared-UI acknowledgement must omit the full UI projection");
+
+    const secondCompactUiPatch = getSharedUiPatch(
+      compactBaseUi,
+      applySharedUiPatch(compactBaseUi, { maps: { timesheetCellOverrides: { set: { "employee-qa::2026-06-17": { value: "remote-work", start: "09:00", end: "18:00" } }, remove: [] } }, replace: {} }),
+    );
+    assert(JSON.stringify(Object.keys(secondCompactUiPatch.maps)) === JSON.stringify(["timesheetCellOverrides"]), "A second tab must keep its own UI patch independent from the first tab");
+    const staleCompactUi = await callSharedState(filePath, "POST", {
+      baseVersion: 6,
+      clientId: "compact-ui-b",
+      actor: "QA",
+      action: "local-shared-ui",
+      responseMode: "ack",
+      values: {},
+      sharedUi: applySharedUiPatch(compactBaseUi, secondCompactUiPatch),
+      sharedUiPatch: secondCompactUiPatch,
+    });
+    assert(staleCompactUi.statusCode === 409 && staleCompactUi.json.current?.values, "Compact shared-UI conflict must retain the complete recovery snapshot");
+
+    const retriedCompactUi = await callSharedState(filePath, "POST", {
+      baseVersion: 7,
+      clientId: "compact-ui-b",
+      actor: "QA",
+      action: "local-shared-ui:conflict-retry",
+      responseMode: "ack",
+      values: {},
+      sharedUi: applySharedUiPatch(compactBaseUi, secondCompactUiPatch),
+      sharedUiPatch: secondCompactUiPatch,
+    });
+    assert(retriedCompactUi.statusCode === 200 && retriedCompactUi.json.version === 8, "Compact shared-UI retry should save against the current revision");
+    const afterCompactUi = await callSharedState(filePath, "GET");
+    const compactValueKeys = Object.keys(afterConcurrent.json.values || {});
+    assert(
+      compactValueKeys.length === Object.keys(afterCompactUi.json.values || {}).length
+        && compactValueKeys.every((key) => afterCompactUi.json.values[key] === afterConcurrent.json.values[key]),
+      "Compact shared-UI writes must preserve every domain value byte-for-byte",
+    );
+    assert(afterCompactUi.json.sharedUi.ganttDependencyRoutes?.["slot-a"]?.[0] === "route-compact-a", "First compact UI update must survive a conflicting second update");
+    assert(afterCompactUi.json.sharedUi.timesheetCellOverrides?.["employee-qa::2026-06-17"]?.value === "remote-work", "Retried compact UI update must merge with the current UI projection");
+    assert(afterCompactUi.json.sharedUi.productionStructureMatrixOverrides?.["D-MANUAL"], "Compact UI updates must preserve unrelated UI fields");
+
+    const postCompactPatch = async ({ baseVersion, clientId, action = "shared-ui", baseUi, nextUi }) => {
+      const sharedUiPatch = getSharedUiPatch(baseUi, nextUi);
+      return callSharedState(filePath, "POST", {
+        baseVersion,
+        clientId,
+        actor: "QA",
+        action,
+        responseMode: "ack",
+        values: {},
+        // Compatibility copy for a server being restarted during a release.
+        sharedUi: nextUi,
+        sharedUiPatch,
+      });
+    };
+    const patchMapEntry = (baseUi, mapKey, entryKey, value) => applySharedUiPatch(baseUi, {
+      maps: { [mapKey]: { set: { [entryKey]: value }, remove: [] } },
+      replace: {},
+    });
+
+    // Same top-level map, different entries: this is the important race that
+    // a top-level-only UI diff would still lose.
+    const mapRaceBase = cloneSharedUiSnapshot(afterCompactUi.json.sharedUi);
+    const mapRaceA = patchMapEntry(mapRaceBase, "timesheetCellOverrides", "employee-a::2026-06-18", { value: "a", start: "08:00", end: "17:00" });
+    const mapRaceB = patchMapEntry(mapRaceBase, "timesheetCellOverrides", "employee-b::2026-06-18", { value: "b", start: "09:00", end: "18:00" });
+    const mapRaceFirst = await postCompactPatch({ baseVersion: 8, clientId: "map-race-a", baseUi: mapRaceBase, nextUi: mapRaceA });
+    assert(mapRaceFirst.statusCode === 200 && mapRaceFirst.json.version === 9, "First same-map compact update should save");
+    const mapRaceConflict = await postCompactPatch({ baseVersion: 8, clientId: "map-race-b", baseUi: mapRaceBase, nextUi: mapRaceB });
+    assert(mapRaceConflict.statusCode === 409 && mapRaceConflict.json.current?.version === 9, "Second same-map compact update should receive a recoverable conflict");
+    const mapRaceRetry = await postCompactPatch({ baseVersion: 9, clientId: "map-race-b", action: "shared-ui:conflict-retry", baseUi: mapRaceBase, nextUi: mapRaceB });
+    assert(mapRaceRetry.statusCode === 200 && mapRaceRetry.json.version === 10, "Second same-map compact update should retry safely");
+    const afterMapRace = await callSharedState(filePath, "GET");
+    assert(afterMapRace.json.sharedUi.timesheetCellOverrides?.["employee-a::2026-06-18"]?.value === "a", "Same-map retry must preserve the first timesheet cell");
+    assert(afterMapRace.json.sharedUi.timesheetCellOverrides?.["employee-b::2026-06-18"]?.value === "b", "Same-map retry must add the second timesheet cell");
+
+    const ganttRaceBase = cloneSharedUiSnapshot(afterMapRace.json.sharedUi);
+    const ganttRaceA = patchMapEntry(ganttRaceBase, "ganttDependencyRoutes", "slot-gantt-a", ["route-a"]);
+    const ganttRaceB = patchMapEntry(ganttRaceBase, "ganttDependencyRoutes", "slot-gantt-b", ["route-b"]);
+    const ganttRaceFirst = await postCompactPatch({ baseVersion: 10, clientId: "gantt-race-a", baseUi: ganttRaceBase, nextUi: ganttRaceA });
+    assert(ganttRaceFirst.statusCode === 200 && ganttRaceFirst.json.version === 11, "First Gantt map update should save");
+    const ganttRaceConflict = await postCompactPatch({ baseVersion: 10, clientId: "gantt-race-b", baseUi: ganttRaceBase, nextUi: ganttRaceB });
+    assert(ganttRaceConflict.statusCode === 409, "Second Gantt map update should receive a conflict");
+    const ganttRaceRetry = await postCompactPatch({ baseVersion: 11, clientId: "gantt-race-b", action: "shared-ui:conflict-retry", baseUi: ganttRaceBase, nextUi: ganttRaceB });
+    assert(ganttRaceRetry.statusCode === 200 && ganttRaceRetry.json.version === 12, "Second Gantt map update should retry safely");
+    const afterGanttRace = await callSharedState(filePath, "GET");
+    assert(afterGanttRace.json.sharedUi.ganttDependencyRoutes?.["slot-gantt-a"]?.[0] === "route-a", "Same-map retry must preserve the first Gantt dependency");
+    assert(afterGanttRace.json.sharedUi.ganttDependencyRoutes?.["slot-gantt-b"]?.[0] === "route-b", "Same-map retry must add the second Gantt dependency");
+
+    const laneRaceBase = cloneSharedUiSnapshot(afterGanttRace.json.sharedUi);
+    const laneRaceA = patchMapEntry(laneRaceBase, "shiftMasterBoardLaneBySlot", "slot-lane-a", "in_work");
+    const laneRaceB = patchMapEntry(laneRaceBase, "shiftMasterBoardLaneBySlot", "slot-lane-b", "queued");
+    const laneRaceFirst = await postCompactPatch({ baseVersion: 12, clientId: "lane-race-a", baseUi: laneRaceBase, nextUi: laneRaceA });
+    assert(laneRaceFirst.statusCode === 200 && laneRaceFirst.json.version === 13, "First lane map update should save");
+    const laneRaceConflict = await postCompactPatch({ baseVersion: 12, clientId: "lane-race-b", baseUi: laneRaceBase, nextUi: laneRaceB });
+    assert(laneRaceConflict.statusCode === 409, "Second lane map update should receive a conflict");
+    const laneRaceRetry = await postCompactPatch({ baseVersion: 13, clientId: "lane-race-b", action: "shared-ui:conflict-retry", baseUi: laneRaceBase, nextUi: laneRaceB });
+    assert(laneRaceRetry.statusCode === 200 && laneRaceRetry.json.version === 14, "Second lane map update should retry safely");
+    const afterLaneRace = await callSharedState(filePath, "GET");
+    assert(afterLaneRace.json.sharedUi.shiftMasterBoardLaneBySlot?.["slot-lane-a"] === "in_work", "Same-map retry must preserve the first lane choice");
+    assert(afterLaneRace.json.sharedUi.shiftMasterBoardLaneBySlot?.["slot-lane-b"] === "queued", "Same-map retry must add the second lane choice");
+
+    const profileRaceBase = cloneSharedUiSnapshot(afterLaneRace.json.sharedUi);
+    const profileRaceA = applySharedUiPatch(profileRaceBase, { maps: {}, profiles: { set: { "role-a": { id: "role-a", label: "Роль A", scope: "workCenter", defaultModule: "shiftMasterBoard" } }, remove: [] }, replace: {} });
+    const profileRaceB = applySharedUiPatch(profileRaceBase, { maps: {}, profiles: { set: { "role-b": { id: "role-b", label: "Роль B", scope: "workCenter", defaultModule: "planning" } }, remove: [] }, replace: {} });
+    const profileRaceFirst = await postCompactPatch({ baseVersion: 14, clientId: "profile-race-a", baseUi: profileRaceBase, nextUi: profileRaceA });
+    assert(profileRaceFirst.statusCode === 200 && profileRaceFirst.json.version === 15, "First profile collection update should save");
+    const profileRaceConflict = await postCompactPatch({ baseVersion: 14, clientId: "profile-race-b", baseUi: profileRaceBase, nextUi: profileRaceB });
+    assert(profileRaceConflict.statusCode === 409, "Second profile collection update should receive a conflict");
+    const profileRaceRetry = await postCompactPatch({ baseVersion: 15, clientId: "profile-race-b", action: "shared-ui:conflict-retry", baseUi: profileRaceBase, nextUi: profileRaceB });
+    assert(profileRaceRetry.statusCode === 200 && profileRaceRetry.json.version === 16, "Second profile collection update should retry safely");
+    const afterProfileRace = await callSharedState(filePath, "GET");
+    const profileIds = new Set((afterProfileRace.json.sharedUi.accessRoleProfiles || []).map((profile) => profile.id));
+    assert(profileIds.has("role-a") && profileIds.has("role-b"), "Profile collection retry must preserve distinct role additions");
+
+    // A compact UI patch may race with a normal planning/directory save. The
+    // original full writer has no patch on its first request, but its conflict
+    // retry must derive one from the saved server baseline instead of sending
+    // a stale whole UI object.
+    const crossPathBase = cloneSharedUiSnapshot(afterProfileRace.json.sharedUi);
+    const compactCrossUi = patchMapEntry(crossPathBase, "timesheetCellOverrides", "employee-compact::2026-06-19", { value: "compact", start: "08:00", end: "17:00" });
+    const fullCrossUi = patchMapEntry(crossPathBase, "shiftMasterBoardLaneBySlot", "slot-full-writer", "queued");
+    const compactCross = await postCompactPatch({ baseVersion: 16, clientId: "cross-compact", baseUi: crossPathBase, nextUi: compactCrossUi });
+    assert(compactCross.statusCode === 200 && compactCross.json.version === 17, "Compact side of a cross-path race should save");
+    const fullCrossConflict = await callSharedState(filePath, "POST", {
+      baseVersion: 16,
+      clientId: "cross-full",
+      actor: "QA",
+      action: "module-state",
+      values: afterConcurrent.json.values,
+      sharedUi: fullCrossUi,
+    });
+    assert(fullCrossConflict.statusCode === 409 && fullCrossConflict.json.current?.version === 17, "Full side of a cross-path race should receive a conflict");
+    const fullCrossRetryPatch = getSharedUiPatch(crossPathBase, fullCrossUi);
+    const fullCrossRetry = await callSharedState(filePath, "POST", {
+      baseVersion: 17,
+      clientId: "cross-full",
+      actor: "QA",
+      action: "module-state:conflict-retry",
+      values: afterConcurrent.json.values,
+      sharedUi: fullCrossUi,
+      sharedUiPatch: fullCrossRetryPatch,
+    });
+    assert(fullCrossRetry.statusCode === 200 && fullCrossRetry.json.version === 18, "Full writer retry should merge its UI patch");
+    const afterCrossPathRace = await callSharedState(filePath, "GET");
+    assert(afterCrossPathRace.json.sharedUi.timesheetCellOverrides?.["employee-compact::2026-06-19"]?.value === "compact", "Full writer retry must preserve the compact writer cell");
+    assert(afterCrossPathRace.json.sharedUi.shiftMasterBoardLaneBySlot?.["slot-full-writer"] === "queued", "Full writer retry must retain its own lane change");
+
+    // A full-write retry receives a merged server projection. The retrying
+    // browser must rebase its local UI to that projection before the next
+    // preference edit; otherwise its stale local map would emit a `remove`
+    // for the compact writer's entry and undo the preserved update.
+    const fullWriterRebasedUi = rebaseSharedUiAfterFullWrite(
+      afterCrossPathRace.json.sharedUi,
+      fullCrossUi,
+      fullCrossUi,
+    );
+    const fullWriterFollowUpUi = patchMapEntry(
+      fullWriterRebasedUi,
+      "shiftMasterBoardLaneBySlot",
+      "slot-full-writer-follow-up",
+      "in_work",
+    );
+    const fullWriterFollowUpPatch = getSharedUiPatch(
+      afterCrossPathRace.json.sharedUi,
+      fullWriterFollowUpUi,
+    );
+    assert(
+      !fullWriterFollowUpPatch.maps?.timesheetCellOverrides?.remove?.includes("employee-compact::2026-06-19"),
+      "Rebased full writer must not remove a compact writer cell on its next UI save",
+    );
+    const fullWriterFollowUp = await postCompactPatch({
+      baseVersion: 18,
+      clientId: "cross-full-follow-up",
+      baseUi: afterCrossPathRace.json.sharedUi,
+      nextUi: fullWriterFollowUpUi,
+    });
+    assert(fullWriterFollowUp.statusCode === 200 && fullWriterFollowUp.json.version === 19, "Rebased full writer follow-up should save");
+    const afterFullWriterFollowUp = await callSharedState(filePath, "GET");
+    assert(afterFullWriterFollowUp.json.sharedUi.timesheetCellOverrides?.["employee-compact::2026-06-19"]?.value === "compact", "Rebased full writer follow-up must retain the compact writer cell");
+    assert(afterFullWriterFollowUp.json.sharedUi.shiftMasterBoardLaneBySlot?.["slot-full-writer-follow-up"] === "in_work", "Rebased full writer follow-up must retain the new local preference");
+
+    // A browser can keep a version from before an operator restores an empty
+    // store. The first compact write then sees a normal version conflict; the
+    // retry discovers the missing domain baseline and must be able to use the
+    // legacy full payload instead of dropping the UI preference.
+    const resetFilePath = join(dir, "reset-state.json");
+    const resetSeed = await callSharedState(resetFilePath, "POST", {
+      baseVersion: 0,
+      clientId: "reset-seed",
+      actor: "QA",
+      action: "seed",
+      values,
+      sharedUi: afterCrossPathRace.json.sharedUi,
+    });
+    assert(resetSeed.statusCode === 200 && resetSeed.json.version === 1, "Reset recovery fixture should seed a normal snapshot");
+    await writeFile(resetFilePath, `${JSON.stringify({ version: 0, updatedAt: "", updatedBy: null, values: null, sharedUi: {}, events: [] })}\n`, "utf-8");
+    const resetPatch = { maps: { ganttDependencyRoutes: { set: { "slot-reset": ["route-reset"] }, remove: [] } }, replace: {} };
+    const resetFirst = await callSharedState(resetFilePath, "POST", {
+      baseVersion: 1,
+      clientId: "reset-client",
+      actor: "QA",
+      action: "shared-ui",
+      responseMode: "ack",
+      values: {},
+      sharedUi: applySharedUiPatch(afterCrossPathRace.json.sharedUi, resetPatch),
+      sharedUiPatch: resetPatch,
+    });
+    assert(resetFirst.statusCode === 409 && resetFirst.json.conflict === true && resetFirst.json.current?.version === 0, "Restored empty store must first expose the stale browser version conflict");
+    const resetCompactRetry = await callSharedState(resetFilePath, "POST", {
+      baseVersion: 0,
+      clientId: "reset-client",
+      actor: "QA",
+      action: "shared-ui:conflict-retry",
+      responseMode: "ack",
+      values: {},
+      sharedUi: applySharedUiPatch(afterCrossPathRace.json.sharedUi, resetPatch),
+      sharedUiPatch: resetPatch,
+    });
+    assert(resetCompactRetry.statusCode === 409 && resetCompactRetry.json.compactAckUnavailable === true, "Compact retry after a store reset must explicitly request a full fallback");
+    const resetFallback = await callSharedState(resetFilePath, "POST", {
+      baseVersion: 0,
+      clientId: "reset-client",
+      actor: "QA",
+      action: "shared-ui:compact-fallback",
+      values,
+      sharedUi: applySharedUiPatch(afterCrossPathRace.json.sharedUi, resetPatch),
+    });
+    assert(resetFallback.statusCode === 200 && resetFallback.json.version === 1, "Full fallback after a store reset must save the UI preference");
+    assert(resetFallback.json.sharedUi.ganttDependencyRoutes?.["slot-reset"]?.[0] === "route-reset", "Full fallback after a store reset must retain the requested UI change");
+
     const staleLockPath = `${filePath}.lock`;
     await writeFile(staleLockPath, "not-a-lock-directory", "utf8").catch(() => {});
     await rm(staleLockPath, { force: true });
@@ -349,6 +620,7 @@ async function main() {
     console.log("- server-owned shift projection retirement: pass");
     console.log("- access roles sharing: pass");
     console.log("- version conflict: pass");
+    console.log("- compact shared-UI acknowledgement and conflict merge: pass");
     console.log("- unchanged-poll file cache and external invalidation: pass");
     console.log("- atomic cross-process file write lock: pass");
     console.log("- shared-state file mode preservation and stale-lock fail-closed: pass");

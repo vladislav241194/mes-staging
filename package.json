@@ -48,7 +48,7 @@
     "qa:specifications2-tree": "node scripts/specifications2-tree-visual-qa.mjs && node scripts/specifications2-import-qa.mjs && node scripts/specifications2-rkd-draft-qa.mjs && node scripts/specifications2-publication-qa.mjs",
     "qa:state:inner": "node scripts/state-consistency-qa.mjs",
     "qa:state": "node scripts/run-with-local-server.mjs -- npm run qa:state:inner",
-    "qa:shared-state": "node scripts/shared-state-functional-qa.mjs && node scripts/shared-state-boot-projection-qa.mjs",
+    "qa:shared-state": "node scripts/shared-state-functional-qa.mjs && node scripts/shared-state-runtime-rebase-qa.mjs && node scripts/shared-state-boot-projection-qa.mjs",
     "qa:domain-api": "node scripts/domain-api-qa.mjs",
     "qa:planning-period": "node scripts/planning-period-api-qa.mjs && node scripts/planning-period-postgres-repository-qa.mjs && node scripts/planning-period-read-model-qa.mjs && node scripts/weekly-planning-period-lazy-qa.mjs",
     "qa:planning-postgres-safety": "node scripts/planning-postgres-projection-safety-qa.mjs && node scripts/planning-parity-watermark-qa.mjs",

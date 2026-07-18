@@ -37,6 +37,18 @@ const ALLOWED_SHARED_UI_KEYS = new Set([
   "accessRoleProfiles",
   "accessRoleAssignments",
 ]);
+const SHARED_UI_MAP_KEYS = new Set([
+  "ganttDependencyRoutes",
+  "productionStructureMatrixOverrides",
+  "timesheetCellOverrides",
+  "timesheetScheduleOverrides",
+  "shiftMasterBoardLaneBySlot",
+  "shiftMasterBoardAssignments",
+  "shiftMasterBoardFacts",
+  "shiftMasterBoardCarryovers",
+  "shiftMasterAssignmentMatrix",
+  "accessRoleAssignments",
+]);
 
 // Revision-only browser polls are intentionally small on the wire, but a file
 // store used to parse the complete multi-megabyte snapshot for every poll just
@@ -238,6 +250,60 @@ function sanitizeSharedUi(sharedUi, currentSharedUi = {}) {
   return sanitized;
 }
 
+// New compact UI writes carry an entry-level patch for map-valued fields.
+// This is intentionally separate from the legacy `sharedUi` object: older
+// clients keep replacement semantics, while separate tab edits to two
+// slot/cell entries no longer erase each other during a conflict retry.
+function mergeSharedUiPatch(currentSharedUi, patch) {
+  if (!isRecord(patch)) return null;
+  const maps = patch.maps === undefined ? {} : patch.maps;
+  const profiles = patch.profiles === undefined ? null : patch.profiles;
+  const replace = patch.replace === undefined ? {} : patch.replace;
+  if (!isRecord(maps) || !isRecord(replace) || (profiles !== null && !isRecord(profiles))) return null;
+  const merged = sanitizeSharedUi(currentSharedUi, {});
+
+  for (const [key, value] of Object.entries(replace)) {
+    if (!ALLOWED_SHARED_UI_KEYS.has(key)) return null;
+    if (value === null) {
+      merged[key] = null;
+      continue;
+    }
+    if (!isAllowedSharedUiValue(key, value)) return null;
+    merged[key] = value;
+  }
+
+  for (const [key, change] of Object.entries(maps)) {
+    if (!SHARED_UI_MAP_KEYS.has(key) || !isRecord(change)) return null;
+    const set = change.set === undefined ? {} : change.set;
+    const remove = change.remove === undefined ? [] : change.remove;
+    if (!isRecord(set) || !Array.isArray(remove) || remove.some((entryKey) => typeof entryKey !== "string")) return null;
+    const nextMap = isRecord(merged[key]) ? { ...merged[key] } : {};
+    remove.forEach((entryKey) => { delete nextMap[entryKey]; });
+    Object.entries(set).forEach(([entryKey, value]) => { nextMap[entryKey] = value; });
+    merged[key] = nextMap;
+  }
+
+  if (profiles) {
+    const set = profiles.set === undefined ? {} : profiles.set;
+    const remove = profiles.remove === undefined ? [] : profiles.remove;
+    if (!isRecord(set) || !Array.isArray(remove) || remove.some((profileId) => typeof profileId !== "string")) return null;
+    const nextProfiles = Array.isArray(merged.accessRoleProfiles)
+      ? merged.accessRoleProfiles.filter((profile) => !remove.includes(String(profile?.id || "")))
+      : [];
+    const indexes = new Map(nextProfiles.map((profile, index) => [String(profile?.id || ""), index]).filter(([profileId]) => profileId));
+    for (const [profileId, profile] of Object.entries(set)) {
+      if (!isRecord(profile) || String(profile.id || "") !== profileId) return null;
+      const index = indexes.get(profileId);
+      if (index === undefined) {
+        indexes.set(profileId, nextProfiles.length);
+        nextProfiles.push(profile);
+      } else nextProfiles[index] = profile;
+    }
+    merged.accessRoleProfiles = nextProfiles;
+  }
+  return merged;
+}
+
 function createEmptySnapshot() {
   return {
     version: 0,
@@ -355,6 +421,26 @@ function normalizeAction(value) {
   return value.trim().slice(0, 80) || "snapshot";
 }
 
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+// A shared-UI change is deliberately independent from the large persisted
+// planning/directory/specification values.  New clients can opt into a tiny
+// acknowledgement after such a write, while old clients and every domain
+// mutation retain the established full-snapshot response.
+function isCompactSharedUiAcknowledgementRequest(payload, action) {
+  if (payload?.responseMode !== "ack") return false;
+  if (![
+    "shared-ui",
+    "local-shared-ui",
+    "shared-ui:conflict-retry",
+    "local-shared-ui:conflict-retry",
+  ].includes(action)) return false;
+  const values = payload?.values;
+  return Boolean(values && isRecord(values) && Object.keys(values).length === 0 && isRecord(payload?.sharedUiPatch));
+}
+
 function parsePlanningState(value) {
   if (typeof value !== "string" || !value) return null;
   try {
@@ -387,6 +473,10 @@ function buildClientSnapshot(current, payload) {
   if (!values || !values["mes-planning-prototype-state-v2"] || !values["mes-planning-prototype-directories-v2"]) {
     throw new Error("Invalid shared state payload");
   }
+  const sharedUi = Object.prototype.hasOwnProperty.call(payload || {}, "sharedUiPatch")
+    ? mergeSharedUiPatch(current.sharedUi, payload.sharedUiPatch)
+    : payload.sharedUi;
+  if (sharedUi === null) throw new Error("Invalid shared UI patch");
 
   const version = Number(current.version || 0) + 1;
   const updatedAt = new Date().toISOString();
@@ -407,7 +497,7 @@ function buildClientSnapshot(current, payload) {
     updatedAt,
     updatedBy,
     values,
-    sharedUi: sanitizeSharedUi(payload.sharedUi, current.sharedUi),
+    sharedUi: sanitizeSharedUi(sharedUi, current.sharedUi),
     events: [event, ...(current.events || [])].slice(0, 50),
   };
 }
@@ -462,6 +552,7 @@ export async function handleSharedStateRequest(req, res, {
     const payload = JSON.parse(await readRequestBody(req) || "{}");
     const action = normalizeAction(payload.action);
     const destructiveAction = isSharedStateActionDestructive(action);
+    const compactSharedUiAcknowledgement = isCompactSharedUiAcknowledgementRequest(payload, action);
 
     if (isProtectedAppEnv(env) && destructiveAction && !isDestructiveActionsAllowed(env)) {
       await appendSharedStateAudit({
@@ -501,6 +592,23 @@ export async function handleSharedStateRequest(req, res, {
       }
 
       const planningKey = "mes-planning-prototype-state-v2";
+      const directoriesKey = "mes-planning-prototype-directories-v2";
+      // An acknowledgement-only request intentionally omits every domain
+      // value. It is safe only after a normal snapshot has established the
+      // required base values; signal the browser to retry the legacy full
+      // write when this is a freshly configured empty store.
+      if (compactSharedUiAcknowledgement
+        && (!current.values?.[planningKey] || !current.values?.[directoriesKey])) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          compactAckUnavailable: true,
+          error: "Compact shared-UI acknowledgement requires an existing domain snapshot",
+          current,
+        });
+        return;
+      }
+
       const incomingPlanning = payload.values?.[planningKey];
       if (!destructiveAction
         && hasMeaningfulPlanningState(current.values?.[planningKey])
@@ -564,7 +672,13 @@ export async function handleSharedStateRequest(req, res, {
           actor: normalizeActor(payload.actor),
         },
       }).catch(() => {});
-      sendJson(res, headers, 200, { ok: true, configured: true, ...snapshot });
+      // The browser has no new domain values to apply after an isolated UI
+      // preference write.  Avoid serialising the whole compatibility snapshot
+      // back to it; a conflict response remains intentionally complete so the
+      // existing retry/recovery path stays lossless.
+      sendJson(res, headers, 200, compactSharedUiAcknowledgement
+        ? { ok: true, configured: true, version: snapshot.version, updatedAt: snapshot.updatedAt }
+        : { ok: true, configured: true, ...snapshot });
     };
     if (store.kind === "file" && store.filePath) {
       await withSharedStateFileLock(store.filePath, persistSharedState);

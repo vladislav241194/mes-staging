@@ -29,5 +29,12 @@ assert(app.includes("function hasSystemDomainsServerAuthority()"), "System Domai
 assert(app.includes("SYSTEM_DOMAINS_SERVER_COMMAND_SURFACES"), "System Domains authority surfaces must be explicit and reviewable.");
 assert(app.includes("onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap()"), "Runtime startup must wire the compact Planning workbench bootstrap.");
 assert(!app.includes("onPlanningBootstrap: () => hydratePlanningRuntimeProjection()"), "Planning startup must not fetch the complete runtime projection.");
+assert(runtimeState.includes("function isCompactSharedUiReason(reason = \"\")"), "Shared UI writes must have an explicit compact transport gate.");
+assert(runtimeState.includes("responseMode = \"ack\""), "Shared UI writes must request the compact acknowledgement.");
+assert(runtimeState.includes("pendingValues = compactSharedUi ? null : getSharedStateValues()"), "Shared UI writes must not capture every compatibility value.");
+assert(runtimeState.includes("sharedUiPatch = pendingSharedUi"), "Compact UI writes must carry an entry-level patch.");
+assert((runtimeState.match(/compactAckUnavailable/g) || []).length >= 2, "Compact UI writes must recover when a reset exposes an empty shared-state baseline after a conflict.");
+assert(runtimeState.includes("function reconcileSharedUiAfterFullWrite"), "A full shared-state retry must reconcile the merged UI response locally.");
+assert(runtimeState.includes("rebaseSharedUiAfterFullWrite("), "A full shared-state retry must rebase local UI changes over the server response.");
 
 console.log("Shared-state boot projection QA: OK");

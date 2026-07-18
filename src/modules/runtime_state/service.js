@@ -1,3 +1,11 @@
+import {
+  applySharedUiPatch,
+  cloneSharedUiSnapshot,
+  getSharedUiPatch,
+  hasSharedUiPatchChanges,
+  rebaseSharedUiAfterFullWrite,
+} from "./shared_ui_delta.js";
+
 export function createRuntimeStateServiceModule(dependencies = {}) {
   const {
     APP_VERSION,
@@ -239,6 +247,7 @@ function shouldPreserveLocalSharedUi() {
     ui.productionStructureMatrixOverrides = normalizePlainRecord(source.productionStructureMatrixOverrides);
     syncProductionStructureMatrixToPlanningState({ persist: true });
   }
+
   if (Object.prototype.hasOwnProperty.call(source, "timesheetCellOverrides")) {
     ui.timesheetCellOverrides = normalizePlainRecord(source.timesheetCellOverrides);
   }
@@ -266,6 +275,30 @@ function shouldPreserveLocalSharedUi() {
   if (Object.prototype.hasOwnProperty.call(source, "accessRoleAssignments")) {
     ui.accessRoleAssignments = normalizeAccessRoleAssignments(source.accessRoleAssignments);
   }
+}
+
+function reconcileSharedUiAfterFullWrite(serverSharedUi = {}, capturedSharedUi = {}) {
+  const serverUi = cloneSharedUiSnapshot(serverSharedUi);
+  const localUiAfterRequest = getSharedUiSnapshot();
+  const rebasedUi = rebaseSharedUiAfterFullWrite(
+    serverUi,
+    capturedSharedUi,
+    localUiAfterRequest,
+  );
+  // Applying the result should update the local preference cache, but must
+  // not trigger a second save while this write is still completing. A user
+  // edit made during the request remains in `rebasedUi` and is queued below.
+  const wasApplyingRemote = sharedStateApplyingRemote;
+  sharedStateApplyingRemote = true;
+  try {
+    applySharedUiSnapshot(rebasedUi);
+    syncActiveRoleWithAuthorization();
+    persistUiState({ skipRememberScroll: true });
+  } finally {
+    sharedStateApplyingRemote = wasApplyingRemote;
+  }
+  sharedStateStatus.sharedUiBase = serverUi;
+  return hasSharedUiPatchChanges(getSharedUiPatch(serverUi, rebasedUi));
 }
 
 function isSharedStateTemporarilyDisabled() {
@@ -327,7 +360,8 @@ function applySharedStateSnapshot(snapshot, options = {}) {
   // Treat that explicitly as a valid metadata-only projection; an accidental
   // empty response remains rejected everywhere else.
   if (!hasPlanningState && !hasDirectoryState && options.allowSharedUiOnly !== true) return false;
-  const preserveLocalSharedUi = options.preserveLocalSharedUi === true && shouldPreserveLocalSharedUi();
+  const preserveLocalSharedUi = options.preserveLocalSharedUi === true
+    && (options.forcePreserveLocalSharedUi === true || shouldPreserveLocalSharedUi());
   const localSharedUi = preserveLocalSharedUi ? getSharedUiSnapshot() : null;
   sharedStateApplyingRemote = true;
   try {
@@ -362,6 +396,10 @@ function applySharedStateSnapshot(snapshot, options = {}) {
     ui.ganttDependencyDrag = null;
 
     sharedStateStatus.version = Number(snapshot.version || 0);
+    // Retain the actual remote source even when a local pending UI write is
+    // intentionally preserved. Its delta must later merge with this source,
+    // not overwrite it with the entire stale local UI object.
+    sharedStateStatus.sharedUiBase = cloneSharedUiSnapshot(snapshot.sharedUi || {});
     rememberSharedUiSignature();
     persistUiState({ skipRememberScroll: true });
 
@@ -478,6 +516,10 @@ async function hydrateSharedStateValues(valueKeys = []) {
   }
 }
 
+function isCompactSharedUiReason(reason = "") {
+  return reason === "shared-ui" || reason === "local-shared-ui";
+}
+
 function scheduleSharedStatePush(reason = "snapshot") {
   if (sharedStateApplyingRemote) return;
   // Initial module renders may emit persistence events before the first GET
@@ -485,14 +527,31 @@ function scheduleSharedStatePush(reason = "snapshot") {
   // server snapshot immediately after it is applied. Real user interaction is
   // available only after boot, while the initial GET completes first.
   if (!sharedStateStatus.configured && !sharedStateStatus.enabled) return;
-  sharedStateStatus.pendingReason = reason || sharedStateStatus.pendingReason || "snapshot";
-  // Capture now: another same-origin tab may overwrite localStorage with an older
-  // polled snapshot before this tab's debounce expires.
-  sharedStateStatus.pendingValues = getSharedStateValues();
-  sharedStateStatus.pendingSharedUi = getSharedUiSnapshot();
+  const requestedReason = String(reason || "").trim() || sharedStateStatus.pendingReason || "snapshot";
+  const pendingReason = String(sharedStateStatus.pendingReason || "");
+  // A UI preference must never downgrade a real domain mutation that is
+  // already queued for persistence.  The reverse is safe: the full snapshot
+  // path supersedes an earlier UI-only acknowledgement.
+  const keepsQueuedFullWrite = isCompactSharedUiReason(requestedReason)
+    && pendingReason
+    && (sharedStateStatus.pendingWriteMode === "full" || !isCompactSharedUiReason(pendingReason));
+  sharedStateStatus.pendingReason = keepsQueuedFullWrite ? pendingReason : requestedReason;
+  const compactSharedUi = isCompactSharedUiReason(sharedStateStatus.pendingReason)
+    && sharedStateStatus.sharedUiBase !== null;
+  sharedStateStatus.pendingWriteMode = compactSharedUi ? "shared-ui" : "full";
+  // Capture all values only when this write can change them.  A shared-UI
+  // preference used to serialize the whole multi-megabyte compatibility
+  // snapshot on every interaction despite changing none of those values.
+  const pendingSharedUiFull = getSharedUiSnapshot();
+  sharedStateStatus.pendingValues = compactSharedUi ? null : getSharedStateValues();
+  sharedStateStatus.pendingSharedUi = compactSharedUi
+    ? getSharedUiPatch(sharedStateStatus.sharedUiBase, pendingSharedUiFull)
+    : pendingSharedUiFull;
+  sharedStateStatus.pendingSharedUiFull = pendingSharedUiFull;
   window.__MES_SHARED_STATE_DEBUG__ = {
     phase: "queued",
     reason: sharedStateStatus.pendingReason,
+    transport: compactSharedUi ? "shared-ui-ack" : "snapshot",
     enabled: sharedStateStatus.enabled,
     at: new Date().toISOString(),
   };
@@ -600,35 +659,126 @@ async function pushSharedState(reason = "snapshot", options = {}) {
   sharedStateStatus.saveTimer = null;
   sharedStateStatus.pendingReason = "";
   sharedStateStatus.saveInFlight = true;
-  const pendingValues = sharedStateStatus.pendingValues || getSharedStateValues();
-  const pendingSharedUi = sharedStateStatus.pendingSharedUi || getSharedUiSnapshot();
+  const pendingWriteMode = sharedStateStatus.pendingWriteMode;
+  sharedStateStatus.pendingWriteMode = "";
+  let compactSharedUi = pendingWriteMode === "shared-ui" && isCompactSharedUiReason(reason);
+  let pendingValues = compactSharedUi ? {} : (sharedStateStatus.pendingValues || getSharedStateValues());
+  let pendingSharedUi = sharedStateStatus.pendingSharedUi || getSharedUiSnapshot();
+  const pendingSharedUiFull = sharedStateStatus.pendingSharedUiFull || (compactSharedUi ? getSharedUiSnapshot() : pendingSharedUi);
 
   try {
-    let response = await requestSharedState("POST", {
+    const writePayload = {
       baseVersion: sharedStateStatus.version,
       clientId: getSharedStateClientId(),
       actor: getSharedStateActorLabel(),
       action: reason,
       values: pendingValues,
       sharedUi: pendingSharedUi,
-    });
+    };
+    if (compactSharedUi) {
+      // Keep the complete UI copy for an older server during an atomic
+      // rollout. A new server ignores it in favour of `sharedUiPatch`; an old
+      // server still receives the historically safe full representation.
+      writePayload.sharedUi = pendingSharedUiFull;
+      writePayload.sharedUiPatch = pendingSharedUi;
+      writePayload.responseMode = "ack";
+    }
+    let response = await requestSharedState("POST", writePayload);
+
+    // A freshly configured store has no valid domain-value baseline to merge
+    // an empty compact request into.  Fall back once to the established full
+    // snapshot path instead of dropping the UI preference.
+    if (compactSharedUi && response.compactAckUnavailable === true) {
+      sharedStateStatus.version = Number(response.current?.version || sharedStateStatus.version);
+      compactSharedUi = false;
+      pendingValues = getSharedStateValues();
+      pendingSharedUi = pendingSharedUiFull;
+      response = await requestSharedState("POST", {
+        baseVersion: sharedStateStatus.version,
+        clientId: getSharedStateClientId(),
+        actor: getSharedStateActorLabel(),
+        action: `${reason}:compact-fallback`,
+        values: pendingValues,
+        sharedUi: pendingSharedUi,
+      });
+    }
 
     if (response.conflict && response.current) {
       // The local payload was captured before debounce and is still the user's
       // intended mutation. Retry once against the server's current version
       // instead of immediately replacing it with the older remote snapshot.
       sharedStateStatus.version = Number(response.current.version || sharedStateStatus.version);
-      const retryValues = mergeSharedStateConflictValues(response.current.values || {}, pendingValues);
-      response = await requestSharedState("POST", {
+      const retryValues = compactSharedUi ? {} : mergeSharedStateConflictValues(response.current.values || {}, pendingValues);
+      // A domain write still carries the legacy complete UI projection for
+      // compatibility. On conflict, however, turn its local UI change into
+      // the same entry-level patch used by a compact UI write. Otherwise a
+      // stale planning/directory save could erase a newer cell or slot choice.
+      const retrySharedUiPatch = compactSharedUi
+        ? pendingSharedUi
+        : (sharedStateStatus.sharedUiBase !== null
+          ? getSharedUiPatch(sharedStateStatus.sharedUiBase, pendingSharedUiFull)
+          : null);
+      const retryPayload = {
         baseVersion: sharedStateStatus.version,
         clientId: getSharedStateClientId(),
         actor: getSharedStateActorLabel(),
         action: `${reason}:conflict-retry`,
         values: retryValues,
-        sharedUi: pendingSharedUi,
-      });
+        sharedUi: compactSharedUi ? pendingSharedUiFull : pendingSharedUi,
+      };
+      if (retrySharedUiPatch) {
+        retryPayload.sharedUiPatch = retrySharedUiPatch;
+      }
+      if (compactSharedUi) {
+        retryPayload.responseMode = "ack";
+      }
+      response = await requestSharedState("POST", retryPayload);
+      // A reset may first produce a normal version conflict and only expose
+      // the missing domain baseline on this retry. Recover it through the
+      // complete legacy write instead of abandoning the user preference.
+      if (compactSharedUi && response.compactAckUnavailable === true) {
+        sharedStateStatus.version = Number(response.current?.version || sharedStateStatus.version);
+        compactSharedUi = false;
+        pendingValues = getSharedStateValues();
+        pendingSharedUi = pendingSharedUiFull;
+        response = await requestSharedState("POST", {
+          baseVersion: sharedStateStatus.version,
+          clientId: getSharedStateClientId(),
+          actor: getSharedStateActorLabel(),
+          action: `${reason}:compact-fallback`,
+          values: pendingValues,
+          sharedUi: pendingSharedUi,
+        });
+      }
       if (response.conflict && response.current) {
-        applySharedStateSnapshot(response.current, { silent: true });
+        // A second conflict means another writer changed the snapshot between
+        // our retry and its save. Do not silently replace a UI preference that
+        // is still local: retain it over the new server baseline and queue a
+        // compact retry. Domain values remain conservative and are refreshed
+        // from the server, so only the independently mergeable UI projection
+        // is retried automatically.
+        const remoteSharedUi = cloneSharedUiSnapshot(response.current.sharedUi || {});
+        // Keep the source baseline from before this write began. The current
+        // local UI can omit a just-arrived remote map entry, but its intent is
+        // only the delta from this baseline, not an instruction to delete the
+        // remote entry.
+        const localSharedUiBase = cloneSharedUiSnapshot(
+          sharedStateStatus.sharedUiBase || pendingSharedUiFull,
+        );
+        applySharedStateSnapshot(response.current, {
+          silent: true,
+          allowSharedUiOnly: true,
+          preserveLocalSharedUi: true,
+          forcePreserveLocalSharedUi: true,
+        });
+        const hasLocalSharedUiChanges = reconcileSharedUiAfterFullWrite(
+          remoteSharedUi,
+          localSharedUiBase,
+        );
+        if (hasLocalSharedUiChanges) {
+          markSharedUiDirty();
+          if (!sharedStateStatus.pendingReason) sharedStateStatus.pendingReason = "local-shared-ui";
+        }
         if (options.notifyConflict === true && !options.silent) {
           notifySaveSuccess("Общее состояние изменилось повторно. Обновите данные и повторите сохранение.");
         }
@@ -645,11 +795,27 @@ async function pushSharedState(reason = "snapshot", options = {}) {
     if (response.ok) {
       sharedStateStatus.configured = true;
       sharedStateStatus.version = Number(response.version || sharedStateStatus.version);
+      let hasUnsavedSharedUiChanges = false;
+      if (compactSharedUi) {
+        sharedStateStatus.sharedUiBase = applySharedUiPatch(sharedStateStatus.sharedUiBase || {}, pendingSharedUi);
+        hasUnsavedSharedUiChanges = hasSharedUiPatchChanges(getSharedUiPatch(
+          sharedStateStatus.sharedUiBase,
+          getSharedUiSnapshot(),
+        ));
+      } else if (response.sharedUi && typeof response.sharedUi === "object") {
+        hasUnsavedSharedUiChanges = reconcileSharedUiAfterFullWrite(response.sharedUi, pendingSharedUiFull);
+      }
       rememberSharedUiSignature();
-      clearSharedUiDirty();
+      if (hasUnsavedSharedUiChanges) {
+        markSharedUiDirty();
+        if (!sharedStateStatus.pendingReason) sharedStateStatus.pendingReason = "local-shared-ui";
+      } else {
+        clearSharedUiDirty();
+      }
       window.__MES_SHARED_STATE_DEBUG__ = {
         phase: "saved",
         reason,
+        transport: compactSharedUi ? "shared-ui-ack" : "snapshot",
         version: sharedStateStatus.version,
         at: new Date().toISOString(),
       };
@@ -666,6 +832,7 @@ async function pushSharedState(reason = "snapshot", options = {}) {
   } finally {
     if (sharedStateStatus.pendingValues === pendingValues) sharedStateStatus.pendingValues = null;
     if (sharedStateStatus.pendingSharedUi === pendingSharedUi) sharedStateStatus.pendingSharedUi = null;
+    if (sharedStateStatus.pendingSharedUiFull === pendingSharedUiFull) sharedStateStatus.pendingSharedUiFull = null;
     sharedStateStatus.saveInFlight = false;
     if (sharedStateStatus.pendingReason) scheduleSharedStatePush(sharedStateStatus.pendingReason);
   }
