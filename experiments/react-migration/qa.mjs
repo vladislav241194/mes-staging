@@ -43,12 +43,11 @@ try {
     format: "esm",
     target: "node20",
   });
-  const { adaptNomenclatureItems } = await import(`${pathToFileURL(adapterOutput).href}?qa=${Date.now()}`);
+  const { adaptNomenclatureItems, adaptNomenclatureReadModel } = await import(`${pathToFileURL(adapterOutput).href}?qa=${Date.now()}`);
 
   const adapted = adaptNomenclatureItems([
-    { id: "ok", name: "Valid", kind: "РЭА", article: "A-1" },
-    { id: "", name: "Missing id", kind: "РЭА" },
-    { id: "bad-kind", name: "Bad kind", kind: "Unknown" },
+    { id: "ok", name: "Valid", type: "РЭА компоненты", article: "A-1" },
+    { id: "", name: "Missing id", type: "РЭА компоненты" },
     null,
   ]);
   assert.equal(adapted.length, 1, "adapter must discard invalid records");
@@ -56,12 +55,24 @@ try {
     id: "ok",
     article: "A-1",
     name: "Valid",
-    kind: "РЭА",
+    type: "РЭА компоненты",
     unit: "шт.",
     packageName: "—",
-    status: "active",
+    manufacturer: "—",
+    description: "",
+    statusLabel: "Активен",
+    statusTone: "success",
   });
   assert.deepEqual(adaptNomenclatureItems({}), [], "non-array payload must fail closed");
+  const readModel = adaptNomenclatureReadModel({
+    nomenclature: [{ id: "ok", name: "Valid", type: "РЭА" }],
+    nomenclatureTypes: [
+      { id: "rea", name: "РЭА компоненты", status: "Активен" },
+      { id: "old", name: "Архив", status: "Архив" },
+    ],
+  });
+  assert.equal(readModel.items[0]?.type, "РЭА компоненты", "legacy REA alias must normalize");
+  assert.deepEqual(readModel.types.map((entry) => entry.label), ["РЭА компоненты"], "inactive types must be hidden");
 
   const viewModelOutput = join(temporaryRoot, "view-model.mjs");
   await build({
@@ -78,9 +89,13 @@ try {
   assert.equal(viewModel.formatRecordCount(5), "5 записей");
   assert.equal(viewModel.formatRecordCount(11), "11 записей");
   assert.equal(viewModel.formatRecordCount(21), "21 запись");
-  assert.equal(viewModel.filterNomenclatureItems(adapted, "Материал").length, 0);
-  assert.equal(viewModel.filterNomenclatureItems(adapted, "РЭА").length, 1);
+  assert.equal(viewModel.filterNomenclatureItems(adapted, "Механика").length, 0);
+  assert.equal(viewModel.filterNomenclatureItems(adapted, "РЭА компоненты").length, 1);
   assert.equal(viewModel.resolveVisibleSelection(adapted, "missing")?.id, "ok");
+  assert.deepEqual(viewModel.buildNomenclatureFilters(readModel).map((entry) => [entry.label, entry.count]), [
+    ["Вся номенклатура", 1],
+    ["РЭА компоненты", 1],
+  ]);
 
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [

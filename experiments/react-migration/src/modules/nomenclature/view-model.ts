@@ -1,16 +1,28 @@
-import type { NomenclatureItem, NomenclatureKind } from "./adapter";
+import type { NomenclatureItem, NomenclatureReadModel } from "./adapter";
 
-export type NomenclatureFilter = "all" | NomenclatureKind;
+export type NomenclatureFilter = "all" | string;
 
-export const nomenclatureFilters: Array<{ id: NomenclatureFilter; label: string }> = [
-  { id: "all", label: "Вся номенклатура" },
-  { id: "Материал", label: "Материалы" },
-  { id: "РЭА", label: "РЭА" },
-  { id: "Печатная плата", label: "Печатные платы" },
-];
+export interface NomenclatureFilterOption {
+  id: NomenclatureFilter;
+  label: string;
+  count: number;
+  description: string;
+}
+
+export function buildNomenclatureFilters(model: NomenclatureReadModel): NomenclatureFilterOption[] {
+  return [
+    { id: "all", label: "Вся номенклатура", count: model.items.length, description: "Все производственные позиции" },
+    ...model.types.map((type) => ({
+      id: type.label,
+      label: type.label,
+      count: model.items.filter((item) => item.type === type.label).length,
+      description: type.description,
+    })),
+  ];
+}
 
 export function filterNomenclatureItems(items: NomenclatureItem[], filter: NomenclatureFilter): NomenclatureItem[] {
-  return filter === "all" ? items : items.filter((item) => item.kind === filter);
+  return filter === "all" ? items : items.filter((item) => item.type === filter);
 }
 
 export function resolveVisibleSelection(items: NomenclatureItem[], selectedId: string): NomenclatureItem | null {

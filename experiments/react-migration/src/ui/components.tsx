@@ -52,6 +52,6 @@ export function TableWrap({ children }: { children: ReactNode }) {
   return <div className="table-wrap" data-ui-component="TableWrap">{children}</div>;
 }
 
-export function StatusToken({ label, tone }: { label: string; tone: "success" | "warning" }) {
+export function StatusToken({ label, tone }: { label: string; tone: "success" | "warning" | "neutral" }) {
   return <span className={`status status--${tone}`} data-ui-component="StatusToken">{label}</span>;
 }

@@ -1,22 +1,23 @@
 import { useMemo, useState } from "react";
 import { ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
-import { adaptNomenclatureItems, type NomenclatureItemDto } from "./adapter";
-import { filterNomenclatureItems, formatRecordCount, nomenclatureFilters, resolveVisibleSelection, type NomenclatureFilter } from "./view-model";
+import { adaptNomenclatureReadModel } from "./adapter";
+import { buildNomenclatureFilters, filterNomenclatureItems, formatRecordCount, resolveVisibleSelection, type NomenclatureFilter } from "./view-model";
 
-export function NomenclatureScenario({ payload }: { payload: NomenclatureItemDto[] }) {
-  const items = useMemo(() => adaptNomenclatureItems(payload), [payload]);
+export function NomenclatureScenario({ payload }: { payload: unknown }) {
+  const model = useMemo(() => adaptNomenclatureReadModel(payload), [payload]);
+  const filters = useMemo(() => buildNomenclatureFilters(model), [model]);
   const [filter, setFilter] = useState<NomenclatureFilter>("all");
-  const [selectedId, setSelectedId] = useState(items[0]?.id ?? "");
-  const visibleItems = filterNomenclatureItems(items, filter);
+  const [selectedId, setSelectedId] = useState(model.items[0]?.id ?? "");
+  const visibleItems = filterNomenclatureItems(model.items, filter);
   const selected = resolveVisibleSelection(visibleItems, selectedId);
 
   const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge">React migration lab</span>} />;
   const sidebar = (
     <ModuleSidebar label="Разделы номенклатуры" title="Разделы">
-      {nomenclatureFilters.map((entry) => (
+      {filters.map((entry) => (
         <SidebarItem
           active={filter === entry.id}
-          count={entry.id === "all" ? items.length : items.filter((item) => item.kind === entry.id).length}
+          count={entry.count}
           key={entry.id}
           label={entry.label}
           onClick={() => setFilter(entry.id)}
@@ -35,7 +36,7 @@ export function NomenclatureScenario({ payload }: { payload: NomenclatureItemDto
       }>
         <TableWrap>
           <table>
-            <thead><tr><th>Артикул</th><th>Наименование</th><th>Тип</th><th>Ед.</th><th>Статус</th></tr></thead>
+            <thead><tr><th>Наименование</th><th>Артикул</th><th>Раздел</th><th>Корпус</th><th>Ед.</th><th>Производитель</th><th>Статус</th></tr></thead>
             <tbody>
               {visibleItems.map((item) => (
                 <tr
@@ -51,8 +52,8 @@ export function NomenclatureScenario({ payload }: { payload: NomenclatureItemDto
                   }}
                   tabIndex={0}
                 >
-                  <td>{item.article}</td><td>{item.name}</td><td>{item.kind}</td><td>{item.unit}</td>
-                  <td><StatusToken label={item.status === "active" ? "Действует" : "Черновик"} tone={item.status === "active" ? "success" : "warning"} /></td>
+                  <td>{item.name}</td><td>{item.article}</td><td>{item.type}</td><td>{item.packageName}</td><td>{item.unit}</td><td>{item.manufacturer}</td>
+                  <td><StatusToken label={item.statusLabel} tone={item.statusTone} /></td>
                 </tr>
               ))}
             </tbody>
@@ -65,9 +66,10 @@ export function NomenclatureScenario({ payload }: { payload: NomenclatureItemDto
           <p>Карточка позиции</p><h2>{selected.name}</h2>
           <dl>
             <div><dt>Артикул</dt><dd>{selected.article}</dd></div>
-            <div><dt>Тип</dt><dd>{selected.kind}</dd></div>
+            <div><dt>Раздел</dt><dd>{selected.type}</dd></div>
             <div><dt>Корпус</dt><dd>{selected.packageName}</dd></div>
             <div><dt>Единица</dt><dd>{selected.unit}</dd></div>
+            <div><dt>Производитель</dt><dd>{selected.manufacturer}</dd></div>
           </dl>
         </> : <p>В разделе нет позиций</p>}
       </aside>

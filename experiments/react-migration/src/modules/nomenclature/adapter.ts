@@ -1,12 +1,20 @@
-export type NomenclatureKind = "Материал" | "РЭА" | "Печатная плата";
-
 export interface NomenclatureItemDto {
   id?: unknown;
   article?: unknown;
   name?: unknown;
-  kind?: unknown;
+  type?: unknown;
   unit?: unknown;
   package?: unknown;
+  manufacturer?: unknown;
+  description?: unknown;
+  status?: unknown;
+}
+
+export interface NomenclatureTypeDto {
+  id?: unknown;
+  name?: unknown;
+  code?: unknown;
+  description?: unknown;
   status?: unknown;
 }
 
@@ -14,16 +22,44 @@ export interface NomenclatureItem {
   id: string;
   article: string;
   name: string;
-  kind: NomenclatureKind;
+  type: string;
   unit: string;
   packageName: string;
-  status: "active" | "draft";
+  manufacturer: string;
+  description: string;
+  statusLabel: string;
+  statusTone: "success" | "neutral";
 }
 
-const kinds = new Set<NomenclatureKind>(["Материал", "РЭА", "Печатная плата"]);
+export interface NomenclatureTypeOption {
+  id: string;
+  label: string;
+  code: string;
+  description: string;
+}
+
+export interface NomenclatureReadModel {
+  items: NomenclatureItem[];
+  types: NomenclatureTypeOption[];
+}
+
+const inactiveStatuses = new Set(["отключен", "удален", "архив"]);
 
 function text(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function lookup(value: unknown): string {
+  return text(value).toLocaleLowerCase("ru-RU").replace(/ё/g, "е");
+}
+
+function normalizeType(value: unknown): string {
+  const valueText = text(value);
+  const normalized = lookup(valueText);
+  if (!normalized || ["компонент", "компоненты", "рэа", "rea", "радиоэлектронные компоненты"].includes(normalized)) {
+    return "РЭА компоненты";
+  }
+  return valueText;
 }
 
 export function adaptNomenclatureItems(payload: unknown): NomenclatureItem[] {
@@ -33,17 +69,52 @@ export function adaptNomenclatureItems(payload: unknown): NomenclatureItem[] {
     const dto = (entry ?? {}) as NomenclatureItemDto;
     const id = text(dto.id);
     const name = text(dto.name);
-    const kind = text(dto.kind) as NomenclatureKind;
-    if (!id || !name || !kinds.has(kind)) return [];
+    if (!id || !name) return [];
+    const statusLabel = text(dto.status) || "Активен";
 
     return [{
       id,
       article: text(dto.article) || "—",
       name,
-      kind,
+      type: normalizeType(dto.type),
       unit: text(dto.unit) || "шт.",
       packageName: text(dto.package) || "—",
-      status: text(dto.status) === "draft" ? "draft" : "active",
+      manufacturer: text(dto.manufacturer) || "—",
+      description: text(dto.description),
+      statusLabel,
+      statusTone: lookup(statusLabel).includes("актив") ? "success" : "neutral",
     }];
   });
+}
+
+export function adaptNomenclatureTypes(payload: unknown): NomenclatureTypeOption[] {
+  if (!Array.isArray(payload)) return [];
+  const seen = new Set<string>();
+  return payload.flatMap((entry): NomenclatureTypeOption[] => {
+    const dto = (entry ?? {}) as NomenclatureTypeDto;
+    const label = normalizeType(dto.name);
+    const key = lookup(label);
+    if (!label || seen.has(key) || inactiveStatuses.has(lookup(dto.status))) return [];
+    seen.add(key);
+    return [{
+      id: text(dto.id) || `type-${key.replace(/[^a-zа-я0-9]+/gi, "-")}`,
+      label,
+      code: text(dto.code),
+      description: text(dto.description),
+    }];
+  });
+}
+
+export function adaptNomenclatureReadModel(payload: unknown): NomenclatureReadModel {
+  const record = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  const items = adaptNomenclatureItems(Array.isArray(payload) ? payload : record.nomenclature ?? record.items);
+  const declaredTypes = adaptNomenclatureTypes(record.nomenclatureTypes ?? record.types);
+  const typeKeys = new Set(declaredTypes.map((entry) => lookup(entry.label)));
+  const inferredTypes = items.flatMap((item): NomenclatureTypeOption[] => {
+    const key = lookup(item.type);
+    if (typeKeys.has(key)) return [];
+    typeKeys.add(key);
+    return [{ id: `inferred-${key.replace(/[^a-zа-я0-9]+/gi, "-")}`, label: item.type, code: "", description: "" }];
+  });
+  return { items, types: [...declaredTypes, ...inferredTypes] };
 }

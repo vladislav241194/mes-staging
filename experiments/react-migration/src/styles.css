@@ -32,6 +32,7 @@ tbody tr:hover, tbody tr:focus { background: #f4f8fd; }
 tbody tr.is-selected { background: #e8f1ff; box-shadow: inset 3px 0 #2f6fe4; }
 .status--success { color: #167451; background: #dff6eb; }
 .status--warning { color: #8b6412; background: #fff0c9; }
+.status--neutral { color: #52667a; background: #e9eef4; }
 .detail { padding: 18px; }
 .detail h2 { margin-bottom: 18px; }
 dl { display: grid; gap: 12px; margin: 0; }

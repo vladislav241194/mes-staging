@@ -45,3 +45,16 @@ unresolved.
 The initial lab implements `ModulePage`, `ModuleHeader`, `ModuleSidebar`,
 `SidebarItem`, `Panel`, `TableWrap`, and `StatusToken`. It deliberately leaves
 write actions disabled until an accepted API contract is connected.
+
+## Nomenclature read-model evidence
+
+The legacy source stores positions under `directoryState.nomenclature` with
+`id`, `name`, `article`, `type`, `package`, `unit`, `manufacturer`,
+`description`, and a Russian status label. Filter options are separate rows in
+`directoryState.nomenclatureTypes`; inactive rows (`Отключен`, `Удален`,
+`Архив`) are excluded. The React adapter mirrors this shape, normalizes legacy
+REA aliases to `РЭА компоненты`, and infers only missing type definitions.
+
+The first React table therefore keeps the legacy visible columns:
+`Наименование`, `Артикул`, `Раздел`, `Корпус`, `Ед.`, `Производитель`, and
+`Статус`. This prevents the migration lab from inventing a narrower data model.
