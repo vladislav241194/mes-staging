@@ -52,6 +52,15 @@ export function TableWrap({ children }: { children: ReactNode }) {
   return <div className="table-wrap" data-ui-component="TableWrap">{children}</div>;
 }
 
+export function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="empty-state" data-ui-component="EmptyState" role="status">
+      <strong>{title}</strong>
+      <p>{text}</p>
+    </div>
+  );
+}
+
 export function StatusToken({ label, tone }: { label: string; tone: "success" | "warning" | "neutral" }) {
   return <span className={`status status--${tone}`} data-ui-component="StatusToken">{label}</span>;
 }

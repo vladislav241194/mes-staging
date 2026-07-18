@@ -10,6 +10,9 @@ Coordination handoff: PostgreSQL commit `4f0fbae`
 
 PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
 cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
+The PostgreSQL branch has since advanced to `9404ee4` (`v.1.499.69`) with a
+guarded Specifications 2.0 command rollout, but `origin/main` still points to
+the shared baseline and no final integration checkpoint has been published.
 The PostgreSQL slice is still not ready for frontend integration: Specifications
 2.0 command validation, shared-state working-source retirement, staging rollback,
 merge to `main`, commit-derived release, and final live acceptance remain open.

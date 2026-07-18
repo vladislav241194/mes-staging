@@ -112,7 +112,7 @@ try {
     }
   }
 
-  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "StatusToken"];
+  const requiredMarkers = ["ModulePage", "ModuleHeader", "ModuleSidebar", "ModuleWorkspace", "Panel", "TableWrap", "EmptyState", "StatusToken"];
   const uiSource = await readFile(join(sourceRoot, "ui/components.tsx"), "utf8");
   for (const marker of requiredMarkers) {
     assert.match(uiSource, new RegExp(`data-ui-component=[{]?['\"]${marker}`), `missing ${marker} contract marker`);

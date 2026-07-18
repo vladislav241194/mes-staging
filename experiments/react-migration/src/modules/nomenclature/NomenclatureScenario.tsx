@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
+import { EmptyState, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { adaptNomenclatureReadModel } from "./adapter";
 import { buildNomenclatureFilters, filterNomenclatureItems, formatRecordCount, resolveVisibleSelection, type NomenclatureFilter } from "./view-model";
 
@@ -34,7 +34,7 @@ export function NomenclatureScenario({ payload }: { payload: unknown }) {
           <button className="action" type="button" disabled title="Команды будут подключены после API checkpoint">Добавить позицию</button>
         </div>
       }>
-        <TableWrap>
+        {visibleItems.length ? <TableWrap>
           <table>
             <thead><tr><th>Наименование</th><th>Артикул</th><th>Раздел</th><th>Корпус</th><th>Ед.</th><th>Производитель</th><th>Статус</th></tr></thead>
             <tbody>
@@ -58,7 +58,7 @@ export function NomenclatureScenario({ payload }: { payload: unknown }) {
               ))}
             </tbody>
           </table>
-        </TableWrap>
+        </TableWrap> : <EmptyState title="Позиций пока нет" text="В выбранном разделе ещё нет позиций номенклатуры." />}
       </Panel>
 
       <aside className="detail" aria-live="polite">

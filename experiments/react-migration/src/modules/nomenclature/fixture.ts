@@ -3,6 +3,7 @@ export const nomenclatureFixture = {
     { id: "nom-type-rea", name: "РЭА компоненты", code: "REA", description: "Резисторы, конденсаторы, микросхемы", status: "Активен" },
     { id: "nom-type-pcb", name: "Печатные платы", code: "PCB", description: "Голые платы и заготовки", status: "Активен" },
     { id: "nom-type-mech", name: "Механика", code: "MECH", description: "Корпуса, крепеж, радиаторы", status: "Активен" },
+    { id: "nom-type-cable", name: "Кабели и жгуты", code: "CABLE", description: "Проводники, шлейфы, сборки", status: "Активен" },
     { id: "nom-type-archive", name: "Архивный раздел", code: "OLD", description: "Не должен быть виден", status: "Архив" },
   ],
   nomenclature: [
