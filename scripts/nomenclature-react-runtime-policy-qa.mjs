@@ -13,7 +13,7 @@ const enabled = getPublicRuntimeConfig({
   DATABASE_URL: "must-not-leak",
 });
 assert(enabled.MES_REACT_NOMENCLATURE === true, "explicit Nomenclature React rollout must reach the browser bootstrap");
-assert(enabled.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true, "explicit read-only evaluation rollout must reach the browser bootstrap");
+assert(enabled.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true, "explicit read-only evaluation permission must reach the browser bootstrap");
 
 const nonExact = getPublicRuntimeConfig({
   MES_REACT_NOMENCLATURE: "true",

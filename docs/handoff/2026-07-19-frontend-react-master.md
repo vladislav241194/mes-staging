@@ -174,3 +174,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 5. Mount the first React island behind a disabled-by-default feature flag. **Complete locally; two explicit runtime flags are required and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
+
+Pilot rollout safety is session-scoped: even when both public server switches
+permit the experiment, Nomenclature stays legacy unless an authenticated or
+QA-bypass session explicitly requests `react-nomenclature-evaluation=1`.

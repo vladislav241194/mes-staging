@@ -768,6 +768,9 @@ try {
   assert.match(productionAppSource, /params\.get\("qa-auth-bypass"\) !== "1"/);
   assert.match(productionAppSource, /params\.get\("react-nomenclature"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-nomenclature-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-nomenclature-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /params\.get\("qa-auth-bypass"\) === "1" \|\| Boolean\(getAuthenticatedAccessPerson\(\)\)/);
+  assert.match(productionAppSource, /serverEvaluationAllowed && isNomenclatureReactEvaluationRequested\(\)/);
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /reason === "unsupported-scope".*activeNomenclaturePane = "boards"/s);

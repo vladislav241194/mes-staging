@@ -147,6 +147,16 @@ async function main() {
       [...row.querySelectorAll("td")].slice(0, -1).map((cell) => cell.textContent.replace(/\s+/g, " ").trim()).join(" ")
     )));
     await client.send("Page.navigate", { url: `${origin}/?module=nomenclature&qa-auth-bypass=1` });
+    await waitForCondition(client, () => document.querySelectorAll("[data-nomenclature-row-open]").length === 4, {
+      message: "server-enabled contour without a session evaluation request did not preserve legacy",
+    });
+    const serverEnabledDefault = await evaluate(client, () => ({
+      reactTargets: document.querySelectorAll("[data-react-nomenclature-island]").length,
+      legacyRows: document.querySelectorAll("[data-nomenclature-row-open]").length,
+    }));
+    assert(serverEnabledDefault.reactTargets === 0 && serverEnabledDefault.legacyRows === 4, "server rollout permission must remain legacy without a per-session evaluation request");
+
+    await client.send("Page.navigate", { url: `${origin}/?module=nomenclature&qa-auth-bypass=1&react-nomenclature-evaluation=1` });
     await waitForCondition(client, () => (
       document.querySelector('[data-react-nomenclature-island][data-react-island-state="ready"]')
       && document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4
@@ -223,6 +233,7 @@ async function main() {
     assert(finalSnapshot === originalSnapshot, "read-only React scenario must not modify the temporary shared-state file");
     console.log("Nomenclature React production-shell functional QA: OK");
     console.log("- same server payload: 4 legacy rows = 4 React rows");
+    console.log("- server-enabled default without session request: legacy");
     console.log("- filters, selection and detail: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");

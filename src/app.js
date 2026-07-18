@@ -2297,13 +2297,19 @@ function getNomenclatureReactLocalQaOverrides() {
     readOnlyEvaluation: params.get("react-nomenclature-readonly") === "1",
   };
 }
+function isNomenclatureReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-nomenclature-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
 const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
   getActivation: () => {
     const localQa = getNomenclatureReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true;
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE === true || localQa.featureFlagEnabled,
       activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
-      accessMode: MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true || localQa.readOnlyEvaluation
+      accessMode: (serverEvaluationAllowed && isNomenclatureReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
         : "editor",
     };

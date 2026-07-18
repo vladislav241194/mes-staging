@@ -10,13 +10,19 @@ reads the current `directoryState` payload through the already validated typed
 adapter. It does not add a command, mutate application state, or change an API
 or PostgreSQL contract.
 
-React activation requires both runtime values to be exactly `true`:
+The server-side rollout requires both runtime values to be exactly `true`:
 
 - `MES_REACT_NOMENCLATURE`;
 - `MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION`.
 
-Both are absent by default, so the production and Pilot behavior remains the
-legacy renderer and the React bundle is not requested.
+The second value permits an evaluation request; it does not switch every
+session into read-only mode. A session must also request
+`react-nomenclature-evaluation=1` and be either authenticated or explicitly
+running with `qa-auth-bypass=1`. Without that per-session request, editors and
+ordinary users stay in legacy even when both server switches are enabled.
+
+Both switches are absent by default, so the production and Pilot behavior
+remains the legacy renderer and the React bundle is not requested.
 
 The server publishes these booleans from the non-secret environment switches
 `MES_REACT_NOMENCLATURE=1` and
@@ -32,6 +38,8 @@ remote host.
 ## Automatic legacy boundaries
 
 - feature flag absent or disabled: legacy;
+- server rollout enabled without an authenticated/QA session evaluation
+  request: legacy;
 - Boards/BOM pane: legacy (`unsupported-scope`);
 - editor-capable session without the explicit evaluation flag: legacy
   (`write-parity-incomplete`);
@@ -56,7 +64,7 @@ stale immutable browser response.
 - the build contains the independent island export;
 - the production island uses the automatic JSX runtime and does not depend on
   a browser-global `React` variable;
-- root bundle performance budget passes (`app 202,564 B` Brotli);
+- root bundle performance budget passes (`app 202,545 B` Brotli in the current build);
 - root production build passes at application version `v.1.499.70`;
 - frozen backend guard passes.
 
