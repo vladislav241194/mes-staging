@@ -4862,8 +4862,8 @@ function applyWarningFixInPlace(warning) {
       readyAt: slot.plannedStart || null,
       ignoreSlotId: slot.id || null,
     });
-	    slot.routeWorkCenterId = step.workCenterId;
 	    if (!assignment && routeStepRequiresManualPlanningLine(step, planningState)) return false;
+	    slot.routeWorkCenterId = step.workCenterId;
 	    slot.workCenterId = assignment?.workCenterId || slot.workCenterId || step.workCenterId;
 	    slot.resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(step, slot.workCenterId, slot.resourceId || step.resourceId || "");
 	    applyRecalculatedSlotTiming(slot, planningState);
@@ -4925,7 +4925,7 @@ function autoFixWarning(warningId) {
 
   if (warning.type === "route" && warning.id.startsWith("wrong-workcenter-") && slots[0]) {
     const slot = slots[0];
-    if (slot.locked) return;
+    if (slot.locked || isGanttSlotCompleted(slot)) return;
     const step = planningState.routeSteps.find((item) => item.id === slot.routeStepId);
     if (!step) return;
     const assignment = getRouteStepPlanningAssignmentForSlot(step, slot, {
@@ -4934,11 +4934,11 @@ function autoFixWarning(warningId) {
       readyAt: slot.plannedStart || null,
       ignoreSlotId: slot.id || null,
     });
-	    slot.routeWorkCenterId = step.workCenterId;
     if (!assignment && routeStepRequiresManualPlanningLine(step, planningState)) {
 	      openPlanningForProject(getSlotProductionContextId(slot));
 	      return;
 	    }
+	    slot.routeWorkCenterId = step.workCenterId;
 	    slot.workCenterId = assignment?.workCenterId || slot.workCenterId || step.workCenterId;
 	    slot.resourceId = assignment?.resourceId || getPlanningResourceForRouteStep(step, slot.workCenterId, slot.resourceId || step.resourceId || "");
 	    applyRecalculatedSlotTiming(slot, planningState);
@@ -4949,7 +4949,7 @@ function autoFixWarning(warningId) {
 
   if (warning.type === "quantity" && slots[0]) {
     const slot = slots[0];
-    if (slot.locked) return;
+    if (slot.locked || isGanttSlotCompleted(slot)) return;
 	    const previous = getRouteNeighbor(slot, -1);
 	    if (!previous) return;
 	    slot.quantity = Math.min(normalizeQuantity(slot.quantity), normalizeQuantity(previous.quantity));
@@ -4963,7 +4963,7 @@ function autoFixWarning(warningId) {
 
 	  if (warning.type === "duration" && slots[0]) {
 	    const slot = slots[0];
-	    if (slot.locked) return;
+	    if (slot.locked || isGanttSlotCompleted(slot)) return;
 		    applyRecalculatedSlotTiming(slot, planningState);
 	    slot.updatedAt = stamp;
 	    cascadeIfEnabled(slot.id);
