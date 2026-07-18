@@ -148,9 +148,9 @@ const CORE_MODULE_BLUEPRINTS = [
   }),
   coreBlueprint({
     id: "shiftMasterBoard", label: "Мастерская", icon: "worker", groupId: "operations", navigationOrder: 20, flowOrder: 80,
-    pattern: MES_MODULE_LAYOUT_PATTERNS.BOARD, header: MES_MODULE_HEADER_MODES.ABSENT, sidebar: MES_MODULE_SIDEBAR_MODES.ABSENT,
-    shellClassName: "shift-master-board-app-shell", pageClassName: "shift-master-board-page", ariaLabel: "Мастерская", visualContract: "headerless-module",
-    visualWave: "operational", parity: { family: "full-headerless", shell: "standard", page: "full", header: "absent" },
+    pattern: MES_MODULE_LAYOUT_PATTERNS.BOARD, header: MES_MODULE_HEADER_MODES.SPECIAL, sidebar: MES_MODULE_SIDEBAR_MODES.ABSENT,
+    shellClassName: "shift-master-board-app-shell", pageClassName: "shift-master-board-page", ariaLabel: "Мастерская", visualContract: "board-native-header",
+    visualWave: "operational", parity: { family: "full-headerless", shell: "standard", page: "full", header: "special" },
     regression: { type: "contract", hasTable: false, hasActions: true, hasOverlayProbe: true },
     overlayProbeSelector: "[data-shift-board-print]:not([disabled])",
     defaultRoleActions: { productionHead: COMMON_FULL_ACCESS, master: OPERATIONAL_ACCESS, dispatcher: READ_ONLY_ACCESS },
