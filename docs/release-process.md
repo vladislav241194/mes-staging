@@ -75,6 +75,14 @@ release pointer, restarts the service again, and retains both failed and
 previous artifacts for diagnosis. Use `--dry-run` to validate a candidate
 without changing the active target.
 
+When the remote activation script reaches a failure, the command also prints a bounded
+`ACTIVATION_DIAGNOSTICS` block to its error output. It identifies the failed
+phase, candidate release, active runtime target, service state, a short
+`systemctl status`, and up to 30 recent service-journal lines when they are
+readable. Common credential-bearing lines and URL credentials are omitted. The
+diagnostics are read-only: they do not alter the activation, rollback, or
+release-artifact semantics.
+
 ## Reflect an activated pilot release in GitHub `main`
 
 After activation, make the exact active release visible on the default GitHub

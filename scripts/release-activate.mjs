@@ -103,13 +103,84 @@ port="$7"
 public_health_url="$8"
 dry_run="$9"
 
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+legacy_path=""
+failed_pointer_path="$release_path/failed-active-pointer-$timestamp"
+health_body_path="$release_path/activation-health-$timestamp.json"
+activation_phase="initializing"
+diagnostics_emitted=0
+
+redact_diagnostics() {
+  # Service output can include application log text. Keep diagnostics useful
+  # while omitting common credential-bearing lines and URL credentials.
+  sed -E \
+    -e '/([Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Tt][Oo][Kk][Ee][Nn]|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Cc][Oo][Oo][Kk][Ii][Ee]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Pp][Rr][Ii][Vv][Aa][Tt][Ee][_-]?[Kk][Ee][Yy])/d' \
+    -e 's#([[:alpha:]][[:alnum:]+.-]*://)[^[:space:]@/]+:[^[:space:]@/]+@#\1[REDACTED]@#g' \
+    -e 's/(Bearer|Basic)[[:space:]]+[A-Za-z0-9._~+\/=+-]+/\1 [REDACTED]/g'
+}
+
+describe_active_runtime() {
+  if [ -L "$app_path" ]; then
+    printf 'kind=release-pointer target=%s\n' "$(readlink -f "$app_path" 2>/dev/null || printf '<unresolved>')"
+  elif [ -d "$app_path" ]; then
+    printf 'kind=legacy-directory target=%s\n' "$app_path"
+  else
+    printf 'kind=missing target=<unavailable>\n'
+  fi
+}
+
+emit_failure_diagnostics() {
+  local failure_code="$1"
+  local failure_reason="$2"
+  [ "$diagnostics_emitted" = "1" ] && return 0
+  diagnostics_emitted=1
+
+  {
+    echo "ACTIVATION_DIAGNOSTICS_BEGIN"
+    printf 'phase=%s\n' "$activation_phase"
+    printf 'reason=%s\n' "$failure_reason"
+    printf 'exit_code=%s\n' "$failure_code"
+    printf 'requested_release=%s\n' "$release_id"
+    printf 'active_runtime='
+    describe_active_runtime
+    printf 'service=%s active=' "$service"
+    if systemctl is-active --quiet "$service"; then
+      echo 'active'
+    else
+      echo 'inactive-or-unavailable'
+    fi
+    echo 'systemctl_status_begin'
+    systemctl status "$service" --no-pager --full --lines=12 2>&1 | redact_diagnostics || true
+    echo 'systemctl_status_end'
+    if command -v journalctl >/dev/null 2>&1; then
+      echo 'service_journal_begin'
+      journalctl -u "$service" --no-pager --output=short-iso --lines=30 2>&1 | redact_diagnostics || true
+      echo 'service_journal_end'
+    else
+      echo 'service_journal_unavailable'
+    fi
+    echo 'ACTIVATION_DIAGNOSTICS_END'
+  } >&2
+}
+
+fail_activation() {
+  local failure_code="$1"
+  local failure_reason="$2"
+  emit_failure_diagnostics "$failure_code" "$failure_reason"
+  exit "$failure_code"
+}
+
+trap 'failure_code=$?; emit_failure_diagnostics "$failure_code" "unexpected_shell_failure_line_$LINENO"; exit "$failure_code"' ERR
+
+activation_phase="required-command-check"
 for command_name in node curl sha256sum sudo systemctl; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required command is unavailable: $command_name" >&2
-    exit 1
+    fail_activation 1 "required_command_unavailable_$command_name"
   }
 done
 
+activation_phase="release-artifact-validation"
 test -d "$release_app_path"
 test -f "$release_path/release-manifest.json"
 test -f "$release_app_path/dist/index.html"
@@ -117,24 +188,27 @@ test -f "$release_app_path/package-lock.json"
 test -f "$release_app_path/scripts/release-verify.mjs"
 
 cd "$release_app_path"
+activation_phase="manifest-verification"
 node scripts/release-verify.mjs \
   --manifest="$release_path/release-manifest.json" \
   --expected-release-id="$release_id" \
   --json
 
 if [ "$dry_run" = "true" ]; then
+  activation_phase="dry-run-runtime-inspection"
   if [ -L "$app_path" ]; then
     printf 'DRY_RUN current=release-pointer target=%s\n' "$(readlink -f "$app_path")"
   elif [ -d "$app_path" ]; then
     printf 'DRY_RUN current=legacy-directory target=%s\n' "$app_path"
   else
     echo "Active application path is neither a directory nor a release pointer: $app_path" >&2
-    exit 1
+    fail_activation 1 "active_runtime_unavailable"
   fi
   printf 'DRY_RUN next=%s\n' "$release_app_path"
   exit 0
 fi
 
+activation_phase="active-runtime-inspection"
 if [ -L "$app_path" ]; then
   previous_kind="release-pointer"
   previous_target="$(readlink -f "$app_path")"
@@ -144,13 +218,8 @@ elif [ -d "$app_path" ]; then
   previous_target="$app_path"
 else
   echo "Active application path is neither a directory nor a release pointer: $app_path" >&2
-  exit 1
+  fail_activation 1 "active_runtime_unavailable"
 fi
-
-timestamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
-legacy_path=""
-failed_pointer_path="$release_path/failed-active-pointer-$timestamp"
-health_body_path="$release_path/activation-health-$timestamp.json"
 
 rollback() {
   set +e
@@ -172,11 +241,12 @@ rollback() {
   sudo -n /usr/bin/systemctl restart "$service" >/dev/null 2>&1 || true
 }
 
+activation_phase="switch-active-runtime"
 if [ "$previous_kind" = "release-pointer" ]; then
   ln -s "$release_app_path" "$app_path.next"
   if ! mv -Tf "$app_path.next" "$app_path"; then
     echo "Unable to switch the active release pointer." >&2
-    exit 1
+    fail_activation 1 "active_pointer_switch_failed"
   fi
 else
   legacy_path="$releases_path/legacy-app-pre-$timestamp"
@@ -184,16 +254,18 @@ else
   ln -s "$release_app_path" "$app_path.next"
   if ! mv "$app_path" "$legacy_path/app"; then
     echo "Unable to preserve the current legacy runtime." >&2
-    exit 1
+    fail_activation 1 "legacy_runtime_preservation_failed"
   fi
   if ! mv -Tf "$app_path.next" "$app_path"; then
     mv "$legacy_path/app" "$app_path" || true
     echo "Unable to create the active release pointer; the legacy runtime was restored." >&2
-    exit 1
+    fail_activation 1 "active_pointer_creation_failed"
   fi
 fi
 
+activation_phase="restart-service"
 if ! sudo -n /usr/bin/systemctl restart "$service"; then
+  emit_failure_diagnostics 1 "service_restart_failed"
   rollback
   exit 1
 fi
@@ -218,16 +290,21 @@ check_health() {
   return 1
 }
 
+activation_phase="local-healthcheck"
 if ! check_health "http://localhost:$port/healthz"; then
+  emit_failure_diagnostics 1 "local_healthcheck_failed"
   rollback
   exit 1
 fi
 
+activation_phase="public-healthcheck"
 if ! check_health "$public_health_url"; then
+  emit_failure_diagnostics 1 "public_healthcheck_failed"
   rollback
   exit 1
 fi
 
+activation_phase="record-activation"
 node --input-type=module - \
   "$releases_path/active-release.json.next" \
   "$release_path/activation.json.next" \
