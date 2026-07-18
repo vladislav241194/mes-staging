@@ -157,7 +157,7 @@ assert(first.repository === primary && first.parity.matches, "equivalent local a
 assert(first.readVerification?.primaryRevision === 7, "successful full proof must bind a verification token to the primary epoch");
 assert(primaryCounters.list === 1 && primaryCounters.get === 1, "initial proof must execute aggregate list/detail reads");
 assert(markerRef.current.verifiedPrimaryRevision === 7 && markerRef.current.verifiedSnapshotFingerprint === "sha256:planning-a", "successful proof must persist the exact epoch and planning fingerprint");
-assert(markerRef.current.verifiedContractVersion === 4, "marker must bind the current parity contract");
+assert(markerRef.current.verifiedContractVersion === 5, "marker must bind the current parity contract");
 
 // An unrelated shared-state version bump must not re-run full parity: only the
 // planning payload fingerprint participates in the durable checkpoint.
@@ -166,6 +166,16 @@ const beforeTrustedReads = { primaryList: primaryCounters.list, primaryGet: prim
 const trusted = await inspect("planning-parity-watermark-unrelated-snapshot-change");
 assert(trusted.repository === primary && trusted.parity.skipped === "verified-projection-marker", "valid marker must skip the costly full comparison");
 assert(primaryCounters.list === beforeTrustedReads.primaryList && primaryCounters.get === beforeTrustedReads.primaryGet, "trusted marker must not call aggregate list/detail reads");
+
+// The bounded runtime projection makes split-slot selection deterministic.
+// A durable marker from the unordered v4 detail contract cannot skip the
+// proof even when its epoch and fingerprint still match exactly.
+markerRef.current = { ...markerRef.current, verifiedContractVersion: 4 };
+const beforeContractUpgradeReads = { primaryList: primaryCounters.list, primaryGet: primaryCounters.get };
+const contractUpgrade = await inspect("planning-parity-watermark-contract-upgrade");
+assert(contractUpgrade.repository === primary && contractUpgrade.parity.matches && contractUpgrade.parity.skipped !== "verified-projection-marker", "an earlier projection contract marker must force a fresh parity proof");
+assert(primaryCounters.list === beforeContractUpgradeReads.primaryList + 1 && primaryCounters.get === beforeContractUpgradeReads.primaryGet + 1, "an earlier projection contract marker must not bypass aggregate verification");
+assert(markerRef.current.verifiedContractVersion === 5, "fresh parity proof must replace an earlier projection contract marker");
 
 // A planning-value replacement invalidates the marker even if the global
 // snapshot version is not the signal being trusted.  Full parity refreshes it.
@@ -206,7 +216,7 @@ markerRef.current = {
   primaryRevision: 10,
   verifiedPrimaryRevision: 10,
   verifiedSnapshotFingerprint: "sha256:planning-b",
-  verifiedContractVersion: 4,
+  verifiedContractVersion: 5,
 };
 let mutateDuringPrimaryRead = true;
 primaryHooks.onList = async () => {

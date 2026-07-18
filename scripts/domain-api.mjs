@@ -15,7 +15,10 @@ const MAX_PLANNING_PERIOD_DAYS = 31;
 const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 // Bump this whenever fields included in planning parity change.  A durable
 // marker from an earlier contract must never be used to skip a newer proof.
-const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 4;
+// v5 makes the formerly implicit one-slot-per-operation choice stable. Any
+// v4 marker was proved against an unordered split-slot result and therefore
+// must trigger a fresh full proof before this runtime projection is trusted.
+const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 5;
 const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
 let planningPostgresParityCache = null;
 
@@ -1565,6 +1568,13 @@ export async function handleDomainApiRequest(req, res, url, {
       planningSafety,
       getPlanningSafety,
       read: async (repository) => {
+        // PostgreSQL can materialize the complete runtime graph in one
+        // repeatable read. Snapshot fallback intentionally keeps the proven
+        // list + detail path until it gains an equivalent bounded capability.
+        if (typeof repository.listRuntimeProjection === "function") {
+          const listed = await repository.listRuntimeProjection();
+          return { listed, details: listed.items || [] };
+        }
         const listed = await repository.list();
         const details = await Promise.all(listed.items.map(async (item) => (await repository.get(item.id)).item));
         return { listed, details };

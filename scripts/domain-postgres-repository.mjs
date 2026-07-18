@@ -220,6 +220,59 @@ function listMetadata(rows = []) {
   return { revision, updatedAt };
 }
 
+// The transitional planning runtime still has one visible slot per route
+// step.  The physical schema permits split slots, but expanding that runtime
+// contract would be a separate migration: today keep the earliest planned
+// slot deterministically everywhere that returns a full aggregate.
+function firstRuntimeSlotByOperation(rows = []) {
+  const byOperation = new Map();
+  for (const row of rows) {
+    const operationId = String(row.work_order_operation_id || "");
+    if (operationId && !byOperation.has(operationId)) byOperation.set(operationId, row);
+  }
+  return byOperation;
+}
+
+function groupOperationsByWorkOrder(rows = []) {
+  const byOrder = new Map();
+  for (const row of rows) {
+    const orderId = String(row.work_order_id || "");
+    if (!orderId) continue;
+    const operations = byOrder.get(orderId) || [];
+    operations.push(row);
+    byOrder.set(orderId, operations);
+  }
+  return byOrder;
+}
+
+function runtimeProjectionItems({ orders = [], operations = [], slots = [] } = {}) {
+  const operationsByOrder = groupOperationsByWorkOrder(operations);
+  const slotsByOperation = firstRuntimeSlotByOperation(slots);
+  const slotCountByOrder = new Map();
+  const orderByOperation = new Map(operations.map((operation) => [String(operation.id || ""), String(operation.work_order_id || "")]));
+  for (const slot of slots) {
+    const orderId = orderByOperation.get(String(slot.work_order_operation_id || ""));
+    if (orderId) slotCountByOrder.set(orderId, Number(slotCountByOrder.get(orderId) || 0) + 1);
+  }
+  return orders.map((order) => {
+    const orderId = String(order.id || "");
+    const orderOperations = operationsByOrder.get(orderId) || [];
+    return {
+      ...mapOrderDetail({
+        ...order,
+        operation_count: orderOperations.length,
+        // Preserve the current list/get contract: this is a count of stored
+        // planning-slot rows, not a count of unique operations.
+        scheduled_operation_count: Number(slotCountByOrder.get(orderId) || 0),
+      }),
+      operations: orderOperations.map((operation) => mapOperation(
+        operation,
+        slotsByOperation.get(String(operation.id || "")) || null,
+      )),
+    };
+  });
+}
+
 function calendarByWorkCenter(rows = []) {
   return new Map(rows.map((row) => [String(row.work_center_id), createWorkingCalendar({
     workSchedule: row.work_schedule,
@@ -322,6 +375,46 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       return { ...metadata, ...listMetadata(rows), items: rows.map(mapOrderList) };
     },
 
+    // A normal planning/Gantt refresh needs the complete route graph, but
+    // issuing get() for every order turned that into 1 + 3N database queries.
+    // Read a single repeatable snapshot instead: the three fixed queries keep
+    // full JSONB metadata at the existing mapper boundary without mixing data
+    // from two concurrent planning revisions.
+    async listRuntimeProjection() {
+      const { orders, operations, slots } = await sql.begin(
+        "isolation level repeatable read read only",
+        async (tx) => {
+          const [orderRows, operationRows, slotRows] = await Promise.all([
+            tx`
+              SELECT wo.*
+              FROM work_orders AS wo
+              ORDER BY wo.updated_at DESC, wo.number ASC
+            `,
+            tx`
+              SELECT op.*
+              FROM work_order_operations AS op
+              JOIN work_orders AS wo ON wo.id = op.work_order_id
+              ORDER BY wo.updated_at DESC, wo.number ASC, op.sequence_no ASC
+            `,
+            tx`
+              SELECT ps.*
+              FROM planning_slots AS ps
+              JOIN work_order_operations AS op ON op.id = ps.work_order_operation_id
+              JOIN work_orders AS wo ON wo.id = op.work_order_id
+              ORDER BY wo.updated_at DESC, wo.number ASC, op.sequence_no ASC,
+                ps.planned_start ASC NULLS LAST, ps.id ASC
+            `,
+          ]);
+          return { orders: orderRows, operations: operationRows, slots: slotRows };
+        },
+      );
+      return {
+        ...metadata,
+        ...listMetadata(orders),
+        items: runtimeProjectionItems({ orders, operations, slots }),
+      };
+    },
+
     async summary() {
       const [totals, planningStatuses, lifecycleStatuses] = await Promise.all([
         sql`
@@ -370,8 +463,9 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
         SELECT ps.* FROM planning_slots ps
         JOIN work_order_operations op ON op.id = ps.work_order_operation_id
         WHERE op.work_order_id = ${order.id}
+        ORDER BY ps.planned_start ASC NULLS LAST, ps.id ASC
       `;
-      const slotsByOperation = new Map(slots.map((slot) => [String(slot.work_order_operation_id), slot]));
+      const slotsByOperation = firstRuntimeSlotByOperation(slots);
       return {
         ...metadata,
         revision: Number(order.aggregate_revision),

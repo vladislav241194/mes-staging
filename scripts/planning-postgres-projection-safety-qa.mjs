@@ -54,7 +54,7 @@ function makeItem(resourceId) {
   };
 }
 
-function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes, nativePeriodReads = null, markerRef = null, hooks = {} }) {
+function createFixtureRepository({ storageMode, storageBackend, health, itemRef, writes, nativePeriodReads = null, nativeRuntimeProjectionReads = null, aggregateReads = null, markerRef = null, hooks = {} }) {
   const metadata = { storageMode, storageBackend, configured: true };
   const listProjection = () => {
     const item = itemRef.current;
@@ -73,7 +73,10 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
   };
   const repository = {
     async health() { return { ...metadata, ...health.current }; },
-    async list() { return { ...metadata, ...health.current, items: [listProjection()] }; },
+    async list() {
+      if (aggregateReads) aggregateReads.list += 1;
+      return { ...metadata, ...health.current, items: [listProjection()] };
+    },
     async summary() {
       return {
         ...metadata,
@@ -90,6 +93,7 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
       };
     },
     async get(id) {
+      if (aggregateReads) aggregateReads.get += 1;
       await hooks.onGet?.();
       const item = String(id) === "route-1" || String(id) === "WO-001" ? itemRef.current : null;
       return { ...metadata, ...health.current, item };
@@ -131,6 +135,12 @@ function createFixtureRepository({ storageMode, storageBackend, health, itemRef,
           locked: Boolean(slot.isLocked),
         }],
       };
+    };
+  }
+  if (nativeRuntimeProjectionReads) {
+    repository.listRuntimeProjection = async () => {
+      nativeRuntimeProjectionReads.count += 1;
+      return { ...metadata, ...health.current, items: [itemRef.current] };
     };
   }
   if (markerRef) {
@@ -177,6 +187,8 @@ const primaryItem = { current: makeItem("resource-D3_L1-matrix-missing") };
 const snapshotItem = { current: makeItem("") };
 const writes = { quantity: 0, slot: 0 };
 const primaryPeriodReads = { full: 0, weekly: 0 };
+const primaryRuntimeProjectionReads = { count: 0 };
+const primaryAggregateReads = { list: 0, get: 0 };
 const markerRef = { current: {
   primaryRevision: 4,
   verifiedPrimaryRevision: null,
@@ -185,7 +197,7 @@ const markerRef = { current: {
 } };
 const primaryHooks = {};
 const primary = createFixtureRepository({
-  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes, nativePeriodReads: primaryPeriodReads, markerRef, hooks: primaryHooks,
+  storageMode: "postgres", storageBackend: "postgresql", health: primaryHealth, itemRef: primaryItem, writes, nativePeriodReads: primaryPeriodReads, nativeRuntimeProjectionReads: primaryRuntimeProjectionReads, aggregateReads: primaryAggregateReads, markerRef, hooks: primaryHooks,
 });
 const snapshot = createFixtureRepository({
   storageMode: "snapshot-adapter", storageBackend: "shared-state", health: snapshotHealth, itemRef: snapshotItem, writes,
@@ -220,6 +232,7 @@ assert(staleDetail.json.item?.operations?.[0]?.executionContext?.resourceId === 
 
 const staleProjection = await request("/api/v1/planning/work-orders/projection");
 assert(staleProjection.statusCode === 200 && staleProjection.json.fallbackReason === "postgres-projection-stale", "planning runtime projection must use and expose the same safe fallback");
+assert(primaryRuntimeProjectionReads.count === 0, "stale PostgreSQL projection must not bypass the snapshot fallback through the batch runtime capability");
 
 const stalePeriod = await request("/api/v1/planning/period?from=2026-07-18&to=2026-07-19");
 assert(stalePeriod.statusCode === 200 && stalePeriod.json.fallbackReason === "postgres-projection-stale", "bounded planning period must honor the same safe fallback");
@@ -268,6 +281,18 @@ const recoveredWeeklyPeriod = await request("/api/v1/planning/period?from=2026-0
 assert(recoveredWeeklyPeriod.statusCode === 200 && !recoveredWeeklyPeriod.json.fallbackReason, "healthy compact Weekly read must retain PostgreSQL authority");
 assert(recoveredWeeklyPeriod.json.view === "weekly" && recoveredWeeklyPeriod.json.rows?.[0]?.id === "slot-1", "healthy compact Weekly read must return the narrow rows contract");
 assert(primaryPeriodReads.weekly === 1, "healthy compact Weekly read must use its dedicated bounded repository capability");
+
+// After the recovered primary has established its marker-backed safety cache,
+// the full runtime projection must take its bounded PostgreSQL capability
+// directly rather than repeating the old list + get-per-order path.
+primaryRuntimeProjectionReads.count = 0;
+primaryAggregateReads.list = 0;
+primaryAggregateReads.get = 0;
+const recoveredRuntimeProjection = await request("/api/v1/planning/work-orders/projection");
+assert(recoveredRuntimeProjection.statusCode === 200 && !recoveredRuntimeProjection.json.fallbackReason && recoveredRuntimeProjection.json.storageMode === "postgres", "healthy runtime projection must retain PostgreSQL authority");
+assert(recoveredRuntimeProjection.json.projection?.routes?.[0]?.id === "route-1" && recoveredRuntimeProjection.json.projection?.routeSteps?.[0]?.id === "operation-1" && recoveredRuntimeProjection.json.projection?.slots?.[0]?.id === "slot-1", "healthy runtime projection must retain the route, operation and slot transport contract");
+assert(primaryRuntimeProjectionReads.count === 1, "healthy runtime projection must use the PostgreSQL batch capability exactly once");
+assert(primaryAggregateReads.list === 0 && primaryAggregateReads.get === 0, "healthy runtime projection must not fall back to list plus per-order detail reads");
 
 // The same marker revalidation also protects a command's pre-read. A direct
 // planning mutation that lands after the route's initial marker check must

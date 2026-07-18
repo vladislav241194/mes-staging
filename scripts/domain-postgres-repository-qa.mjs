@@ -7,6 +7,9 @@ assert(source.includes("const CLIENTS_BY_URL = new Map()"), "PostgreSQL reposito
 assert(source.includes("function getClient(databaseUrl)"), "PostgreSQL repository must reuse a client by connection URL");
 assert(!source.includes("onClose"), "Request repository must not close a shared client");
 assert(source.includes("function listMetadata(rows = [])"), "PostgreSQL list must derive a changing list revision from aggregate revisions");
+assert(source.includes("async listRuntimeProjection()"), "PostgreSQL repository must expose the bounded full planning runtime projection");
+assert(source.includes("isolation level repeatable read read only"), "Runtime projection must read from one repeatable read-only PostgreSQL snapshot");
+assert(source.includes("function firstRuntimeSlotByOperation(rows = [])"), "Runtime projection must select one split slot per operation deterministically until the runtime contract is expanded");
 assert(source.includes("SELECT COALESCE(max(aggregate_revision), 0) AS revision"), "PostgreSQL health must return one compact aggregate row rather than transfer every order revision");
 assert(source.includes("slot.quantity") && source.includes("slot.is_locked"), "PostgreSQL detail projection must return slot quantity and lock state");
 assert(source.includes("const nextQuantity = Number(slot.quantity_multiplier) * Number(quantity)"), "PostgreSQL quantity change must recalculate a slot from its operation multiplier");
