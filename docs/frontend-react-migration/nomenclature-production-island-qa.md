@@ -65,7 +65,7 @@ stale immutable browser response.
 - the production island uses the automatic JSX runtime and does not depend on
   a browser-global `React` variable;
 - root bundle performance budget passes (`app 202,535 B` Brotli in the current build);
-- root production build passes at release-candidate version `v.1.499.71`;
+- root production build passes at release-candidate version `v.1.499.72`;
 - frozen backend guard passes.
 
 This is local integration evidence, not Pilot acceptance. The two flags remain
@@ -115,5 +115,37 @@ Run the complete checkpoint with:
 npm run qa:nomenclature-react-island
 ```
 
-An authenticated same-data Pilot evaluation is still required before
-activation.
+An authenticated same-data Pilot evaluation is still required before any
+default-on activation or removal of the legacy fallback.
+
+## Pilot rollout operations
+
+Release `v.1.499.71-7b9bbf7` was activated on Pilot with both React flags
+absent. Public health returned `status=ok`, version `v.1.499.71`, and the
+authenticated browser loaded the new application asset while keeping the
+Nomenclature module on legacy. The active service and release pointer were
+healthy, no React root or commit marker was present, and the create action was
+still available. The current Pilot Nomenclature payload in that session was
+empty, so a non-empty live parity claim was deliberately not made.
+
+The repository now ships a controlled root-only permission toggle:
+
+```sh
+/srv/mes/pilot/app/ops/frontend/activate-react-nomenclature-evaluation.sh
+```
+
+It installs only `70-react-nomenclature-evaluation.conf`, restarts the selected
+service, requires health plus both published booleans to be true, and restores
+the previous drop-in automatically if verification fails. Ordinary sessions
+still use legacy because the per-session `react-nomenclature-evaluation=1`
+request remains mandatory.
+
+Disable the permission with:
+
+```sh
+/srv/mes/pilot/app/ops/frontend/deactivate-react-nomenclature-evaluation.sh
+```
+
+The deploy account can restart Pilot but cannot write the root-owned systemd
+drop-in. Therefore the permission toggle requires the same narrow root-operator
+handoff model used by the accepted PostgreSQL feature activations.

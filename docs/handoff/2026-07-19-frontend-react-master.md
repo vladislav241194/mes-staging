@@ -178,3 +178,28 @@ will be repeated after the Structure Employees commit and before rebasing.
 Pilot rollout safety is session-scoped: even when both public server switches
 permit the experiment, Nomenclature stays legacy unless an authenticated or
 QA-bypass session explicitly requests `react-nomenclature-evaluation=1`.
+
+## Live Pilot checkpoint
+
+Release `v.1.499.71-7b9bbf7` from commit `7b9bbf7` is active on Pilot. Its
+source digest is
+`282920f6649621ea163936fa7e60d648867de0ed172a4b6c7efa06379a271b50` and its
+dist digest is
+`fd2bda6d739e9b9132ecfdb87b23925c43a78085d06ed640d8d51b9a9e61e4b3`.
+Activation retained `v.1.499.70-c3b4059` as the previous release pointer.
+Public health returned `ok`, shared state `ready`, the systemd service was
+active, and the authenticated browser loaded the `v.1.499.71` application
+asset without console errors.
+
+Both React flags were absent during activation and were published as `false`.
+The live Nomenclature navigation therefore rendered legacy, preserved the
+create action, and created no React root or commit marker. The session's
+Nomenclature payload contained zero rows, so the non-empty 4-row parity remains
+local production-shell evidence rather than a live-data claim.
+
+Candidate `v.1.499.72` adds reproducible root-only activation and deactivation
+scripts under `ops/frontend/`, including health/config verification and
+automatic restoration of the prior drop-in on failure. The deploy account's
+sudo policy permits restarting Pilot but not installing the required systemd
+drop-in, so the remaining experimental-permission step is a narrow external
+root handoff rather than a frontend code blocker.
