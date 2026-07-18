@@ -10,10 +10,12 @@ Coordination handoff: PostgreSQL commit `4f0fbae`
 
 PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
 cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
-The PostgreSQL branch has since advanced to `96ed910`, including guarded
+The PostgreSQL branch has since advanced to `e0661f3`, including guarded
 Specifications 2.0 commands, verified runtime rollback, and retirement fixes
-for System Domains shared-state compatibility. `origin/main` still points to
-the shared baseline and no final integration checkpoint has been published.
+for System Domains shared-state compatibility plus compatibility-backup
+hardening. Its worktree also still contains uncommitted changes in owned
+version, shell, UI-QA, and `src/app.js` files. `origin/main` still points to the
+shared baseline and no final integration checkpoint has been published.
 The PostgreSQL slice is still not ready for frontend integration: Specifications
 2.0 command validation, shared-state working-source retirement, staging rollback,
 merge to `main`, commit-derived release, and final live acceptance remain open.
@@ -95,6 +97,12 @@ remain scenario-specific.
 Both scenarios are available through the generic reversible island boundary.
 Nomenclature remains the only proposed first production feature-flag scope;
 Component Types is an isolated reuse proof, not a production activation claim.
+
+The lab also contains a host-side feature gate. A disabled flag never mounts
+React; mount/update/render failures schedule one fallback, unmount React, and
+restore the host-owned legacy view. Browser QA proved disabled and render-error
+paths without console warnings. This closes the isolated rollback-mechanics
+gate but does not wire or activate a production flag.
 
 ## Acceptance gates for the first integrated slice
 
