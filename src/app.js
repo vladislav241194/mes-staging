@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.28";
+const APP_VERSION_FALLBACK = "v.1.499.29";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -483,7 +483,7 @@ function initializePlanningRoutesServiceModule() {
   getUi: () => ui,
   setUi: (nextState) => { ui = nextState; },
   getPlanningState: () => planningState,
-  setPlanningState: (nextState) => { planningState = nextState; },
+  setPlanningState: setPlanningStateAndInvalidate,
   getDirectoryState: () => directoryState,
   setDirectoryState: (nextState) => { directoryState = nextState; },
   });
@@ -555,6 +555,30 @@ function getPlanningTableSlotRows() {
       || left.workCenterLabel.localeCompare(right.workCenterLabel, "ru")
       || left.operationName.localeCompare(right.operationName, "ru")
     ));
+}
+
+function getWeeklyPlanningPeriodBounds() {
+  const weekStart = startOfWeek(new Date());
+  const weekEnd = addMs(weekStart, 7 * DAY_MS);
+  // The calendar week is defined in the operator's local timezone. Transport
+  // its exact UTC instants, not bare dates (which the server would otherwise
+  // interpret as UTC midnight and could drop an early-Monday Moscow slot).
+  const fromAt = weekStart.toISOString();
+  const toAt = weekEnd.toISOString();
+  return { fromAt, toAt, key: `instant:${fromAt}|${toAt}` };
+}
+
+function getWeeklyPlanningTableSlotRows({ weekStart, weekEnd } = {}) {
+  const fromAt = weekStart instanceof Date ? weekStart.toISOString() : "";
+  const toAt = weekEnd instanceof Date ? weekEnd.toISOString() : "";
+  const key = fromAt && toAt ? `instant:${fromAt}|${toAt}` : getWeeklyPlanningPeriodBounds().key;
+  // An empty array is a valid server answer for the requested week. Only
+  // null means the asynchronous period slice is not available yet, in which
+  // case the legacy in-memory projection remains the safe fallback.
+  if (weeklyPlanningPeriodState.key === key && Array.isArray(weeklyPlanningPeriodState.rows)) {
+    return weeklyPlanningPeriodState.rows;
+  }
+  return getPlanningTableSlotRows();
 }
 
 function renderPlanningTableInlineEmpty(title, text, iconName = "info") {
@@ -1043,6 +1067,11 @@ function ensureShiftWorkOrdersModule() {
 let weeklyProductionControlRuntimeInstance = null;
 let weeklyProductionControlRuntimeLoad = null;
 let weeklyProductionControlRuntimeError = null;
+let planningPeriodReadModel = null;
+let buildWeeklyPlanningPeriodRows = null;
+let weeklyPlanningPeriodModuleLoad = null;
+let weeklyPlanningPeriodState = { key: "", rows: null, loading: false, stale: false, epoch: 0, error: "", fallbackReason: "" };
+let weeklyPlanningPeriodRefreshTimer = null;
 
 const weeklyProductionControlLoadingInstance = Object.freeze({
   formatWeeklyProductionControlPercent: (value = 0) => weeklyProductionControlRuntimeInstance
@@ -1207,7 +1236,7 @@ function createWeeklyProductionControlRuntimeInstance(factory) {
   getAuthSessionFactEntriesForGanttSlot: getWeeklyControlAuthSessionFactEntries,
   getGanttLinkedRecordEntries: getWeeklyControlLinkedRecordEntries,
   getPlanningState: () => planningState,
-  getPlanningTableSlotRows,
+  getPlanningTableSlotRows: getWeeklyPlanningTableSlotRows,
   getProductionStructureMatrixRuntimeOverrides: () => getProductionStructureMatrixRuntimeOverrides(),
   getProductionStructureResources,
   getProductionStructureWorkCenters,
@@ -1237,12 +1266,132 @@ function createWeeklyProductionControlRuntimeInstance(factory) {
   });
 }
 
+function ensureWeeklyPlanningPeriodModule() {
+  if (planningPeriodReadModel && buildWeeklyPlanningPeriodRows) return Promise.resolve(true);
+  if (weeklyPlanningPeriodModuleLoad) return weeklyPlanningPeriodModuleLoad;
+  weeklyPlanningPeriodModuleLoad = Promise.all([
+    import("./modules/domain_api/planning_period_read_model.js"),
+    import("./modules/weekly_production_control/planning_period_rows.js"),
+  ]).then(([
+    { createPlanningPeriodReadModel },
+    { buildWeeklyPlanningPeriodRows: buildRows },
+  ]) => {
+    planningPeriodReadModel = createPlanningPeriodReadModel();
+    buildWeeklyPlanningPeriodRows = buildRows;
+    return true;
+  }).catch((error) => {
+    weeklyPlanningPeriodModuleLoad = null;
+    weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, error: error?.message || "Weekly planning period module is unavailable" };
+    return false;
+  });
+  return weeklyPlanningPeriodModuleLoad;
+}
+
+function getWeeklyPlanningPeriodLookups() {
+  const overrides = getProductionStructureMatrixRuntimeOverrides();
+  const workCentersById = new Map(getProductionStructureWorkCenters(overrides)
+    .map((item) => [String(item?.id || ""), item]));
+  const resourcesById = new Map(getProductionStructureResources(overrides)
+    .map((item) => [String(item?.id || ""), item]));
+  return {
+    getWorkCenter: (id) => workCentersById.get(String(id || "")) || null,
+    getResource: (id) => resourcesById.get(String(id || "")) || null,
+  };
+}
+
+function clearWeeklyPlanningPeriodRefreshTimer() {
+  if (weeklyPlanningPeriodRefreshTimer !== null) clearTimeout(weeklyPlanningPeriodRefreshTimer);
+  weeklyPlanningPeriodRefreshTimer = null;
+}
+
+function scheduleWeeklyPlanningPeriodRefresh(bounds) {
+  clearWeeklyPlanningPeriodRefreshTimer();
+  if (ui?.activeModule !== "weeklyProductionControl" || !planningPeriodReadModel) return;
+  const status = planningPeriodReadModel.getStatus(bounds);
+  const delay = Math.max(5_000, Number(status.freshUntil || 0) - Date.now());
+  weeklyPlanningPeriodRefreshTimer = setTimeout(() => {
+    weeklyPlanningPeriodRefreshTimer = null;
+    if (ui?.activeModule !== "weeklyProductionControl") return;
+    weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, stale: true };
+    hydrateWeeklyPlanningPeriod();
+  }, delay);
+}
+
+function invalidateWeeklyPlanningPeriod() {
+  if (!weeklyPlanningPeriodState.key) return;
+  weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, stale: true, epoch: Number(weeklyPlanningPeriodState.epoch || 0) + 1 };
+  if (ui?.activeModule === "weeklyProductionControl") hydrateWeeklyPlanningPeriod();
+}
+
+function setPlanningStateAndInvalidate(nextState) {
+  planningState = nextState;
+  invalidateWeeklyPlanningPeriod();
+}
+
+function hydrateWeeklyPlanningPeriod() {
+  const bounds = getWeeklyPlanningPeriodBounds();
+  if (weeklyPlanningPeriodState.loading && weeklyPlanningPeriodState.key === bounds.key) return;
+  // The read model owns TTL/ETag revalidation. Avoid a needless render cycle
+  // while its cached answer is fresh, but revalidate an open Weekly screen
+  // when the cache expires or when a planning write changes its projection.
+  if (Array.isArray(weeklyPlanningPeriodState.rows)
+    && weeklyPlanningPeriodState.key === bounds.key
+    && !weeklyPlanningPeriodState.stale
+    && (!planningPeriodReadModel || !planningPeriodReadModel.shouldRefresh(bounds))) {
+    scheduleWeeklyPlanningPeriodRefresh(bounds);
+    return;
+  }
+  const hadRows = Array.isArray(weeklyPlanningPeriodState.rows) && weeklyPlanningPeriodState.key === bounds.key;
+  const requestEpoch = Number(weeklyPlanningPeriodState.epoch || 0);
+  const force = weeklyPlanningPeriodState.stale;
+  weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, key: bounds.key, loading: true, error: "" };
+  void ensureWeeklyPlanningPeriodModule().then((ready) => ready
+    ? planningPeriodReadModel.refresh({ ...bounds, force })
+    : { ok: false, error: weeklyPlanningPeriodState.error || "Weekly planning period module is unavailable" },
+  ).then((result) => {
+    // Navigation can cross a week boundary while a request is in flight. Do
+    // not replace the active week with a late response for the prior range.
+    if (weeklyPlanningPeriodState.key !== bounds.key) return;
+    if (Number(weeklyPlanningPeriodState.epoch || 0) !== requestEpoch) {
+      weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true };
+      hydrateWeeklyPlanningPeriod();
+      return;
+    }
+    if (!result?.ok || !result.projection || typeof buildWeeklyPlanningPeriodRows !== "function") {
+      weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true, error: result?.error || "Weekly planning period API is unavailable" };
+      scheduleWeeklyPlanningPeriodRefresh(bounds);
+      return;
+    }
+    const lookups = getWeeklyPlanningPeriodLookups();
+    weeklyPlanningPeriodState = {
+      key: bounds.key,
+      rows: buildWeeklyPlanningPeriodRows(result.projection, {
+        toDate,
+        mapWorkCenterId: mapLegacyWorkCenterId,
+        ...lookups,
+      }),
+      loading: false,
+      stale: false,
+      epoch: requestEpoch,
+      error: "",
+      fallbackReason: String(result.fallbackReason || ""),
+    };
+    scheduleWeeklyPlanningPeriodRefresh(bounds);
+    if ((!hadRows || result.changed) && ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
+  }).catch(() => {
+    if (weeklyPlanningPeriodState.key !== bounds.key) return;
+    weeklyPlanningPeriodState = { ...weeklyPlanningPeriodState, loading: false, stale: true, error: "Weekly planning period API is unavailable" };
+    scheduleWeeklyPlanningPeriodRefresh(bounds);
+  });
+}
+
 function getWeeklyProductionControlRuntimeInstance() {
   if (weeklyProductionControlRuntimeInstance) return weeklyProductionControlRuntimeInstance;
   if (!weeklyProductionControlRuntimeLoad) {
     weeklyProductionControlRuntimeLoad = import("./modules/weekly_production_control/render.js")
       .then(({ createWeeklyProductionControlModule }) => {
         weeklyProductionControlRuntimeInstance = createWeeklyProductionControlRuntimeInstance(createWeeklyProductionControlModule);
+        hydrateWeeklyPlanningPeriod();
         if (ui.activeModule === "weeklyProductionControl") render();
         return weeklyProductionControlRuntimeInstance;
       })
@@ -1837,6 +1986,7 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
       const result = buildSpecifications2Publication(entry, { directoryState, planningState });
       directoryState = normalizeDirectoryState(result.directoryState);
       planningState = normalizePlanningState(result.planningState);
+      invalidateWeeklyPlanningPeriod();
       persistDirectoryState();
       persistState();
       return result.publication;
@@ -2130,7 +2280,7 @@ function initializeProductsRenderModule() {
   updateModuleUrlParam,
   getDirectoryState: () => directoryState,
   getPlanningState: () => planningState,
-  setPlanningState: (nextState) => { planningState = nextState; },
+  setPlanningState: setPlanningStateAndInvalidate,
   getUi: () => ui,
   }));
 }
@@ -3304,6 +3454,7 @@ async function hydratePlanningRuntimeProjection({ force = false } = {}) {
       routeSteps: result.projection.routeSteps,
       slots: result.projection.slots,
     };
+    invalidateWeeklyPlanningPeriod();
     planningRuntimeProjectionState = { status: "server", error: "", revision: Number(result.projection.revision || 0) };
     if (ui?.activeModule === "planning" || ui?.activeModule === "gantt") render({ skipRememberScroll: true });
     return true;
@@ -3527,6 +3678,7 @@ async function changePlanningSlotSchedule(routeId, operationId, plannedStart) {
     planningState.slots = planningState.slots.map((slot) => String(slot.id) === String(authoritativeSlot.id)
       ? { ...slot, plannedStart: authoritativeSlot.plannedStart, plannedEnd: authoritativeSlot.plannedEnd, updatedAt: result.item.updatedAt || slot.updatedAt }
       : slot);
+    invalidateWeeklyPlanningPeriod();
     return { applied: true, slot: authoritativeSlot };
   }
   if (result.kind === "conflict") {
@@ -4572,7 +4724,7 @@ function initializeRuntimeStateServiceModule() {
   getUi: () => ui,
   setUi: (nextState) => { ui = nextState; },
   getPlanningState: () => planningState,
-  setPlanningState: (nextState) => { planningState = nextState; },
+  setPlanningState: setPlanningStateAndInvalidate,
   getDirectoryState: () => directoryState,
   setDirectoryState: (nextState) => { directoryState = nextState; },
   getAppBootstrapped: () => appBootstrapped,
@@ -4965,7 +5117,7 @@ function initializePlanningCoreServiceModule() {
   getUi: () => ui,
   setUi: (nextState) => { ui = nextState; },
   getPlanningState: () => planningState,
-  setPlanningState: (nextState) => { planningState = nextState; },
+  setPlanningState: setPlanningStateAndInvalidate,
   getDirectoryState: () => directoryState,
   setDirectoryState: (nextState) => { directoryState = nextState; },
   });
@@ -5027,7 +5179,10 @@ function initializeModuleRuntime() {
         "formatWeeklyProductionControlQuantity",
         "getWeeklyProductionControlModel",
       ],
-      render: (instance) => instance.renderWeeklyProductionControlPage(),
+      render: (instance) => {
+        hydrateWeeklyPlanningPeriod();
+        return instance.renderWeeklyProductionControlPage();
+      },
       bind: (instance) => instance.bindWeeklyProductionControlEvents(),
     },
     productionStructureMatrix: {
@@ -5746,7 +5901,7 @@ operationalRuntimeService = createOperationalRuntimeServiceModule({
   getUi: () => ui,
   setUi: (nextState) => { ui = nextState; },
   getPlanningState: () => planningState,
-  setPlanningState: (nextState) => { planningState = nextState; },
+  setPlanningState: setPlanningStateAndInvalidate,
   getDirectoryState: () => directoryState,
   setDirectoryState: (nextState) => { directoryState = nextState; },
   getPlanningRouteStructureSidebarFrame: () => planningRouteStructureSidebarFrame,
@@ -6084,7 +6239,7 @@ appEventsService = createAppEventsServiceModule({
   getUi: () => ui,
   setUi: (nextState) => { ui = nextState; },
   getPlanningState: () => planningState,
-  setPlanningState: (nextState) => { planningState = nextState; },
+  setPlanningState: setPlanningStateAndInvalidate,
   getDirectoryState: () => directoryState,
   setDirectoryState: (nextState) => { directoryState = nextState; },
   getDenseInlineViewportListenersBound: () => denseInlineViewportListenersBound,

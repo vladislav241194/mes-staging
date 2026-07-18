@@ -240,9 +240,9 @@ export function createWeeklyProductionControlModule(dependencies = {}) {
   }
   
   function getWeeklyProductionControlModel() {
-    const allRows = getPlanningTableSlotRows();
     const weekStart = getWeeklyProductionControlWeekStart();
     const weekEnd = addMs(weekStart, 7 * DAY_MS);
+    const allRows = getPlanningTableSlotRows({ weekStart, weekEnd });
     const rows = allRows.filter((row) => row.plannedStart < weekEnd && row.plannedEnd > weekStart);
     const days = getWeeklyProductionControlDays(weekStart);
     const dayIndexById = new Map(days.map((day, index) => [day.id, index]));

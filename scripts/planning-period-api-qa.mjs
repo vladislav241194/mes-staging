@@ -111,6 +111,21 @@ try {
   const oversized = await request(filePath, "/api/v1/planning/period?from=2026-07-01&to=2026-08-02");
   assert(oversized.statusCode === 400 && /must not exceed/.test(oversized.json.error || ""), "period endpoint must cap the response period");
 
+  // A local Moscow week starts at Sunday 21:00Z in July. A slot at 00:30
+  // local Monday must be present even though its UTC date is still Sunday.
+  planning.routes.push({ id: "route-moscow", name: "Московская смена", planningQuantity: 1, workOrderSnapshot: { id: "WO-MSK", quantity: 1 } });
+  planning.routeSteps.push({ id: "step-moscow", routeId: "route-moscow", operationId: "OP-MSK", operationName: "Ночная операция", workCenterId: "D3", stepOrder: 1 });
+  planning.slots.push({ id: "slot-moscow-monday", routeId: "route-moscow", routeStepId: "step-moscow", plannedStart: "2026-07-19T21:30:00.000Z", plannedEnd: "2026-07-19T22:30:00.000Z", status: "planned", quantity: 1 });
+  await writeFile(filePath, JSON.stringify({
+    version: 22,
+    updatedAt: "2026-07-16T12:05:00.000Z",
+    values: { "mes-planning-prototype-state-v2": JSON.stringify(planning) },
+  }), "utf-8");
+  const moscowWeek = await request(filePath, "/api/v1/planning/period?fromAt=2026-07-19T21%3A00%3A00.000Z&toAt=2026-07-26T21%3A00%3A00.000Z");
+  assert(moscowWeek.statusCode === 200, "instant-bounded planning period must return 200");
+  assert(moscowWeek.json.period?.fromAt === "2026-07-19T21:00:00.000Z" && moscowWeek.json.period?.toAt === "2026-07-26T21:00:00.000Z", "instant period response must preserve exact local-week boundaries");
+  assert(moscowWeek.json.projection?.slots?.some((slot) => slot.id === "slot-moscow-monday"), "Moscow early-Monday slot must not be dropped by a UTC-midnight boundary");
+
   console.log("Planning period API QA: OK");
 } finally {
   await rm(dir, { recursive: true, force: true });

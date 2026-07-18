@@ -12,6 +12,9 @@ import { getPublicAuthPrincipal } from "./public-auth-guard.mjs";
 const API_PREFIX = "/api/v1";
 const SYSTEM_DOMAINS_COMMAND_SURFACES = new Set(["production-structure", "timesheet", "access-control"]);
 const MAX_PLANNING_PERIOD_DAYS = 31;
+const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
+const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
+let planningPostgresParityCache = null;
 
 function getEnabledSystemDomainsCommandSurfaces(env = process.env) {
   if (String(env.MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS || "") !== "1") return [];
@@ -180,6 +183,140 @@ function compareWorkOrderDetails(primary = {}, snapshot = {}) {
   return mismatches;
 }
 
+function planningParityCacheKey({ filePath = "", primaryHealth = {}, snapshotHealth = {} } = {}) {
+  return JSON.stringify({
+    filePath: String(filePath || ""),
+    primaryRevision: Number(primaryHealth.revision || 0),
+    primaryUpdatedAt: String(primaryHealth.updatedAt || ""),
+    snapshotRevision: Number(snapshotHealth.revision || 0),
+    snapshotUpdatedAt: String(snapshotHealth.updatedAt || ""),
+  });
+}
+
+async function inspectWorkOrderProjectionParity({ primary, snapshot } = {}) {
+  const [primaryList, snapshotList] = await Promise.all([primary.list(), snapshot.list()]);
+  const parity = compareWorkOrderProjections(primaryList.items, snapshotList.items);
+  if (parity.matches) {
+    const details = await Promise.all(primaryList.items.map(async (item) => {
+      const [primaryDetail, snapshotDetail] = await Promise.all([primary.get(item.id), snapshot.get(item.id)]);
+      return { id: item.id, mismatches: compareWorkOrderDetails(primaryDetail.item, snapshotDetail.item) };
+    }));
+    const operationMismatches = details.filter((entry) => entry.mismatches.length);
+    if (operationMismatches.length) {
+      parity.matches = false;
+      parity.mismatches = operationMismatches.slice(0, 20).map((entry) => ({ id: entry.id, operations: entry.mismatches.slice(0, 20) }));
+    }
+  }
+  return { primary: primaryList, snapshot: snapshotList, parity };
+}
+
+// PostgreSQL can become a temporary stale read model while an unmigrated
+// planning UI still persists directly to the compatibility snapshot.  Keep a
+// short, revision-keyed diagnostic cache so normal planning reads do not pay
+// a full aggregate comparison on every request.  When the two projections
+// differ, the snapshot remains the safer read source until reconciliation.
+export async function inspectPlanningProjectionSafety({
+  primary,
+  primaryHealth,
+  env = process.env,
+  filePath = "",
+  createRepository = createWorkOrdersRepository,
+  now = () => Date.now(),
+} = {}) {
+  if (primaryHealth?.storageBackend !== "postgresql") {
+    return {
+      repository: primary,
+      primary,
+      primaryHealth,
+      snapshot: null,
+      snapshotHealth: null,
+      parity: { matches: true, skipped: "primary-not-postgresql", mismatches: [] },
+      fallbackReason: "",
+    };
+  }
+
+  const snapshot = await createRepository({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+  const snapshotHealth = await snapshot.health();
+  // A PostgreSQL-only deployment has no compatibility state to protect.  It
+  // is therefore safe to preserve the configured primary path unchanged.
+  if (snapshotHealth.configured === false) {
+    return {
+      repository: primary,
+      primary,
+      primaryHealth,
+      snapshot,
+      snapshotHealth,
+      parity: { matches: true, skipped: "snapshot-unconfigured", mismatches: [] },
+      fallbackReason: "",
+    };
+  }
+
+  const cacheKey = planningParityCacheKey({ filePath, primaryHealth, snapshotHealth });
+  const cached = planningPostgresParityCache;
+  let checked;
+  if (cached?.cacheKey === cacheKey && now() - cached.checkedAt < PLANNING_POSTGRES_PARITY_CACHE_TTL_MS) {
+    checked = cached.checked;
+  } else {
+    try {
+      checked = await inspectWorkOrderProjectionParity({ primary, snapshot });
+    } catch (error) {
+      checked = {
+        primary: null,
+        snapshot: null,
+        parity: {
+          matches: false,
+          mismatches: [],
+          error: error?.message || "Planning projection parity is unavailable",
+        },
+      };
+    }
+    planningPostgresParityCache = { cacheKey, checkedAt: now(), checked };
+  }
+
+  const fallbackReason = checked.parity.matches ? "" : PLANNING_POSTGRES_FALLBACK_REASON;
+  return {
+    repository: fallbackReason ? snapshot : primary,
+    primary,
+    primaryHealth,
+    snapshot,
+    snapshotHealth,
+    parity: checked.parity,
+    fallbackReason,
+  };
+}
+
+function withPlanningFallback(payload, safety = null) {
+  if (!safety?.fallbackReason) return payload;
+  return {
+    ...payload,
+    fallbackReason: safety.fallbackReason,
+    primaryStorageBackend: safety.primaryHealth?.storageBackend || "postgresql",
+  };
+}
+
+function getPlanningResponseEtag(revision, safety = null) {
+  // Preserve the long-standing revision ETag on a healthy primary. During a
+  // fallback, also vary on the primary revision and reason so a client cannot
+  // receive a misleading 304 after the authority state has changed.
+  if (!safety?.fallbackReason) return getRevisionEtag(revision);
+  return getPayloadEtag({
+    revision: Number(revision || 0),
+    primaryRevision: Number(safety.primaryHealth?.revision || 0),
+    primaryUpdatedAt: String(safety.primaryHealth?.updatedAt || ""),
+    fallbackReason: safety.fallbackReason,
+  });
+}
+
+function sendPlanningWriteParityConflict(res, headers, safety) {
+  sendJson(res, headers, 409, {
+    ok: false,
+    apiVersion: "v1",
+    fallbackReason: safety?.fallbackReason || PLANNING_POSTGRES_FALLBACK_REASON,
+    error: "Planning write is temporarily unavailable while the PostgreSQL projection differs from the compatibility snapshot",
+    parity: safety?.parity || { matches: false },
+  });
+}
+
 // Transitional read model for the existing planning runtime. It deliberately
 // keeps the legacy field names at the API boundary, so the client can replace
 // its shared-state planning snapshot one projection at a time without a
@@ -252,7 +389,32 @@ function parsePlanningPeriodDate(value) {
   return { date, time: instant.getTime() };
 }
 
+function parsePlanningPeriodInstant(value) {
+  const instantText = String(value || "").trim();
+  // The weekly client sends canonical UTC instants for local calendar
+  // boundaries. Requiring the canonical form keeps the transport
+  // deterministic and avoids a server-local timezone interpretation.
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(instantText)) return null;
+  const instant = new Date(instantText);
+  if (Number.isNaN(instant.getTime()) || instant.toISOString() !== instantText) return null;
+  return { instant: instantText, time: instant.getTime() };
+}
+
 function readPlanningPeriod(url) {
+  const fromAtValue = url.searchParams.get("fromAt");
+  const toAtValue = url.searchParams.get("toAt");
+  if (fromAtValue || toAtValue) {
+    const from = parsePlanningPeriodInstant(fromAtValue);
+    const to = parsePlanningPeriodInstant(toAtValue);
+    if (!from || !to) {
+      return { error: "fromAt and toAt must be canonical UTC instants in YYYY-MM-DDTHH:mm:ss.sssZ format" };
+    }
+    if (to.time <= from.time) return { error: "toAt must be after fromAt" };
+    if (to.time - from.time > MAX_PLANNING_PERIOD_DAYS * 24 * 60 * 60 * 1000) {
+      return { error: `planning period must not exceed ${MAX_PLANNING_PERIOD_DAYS} days` };
+    }
+    return { from, to, boundsKind: "instant" };
+  }
   const from = parsePlanningPeriodDate(url.searchParams.get("from"));
   const to = parsePlanningPeriodDate(url.searchParams.get("to"));
   if (!from || !to) {
@@ -262,7 +424,7 @@ function readPlanningPeriod(url) {
   if (to.time - from.time > MAX_PLANNING_PERIOD_DAYS * 24 * 60 * 60 * 1000) {
     return { error: `planning period must not exceed ${MAX_PLANNING_PERIOD_DAYS} days` };
   }
-  return { from, to };
+  return { from, to, boundsKind: "date" };
 }
 
 function getPlanningSlotInterval(slot = {}) {
@@ -349,6 +511,9 @@ export async function handleDomainApiRequest(req, res, url, {
   headers,
   filePath = "",
   env = process.env,
+  // Injection keeps the parity guard independently testable without needing
+  // a live PostgreSQL connection in HTTP-level QA.
+  workOrdersRepositoryFactory = createWorkOrdersRepository,
 } = {}) {
   if (!url.pathname.startsWith(API_PREFIX)) return false;
   const orderMatch = url.pathname.match(/^\/api\/v1\/planning\/work-orders\/([^/]+)$/);
@@ -387,16 +552,36 @@ export async function handleDomainApiRequest(req, res, url, {
 
   let workOrders;
   try {
-    workOrders = await createWorkOrdersRepository({ env, filePath });
+    workOrders = await workOrdersRepositoryFactory({ env, filePath });
   } catch (error) {
     sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Domain storage is unavailable" });
     return true;
   }
   const health = await workOrders.health();
   const meta = { apiVersion: "v1", ...health };
+  // Build the parity result only for a planning-sensitive route and reuse it
+  // within that request. The shared helper additionally caches its bounded
+  // diagnostic comparison across requests.
+  let planningSafetyPromise = null;
+  const getPlanningSafety = () => {
+    if (!planningSafetyPromise) {
+      planningSafetyPromise = inspectPlanningProjectionSafety({
+        primary: workOrders,
+        primaryHealth: health,
+        env,
+        filePath,
+        createRepository: workOrdersRepositoryFactory,
+      });
+    }
+    return planningSafetyPromise;
+  };
 
   if (url.pathname === `${API_PREFIX}/specifications2/capabilities`) {
     let attachmentUploadEnabled = false;
+    const workOrderCommandRequested = String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1"
+      && health.storageBackend === "postgresql"
+      && typeof workOrders.listPendingSnapshotSyncs === "function";
+    const planningSafety = workOrderCommandRequested ? await getPlanningSafety() : null;
     if (String(env.MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS || "") === "1" && health.storageBackend === "postgresql") {
       let attachments;
       try {
@@ -407,10 +592,11 @@ export async function handleDomainApiRequest(req, res, url, {
       } finally { await attachments?.close?.(); }
     }
     sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
-      workOrderCreationEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1" && health.storageBackend === "postgresql" && typeof workOrders.listPendingSnapshotSyncs === "function",
+      workOrderCreationEnabled: workOrderCommandRequested && !planningSafety?.fallbackReason,
       revisionPublicationEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1" && health.storageBackend === "postgresql",
       attachmentUploadEnabled,
       workOrderPrimaryPostgres: health.storageBackend === "postgresql",
+      ...(planningSafety?.fallbackReason ? { workOrderFallbackReason: planningSafety.fallbackReason } : {}),
     } });
     return true;
   }
@@ -448,15 +634,21 @@ export async function handleDomainApiRequest(req, res, url, {
 
   if (isDomainReadinessRead) {
     const databaseUrl = env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "";
-    const workOrderSummary = await workOrders.summary();
+    const planningSafety = await getPlanningSafety();
+    const workOrderReadRepository = planningSafety.repository || workOrders;
+    const workOrderSummary = await workOrderReadRepository.summary();
     const scheduledOperationCount = Number(workOrderSummary?.summary?.scheduledOperationCount || 0);
     const readiness = {
       workOrders: {
-        ready: health.storageBackend === "postgresql",
+        ready: health.storageBackend === "postgresql" && !planningSafety.fallbackReason,
         storageBackend: health.storageBackend,
         revision: health.revision,
-        sourceSynchronized: true,
+        sourceSynchronized: !planningSafety.fallbackReason,
         summary: workOrderSummary.summary || null,
+        ...(planningSafety.fallbackReason ? {
+          fallbackReason: planningSafety.fallbackReason,
+          readStorageBackend: workOrderSummary.storageBackend,
+        } : {}),
       },
       systemDomains: { ready: false, storageBackend: "unavailable", sourceSynchronized: false, consistency: null, error: "" },
       specifications2: { ready: false, storageBackend: "unavailable", sourceSynchronized: false, summary: null, error: "" },
@@ -465,8 +657,9 @@ export async function handleDomainApiRequest(req, res, url, {
         specifications2WorkOrderCreation: {
           enabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1"
             && health.storageBackend === "postgresql"
-            && typeof workOrders.listPendingSnapshotSyncs === "function",
-          reason: commandReadinessReason({
+            && typeof workOrders.listPendingSnapshotSyncs === "function"
+            && !planningSafety.fallbackReason,
+          reason: planningSafety.fallbackReason || commandReadinessReason({
             featureEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1",
             primaryReady: health.storageBackend === "postgresql",
             schemaReady: typeof workOrders.listPendingSnapshotSyncs === "function",
@@ -896,6 +1089,11 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 server command requires PostgreSQL as the primary work-order authority" });
       return true;
     }
+    const planningSafety = await getPlanningSafety();
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
     // Creation is a protected write: the actor is derived only from the
     // signed HttpOnly session.  Internal or anonymous requests must not gain
     // write access merely because the migration feature flag is enabled.
@@ -923,7 +1121,7 @@ export async function handleDomainApiRequest(req, res, url, {
       } else {
         let snapshotSync;
         try {
-          const snapshotRepository = await createWorkOrdersRepository({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+          const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
           snapshotSync = await syncPendingSnapshotChanges({ primary: workOrders, snapshot: snapshotRepository });
         } catch (error) {
           snapshotSync = { applied: 0, conflicts: 0, failed: 1, error: error?.message || "Snapshot creation sync deferred" };
@@ -942,20 +1140,12 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (url.pathname === `${API_PREFIX}/planning/work-orders/parity`) {
-    const snapshotRepository = await createWorkOrdersRepository({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
-    const [primary, snapshot] = await Promise.all([workOrders.list(), snapshotRepository.list()]);
-    const parity = compareWorkOrderProjections(primary.items, snapshot.items);
-    if (parity.matches) {
-      const details = await Promise.all(primary.items.map(async (item) => {
-        const [primaryDetail, snapshotDetail] = await Promise.all([workOrders.get(item.id), snapshotRepository.get(item.id)]);
-        return { id: item.id, mismatches: compareWorkOrderDetails(primaryDetail.item, snapshotDetail.item) };
-      }));
-      const operationMismatches = details.filter((entry) => entry.mismatches.length);
-      if (operationMismatches.length) {
-        parity.matches = false;
-        parity.mismatches = operationMismatches.slice(0, 20).map((entry) => ({ id: entry.id, operations: entry.mismatches.slice(0, 20) }));
-      }
-    }
+    // This endpoint is an explicit diagnostic. Never route it through the
+    // safety fallback: it must continue comparing the configured primary
+    // against the snapshot rather than accidentally comparing the snapshot
+    // with itself.
+    const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+    const { primary, snapshot, parity } = await inspectWorkOrderProjectionParity({ primary: workOrders, snapshot: snapshotRepository });
     sendJson(res, headers, 200, {
       ok: parity.matches,
       apiVersion: "v1",
@@ -967,26 +1157,25 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (url.pathname === `${API_PREFIX}/planning/work-orders`) {
-    const result = await workOrders.list();
-    const etag = getRevisionEtag(result.revision);
+    const planningSafety = await getPlanningSafety();
+    const result = await planningSafety.repository.list();
+    const payload = withPlanningFallback({ ok: true, apiVersion: "v1", ...result }, planningSafety);
+    const etag = getPlanningResponseEtag(result.revision, planningSafety);
     if (matchesEtag(req, etag)) {
       sendNotModified(res, headers, etag);
       return true;
     }
-    sendJson(res, headers, 200, { ok: true, apiVersion: "v1", ...result }, { ETag: etag });
+    sendJson(res, headers, 200, payload, { ETag: etag });
     return true;
   }
 
   if (url.pathname === `${API_PREFIX}/planning/work-orders/summary`) {
-    const result = typeof workOrders.summary === "function"
-      ? await workOrders.summary()
+    const planningSafety = await getPlanningSafety();
+    const planningReadRepository = planningSafety.repository;
+    const result = typeof planningReadRepository.summary === "function"
+      ? await planningReadRepository.summary()
       : (() => { throw new Error("Work-order repository does not support summary projection"); })();
-    const etag = getRevisionEtag(result.revision);
-    if (matchesEtag(req, etag)) {
-      sendNotModified(res, headers, etag);
-      return true;
-    }
-    sendJson(res, headers, 200, {
+    const payload = withPlanningFallback({
       ok: true,
       apiVersion: "v1",
       storageMode: result.storageMode,
@@ -995,38 +1184,51 @@ export async function handleDomainApiRequest(req, res, url, {
       revision: result.revision,
       updatedAt: result.updatedAt,
       summary: result.summary || buildWorkOrderSummary(result.items),
-    }, { ETag: etag });
-    return true;
-  }
-
-  if (url.pathname === `${API_PREFIX}/planning/work-orders/projection`) {
-    const listed = await workOrders.list();
-    const details = await Promise.all(listed.items.map(async (item) => (await workOrders.get(item.id)).item));
-    const projection = buildPlanningRuntimeProjection(details.filter(Boolean));
-    const etag = getRevisionEtag(listed.revision);
+    }, planningSafety);
+    const etag = getPlanningResponseEtag(result.revision, planningSafety);
     if (matchesEtag(req, etag)) {
       sendNotModified(res, headers, etag);
       return true;
     }
-    sendJson(res, headers, 200, { ok: true, apiVersion: "v1", storageMode: listed.storageMode, storageBackend: listed.storageBackend, revision: listed.revision, updatedAt: listed.updatedAt, projection }, { ETag: etag });
+    sendJson(res, headers, 200, payload, { ETag: etag });
+    return true;
+  }
+
+  if (url.pathname === `${API_PREFIX}/planning/work-orders/projection`) {
+    const planningSafety = await getPlanningSafety();
+    const planningReadRepository = planningSafety.repository;
+    const listed = await planningReadRepository.list();
+    const details = await Promise.all(listed.items.map(async (item) => (await planningReadRepository.get(item.id)).item));
+    const projection = buildPlanningRuntimeProjection(details.filter(Boolean));
+    const payload = withPlanningFallback({ ok: true, apiVersion: "v1", storageMode: listed.storageMode, storageBackend: listed.storageBackend, revision: listed.revision, updatedAt: listed.updatedAt, projection }, planningSafety);
+    const etag = getPlanningResponseEtag(listed.revision, planningSafety);
+    if (matchesEtag(req, etag)) {
+      sendNotModified(res, headers, etag);
+      return true;
+    }
+    sendJson(res, headers, 200, payload, { ETag: etag });
     return true;
   }
 
   if (isPlanningPeriodRead) {
-    const listed = await workOrders.list();
+    const planningSafety = await getPlanningSafety();
+    const planningReadRepository = planningSafety.repository;
+    const listed = await planningReadRepository.list();
     // List rows expose a scheduled-operation count, so do not fetch an
     // aggregate that cannot possibly contribute to this calendar slice.
     const scheduled = listed.items.filter((item) => Number(item?.scheduledOperationCount || 0) > 0);
-    const details = await Promise.all(scheduled.map(async (item) => (await workOrders.get(item.id)).item));
+    const details = await Promise.all(scheduled.map(async (item) => (await planningReadRepository.get(item.id)).item));
     const projection = buildPlanningPeriodProjection(details.filter(Boolean), planningPeriod);
-    const payload = {
+    const payload = withPlanningFallback({
       ok: true,
       apiVersion: "v1",
       storageMode: listed.storageMode,
       storageBackend: listed.storageBackend,
-      period: { from: planningPeriod.from.date, to: planningPeriod.to.date },
+      period: planningPeriod.boundsKind === "instant"
+        ? { fromAt: planningPeriod.from.instant, toAt: planningPeriod.to.instant }
+        : { from: planningPeriod.from.date, to: planningPeriod.to.date },
       projection,
-    };
+    }, planningSafety);
     const etag = getPayloadEtag(payload);
     if (matchesEtag(req, etag)) {
       sendNotModified(res, headers, etag);
@@ -1037,6 +1239,11 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (slotMatch && isSlotPatch) {
+    const planningSafety = await getPlanningSafety();
+    if (planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
     const id = decodeURIComponent(slotMatch[1]);
     const operationId = decodeURIComponent(slotMatch[2]);
     const detail = await workOrders.get(id);
@@ -1074,7 +1281,7 @@ export async function handleDomainApiRequest(req, res, url, {
       let snapshotSync = null;
       if (updated.storageBackend === "postgres" && workOrders.listPendingSnapshotSyncs) {
         try {
-          const snapshotRepository = await createWorkOrdersRepository({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+          const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
           snapshotSync = await syncPendingSnapshotChanges({ primary: workOrders, snapshot: snapshotRepository });
         } catch (error) {
           snapshotSync = { applied: 0, conflicts: 0, failed: 1, error: error?.message || "Snapshot sync deferred" };
@@ -1089,8 +1296,14 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (orderMatch) {
+    const planningSafety = await getPlanningSafety();
+    if (isOrderPatch && planningSafety.fallbackReason) {
+      sendPlanningWriteParityConflict(res, headers, planningSafety);
+      return true;
+    }
     const id = decodeURIComponent(orderMatch[1]);
-    const detail = await workOrders.get(id);
+    const planningReadRepository = planningSafety.repository;
+    const detail = await planningReadRepository.get(id);
     if (!detail.item) {
       sendJson(res, headers, 404, { ok: false, ...meta, error: "Work order was not found" });
       return true;
@@ -1125,7 +1338,7 @@ export async function handleDomainApiRequest(req, res, url, {
       let snapshotSync = null;
       if (updated.storageBackend === "postgres" && workOrders.listPendingSnapshotSyncs) {
         try {
-          const snapshotRepository = await createWorkOrdersRepository({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
+          const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
           snapshotSync = await syncPendingSnapshotChanges({ primary: workOrders, snapshot: snapshotRepository });
         } catch (error) {
           snapshotSync = { applied: 0, conflicts: 0, failed: 1, error: error?.message || "Snapshot sync deferred" };
@@ -1134,7 +1347,7 @@ export async function handleDomainApiRequest(req, res, url, {
       sendJson(res, headers, 200, { ok: true, apiVersion: "v1", ...updated, ...(snapshotSync ? { snapshotSync } : {}) }, updated.item ? { ETag: getRevisionEtag(updated.item.concurrencyRevision) } : {});
       return true;
     }
-    const etag = getRevisionEtag(detail.item.concurrencyRevision);
+    const etag = getPlanningResponseEtag(detail.item.concurrencyRevision, planningSafety);
     if (matchesEtag(req, etag)) {
       sendNotModified(res, headers, etag);
       return true;
@@ -1142,7 +1355,7 @@ export async function handleDomainApiRequest(req, res, url, {
     const item = url.searchParams.get("view") === "workbench"
       ? buildPlanningWorkbenchDetail(detail.item)
       : detail.item;
-    sendJson(res, headers, 200, { ok: true, apiVersion: "v1", ...detail, item }, { ETag: etag });
+    sendJson(res, headers, 200, withPlanningFallback({ ok: true, apiVersion: "v1", ...detail, item }, planningSafety), { ETag: etag });
     return true;
   }
 

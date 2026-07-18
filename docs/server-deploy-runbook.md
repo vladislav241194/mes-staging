@@ -115,63 +115,40 @@ npm run list:shared-state-backups
 
 ## Deploy
 
-### Git-доступ на сервере
+### Не обновлять активную папку напрямую
 
-Код на сервере обновляется от Linux-пользователя `deploy`, а не от `root`.
-У `deploy` должен быть отдельный GitHub deploy key:
+Текущий пилот работает из неизменяемого release-артефакта. `/srv/mes/pilot/app`
+является симлинком на конкретный релиз, а не Git checkout. Поэтому запрещены:
 
-```bash
-/home/deploy/.ssh/mes_deploy_ed25519
-```
+- `git pull` в `/srv/mes/pilot/app`;
+- `rsync` или ручное редактирование активной папки;
+- сборка или `npm ci` внутри активного приложения.
 
-SSH config пользователя `deploy` должен явно использовать этот ключ:
-
-```sshconfig
-Host github.com
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/mes_deploy_ed25519
-  IdentitiesOnly yes
-```
-
-Проверка доступа:
-
-```bash
-sudo -u deploy ssh -o BatchMode=yes -T git@github.com
-```
-
-Ожидаемый результат - успешная GitHub-аутентификация без shell-доступа.
-
-Обновлять checkout нужно так:
-
-```bash
-sudo -u deploy git -C /srv/mes/dev/app pull --ff-only origin main
-sudo -u deploy git -C /srv/mes/pilot/app pull --ff-only origin main
-```
-
-Не выполнять `git pull` из-под `root`: у root может не быть deploy key, а файлы checkout после этого могут получить неправильного владельца.
+Такой подход сохраняет возможность точного отката: Git-коммит — источник кода,
+а сервер исполняет проверенный артефакт с манифестом хешей. Данные, секреты и
+`bootstrap-snapshot.json` остаются внешними операционными ресурсами.
 
 ### Последовательность обновления
 
-1. Обновить код через безопасный способ, например `sudo -u deploy git pull --ff-only`.
-2. Установить зависимости: `npm ci`.
-3. Собрать приложение: `npm run build`.
-4. Запустить нужный процесс:
+1. Закоммитить и отправить проверенный код в Git.
+2. В чистом отдельном Git worktree собрать и стадировать релиз:
 
 ```bash
-APP_ENV=pilot \
-PORT=4175 \
-HOST=127.0.0.1 \
-APP_BASE_URL=https://pilot.mes-line.ru \
-MES_SHARED_STATE_DIR=/srv/mes/pilot/shared-state \
-MES_BACKUP_DIR=/srv/mes/pilot/backups \
-MES_AUDIT_LOG_PATH=/srv/mes/pilot/audit/audit.log \
-MES_ALLOW_DESTRUCTIVE_ACTIONS=false \
-MES_ENABLE_WORKFLOW_PRESET_RESTORE=false \
-npm run preview
+npm run release:stage:pilot -- --release-id=<version-and-commit>
 ```
 
-На сервере лучше запускать через process manager, например `systemd` или `pm2`. Конфиг process manager должен хранить переменные окружения контура и не должен перетирать директории данных.
+3. Убедиться, что stage завершился успешно. Он не затрагивает работающий
+   пилот, а только создаёт новый артефакт в `/srv/mes/pilot/releases`.
+4. Атомарно активировать именно этот релиз:
+
+```bash
+npm run release:activate:pilot -- --release-id=<version-and-commit>
+```
+
+Активация перепроверяет хеши, переключает симлинк, перезапускает сервис и
+проверяет локальный и публичный `/healthz`. При ошибке она автоматически
+возвращает предыдущий релиз. Полный контракт и ручной rollback описаны в
+[`release-process.md`](./release-process.md).
 
 ## Post-deploy QA
 
@@ -184,9 +161,10 @@ npm run preview
 ## Rollback к предыдущему коду
 
 1. Не трогать shared-state директорию.
-2. Откатить код на предыдущий commit/tag.
-3. Выполнить `npm ci` и `npm run build`.
-4. Перезапустить процесс с теми же переменными окружения.
+2. Активировать предыдущий известный release ID через
+   `npm run release:activate:pilot -- --release-id=<previous-release-id>`.
+3. Не выполнять `git reset`, `git pull` или ручную замену симлинка на
+   работающем контуре.
 
 ## Restore данных из backup
 

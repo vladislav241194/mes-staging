@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -48,8 +48,7 @@ function requestedVersion() {
   return value;
 }
 
-async function replaceInFile(filePath, replacements) {
-  let source = await readFile(filePath, "utf-8");
+function replaceInText(source, filePath, replacements) {
   let updated = source;
   for (const { label, pattern, replacement } of replacements) {
     if (!pattern.test(updated)) {
@@ -57,21 +56,48 @@ async function replaceInFile(filePath, replacements) {
     }
     updated = updated.replace(pattern, replacement);
   }
-  if (updated !== source) {
-    await writeFile(filePath, updated);
+  return updated;
+}
+
+async function readOptionalFile(filePath) {
+  try {
+    return await readFile(filePath, "utf-8");
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
   }
 }
 
-const manifest = JSON.parse(await readFile(appVersionPath, "utf-8"));
+async function writeFileAtomically(filePath, source) {
+  const temporaryPath = `${filePath}.mes-version-${process.pid}-${Date.now()}`;
+  await writeFile(temporaryPath, source);
+  await rename(temporaryPath, filePath);
+}
+
+async function writeVersionChanges(changes) {
+  const applied = [];
+  try {
+    for (const change of changes) {
+      await writeFileAtomically(change.filePath, change.updated);
+      applied.push(change);
+    }
+  } catch (error) {
+    await Promise.allSettled(applied.reverse().map((change) => writeFileAtomically(change.filePath, change.source)));
+    throw error;
+  }
+}
+
+const manifestSource = await readFile(appVersionPath, "utf-8");
+const manifest = JSON.parse(manifestSource);
 const previousVersion = String(manifest.version || "").trim();
 parseVersion(previousVersion);
 const targetVersion = requestedVersion() || nextVersion(previousVersion);
 
 manifest.version = targetVersion;
 manifest.format = "v.x.xxx.xx";
-await writeFile(appVersionPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-await replaceInFile(join(projectRoot, "index.html"), [
+const indexPath = join(projectRoot, "index.html");
+const indexSource = await readFile(indexPath, "utf-8");
+const indexUpdated = replaceInText(indexSource, indexPath, [
   {
     label: "window.__MES_DEPLOY_VERSION__",
     pattern: /window\.__MES_DEPLOY_VERSION__\s*=\s*["'][^"']*["'];/,
@@ -79,7 +105,9 @@ await replaceInFile(join(projectRoot, "index.html"), [
   },
 ]);
 
-await replaceInFile(join(projectRoot, "src", "app.js"), [
+const appSourcePath = join(projectRoot, "src", "app.js");
+const appSource = await readFile(appSourcePath, "utf-8");
+const appSourceUpdated = replaceInText(appSource, appSourcePath, [
   {
     label: "APP_VERSION_FALLBACK",
     pattern: /const APP_VERSION_FALLBACK\s*=\s*["'][^"']*["'];/,
@@ -87,12 +115,32 @@ await replaceInFile(join(projectRoot, "src", "app.js"), [
   },
 ]);
 
-await replaceInFile(join(projectRoot, "bootstrap-snapshot.json"), [
-  {
-    label: "bootstrap snapshot version",
-    pattern: /"version"\s*:\s*"v\.\d\.\d{3}(?:\.\d{2})?"/,
-    replacement: `"version": "${targetVersion}"`,
-  },
-]);
+const changes = [
+  { filePath: appVersionPath, source: manifestSource, updated: `${JSON.stringify(manifest, null, 2)}\n` },
+  { filePath: indexPath, source: indexSource, updated: indexUpdated },
+  { filePath: appSourcePath, source: appSource, updated: appSourceUpdated },
+];
+
+// The production bootstrap snapshot is an external operational artifact. A
+// clean Git worktree deliberately does not contain it; release staging copies
+// it from the server after the reproducible code build. Bump it only when a
+// local snapshot is explicitly present (for example, a legacy local QA run).
+const bootstrapSnapshotPath = join(projectRoot, "bootstrap-snapshot.json");
+const bootstrapSnapshotSource = await readOptionalFile(bootstrapSnapshotPath);
+if (bootstrapSnapshotSource !== null) {
+  changes.push({
+    filePath: bootstrapSnapshotPath,
+    source: bootstrapSnapshotSource,
+    updated: replaceInText(bootstrapSnapshotSource, bootstrapSnapshotPath, [
+      {
+        label: "bootstrap snapshot version",
+        pattern: /"version"\s*:\s*"v\.\d\.\d{3}(?:\.\d{2})?"/,
+        replacement: `"version": "${targetVersion}"`,
+      },
+    ]),
+  });
+}
+
+await writeVersionChanges(changes);
 
 console.log(`MES app version: ${previousVersion} -> ${targetVersion}`);
