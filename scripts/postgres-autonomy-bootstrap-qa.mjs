@@ -22,6 +22,9 @@ const systemDomainsAccessControlDropIn = await readFile(fileURLToPath(new URL("m
 const specifications2AttachmentDropIn = await readFile(fileURLToPath(new URL("mes-pilot-specifications2-attachments.conf", base)), "utf-8");
 const specifications2AttachmentActivation = await readFile(fileURLToPath(new URL("activate-specifications2-attachments.sh", base)), "utf-8");
 const specifications2AttachmentRollback = await readFile(fileURLToPath(new URL("deactivate-specifications2-attachments.sh", base)), "utf-8");
+const specifications2PublicationDropIn = await readFile(fileURLToPath(new URL("mes-pilot-specifications2-publication.conf", base)), "utf-8");
+const specifications2PublicationActivation = await readFile(fileURLToPath(new URL("activate-specifications2-publication.sh", base)), "utf-8");
+const specifications2PublicationRollback = await readFile(fileURLToPath(new URL("deactivate-specifications2-publication.sh", base)), "utf-8");
 const applyDomainMigrations = await readFile(fileURLToPath(new URL("apply-domain-migrations.sh", base)), "utf-8");
 const retireSystemDomainsSnapshot = await readFile(fileURLToPath(new URL("retire-system-domains-snapshot.sh", base)), "utf-8");
 assert(!script.includes("MES_DOMAIN_STORAGE=snapshot"), "Bootstrap must leave storage selection to the safe application default, not override activation");
@@ -76,10 +79,16 @@ assert(systemDomainsCommandSurfaceRollback.includes("LEGACY_PRODUCTION_DROPIN_FI
 assert(systemDomainsPrimaryCommandRecovery.includes("restore_on_failure") && systemDomainsPrimaryCommandRecovery.includes("retired compatibility snapshot remains untouched"), "PostgreSQL-primary recovery must preserve old drop-ins on failure without attempting a legacy data restore");
 assert(specifications2AttachmentDropIn.includes("MES_ENABLE_SPECIFICATIONS2_ATTACHMENT_COMMANDS=1"), "Specifications 2.0 attachment rollout must require an explicit service flag");
 assert(specifications2AttachmentActivation.includes("schemaReady !== true"), "Attachment rollout must confirm migration 019 before changing service state");
-assert(specifications2AttachmentActivation.includes("status?.enabled !== true"), "Attachment rollout must verify the live capability after restart");
+assert(specifications2AttachmentActivation.includes("status?.enabled !== true") && specifications2AttachmentActivation.includes("restore_on_failure"), "Attachment rollout must verify the live capability and restore the prior drop-in after a failed restart");
 assert(specifications2AttachmentActivation.includes("Run as root"), "Attachment rollout must remain an explicit root-only action");
-assert(specifications2AttachmentRollback.includes("rm -f \"$DROPIN_FILE\""), "Attachment rollback must remove only its own drop-in");
+assert(specifications2AttachmentRollback.includes("rm -f \"$DROPIN_FILE\"") && specifications2AttachmentRollback.includes("restore_on_failure"), "Attachment rollback must remove only its own drop-in and restore it if verification fails");
 assert(specifications2AttachmentRollback.includes("specifications2AttachmentUpload?.enabled === true"), "Attachment rollback must verify that the live capability is disabled");
+assert(specifications2PublicationDropIn.includes("MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS=1"), "Specifications 2.0 publication rollout must require an explicit service flag");
+assert(specifications2PublicationActivation.includes("specifications2RevisionPublication?.schemaReady !== true"), "Publication rollout must prove schema readiness before changing service state");
+assert(specifications2PublicationActivation.includes("status?.enabled !== true") && specifications2PublicationActivation.includes("restore_on_failure"), "Publication rollout must verify the live capability and restore the prior drop-in on failure");
+assert(specifications2PublicationActivation.includes("Run as root"), "Publication rollout must remain an explicit root-only action");
+assert(specifications2PublicationRollback.includes("rm -f \"$DROPIN_FILE\"") && specifications2PublicationRollback.includes("restore_on_failure"), "Publication rollback must remove only its own drop-in and restore it if verification fails");
+assert(specifications2PublicationRollback.includes("specifications2RevisionPublication?.enabled === true"), "Publication rollback must verify that the live capability is disabled");
 assert(applyDomainMigrations.includes("EUID"), "Domain migration helper must remain root-only");
 assert(applyDomainMigrations.includes("mes-pilot-domain-migrate.service"), "Domain migration helper must use the controlled migrator service");
 assert(applyDomainMigrations.includes("schemaReady"), "Domain migration helper must verify the API sees migration 014");

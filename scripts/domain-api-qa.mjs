@@ -83,7 +83,12 @@ try {
   const readiness = await request(filePath, "/api/v1/domain-readiness");
   assert(readiness.statusCode === 200 && readiness.json.status === "attention", "domain readiness must report a partial snapshot migration without hiding unavailable domains");
   assert(readiness.json.readiness?.workOrders?.ready === false && /DATABASE_URL/.test(readiness.json.readiness?.systemDomains?.error || ""), "domain readiness must expose the exact unavailable server domains");
-  assert(readiness.json.readiness?.commands?.specifications2WorkOrderCreation?.enabled === false && readiness.json.readiness?.commands?.systemDomains?.enabled === false && readiness.json.readiness?.commands?.shiftExecutionAssignments?.enabled === false, "domain readiness must expose disabled command surfaces explicitly");
+  assert(readiness.json.readiness?.commands?.specifications2WorkOrderCreation?.enabled === false
+    && readiness.json.readiness?.commands?.specifications2RevisionPublication?.enabled === false
+    && readiness.json.readiness?.commands?.specifications2RevisionPublication?.schemaReady === false
+    && readiness.json.readiness?.commands?.systemDomains?.enabled === false
+    && readiness.json.readiness?.commands?.shiftExecutionAssignments?.enabled === false,
+  "domain readiness must expose disabled command surfaces and their schema gate explicitly");
   assert(
     String(readiness.json.readiness?.commands?.specifications2WorkOrderCreation?.reason || "").length > 0
       && String(readiness.json.readiness?.commands?.specifications2AttachmentUpload?.reason || "").length > 0,

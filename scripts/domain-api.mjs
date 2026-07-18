@@ -1574,7 +1574,10 @@ export async function handleDomainApiRequest(req, res, url, {
         attachmentUploadEnabled = false;
       } finally { await attachments?.close?.(); }
     }
-    if (revisionPublicationPrimaryConfigured && health.storageBackend === "postgresql") {
+    // Schema readiness is observable before the rollout flag is enabled so a
+    // root-only activation script can fail closed without first exposing the
+    // browser command surface.
+    if (health.storageBackend === "postgresql") {
       let publications;
       try {
         publications = createSpecifications2PublishCommandRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
@@ -1683,10 +1686,12 @@ export async function handleDomainApiRequest(req, res, url, {
           }),
         },
         specifications2RevisionPublication: {
-          enabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1" && health.storageBackend === "postgresql",
+          enabled: false,
+          schemaReady: false,
           reason: commandReadinessReason({
             featureEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1",
             primaryReady: health.storageBackend === "postgresql",
+            schemaReady: false,
             featureName: "Specifications 2.0 revision publication",
           }),
         },
@@ -1698,6 +1703,7 @@ export async function handleDomainApiRequest(req, res, url, {
     let domains;
     let specifications;
     let shifts;
+    let publications;
     let attachments;
     try {
       domains = createSystemDomainsRepository({ databaseUrl });
@@ -1737,6 +1743,27 @@ export async function handleDomainApiRequest(req, res, url, {
     } catch (error) {
       readiness.specifications2.error = error?.message || "Specifications 2.0 readiness is unavailable";
     } finally { await specifications?.close?.(); }
+    try {
+      publications = createSpecifications2PublishCommandRepository({ databaseUrl });
+      const commandReadiness = await publications.commandReadiness();
+      readiness.commands.specifications2RevisionPublication = {
+        enabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1"
+          && health.storageBackend === "postgresql" && commandReadiness.schemaReady === true,
+        schemaReady: commandReadiness.schemaReady === true,
+        reason: commandReadinessReason({
+          featureEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1",
+          primaryReady: health.storageBackend === "postgresql",
+          schemaReady: commandReadiness.schemaReady === true,
+          featureName: "Specifications 2.0 revision publication",
+        }),
+      };
+    } catch (error) {
+      readiness.commands.specifications2RevisionPublication = {
+        enabled: false,
+        schemaReady: false,
+        reason: error?.message || "Specifications 2.0 publication storage is unavailable",
+      };
+    } finally { await publications?.close?.(); }
     try {
       shifts = shiftExecutionReadRepositoryFactory({ databaseUrl });
       const summary = await shifts.summary();

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reversible rollback for Specifications 2.0 attachment server commands.
+# Reversible rollback for Specifications 2.0 revision publication commands.
 set -euo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -8,9 +8,9 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 SERVICE="${MES_PILOT_SERVICE:-mes-pilot}"
-DROPIN_FILE="/etc/systemd/system/${SERVICE}.service.d/50-specifications2-attachments.conf"
+DROPIN_FILE="/etc/systemd/system/${SERVICE}.service.d/64-specifications2-publication.conf"
 READINESS_URL="http://127.0.0.1:4175/api/v1/domain-readiness"
-backup_dir="$(mktemp -d /root/.mes-specifications2-attachments-rollback.XXXXXX)"
+backup_dir="$(mktemp -d /root/.mes-specifications2-publication-rollback.XXXXXX)"
 had_previous=0
 completed=0
 configuration_changed=0
@@ -47,7 +47,7 @@ readiness=""
 for attempt in $(seq 1 12); do
   if readiness="$(request_readiness 2>/dev/null)" && node -e '
     const value = JSON.parse(process.argv[1]);
-    if (value?.readiness?.commands?.specifications2AttachmentUpload?.enabled === true) process.exit(1);
+    if (value?.readiness?.commands?.specifications2RevisionPublication?.enabled === true) process.exit(1);
   ' "$readiness"; then
     completed=1
     break
@@ -55,6 +55,5 @@ for attempt in $(seq 1 12); do
   sleep 1
 done
 
-[[ $completed -eq 1 ]] || { echo "Attachment capability remained enabled; prior service configuration will be restored." >&2; exit 1; }
-
-echo "Specifications 2.0 attachment upload and download are disabled."
+[[ $completed -eq 1 ]] || { echo "Publication capability remained enabled; prior service configuration will be restored." >&2; exit 1; }
+echo "Specifications 2.0 revision publication is disabled; immutable PostgreSQL revisions are preserved."
