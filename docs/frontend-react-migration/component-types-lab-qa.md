@@ -13,7 +13,7 @@ or change any PostgreSQL-owned file.
 
 ## Automated evidence
 
-`node experiments/react-migration/qa.mjs` passed with 16 typed sources:
+`node experiments/react-migration/qa.mjs` passed with 17 typed sources:
 
 - malformed rows and payloads fail closed;
 - numeric fields normalize to finite non-negative values;

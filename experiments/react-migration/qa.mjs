@@ -167,6 +167,21 @@ try {
   assert.equal(resolveAvailableFilter(["all", "Микросхемы"], "Микросхемы", "all"), "Микросхемы");
   assert.equal(resolveAvailableFilter(["all", "Крупные"], "Микросхемы", "all"), "all", "removed filter must fall back to all");
 
+  const activationPolicyOutput = join(temporaryRoot, "activation-policy.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "activation-policy.ts")],
+    outfile: activationPolicyOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { resolveNomenclatureActivation } = await import(`${pathToFileURL(activationPolicyOutput).href}?qa=${Date.now()}`);
+  assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: false, activePane: "items", accessMode: "read-only-evaluation" }), { activateReact: false, reason: "disabled" });
+  assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" }), { activateReact: false, reason: "unsupported-scope" });
+  assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: true, activePane: "items", accessMode: "editor" }), { activateReact: false, reason: "write-parity-incomplete" });
+  assert.deepEqual(resolveNomenclatureActivation({ featureFlagEnabled: true, activePane: "items", accessMode: "read-only-evaluation" }), { activateReact: true, reason: "eligible" });
+
   const featureGateOutput = join(temporaryRoot, "feature-gate.mjs");
   await build({
     entryPoints: [join(sourceRoot, "feature-gate.ts")],
@@ -218,6 +233,17 @@ try {
   });
   assert.equal(disabledGate.activate("payload"), "legacy");
   assert.deepEqual(disabledEvents, ["disabled"]);
+
+  const editorFallbackEvents = [];
+  const editorFallbackGate = createReactIslandFeatureGate({
+    enabled: false,
+    disabledReason: "write-parity-incomplete",
+    target: {},
+    mount() { throw new Error("editor gate must not mount read-only React"); },
+    renderLegacy(context) { editorFallbackEvents.push(context.reason); },
+  });
+  assert.equal(editorFallbackGate.activate("payload"), "legacy");
+  assert.deepEqual(editorFallbackEvents, ["write-parity-incomplete"]);
 
   const mountFailureEvents = [];
   const mountFailureGate = createReactIslandFeatureGate({
@@ -317,6 +343,8 @@ try {
   assert.match(mainSource, /Lifecycle QA render failure/);
   assert.match(mainSource, /reactIslandCommitMs/);
   assert.match(mainSource, /featureGate\.requestLegacy\("unsupported-scope"\)/);
+  assert.match(mainSource, /write-parity-incomplete/);
+  assert.match(mainSource, /access.*editor/);
 
   const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });
   assert.equal(blockedDiff.trim(), "", `migration branch changed blocked paths:\n${blockedDiff}`);

@@ -68,8 +68,11 @@ creation, it unmounts that root before rethrowing to the feature gate.
 ## Feature flag rules
 
 - Default: off.
-- Scope: Nomenclature module only.
+- Scope: Nomenclature item list in explicit read-only evaluation mode only.
 - Activation: explicit local/runtime configuration after PostgreSQL acceptance.
+- Editor mode: legacy until create/edit/delete command parity is implemented
+  and accepted; do not mount the read-only island.
+- Boards pane: legacy until its separate vertical scenario is accepted.
 - Failure: `onError` schedules one host fallback; the feature gate unmounts the
   island and restores the legacy module.
 - Rollback: disable flag and use the unchanged legacy renderer.
@@ -82,5 +85,7 @@ creation, it unmounts that root before rethrowing to the feature gate.
 3. Nomenclature read payload frozen and covered by adapter fixtures.
 4. Shared build-file ownership released and `package-lock.json` reconciled once.
 5. Feature flag and mount point added without changing business commands.
-6. Legacy and React paths compared on identical data and viewport.
-7. Performance and browser smoke pass before any default-on proposal.
+6. Activation policy proves disabled, unsupported pane, editor fallback and
+   eligible read-only decisions.
+7. Legacy and React paths compared on identical data and viewport.
+8. Performance and browser smoke pass before any default-on proposal.

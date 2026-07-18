@@ -1,3 +1,5 @@
+import { resolveNomenclatureActivation } from "./activation-policy";
+import { createReactIslandFeatureGate, type LegacyFallbackContext } from "./feature-gate";
 import { componentTypesFixture, componentTypesUpdateFixture } from "./modules/component-types/fixture";
 import { nomenclatureFixture, nomenclatureUpdateFixture } from "./modules/nomenclature/fixture";
 import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
@@ -8,6 +10,15 @@ const searchParams = new URL(window.location.href).searchParams;
 const scenario: ReactMigrationScenarioId = searchParams.get("scenario") === "component-types" ? "componentTypes" : "nomenclature";
 const initialPayload = scenario === "componentTypes" ? componentTypesFixture : nomenclatureFixture;
 const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : nomenclatureUpdateFixture;
+const featureFlagEnabled = searchParams.get("react") !== "0";
+const nomenclatureActivation = resolveNomenclatureActivation({
+  featureFlagEnabled,
+  activePane: searchParams.get("pane") === "boards" ? "boards" : "items",
+  accessMode: searchParams.get("access") === "editor" ? "editor" : "read-only-evaluation",
+});
+const activationDecision = scenario === "nomenclature"
+  ? nomenclatureActivation
+  : { activateReact: featureFlagEnabled, reason: featureFlagEnabled ? "eligible" as const : "disabled" as const };
 let lifecycleStatus: HTMLElement | null = null;
 const performancePrefix = `mes-react-island:${scenario}`;
 let nextExpectedRevision = 1;
@@ -41,13 +52,16 @@ const renderLegacyFallback = (context: LegacyFallbackContext) => {
     ? "React-сценарий выключен feature flag."
     : context.reason === "unsupported-scope"
       ? "Выбранный раздел остаётся в прежнем интерфейсе до отдельной миграции."
+      : context.reason === "write-parity-incomplete"
+        ? "Редактирование остаётся в прежнем интерфейсе до миграции команд."
     : "React-сценарий остановлен; пользователь может продолжить в прежнем интерфейсе.";
   fallback.append(title, text);
   root.replaceChildren(fallback);
   if (lifecycleStatus) lifecycleStatus.textContent = context.error ? `legacy: ${context.error.message}` : `legacy: ${context.reason}`;
 };
 const featureGate = createReactIslandFeatureGate({
-  enabled: searchParams.get("react") !== "0",
+  enabled: activationDecision.activateReact,
+  disabledReason: activationDecision.reason === "eligible" ? "disabled" : activationDecision.reason,
   target: root,
   mount(target, payload, onError) {
     return mountReactMigrationIsland(target, scenario, payload, {
@@ -95,6 +109,5 @@ if (lifecycleQaEnabled) {
     unmountButton.disabled = true;
     status.textContent = "unmounted";
   });
-  if (featureGate.getState() === "legacy") status.textContent = "legacy: disabled";
+  if (featureGate.getState() === "legacy") status.textContent = `legacy: ${activationDecision.reason}`;
 }
-import { createReactIslandFeatureGate, type LegacyFallbackContext } from "./feature-gate";

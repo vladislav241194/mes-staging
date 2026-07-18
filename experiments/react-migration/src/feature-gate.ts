@@ -4,7 +4,7 @@ export interface ReactIslandHandle {
 }
 
 export type ReactIslandFeatureState = "idle" | "react" | "legacy" | "disposed";
-export type LegacyFallbackReason = "disabled" | "mount-error" | "render-error" | "unsupported-scope";
+export type LegacyFallbackReason = "disabled" | "mount-error" | "render-error" | "unsupported-scope" | "write-parity-incomplete";
 
 export interface LegacyFallbackContext {
   reason: LegacyFallbackReason;
@@ -13,6 +13,7 @@ export interface LegacyFallbackContext {
 
 export interface ReactIslandFeatureGateOptions<TTarget> {
   enabled: boolean;
+  disabledReason?: "disabled" | "unsupported-scope" | "write-parity-incomplete";
   target: TTarget;
   mount(target: TTarget, payload: unknown, onError: (error: Error) => void): ReactIslandHandle;
   renderLegacy(context: LegacyFallbackContext): void;
@@ -63,7 +64,7 @@ export function createReactIslandFeatureGate<TTarget>(options: ReactIslandFeatur
     activate(payload) {
       if (state === "disposed") throw new Error("React island feature gate is disposed");
       if (!options.enabled) {
-        renderLegacy({ reason: "disabled" });
+        renderLegacy({ reason: options.disabledReason ?? "disabled" });
         return state;
       }
       try {

@@ -15,6 +15,8 @@ The isolated QA covers the future host boundary without importing MES runtime:
 - synchronous mount failure renders legacy with the original error;
 - an unsupported child scope can explicitly request legacy without pretending
   that the scope was migrated;
+- an editor path can refuse a read-only island with
+  `write-parity-incomplete` before mount;
 - the PostgreSQL stop-list remains unchanged.
 
 ## Browser evidence

@@ -116,6 +116,11 @@ item filter. The React item-list scenario now requests `unsupported-scope` and
 returns to legacy for that action. Boards remains a separate future vertical
 scenario, preserving the current business navigation in the meantime.
 
+The same audit confirmed that the legacy module owns create/edit/delete
+commands. The read-only React slice is therefore eligible only for an explicit
+evaluation access mode. Editor access returns `write-parity-incomplete` before
+mount, so no working user loses commands while write parity is unfinished.
+
 ## Acceptance gates for the first integrated slice
 
 - legacy and React routes can be switched independently by a feature flag;

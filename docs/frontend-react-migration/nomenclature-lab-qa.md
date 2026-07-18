@@ -20,7 +20,7 @@ node experiments/react-migration/qa.mjs
 
 Result:
 
-- sixteen typed sources in the combined registry lab compiled;
+- seventeen typed sources in the combined registry lab compiled;
 - invalid position records fail closed;
 - legacy REA aliases normalize to `РЭА компоненты`;
 - inactive type rows are excluded;
@@ -61,6 +61,17 @@ The browser rendered `Печатные платы 2`. Clicking it requested
 left no React `main`. The console remained clean. The Boards pane is therefore
 preserved in legacy until it receives its own vertical migration; React no
 longer silently changes this business navigation into a row filter.
+
+## Write-capability boundary
+
+The legacy module supports create, edit and delete commands. The first React
+scenario is intentionally read-only, so it cannot replace an editor path.
+
+Browser QA with `access=editor` produced fallback reason
+`write-parity-incomplete`, no React `main`, no commit revision, and no console
+warnings/errors. The normal read-only evaluation path rendered four rows,
+revision `1`, and only a disabled write action. No editor therefore loses
+commands while command parity is unfinished.
 
 ## React island lifecycle evidence
 
