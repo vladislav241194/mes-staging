@@ -1,7 +1,8 @@
 import postgres from "postgres";
 import { buildSpecifications2WorkOrderCommand } from "../src/domain/specifications2_work_order.js";
+import { buildSpecifications2ReleaseFingerprint, inspectSpecifications2Publication } from "../src/modules/specifications2/publication.js";
 import { exportSpecifications2Entry } from "./domain-specifications2-export.mjs";
-import { importSpecifications2Export, validateSpecifications2Export } from "./domain-specifications2-import.mjs";
+import { importSpecifications2ExportRows, lockSpecifications2SourceEntries, validateSpecifications2Export } from "./domain-specifications2-import.mjs";
 
 // Revision reads happen on module selection and publication refresh. Reusing a
 // small client pool avoids a TCP/TLS/PostgreSQL handshake for every one of
@@ -24,6 +25,134 @@ export async function closeSpecifications2ReadClients() {
 
 const number = (value = 0) => Number(value || 0);
 const iso = (value) => value?.toISOString?.() || "";
+
+// A server publication may be retried after a browser reload. Keep the
+// compatibility projection compact and transport-neutral in the PostgreSQL
+// outbox; binary file data belongs to the separate attachment storage.
+function withoutInlineAttachmentContent(entry = {}) {
+  return {
+    ...entry,
+    routeDrafts: (Array.isArray(entry.routeDrafts) ? entry.routeDrafts : []).map((draft) => ({
+      ...draft,
+      operations: (Array.isArray(draft.operations) ? draft.operations : []).map((operation) => ({
+        ...operation,
+        productionFiles: Object.fromEntries(Object.entries(operation?.productionFiles || {}).map(([kind, raw]) => {
+          if (!raw || typeof raw !== "object") return [kind, raw];
+          const { inlineDataUrl, dataUrl, content, ...metadata } = raw;
+          return [kind, metadata];
+        })),
+      })),
+    })),
+  };
+}
+
+function compatibilityTreeRows(entry = {}) {
+  const rows = Array.isArray(entry.treeRows) && entry.treeRows.length
+    ? entry.treeRows
+    : Array.isArray(entry.editorRows) ? entry.editorRows : [];
+  return rows.map((row = {}) => ({
+    id: String(row.id || ""),
+    selectionKey: String(row.selectionKey || ""),
+    nodeKey: String(row.nodeKey || ""),
+    parentId: String(row.parentId || ""),
+    parentKey: String(row.parentKey || ""),
+    level: Number(row.level || 0),
+    label: String(row.label || ""),
+    designation: String(row.designation || ""),
+    type: String(row.type || ""),
+    quantity: Number(row.quantity || 0),
+    unit: String(row.unit || ""),
+    unitOfMeasure: String(row.unitOfMeasure || ""),
+    status: String(row.status || ""),
+  }));
+}
+
+function compatibilityRouteDrafts(entry = {}) {
+  return (Array.isArray(entry.routeDrafts) ? entry.routeDrafts : []).map((draft = {}) => ({
+    id: String(draft.id || ""),
+    productKey: String(draft.productKey || ""),
+    designation: String(draft.designation || ""),
+    productLabel: String(draft.productLabel || draft.title || ""),
+    status: String(draft.status || "draft"),
+    operations: (Array.isArray(draft.operations) ? draft.operations : []).map((operation = {}) => ({
+      id: String(operation.id || ""),
+      operationId: String(operation.operationId || ""),
+      name: String(operation.name || operation.operationName || ""),
+      workCenterId: String(operation.workCenterId || ""),
+      nextWorkCenterId: String(operation.nextWorkCenterId || ""),
+      nextOperationId: String(operation.nextOperationId || ""),
+      changesProperty: operation.changesProperty !== false,
+      inputState: String(operation.inputState || ""),
+      outputState: String(operation.outputState || ""),
+      instructionRequired: operation.instructionRequired === true,
+      laborNorm: operation.laborNorm && typeof operation.laborNorm === "object" ? operation.laborNorm : {},
+      productionFiles: withoutInlineAttachmentContent({ routeDrafts: [{ operations: [operation] }] }).routeDrafts[0].operations[0].productionFiles,
+    })),
+  }));
+}
+
+function compatibilityPublicationEntry(entry = {}, revision = {}) {
+  const publication = entry?.publication && typeof entry.publication === "object" ? entry.publication : {};
+  const releasedAt = String(publication.releasedAt || publication.publishedAt || new Date().toISOString());
+  return {
+    id: String(entry.id || ""),
+    title: String(entry.title || ""),
+    createdAt: String(entry.createdAt || ""),
+    updatedAt: String(entry.updatedAt || ""),
+    selectedRouteDraftId: String(entry.selectedRouteDraftId || ""),
+    treeRows: compatibilityTreeRows(entry),
+    routeDrafts: compatibilityRouteDrafts(entry),
+    publication: {
+      ...publication,
+      revision: Math.max(1, Number(revision.revision_no || publication.revision || 1)),
+      fingerprint: String(publication.fingerprint || buildSpecifications2ReleaseFingerprint(entry)),
+      releasedAt,
+      status: String(publication.status || "released"),
+    },
+  };
+}
+
+export function normalizeExpectedPreviousRevision(value) {
+  const revision = Number(value);
+  return Number.isInteger(revision) && revision >= 0 ? revision : null;
+}
+
+function timestamp(value, fallback = new Date().toISOString()) {
+  return String(value?.toISOString?.() || value || fallback);
+}
+
+// The browser may prepare a candidate revision for presentation, but it never
+// owns the resulting number or timestamp. Rebuild that publication envelope
+// from the editor content immediately before the server derives its immutable
+// relational payload. This also rejects a forged/stale browser fingerprint.
+export function buildAuthoritativePublicationEntry(entry = {}, { revisionNo, releasedAt } = {}) {
+  const source = entry && typeof entry === "object" ? entry : {};
+  const priorPublication = source.publication && typeof source.publication === "object" ? source.publication : {};
+  const fingerprint = buildSpecifications2ReleaseFingerprint(source);
+  if (priorPublication.fingerprint && String(priorPublication.fingerprint) !== fingerprint) {
+    throw new Error("Specifications 2.0 revision content changed after its client publication was prepared");
+  }
+  return {
+    ...source,
+    publication: {
+      ...priorPublication,
+      revision: revisionNo,
+      fingerprint,
+      releasedAt,
+      publishedAt: releasedAt,
+      status: "released",
+    },
+  };
+}
+
+function useExistingSpecificationId(payload, specificationId) {
+  if (!specificationId || payload?.documents?.[0]?.id === specificationId) return payload;
+  return {
+    ...payload,
+    documents: payload.documents.map((document) => ({ ...document, id: specificationId })),
+    revisions: payload.revisions.map((revision) => ({ ...revision, specification_id: specificationId })),
+  };
+}
 
 // Read-only repository for published Specifications 2.0 revisions.  It is
 // intentionally independent from the browser snapshot: callers either see a
@@ -110,22 +239,73 @@ export function createSpecifications2PublishCommandRepository({
   const metadata = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   return {
     ...metadata,
-    async publish({ entry, idempotencyKey, actorId = "" }) {
+    async commandReadiness() {
+      try {
+        const [row] = await sql`
+          SELECT
+            to_regclass('public.specifications2_documents') AS documents_table,
+            to_regclass('public.specifications2_revisions') AS revisions_table,
+            to_regclass('public.specifications2_revision_items') AS items_table,
+            to_regclass('public.specifications2_route_documents') AS routes_table,
+            to_regclass('public.specifications2_route_operations') AS operations_table,
+            to_regclass('public.domain_change_log') AS outbox_table
+        `;
+        const schemaReady = Boolean(
+          row?.documents_table
+          && row?.revisions_table
+          && row?.items_table
+          && row?.routes_table
+          && row?.operations_table
+          && row?.outbox_table,
+        );
+        return { ...metadata, schemaReady, error: schemaReady ? "" : "Specifications 2.0 publication tables are missing" };
+      } catch (error) {
+        return { ...metadata, schemaReady: false, error: error?.message || "Specifications 2.0 publication schema is unavailable" };
+      }
+    },
+    async publish({ entry, expectedPreviousRevision, idempotencyKey, actorId = "" }) {
       if (!idempotencyKey || String(idempotencyKey).length > 160) {
         return { ...metadata, created: false, item: null, error: "Idempotency key is required" };
       }
-      let payload;
+      const sourceEntryId = String(entry?.id || "").trim();
+      if (!sourceEntryId) {
+        return { ...metadata, created: false, item: null, error: "Specifications 2.0 source entry id is required" };
+      }
+      const expectedRevision = normalizeExpectedPreviousRevision(expectedPreviousRevision);
+      if (expectedRevision === null) {
+        return { ...metadata, created: false, item: null, error: "Expected previous revision is required" };
+      }
+      const clientRevision = entry?.publication?.revision;
+      if (clientRevision !== undefined && clientRevision !== null && String(clientRevision).trim() !== "") {
+        const normalizedClientRevision = normalizeExpectedPreviousRevision(clientRevision);
+        if (normalizedClientRevision === null || normalizedClientRevision !== expectedRevision + 1) {
+          return { ...metadata, created: false, item: null, error: "Client revision must be exactly one greater than its expected previous revision" };
+        }
+      }
+      let candidateEntry;
+      let candidatePayload;
       try {
-        payload = exportSpecifications2Entry(entry);
-        validateSpecifications2Export(payload);
+        const inspection = inspectSpecifications2Publication(entry);
+        if (!inspection.ready) throw new Error(inspection.issues[0] || "Specifications 2.0 entry is not ready to publish");
+        // Revision number and release timestamp are overwritten inside the
+        // transaction below. This first projection validates the exact
+        // content/fingerprint and lets us validate server attachment ids
+        // before opening a write transaction.
+        candidateEntry = buildAuthoritativePublicationEntry(entry, {
+          revisionNo: Math.max(1, expectedRevision + 1),
+          releasedAt: timestamp(entry?.publication?.releasedAt || entry?.publication?.publishedAt),
+        });
+        candidatePayload = exportSpecifications2Entry(candidateEntry);
+        validateSpecifications2Export(candidatePayload);
       } catch (error) {
         return { ...metadata, created: false, item: null, error: error?.message || "Specifications 2.0 entry cannot be published" };
       }
-      if (payload.documents.length !== 1 || payload.revisions.length !== 1) {
+      if (candidatePayload.documents.length !== 1 || candidatePayload.revisions.length !== 1
+        || candidatePayload.documents[0]?.source_entry_id !== sourceEntryId) {
         return { ...metadata, created: false, item: null, error: "Publication command accepts exactly one immutable revision" };
       }
-      const revision = payload.revisions[0];
-      const attachmentIds = [...new Set(payload.routeOperations.flatMap((operation) => Object.values(operation.attachments || {}))
+      const candidateRevision = candidatePayload.revisions[0];
+      const attachmentIds = [...new Set(candidatePayload.routeOperations.flatMap((operation) => Object.values(operation.attachments || {}))
         .filter((attachment) => attachment && typeof attachment === "object" && Object.keys(attachment).length > 0)
         .map((attachment) => String(attachment.serverAttachmentId || "").trim()))];
       if (attachmentIds.includes("")) {
@@ -135,20 +315,102 @@ export function createSpecifications2PublishCommandRepository({
         const found = await sql`SELECT id FROM specifications2_attachment_blobs WHERE id = ANY(${attachmentIds})`;
         if (found.length !== attachmentIds.length) return { ...metadata, created: false, item: null, error: "One or more production attachments are missing from server storage" };
       }
-      const existing = await sql`SELECT id FROM specifications2_revisions WHERE id = ${revision.id} LIMIT 1`;
-      if (!existing.length) {
-        await importSpecifications2Export(sql, payload);
-        await sql`
+      let outcome = null;
+      await sql.begin(async (tx) => {
+        // This advisory lock is keyed by the editor source, rather than by a
+        // client-supplied revision id. Two browser tabs therefore cannot both
+        // observe the same next revision and silently publish different
+        // content as one immutable release.
+        await lockSpecifications2SourceEntries(tx, [sourceEntryId]);
+        const documents = await tx`
+          SELECT id FROM specifications2_documents
+          WHERE source_entry_id = ${sourceEntryId}
+          FOR UPDATE
+        `;
+        const existingDocument = documents[0] || null;
+        const specificationId = existingDocument?.id || candidatePayload.documents[0].id;
+        const [sameFingerprint] = await tx`
+          SELECT id, revision_no, fingerprint, released_at
+          FROM specifications2_revisions
+          WHERE specification_id = ${specificationId} AND fingerprint = ${candidateRevision.fingerprint}
+          FOR UPDATE
+        `;
+        let revision;
+        let authoritativeEntry;
+        let created = false;
+        if (sameFingerprint) {
+          revision = {
+            id: sameFingerprint.id,
+            revision_no: Number(sameFingerprint.revision_no),
+            fingerprint: sameFingerprint.fingerprint,
+            released_at: sameFingerprint.released_at,
+          };
+          authoritativeEntry = buildAuthoritativePublicationEntry(entry, {
+            revisionNo: revision.revision_no,
+            releasedAt: timestamp(revision.released_at),
+          });
+        } else {
+          const [latest] = await tx`
+            SELECT id, revision_no, fingerprint, released_at
+            FROM specifications2_revisions
+            WHERE specification_id = ${specificationId}
+            ORDER BY revision_no DESC
+            LIMIT 1
+            FOR UPDATE
+          `;
+          const latestRevisionNo = Math.max(0, Number(latest?.revision_no || 0));
+          if (latestRevisionNo !== expectedRevision) {
+            outcome = {
+              ...metadata,
+              created: false,
+              item: null,
+              conflict: true,
+              currentRevision: latestRevisionNo,
+              error: `Specifications 2.0 revision changed on the server (current ${latestRevisionNo}, expected ${expectedRevision})`,
+            };
+            return;
+          }
+          const releasedAt = new Date().toISOString();
+          const revisionNo = latestRevisionNo + 1;
+          authoritativeEntry = buildAuthoritativePublicationEntry(entry, { revisionNo, releasedAt });
+          const authoritativePayload = useExistingSpecificationId(
+            exportSpecifications2Entry(authoritativeEntry),
+            existingDocument?.id || "",
+          );
+          validateSpecifications2Export(authoritativePayload);
+          revision = authoritativePayload.revisions[0];
+          await importSpecifications2ExportRows(tx, authoritativePayload);
+          created = true;
+        }
+        const compatibilityEntry = compatibilityPublicationEntry(authoritativeEntry, revision);
+        // The PostgreSQL revision and its recoverable compatibility delivery
+        // commit together. A retry can restore a missing outbox row without
+        // creating another immutable revision.
+        await tx`
           INSERT INTO domain_change_log (aggregate_type, aggregate_id, aggregate_revision, command_type, payload, actor_id, snapshot_sync_state)
-          VALUES ('specifications2_revision', ${revision.id}, ${revision.revision_no}, 'publish_revision', ${sql.json({ idempotencyKey: String(idempotencyKey), sourceEntryId: payload.documents[0].source_entry_id, fingerprint: revision.fingerprint })}, ${String(actorId || "") || null}, 'applied')
+          VALUES ('specifications2_revision', ${revision.id}, ${revision.revision_no}, 'publish_revision', ${tx.json({
+            idempotencyKey: String(idempotencyKey),
+            sourceEntryId,
+            fingerprint: revision.fingerprint,
+            compatibilityEntry,
+          })}, ${String(actorId || "") || null}, 'pending')
           ON CONFLICT (aggregate_type, aggregate_id, aggregate_revision) DO NOTHING
         `;
-      }
+        outcome = { created, revision, publication: compatibilityEntry.publication };
+      });
+      if (outcome?.conflict) return outcome;
       const read = createSpecifications2ReadRepository({ databaseUrl });
       try {
-        const result = await read.get(revision.id);
+        const result = await read.get(outcome?.revision?.id || "");
         if (!result.item) return { ...metadata, created: false, item: null, error: "Published revision was not readable after save" };
-        return { ...metadata, created: !existing.length, item: result.item, idempotencyKey: String(idempotencyKey), actorId: String(actorId || "") };
+        return {
+          ...metadata,
+          created: outcome.created,
+          item: result.item,
+          publication: outcome.publication,
+          idempotencyKey: String(idempotencyKey),
+          actorId: String(actorId || ""),
+        };
       } finally { await read.close(); }
     },
     async close() { await sql.end({ timeout: 5 }); },

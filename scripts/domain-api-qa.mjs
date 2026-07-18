@@ -71,6 +71,12 @@ try {
   );
   const capabilities = await request(filePath, "/api/v1/specifications2/capabilities");
   assert(capabilities.statusCode === 200 && capabilities.json.capabilities?.workOrderCreationEnabled === false && capabilities.json.capabilities?.revisionPublicationEnabled === false && capabilities.json.capabilities?.attachmentUploadEnabled === false && capabilities.json.capabilities?.workOrderPrimaryPostgres === false, "command capability endpoint must explicitly report that snapshot primary cannot create server orders, revisions or attachments");
+  const primaryConfiguredCapabilities = await request(filePath, "/api/v1/specifications2/capabilities", "GET", null, {}, { MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS: "1" });
+  assert(primaryConfiguredCapabilities.statusCode === 200
+    && primaryConfiguredCapabilities.json.capabilities?.revisionPublicationPrimaryConfigured === true
+    && primaryConfiguredCapabilities.json.capabilities?.revisionPublicationEnabled === false
+    && primaryConfiguredCapabilities.json.capabilities?.revisionPublicationSchemaReady === false,
+  "publication capability must distinguish configured server primary from unavailable PostgreSQL readiness");
   const disabledAttachmentCommand = await request(filePath, "/api/v1/specifications2/attachments", "POST", { fileName: "board.txt", contentBase64: "Zm9v" }, {}, {});
   assert(disabledAttachmentCommand.statusCode === 409 && /not enabled/.test(disabledAttachmentCommand.json.error || ""), "attachment command must remain disabled until the file-storage rollout is explicitly activated");
   const disabledAttachmentDownload = await request(filePath, "/api/v1/specifications2/attachments/spec2file-123", "GET", null, {}, {});

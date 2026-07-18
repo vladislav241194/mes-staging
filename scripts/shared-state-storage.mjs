@@ -185,6 +185,9 @@ export function getPublicRuntimeConfig(env = process.env) {
     MES_SHARED_STATE_KEY: getSharedStateKey(env),
     MES_ENABLE_BOOTSTRAP_SNAPSHOT_RESTORE: isBootstrapSnapshotRestoreEnabled(env),
     MES_ALLOW_DESTRUCTIVE_ACTIONS: isDestructiveActionsAllowed(env),
+    // Non-secret rollout policy.  A client must fail closed when publication
+    // is configured as server-primary but cannot reach the capability API.
+    MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: normalizeEnvValue(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS) === "1",
   };
 }
 

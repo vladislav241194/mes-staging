@@ -14,7 +14,9 @@ export async function syncPendingSnapshotChanges({ primary, snapshot, limit = 20
   if (!primary?.listPendingSnapshotSyncs || !primary?.get || !primary?.markSnapshotSync || !snapshot) {
     throw new Error("Snapshot sync requires primary and snapshot repositories");
   }
-  const jobs = await primary.listPendingSnapshotSyncs(limit);
+  // Do not consume the first N entries of a mixed outbox and then silently
+  // skip another aggregate type. Each compatibility worker owns its stream.
+  const jobs = await primary.listPendingSnapshotSyncs(limit, { aggregateType: "work_order" });
   const result = { total: jobs.length, applied: 0, conflicts: 0, failed: 0, jobs: [] };
   for (const job of jobs) {
     if (!["change_quantity", "change_slot_schedule", "create_from_specifications2_revision"].includes(job.commandType)) continue;

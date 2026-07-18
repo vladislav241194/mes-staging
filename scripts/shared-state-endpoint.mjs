@@ -16,6 +16,10 @@ const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
 const COMPRESSIBLE_RESPONSE_BYTES = 1024;
 const DEFAULT_SHARED_STATE_KEY = "mes:staging:shared-state:v1";
 const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
+const SPECIFICATIONS2_STORAGE_KEY = "mes-specifications-2-registry-v1";
+const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
+const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
+const SPECIFICATIONS2_PUBLICATION_AUTHORITY_MAX = 500;
 const ALLOWED_VALUE_KEYS = new Set([
   "mes-planning-prototype-state-v2",
   "mes-planning-prototype-directories-v2",
@@ -203,6 +207,32 @@ async function runKvCommand(config, command) {
   return data.result;
 }
 
+// GET + SET is not a compare-and-swap operation.  A browser save and an
+// outbox projection can otherwise both read revision N and silently let the
+// latter SET erase the former.  Keep the check and write in one Redis script.
+// Upstash executes EVAL atomically as well, so this is valid for both of the
+// supported KV REST configurations.
+const KV_VERSIONED_COMPARE_AND_SET_SCRIPT = [
+  "local raw = redis.call('GET', KEYS[1])",
+  "local currentVersion = 0",
+  "if raw then",
+  "  local decodedOk, decoded = pcall(cjson.decode, raw)",
+  "  if not decodedOk or type(decoded) ~= 'table' then return -1 end",
+  "  currentVersion = tonumber(decoded.version) or 0",
+  "end",
+  "if currentVersion ~= tonumber(ARGV[1]) then return 0 end",
+  "redis.call('SET', KEYS[1], ARGV[2])",
+  "return 1",
+].join("\n");
+
+function normalizeKvCompareAndSetResult(result) {
+  const status = Number(Array.isArray(result) ? result[0] : result);
+  if (status === 1) return { ok: true };
+  if (status === 0) return { ok: false, conflict: true };
+  if (status === -1) return { ok: false, invalid: true, error: "KV shared state is not valid JSON and was not overwritten" };
+  return { ok: false, error: "KV shared state did not confirm an atomic compare-and-set" };
+}
+
 function parseSnapshot(raw) {
   if (!raw) return null;
   try {
@@ -219,10 +249,35 @@ function parseSnapshot(raw) {
       // only by the root-controlled System Domains retirement path and lets a
       // pending authority transition resume safely after ordinary UI saves.
       systemDomainsRetirement: normalizeSystemDomainsRetirement(parsed.systemDomainsRetirement),
+      // Server-first Specifications 2.0 publications leave an authority
+      // marker outside the browser-owned registry.  Old bundles normalise the
+      // registry and would otherwise drop the marker on their next full save.
+      specifications2PublicationAuthority: normalizeSpecifications2PublicationAuthority(parsed.specifications2PublicationAuthority),
     };
   } catch {
     return null;
   }
+}
+
+function normalizeSpecifications2PublicationAuthority(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const rawPublications = value.publications;
+  if (!rawPublications || typeof rawPublications !== "object" || Array.isArray(rawPublications)) return null;
+  const publications = {};
+  for (const [rawEntryId, rawPublication] of Object.entries(rawPublications).slice(0, SPECIFICATIONS2_PUBLICATION_AUTHORITY_MAX)) {
+    const entryId = String(rawEntryId || "").trim().slice(0, 200);
+    const revision = Number(rawPublication?.revision || 0);
+    const fingerprint = typeof rawPublication?.fingerprint === "string" ? rawPublication.fingerprint.slice(0, 20000) : "";
+    if (!entryId || !Number.isInteger(revision) || revision < 1 || !fingerprint) continue;
+    publications[entryId] = {
+      revision,
+      fingerprint,
+      specificationId: typeof rawPublication?.specificationId === "string" ? rawPublication.specificationId.slice(0, 200) : "",
+      rootRouteId: typeof rawPublication?.rootRouteId === "string" ? rawPublication.rootRouteId.slice(0, 200) : "",
+      releasedAt: typeof rawPublication?.releasedAt === "string" ? rawPublication.releasedAt.slice(0, 80) : "",
+    };
+  }
+  return Object.keys(publications).length ? { publications } : null;
 }
 
 function sanitizeValues(values, currentValues = {}) {
@@ -368,6 +423,7 @@ function createEmptySnapshot() {
     sharedUi: {},
     events: [],
     systemDomainsRetirement: null,
+    specifications2PublicationAuthority: null,
   };
 }
 
@@ -418,7 +474,22 @@ function createKvStore(config) {
     },
     async write(snapshot) {
       if (!config) throw new Error("KV shared state is not configured");
-      await runKvCommand(config, ["SET", config.key, JSON.stringify(snapshot)]);
+      // Every known KV caller has a version from its preceding read. Refuse a
+      // future raw SET here rather than reintroducing a lost-update path.
+      void snapshot;
+      throw new Error("KV shared-state writes require compareAndSet");
+    },
+    async compareAndSet(expectedVersion, snapshot) {
+      if (!config) throw new Error("KV shared state is not configured");
+      const result = await runKvCommand(config, [
+        "EVAL",
+        KV_VERSIONED_COMPARE_AND_SET_SCRIPT,
+        "1",
+        config.key,
+        String(Number(expectedVersion) || 0),
+        JSON.stringify(snapshot),
+      ]);
+      return normalizeKvCompareAndSetResult(result);
     },
   };
 }
@@ -478,7 +549,32 @@ export async function updateSharedStateSnapshot({
       updatedAt: new Date().toISOString(),
     };
     if (typeof beforeWrite === "function") await beforeWrite({ current, snapshot, store });
-    await store.write(snapshot);
+    if (store.kind === "kv") {
+      let persisted;
+      try {
+        persisted = await store.compareAndSet(Number(current.version || 0), snapshot);
+      } catch (error) {
+        return {
+          ok: false,
+          configured: true,
+          retryable: true,
+          error: error?.message || "KV shared-state compare-and-set failed",
+          snapshot: current,
+        };
+      }
+      if (!persisted?.ok) {
+        return {
+          ok: false,
+          configured: true,
+          conflict: persisted?.conflict === true,
+          retryable: persisted?.conflict !== true,
+          error: persisted?.error || (persisted?.conflict ? "Shared-state version changed concurrently" : "KV shared-state write was not confirmed"),
+          snapshot: await store.read(),
+        };
+      }
+    } else {
+      await store.write(snapshot);
+    }
     return { ok: true, configured: true, snapshot };
   };
   return store.kind === "file"
@@ -543,6 +639,141 @@ function getMaxSpecifications2PlanningRevision(value) {
   }, 0);
 }
 
+function parseSpecifications2RegistryValue(value) {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || !Array.isArray(parsed.registry)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function specifications2PublicationMatchesAuthority(publication, authority) {
+  return Number(publication?.revision || 0) === Number(authority?.revision || 0)
+    && String(publication?.fingerprint || "") === String(authority?.fingerprint || "");
+}
+
+function parseJsonRecord(value) {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function replaceOwnedRecords(nextItems, currentItems, owns) {
+  const currentOwned = (Array.isArray(currentItems) ? currentItems : []).filter(owns);
+  return [
+    ...(Array.isArray(nextItems) ? nextItems : []).filter((item) => !owns(item)),
+    ...currentOwned,
+  ];
+}
+
+function preserveSpecifications2PublishedCompatibilityProjection(current, snapshot, authority) {
+  const currentDirectory = parseJsonRecord(current?.values?.[DIRECTORY_STORAGE_KEY]);
+  const nextDirectory = parseJsonRecord(snapshot?.values?.[DIRECTORY_STORAGE_KEY]);
+  const currentPlanning = parsePlanningState(current?.values?.[PLANNING_STATE_KEY]);
+  const nextPlanning = parsePlanningState(snapshot?.values?.[PLANNING_STATE_KEY]);
+  if (!currentDirectory || !nextDirectory || !currentPlanning || !nextPlanning) {
+    return { ok: false, conflict: true, error: "Specifications 2.0 server-owned compatibility projection is not valid" };
+  }
+  let directory = nextDirectory;
+  let planning = nextPlanning;
+  for (const [entryId, publication] of Object.entries(authority)) {
+    const specificationId = String(publication?.specificationId || "");
+    const rootRouteId = String(publication?.rootRouteId || "");
+    const ownsSpecification = (item) => String(item?.sourceSpecifications2EntryId || "") === entryId
+      || (specificationId && String(item?.id || "") === specificationId);
+    const ownsNomenclature = (item) => String(item?.sourceSpecifications2EntryId || "") === entryId;
+    directory = {
+      ...directory,
+      nomenclature: replaceOwnedRecords(directory.nomenclature, currentDirectory.nomenclature, ownsNomenclature),
+      specifications: replaceOwnedRecords(directory.specifications, currentDirectory.specifications, ownsSpecification),
+    };
+    const currentOwnedRoutes = (Array.isArray(currentPlanning.routes) ? currentPlanning.routes : []).filter((route) => (
+      String(route?.sourceSpecifications2EntryId || "") === entryId
+      || (rootRouteId && String(route?.id || "") === rootRouteId)
+    ));
+    const nextOwnedRoutes = (Array.isArray(planning.routes) ? planning.routes : []).filter((route) => (
+      String(route?.sourceSpecifications2EntryId || "") === entryId
+      || (rootRouteId && String(route?.id || "") === rootRouteId)
+    ));
+    const ownedRouteIds = new Set([
+      ...currentOwnedRoutes.map((route) => String(route?.id || "")),
+      ...nextOwnedRoutes.map((route) => String(route?.id || "")),
+      rootRouteId,
+    ].filter(Boolean));
+    const ownsRoute = (route) => String(route?.sourceSpecifications2EntryId || "") === entryId
+      || ownedRouteIds.has(String(route?.id || ""));
+    const ownsRouteRecord = (record) => ownedRouteIds.has(String(record?.routeId || ""))
+      || ownedRouteIds.has(String(record?.planningOrderId || ""));
+    planning = {
+      ...planning,
+      routes: replaceOwnedRecords(planning.routes, currentPlanning.routes, ownsRoute),
+      routeSteps: replaceOwnedRecords(planning.routeSteps, currentPlanning.routeSteps, ownsRouteRecord),
+    };
+  }
+  return {
+    ok: true,
+    snapshot: {
+      ...snapshot,
+      values: {
+        ...(snapshot.values || {}),
+        [DIRECTORY_STORAGE_KEY]: JSON.stringify(directory),
+        [PLANNING_STATE_KEY]: JSON.stringify(planning),
+      },
+    },
+  };
+}
+
+// Legacy bundles still send the full local registry.  The compact marker is
+// written by the PostgreSQL-first projection and survives browser saves, so a
+// stale published revision cannot win merely because a client happened to
+// save after the server.  A normal draft with no publication metadata remains
+// editable; it simply inherits the known immutable release marker.
+function reconcileSpecifications2PublicationAuthority(current, snapshot) {
+  const authority = current?.specifications2PublicationAuthority?.publications;
+  if (!authority || typeof authority !== "object" || !Object.keys(authority).length) return { ok: true, snapshot };
+  const nextRegistry = parseSpecifications2RegistryValue(snapshot?.values?.[SPECIFICATIONS2_STORAGE_KEY]);
+  if (!nextRegistry) return { ok: false, conflict: true, error: "Specifications 2.0 registry is invalid while a server publication is authoritative" };
+  const currentRegistry = parseSpecifications2RegistryValue(current?.values?.[SPECIFICATIONS2_STORAGE_KEY]);
+  const currentEntries = Array.isArray(currentRegistry?.registry) ? currentRegistry.registry : [];
+  let changed = false;
+  let conflict = "";
+  const registry = nextRegistry.registry.map((entry) => {
+    const entryId = String(entry?.id || "");
+    const immutablePublication = authority[entryId];
+    if (!immutablePublication) return entry;
+    const submittedPublication = entry?.publication;
+    if (submittedPublication && !specifications2PublicationMatchesAuthority(submittedPublication, immutablePublication)) {
+      conflict = `Specifications 2.0 immutable publication conflict for ${entryId}`;
+      return entry;
+    }
+    const currentPublication = currentEntries.find((candidate) => String(candidate?.id || "") === entryId)?.publication;
+    const publication = specifications2PublicationMatchesAuthority(currentPublication, immutablePublication)
+      ? currentPublication
+      : immutablePublication;
+    if (!specifications2PublicationMatchesAuthority(submittedPublication, immutablePublication)
+      || JSON.stringify(submittedPublication) !== JSON.stringify(publication)) changed = true;
+    return { ...entry, publication };
+  });
+  if (conflict) return { ok: false, conflict: true, error: conflict };
+  const registrySnapshot = changed
+    ? {
+      ...snapshot,
+      values: {
+        ...(snapshot.values || {}),
+        [SPECIFICATIONS2_STORAGE_KEY]: JSON.stringify({ ...nextRegistry, registry }),
+      },
+    }
+    : snapshot;
+  return preserveSpecifications2PublishedCompatibilityProjection(current, registrySnapshot, authority);
+}
+
 function buildClientSnapshot(current, payload) {
   const values = sanitizeValues(payload.values, current.values);
   if (!values || !values["mes-planning-prototype-state-v2"] || !values["mes-planning-prototype-directories-v2"]) {
@@ -575,6 +806,9 @@ function buildClientSnapshot(current, payload) {
     sharedUi: sanitizeSharedUi(sharedUi, current.sharedUi),
     events: [event, ...(current.events || [])].slice(0, 50),
     systemDomainsRetirement: current.systemDomainsRetirement || null,
+    // Browser payloads intentionally do not own published-revision authority.
+    // Preserve the server marker across every legacy full snapshot write.
+    specifications2PublicationAuthority: current.specifications2PublicationAuthority || null,
   };
 }
 
@@ -587,7 +821,6 @@ export async function handleSharedStateRequest(req, res, {
 } = {}) {
   // Keep the transport concern local to this endpoint: state semantics stay
   // byte-for-byte identical after the browser transparently decompresses it.
-  // The marker is intentionally non-persistent and only used by sendJson.
   res.__mesAcceptEncoding = String(req.headers?.["accept-encoding"] || "");
   const store = createStore({ env, filePath });
 
@@ -772,7 +1005,20 @@ export async function handleSharedStateRequest(req, res, {
         return;
       }
 
-      const snapshot = buildClientSnapshot(current, payload);
+      let snapshot = buildClientSnapshot(current, payload);
+      const specifications2Authority = reconcileSpecifications2PublicationAuthority(current, snapshot);
+      if (!specifications2Authority.ok) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          specifications2PublicationAuthority: true,
+          error: specifications2Authority.error || "Specifications 2.0 immutable publication conflict",
+          current,
+        });
+        return;
+      }
+      snapshot = specifications2Authority.snapshot;
       if (store.kind === "file" && store.filePath && (destructiveAction || env.MES_BACKUP_BEFORE_SHARED_STATE_WRITE === "true")) {
         await backupSharedStateFile({
           filePath: store.filePath,
@@ -783,7 +1029,33 @@ export async function handleSharedStateRequest(req, res, {
           allowMissing: true,
         });
       }
-      await store.write(snapshot);
+      if (store.kind === "kv") {
+        let persisted;
+        try {
+          persisted = await store.compareAndSet(currentVersion, snapshot);
+        } catch (error) {
+          sendJson(res, headers, 503, {
+            ok: false,
+            configured: true,
+            retryable: true,
+            error: error?.message || "KV shared-state compare-and-set failed",
+          });
+          return;
+        }
+        if (!persisted?.ok) {
+          const latest = await store.read();
+          sendJson(res, headers, persisted?.conflict ? 409 : 503, {
+            ok: false,
+            configured: true,
+            ...(persisted?.conflict ? { conflict: true } : { retryable: true }),
+            error: persisted?.error || (persisted?.conflict ? "Shared state version conflict" : "KV shared-state write was not confirmed"),
+            current: latest,
+          });
+          return;
+        }
+      } else {
+        await store.write(snapshot);
+      }
       await appendSharedStateAudit({
         auditLogPath,
         event: {

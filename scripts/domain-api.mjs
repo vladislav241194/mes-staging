@@ -4,6 +4,8 @@ import { gzipSync } from "node:zlib";
 import { createShiftExecutionCommandRepository, createShiftExecutionReadRepository } from "./domain-shift-execution-repository.mjs";
 import { createSpecifications2PublishCommandRepository, createSpecifications2ReadRepository, createSpecifications2WorkOrderCommandRepository } from "./domain-specifications2-repository.mjs";
 import { createSpecifications2AttachmentRepository } from "./domain-specifications2-attachment-repository.mjs";
+import { createSpecifications2SnapshotRepository } from "./domain-specifications2-snapshot-repository.mjs";
+import { syncPendingSpecifications2PublicationChanges } from "./domain-specifications2-snapshot-sync.mjs";
 import { createSystemDomainsRepository } from "./domain-system-domains-repository.mjs";
 import { inspectSystemDomainsSnapshotConsistency, syncPendingSystemDomainsSnapshotChanges } from "./domain-system-domains-snapshot-sync.mjs";
 import { syncPendingSnapshotChanges } from "./domain-snapshot-sync.mjs";
@@ -30,6 +32,12 @@ const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 5;
 const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
 let planningPostgresParityCache = null;
+
+function isSpecifications2RevisionPublicationPrimaryConfigured(env = process.env) {
+  // This is rollout intent rather than a health probe. A primary-configured
+  // client must fail closed while PostgreSQL or its schema is unavailable.
+  return String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1";
+}
 
 function getEnabledSystemDomainsCommandSurfaces(env = process.env) {
   if (String(env.MES_ENABLE_SYSTEM_DOMAINS_SERVER_COMMANDS || "") !== "1") return [];
@@ -1031,6 +1039,8 @@ export async function handleDomainApiRequest(req, res, url, {
 
   if (url.pathname === `${API_PREFIX}/specifications2/capabilities`) {
     let attachmentUploadEnabled = false;
+    let revisionPublicationSchemaReady = false;
+    const revisionPublicationPrimaryConfigured = isSpecifications2RevisionPublicationPrimaryConfigured(env);
     const workOrderCommandRequested = String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_COMMANDS || "") === "1"
       && health.storageBackend === "postgresql"
       && typeof workOrders.listPendingSnapshotSyncs === "function";
@@ -1044,9 +1054,28 @@ export async function handleDomainApiRequest(req, res, url, {
         attachmentUploadEnabled = false;
       } finally { await attachments?.close?.(); }
     }
+    if (revisionPublicationPrimaryConfigured && health.storageBackend === "postgresql") {
+      let publications;
+      try {
+        publications = createSpecifications2PublishCommandRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
+        revisionPublicationSchemaReady = (await publications.commandReadiness()).schemaReady === true;
+      } catch {
+        revisionPublicationSchemaReady = false;
+      } finally { await publications?.close?.(); }
+    }
+    const revisionPublicationEnabled = revisionPublicationPrimaryConfigured
+      && health.storageBackend === "postgresql"
+      && revisionPublicationSchemaReady;
     sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
       workOrderCreationEnabled: workOrderCommandRequested && !planningSafety?.fallbackReason,
-      revisionPublicationEnabled: String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") === "1" && health.storageBackend === "postgresql",
+      revisionPublicationEnabled,
+      // When enabled the command is the durable first write.  Clients must
+      // wait for its acknowledgement before producing the legacy-compatible
+      // browser projection, otherwise a failed PostgreSQL command would look
+      // like a successful production publication.
+      revisionPublicationServerPrimary: revisionPublicationEnabled,
+      revisionPublicationPrimaryConfigured,
+      revisionPublicationSchemaReady,
       attachmentUploadEnabled,
       workOrderPrimaryPostgres: health.storageBackend === "postgresql",
       ...(planningSafety?.fallbackReason ? { workOrderFallbackReason: planningSafety.fallbackReason } : {}),
@@ -1520,7 +1549,7 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (isSpecifications2PublishCommand) {
-    if (String(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS || "") !== "1" || health.storageBackend !== "postgresql") {
+    if (!isSpecifications2RevisionPublicationPrimaryConfigured(env) || health.storageBackend !== "postgresql") {
       sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 server publication is not enabled during snapshot migration" });
       return true;
     }
@@ -1533,16 +1562,47 @@ export async function handleDomainApiRequest(req, res, url, {
     try { payload = await readRequestBody(req); }
     catch { sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Request body must be valid JSON" }); return true; }
     const idempotencyKey = String(req.headers?.["idempotency-key"] || req.headers?.["Idempotency-Key"] || payload?.idempotencyKey || "").trim();
-    if (!payload?.entry || !idempotencyKey || idempotencyKey.length > 160) {
-      sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Editor entry and idempotency key are required" });
+    const expectedPreviousRevision = Number(payload?.expectedPreviousRevision);
+    if (!payload?.entry || !idempotencyKey || idempotencyKey.length > 160
+      || !Number.isInteger(expectedPreviousRevision) || expectedPreviousRevision < 0) {
+      sendJson(res, headers, 400, { ok: false, apiVersion: "v1", error: "Editor entry, idempotency key and expected previous revision are required" });
       return true;
     }
     let command;
     try {
       command = createSpecifications2PublishCommandRepository({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
-      const result = await command.publish({ entry: payload.entry, idempotencyKey, actorId: actor.id });
-      if (!result.item) sendJson(res, headers, 422, { ok: false, apiVersion: "v1", error: result.error || "Specifications 2.0 revision cannot be published" });
-      else sendJson(res, headers, result.created ? 201 : 200, { ok: true, apiVersion: "v1", ...result });
+      const readiness = await command.commandReadiness();
+      if (!readiness.schemaReady) {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", error: "Specifications 2.0 server publication schema is not ready" });
+        return true;
+      }
+      const result = await command.publish({ entry: payload.entry, expectedPreviousRevision, idempotencyKey, actorId: actor.id });
+      if (!result.item) {
+        const statusCode = result.conflict ? 409 : 422;
+        sendJson(res, headers, statusCode, {
+          ok: false,
+          apiVersion: "v1",
+          conflict: result.conflict === true,
+          currentRevision: Number(result.currentRevision || 0),
+          error: result.error || "Specifications 2.0 revision cannot be published",
+        });
+      }
+      else {
+        let snapshotSync;
+        try {
+          snapshotSync = await syncPendingSpecifications2PublicationChanges({
+            primary: workOrders,
+            snapshot: createSpecifications2SnapshotRepository({ env, filePath }),
+            limit: 1,
+            aggregateId: result.item.id,
+          });
+        } catch (error) {
+          // PostgreSQL has already accepted the immutable revision. Preserve
+          // its success and leave the durable outbox pending for the timer.
+          snapshotSync = { total: 0, applied: 0, conflicts: 0, failed: 1, error: error?.message || "Specifications 2.0 compatibility delivery failed" };
+        }
+        sendJson(res, headers, result.created ? 201 : 200, { ok: true, apiVersion: "v1", ...result, snapshotSync });
+      }
     } catch (error) { sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Specifications 2.0 publication storage is unavailable" }); }
     finally { await command?.close?.(); }
     return true;

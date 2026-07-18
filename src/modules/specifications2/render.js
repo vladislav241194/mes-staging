@@ -7,6 +7,7 @@ import {
   buildSpecifications2ReleaseFingerprint,
   inspectSpecifications2Publication,
 } from "./publication.js";
+import { publishSpecifications2EntryWithServerFirst } from "./publish_flow.js";
 import { createSpecifications2WorkOrderCommands } from "../domain_api/specifications2_work_order_commands.js";
 
 const SPECIFICATIONS2_STORAGE_KEY = "mes-specifications-2-registry-v1";
@@ -209,8 +210,12 @@ export function createSpecifications2Module(dependencies = {}) {
     getRouteOperationPresets = () => ({ departments: [], operations: [] }),
     getPublishedRevision = () => ({ item: null, fetchedAt: 0, loading: null, error: "" }),
     hydratePublishedRevision = () => {},
+    prepareSpecifications2Publication = null,
+    commitSpecifications2Publication = null,
     publishSpecifications2Entry = null,
     publishServerRevision = null,
+    getServerPublicationCapability = async () => ({ ok: false, enabled: false }),
+    serverPublicationPrimaryPolicy = false,
     uploadServerAttachment = null,
     downloadServerAttachment = null,
     notifySaveSuccess = () => {},
@@ -300,8 +305,9 @@ export function createSpecifications2Module(dependencies = {}) {
     }
   }
 
-  function writeStore(store) {
+  function writeStore(store, { suppressSharedStatePush = false } = {}) {
     localStorage.setItem(SPECIFICATIONS2_STORAGE_KEY, JSON.stringify(normalizeStore(store)));
+    if (suppressSharedStatePush) return;
     if (typeof window.__MES_SCHEDULE_SHARED_STATE_PUSH__ === "function") {
       window.__MES_SCHEDULE_SHARED_STATE_PUSH__("specifications2");
     } else {
@@ -1570,26 +1576,69 @@ export function createSpecifications2Module(dependencies = {}) {
       const store = readStore();
       const entry = store.registry.find((item) => item.id === entryId);
       if (!entry || typeof publishSpecifications2Entry !== "function") return;
+      const button = event.currentTarget;
+      button.disabled = true;
       try {
-        const publication = publishSpecifications2Entry(entry);
-        const publishedEntry = { ...entry, publication, updatedAt: new Date().toISOString() };
-        const registry = store.registry.map((item) => item.id === entryId
-          ? publishedEntry
+        const result = await publishSpecifications2EntryWithServerFirst({
+          entry,
+          getServerPublicationCapability,
+          preparePublication: prepareSpecifications2Publication,
+          commitPublication: commitSpecifications2Publication,
+          publishServerRevision,
+          publishLegacyEntry: publishSpecifications2Entry,
+          readCurrentEntry: (id) => readStore().registry.find((item) => item.id === id) || null,
+          getFingerprint: (item) => buildSpecifications2ReleaseFingerprint(item),
+          serverPrimaryPolicy: serverPublicationPrimaryPolicy,
+        });
+        if (!result.ok) {
+          if (result.serverSaved) {
+            hydratePublishedRevision({ ...entry, publication: result.publication });
+            notifySaveSuccess(`Серверная ревизия сохранена; совместимая проекция будет восстановлена автоматически: ${result.error}`);
+          } else {
+            notifySaveSuccess(`Публикация не выполнена: ${result.error || "ошибка подготовки данных"}`);
+          }
+          return;
+        }
+        if (!result.mirrored && result.mode === "server-first") {
+          // Server-primary publication deliberately does not call the legacy
+          // directory/planning mirror in this browser. Persist only the
+          // editor acknowledgement; the durable server outbox owns the full
+          // compatibility projection and will reconcile it independently.
+          if (result.publishedEntry) {
+            const latestStore = readStore();
+            const registry = latestStore.registry.map((item) => item.id === entryId
+              ? result.publishedEntry
+              : item);
+            writeStore({ ...latestStore, registry, selectedId: entryId }, { suppressSharedStatePush: true });
+            render({ skipRememberScroll: true });
+          }
+          hydratePublishedRevision(result.publishedEntry || { ...entry, publication: result.publication });
+          notifySaveSuccess(result.recoveryPending
+            ? "Серверная ревизия сохранена; совместимая проекция будет восстановлена автоматически"
+            : (result.serverProjection
+              ? "Серверная ревизия подтверждена; производственная проекция создана сервером"
+              : (result.error || "Серверная ревизия сохранена; локальный черновик больше не существует")));
+          return;
+        }
+        const latestStore = readStore();
+        const registry = latestStore.registry.map((item) => item.id === entryId
+          ? result.publishedEntry
           : item);
-        writeStore({ ...store, registry, selectedId: entryId });
+        writeStore({ ...latestStore, registry, selectedId: entryId });
         render({ skipRememberScroll: true });
-        notifySaveSuccess(`Опубликована производственная ревизия ${publication.revision}`);
-        if (typeof publishServerRevision === "function") {
-          const serverResult = await publishServerRevision(publishedEntry);
-          if (serverResult.ok) {
-            hydratePublishedRevision(publishedEntry);
-            notifySaveSuccess(serverResult.created ? "Серверная ревизия PostgreSQL сохранена" : "Серверная ревизия PostgreSQL уже актуальна");
-          } else if (!serverResult.disabled) {
-            notifySaveSuccess(`Серверная копия будет повторена позже: ${serverResult.error}`);
+        notifySaveSuccess(`Опубликована производственная ревизия ${result.publication.revision}`);
+        if (result.mode === "server-first") {
+          hydratePublishedRevision(result.publishedEntry);
+          if (result.draftChanged) {
+            notifySaveSuccess("Серверная ревизия сохранена; изменения, внесённые во время публикации, остались новым черновиком");
+          } else {
+            notifySaveSuccess(result.serverResult?.created ? "Серверная ревизия PostgreSQL подтверждена" : "Серверная ревизия PostgreSQL уже актуальна");
           }
         }
       } catch (error) {
         notifySaveSuccess(`Публикация не выполнена: ${error?.message || "ошибка подготовки данных"}`);
+      } finally {
+        if (button.isConnected) button.disabled = false;
       }
     });
     document.querySelector("[data-specifications2-server-work-order]")?.addEventListener("submit", async (event) => {

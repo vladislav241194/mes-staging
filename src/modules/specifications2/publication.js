@@ -126,7 +126,20 @@ export function publishSpecifications2Entry(entry = {}, context = {}) {
   if (!inspection.ready) throw new Error(inspection.issues[0] || "Спецификация не готова к публикации");
 
   const now = clean(context.now) || new Date().toISOString();
-  const revision = Math.max(1, Number(entry.publication?.revision || 0) + 1);
+  // A server-first publication prepares its immutable revision before the
+  // compatibility projection is written locally.  In that case the local
+  // mirror must use exactly the revision that PostgreSQL acknowledged, rather
+  // than incrementing it a second time.
+  const acknowledgedPublication = context.acknowledgedPublication && typeof context.acknowledgedPublication === "object"
+    ? context.acknowledgedPublication
+    : null;
+  const currentFingerprint = buildSpecifications2ReleaseFingerprint(entry, { adapterVersion: LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION });
+  if (acknowledgedPublication?.fingerprint && acknowledgedPublication.fingerprint !== currentFingerprint) {
+    throw new Error("Нельзя создать локальную проекцию для изменённой после серверной публикации спецификации");
+  }
+  const revision = acknowledgedPublication
+    ? Math.max(1, Number(acknowledgedPublication.revision || 0))
+    : Math.max(1, Number(entry.publication?.revision || 0) + 1);
   const releaseKey = `${entry.id || entry.title || "specification"}:r${revision}`;
   const specificationId = makeId("spec2rel", releaseKey);
   const directoryState = context.directoryState || {};
@@ -389,8 +402,8 @@ export function publishSpecifications2Entry(entry = {}, context = {}) {
       specificationId,
       rootRouteId: mainRouteId,
       routeIds: routes.map((item) => item.route.id),
-      fingerprint: buildSpecifications2ReleaseFingerprint(entry, { adapterVersion: LATEST_RELEASE_FINGERPRINT_ADAPTER_VERSION }),
-      releasedAt: now,
+      fingerprint: acknowledgedPublication?.fingerprint || currentFingerprint,
+      releasedAt: clean(acknowledgedPublication?.releasedAt) || now,
       status: "released",
     },
   };

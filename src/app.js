@@ -114,7 +114,7 @@ import {
   shouldPreferBundledBootstrapSnapshot as shouldPreferBundledBootstrapSnapshotPayload,
 } from "./modules/bootstrap_snapshot/service.js";
 import { ACCESS_ROLE_ACTIONS, ACCESS_ROLE_IDS, ACCESS_ROLE_SCOPES, AGGREGATE_SLOT_HEIGHT, AGGREGATE_SLOT_TOP, AUTH_DEPARTMENT_ICON_BY_ID, AUTH_GATE_DEFAULT_MODULE, AUTH_GATE_MAX_ATTEMPTS, AUTH_GATE_PIN, AUTH_GATE_SESSION_STORAGE_KEY, AUTH_PIN_CHECK_DELAY_MS, AUTH_PIN_RESULT_DELAY_MS, AUTH_PIN_TEMPORARILY_DISABLED, AUTH_UNIT_ICON_BY_ID, BOOTSTRAP_SNAPSHOT_RESTORE_ENABLED, CRITICAL_DIRECTORY_SECTION_IDS, DATA_SAFETY_AUDIT_STORAGE_KEY, DAY_MS, DEFAULT_INTERFACE_ROLE_ID, DEFAULT_RESOURCE_CPH, DEFAULT_ROUTE_BUFFER_MS, DEPENDENCY_CROSSING_GAP_RADIUS, DEPENDENCY_HORIZONTAL_TRACK_GAP, DIRECTORY_BACKUP_STORAGE_KEY, DIRECTORY_DEFAULTS_STORAGE_KEY, DIRECTORY_DELETED_ENTITIES_STORAGE_KEY, DIRECTORY_STORAGE_KEY, EMPLOYEE_DEPARTMENT_MIGRATION, GANTT_DEPENDENCY_ARROW_BASE_REF_X, GANTT_DEPENDENCY_ARROW_HEAD_ADVANCE, GANTT_DEPENDENCY_ARROW_LENGTH_MS, GANTT_DEPENDENCY_ARROW_TIP_X, GANTT_DEPENDENCY_ENTRY_MS, GANTT_SLOT_CONTENT_MODES, GANTT_SNAP_MS, GANTT_ZOOM_LEVELS, HUMAN_LABOR_RESOURCE_TYPES, INTERFACE_ROLES, LEFT_WIDTH, LEGACY_DEPARTMENT_TO_WORK_CENTER_ID, LEGACY_WORK_CENTER_NAME_MIGRATION, MACHINE_LABOR_RESOURCE_TYPES, MES_ADMIN_RUNTIME_HOSTS, MES_APP_ENV, MES_DESTRUCTIVE_ACTIONS_ALLOWED, MES_IS_PROTECTED_APP_ENV, MES_SIGNAL_TYPES, MIN_OPERATION_DURATION_MS, PLANNING_BACKUP_STORAGE_KEY, PRODUCTION_RESOURCE_TYPE_CODES, PRODUCTION_RESOURCE_TYPE_LABELS, PROJECT_ROW_HEIGHT, ROUTE_STEP_CALCULATION_TYPES, SHARED_STATE_API_URL, SHARED_STATE_CLIENT_ID_KEY, SHARED_STATE_DISABLED_RECHECK_MS, SHARED_STATE_DISABLED_UNTIL_KEY, SHARED_STATE_POLL_INTERVAL_MS, SHARED_STATE_SAVE_DEBOUNCE_MS, SHARED_STATE_VALUE_KEYS, SHARED_UI_LOCAL_DIRTY_KEY, SHARED_UI_LOCAL_DIRTY_TTL_MS, SHIFT_MASTER_ASSIGNMENT_SCOPE_MODES, SMT_LINE_WORKCENTER_PREFIX, STANDARD_SLOT_HEIGHT, STANDARD_SLOT_TOP, STATE_RESET_BACKUP_STORAGE_KEY, STORAGE_KEY, STORAGE_KEYS, TIMELINE_HEIGHT, TIMELINE_LOAD_CHUNK, TIMELINE_MAX_COUNT, UI_STORAGE_KEY, UNIT_TYPE_LABELS, WEEK_SLOT_GAP, WEEK_SLOT_HEIGHT, WEEK_SLOT_TOP, WORK_CENTER_OPERATIONS_SEEDED_STORAGE_KEY, WORK_MODE_OPTIONS, WORK_ROW_HEIGHT, WORK_SCHEDULE_OPTIONS } from "./app_constants.js";
-import { SPECIFICATIONS2_STORAGE_KEY, SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY, SYSTEM_DOMAINS_STORAGE_KEY } from "./app_constants.js";
+import { MES_RUNTIME_CONFIG, SPECIFICATIONS2_STORAGE_KEY, SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY, SYSTEM_DOMAINS_STORAGE_KEY } from "./app_constants.js";
 import {
   getMesCustomIconEntryBySemanticSlug,
   getMesCustomIconName,
@@ -2148,6 +2148,30 @@ function hydrateSpecifications2PublishedRevision(entry) {
 normalizeLookupText = (value) => String(value || "").trim().toLowerCase();
 function bindSpekiEvents(...args) { return appEventsService.bindSpekiEvents(...args); }
 function initializeSpecifications2Module(factory, buildSpecifications2Publication) {
+  const prepareSpecifications2Publication = (entry) => {
+    const result = buildSpecifications2Publication(entry, { directoryState, planningState });
+    const publication = result.publication;
+    return {
+      publication,
+      // The server export derives its immutable source timestamp from the
+      // editor entry.  Keep it aligned with the prepared publication without
+      // committing any compatibility state before the server acknowledges it.
+      entry: { ...entry, publication, updatedAt: publication.releasedAt || new Date().toISOString() },
+    };
+  };
+  const commitSpecifications2Publication = (entry, acknowledgedPublication = null) => {
+    const result = buildSpecifications2Publication(entry, {
+      directoryState,
+      planningState,
+      acknowledgedPublication,
+    });
+    directoryState = normalizeDirectoryState(result.directoryState);
+    planningState = normalizePlanningState(result.planningState);
+    invalidateWeeklyPlanningPeriod();
+    persistDirectoryState();
+    persistState();
+    return result.publication;
+  };
   ({
     bindSpecifications2Events,
     renderSpecifications2Page,
@@ -2168,16 +2192,18 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
           workCenterId: getOperationRouteWorkCenterId(operation),
         })),
     }),
-    publishSpecifications2Entry: (entry) => {
-      const result = buildSpecifications2Publication(entry, { directoryState, planningState });
-      directoryState = normalizeDirectoryState(result.directoryState);
-      planningState = normalizePlanningState(result.planningState);
-      invalidateWeeklyPlanningPeriod();
-      persistDirectoryState();
-      persistState();
-      return result.publication;
-    },
-    publishServerRevision: (entry) => specifications2PublishCommands?.publishRevision?.({ entry }) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
+    prepareSpecifications2Publication,
+    commitSpecifications2Publication,
+    publishSpecifications2Entry: (entry) => commitSpecifications2Publication(entry),
+    publishServerRevision: (entry, { expectedPreviousRevision } = {}) => specifications2PublishCommands?.publishRevision?.({ entry, expectedPreviousRevision }) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
+    getServerPublicationCapability: (options) => specifications2PublishCommands?.refreshCapability?.(options) || Promise.resolve({
+      ok: false,
+      enabled: false,
+      serverPrimary: MES_RUNTIME_CONFIG.MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY === true,
+      policyPrimary: MES_RUNTIME_CONFIG.MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY === true,
+      error: "Specifications 2.0 server client is unavailable",
+    }),
+    serverPublicationPrimaryPolicy: MES_RUNTIME_CONFIG.MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY === true,
     uploadServerAttachment: (input) => specifications2AttachmentCommands?.upload?.(input) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
     downloadServerAttachment: (input) => specifications2AttachmentCommands?.download?.(input) || Promise.resolve({ ok: false, error: "Specifications 2.0 server client is unavailable" }),
     getPublishedRevision: getSpecifications2PublishedRevision,

@@ -85,46 +85,65 @@ export function validateSpecifications2Export(payload = {}) {
   return { documents: documents.length, revisions: revisions.length, items: items.length, routes: routes.length, operations: operations.length };
 }
 
+// A revision number is allocated per editor source, not per HTTP request.
+// The command path and the bulk-import path must take the same transaction
+// lock; otherwise a direct import can race a server-first publish between its
+// conflict check and INSERT. Sorting prevents a multi-document import from
+// taking locks in a different order than another import.
+export async function lockSpecifications2SourceEntries(tx, sourceEntryIds = []) {
+  const ids = [...new Set(sourceEntryIds.map((value) => String(value || "").trim()).filter(Boolean))].sort();
+  for (const sourceEntryId of ids) {
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${`specifications2:source:${sourceEntryId}`}))`;
+  }
+}
+
+// Reusable transactional import core. Command handlers may append a durable
+// outbox row in the same PostgreSQL transaction; committing the relational
+// revision first and the compatibility delivery later leaves an unrecoverable
+// gap if the process dies between those two writes.
+export async function importSpecifications2ExportRows(tx, payload) {
+  await lockSpecifications2SourceEntries(tx, (payload.documents || []).map((row) => row?.source_entry_id));
+  // A source revision is immutable. Refuse an id/revision collision whose
+  // digest differs rather than silently rewriting manufacturing history.
+  for (const row of payload.revisions) {
+    const existing = await tx`SELECT fingerprint FROM specifications2_revisions WHERE specification_id = ${row.specification_id} AND revision_no = ${row.revision_no}`;
+    if (existing.length && existing[0].fingerprint !== row.fingerprint) {
+      throw new Error(`Specifications 2.0 import: revision ${row.specification_id}#${row.revision_no} already exists with another fingerprint`);
+    }
+  }
+  for (const row of payload.documents) {
+    await tx`
+      INSERT INTO specifications2_documents (id, source_entry_id, title, designation, created_at, updated_at)
+      VALUES (${row.id}, ${row.source_entry_id}, ${row.title}, ${row.designation || ""}, COALESCE(${row.created_at || null}, now()), COALESCE(${row.updated_at || null}, now()))
+      ON CONFLICT (source_entry_id) DO UPDATE SET title = EXCLUDED.title, designation = EXCLUDED.designation, updated_at = EXCLUDED.updated_at
+    `;
+  }
+  for (const row of payload.revisions) {
+    await tx`
+      INSERT INTO specifications2_revisions (id, specification_id, revision_no, fingerprint, source_updated_at, released_at, source_payload)
+      VALUES (${row.id}, ${row.specification_id}, ${row.revision_no}, ${row.fingerprint}, ${row.source_updated_at || null}, ${row.released_at || null}, ${tx.json(row.source_payload || {})})
+      ON CONFLICT (specification_id, revision_no) DO NOTHING
+    `;
+  }
+  for (const row of payload.revisionItems) await tx`
+    INSERT INTO specifications2_revision_items (id, specification_revision_id, source_row_id, parent_source_row_id, designation, name, item_kind, quantity, unit, source_payload)
+    VALUES (${row.id}, ${row.specification_revision_id}, ${row.source_row_id}, ${row.parent_source_row_id || ""}, ${row.designation || ""}, ${row.name}, ${row.item_kind || "item"}, ${row.quantity}, ${row.unit || "шт."}, ${tx.json(row.source_payload || {})})
+    ON CONFLICT (specification_revision_id, source_row_id) DO NOTHING
+  `;
+  for (const row of payload.routeDocuments) await tx`
+    INSERT INTO specifications2_route_documents (id, specification_revision_id, source_draft_id, designation, product_label, status, source_payload)
+    VALUES (${row.id}, ${row.specification_revision_id}, ${row.source_draft_id}, ${row.designation || ""}, ${row.product_label || ""}, ${row.status || "draft"}, ${tx.json(row.source_payload || {})})
+    ON CONFLICT (specification_revision_id, source_draft_id) DO NOTHING
+  `;
+  for (const row of payload.routeOperations) await tx`
+    INSERT INTO specifications2_route_operations (id, route_document_id, source_operation_id, sequence_no, operation_id, name, work_center_id, next_work_center_id, changes_property, input_state, output_state, labor_norm, attachments, source_payload)
+    VALUES (${row.id}, ${row.route_document_id}, ${row.source_operation_id}, ${row.sequence_no}, ${row.operation_id || ""}, ${row.name || ""}, ${row.work_center_id || ""}, ${row.next_work_center_id || ""}, ${row.changes_property !== false}, ${row.input_state || ""}, ${row.output_state || ""}, ${tx.json(row.labor_norm || {})}, ${tx.json(row.attachments || {})}, ${tx.json(row.source_payload || {})})
+    ON CONFLICT (route_document_id, source_operation_id) DO NOTHING
+  `;
+}
+
 export async function importSpecifications2Export(sql, payload) {
-  await sql.begin(async (tx) => {
-    // A source revision is immutable. Refuse an id/revision collision whose
-    // digest differs rather than silently rewriting manufacturing history.
-    for (const row of payload.revisions) {
-      const existing = await tx`SELECT fingerprint FROM specifications2_revisions WHERE specification_id = ${row.specification_id} AND revision_no = ${row.revision_no}`;
-      if (existing.length && existing[0].fingerprint !== row.fingerprint) {
-        throw new Error(`Specifications 2.0 import: revision ${row.specification_id}#${row.revision_no} already exists with another fingerprint`);
-      }
-    }
-    for (const row of payload.documents) {
-      await tx`
-        INSERT INTO specifications2_documents (id, source_entry_id, title, designation, created_at, updated_at)
-        VALUES (${row.id}, ${row.source_entry_id}, ${row.title}, ${row.designation || ""}, COALESCE(${row.created_at || null}, now()), COALESCE(${row.updated_at || null}, now()))
-        ON CONFLICT (source_entry_id) DO UPDATE SET title = EXCLUDED.title, designation = EXCLUDED.designation, updated_at = EXCLUDED.updated_at
-      `;
-    }
-    for (const row of payload.revisions) {
-      await tx`
-        INSERT INTO specifications2_revisions (id, specification_id, revision_no, fingerprint, source_updated_at, released_at, source_payload)
-        VALUES (${row.id}, ${row.specification_id}, ${row.revision_no}, ${row.fingerprint}, ${row.source_updated_at || null}, ${row.released_at || null}, ${tx.json(row.source_payload || {})})
-        ON CONFLICT (specification_id, revision_no) DO NOTHING
-      `;
-    }
-    for (const row of payload.revisionItems) await tx`
-      INSERT INTO specifications2_revision_items (id, specification_revision_id, source_row_id, parent_source_row_id, designation, name, item_kind, quantity, unit, source_payload)
-      VALUES (${row.id}, ${row.specification_revision_id}, ${row.source_row_id}, ${row.parent_source_row_id || ""}, ${row.designation || ""}, ${row.name}, ${row.item_kind || "item"}, ${row.quantity}, ${row.unit || "шт."}, ${tx.json(row.source_payload || {})})
-      ON CONFLICT (specification_revision_id, source_row_id) DO NOTHING
-    `;
-    for (const row of payload.routeDocuments) await tx`
-      INSERT INTO specifications2_route_documents (id, specification_revision_id, source_draft_id, designation, product_label, status, source_payload)
-      VALUES (${row.id}, ${row.specification_revision_id}, ${row.source_draft_id}, ${row.designation || ""}, ${row.product_label || ""}, ${row.status || "draft"}, ${tx.json(row.source_payload || {})})
-      ON CONFLICT (specification_revision_id, source_draft_id) DO NOTHING
-    `;
-    for (const row of payload.routeOperations) await tx`
-      INSERT INTO specifications2_route_operations (id, route_document_id, source_operation_id, sequence_no, operation_id, name, work_center_id, next_work_center_id, changes_property, input_state, output_state, labor_norm, attachments, source_payload)
-      VALUES (${row.id}, ${row.route_document_id}, ${row.source_operation_id}, ${row.sequence_no}, ${row.operation_id || ""}, ${row.name || ""}, ${row.work_center_id || ""}, ${row.next_work_center_id || ""}, ${row.changes_property !== false}, ${row.input_state || ""}, ${row.output_state || ""}, ${tx.json(row.labor_norm || {})}, ${tx.json(row.attachments || {})}, ${tx.json(row.source_payload || {})})
-      ON CONFLICT (route_document_id, source_operation_id) DO NOTHING
-    `;
-  });
+  await sql.begin(async (tx) => importSpecifications2ExportRows(tx, payload));
 }
 
 async function main() {

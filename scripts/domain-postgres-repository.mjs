@@ -729,16 +729,36 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
       return { ...metadata, revision: item.concurrencyRevision, updatedAt: item.updatedAt, conflict: false, item };
     },
 
-    async listPendingSnapshotSyncs(limit = 20) {
-      const rows = await sql`
-        SELECT id, aggregate_id, aggregate_revision, command_type, payload, created_at
-        FROM domain_change_log
-        WHERE snapshot_sync_state = 'pending'
-        ORDER BY created_at ASC, id ASC
-        LIMIT ${Math.max(1, Math.min(100, Number(limit) || 20))}
-      `;
+    async listPendingSnapshotSyncs(limit = 20, { aggregateType = "", aggregateId = "" } = {}) {
+      const boundedLimit = Math.max(1, Math.min(100, Number(limit) || 20));
+      const normalizedType = String(aggregateType || "").trim();
+      const normalizedId = String(aggregateId || "").trim();
+      const rows = normalizedType && normalizedId
+        ? await sql`
+          SELECT id, aggregate_type, aggregate_id, aggregate_revision, command_type, payload, created_at
+          FROM domain_change_log
+          WHERE snapshot_sync_state = 'pending' AND aggregate_type = ${normalizedType} AND aggregate_id = ${normalizedId}
+          ORDER BY created_at ASC, id ASC
+          LIMIT ${boundedLimit}
+        `
+        : normalizedType
+          ? await sql`
+            SELECT id, aggregate_type, aggregate_id, aggregate_revision, command_type, payload, created_at
+            FROM domain_change_log
+            WHERE snapshot_sync_state = 'pending' AND aggregate_type = ${normalizedType}
+            ORDER BY created_at ASC, id ASC
+            LIMIT ${boundedLimit}
+          `
+          : await sql`
+            SELECT id, aggregate_type, aggregate_id, aggregate_revision, command_type, payload, created_at
+            FROM domain_change_log
+            WHERE snapshot_sync_state = 'pending'
+            ORDER BY created_at ASC, id ASC
+            LIMIT ${boundedLimit}
+          `;
       return rows.map((row) => ({
         id: Number(row.id),
+        aggregateType: String(row.aggregate_type),
         aggregateId: String(row.aggregate_id),
         aggregateRevision: Number(row.aggregate_revision),
         commandType: String(row.command_type),
