@@ -31,6 +31,7 @@ const expectedLayerImports = [
   "./styles/ui/module-blueprints.css",
   "./styles/ui/gantt-visual-system.css",
   "./styles/ui/long-task-overlay.css",
+  "./styles/react-nomenclature-island.css",
 ];
 const budgets = {
   duplicateSelectorGroups: 470,
