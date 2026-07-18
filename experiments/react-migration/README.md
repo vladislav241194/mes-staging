@@ -24,6 +24,8 @@ Available routes:
 - `/?scenario=component-types` — Component Types;
 - append `&lifecycle_qa=1` (or `?lifecycle_qa=1` for Nomenclature) to expose
   the host-owned mount/update/error/unmount test controls.
+- append `react=0` to prove the disabled-by-default path: React is not mounted
+  and the host renders the legacy fallback immediately.
 
 The fixture boundary intentionally mirrors a future API adapter. Replacing the
 fixture with live data is blocked until the PostgreSQL authority slice is

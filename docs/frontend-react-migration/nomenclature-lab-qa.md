@@ -20,7 +20,7 @@ node experiments/react-migration/qa.mjs
 
 Result:
 
-- thirteen typed sources in the combined registry lab compiled;
+- fourteen typed sources in the combined registry lab compiled;
 - invalid position records fail closed;
 - legacy REA aliases normalize to `РЭА компоненты`;
 - inactive type rows are excluded;
@@ -62,19 +62,19 @@ visible host controls:
    no `main` element was recreated.
 5. Browser console warnings/errors: none.
 
-## React island failure evidence
+## React island failure and host fallback evidence
 
 The lifecycle host deliberately passed a payload whose property access throws:
 
-1. The error stayed inside the React target and rendered `SystemState` with
-   `Интерфейс временно недоступен` and a return-to-legacy instruction.
-2. The host callback received `Lifecycle QA render failure` and exposed it in
-   the host-owned lifecycle status.
-3. The target remained mounted with one fallback child and host controls stayed
-   available.
-4. `unmount()` then emptied `#root`, preserved the host controls, and disabled
-   further update/error actions.
-5. Browser console warnings/errors: none.
+1. The React boundary caught the render error and notified the host.
+2. The feature gate scheduled one fallback, unmounted React outside its render
+   phase, and rendered the host-owned `Legacy-интерфейс восстановлен` state.
+3. The lifecycle status retained the exact `Lifecycle QA render failure`
+   reason; host controls remained available and no React `main` remained.
+4. A later update was rejected in `legacy` state and did not remount React.
+5. Disposing the gate preserved the restored legacy view and disabled further
+   lifecycle actions.
+6. Browser console warnings/errors: none.
 
 ## Not yet proven
 

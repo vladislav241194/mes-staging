@@ -3,17 +3,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { ComponentTypesScenario } from "./modules/component-types/ComponentTypesScenario";
 import { NomenclatureScenario } from "./modules/nomenclature/NomenclatureScenario";
 import { SystemState } from "./ui/components";
+import type { ReactIslandHandle } from "./feature-gate";
 
 export type ReactMigrationScenarioId = "nomenclature" | "componentTypes";
 
-export interface NomenclatureReactIslandOptions {
+export interface ReactMigrationIslandOptions {
   onError?(error: Error): void;
 }
 
-export interface NomenclatureReactIslandHandle {
-  update(payload: unknown): void;
-  unmount(): void;
-}
+export type ReactMigrationIslandHandle = ReactIslandHandle;
 
 function ReactMigrationScenario({ payload, scenario }: { payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
@@ -45,8 +43,8 @@ export function mountReactMigrationIsland(
   target: HTMLElement,
   scenario: ReactMigrationScenarioId,
   initialPayload: unknown,
-  options: NomenclatureReactIslandOptions = {},
-): NomenclatureReactIslandHandle {
+  options: ReactMigrationIslandOptions = {},
+): ReactMigrationIslandHandle {
   if (!(target instanceof HTMLElement)) throw new TypeError("React migration island requires an HTMLElement target");
 
   const reportError = (error: unknown) => options.onError?.(error instanceof Error ? error : new Error(String(error)));
@@ -57,7 +55,7 @@ export function mountReactMigrationIsland(
   let mounted = true;
 
   const render = (payload: unknown) => {
-    if (!mounted) throw new Error("Nomenclature React island is already unmounted");
+    if (!mounted) throw new Error("React migration island is already unmounted");
     root.render(
       <IslandErrorBoundary>
         <ReactMigrationScenario payload={payload} scenario={scenario} />
@@ -65,7 +63,13 @@ export function mountReactMigrationIsland(
     );
   };
 
-  render(initialPayload);
+  try {
+    render(initialPayload);
+  } catch (error) {
+    mounted = false;
+    root.unmount();
+    throw error;
+  }
   return {
     update(payload) {
       render(payload);
@@ -79,6 +83,6 @@ export function mountReactMigrationIsland(
 }
 
 
-export function mountNomenclatureReactIsland(target: HTMLElement, initialPayload: unknown, options: NomenclatureReactIslandOptions = {}) {
+export function mountNomenclatureReactIsland(target: HTMLElement, initialPayload: unknown, options: ReactMigrationIslandOptions = {}) {
   return mountReactMigrationIsland(target, "nomenclature", initialPayload, options);
 }

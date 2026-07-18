@@ -154,6 +154,88 @@ try {
   assert.equal(resolveAvailableFilter(["all", "Микросхемы"], "Микросхемы", "all"), "Микросхемы");
   assert.equal(resolveAvailableFilter(["all", "Крупные"], "Микросхемы", "all"), "all", "removed filter must fall back to all");
 
+  const featureGateOutput = join(temporaryRoot, "feature-gate.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "feature-gate.ts")],
+    outfile: featureGateOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { createReactIslandFeatureGate } = await import(`${pathToFileURL(featureGateOutput).href}?qa=${Date.now()}`);
+  const scheduledFallbacks = [];
+  const featureEvents = [];
+  let reportIslandError = null;
+  const featureGate = createReactIslandFeatureGate({
+    enabled: true,
+    target: { id: "target" },
+    mount(_target, payload, onError) {
+      featureEvents.push(["mount", payload]);
+      reportIslandError = onError;
+      return {
+        update(nextPayload) { featureEvents.push(["update", nextPayload]); },
+        unmount() { featureEvents.push(["unmount"]); },
+      };
+    },
+    renderLegacy(context) { featureEvents.push(["legacy", context.reason, context.error?.message]); },
+    schedule(task) { scheduledFallbacks.push(task); },
+  });
+  assert.equal(featureGate.activate("initial"), "react");
+  assert.equal(featureGate.update("next"), true);
+  reportIslandError(new Error("render failed"));
+  reportIslandError(new Error("duplicate render failure"));
+  assert.equal(scheduledFallbacks.length, 1, "duplicate render errors must schedule one fallback");
+  scheduledFallbacks.shift()();
+  assert.equal(featureGate.getState(), "legacy");
+  assert.deepEqual(featureEvents, [
+    ["mount", "initial"],
+    ["update", "next"],
+    ["unmount"],
+    ["legacy", "render-error", "render failed"],
+  ]);
+  assert.equal(featureGate.update("ignored"), false, "legacy mode must reject React updates");
+
+  const disabledEvents = [];
+  const disabledGate = createReactIslandFeatureGate({
+    enabled: false,
+    target: {},
+    mount() { throw new Error("disabled gate must not mount"); },
+    renderLegacy(context) { disabledEvents.push(context.reason); },
+  });
+  assert.equal(disabledGate.activate("payload"), "legacy");
+  assert.deepEqual(disabledEvents, ["disabled"]);
+
+  const mountFailureEvents = [];
+  const mountFailureGate = createReactIslandFeatureGate({
+    enabled: true,
+    target: {},
+    mount() { throw new Error("mount failed"); },
+    renderLegacy(context) { mountFailureEvents.push([context.reason, context.error?.message]); },
+  });
+  assert.equal(mountFailureGate.activate("payload"), "legacy");
+  assert.deepEqual(mountFailureEvents, [["mount-error", "mount failed"]]);
+
+  const updateFailureScheduled = [];
+  const updateFailureEvents = [];
+  const updateFailureGate = createReactIslandFeatureGate({
+    enabled: true,
+    target: {},
+    mount() {
+      return {
+        update() { throw new Error("update failed"); },
+        unmount() { updateFailureEvents.push("unmount"); },
+      };
+    },
+    renderLegacy(context) { updateFailureEvents.push(`${context.reason}:${context.error?.message}`); },
+    schedule(task) { updateFailureScheduled.push(task); },
+  });
+  assert.equal(updateFailureGate.activate("payload"), "react");
+  assert.equal(updateFailureGate.update("next"), false);
+  assert.equal(updateFailureScheduled.length, 1);
+  updateFailureScheduled.shift()();
+  assert.deepEqual(updateFailureEvents, ["unmount", "render-error:update failed"]);
+
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
     ["legacy app import", /src\/app\.js/],
@@ -183,13 +265,17 @@ try {
   assert.match(mountSource, /onCaughtError/);
   assert.match(mountSource, /onUncaughtError/);
   assert.match(mountSource, /class IslandErrorBoundary/);
+  assert.match(mountSource, /try\s*{\s*render\(initialPayload\)/);
+  assert.match(mountSource, /root\.unmount\(\)/);
   assert.doesNotMatch(mountSource, /document\.|querySelector|appendChild|replaceWith/, "island mount must not manipulate host DOM");
 
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /scenario.*component-types/);
-  assert.match(mainSource, /island\.update\(updatePayload\)/);
-  assert.match(mainSource, /island\.unmount\(\)/);
+  assert.match(mainSource, /createReactIslandFeatureGate/);
+  assert.match(mainSource, /featureGate\.update\(updatePayload\)/);
+  assert.match(mainSource, /featureGate\.dispose\(\)/);
+  assert.match(mainSource, /Legacy-интерфейс восстановлен/);
   assert.match(mainSource, /Lifecycle QA render failure/);
 
   const { stdout: blockedDiff } = await execFileAsync("git", ["diff", "--name-only", baseline, "--", ...blockedPaths], { cwd: repositoryRoot });

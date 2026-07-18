@@ -40,16 +40,29 @@ in the lab but is not approved for production activation yet.
 
 The isolated browser gate has verified initial mount, a payload update, clean
 unmount, preservation of the host node/controls, rejection of updates after
-unmount, and a render failure contained by a user-visible `SystemState` while
-the host receives the error. All checks passed without console errors.
+unmount, and automatic legacy restoration after a render failure. All checks
+passed without console errors.
+
+`createReactIslandFeatureGate(...)` is the host-side state machine:
+
+- disabled flag: never call the React mount and render legacy immediately;
+- mount failure: render legacy with a normalized error;
+- render/update failure: schedule exactly one fallback, unmount React, then
+  render legacy outside the React render phase;
+- legacy state: reject later React updates instead of silently remounting;
+- dispose: release a mounted island without removing an already restored
+  legacy view.
+
+The island mount is atomic: if its initial synchronous render fails after root
+creation, it unmounts that root before rethrowing to the feature gate.
 
 ## Feature flag rules
 
 - Default: off.
 - Scope: Nomenclature module only.
 - Activation: explicit local/runtime configuration after PostgreSQL acceptance.
-- Failure: `onError` records the failure; the island shows its local fallback,
-  then the host unmounts it and restores the legacy module.
+- Failure: `onError` schedules one host fallback; the feature gate unmounts the
+  island and restores the legacy module.
 - Rollback: disable flag and use the unchanged legacy renderer.
 - No automatic promotion from Pilot to Stage.
 

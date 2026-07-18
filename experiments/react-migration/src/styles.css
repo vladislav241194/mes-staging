@@ -47,6 +47,9 @@ tbody tr.is-selected { background: #e8f1ff; box-shadow: inset 3px 0 #2f6fe4; }
 .system-state--error { border-color: #efc7c7; color: #8a3434; background: #fff6f6; }
 .system-state strong { color: #18314d; font-size: 16px; }
 .system-state p { max-width: 430px; margin: 0; font-size: 12px; }
+.legacy-fallback { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 100vh; padding: 32px; color: #52667a; background: #edf3fa; text-align: center; }
+.legacy-fallback strong { color: #18314d; font-size: 18px; }
+.legacy-fallback p { margin: 0; font-size: 13px; }
 .detail { padding: 18px; }
 .detail h2 { margin-bottom: 18px; }
 dl { display: grid; gap: 12px; margin: 0; }

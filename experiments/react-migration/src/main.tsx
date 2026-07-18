@@ -9,11 +9,30 @@ const scenario: ReactMigrationScenarioId = searchParams.get("scenario") === "com
 const initialPayload = scenario === "componentTypes" ? componentTypesFixture : nomenclatureFixture;
 const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : nomenclatureUpdateFixture;
 let lifecycleStatus: HTMLElement | null = null;
-const island = mountReactMigrationIsland(root, scenario, initialPayload, {
-  onError(error) {
-    if (lifecycleStatus) lifecycleStatus.textContent = `error: ${error.message}`;
+const renderLegacyFallback = (context: LegacyFallbackContext) => {
+  const fallback = document.createElement("section");
+  fallback.className = "legacy-fallback";
+  fallback.dataset.legacyFallback = context.reason;
+  fallback.setAttribute("role", context.error ? "alert" : "status");
+  const title = document.createElement("strong");
+  title.textContent = "Legacy-интерфейс восстановлен";
+  const text = document.createElement("p");
+  text.textContent = context.reason === "disabled"
+    ? "React-сценарий выключен feature flag."
+    : "React-сценарий остановлен; пользователь может продолжить в прежнем интерфейсе.";
+  fallback.append(title, text);
+  root.replaceChildren(fallback);
+  if (lifecycleStatus) lifecycleStatus.textContent = context.error ? `legacy: ${context.error.message}` : `legacy: ${context.reason}`;
+};
+const featureGate = createReactIslandFeatureGate({
+  enabled: searchParams.get("react") !== "0",
+  target: root,
+  mount(target, payload, onError) {
+    return mountReactMigrationIsland(target, scenario, payload, { onError });
   },
+  renderLegacy: renderLegacyFallback,
 });
+featureGate.activate(initialPayload);
 
 const lifecycleQaEnabled = searchParams.get("lifecycle_qa") === "1";
 if (lifecycleQaEnabled) {
@@ -28,8 +47,7 @@ if (lifecycleQaEnabled) {
   controls.hidden = false;
   updateButton.addEventListener("click", () => {
     try {
-      island.update(updatePayload);
-      status.textContent = "updated";
+      status.textContent = featureGate.update(updatePayload) ? "updated" : `rejected: ${featureGate.getState()}`;
     } catch (error) {
       status.textContent = error instanceof Error ? `rejected: ${error.message}` : "rejected";
     }
@@ -40,13 +58,15 @@ if (lifecycleQaEnabled) {
         throw new Error("Lifecycle QA render failure");
       },
     });
-    island.update(crashingPayload);
+    featureGate.update(crashingPayload);
   });
   unmountButton.addEventListener("click", () => {
-    island.unmount();
+    featureGate.dispose();
     errorButton.disabled = true;
     updateButton.disabled = true;
     unmountButton.disabled = true;
     status.textContent = "unmounted";
   });
+  if (featureGate.getState() === "legacy") status.textContent = "legacy: disabled";
 }
+import { createReactIslandFeatureGate, type LegacyFallbackContext } from "./feature-gate";
