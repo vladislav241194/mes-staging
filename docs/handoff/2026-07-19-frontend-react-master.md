@@ -11,7 +11,7 @@ Coordination handoff: PostgreSQL commit `4f0fbae`
 PostgreSQL handoff commit `c89a675` confirms the live worker assignment,
 cold-login task display, fact read-back, logout, and guarded QA-data cleanup.
 The accepted PostgreSQL release `c3b4059` is live, and `origin/main` has since
-advanced to the final-gate handoff commit `e4e65aa`. The slice includes guarded
+advanced to the root-rollout ordering handoff commit `511e281`. The slice includes guarded
 Specifications 2.0 commands, verified runtime rollback, and retirement fixes
 for System Domains shared-state compatibility plus compatibility-backup
 hardening, preparation of `v1.499.70`, and isolation of bootstrap compression
@@ -140,7 +140,7 @@ the shared fixture. Nine read headers, normalized row values and order, plus
 sidebar component totals match. The legacy action column, editable inputs,
 create/import/delete commands, and editor mode remain explicit non-parity.
 
-A dry-run rebase preflight against `origin/main@e4e65aa` found 33 frontend paths,
+A dry-run rebase preflight against `origin/main@511e281` found 40 frontend paths,
 50 main paths, zero overlapping paths and zero merge conflict markers. The
 actual rebase is structurally ready but remains deferred until the final root
 Specifications acceptance required by the PostgreSQL handoff.

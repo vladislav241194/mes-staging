@@ -6,15 +6,15 @@ Frontend branch: `codex/frontend-react-migration`
 ## Compared commits
 
 - merge base: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`;
-- frontend HEAD: `2b21774207e081cf59f74af24e71180c42389c7c`;
-- current `origin/main`: `e4e65aabe9d773a8b6f1f27f9e7a12fe38164c5d`;
+- frontend HEAD: `6a701893ca3a2f29127c5a68d35cc8447c2a91b0`;
+- current `origin/main`: `511e281de76df307a87379849075cd22e1a510bd`;
 - accepted live PostgreSQL release contained in main: `c3b4059`.
 
 ## Dry-run evidence
 
 The preflight compared every path changed from the shared merge base:
 
-- frontend paths: 33;
+- frontend paths: 40;
 - main/PostgreSQL paths: 50;
 - paths changed by both sides: 0;
 - merge-tree conflict markers: 0.
