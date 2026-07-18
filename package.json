@@ -54,7 +54,7 @@
     "qa:domain-api": "node scripts/domain-api-qa.mjs",
     "qa:planning-period": "node scripts/planning-period-api-qa.mjs && node scripts/planning-period-postgres-repository-qa.mjs && node scripts/planning-period-read-model-qa.mjs && node scripts/weekly-planning-period-lazy-qa.mjs",
     "qa:planning-runtime-projection-postgres": "node scripts/planning-runtime-projection-postgres-repository-qa.mjs",
-    "qa:planning-workbench-bootstrap": "node scripts/planning-workbench-bootstrap-postgres-repository-qa.mjs && node scripts/domain-read-model-qa.mjs && node scripts/planning-workbench-lazy-qa.mjs",
+    "qa:planning-workbench-bootstrap": "node scripts/planning-workbench-bootstrap-postgres-repository-qa.mjs && node scripts/planning-workbench-bootstrap-atomic-qa.mjs && node scripts/domain-read-model-qa.mjs && node scripts/planning-workbench-lazy-qa.mjs",
     "qa:planning-postgres-safety": "npm run qa:planning-runtime-projection-postgres && node scripts/planning-postgres-projection-safety-qa.mjs && node scripts/planning-parity-watermark-qa.mjs && node scripts/planning-snapshot-observation-watermark-qa.mjs && node scripts/planning-snapshot-observer-qa.mjs && node scripts/planning-snapshot-writer-coverage-qa.mjs",
     "qa:domain:pilot": "node scripts/pilot-domain-readiness-check.mjs",
     "qa:shift-execution:http-pilot": "node ops/postgres/verify-shift-execution-http-e2e.mjs",

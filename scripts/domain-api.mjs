@@ -11,6 +11,7 @@ import { inspectSystemDomainsSnapshotConsistency, syncPendingSystemDomainsSnapsh
 import { syncPendingSnapshotChanges } from "./domain-snapshot-sync.mjs";
 import { getPublicAuthPrincipal } from "./public-auth-guard.mjs";
 import { isPlanningSnapshotObservationEnabled } from "./planning-snapshot-observer.mjs";
+import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 import { SYSTEM_DOMAIN_REGISTRY_NAMES, loadSystemDomains } from "../src/modules/system_domains/service.js";
 
 const API_PREFIX = "/api/v1";
@@ -341,17 +342,9 @@ function getSnapshotPlanningFingerprint(snapshotHealth = {}) {
 }
 
 function hasMatchingPlanningSnapshotObservationMarker(markerState = null) {
-  return Boolean(
-    markerState
-    && markerState.observationAvailable !== false
-    && String(markerState.snapshotObservationState || "") === "observed"
-    && Number(markerState.snapshotGeneration) > 0
-    && Number(markerState.verifiedSnapshotGeneration) === Number(markerState.snapshotGeneration)
-    && Number(markerState.verifiedPrimaryRevision) === Number(markerState.primaryRevision)
-    && String(markerState.observedSnapshotFingerprint || "")
-    && String(markerState.verifiedSnapshotFingerprint || "") === String(markerState.observedSnapshotFingerprint || "")
-    && Number(markerState.verifiedContractVersion) === PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
-  );
+  return hasCurrentPlanningSnapshotObservationMarker(markerState, {
+    contractVersion: PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
+  });
 }
 
 function createPlanningProjectionReadVerification(markerState = null, snapshotHealth = {}, { allowObservedMarker = false } = {}) {
@@ -1196,6 +1189,60 @@ export async function handleDomainApiRequest(req, res, url, {
     } : {});
     return true;
   }
+
+  // The first Planning render is the only route that can take a bounded
+  // atomic PostgreSQL snapshot under the observed snapshot-generation lock.
+  // On a healthy marker this replaces the ordinary health + marker +
+  // post-read-marker waves.  The repository locks all source tables before
+  // the singleton marker, so a concurrent primary or snapshot writer is
+  // ordered on one safe side of the returned aggregate.  If it cannot prove
+  // that exact condition, do not reuse any partial result: the established
+  // generic safety path below remains the compatibility fallback.
+  if (isPlanningWorkbenchBootstrap
+    && isPlanningSnapshotObservationEnabled(env)
+    && typeof workOrders.readObservedWorkbenchBootstrap === "function") {
+    const requestedId = String(url.searchParams.get("active") || "").trim();
+    let atomicBootstrap = null;
+    try {
+      atomicBootstrap = await workOrders.readObservedWorkbenchBootstrap(requestedId, {
+        contractVersion: PLANNING_PROJECTION_PARITY_CONTRACT_VERSION,
+      });
+    } catch {
+      // A failed fast path is deliberately indistinguishable from an
+      // unavailable additive migration here.  The route below rechecks the
+      // full compatibility contract before choosing any source.
+      atomicBootstrap = null;
+    }
+    if (atomicBootstrap?.admitted === true
+      && atomicBootstrap?.result
+      && String(atomicBootstrap.result.storageBackend || "") === "postgresql"
+      && hasMatchingPlanningSnapshotObservationMarker(atomicBootstrap.markerState)) {
+      const result = atomicBootstrap.result;
+      const payload = {
+        ok: true,
+        apiVersion: "v1",
+        ...result,
+        item: result.item ? buildPlanningWorkbenchDetail(result.item) : null,
+      };
+      const etag = getPayloadEtag(payload);
+      const serverTiming = getPlanningBootstrapServerTiming({
+        // The atomic repository transaction is the safety proof for this
+        // narrow route, so an independent health aggregate is intentionally
+        // absent from the admitted fast path.
+        planningSafetyMs: 0,
+        parityGuardMs: atomicBootstrap.timing?.parityGuardMs,
+        bootstrapReadMs: atomicBootstrap.timing?.bootstrapReadMs,
+        startedAt: planningBootstrapTiming?.startedAt,
+      });
+      if (matchesEtag(req, etag)) {
+        sendNotModified(res, headers, etag, { "Server-Timing": serverTiming });
+        return true;
+      }
+      sendJson(res, headers, 200, payload, { ETag: etag, "Server-Timing": serverTiming });
+      return true;
+    }
+  }
+
   const planningSafetyStartedAt = planningBootstrapTiming ? getRequestTimingNow() : 0;
   const health = await workOrders.health();
   if (planningBootstrapTiming) {

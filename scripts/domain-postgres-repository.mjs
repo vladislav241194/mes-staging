@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { calculateOperationDurationMs } from "../src/domain/operation_duration.js";
 import { addCalendarWorkingDuration, createWorkingCalendar } from "../src/domain/working_calendar.js";
+import { hasCurrentPlanningSnapshotObservationMarker } from "./planning-snapshot-observation-contract.mjs";
 
 const CLIENTS_BY_URL = new Map();
 const PLANNING_LIST_METADATA_FIELDS = [
@@ -211,6 +212,40 @@ function readPeriodBounds({ fromAt, toAt } = {}) {
   return { from, to };
 }
 
+function getTimingNow() {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
+
+function getElapsedTimingMs(startedAt, endedAt = getTimingNow()) {
+  const elapsed = Number(endedAt) - Number(startedAt);
+  return Number.isFinite(elapsed) && elapsed > 0 ? elapsed : 0;
+}
+
+function mapPlanningProjectionParityStateRow(row = null, { observationAvailable = true } = {}) {
+  return row ? {
+    primaryRevision: Number(row.primary_revision || 0),
+    primaryUpdatedAt: row.primary_updated_at?.toISOString?.() || String(row.primary_updated_at || ""),
+    verifiedPrimaryRevision: row.verified_primary_revision === null || row.verified_primary_revision === undefined
+      ? null : Number(row.verified_primary_revision),
+    verifiedSnapshotFingerprint: String(row.verified_snapshot_fingerprint || ""),
+    verifiedSnapshotGeneration: row.verified_snapshot_generation === null || row.verified_snapshot_generation === undefined
+      ? null : Number(row.verified_snapshot_generation),
+    verifiedContractVersion: Number(row.verified_contract_version || 0),
+    verifiedAt: row.verified_at?.toISOString?.() || String(row.verified_at || ""),
+    observationAvailable,
+    snapshotGeneration: Number(row.snapshot_generation || 0),
+    snapshotObservationState: String(row.snapshot_observation_state || "unknown"),
+    observedSnapshotVersion: row.observed_snapshot_version === null || row.observed_snapshot_version === undefined
+      ? null : Number(row.observed_snapshot_version),
+    observedSnapshotFingerprint: String(row.observed_snapshot_fingerprint || ""),
+    observedSnapshotSource: String(row.observed_snapshot_source || ""),
+    observedSnapshotAt: row.observed_snapshot_at?.toISOString?.() || String(row.observed_snapshot_at || ""),
+    observedSnapshotError: String(row.observed_snapshot_error || ""),
+  } : null;
+}
+
 function listMetadata(rows = []) {
   const revision = rows.reduce((max, row) => Math.max(max, Number(row.aggregate_revision) || 0), 0);
   const updatedAt = rows.reduce((latest, row) => {
@@ -365,6 +400,51 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
     return rows[0] || null;
   }
 
+  async function readWorkbenchBootstrapRows(query = sql, activeId = "") {
+    const requestedId = String(activeId || "").trim();
+    const orderRows = await listWorkbenchRows(query);
+    const selectedOrder = orderRows.find((row) => String(row.id) === requestedId || String(row.number) === requestedId)
+      || orderRows[0]
+      || null;
+    if (!selectedOrder) return { orders: orderRows, selected: null, operations: [], slots: [] };
+    const [selectedDetail, operationRows, slotRows] = await Promise.all([
+      getWorkbenchDetailRow(query, selectedOrder.id),
+      query`SELECT * FROM work_order_operations WHERE work_order_id = ${selectedOrder.id} ORDER BY sequence_no`,
+      query`
+        SELECT ps.* FROM planning_slots ps
+        JOIN work_order_operations op ON op.id = ps.work_order_operation_id
+        WHERE op.work_order_id = ${selectedOrder.id}
+        ORDER BY ps.planned_start ASC NULLS LAST, ps.id ASC
+      `,
+    ]);
+    // The compact row already has the aggregate counts, so the selected
+    // full-metadata query stays a single narrow aggregate read.
+    const selectedRow = selectedDetail ? {
+      ...selectedDetail,
+      operation_count: selectedOrder.operation_count,
+      scheduled_operation_count: selectedOrder.scheduled_operation_count,
+    } : null;
+    return { orders: orderRows, selected: selectedRow, operations: operationRows, slots: slotRows };
+  }
+
+  function buildWorkbenchBootstrapResult({ orders = [], selected = null, operations = [], slots = [] } = {}) {
+    const slotsByOperation = firstRuntimeSlotByOperation(slots);
+    const item = selected ? {
+      ...mapOrderDetail(selected),
+      operations: operations.map((operation) => mapOperation(
+        operation,
+        slotsByOperation.get(String(operation.id || "")) || null,
+      )),
+    } : null;
+    return {
+      ...metadata,
+      ...listMetadata(orders),
+      items: orders.map(mapOrderList),
+      activeId: item?.id || "",
+      item,
+    };
+  }
+
   return {
     async health() {
       const [orders, migrations] = await Promise.all([
@@ -418,27 +498,7 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
           LIMIT 1
         `;
       }
-      const row = rows[0] || null;
-      return row ? {
-        primaryRevision: Number(row.primary_revision || 0),
-        primaryUpdatedAt: row.primary_updated_at?.toISOString?.() || String(row.primary_updated_at || ""),
-        verifiedPrimaryRevision: row.verified_primary_revision === null || row.verified_primary_revision === undefined
-          ? null : Number(row.verified_primary_revision),
-        verifiedSnapshotFingerprint: String(row.verified_snapshot_fingerprint || ""),
-        verifiedSnapshotGeneration: row.verified_snapshot_generation === null || row.verified_snapshot_generation === undefined
-          ? null : Number(row.verified_snapshot_generation),
-        verifiedContractVersion: Number(row.verified_contract_version || 0),
-        verifiedAt: row.verified_at?.toISOString?.() || String(row.verified_at || ""),
-        observationAvailable,
-        snapshotGeneration: Number(row.snapshot_generation || 0),
-        snapshotObservationState: String(row.snapshot_observation_state || "unknown"),
-        observedSnapshotVersion: row.observed_snapshot_version === null || row.observed_snapshot_version === undefined
-          ? null : Number(row.observed_snapshot_version),
-        observedSnapshotFingerprint: String(row.observed_snapshot_fingerprint || ""),
-        observedSnapshotSource: String(row.observed_snapshot_source || ""),
-        observedSnapshotAt: row.observed_snapshot_at?.toISOString?.() || String(row.observed_snapshot_at || ""),
-        observedSnapshotError: String(row.observed_snapshot_error || ""),
-      } : null;
+      return mapPlanningProjectionParityStateRow(rows[0] || null, { observationAvailable });
     },
 
     async beginPlanningSnapshotObservation({ source = "planning-snapshot-write", rejectWhenPending = false } = {}) {
@@ -563,50 +623,83 @@ export function createPostgresWorkOrdersRepository({ databaseUrl, sql: sqlOverri
     // list->detail round trip while also preventing the first rendered tree
     // from combining two different aggregate revisions.
     async listWorkbenchBootstrap(activeId = "") {
-      const requestedId = String(activeId || "").trim();
-      const { orders, selected, operations, slots } = await sql.begin(
+      const raw = await sql.begin(
         "isolation level repeatable read read only",
-        async (tx) => {
-          const orderRows = await listWorkbenchRows(tx);
-          const selectedOrder = orderRows.find((row) => String(row.id) === requestedId || String(row.number) === requestedId)
-            || orderRows[0]
-            || null;
-          if (!selectedOrder) return { orders: orderRows, selected: null, operations: [], slots: [] };
-          const [selectedDetail, operationRows, slotRows] = await Promise.all([
-            getWorkbenchDetailRow(tx, selectedOrder.id),
-            tx`SELECT * FROM work_order_operations WHERE work_order_id = ${selectedOrder.id} ORDER BY sequence_no`,
-            tx`
-              SELECT ps.* FROM planning_slots ps
-              JOIN work_order_operations op ON op.id = ps.work_order_operation_id
-              WHERE op.work_order_id = ${selectedOrder.id}
-              ORDER BY ps.planned_start ASC NULLS LAST, ps.id ASC
-            `,
-          ]);
-          // The compact row already has the aggregate counts, so the selected
-          // full-metadata query stays a single narrow aggregate read.
-          const selectedRow = selectedDetail ? {
-            ...selectedDetail,
-            operation_count: selectedOrder.operation_count,
-            scheduled_operation_count: selectedOrder.scheduled_operation_count,
-          } : null;
-          return { orders: orderRows, selected: selectedRow, operations: operationRows, slots: slotRows };
-        },
+        (tx) => readWorkbenchBootstrapRows(tx, activeId),
       );
-      const slotsByOperation = firstRuntimeSlotByOperation(slots);
-      const item = selected ? {
-        ...mapOrderDetail(selected),
-        operations: operations.map((operation) => mapOperation(
-          operation,
-          slotsByOperation.get(String(operation.id || "")) || null,
-        )),
-      } : null;
-      return {
-        ...metadata,
-        ...listMetadata(orders),
-        items: orders.map(mapOrderList),
-        activeId: item?.id || "",
-        item,
-      };
+      return buildWorkbenchBootstrapResult(raw);
+    },
+
+    // The generic Planning safety route needs a durable marker before and
+    // after a PostgreSQL read because snapshot writes can race either side of
+    // it.  The initial workbench has a tighter option: lock every source
+    // table that the marker trigger covers, then lock that marker row and
+    // read the compact aggregate inside the same transaction.  The ordering
+    // matters: taking the source-table locks first prevents a TRUNCATE from
+    // holding an exclusive table lock while waiting for the marker row.
+    //
+    // An unavailable, pending or mismatched marker never exposes these raw
+    // primary bytes.  The API deliberately falls through to the established
+    // snapshot-compatible guard in that case.
+    async readObservedWorkbenchBootstrap(activeId = "", { contractVersion = 0 } = {}) {
+      const startedAt = getTimingNow();
+      try {
+        const atomicRead = await sql.begin(async (tx) => {
+          // A bootstrap is a latency optimization, never a reason to queue
+          // behind a command/import.  `NOWAIT` releases any partial table
+          // locks through the transaction rollback and lets the API use its
+          // established generic snapshot-compatible guard immediately.
+          await tx`LOCK TABLE work_orders, work_order_operations, planning_slots IN SHARE MODE NOWAIT`;
+          const markerRows = await tx`
+            SELECT primary_revision, primary_updated_at,
+              verified_primary_revision, verified_snapshot_fingerprint,
+              verified_snapshot_generation, verified_contract_version, verified_at,
+              snapshot_generation, snapshot_observation_state,
+              observed_snapshot_version, observed_snapshot_fingerprint,
+              observed_snapshot_source, observed_snapshot_at, observed_snapshot_error
+            FROM planning_projection_parity_state
+            WHERE singleton = TRUE
+            FOR SHARE NOWAIT
+          `;
+          const markerState = mapPlanningProjectionParityStateRow(markerRows[0] || null);
+          const parityGuardMs = getElapsedTimingMs(startedAt);
+          if (!hasCurrentPlanningSnapshotObservationMarker(markerState, { contractVersion })) {
+            return {
+              admitted: false,
+              markerState,
+              reason: "observed-marker-not-current",
+              timing: { parityGuardMs, bootstrapReadMs: 0 },
+            };
+          }
+          const bootstrapStartedAt = getTimingNow();
+          const raw = await readWorkbenchBootstrapRows(tx, activeId);
+          return {
+            admitted: true,
+            markerState,
+            raw,
+            timing: {
+              parityGuardMs,
+              bootstrapReadMs: getElapsedTimingMs(bootstrapStartedAt),
+            },
+          };
+        });
+        if (!atomicRead?.admitted) return atomicRead || { admitted: false, reason: "atomic-read-unavailable" };
+        return {
+          ...atomicRead,
+          result: buildWorkbenchBootstrapResult(atomicRead.raw),
+        };
+      } catch (error) {
+        // This path is only a latency optimization.  Any database contention,
+        // old additive schema or transaction failure must make the API use the
+        // existing proven guard instead of exposing an unverified primary view.
+        return {
+          admitted: false,
+          reason: ["42703", "42P01", "40001", "55P03"].includes(String(error?.code || ""))
+            ? "atomic-read-unavailable"
+            : "atomic-read-failed",
+          timing: { parityGuardMs: getElapsedTimingMs(startedAt), bootstrapReadMs: 0 },
+        };
+      }
     },
 
     // A normal planning/Gantt refresh needs the complete route graph, but
