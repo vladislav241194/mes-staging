@@ -1,68 +1,77 @@
-.mes-react-nomenclature-island {
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) {
   min-width: 0;
   color: #18314d;
   font-family: Onest, Inter, system-ui, sans-serif;
 }
 
-.mes-react-nomenclature-island * { box-sizing: border-box; }
-.mes-react-nomenclature-island button { font: inherit; }
-.mes-react-nomenclature-island .module-page { min-height: 680px; padding: 22px; }
-.mes-react-nomenclature-island .module-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.mes-react-nomenclature-island .module-header p,
-.mes-react-nomenclature-island .panel-heading p,
-.mes-react-nomenclature-island .detail > p { margin: 0 0 4px; color: #718296; font-size: 12px; }
-.mes-react-nomenclature-island h1,
-.mes-react-nomenclature-island h2 { margin: 0; }
-.mes-react-nomenclature-island h1 { font-size: 25px; }
-.mes-react-nomenclature-island h2 { font-size: 16px; }
-.mes-react-nomenclature-island .lab-badge,
-.mes-react-nomenclature-island .status { border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 650; }
-.mes-react-nomenclature-island .lab-badge { color: #285aa8; background: #dce9ff; }
-.mes-react-nomenclature-island .module-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; }
-.mes-react-nomenclature-island .module-sidebar,
-.mes-react-nomenclature-island .panel,
-.mes-react-nomenclature-island .detail { border: 1px solid rgba(71,112,154,.16); background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
-.mes-react-nomenclature-island .module-sidebar { min-height: 620px; border-radius: 18px; padding: 16px; }
-.mes-react-nomenclature-island .module-sidebar > strong { display: block; margin: 4px 8px 12px; color: #718296; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
-.mes-react-nomenclature-island .filter { display: flex; width: 100%; justify-content: space-between; gap: 12px; margin: 3px 0; padding: 10px 11px; border: 0; border-radius: 10px; color: #41586e; background: transparent; text-align: left; cursor: pointer; }
-.mes-react-nomenclature-island .filter:hover { background: #f0f5fb; }
-.mes-react-nomenclature-island .filter.is-active { color: #164fa4; background: #e5efff; }
-.mes-react-nomenclature-island .filter b { font-size: 11px; }
-.mes-react-nomenclature-island .filter-copy { display: grid; min-width: 0; gap: 2px; }
-.mes-react-nomenclature-island .filter-copy > span,
-.mes-react-nomenclature-island .filter-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mes-react-nomenclature-island .filter-copy small { color: #7a8b9d; font-size: 9px; font-weight: 450; }
-.mes-react-nomenclature-island .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 14px; }
-.mes-react-nomenclature-island .panel,
-.mes-react-nomenclature-island .detail { overflow: hidden; border-radius: 18px; }
-.mes-react-nomenclature-island .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
-.mes-react-nomenclature-island .action { padding: 9px 13px; border: 0; border-radius: 10px; color: #fff; background: #2f6fe4; }
-.mes-react-nomenclature-island .action:disabled { opacity: .45; }
-.mes-react-nomenclature-island .table-wrap { overflow: auto; }
-.mes-react-nomenclature-island table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.mes-react-nomenclature-island th,
-.mes-react-nomenclature-island td { padding: 11px 13px; border-bottom: 1px solid #edf1f5; text-align: left; white-space: nowrap; }
-.mes-react-nomenclature-island th { color: #718296; background: #f8fafc; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
-.mes-react-nomenclature-island tbody tr { cursor: pointer; outline: none; }
-.mes-react-nomenclature-island tbody tr:hover,
-.mes-react-nomenclature-island tbody tr:focus { background: #f4f8fd; }
-.mes-react-nomenclature-island tbody tr.is-selected { background: #e8f1ff; box-shadow: inset 3px 0 #2f6fe4; }
-.mes-react-nomenclature-island .status--success { color: #167451; background: #dff6eb; }
-.mes-react-nomenclature-island .status--warning { color: #8b6412; background: #fff0c9; }
-.mes-react-nomenclature-island .status--neutral { color: #52667a; background: #e9eef4; }
-.mes-react-nomenclature-island .empty-state { display: grid; justify-items: center; gap: 6px; padding: 48px 20px; color: #52667a; text-align: center; }
-.mes-react-nomenclature-island .empty-state strong { color: #18314d; font-size: 14px; }
-.mes-react-nomenclature-island .empty-state p { margin: 0; color: #718296; font-size: 12px; }
-.mes-react-nomenclature-island .system-state { display: grid; min-height: 320px; justify-items: center; align-content: center; gap: 8px; margin: 22px; padding: 32px; border: 1px solid #efc7c7; border-radius: 14px; color: #8a3434; background: #fff6f6; text-align: center; }
-.mes-react-nomenclature-island .system-state strong { color: #18314d; font-size: 16px; }
-.mes-react-nomenclature-island .system-state p { max-width: 430px; margin: 0; font-size: 12px; }
-.mes-react-nomenclature-island .detail { padding: 18px; }
-.mes-react-nomenclature-island .detail h2 { margin-bottom: 18px; }
-.mes-react-nomenclature-island dl { display: grid; gap: 12px; margin: 0; }
-.mes-react-nomenclature-island dl div { padding-bottom: 10px; border-bottom: 1px solid #edf1f5; }
-.mes-react-nomenclature-island dt { color: #718296; font-size: 10px; text-transform: uppercase; }
-.mes-react-nomenclature-island dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) * { box-sizing: border-box; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) button { font: inherit; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .module-page { min-height: 680px; padding: 22px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .module-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .module-header p,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .panel-heading p,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .detail > p { margin: 0 0 4px; color: #718296; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) h1,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) h2 { margin: 0; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) h1 { font-size: 25px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) h2 { font-size: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .lab-badge,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .status { border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 650; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .lab-badge { color: #285aa8; background: #dce9ff; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .module-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .module-sidebar,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .panel,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .detail { border: 1px solid rgba(71,112,154,.16); background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .module-sidebar { min-height: 620px; border-radius: 18px; padding: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .module-sidebar > strong { display: block; margin: 4px 8px 12px; color: #718296; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter { display: flex; width: 100%; justify-content: space-between; gap: 12px; margin: 3px 0; padding: 10px 11px; border: 0; border-radius: 10px; color: #41586e; background: transparent; text-align: left; cursor: pointer; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter:hover { background: #f0f5fb; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter.is-active { color: #164fa4; background: #e5efff; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter b { font-size: 11px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter-copy { display: grid; min-width: 0; gap: 2px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter-copy > span,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .filter-copy small { color: #7a8b9d; font-size: 9px; font-weight: 450; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .workspace-main { display: grid; min-width: 0; gap: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .panel,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .detail { overflow: hidden; border-radius: 18px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .action { padding: 9px 13px; border: 0; border-radius: 10px; color: #fff; background: #2f6fe4; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .action:disabled { opacity: .45; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .table-wrap { overflow: auto; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) table { width: 100%; border-collapse: collapse; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) th,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) td { padding: 11px 13px; border-bottom: 1px solid #edf1f5; text-align: left; white-space: nowrap; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) th { color: #718296; background: #f8fafc; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) tbody tr { cursor: pointer; outline: none; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) tbody tr:hover,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) tbody tr:focus { background: #f4f8fd; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) tbody tr.is-selected { background: #e8f1ff; box-shadow: inset 3px 0 #2f6fe4; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .status--success { color: #167451; background: #dff6eb; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .status--warning { color: #8b6412; background: #fff0c9; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .status--neutral { color: #52667a; background: #e9eef4; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .empty-state { display: grid; justify-items: center; gap: 6px; padding: 48px 20px; color: #52667a; text-align: center; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .empty-state strong { color: #18314d; font-size: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .empty-state p { margin: 0; color: #718296; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .system-state { display: grid; min-height: 320px; justify-items: center; align-content: center; gap: 8px; margin: 22px; padding: 32px; border: 1px solid #efc7c7; border-radius: 14px; color: #8a3434; background: #fff6f6; text-align: center; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .system-state strong { color: #18314d; font-size: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .system-state p { max-width: 430px; margin: 0; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .detail { padding: 18px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .detail h2 { margin-bottom: 18px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) dl { display: grid; gap: 12px; margin: 0; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) dl div { padding-bottom: 10px; border-bottom: 1px solid #edf1f5; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) dt { color: #718296; font-size: 10px; text-transform: uppercase; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(104px, 1fr)); gap: 8px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .metric-card { display: grid; gap: 3px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .metric-card span,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .metric-card small { color: #718296; font-size: 9px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .metric-card strong { font-size: 17px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .structure-metrics { padding: 12px; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .primary-copy { display: grid; gap: 2px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .primary-copy small { color: #718296; font-size: 9px; font-weight: 450; }
 
 @media (max-width: 1180px) {
-  .mes-react-nomenclature-island .workspace { grid-template-columns: minmax(0, 1fr); }
+  :is(.mes-react-nomenclature-island, .mes-react-structure-employees-island) .workspace { grid-template-columns: minmax(0, 1fr); }
 }

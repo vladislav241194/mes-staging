@@ -130,6 +130,10 @@ assert(!initialHtml.includes("51 поле"), "Canonical module must not advertis
 assert(!initialHtml.includes("полная редактируемая матрица"), "Legacy matrix must not remain an editable primary surface.");
 assert(!initialHtml.includes("Сбросить правки"), "Canonical module must not reset legacy matrix overrides.");
 assert(JSON.stringify(module.getProductionStructureMatrixRuntimeOverrides()) === "{}", "Compatibility getter must not expose mutable legacy overrides.");
+assert(module.setProductionStructureMatrixActiveRegistry("employees") === "employees", "React fallback must be able to open the legacy Employees registry.");
+assert(module.renderProductionStructureMatrixPage().includes('data-system-domain-table="employees"'), "Legacy fallback must render the requested Employees registry.");
+assert(module.setProductionStructureMatrixActiveRegistry("not-a-registry") === "employees", "Unknown React fallback scopes must fail closed to Employees.");
+module.setProductionStructureMatrixActiveRegistry("orgUnits");
 
 const readOnlyModule = createProductionStructureMatrixModule({
   PRODUCTION_STRUCTURE_MATRIX_COLUMNS,

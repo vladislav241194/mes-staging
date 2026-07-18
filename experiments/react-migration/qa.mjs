@@ -761,6 +761,31 @@ try {
   assert.deepEqual(eligibleProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleProductionHost.renderTarget(), /data-react-nomenclature-island/);
 
+  const structureProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeStructureProductionHost = (activation) => structureProductionHostModule.createStructureEmployeesReactIslandHost({
+    getActivation: () => activation,
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(
+    makeStructureProductionHost({ featureFlagEnabled: false, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "disabled" },
+    "production Structure Employees island must stay disabled by default",
+  );
+  assert.deepEqual(
+    makeStructureProductionHost({ featureFlagEnabled: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "server-read-pending" },
+    "Structure Employees React must wait for the PostgreSQL read model",
+  );
+  assert.deepEqual(
+    makeStructureProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(),
+    { activateReact: false, reason: "write-parity-incomplete" },
+    "edit-capable Structure Employees sessions must retain legacy commands",
+  );
+  const eligibleStructureProductionHost = makeStructureProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleStructureProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleStructureProductionHost.renderTarget(), /data-react-structure-employees-island/);
+
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
@@ -774,6 +799,15 @@ try {
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.prepareRender\(\)/);
   assert.match(productionAppSource, /nomenclatureReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /reason === "unsupported-scope".*activeNomenclaturePane = "boards"/s);
+  assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES === true/);
+  assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-structure-employees"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-structure-employees-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-structure-employees-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /systemDomainsServerReadState\.status === "server"/);
+  assert.match(productionAppSource, /structureEmployeesReactIslandHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /structureEmployeesReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /setProductionStructureMatrixActiveRegistry\(registryId \|\| "employees"\)/);
   const productionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/react_island_host.js"), "utf8");
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
   assert.match(productionHostSource, /performance\?\.now/);
@@ -781,13 +815,17 @@ try {
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
   assert.match(productionBuildSource, /react-islands", "nomenclature\.js/);
+  assert.match(productionBuildSource, /react-islands", "structure-employees\.js/);
   assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
   assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
   assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion\)/);
 
   const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
@@ -799,10 +837,14 @@ try {
   assert.match(performanceBudget, /"structureEmployees"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
+  await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });
   const productionIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/nomenclature.js"), "utf8");
   assert.match(productionIslandBundle, /mountNomenclatureReactIsland/);
+  const productionStructureIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-employees.js"), "utf8");
+  assert.match(productionStructureIslandBundle, /mountStructureEmployeesReactIsland/);
   const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
   assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_EMPLOYEES_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

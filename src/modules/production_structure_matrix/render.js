@@ -267,6 +267,15 @@ export function createProductionStructureMatrixModule(dependencies = {}) {
     return {};
   }
 
+  function setProductionStructureMatrixActiveRegistry(registryId = "employees") {
+    const normalizedRegistryId = normalizeText(registryId);
+    const supportedRegistryIds = [...REGISTRY_DEFINITIONS.map((item) => item.id), DIAGNOSTICS_REGISTRY.id];
+    activeRegistryId = supportedRegistryIds.includes(normalizedRegistryId) ? normalizedRegistryId : "employees";
+    selectedEntityId = "";
+    lastMutationError = "";
+    return activeRegistryId;
+  }
+
   function renderRegistrySidebar() {
     const registries = getRegistries();
     const items = [...REGISTRY_DEFINITIONS, DIAGNOSTICS_REGISTRY];
@@ -762,5 +771,6 @@ export function createProductionStructureMatrixModule(dependencies = {}) {
     bindProductionStructureMatrixEvents,
     getProductionStructureMatrixRuntimeOverrides,
     renderProductionStructureMatrixPage,
+    setProductionStructureMatrixActiveRegistry,
   };
 }

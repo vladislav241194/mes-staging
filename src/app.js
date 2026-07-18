@@ -73,6 +73,7 @@ import { createAppInteractionsModule } from "./modules/app_interactions/render.j
 import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
+import { createStructureEmployeesReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -1615,6 +1616,7 @@ function getWeeklyProductionControlRuntimeInstance() {
 
 let bindProductionStructureMatrixEvents = () => {};
 let getProductionStructureMatrixRuntimeOverrides = () => normalizePlainRecord(ui?.productionStructureMatrixOverrides);
+let setProductionStructureMatrixActiveRegistry = () => "employees";
 let renderProductionStructureMatrixPage = () => renderUiModulePage({
   ariaLabel: "Структура производства",
   className: "production-structure-matrix-page",
@@ -1626,6 +1628,7 @@ function initializeProductionStructureMatrixModule(factory, matrixData) {
     bindProductionStructureMatrixEvents,
     getProductionStructureMatrixRuntimeOverrides,
     renderProductionStructureMatrixPage,
+    setProductionStructureMatrixActiveRegistry,
   } = factory({
   PRODUCTION_STRUCTURE_MATRIX_COLUMNS: matrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS,
   PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS: matrixData.PRODUCTION_STRUCTURE_MATRIX_FIELD_OPTIONS,
@@ -2319,6 +2322,40 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
   requestLegacyRender: (reason) => {
     if (reason === "unsupported-scope") ui.activeNomenclaturePane = "boards";
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
+  },
+});
+function getStructureEmployeesReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-structure-employees") === "1",
+    readOnlyEvaluation: params.get("react-structure-employees-readonly") === "1",
+  };
+}
+function isStructureEmployeesReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-structure-employees-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHost({
+  getActivation: () => {
+    const localQa = getStructureEmployeesReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_EMPLOYEES === true || localQa.featureFlagEnabled,
+      serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
+      accessMode: (serverEvaluationAllowed && isStructureEmployeesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
+  getPayload: () => systemDomainsState,
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, registryId) => {
+    setProductionStructureMatrixActiveRegistry(registryId || "employees");
+    if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
   },
 });
 function ensureNomenclatureRenderModule() {
@@ -6052,9 +6089,15 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
         }
         ensureProductionStructureMatrixModule();
+        const reactDecision = structureEmployeesReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return structureEmployeesReactIslandHost.renderTarget();
         return renderProductionStructureMatrixPage();
       },
-      bind: () => bindProductionStructureMatrixEvents(),
+      bind: () => {
+        if (structureEmployeesReactIslandHost.isReactEligible()) return;
+        bindProductionStructureMatrixEvents();
+      },
+      afterRender: () => { void structureEmployeesReactIslandHost.mount(); },
     },
     timesheet: {
       render: () => {

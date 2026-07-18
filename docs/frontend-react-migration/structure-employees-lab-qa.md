@@ -79,6 +79,48 @@ Local timing proves telemetry only; it is not a Pilot SLA.
 ## Production boundary
 
 `mountStructureEmployeesReactIsland(...)` is an independently bundled entry.
-Production activation still requires the accepted host read payload, disabled-
-by-default feature flag, identical-data visual comparison, authenticated Pilot
-smoke and rollback proof after the required PostgreSQL final audit/rebase.
+The production host is now integrated but remains disabled by default. It mounts
+only when all of these conditions are true:
+
+- `MES_REACT_STRUCTURE_EMPLOYEES=1`;
+- `MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION=1`;
+- the authenticated session explicitly requests
+  `react-structure-employees-evaluation=1`;
+- the current System Domains payload was hydrated from the PostgreSQL API;
+- the session is read-only evaluation rather than editor access.
+
+Localhost QA can use `qa-auth-bypass=1`, `react-structure-employees=1`, and
+`react-structure-employees-readonly=1`. These URL overrides are rejected on
+non-local hosts.
+
+Production-shell command:
+
+```sh
+npm run qa:structure-employees-react-island
+```
+
+Result:
+
+- the same canonical PostgreSQL-shaped response produces `76` legacy rows and
+  `76` React rows with identical visible values and order;
+- server flags without a per-session request preserve the legacy renderer;
+- selection, detail, seven registry entries, six metrics and page overflow pass;
+- create remains disabled and the disposable `0600` state file remains byte-for-byte
+  unchanged;
+- requesting `Подразделения` unmounts React and opens the exact legacy registry
+  with `19` rows;
+- the browser console is clean;
+- latest local production-shell commit was `17.40 ms`, below the `2000 ms` local
+  gate;
+- the independent artifact is `204,788 B` raw / `64,411 B` gzip /
+  `61,098 B` Brotli, within its `225,000 B` raw / `68,000 B` gzip budget.
+
+The test intercepts only the exact read-only `GET /api/v1/system-domains` with
+one canonical generated response. This is deliberate: after the PostgreSQL
+cutover the local server correctly fails closed without `DATABASE_URL`, and the
+QA must not restore shared state as working authority.
+
+The island has not been activated or released on Pilot. Authenticated Pilot
+comparison and rollback proof remain downstream of the first Nomenclature live
+evaluation, so the active `v.1.499.72-6985693` release and its false React flags
+are unchanged.

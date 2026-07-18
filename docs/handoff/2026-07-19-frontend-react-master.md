@@ -96,11 +96,11 @@ registry family: shared behavior now has two consumers, while entity columns
 remain scenario-specific.
 
 All four scenarios are available through the generic reversible island boundary.
-Nomenclature remains the only proposed first production feature-flag scope;
-Component Types is an isolated reuse proof, and Boards/BOM is an isolated
-process-specific proof. Structure Employees is the first canonical System
-Domains read-model proof. None of the additional proofs is a production
-activation claim.
+Nomenclature remains the first production feature-flag scope; Component Types
+is an isolated reuse proof, and Boards/BOM is an isolated process-specific
+proof. Structure Employees is the first canonical System Domains read-model
+proof and is now the second production-integrated, disabled-by-default island.
+This integration is not a Pilot activation claim.
 
 The lab also contains a host-side feature gate. A disabled flag never mounts
 React; mount/update/render failures schedule one fallback, unmount React, and
@@ -149,6 +149,16 @@ counts. The adapter also consumes the complete generated canonical snapshot
 without dropping any of its 76 employees. Other registries and every command
 remain behind `unsupported-scope`/editor fallback.
 
+The production host now accepts Structure Employees only after an actual
+PostgreSQL API hydration, two explicit false-by-default runtime flags and a
+per-session evaluation request. The production-shell QA sends one canonical
+read-only System Domains response to both renderers and proves `76 = 76` rows,
+identical visible values/order, selection/detail parity, all seven registries,
+six metrics, disabled writes, unchanged disposable state and exact fallback to
+the `19`-row legacy Organization Units registry. The independent production
+artifact is `204,788 B` raw / `64,411 B` gzip / `61,098 B` Brotli. It has not
+been released or activated on Pilot.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -170,10 +180,15 @@ will be repeated after the Structure Employees commit and before rebasing.
 1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Boards/BOM and Structure Employees read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
-4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature using current `directoryState`; no fixture reaches production.**
-5. Mount the first React island behind a disabled-by-default feature flag. **Complete locally; two explicit runtime flags are required and every unsupported/write scope falls back to legacy.**
+4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature using current `directoryState` and for Structure Employees using PostgreSQL-hydrated System Domains; no fixture reaches production.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature and Structure Employees; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
+
+The second integrated scope is prepared independently of the outstanding root
+operation: Structure Employees is committed only as default-off source and QA.
+It must not be staged or activated before the Nomenclature evaluation is
+accepted on the live Pilot path.
 
 Pilot rollout safety is session-scoped: even when both public server switches
 permit the experiment, Nomenclature stays legacy unless an authenticated or

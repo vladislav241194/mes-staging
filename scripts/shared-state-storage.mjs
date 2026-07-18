@@ -187,6 +187,8 @@ export function getPublicRuntimeConfig(env = process.env) {
     MES_ALLOW_DESTRUCTIVE_ACTIONS: isDestructiveActionsAllowed(env),
     MES_REACT_NOMENCLATURE: normalizeEnvValue(env.MES_REACT_NOMENCLATURE) === "1",
     MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION) === "1",
+    MES_REACT_STRUCTURE_EMPLOYEES: normalizeEnvValue(env.MES_REACT_STRUCTURE_EMPLOYEES) === "1",
+    MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION: normalizeEnvValue(env.MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION) === "1",
     // Non-secret rollout policy.  A client must fail closed when publication
     // is configured as server-primary but cannot reach the capability API.
     MES_SPECIFICATIONS2_SERVER_PUBLICATION_PRIMARY: normalizeEnvValue(env.MES_ENABLE_SPECIFICATIONS2_SERVER_PUBLISH_COMMANDS) === "1",

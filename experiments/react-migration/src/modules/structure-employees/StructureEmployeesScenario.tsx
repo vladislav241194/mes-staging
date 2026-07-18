@@ -4,7 +4,7 @@ import { formatRecordCount } from "../../ui/format";
 import { adaptStructureEmployees } from "./adapter";
 import { buildStructureRegistryOptions, resolveVisibleStructureEmployee, STRUCTURE_EMPLOYEE_READ_COLUMNS } from "./view-model";
 
-export function StructureEmployeesScenario({ payload, onRequestLegacy }: { payload: unknown; onRequestLegacy?(): void }) {
+export function StructureEmployeesScenario({ payload, onRequestLegacy }: { payload: unknown; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptStructureEmployees(payload), [payload]);
   const registries = useMemo(() => buildStructureRegistryOptions(model), [model]);
   const [selectedId, setSelectedId] = useState(model.employees[0]?.id ?? "");
@@ -20,7 +20,7 @@ export function StructureEmployeesScenario({ payload, onRequestLegacy }: { paylo
           key={registry.id}
           label={registry.label}
           meta={registry.description}
-          onClick={() => registry.action === "employees" ? undefined : onRequestLegacy?.()}
+          onClick={() => registry.action === "employees" ? undefined : onRequestLegacy?.(registry.id)}
         />
       ))}
     </ModuleSidebar>

@@ -2,7 +2,7 @@ import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-run
 import { StructureEmployeesScenario } from "./modules/structure-employees/StructureEmployeesScenario";
 
 export interface StructureEmployeesIslandOptions extends ReactMigrationIslandOptions {
-  onRequestLegacy?(): void;
+  onRequestLegacy?(scope?: string): void;
 }
 
 export function mountStructureEmployeesReactIsland(target: HTMLElement, initialPayload: unknown, options: StructureEmployeesIslandOptions = {}) {
