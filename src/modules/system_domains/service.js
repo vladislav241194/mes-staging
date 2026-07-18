@@ -120,6 +120,19 @@ function dedupeRegistry(value) {
   return [...byId.values()].sort(stableCompare);
 }
 
+function normalizeRegistry(name, value) {
+  const entities = dedupeRegistry(value);
+  // Older compatibility snapshots did not persist the template-level shift
+  // offset. PostgreSQL has always stored it, so materializing the zero
+  // default here makes an omitted legacy property semantically equivalent to
+  // its stored representation rather than creating a false parity conflict.
+  if (name !== "scheduleTemplates") return entities;
+  return entities.map((entity) => ({
+    ...entity,
+    patternOffset: Math.max(0, normalizeInteger(entity.patternOffset, 0)),
+  }));
+}
+
 function getCell(row, key) {
   return cleanText(asRecord(row?.cells)[key]);
 }
@@ -307,6 +320,7 @@ function addScheduleTemplate(templateMap, descriptor, source = MATRIX_SOURCE) {
       start: descriptor.start,
       end: descriptor.end,
       subtractLunch: descriptor.subtractLunch,
+      patternOffset: descriptor.patternOffset,
       source,
     });
   }
@@ -387,7 +401,7 @@ export function normalizeSystemDomains(value = {}) {
     schemaId: SYSTEM_DOMAINS_SCHEMA_ID,
     schemaVersion: SYSTEM_DOMAINS_SCHEMA_VERSION,
     metadata: stableClone(asRecord(source.metadata)),
-    registries: Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, dedupeRegistry(sourceRegistries[name])])),
+    registries: Object.fromEntries(SYSTEM_DOMAIN_REGISTRY_NAMES.map((name) => [name, normalizeRegistry(name, sourceRegistries[name])])),
   };
 }
 

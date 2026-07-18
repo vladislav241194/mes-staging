@@ -136,6 +136,7 @@ const scheduleAssignment = registries.scheduleAssignments.find((item) => item.em
 const scheduleTemplate = registries.scheduleTemplates.find((item) => item.id === scheduleAssignment?.scheduleTemplateId);
 assert(scheduleAssignment?.patternOffset === 2, "Legacy schedule pattern offset must be preserved.");
 assert(scheduleTemplate?.code === "2/2" && scheduleTemplate?.start === "07:30" && scheduleTemplate?.end === "19:30", "Legacy schedule override must win over matrix defaults.");
+assert(scheduleTemplate?.patternOffset === 2, "Schedule template offset must survive legacy migration.");
 
 const attendance = registries.attendanceEvents.find((event) => event.employeeId === executorId);
 assert(attendance?.date === "2026-07-10" && attendance?.overtimeHours === 1.5, "Attendance fact must preserve date and overtime.");
@@ -156,6 +157,14 @@ const serialized = serializeSystemDomains(domains);
 const loaded = loadSystemDomains(serialized, { strict: true });
 assert(loaded.report.valid, "Serialized domains must load as a valid schema.");
 assert(serializeSystemDomains(loaded.domains) === serialized, "Serialization must be stable across a load round trip.");
+const omittedTemplateOffset = loadSystemDomains(JSON.stringify({
+  ...domains,
+  registries: {
+    ...domains.registries,
+    scheduleTemplates: domains.registries.scheduleTemplates.map(({ patternOffset, ...template }) => template),
+  },
+}), { strict: true });
+assert(omittedTemplateOffset.domains.registries.scheduleTemplates.every((template) => template.patternOffset === 0), "A missing legacy template offset must normalize to a deterministic zero default.");
 
 const orphanMigration = migrateLegacySystemDomains({
   matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS,

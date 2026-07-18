@@ -1,12 +1,16 @@
 import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
 import { loadSystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
+import { reconcileSystemDomains } from "../src/modules/system_domains/reconciliation.js";
 import { readSharedStateSnapshot, updateSharedStateSnapshot } from "./shared-state-endpoint.mjs";
 
 function registryCounts(domains) {
   return Object.fromEntries(Object.entries(domains?.registries || {}).map(([name, items]) => [name, Array.isArray(items) ? items.length : 0]));
 }
 
-function consistencyDetails(sourceJson, targetJson, source, target) {
+function consistencyDetails(sourceJson, targetJson, source, target, {
+  snapshotVersion = 0,
+  postgresRevision = 0,
+} = {}) {
   const sourceCounts = registryCounts(source);
   const targetCounts = registryCounts(target);
   const registryCountDifferences = Object.fromEntries(
@@ -19,6 +23,15 @@ function consistencyDetails(sourceJson, targetJson, source, target) {
     snapshotBytes: Buffer.byteLength(sourceJson),
     postgresBytes: Buffer.byteLength(targetJson),
     registryCountDifferences,
+    reconciliation: reconcileSystemDomains({
+      snapshotDomains: source,
+      postgresDomains: target,
+      snapshotVersion,
+      postgresRevision,
+      // This endpoint deliberately performs one observation. A controller
+      // must prove a double-read before treating the result as promotable.
+      stability: "unverified",
+    }),
   };
 }
 
@@ -47,7 +60,10 @@ export async function inspectSystemDomainsSnapshotConsistency({ primary, env = p
     ok: true,
     matches,
     reason: matches ? "" : "projection_diff",
-    ...(matches ? {} : { details: consistencyDetails(sourceJson, targetJson, loaded.domains, projection.item) }),
+    ...(matches ? {} : { details: consistencyDetails(sourceJson, targetJson, loaded.domains, projection.item, {
+      snapshotVersion: Number(snapshot?.version || 0),
+      postgresRevision: Number(projection.revision || 0),
+    }) }),
     revision: Number(projection.revision || 0),
     snapshotVersion: Number(snapshot?.version || 0),
   };
