@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.49";
+const APP_VERSION_FALLBACK = "v.1.499.50";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -2433,6 +2433,17 @@ function initializeProductsRenderModule() {
       void ensureNomenclatureRenderModule();
       return renderMesModulePatternPage({
         moduleId: "nomenclature",
+        sidebar: {
+          eyebrow: "Материалы и компоненты",
+          title: "Номенклатура",
+          variant: "filters",
+          body: "",
+        },
+        header: {
+          eyebrow: "Список компонентов",
+          title: "Загружаем номенклатуру",
+          description: "Модуль откроется автоматически.",
+        },
         content: renderUiEmptyState({ title: "Загружаем номенклатуру", description: "Модуль откроется автоматически." }),
       });
     }
