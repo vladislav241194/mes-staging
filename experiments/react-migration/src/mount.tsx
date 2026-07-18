@@ -1,8 +1,9 @@
 import { ComponentTypesScenario } from "./modules/component-types/ComponentTypesScenario";
+import { BoardsScenario } from "./modules/boards/BoardsScenario";
 import { NomenclatureScenario } from "./modules/nomenclature/NomenclatureScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
   onRequestLegacy?(): void;
@@ -10,6 +11,7 @@ export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptio
 
 function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequestLegacy?(): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
+  if (scenario === "boards") return <BoardsScenario payload={payload} />;
   return <NomenclatureScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
 }
 
@@ -29,4 +31,5 @@ export function mountReactMigrationIsland(
 }
 
 export { mountNomenclatureReactIsland } from "./nomenclature-island";
+export { mountBoardsReactIsland } from "./boards-island";
 export type { ReactMigrationIslandHandle, ReactMigrationIslandOptions, ReactMigrationIslandReadyEvent } from "./island-runtime";

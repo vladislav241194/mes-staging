@@ -28,7 +28,9 @@ React slice. This is not reported as parity.
 
 The activation policy permits React only for explicit read-only evaluation.
 Editor access receives `write-parity-incomplete` and remains in legacy. Boards
-receives `unsupported-scope` and remains in its legacy BOM pane.
+receives `unsupported-scope` in the Nomenclature production-candidate entry and
+remains in its legacy BOM pane. The independent Boards lab has its own parity
+evidence in `boards-lab-qa.md` but is not production activation evidence.
 
 ## Remaining gate
 

@@ -30,7 +30,7 @@ export function ModuleSidebar({ label, title, children }: { label: string; title
   );
 }
 
-export function SidebarItem({ active, count, label, onClick }: { active: boolean; count: number; label: string; onClick: () => void }) {
+export function SidebarItem({ active, count, label, meta, onClick }: { active: boolean; count: number; label: string; meta?: ReactNode; onClick: () => void }) {
   return (
     <button
       aria-pressed={active}
@@ -39,7 +39,7 @@ export function SidebarItem({ active, count, label, onClick }: { active: boolean
       onClick={onClick}
       type="button"
     >
-      <span>{label}</span><b>{count}</b>
+      <span className="filter-copy"><span>{label}</span>{meta ? <small>{meta}</small> : null}</span><b>{count}</b>
     </button>
   );
 }

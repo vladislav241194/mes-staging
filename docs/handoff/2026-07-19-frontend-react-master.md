@@ -17,11 +17,12 @@ for System Domains shared-state compatibility plus compatibility-backup
 hardening, preparation of `v1.499.70`, and isolation of bootstrap compression
 artifacts. Root activation and authenticated acceptance of the two
 Specifications 2.0 command flags remain pending, so the published integration
-order still places frontend rebase after that final audit.
-The PostgreSQL slice is still not ready for frontend integration: Specifications
-2.0 command validation, shared-state working-source retirement, staging rollback,
-merge to `main`, commit-derived release, and final live acceptance remain open.
-The temporary stop-list below therefore remains active.
+order still places frontend rebase after that final audit. The accepted
+PostgreSQL release and final-gate handoff are already on `main`; only the root
+activation/final authenticated audit still prevents the actual frontend rebase.
+Independent work inside the isolated frontend worktree remains available, so
+the temporary stop-list below applies to integration files rather than blocking
+the migration master as a whole.
 
 ## Goal
 
@@ -96,9 +97,10 @@ header and page contracts. This closes the one-off-prototype risk for the
 registry family: shared behavior now has two consumers, while entity columns
 remain scenario-specific.
 
-Both scenarios are available through the generic reversible island boundary.
+All three scenarios are available through the generic reversible island boundary.
 Nomenclature remains the only proposed first production feature-flag scope;
-Component Types is an isolated reuse proof, not a production activation claim.
+Component Types is an isolated reuse proof, and Boards/BOM is an isolated
+process-specific proof; neither is a production activation claim.
 
 The lab also contains a host-side feature gate. A disabled flag never mounts
 React; mount/update/render failures schedule one fallback, unmount React, and
@@ -106,18 +108,21 @@ restore the host-owned legacy view. Browser QA proved disabled and render-error
 paths without console warnings. This closes the isolated rollback-mechanics
 gate but does not wire or activate a production flag.
 
-The production-candidate Nomenclature entry is now separated from the
-multi-scenario lab. Its minified budget is `225,000 B` raw / `68,000 B` gzip;
-the current artifact is `205,294 B` / `63,649 B` and is checked not to contain
-the Component Types scenario. The shared runtime reports post-commit revision
+The production-candidate Nomenclature and Boards entries are separated from the
+multi-scenario lab. Each minified budget is `225,000 B` raw / `68,000 B` gzip;
+the current artifacts are respectively `205,396 B` / `63,682 B` and
+`208,032 B` / `64,296 B`, and each is checked not to contain unrelated
+scenarios. The shared runtime reports post-commit revision
 events, so Pilot mount/update time can later be measured without arbitrary
 timeouts. Local timings are QA evidence only, not Pilot acceptance.
 
 The legacy source audit also found that `Печатные платы` in the Nomenclature
 sidebar opens the separate Boards/BOM pane and counts `bomLists`; it is not an
-item filter. The React item-list scenario now requests `unsupported-scope` and
-returns to legacy for that action. Boards remains a separate future vertical
-scenario, preserving the current business navigation in the meantime.
+item filter. The React item-list scenario still requests `unsupported-scope`
+and returns to legacy for that action. An independent Boards/BOM read-only
+vertical scenario now covers board selection, identity, nine-column BOM
+inspection, component totals and the empty-board state without prematurely
+taking over production navigation.
 
 The same audit confirmed that the legacy module owns create/edit/delete
 commands. The read-only React slice is therefore eligible only for an explicit
@@ -129,6 +134,11 @@ with the React adapter on the same fixture. The seven read headers, four row
 IDs, cell values, order and initial selection match. The legacy editor and
 `Действия` column are recorded as intentional non-parity protected by the
 activation policy, not hidden behind a broad parity claim.
+
+Boards QA also executes the actual legacy Boards page and BOM row normalizer on
+the shared fixture. Nine read headers, normalized row values and order, plus
+sidebar component totals match. The legacy action column, editable inputs,
+create/import/delete commands, and editor mode remain explicit non-parity.
 
 A dry-run rebase preflight against `origin/main@e4e65aa` found 33 frontend paths,
 50 main paths, zero overlapping paths and zero merge conflict markers. The
@@ -148,7 +158,7 @@ Specifications acceptance required by the PostgreSQL handoff.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for two registry proofs.**
+1. Finish the isolated lab and component contract. **Complete for two registry proofs and the Boards/BOM read-only proof.**
 2. Wait for PostgreSQL live worker acceptance and contract checkpoint.
 3. Rebase this branch onto the accepted PostgreSQL/main commit.
 4. Replace fixtures with read-only API adapters.

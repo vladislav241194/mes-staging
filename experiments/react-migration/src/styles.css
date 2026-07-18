@@ -23,6 +23,9 @@ h2 { font-size: 16px; }
 .filter:hover { background: #f0f5fb; }
 .filter.is-active { color: #164fa4; background: #e5efff; }
 .filter b { font-size: 11px; }
+.filter-copy { display: grid; min-width: 0; gap: 2px; }
+.filter-copy > span, .filter-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-copy small { color: #7a8b9d; font-size: 9px; font-weight: 450; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 14px; }
 .panel, .detail { border-radius: 18px; overflow: hidden; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
@@ -56,3 +59,10 @@ dl { display: grid; gap: 12px; margin: 0; }
 dl div { padding-bottom: 10px; border-bottom: 1px solid #edf1f5; }
 dt { color: #718296; font-size: 10px; text-transform: uppercase; }
 dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
+.board-summary { display: grid; grid-template-columns: repeat(5, minmax(104px, 1fr)); gap: 8px; padding: 14px 16px; border-bottom: 1px solid #e3ebf3; background: #f8fafc; }
+.board-summary article { display: grid; gap: 3px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
+.board-summary span, .board-summary small { color: #718296; font-size: 9px; }
+.board-summary strong { font-size: 17px; }
+.bom-table { min-width: 1120px; }
+.bom-table td:nth-child(7) { text-align: right; }
+.primary-cell { font-weight: 650; }

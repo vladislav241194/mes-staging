@@ -43,6 +43,11 @@ browser storage, or manipulate DOM outside its target.
 the first feature-flag integration. Component Types proves the generic boundary
 in the lab but is not approved for production activation yet.
 
+`mountBoardsReactIsland(...)` provides an independently bundled boundary for
+the read-only Boards/BOM scenario. Its existence does not transfer the
+Nomenclature `Печатные платы` navigation from legacy; the host must approve and
+gate that scope separately.
+
 The Nomenclature wrapper has its own entry point and does not bundle Component
 Types. The multi-scenario lab keeps a separate entry for development QA.
 
@@ -72,7 +77,8 @@ creation, it unmounts that root before rethrowing to the feature gate.
 - Activation: explicit local/runtime configuration after PostgreSQL acceptance.
 - Editor mode: legacy until create/edit/delete command parity is implemented
   and accepted; do not mount the read-only island.
-- Boards pane: legacy until its separate vertical scenario is accepted.
+- Boards pane: legacy until its separate vertical scenario passes host payload,
+  visual, authenticated Pilot, and rollback acceptance.
 - Failure: `onError` schedules one host fallback; the feature gate unmounts the
   island and restores the legacy module.
 - Rollback: disable flag and use the unchanged legacy renderer.

@@ -1,24 +1,31 @@
 import { resolveNomenclatureActivation } from "./activation-policy";
 import { createReactIslandFeatureGate, type LegacyFallbackContext } from "./feature-gate";
 import { componentTypesFixture, componentTypesUpdateFixture } from "./modules/component-types/fixture";
+import { boardsFixture, boardsUpdateFixture } from "./modules/boards/fixture";
 import { nomenclatureFixture, nomenclatureUpdateFixture } from "./modules/nomenclature/fixture";
 import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
 
 const root = document.querySelector<HTMLElement>("#root");
 if (!root) throw new Error("React migration lab root is missing");
 const searchParams = new URL(window.location.href).searchParams;
-const scenario: ReactMigrationScenarioId = searchParams.get("scenario") === "component-types" ? "componentTypes" : "nomenclature";
-const initialPayload = scenario === "componentTypes" ? componentTypesFixture : nomenclatureFixture;
-const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : nomenclatureUpdateFixture;
+const scenarioParam = searchParams.get("scenario");
+const scenario: ReactMigrationScenarioId = scenarioParam === "component-types" ? "componentTypes" : scenarioParam === "boards" ? "boards" : "nomenclature";
+const initialPayload = scenario === "componentTypes" ? componentTypesFixture : scenario === "boards" ? boardsFixture : nomenclatureFixture;
+const updatePayload = scenario === "componentTypes" ? componentTypesUpdateFixture : scenario === "boards" ? boardsUpdateFixture : nomenclatureUpdateFixture;
 const featureFlagEnabled = searchParams.get("react") !== "0";
+const accessMode = searchParams.get("access") === "editor" ? "editor" : "read-only-evaluation";
 const nomenclatureActivation = resolveNomenclatureActivation({
   featureFlagEnabled,
   activePane: searchParams.get("pane") === "boards" ? "boards" : "items",
-  accessMode: searchParams.get("access") === "editor" ? "editor" : "read-only-evaluation",
+  accessMode,
 });
 const activationDecision = scenario === "nomenclature"
   ? nomenclatureActivation
-  : { activateReact: featureFlagEnabled, reason: featureFlagEnabled ? "eligible" as const : "disabled" as const };
+  : !featureFlagEnabled
+    ? { activateReact: false, reason: "disabled" as const }
+    : accessMode === "editor"
+      ? { activateReact: false, reason: "write-parity-incomplete" as const }
+      : { activateReact: true, reason: "eligible" as const };
 let lifecycleStatus: HTMLElement | null = null;
 const performancePrefix = `mes-react-island:${scenario}`;
 let nextExpectedRevision = 1;

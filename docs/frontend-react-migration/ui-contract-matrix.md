@@ -28,6 +28,7 @@ unresolved.
 | Family | Shared | Remains specialized | First proof |
 | --- | --- | --- | --- |
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types read-only scenarios |
+| Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
 | Dense planning | Header, toolbar, status, loading/error | Dense grids, calendar and planning calculations | After registry proof |
 | Operational | Status, action, overlay frames | Workshop board, worker fact entry, shift documents | After PostgreSQL final acceptance |
 | Protected canvas | Shell-level states only | Gantt geometry and Specifications tree/editor | Late migration with dedicated guardrails |
@@ -45,9 +46,9 @@ unresolved.
 The lab now implements `ModulePage`, `ModuleHeader`, `ModuleSidebar`,
 `SidebarItem`, `Panel`, `TableWrap`, `ActionButton`, `SelectableRow`,
 `DetailPanel`, `EmptyState`, `SystemState`, and `StatusToken`. Nomenclature and
-Component Types use the same primitives; entity-specific columns, filters, and
-detail fields remain inside their scenario. Write actions stay disabled until
-an accepted API contract is connected.
+Component Types and Boards/BOM use the same primitives; entity-specific columns,
+filters, summaries, and detail fields remain inside their scenario. Write
+actions stay disabled until an accepted API contract is connected.
 
 ## Nomenclature read-model evidence
 
@@ -84,8 +85,23 @@ Boards/BOM pane. The React item-list scenario keeps this distinction:
 - ordinary types filter the typed nomenclature payload;
 - the Boards badge counts `bomLists`;
 - selecting Boards requests legacy through the feature gate;
-- Boards must be migrated as a separate vertical scenario before React can own
-  that pane.
+- Boards must pass its separate vertical acceptance before React can own that
+  pane in production.
 
 This is classified as process-specific composition, not a `SidebarItem` visual
 variant and not permission to reinterpret Boards as a nomenclature filter.
+
+## Boards/BOM read-model evidence
+
+The isolated Boards adapter mirrors `directoryState.bomLists` and preserves the
+legacy dual representation: imported `importRows` are authoritative when
+present; the old eight component-count fields remain the fallback for older
+saved boards. Imported rows keep all nine A:I values and the current package/
+quantity normalization semantics. The sidebar badge remains the sum of
+component quantities only when rows exist.
+
+The board list reuses the shared `SidebarItem` with optional metadata. The BOM
+summary and nine-column table are process-specific composition inside the
+shared `Panel` and `TableWrap`; they are not promoted to universal registry
+variants. The actual legacy action column and editable inputs remain protected
+by editor fallback.

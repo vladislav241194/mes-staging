@@ -191,6 +191,146 @@ try {
   })), "React adapter rows must preserve actual legacy visible data");
   assert.deepEqual(legacyRows.filter((row) => row.selected).map((row) => row.id), [firstLegacyItem.id], "legacy selected row must match React initial selection");
 
+  const boardsAdapterOutput = join(temporaryRoot, "boards-adapter.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/boards/adapter.ts")],
+    outfile: boardsAdapterOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const boardsAdapter = await import(`${pathToFileURL(boardsAdapterOutput).href}?qa=${Date.now()}`);
+  const normalizedBomRows = boardsAdapter.adaptBomImportRows([
+    { values: [1, "Резистор", "R1", "RC0603", "Yageo", 603, "2,4", "", ""] },
+    null,
+  ]);
+  assert.equal(normalizedBomRows[0].packageName, "0603", "numeric package must preserve the leading zero used by legacy");
+  assert.equal(normalizedBomRows[0].quantity, 2, "legacy BOM quantity semantics round to an integer");
+  assert.equal(normalizedBomRows.length, 2, "legacy keeps structurally empty imported rows instead of filtering them");
+  assert.deepEqual(boardsAdapter.adaptBomImportRows({}), [], "invalid BOM rows payload must fail closed");
+
+  const boardsFixtureOutput = join(temporaryRoot, "boards-fixture.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/boards/fixture.ts")],
+    outfile: boardsFixtureOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const { boardsFixture } = await import(`${pathToFileURL(boardsFixtureOutput).href}?qa=${Date.now()}`);
+  const adaptedBoards = boardsAdapter.adaptBoards(boardsFixture);
+  assert.deepEqual(adaptedBoards.map((board) => [board.id, board.rows.length, board.componentTotal, board.activeComponentTypes]), [
+    ["board-control", 4, 16, 4],
+    ["board-power", 0, 0, 0],
+  ], "Boards adapter must preserve rows and legacy component totals");
+  assert.equal(adaptedBoards[0].headers[3], "Артикул производителя", "known legacy BOM header typo must normalize");
+  assert.deepEqual(boardsAdapter.adaptBoards({ bomLists: [{ id: "", name: "invalid" }, null] }), [], "invalid Boards records must fail closed");
+
+  const boardsViewModelOutput = join(temporaryRoot, "boards-view-model.mjs");
+  await build({
+    entryPoints: [join(sourceRoot, "modules/boards/view-model.ts")],
+    outfile: boardsViewModelOutput,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node20",
+  });
+  const boardsViewModel = await import(`${pathToFileURL(boardsViewModelOutput).href}?qa=${Date.now()}`);
+  assert.equal(boardsViewModel.formatBomCell(0), "0", "zero quantity must remain visible like the legacy input value");
+  assert.equal(boardsViewModel.formatBomCell(""), "", "empty BOM cells must remain blank like the legacy input value");
+  assert.equal(boardsViewModel.resolveVisibleBoard(adaptedBoards, "missing")?.id, "board-control");
+  assert.match(boardsViewModel.getBoardSidebarMeta(adaptedBoards[1]), /Черновик$/);
+  const legacyCounterOnlyBoard = boardsAdapter.adaptBoards({ bomLists: [{ id: "legacy-counts", name: "Legacy", c0603: 12 }] })[0];
+  assert.equal(legacyCounterOnlyBoard.componentTotal, 12, "adapter must preserve old component counters for downstream compatibility");
+  assert.equal(boardsViewModel.getVisibleComponentTotal(legacyCounterOnlyBoard), 0, "Boards UI must keep the legacy zero badge when importRows are absent");
+
+  const { createProductsRenderModule } = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/products/render.js")).href}?qa=${Date.now()}`);
+  const legacyProductsModule = createProductsRenderModule({
+    BOM_COMPONENT_FIELDS: boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => ({ ...field, componentId: `ct-${field.key}` })),
+    BOM_IMPORT_COLUMN_COUNT: boardsAdapter.BOM_IMPORT_HEADERS.length,
+    BOM_IMPORT_FALLBACK_HEADERS: boardsAdapter.BOM_IMPORT_HEADERS,
+    getDirectoryState: () => boardsFixture,
+    getPlanningState: () => ({ routes: [] }),
+    getUi: () => ({ activeBomId: "board-control" }),
+  });
+  const firstLegacyBoard = boardsFixture.bomLists[0];
+  const legacyBomRows = legacyProductsModule.getBomImportRows(firstLegacyBoard);
+  const classifyLegacyRow = (row) => {
+    const combined = `${row.package || ""} ${row.description || ""}`.toLocaleLowerCase("ru-RU").replace(/[.,\s]/g, "").replace(/ё/g, "е");
+    if (combined.includes("0402")) return "c0402";
+    if (combined.includes("0603")) return "c0603";
+    if (combined.includes("0805") || combined.includes("2012")) return "c0805";
+    if (["sot23", "sot223", "sod"].some((token) => combined.includes(token))) return "csot23";
+    if (["soic", "tssop", "ssop", "so16", "hsop"].some((token) => combined.includes(token))) return "csoic";
+    if (["qfn", "dfn", "lga"].some((token) => combined.includes(token))) return "cqfn";
+    if (combined.includes("bga")) return "cbga";
+    return "cconnector";
+  };
+  const getLegacyComponentCounts = (board) => {
+    const rows = legacyProductsModule.getBomImportRows(board);
+    const counts = Object.fromEntries(boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => [field.key, 0]));
+    if (rows.length) rows.forEach((row) => { counts[classifyLegacyRow(row)] += Number(row.quantity || 0); });
+    else boardsAdapter.BOM_COMPONENT_FIELDS.forEach((field) => { counts[field.key] = Math.max(0, Math.round(Number(board[field.key] || 0))); });
+    return counts;
+  };
+  const getLegacyBomHeaders = (board) => Array.from({ length: boardsAdapter.BOM_IMPORT_HEADERS.length }, (_, index) => {
+    const label = String(board.importHeaders?.[index] || boardsAdapter.BOM_IMPORT_HEADERS[index]).trim();
+    return label.toLocaleLowerCase("ru-RU").replace(/\s+/g, " ") === "аритикул производителя" ? "Артикул производителя" : label;
+  });
+  const legacyBoardsHtml = renderNomenclatureModulePage({
+    BOARD_BOM_TERM: "BOM платы",
+    BOARD_SPEC_LIST_TERM: "Платы",
+    BOM_COMPONENT_FIELDS: boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => ({ ...field, componentId: `ct-${field.key}` })),
+    BOM_IMPORT_COLUMN_COUNT: boardsAdapter.BOM_IMPORT_HEADERS.length,
+    BOM_IMPORT_FALLBACK_HEADERS: boardsAdapter.BOM_IMPORT_HEADERS,
+    NOMENCLATURE_REA_COMPONENT_TYPE: "РЭА компоненты",
+    directoryState: { ...boardsFixture, nomenclature: [], nomenclatureTypes: [] },
+    escapeAttribute: escapeLegacyText,
+    escapeHtml: escapeLegacyText,
+    getActiveBomForModule: () => firstLegacyBoard,
+    getActiveNomenclaturePane: () => "boards",
+    getBomComponentCounts: getLegacyComponentCounts,
+    getBomComponentFieldCounts: (counts) => Object.fromEntries(boardsAdapter.BOM_COMPONENT_FIELDS.map((field) => [field.key, counts[field.key] ?? counts[`ct-${field.key}`] ?? 0])),
+    getBomImportHeaders: getLegacyBomHeaders,
+    getBomImportRows: (board) => legacyProductsModule.getBomImportRows(board),
+    getNomenclatureTypeCounts: () => ({}),
+    getNomenclatureTypeFilterValue: () => "all",
+    getNomenclatureTypeOptions: () => [],
+    getReaNomenclatureItems: () => [],
+    icon: () => "",
+    renderDenseInlineSelect: () => "<select></select>",
+    renderUiActionButton: ({ label = "", attributes = "" }) => `<button ${attributes}>${escapeLegacyText(label)}</button>`,
+    renderUiActionFileLabel: ({ label = "" }) => `<label>${escapeLegacyText(label)}</label>`,
+    renderUiEmptyState: ({ title = "", text = "" }) => `<div>${escapeLegacyText(title)}${escapeLegacyText(text)}</div>`,
+    renderUiFilterBar: ({ body = "" }) => body,
+    renderUiFormActions: ({ actions = "" }) => actions,
+    renderUiFormField: ({ control = "" }) => control,
+    renderUiFormGrid: ({ body = "" }) => body,
+    renderUiModuleHeader: ({ title = "", description = "" }) => `<header><h1>${escapeLegacyText(title)}</h1><p>${escapeLegacyText(description)}</p></header>`,
+    renderUiModulePage: ({ sidebar = "", header = "", content = "" }) => `<main>${sidebar}${header}${content}</main>`,
+    renderUiModuleSidebar: ({ body = "" }) => `<aside>${body}</aside>`,
+    renderUiPanel: ({ body = "" }) => `<section>${body}</section>`,
+    renderUiPanelBody: ({ body = "" }) => body,
+    renderUiSidebarItem: ({ title = "", meta = "", badge = "", attributes = "" }) => `<button ${attributes}><span>${escapeLegacyText(title)}</span><small>${escapeLegacyText(meta)}</small><b>${escapeLegacyText(badge)}</b></button>`,
+    renderUiTableWrap: ({ body = "" }) => `<div>${body}</div>`,
+    ui: { activeBomId: firstLegacyBoard.id },
+  });
+  const legacyBoardTable = legacyBoardsHtml.match(/<table class="directory-table bom-import-table">([\s\S]*?)<\/table>/)?.[1] || "";
+  assert.ok(legacyBoardTable, "actual legacy Boards/BOM table must render");
+  const legacyBoardHeaders = [...legacyBoardTable.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((match) => decodeLegacyText(match[1]));
+  assert.deepEqual(legacyBoardHeaders.slice(0, -1), adaptedBoards[0].headers, "React BOM headers must match the actual legacy order");
+  assert.equal(legacyBoardHeaders.at(-1), "Действия", "legacy BOM write column must remain outside the read-only React slice");
+  const legacyBoardBody = legacyBoardTable.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] || "";
+  const legacyBoardRows = [...legacyBoardBody.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((match) => (
+    [...match[1].matchAll(/<input[\s\S]*?value="([^"]*)"[\s\S]*?\/>/g)].map((cell) => decodeLegacyText(cell[1]))
+  ));
+  assert.deepEqual(legacyBoardRows, adaptedBoards[0].rows.map((row) => row.values.map(String)), "React BOM rows must preserve actual legacy visible data and order");
+  const legacyBoardButtons = [...legacyBoardsHtml.matchAll(/<button data-bom-open="([^"]+)"[^>]*>[\s\S]*?<b>([^<]*)<\/b><\/button>/g)].map((match) => [match[1], decodeLegacyText(match[2])]);
+  assert.deepEqual(legacyBoardButtons, adaptedBoards.map((board) => [board.id, String(board.rows.length ? board.componentTotal : 0)]), "React board list must preserve legacy badge totals");
+  assert.deepEqual(legacyBomRows.map((row) => row.values.map(String)), adaptedBoards[0].rows.map((row) => row.values.map(String)), "React adapter must match the actual legacy BOM row normalizer");
+
   const componentTypesAdapterOutput = join(temporaryRoot, "component-types-adapter.mjs");
   await build({
     entryPoints: [join(sourceRoot, "modules/component-types/adapter.ts")],
@@ -414,9 +554,13 @@ try {
   assert.match(nomenclatureIslandSource, /export function mountNomenclatureReactIsland/);
   assert.match(nomenclatureIslandSource, /onRequestLegacy/);
 
+  const boardsIslandSource = await readFile(join(sourceRoot, "boards-island.tsx"), "utf8");
+  assert.match(boardsIslandSource, /export function mountBoardsReactIsland/);
+
   const mainSource = await readFile(join(sourceRoot, "main.tsx"), "utf8");
   assert.match(mainSource, /lifecycle_qa/);
   assert.match(mainSource, /scenario.*component-types/);
+  assert.match(mainSource, /scenarioParam.*boards/);
   assert.match(mainSource, /createReactIslandFeatureGate/);
   assert.match(mainSource, /featureGate\.update\(updatePayload\)/);
   assert.match(mainSource, /featureGate\.dispose\(\)/);
@@ -432,6 +576,7 @@ try {
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });
   assert.match(performanceBudget, /"nomenclature"/);
+  assert.match(performanceBudget, /"boards"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   console.log(`React migration QA passed: ${sources.length} typed sources, adapter boundary, UI markers, stop-list, build.`);

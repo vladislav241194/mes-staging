@@ -15,13 +15,14 @@ Current minified measurements:
 
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
-| Nomenclature production island | 205,294 B | 63,649 B | 225,000 B | 68,000 B |
-| Full two-scenario lab | 220,768 B | 67,065 B | 240,000 B | 75,000 B |
-| Shared lab CSS | 4,593 B | 1,438 B | 6,000 B | 2,000 B |
+| Nomenclature production island | 205,396 B | 63,682 B | 225,000 B | 68,000 B |
+| Boards/BOM production island | 208,032 B | 64,296 B | 225,000 B | 68,000 B |
+| Full three-scenario lab | 233,261 B | 69,621 B | 240,000 B | 75,000 B |
+| Shared lab CSS | 5,377 B | 1,630 B | 6,000 B | 2,000 B |
 
-The budget script also inspects the minified Nomenclature artifact and rejects
-it if the Component Types scenario label is bundled. This preserves the first
-vertical slice instead of shipping every lab scenario with it.
+The budget script also inspects the minified Nomenclature and Boards artifacts
+and rejects unrelated scenario labels. This preserves independent vertical
+slices instead of shipping every lab scenario with either island.
 
 The command is part of `qa.mjs`, so size regressions fail the normal isolated
 contract gate.
@@ -38,6 +39,7 @@ Browser evidence from one local run:
 | --- | ---: | ---: | --- |
 | Nomenclature | 21.2 ms | 3.0 ms | 1 row, one selected row |
 | Component Types | 9.6 ms | 1.4 ms | 1 row, detail updated |
+| Boards/BOM | measured by the same callback | 3.80 ms | 2 rows, 5 components, revision 2 |
 
 Both paths produced revision `1` then `2`, with no console warnings/errors.
 

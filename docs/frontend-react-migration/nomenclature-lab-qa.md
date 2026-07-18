@@ -20,7 +20,7 @@ node experiments/react-migration/qa.mjs
 
 Result:
 
-- seventeen typed sources in the combined registry lab compiled;
+- 22 typed sources in the combined migration lab compiled;
 - invalid position records fail closed;
 - legacy REA aliases normalize to `РЭА компоненты`;
 - inactive type rows are excluded;
@@ -64,9 +64,11 @@ embedded Boards/BOM pane and its badge counts `directoryState.bomLists`.
 The fixture deliberately contains one nomenclature PCB row and two `bomLists`.
 The browser rendered `Печатные платы 2`. Clicking it requested
 `unsupported-scope`, unmounted React, restored the host-owned legacy view, and
-left no React `main`. The console remained clean. The Boards pane is therefore
-preserved in legacy until it receives its own vertical migration; React no
-longer silently changes this business navigation into a row filter.
+left no React `main`. The console remained clean. A separate isolated Boards/BOM
+vertical scenario now exists, but the Nomenclature production-candidate entry
+intentionally preserves this legacy fallback until Boards receives integration
+and Pilot acceptance. React does not silently change the business navigation
+into a row filter.
 
 ## Write-capability boundary
 
