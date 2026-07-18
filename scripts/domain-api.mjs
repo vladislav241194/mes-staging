@@ -2,6 +2,7 @@ import { createWorkOrdersRepository } from "./domain-repositories.mjs";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { createShiftExecutionCommandRepository, createShiftExecutionReadRepository } from "./domain-shift-execution-repository.mjs";
+import { inspectShiftExecutionAuthority } from "./domain-shift-execution-authority.mjs";
 import { createSpecifications2PublishCommandRepository, createSpecifications2ReadRepository, createSpecifications2WorkOrderCommandRepository } from "./domain-specifications2-repository.mjs";
 import { createSpecifications2AttachmentRepository } from "./domain-specifications2-attachment-repository.mjs";
 import { createSpecifications2SnapshotRepository } from "./domain-specifications2-snapshot-repository.mjs";
@@ -1422,7 +1423,17 @@ export async function handleDomainApiRequest(req, res, url, {
         workCenterIds: shiftExecutionDispatchQuery.workCenterIds,
         dateKey: shiftExecutionDispatchQuery.dateKey,
       });
-      const payload = { ok: true, apiVersion: "v1", ...result };
+      const authority = await inspectShiftExecutionAuthority({ primary: shifts, env, filePath });
+      const payload = {
+        ok: true,
+        apiVersion: "v1",
+        ...result,
+        // Complete means complete for the exact requested board scope and is
+        // only promoted after the global compatibility snapshot was imported,
+        // proved and durably retired.
+        coverageComplete: authority.serverAuthoritative === true,
+        authority: { serverAuthoritative: authority.serverAuthoritative === true, reason: authority.reason || "" },
+      };
       const etag = getPayloadEtag(payload);
       if (matchesEtag(req, etag)) sendNotModified(res, headers, etag);
       else sendJson(res, headers, 200, payload, { ETag: etag });
@@ -1730,16 +1741,14 @@ export async function handleDomainApiRequest(req, res, url, {
       shifts = shiftExecutionReadRepositoryFactory({ databaseUrl });
       const summary = await shifts.summary();
       const commandReadiness = await shifts.commandReadiness();
+      const authority = await inspectShiftExecutionAuthority({ primary: shifts, env, filePath });
       readiness.shiftExecution = {
-        ready: summary.storageBackend === "postgresql",
+        ready: summary.storageBackend === "postgresql" && authority.serverAuthoritative === true,
         storageBackend: summary.storageBackend,
         summary: summary.summary,
-        // A scheduled operation is not automatically a shift assignment:
-        // the workshop creates assignments only when a master distributes
-        // work. Therefore an empty source is a valid synchronized state, not
-        // an incomplete migration.
-        sourceSynchronized: true,
-        migrationState: Number(summary.summary?.assignmentCount || 0) > 0 ? "synchronized" : "empty-source",
+        sourceSynchronized: authority.serverAuthoritative === true,
+        migrationState: authority.serverAuthoritative === true ? "postgres-primary" : authority.reason || "authority-unavailable",
+        authority,
         plannedOperationCount: scheduledOperationCount,
         error: "",
       };
@@ -1799,12 +1808,15 @@ export async function handleDomainApiRequest(req, res, url, {
     try {
       shifts = shiftExecutionReadRepositoryFactory({ databaseUrl: env.DATABASE_URL || env.MES_DOMAIN_DATABASE_URL || "" });
       const commandReadiness = await shifts.commandReadiness();
+      const authority = await inspectShiftExecutionAuthority({ primary: shifts, env, filePath });
       const commandsEnabled = String(env.MES_ENABLE_SHIFT_EXECUTION_SERVER_COMMANDS || "") === "1" && health.storageBackend === "postgresql" && commandReadiness.schemaReady === true;
       sendJson(res, headers, 200, { ok: true, apiVersion: "v1", capabilities: {
         assignmentCreationEnabled: commandsEnabled,
         carryoverCancellationEnabled: commandsEnabled,
         primaryPostgres: health.storageBackend === "postgresql",
         schemaReady: commandReadiness.schemaReady === true,
+        serverAuthoritative: authority.serverAuthoritative === true,
+        authority: { reason: authority.reason || "", compatibility: authority.compatibility || null },
       } });
     } catch (error) {
       sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" });
@@ -1852,7 +1864,11 @@ export async function handleDomainApiRequest(req, res, url, {
       if (result.conflict) sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...result, error: result.error || "Shift execution command conflicts with the current server state" });
       else if (!result.item) sendJson(res, headers, 422, { ok: false, apiVersion: "v1", error: result.error || "Shift assignment cannot be saved" });
       else sendJson(res, headers, result.created && !isShiftExecutionCarryoverCancel ? 201 : 200, { ok: true, apiVersion: "v1", ...result });
-    } catch (error) { sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" }); }
+    } catch (error) {
+      if (error?.code === "SHIFT_EXECUTION_AUTHORITY_TRANSITION_PENDING") {
+        sendJson(res, headers, 409, { ok: false, apiVersion: "v1", retryable: true, error: error.message });
+      } else sendJson(res, headers, 503, { ok: false, apiVersion: "v1", error: error?.message || "Shift execution command storage is unavailable" });
+    }
     finally { await shifts?.close?.(); }
     return true;
   }

@@ -25,6 +25,11 @@ const DIRECTORY_STORAGE_KEY = "mes-planning-prototype-directories-v2";
 const PLANNING_STATE_KEY = "mes-planning-prototype-state-v2";
 const SYSTEM_DOMAINS_COMPATIBILITY_HEADER = "x-mes-system-domains-compatibility";
 const SPECIFICATIONS2_PUBLICATION_AUTHORITY_MAX = 500;
+const SHIFT_EXECUTION_SHARED_UI_KEYS = new Set([
+  "shiftMasterBoardAssignments",
+  "shiftMasterBoardFacts",
+  "shiftMasterBoardCarryovers",
+]);
 const ALLOWED_VALUE_KEYS = new Set([
   "mes-planning-prototype-state-v2",
   "mes-planning-prototype-directories-v2",
@@ -77,6 +82,48 @@ function normalizeSystemDomainsRetirement(value) {
     action,
     createdAt: typeof value.createdAt === "string" ? value.createdAt.slice(0, 80) : "",
   };
+}
+
+export function normalizeShiftExecutionRetirement(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const transitionId = String(value.transitionId || "").trim().slice(0, 160);
+  const sourceDigest = String(value.sourceDigest || "").trim().toLowerCase();
+  const sourceSnapshotVersion = Number(value.sourceSnapshotVersion || 0);
+  if (!transitionId || !/^[a-f0-9]{64}$/.test(sourceDigest)
+    || !Number.isInteger(sourceSnapshotVersion) || sourceSnapshotVersion < 0) return null;
+  return {
+    transitionId,
+    sourceDigest,
+    sourceSnapshotVersion,
+    retiredAt: typeof value.retiredAt === "string" ? value.retiredAt.slice(0, 80) : "",
+  };
+}
+
+function retireShiftExecutionSharedUi(sharedUi, retirement) {
+  const next = sharedUi && typeof sharedUi === "object" && !Array.isArray(sharedUi) ? { ...sharedUi } : {};
+  if (!retirement) return next;
+  SHIFT_EXECUTION_SHARED_UI_KEYS.forEach((key) => { delete next[key]; });
+  return next;
+}
+
+function attemptsToRetireShiftExecutionSharedUi(payload = {}) {
+  const full = payload.sharedUi && typeof payload.sharedUi === "object" ? payload.sharedUi : {};
+  const replace = payload.sharedUiPatch?.replace && typeof payload.sharedUiPatch.replace === "object"
+    ? payload.sharedUiPatch.replace : {};
+  return [...SHIFT_EXECUTION_SHARED_UI_KEYS].some((key) => full[key] === null || replace[key] === null);
+}
+
+function attemptsToRestoreShiftExecutionSharedUi(payload = {}) {
+  const full = payload.sharedUi && typeof payload.sharedUi === "object" ? payload.sharedUi : {};
+  const maps = payload.sharedUiPatch?.maps && typeof payload.sharedUiPatch.maps === "object"
+    ? payload.sharedUiPatch.maps : {};
+  const replace = payload.sharedUiPatch?.replace && typeof payload.sharedUiPatch.replace === "object"
+    ? payload.sharedUiPatch.replace : {};
+  return [...SHIFT_EXECUTION_SHARED_UI_KEYS].some((key) => (
+    (full[key] && typeof full[key] === "object")
+    || (maps[key] && typeof maps[key] === "object")
+    || (replace[key] && typeof replace[key] === "object")
+  ));
 }
 
 function getFileFingerprint(fileStat) {
@@ -254,6 +301,9 @@ function parseSnapshot(raw) {
       // only by the root-controlled System Domains retirement path and lets a
       // pending authority transition resume safely after ordinary UI saves.
       systemDomainsRetirement: normalizeSystemDomainsRetirement(parsed.systemDomainsRetirement),
+      // The server-side cutover owns this marker. Once present, legacy browser
+      // saves cannot recreate the three Shift Execution compatibility maps.
+      shiftExecutionRetirement: normalizeShiftExecutionRetirement(parsed.shiftExecutionRetirement),
       // Server-first Specifications 2.0 publications leave an authority
       // marker outside the browser-owned registry.  Old bundles normalise the
       // registry and would otherwise drop the marker on their next full save.
@@ -428,6 +478,7 @@ function createEmptySnapshot() {
     sharedUi: {},
     events: [],
     systemDomainsRetirement: null,
+    shiftExecutionRetirement: null,
     specifications2PublicationAuthority: null,
   };
 }
@@ -554,6 +605,9 @@ export async function updateSharedStateSnapshot({
   beforeWrite = null,
   planningObservationSource = "shared-state-domain-update",
   allowSystemDomainsCompatibilitySnapshotRetirement = false,
+  allowShiftExecutionCompatibilitySnapshotRetirement = false,
+  allowShiftExecutionCompatibilitySnapshotRestore = false,
+  fileLockHeld = false,
 } = {}) {
   const store = createStore({ env, filePath });
   if (!store.configured) return { ok: false, configured: false, snapshot: createEmptySnapshot() };
@@ -575,10 +629,31 @@ export async function updateSharedStateSnapshot({
         snapshot: current,
       };
     }
+    const currentShiftRetirement = normalizeShiftExecutionRetirement(current.shiftExecutionRetirement);
+    const requestedShiftRetirement = normalizeShiftExecutionRetirement(rawNext.shiftExecutionRetirement);
+    if (!currentShiftRetirement && requestedShiftRetirement
+      && allowShiftExecutionCompatibilitySnapshotRetirement !== true) {
+      return {
+        ok: false,
+        configured: true,
+        forbidden: true,
+        error: "Shift Execution compatibility snapshot retirement requires the controlled PostgreSQL-primary cutover",
+        snapshot: current,
+      };
+    }
+    const explicitlyRestoresShiftExecution = currentShiftRetirement
+      && Object.prototype.hasOwnProperty.call(rawNext, "shiftExecutionRetirement")
+      && rawNext.shiftExecutionRetirement === null
+      && allowShiftExecutionCompatibilitySnapshotRestore === true;
+    const shiftExecutionRetirement = explicitlyRestoresShiftExecution
+      ? null
+      : currentShiftRetirement || requestedShiftRetirement;
     const next = preserveRetiredSystemDomainsTombstone(current, rawNext);
     const snapshot = {
       ...current,
       ...next,
+      sharedUi: retireShiftExecutionSharedUi(next.sharedUi, shiftExecutionRetirement),
+      shiftExecutionRetirement,
       version: Number(current.version || 0) + 1,
       updatedAt: new Date().toISOString(),
     };
@@ -631,7 +706,7 @@ export async function updateSharedStateSnapshot({
     });
     return { ok: true, configured: true, snapshot, planningObservation: planningObservationResult };
   };
-  return store.kind === "file"
+  return store.kind === "file" && fileLockHeld !== true
     ? withSharedStateFileLock(store.filePath, applyUpdate)
     : applyUpdate();
 }
@@ -857,9 +932,13 @@ function buildClientSnapshot(current, payload) {
     updatedAt,
     updatedBy,
     values,
-    sharedUi: sanitizeSharedUi(sharedUi, current.sharedUi),
+    sharedUi: retireShiftExecutionSharedUi(
+      sanitizeSharedUi(sharedUi, current.sharedUi),
+      normalizeShiftExecutionRetirement(current.shiftExecutionRetirement),
+    ),
     events: [event, ...(current.events || [])].slice(0, 50),
     systemDomainsRetirement: current.systemDomainsRetirement || null,
+    shiftExecutionRetirement: normalizeShiftExecutionRetirement(current.shiftExecutionRetirement),
     // Browser payloads intentionally do not own published-revision authority.
     // Preserve the server marker across every legacy full snapshot write.
     specifications2PublicationAuthority: current.specifications2PublicationAuthority || null,
@@ -1007,6 +1086,29 @@ export async function handleSharedStateRequest(req, res, {
           configured: true,
           systemDomainsRetirementRequiresRootCutover: true,
           error: "System Domains compatibility snapshot retirement requires the root-controlled PostgreSQL-primary cutover",
+          current,
+        });
+        return;
+      }
+
+      const shiftExecutionRetirement = normalizeShiftExecutionRetirement(current.shiftExecutionRetirement);
+      if (!shiftExecutionRetirement && attemptsToRetireShiftExecutionSharedUi(payload)) {
+        sendJson(res, headers, 403, {
+          ok: false,
+          configured: true,
+          shiftExecutionRetirementRequiresControlledCutover: true,
+          error: "Shift Execution compatibility snapshot retirement requires the controlled PostgreSQL-primary cutover",
+          current,
+        });
+        return;
+      }
+      if (shiftExecutionRetirement && attemptsToRestoreShiftExecutionSharedUi(payload)) {
+        sendJson(res, headers, 409, {
+          ok: false,
+          configured: true,
+          conflict: true,
+          shiftExecutionSnapshotRetired: true,
+          error: "Shift Execution compatibility snapshot is retired and cannot be restored",
           current,
         });
         return;

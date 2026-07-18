@@ -111,8 +111,7 @@ async function verifyWorkOrderReferences(tx, payload) {
   }
 }
 
-export async function importShiftExecutionExport(sql, payload) {
-  await sql.begin(async (tx) => {
+export async function importShiftExecutionRows(tx, payload) {
     await verifyWorkOrderReferences(tx, payload);
     for (const row of payload.shiftAssignments) {
       await tx`
@@ -153,7 +152,10 @@ export async function importShiftExecutionExport(sql, payload) {
           created_at = EXCLUDED.created_at, source_payload = EXCLUDED.source_payload
       `;
     }
-  });
+}
+
+export async function importShiftExecutionExport(sql, payload) {
+  await sql.begin(async (tx) => importShiftExecutionRows(tx, payload));
 }
 
 async function main() {

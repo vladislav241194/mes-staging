@@ -233,7 +233,7 @@ async function main() {
     assert(preserved.json.sharedUi.accessRoleProfiles?.[0]?.id === "master", "POST without sharedUi should preserve access role profiles");
     assert(preserved.json.sharedUi.accessRoleAssignments?.["employee-qa"] === "master", "POST without sharedUi should preserve access role assignments");
 
-    const retiredShiftProjection = await callSharedState(filePath, "POST", {
+    const browserShiftRetirement = await callSharedState(filePath, "POST", {
       baseVersion: 2,
       clientId: "shift-server-authority",
       actor: "QA",
@@ -245,10 +245,46 @@ async function main() {
         shiftMasterBoardCarryovers: null,
       },
     });
-    assert(retiredShiftProjection.statusCode === 200 && retiredShiftProjection.json.version === 3, "Server authority tombstone must create a new shared-state revision");
+    assert(browserShiftRetirement.statusCode === 403 && browserShiftRetirement.json.shiftExecutionRetirementRequiresControlledCutover === true, "A browser must not retire Shift Execution outside the controlled PostgreSQL cutover");
+    const rootShiftRetirement = await updateSharedStateSnapshot({
+      filePath,
+      expectedVersion: 2,
+      allowShiftExecutionCompatibilitySnapshotRetirement: true,
+      update: (snapshot) => {
+        const sharedUi = { ...snapshot.sharedUi };
+        delete sharedUi.shiftMasterBoardAssignments;
+        delete sharedUi.shiftMasterBoardFacts;
+        delete sharedUi.shiftMasterBoardCarryovers;
+        return {
+          ...snapshot,
+          sharedUi,
+          shiftExecutionRetirement: {
+            transitionId: "shift-transition-qa",
+            sourceDigest: "a".repeat(64),
+            sourceSnapshotVersion: 2,
+            retiredAt: "2026-07-18T00:00:00.000Z",
+          },
+        };
+      },
+    });
+    assert(rootShiftRetirement.ok && rootShiftRetirement.snapshot?.version === 3, "The controlled cutover must create the Shift Execution retirement marker");
+    const retiredShiftProjection = { json: rootShiftRetirement.snapshot };
     assert(!Object.prototype.hasOwnProperty.call(retiredShiftProjection.json.sharedUi, "shiftMasterBoardAssignments"), "Retired shift assignments must not remain in shared state");
     assert(!Object.prototype.hasOwnProperty.call(retiredShiftProjection.json.sharedUi, "shiftMasterBoardFacts"), "Retired shift facts must not remain in shared state");
     assert(!Object.prototype.hasOwnProperty.call(retiredShiftProjection.json.sharedUi, "shiftMasterBoardCarryovers"), "Retired carryovers must not remain in shared state");
+
+    const staleShiftRestore = await callSharedState(filePath, "POST", {
+      baseVersion: 3,
+      clientId: "stale-shift-client",
+      actor: "QA",
+      action: "stale-shift-full-write",
+      values: olderClientValues,
+      sharedUi: {
+        ...retiredShiftProjection.json.sharedUi,
+        shiftMasterBoardAssignments: { "slot-a": { quantity: 12 } },
+      },
+    });
+    assert(staleShiftRestore.statusCode === 409 && staleShiftRestore.json.shiftExecutionSnapshotRetired === true, "A stale browser must not revive retired Shift Execution maps");
 
     const browserSystemDomainsRetirement = await callSharedState(filePath, "POST", {
       baseVersion: 3,

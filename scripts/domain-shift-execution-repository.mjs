@@ -78,6 +78,23 @@ function normalizeDispatchDateKey(value) {
   return dateKey;
 }
 
+export async function assertShiftExecutionCommandAuthorityWritable(tx) {
+  // Serialize the short compatibility cutover against every command. A
+  // command that started first completes before the migration observes the
+  // target; a command that starts after the pending marker fails closed.
+  await tx`SELECT pg_advisory_xact_lock_shared(hashtext('mes:shift-execution-postgres-authority'))`;
+  const rows = await tx`
+    SELECT mode FROM shift_execution_authority
+    WHERE authority_key = 'shared-ui-shift-execution-v1'
+    LIMIT 1
+  `;
+  if (["transition-pending", "rollback-pending"].includes(rows[0]?.mode)) {
+    const error = new Error("Shift Execution PostgreSQL authority transition is pending");
+    error.code = "SHIFT_EXECUTION_AUTHORITY_TRANSITION_PENDING";
+    throw error;
+  }
+}
+
 function compactExecutor(row) {
   return { employeeId: row.employee_id, quantity: number(row.quantity), note: row.note || "" };
 }
@@ -359,9 +376,25 @@ export function createShiftExecutionReadRepository({
       };
     },
     async commandReadiness() {
-      const rows = await sql`SELECT version FROM mes_schema_migrations WHERE version IN ('014_shift_execution_command_idempotency', '015_shift_execution_assignment_revisions', '016_shift_execution_fact_idempotency', '017_shift_execution_carryover_idempotency', '022_shift_execution_carryover_lifecycle')`;
+      const rows = await sql`SELECT version FROM mes_schema_migrations WHERE version IN ('014_shift_execution_command_idempotency', '015_shift_execution_assignment_revisions', '016_shift_execution_fact_idempotency', '017_shift_execution_carryover_idempotency', '022_shift_execution_carryover_lifecycle', '025_shift_execution_postgres_authority')`;
       const versions = new Set(rows.map((row) => row.version));
-      return { schemaReady: versions.has('014_shift_execution_command_idempotency') && versions.has('015_shift_execution_assignment_revisions') && versions.has('016_shift_execution_fact_idempotency') && versions.has('017_shift_execution_carryover_idempotency') && versions.has('022_shift_execution_carryover_lifecycle') };
+      return { schemaReady: versions.has('014_shift_execution_command_idempotency') && versions.has('015_shift_execution_assignment_revisions') && versions.has('016_shift_execution_fact_idempotency') && versions.has('017_shift_execution_carryover_idempotency') && versions.has('022_shift_execution_carryover_lifecycle') && versions.has('025_shift_execution_postgres_authority') };
+    },
+    async getAuthority() {
+      const rows = await sql`
+        SELECT mode, transition_id, source_snapshot_version, source_digest,
+               source_counts, source_export_path, activated_at
+        FROM shift_execution_authority
+        WHERE authority_key = 'shared-ui-shift-execution-v1'
+        LIMIT 1
+      `;
+      const row = rows[0];
+      return row ? {
+        mode: String(row.mode || ""), transitionId: String(row.transition_id || ""),
+        sourceSnapshotVersion: Number(row.source_snapshot_version || 0), sourceDigest: String(row.source_digest || ""),
+        sourceCounts: row.source_counts || {}, sourceExportPath: String(row.source_export_path || ""),
+        activatedAt: row.activated_at?.toISOString?.() || String(row.activated_at || ""),
+      } : null;
     },
     async close() {},
   };
@@ -373,9 +406,12 @@ export function createShiftExecutionReadRepository({
 export function createShiftExecutionCommandRepository({
   databaseUrl = process.env.DATABASE_URL || process.env.MES_DOMAIN_DATABASE_URL || "",
   sql: injectedSql = null,
+  authorityGuard = null,
 } = {}) {
   if (!databaseUrl && !injectedSql) throw new Error("DATABASE_URL is required for shift execution command storage");
   const sql = injectedSql || postgres(databaseUrl, { max: 1, connect_timeout: 5, prepare: false });
+  const ensureAuthorityWritable = authorityGuard
+    || (injectedSql ? async () => {} : assertShiftExecutionCommandAuthorityWritable);
   const metadata = { storageMode: "postgres", storageBackend: "postgresql", configured: true };
   const project = (row) => ({
     id: row.id, sourceRowId: row.source_row_id, sourceSlotId: row.source_slot_id,
@@ -389,6 +425,7 @@ export function createShiftExecutionCommandRepository({
     async createAssignment(input = {}) {
       const command = buildShiftAssignmentCommand(input);
       return sql.begin(async (tx) => {
+        await ensureAuthorityWritable(tx);
         const existing = await tx`
           SELECT assignment.* FROM shift_execution_command_requests request
           JOIN shift_assignments assignment ON assignment.id = request.shift_assignment_id
@@ -432,6 +469,7 @@ export function createShiftExecutionCommandRepository({
     async updateAssignment(input = {}) {
       const command = buildShiftAssignmentUpdateCommand(input);
       return sql.begin(async (tx) => {
+        await ensureAuthorityWritable(tx);
         const replay = await tx`
           SELECT request_fingerprint, shift_assignment_id FROM shift_execution_mutation_requests
           WHERE idempotency_key = ${command.idempotencyKey} LIMIT 1
@@ -474,6 +512,7 @@ export function createShiftExecutionCommandRepository({
     async recordFact(input = {}) {
       const command = buildShiftFactCommand(input);
       return sql.begin(async (tx) => {
+        await ensureAuthorityWritable(tx);
         const replay = await tx`SELECT request_fingerprint, shift_fact_id FROM shift_execution_fact_requests WHERE idempotency_key = ${command.idempotencyKey} LIMIT 1`;
         if (replay[0]) {
           if (replay[0].request_fingerprint !== command.requestFingerprint) throw new Error("Idempotency key was already used for another shift fact");
@@ -495,6 +534,7 @@ export function createShiftExecutionCommandRepository({
     async createCarryover(input = {}) {
       const command = buildShiftCarryoverCommand(input);
       return sql.begin(async (tx) => {
+        await ensureAuthorityWritable(tx);
         const replay = await tx`SELECT request_fingerprint, shift_carryover_id FROM shift_execution_carryover_requests WHERE idempotency_key = ${command.idempotencyKey} LIMIT 1`;
         if (replay[0]) {
           if (replay[0].request_fingerprint !== command.requestFingerprint) throw new Error("Idempotency key was already used for another carryover");
@@ -538,6 +578,7 @@ export function createShiftExecutionCommandRepository({
     async cancelCarryover(input = {}) {
       const command = buildShiftCarryoverCancelCommand(input);
       return sql.begin(async (tx) => {
+        await ensureAuthorityWritable(tx);
         const replay = await tx`
           SELECT request_fingerprint, shift_carryover_id
           FROM shift_execution_carryover_cancellation_requests
