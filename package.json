@@ -121,7 +121,7 @@
     "qa:domain-shift-command-client": "node scripts/shift-execution-commands-client-qa.mjs",
     "qa:domain-shift-repository": "node scripts/domain-shift-execution-repository-qa.mjs",
     "qa:domain-shift-read-model": "node scripts/shift-execution-read-model-qa.mjs && node scripts/shift-execution-dispatch-repository-qa.mjs && node scripts/shift-execution-dispatch-api-qa.mjs && node scripts/shift-execution-dispatch-read-model-qa.mjs",
-    "qa:domain-shift-authority": "node scripts/shift-execution-authority-qa.mjs",
+    "qa:domain-shift-authority": "node scripts/shift-execution-authority-qa.mjs && node scripts/internal-shift-execution-e2e-endpoint-qa.mjs",
     "qa:shift-master-board-server-command": "node scripts/shift-master-board-server-command-contract-qa.mjs",
     "qa:shift-master-board-server-bridge": "node scripts/shift-master-board-server-execution-bridge-qa.mjs && node scripts/shift-master-board-server-projection-qa.mjs && node scripts/shift-master-board-server-execution-outbox-qa.mjs && node scripts/shift-execution-hydration-qa.mjs && node scripts/shift-execution-dispatch-app-wiring-contract-qa.mjs && node scripts/shift-master-board-carryover-reconciliation-qa.mjs && node scripts/shift-master-board-carryover-lifecycle-contract-qa.mjs",
     "qa:specifications2-publish-revision": "node scripts/specifications2-publish-revision-qa.mjs",

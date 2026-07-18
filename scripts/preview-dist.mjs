@@ -20,6 +20,7 @@ import {
 } from "./shared-state-storage.mjs";
 import { writeContourFavicon } from "./contour-favicon.mjs";
 import { handlePublicAuthRequest } from "./public-auth-guard.mjs";
+import { handleInternalShiftExecutionE2eRequest } from "./internal-shift-execution-e2e-endpoint.mjs";
 
 const projectRoot = join(fileURLToPath(new URL("..", import.meta.url)));
 const distDir = join(projectRoot, "dist");
@@ -197,6 +198,13 @@ createServer(async (req, res) => {
   }
   if (url.pathname === "/favicon.svg") {
     writeContourFavicon(req, res, (contentType) => responseHeadersForUrl(url, contentType));
+    return;
+  }
+
+  if (await handleInternalShiftExecutionE2eRequest(req, res, url, {
+    sharedStateFile: sharedStatePaths.filePath,
+    headers: noCacheHeaders,
+  })) {
     return;
   }
 
