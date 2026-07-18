@@ -1,3 +1,5 @@
+import { createDirectoryPresentationModule } from "./directory_presentation.js";
+
 export function createRoutesRenderModule(dependencies = {}) {
   const {
     MAIN_ROUTE_TASK_ID,
@@ -10,7 +12,10 @@ export function createRoutesRenderModule(dependencies = {}) {
     getActiveRouteForModule,
     getActiveSpecificationForModule,
     getDefaultOperationMapItemForRouteKind,
+    getDirectoryColumnFilterOptions,
+    getDirectoryColumnFilterValues,
     getDirectoryData,
+    getDirectoryHealth,
     getOperationMapItem,
     getOperationMapRows,
     getOperationRouteWorkCenterId,
@@ -53,6 +58,7 @@ export function createRoutesRenderModule(dependencies = {}) {
     getRouteStepsForModule,
     getRouteStepsForTask,
     getRouteTasksForModule,
+    getSelectedDirectoryRowIndex,
     getShiftMasterEmployee,
     getShiftWorkOrderJournalViewModel,
     getSmtLineConfigurations,
@@ -61,11 +67,20 @@ export function createRoutesRenderModule(dependencies = {}) {
     getWorkCenter,
     getWorkCenterUnitsPerHour,
     getWorkOrderViewModel,
+    getStatusAuditInfo,
+    getStatusImpactMap,
+    getStatusImpactParts,
+    getStatusLifecycleModules,
+    getStatusNextDocumentView,
+    getStatusTransitionView,
+    formatDirectoryCell,
     icon,
     isManufacturingOutputReceiptRouteStep,
     isSmtOperationWorkCenter,
     mapLegacyWorkCenterId,
+    joinUiClasses,
     normalizeBoardsPerPanel,
+    normalizeDirectoryFilterSearch,
     normalizeQuantity,
     normalizeRouteBindingValue,
     normalizeRouteStepCalculationFields,
@@ -80,7 +95,6 @@ export function createRoutesRenderModule(dependencies = {}) {
     renderRouteTaskOutputHint,
     renderDirectoryEditorModal = () => "",
     renderDirectoryReaderModal = () => "",
-    renderDirectoryTable = () => "",
     renderUiActionButton,
     renderUiFormActions,
     renderUiFormField,
@@ -98,6 +112,26 @@ export function createRoutesRenderModule(dependencies = {}) {
     selected = (left, right) => String(left) === String(right) ? "selected" : "",
     ui,
   } = dependencies;
+
+  const directoryPresentation = createDirectoryPresentationModule({
+    escapeAttribute,
+    escapeHtml,
+    formatDirectoryCell,
+    getDirectoryColumnFilterOptions,
+    getDirectoryColumnFilterValues,
+    getDirectoryHealth,
+    getSelectedDirectoryRowIndex,
+    getStatusAuditInfo,
+    getStatusImpactMap,
+    getStatusImpactParts,
+    getStatusLifecycleModules,
+    getStatusNextDocumentView,
+    getStatusTransitionView,
+    icon,
+    joinUiClasses,
+    normalizeDirectoryFilterSearch,
+  });
+  const { renderDirectoryTable } = directoryPresentation;
 
   function renderRouteLineagePanel(route, options = {}) {
     if (!route?.id) {
@@ -1912,6 +1946,7 @@ export function createRoutesRenderModule(dependencies = {}) {
   return {
     getRouteTaskTypeLabel,
     getWorkOrderPrintPackageViewModel,
+    renderDirectoryTable,
     renderDirectoryPage,
     renderRoutePrintPreviewModal,
     renderRouteTreeCell,

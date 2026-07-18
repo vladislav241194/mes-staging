@@ -168,7 +168,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.65";
+const APP_VERSION_FALLBACK = "v.1.499.66";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -684,6 +684,7 @@ function initializeRoutesRenderModule(factory) {
   } = factory({
   MAIN_ROUTE_TASK_ID,
   distance,
+  escapeAttribute,
   escapeHtml,
   formatDateTimeShort,
   formatReportNumber,
@@ -691,7 +692,10 @@ function initializeRoutesRenderModule(factory) {
   getActiveRouteForModule,
   getActiveSpecificationForModule,
   getDefaultOperationMapItemForRouteKind,
+  getDirectoryColumnFilterOptions: (...args) => appEventsService.getDirectoryColumnFilterOptions(...args),
+  getDirectoryColumnFilterValues: (...args) => appEventsService.getDirectoryColumnFilterValues(...args),
   getDirectoryData,
+  getDirectoryHealth: (...args) => appEventsService.getDirectoryHealth(...args),
   getOperationMapItem,
   getOperationMapRows,
   getOperationRouteWorkCenterId,
@@ -733,6 +737,7 @@ function initializeRoutesRenderModule(factory) {
   getRouteStepsForModule,
   getRouteStepsForTask,
   getRouteTasksForModule,
+  getSelectedDirectoryRowIndex: (...args) => appEventsService.getSelectedDirectoryRowIndex(...args),
   getShiftMasterEmployee,
   getShiftWorkOrderJournalViewModel: (...args) => getShiftWorkOrderJournalViewModel(...args),
   getSmtLineConfigurations,
@@ -741,12 +746,21 @@ function initializeRoutesRenderModule(factory) {
   getWorkCenter,
   getWorkCenterUnitsPerHour,
   getWorkOrderViewModel,
+  getStatusAuditInfo,
+  getStatusImpactMap,
+  getStatusImpactParts,
+  getStatusLifecycleModules,
+  getStatusNextDocumentView,
+  getStatusTransitionView,
+  formatDirectoryCell: (...args) => appEventsService.formatDirectoryCell(...args),
   icon,
   isManufacturingOutputReceiptRouteStep,
   isSmtOperationWorkCenter,
   isWarehouseWorkCenterId,
+  joinUiClasses,
   mapLegacyWorkCenterId,
   normalizeBoardsPerPanel,
+  normalizeDirectoryFilterSearch: (...args) => appEventsService.normalizeDirectoryFilterSearch(...args),
   normalizeQuantity,
   normalizeRouteBindingValue,
   normalizeRouteStepCalculationFields,
@@ -760,7 +774,6 @@ function initializeRoutesRenderModule(factory) {
   renderRouteTaskOutputHint,
   renderDirectoryEditorModal: (...args) => renderDirectoryEditorModal(...args),
   renderDirectoryReaderModal: (...args) => renderDirectoryReaderModal(...args),
-  renderDirectoryTable: (...args) => renderDirectoryTable(...args),
   renderUiActionButton,
   renderUiFormActions,
   renderUiFormField,
@@ -6820,22 +6833,12 @@ function getSlotDurationHours(...args) { return appEventsService.getSlotDuration
 function getSlotWorkingDurationMs(...args) { return appEventsService.getSlotWorkingDurationMs(...args); }
 function getSlotCalendarDurationMs(...args) { return appEventsService.getSlotCalendarDurationMs(...args); }
 function formatReportNumber(...args) { return appEventsService.formatReportNumber(...args); }
-function getDirectoryFieldClassKey(...args) { return appEventsService.getDirectoryFieldClassKey(...args); }
-function getDirectoryTableCellClass(...args) { return appEventsService.getDirectoryTableCellClass(...args); }
-function renderDirectoryTableHead(...args) { return appEventsService.renderDirectoryTableHead(...args); }
-function renderDirectoryColumnFilter(...args) { return appEventsService.renderDirectoryColumnFilter(...args); }
 function renderDirectoryEditorModal(...args) { return appEventsService.renderDirectoryEditorModal(...args); }
 function renderDirectoryReaderModal(...args) { return appEventsService.renderDirectoryReaderModal(...args); }
-function renderDirectoryTable(...args) { return appEventsService.renderDirectoryTable(...args); }
-function getDirectoryTableRowClass(...args) { return appEventsService.getDirectoryTableRowClass(...args); }
-function renderDirectoryCellContent(...args) { return appEventsService.renderDirectoryCellContent(...args); }
 function getStatusUsedInText(...args) { return appEventsService.getStatusUsedInText(...args); }
 function getStatusImpactView(...args) { return appEventsService.getStatusImpactView(...args); }
-function renderStatusImpactCell(...args) { return appEventsService.renderStatusImpactCell(...args); }
 function getStatusImpactRoleDescription(...args) { return appEventsService.getStatusImpactRoleDescription(...args); }
 function getStatusImpactParts(...args) { return appEventsService.getStatusImpactParts(...args); }
-function renderDirectoryDetail(...args) { return appEventsService.renderDirectoryDetail(...args); }
-function renderStatusImpactMap(...args) { return appEventsService.renderStatusImpactMap(...args); }
 function getStatusContractKey(...args) { return appEventsService.getStatusContractKey(...args); }
 function getStatusContractView(...args) { return appEventsService.getStatusContractView(...args); }
 function getStatusFlowTransitions(...args) { return appEventsService.getStatusFlowTransitions(...args); }
