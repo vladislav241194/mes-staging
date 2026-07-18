@@ -18,6 +18,7 @@ export function createAppInteractionsModule(dependencies = {}) {
     deleteDirectoryRow,
     deleteOperationMapItem,
     deleteRouteMapConfirmed,
+    deleteRouteStepConfirmed = () => {},
     denseInlineViewportListenersBound: initialDenseInlineViewportListenersBound = false,
     directorySections,
     element,

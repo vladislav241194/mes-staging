@@ -71,7 +71,6 @@ import {
 } from "./ui/html.js";
 import { createAppInteractionsModule } from "./modules/app_interactions/render.js";
 import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";
-import { createRoutesEventsModule } from "./modules/routes/events.js";
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
@@ -169,7 +168,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.63";
+const APP_VERSION_FALLBACK = "v.1.499.64";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -776,8 +775,14 @@ function initializeRoutesRenderModule(factory) {
 
 function ensureRoutesRenderModule() {
   if (routesRenderModuleLoad || routesRenderModuleError) return routesRenderModuleLoad;
-  routesRenderModuleLoad = import("./modules/routes/render.js")
-    .then(({ createRoutesRenderModule }) => {
+  // The directory renderer consumes a synchronous operation helper from the
+  // route event runtime. Load both chunks before publishing the renderer so a
+  // cold directory visit never renders against an uninitialized event facade.
+  routesRenderModuleLoad = Promise.all([
+    import("./modules/routes/render.js"),
+    ensureRoutesEvents(),
+  ])
+    .then(([{ createRoutesRenderModule }]) => {
       initializeRoutesRenderModule(createRoutesRenderModule);
       if (["directories", "routes"].includes(ui.activeModule)) render();
     })
@@ -6843,6 +6848,7 @@ function bindGenericModalCloseEvents(...args) { return appEventsService.bindGene
 function bindGlobalNavigation(...args) { return appEventsService.bindGlobalNavigation(...args); } function bindConfirmEvents(...args) { return appEventsService.bindConfirmEvents(...args); }
 function getModuleMenuButtonFromEventTarget(...args) { return appEventsService.getModuleMenuButtonFromEventTarget(...args); }
 function openModuleFromMenuButton(...args) { return appEventsService.openModuleFromMenuButton(...args); }
+function ensureRoutesEvents(...args) { return appEventsService.ensureRoutesEvents(...args); }
 function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); }
 function bindPlanningEvents(...args) { return appEventsService.bindPlanningEvents(...args); }
 function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCalendarEvents(...args); }
@@ -6907,8 +6913,8 @@ appEventsService = createAppEventsServiceModule({
   bindAuthPrototypeEvents: (...args) => bindAuthPrototypeEvents(...args),
   bindAuthSessionEvents: (...args) => bindAuthSessionEvents(...args),
   loadProductsEventsModule: () => import("./modules/products/events.js"),
+  loadRoutesEventsModule: () => import("./modules/routes/events.js"),
   createSpekiSpecification,
-  createRoutesEventsModule,
   cancelAuthPrototypePinFeedback,
   completeAuthPrototypeLogin,
   deleteRouteMapConfirmed,

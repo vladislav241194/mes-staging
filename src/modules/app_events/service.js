@@ -34,8 +34,8 @@ export function createAppEventsServiceModule(dependencies = {}) {
     bindAuthPrototypeEvents: bindAuthPrototypeEventsDependency = () => {},
     bindAuthSessionEvents: bindAuthSessionEventsDependency = () => {},
     loadProductsEventsModule = () => Promise.reject(new Error("Products events runtime is unavailable")),
+    loadRoutesEventsModule = () => Promise.reject(new Error("Routes events runtime is unavailable")),
     createSpekiSpecification,
-    createRoutesEventsModule,
     cancelAuthPrototypePinFeedback,
     completeAuthPrototypeLogin,
     deleteRouteMapConfirmed,
@@ -1246,6 +1246,7 @@ const {
   deleteDirectoryRow,
   deleteOperationMapItem,
   deleteRouteMapConfirmed,
+  deleteRouteStepConfirmed,
   denseInlineViewportListenersBound,
   directorySections,
   element,
@@ -1674,163 +1675,212 @@ function deleteOperationMapItem(operationId) {
   render();
 }
 
-const {
-  bindRoutesEvents,
-  saveRouteModuleForm,
-  updateRouteProject,
-  updateRouteStepField,
-  appendRouteTaskTemplateSteps,
-  seedRouteTaskTemplate,
-  seedAllRouteTaskTemplates,
-  getDefaultOperationMapItemForRouteKind,
-  createRouteStepFromOperationMapItem,
-  createEmptyRouteModuleStep,
-  bindSpekiEvents,
-  bindNomenclatureEvents,
-  bindBomListsEvents,
-  getRouteStepAddTargetTaskId,
-  addRouteModuleStep,
-  moveRouteStep,
-  normalizeRouteStepOrders,
-  deleteRouteStepConfirmed,
-} = createRoutesEventsModule({
-  addMs,
-  app,
-  applyOperationMapItemToRouteStep,
-  batchIds,
-  bindGenericModalCloseEvents,
-  bindRouteStepDenseSelectEvents,
-  BOARD_SPEC_TERM,
-  boardsPerPanel,
-  BOM_COMPONENT_FIELDS,
-  bomId,
-  bomListId,
-  buildDefaultSpecificationStructureItems,
-  button,
-  loadProductsEventsModule,
-  createSpekiSpecification,
-  currentWorkCenterId,
-  deleteDirectoryStateRow,
-  departmentName,
-  element,
-  ensureRouteTaskSeedSteps,
-  entry,
-  field,
-  findOperationMapItemByNameAndWorkCenter,
-  form,
-  fromDateInput,
-  generateChildRouteCardsForActiveRoute,
-  getActiveRouteForModule,
-  getDefaultOperationCalculationType,
-  getDefaultSecondsPerPanel,
-  getDefaultStructureFulfillmentMode,
-  getDefaultStructureNomenclatureType,
-  getExecutionTypeForFulfillmentMode,
-  getActiveSpecificationForModule,
-  getBomList,
-  getManualPlanningAssignmentForRouteStep,
-  getOperationMapItem,
-  getOperationMapRows,
-  getOperationRouteWorkCenterId,
-  getPlanningCandidateWorkCenterIdsForRouteWorkCenter,
-  getPlanningResourceForRouteStep,
-  getPlanningRouteQuantity,
-  getProductionResource,
-  getRouteBindingContext,
-  getRouteBindingModeForSelection,
-  getRouteDocumentKind,
-  getRouteForStep,
-  getRouteModuleSelectionValue,
-  getRoutePlanningContext,
-  getRouteProductionContext,
-  getRouteProductionId,
-  getRouteStepFlowModel,
-  getRouteStepPlanningCandidateWorkCenterIds,
-  getRouteStepSelectedPlanningWorkCenterId,
-  getRouteStepsForModule,
-  getRouteStepsForTask,
-  getRouteStepTaskId,
-  getRouteTasksForModule,
-  getSlotPlanningOrderId,
-  getSlotRouteId,
-  getSpecificationItemFulfillmentMode,
-  getSpecificationStructureItems,
-  getWorkCenter,
-  getWorkCenterUnitsPerHour,
-  id,
-  importHeaders,
-  importRows,
-  importBomFromXlsxFile,
-  input,
-  isGanttSlotCompleted,
-  isManufacturingOutputReceiptOperation,
-  isManufacturingOutputReceiptRouteStep,
-  isPlanningWorkCenterCompatibleWithRouteStep,
-  isSchedulableFulfillmentMode,
-  isWarehouseWorkCenterId,
-  item,
-  items,
-  makeId,
-  makeManualRouteStepFlowItems,
-  mapLegacyWorkCenterId,
-  mergeFallback,
-  message,
-  NOMENCLATURE_REA_COMPONENT_TYPE,
-  normalizeBoardsPerPanel,
-  normalizeDirectoryRow,
-  normalizeDirectoryState,
-  normalizeOptionalPositiveInteger,
-  normalizePlanningState,
-  normalizeNomenclatureType,
-  normalizeRouteBindingValue,
-  normalizeRouteStepCalculationFields,
-  normalizeSpecificationStructureItem,
-  normalizeStructureFulfillmentMode,
-  note,
-  notifySaveSuccess,
-  openConfirmDialog,
-  operationName,
-  option,
-  options,
-  parentId,
-  persistDirectoryState,
-  persistState,
-  persistUiState,
-  pickDefaultBomForSpecificationItem,
-  PRODUCT_COMPOSITION_TERM,
-  rawValue,
-  recalculateSlotEndByQuantity,
-  recordDirectoryEntityDeletion,
-  render,
-  renderPreservingModuleScroll,
-  resolveRouteModuleProjectId,
-  resolveWorkCenterIdFromName,
-  routeWorkCenterId,
-  secondsPerPanel,
-  setupMin,
-  slot,
-  slotMatchesProductionContext,
-  specificationId,
-  status,
-  structureItems,
-  syncSpecificationDerivedFields,
-  syncPlanningRouteQuantity,
-  toDateInput,
-  unitsPerHour,
-  withDirectoryEntityRemovalAllowed,
-  withPlanningEntityRemovalAllowed,
-  getUi: () => ui,
-  getPlanningState: () => planningState,
-  getDirectoryState: () => directoryState,
-  setPlanningState: (nextState) => {
-    planningState = nextState;
-    dependencies.setPlanningState?.(nextState);
-  },
-  setDirectoryState: (nextState) => {
-    directoryState = nextState;
-    dependencies.setDirectoryState?.(nextState);
-  },
-});
+// The route editor is not needed to render the startup modules. Keep its
+// mutations and optional products-event bridge behind the same lazy boundary
+// as the route renderer. All dependencies stay late-bound through the state
+// accessors below, so the event chunk always receives the current runtime
+// state when it is first opened.
+let routesEventsApi = null;
+let routesEventsLoad = null;
+
+function getRoutesEventsDependencies() {
+  return {
+    addMs,
+    app,
+    applyOperationMapItemToRouteStep,
+    batchIds,
+    bindGenericModalCloseEvents,
+    bindRouteStepDenseSelectEvents,
+    BOARD_SPEC_TERM,
+    boardsPerPanel,
+    BOM_COMPONENT_FIELDS,
+    bomId,
+    bomListId,
+    buildDefaultSpecificationStructureItems,
+    button,
+    loadProductsEventsModule,
+    createSpekiSpecification,
+    currentWorkCenterId,
+    deleteDirectoryStateRow,
+    departmentName,
+    element,
+    ensureRouteTaskSeedSteps,
+    entry,
+    field,
+    findOperationMapItemByNameAndWorkCenter,
+    form,
+    fromDateInput,
+    generateChildRouteCardsForActiveRoute,
+    getActiveRouteForModule,
+    getDefaultOperationCalculationType,
+    getDefaultSecondsPerPanel,
+    getDefaultStructureFulfillmentMode,
+    getDefaultStructureNomenclatureType,
+    getExecutionTypeForFulfillmentMode,
+    getActiveSpecificationForModule,
+    getBomList,
+    getManualPlanningAssignmentForRouteStep,
+    getOperationMapItem,
+    getOperationMapRows,
+    getOperationRouteWorkCenterId,
+    getPlanningCandidateWorkCenterIdsForRouteWorkCenter,
+    getPlanningResourceForRouteStep,
+    getPlanningRouteQuantity,
+    getProductionResource,
+    getRouteBindingContext,
+    getRouteBindingModeForSelection,
+    getRouteDocumentKind,
+    getRouteForStep,
+    getRouteModuleSelectionValue,
+    getRoutePlanningContext,
+    getRouteProductionContext,
+    getRouteProductionId,
+    getRouteStepFlowModel,
+    getRouteStepPlanningCandidateWorkCenterIds,
+    getRouteStepSelectedPlanningWorkCenterId,
+    getRouteStepsForModule,
+    getRouteStepsForTask,
+    getRouteStepTaskId,
+    getRouteTasksForModule,
+    getSlotPlanningOrderId,
+    getSlotRouteId,
+    getSpecificationItemFulfillmentMode,
+    getSpecificationStructureItems,
+    getWorkCenter,
+    getWorkCenterUnitsPerHour,
+    id,
+    importHeaders,
+    importRows,
+    importBomFromXlsxFile,
+    input,
+    isGanttSlotCompleted,
+    isManufacturingOutputReceiptOperation,
+    isManufacturingOutputReceiptRouteStep,
+    isPlanningWorkCenterCompatibleWithRouteStep,
+    isSchedulableFulfillmentMode,
+    isWarehouseWorkCenterId,
+    item,
+    items,
+    makeId,
+    makeManualRouteStepFlowItems,
+    mapLegacyWorkCenterId,
+    mergeFallback,
+    message,
+    NOMENCLATURE_REA_COMPONENT_TYPE,
+    normalizeBoardsPerPanel,
+    normalizeDirectoryRow,
+    normalizeDirectoryState,
+    normalizeOptionalPositiveInteger,
+    normalizePlanningState,
+    normalizeNomenclatureType,
+    normalizeRouteBindingValue,
+    normalizeRouteStepCalculationFields,
+    normalizeSpecificationStructureItem,
+    normalizeStructureFulfillmentMode,
+    note,
+    notifySaveSuccess,
+    openConfirmDialog,
+    operationName,
+    option,
+    options,
+    parentId,
+    persistDirectoryState,
+    persistState,
+    persistUiState,
+    pickDefaultBomForSpecificationItem,
+    PRODUCT_COMPOSITION_TERM,
+    rawValue,
+    recalculateSlotEndByQuantity,
+    recordDirectoryEntityDeletion,
+    render,
+    renderPreservingModuleScroll,
+    resolveRouteModuleProjectId,
+    resolveWorkCenterIdFromName,
+    routeWorkCenterId,
+    secondsPerPanel,
+    setupMin,
+    slot,
+    slotMatchesProductionContext,
+    specificationId,
+    status,
+    structureItems,
+    syncSpecificationDerivedFields,
+    syncPlanningRouteQuantity,
+    toDateInput,
+    unitsPerHour,
+    withDirectoryEntityRemovalAllowed,
+    withPlanningEntityRemovalAllowed,
+    getUi: () => ui,
+    getPlanningState: () => planningState,
+    getDirectoryState: () => directoryState,
+    setPlanningState: (nextState) => {
+      planningState = nextState;
+      dependencies.setPlanningState?.(nextState);
+    },
+    setDirectoryState: (nextState) => {
+      directoryState = nextState;
+      dependencies.setDirectoryState?.(nextState);
+    },
+  };
+}
+
+function ensureRoutesEvents() {
+  if (routesEventsApi) return Promise.resolve(routesEventsApi);
+  if (!routesEventsLoad) {
+    routesEventsLoad = Promise.resolve()
+      .then(() => loadRoutesEventsModule())
+      .then((module) => {
+        const createRoutesEventsModule = module?.createRoutesEventsModule;
+        if (typeof createRoutesEventsModule !== "function") {
+          throw new Error("Routes events runtime did not export its factory");
+        }
+        routesEventsApi = createRoutesEventsModule(getRoutesEventsDependencies());
+        return routesEventsApi;
+      })
+      .catch((error) => {
+        routesEventsLoad = null;
+        throw error;
+      });
+  }
+  return routesEventsLoad;
+}
+
+function callRoutesEvents(method, ...args) {
+  const handler = routesEventsApi?.[method];
+  return typeof handler === "function" ? handler(...args) : undefined;
+}
+
+function bindRoutesEventsMethod(method, ...args) {
+  const bind = (api) => api?.[method]?.(...args);
+  if (routesEventsApi) return bind(routesEventsApi);
+  const renderRoot = app.firstElementChild;
+  void ensureRoutesEvents()
+    .then((api) => {
+      if (app.firstElementChild !== renderRoot) return;
+      bind(api);
+    })
+    .catch((error) => console.error(`[MES routes] ${method} runtime failed to load`, error));
+  return undefined;
+}
+
+function bindRoutesEvents(...args) { return bindRoutesEventsMethod("bindRoutesEvents", ...args); }
+function saveRouteModuleForm(...args) { return callRoutesEvents("saveRouteModuleForm", ...args); }
+function updateRouteProject(...args) { return callRoutesEvents("updateRouteProject", ...args); }
+function updateRouteStepField(...args) { return callRoutesEvents("updateRouteStepField", ...args); }
+function appendRouteTaskTemplateSteps(...args) { return callRoutesEvents("appendRouteTaskTemplateSteps", ...args); }
+function seedRouteTaskTemplate(...args) { return callRoutesEvents("seedRouteTaskTemplate", ...args); }
+function seedAllRouteTaskTemplates(...args) { return callRoutesEvents("seedAllRouteTaskTemplates", ...args); }
+function getDefaultOperationMapItemForRouteKind(...args) { return callRoutesEvents("getDefaultOperationMapItemForRouteKind", ...args) || null; }
+function createRouteStepFromOperationMapItem(...args) { return callRoutesEvents("createRouteStepFromOperationMapItem", ...args); }
+function createEmptyRouteModuleStep(...args) { return callRoutesEvents("createEmptyRouteModuleStep", ...args); }
+function bindSpekiEvents(...args) { return bindRoutesEventsMethod("bindSpekiEvents", ...args); }
+function bindNomenclatureEvents(...args) { return bindRoutesEventsMethod("bindNomenclatureEvents", ...args); }
+function bindBomListsEvents(...args) { return bindRoutesEventsMethod("bindBomListsEvents", ...args); }
+function getRouteStepAddTargetTaskId(...args) { return callRoutesEvents("getRouteStepAddTargetTaskId", ...args); }
+function addRouteModuleStep(...args) { return callRoutesEvents("addRouteModuleStep", ...args); }
+function moveRouteStep(...args) { return callRoutesEvents("moveRouteStep", ...args); }
+function normalizeRouteStepOrders(...args) { return callRoutesEvents("normalizeRouteStepOrders", ...args); }
+function deleteRouteStepConfirmed(...args) { return callRoutesEvents("deleteRouteStepConfirmed", ...args); }
 
 function openProjectInPlanning(productionId, specificationId = "") {
   const specification = specificationId
@@ -2134,6 +2184,7 @@ function updateDependencyClip(shell) {
     bindConfirmEvents,
     bindAuthPrototypeEvents: bindAuthPrototypeEventsDependency,
     bindAuthSessionEvents: bindAuthSessionEventsDependency,
+    ensureRoutesEvents,
     bindRoutesEvents,
     bindSpekiEvents,
     bindNomenclatureEvents,

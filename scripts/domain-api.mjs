@@ -34,6 +34,12 @@ const PLANNING_POSTGRES_PARITY_CACHE_TTL_MS = 10_000;
 const PLANNING_PROJECTION_PARITY_CONTRACT_VERSION = 5;
 const PLANNING_POSTGRES_FALLBACK_REASON = "postgres-projection-stale";
 let planningPostgresParityCache = null;
+// The complete Planning runtime graph is substantially more expensive than
+// the compact list or detail reads.  Keep at most one verified PostgreSQL
+// response in-process, but never treat it as a general HTTP cache: every use
+// still checks the durable parity checkpoint before returning its bytes.  A
+// compatibility-snapshot response is deliberately never admitted here.
+let planningRuntimeProjectionCache = null;
 
 function isSpecifications2RevisionPublicationPrimaryConfigured(env = process.env) {
   // This is rollout intent rather than a health probe. A primary-configured
@@ -169,6 +175,96 @@ function getPayloadEtag(payload) {
   return `"${createHash("sha256").update(stableJson(payload)).digest("base64url").slice(0, 24)}"`;
 }
 
+function getPlanningRuntimeProjectionCacheScope({ filePath = "", env = process.env } = {}) {
+  // Do not retain a raw database URL (which can contain credentials) in the
+  // process cache. The digest still keeps two independently configured
+  // contours from sharing a response in a long-lived test or service process.
+  const databaseUrl = String(env?.DATABASE_URL || env?.MES_DOMAIN_DATABASE_URL || "");
+  const databaseScope = createHash("sha256").update(databaseUrl).digest("base64url").slice(0, 16);
+  return `${String(filePath || "")}::${databaseScope}`;
+}
+
+function getPlanningProjectionVerificationKey(verification = null) {
+  if (!verification) return "";
+  return stableJson({
+    mode: String(verification.mode || ""),
+    primaryRevision: Number(verification.primaryRevision || 0),
+    snapshotGeneration: Number(verification.snapshotGeneration || 0),
+    snapshotFingerprint: String(verification.snapshotFingerprint || ""),
+    contractVersion: Number(verification.contractVersion || 0),
+  });
+}
+
+function hasSafePlanningRuntimeProjectionAuthority(planningSafety = null) {
+  return Boolean(
+    planningSafety
+    && !planningSafety.fallbackReason
+    && planningSafety.repository === planningSafety.primary
+    && String(planningSafety.primaryHealth?.storageBackend || "") === "postgresql"
+    && planningSafety.readVerification
+    && getPlanningProjectionVerificationKey(planningSafety.readVerification),
+  );
+}
+
+function canCachePlanningRuntimeProjection({ planningSafety = null, listed = null } = {}) {
+  return hasSafePlanningRuntimeProjectionAuthority(planningSafety)
+    && String(listed?.storageBackend || "") === "postgresql";
+}
+
+function invalidatePlanningRuntimeProjectionCache({ filePath = "", env = process.env } = {}) {
+  const scope = getPlanningRuntimeProjectionCacheScope({ filePath, env });
+  if (planningRuntimeProjectionCache?.scope === scope) planningRuntimeProjectionCache = null;
+}
+
+// Exported for isolated HTTP-level QA. Production invalidation remains
+// scope-bound so a work-order write cannot evict an unrelated contour.
+export function resetPlanningRuntimeProjectionCache() {
+  planningRuntimeProjectionCache = null;
+}
+
+function cachePlanningRuntimeProjection({ filePath = "", env = process.env, planningSafety = null, listed = null, payload = null, etag = "" } = {}) {
+  if (!canCachePlanningRuntimeProjection({ planningSafety, listed }) || !payload || !etag) {
+    invalidatePlanningRuntimeProjectionCache({ filePath, env });
+    return;
+  }
+  planningRuntimeProjectionCache = {
+    scope: getPlanningRuntimeProjectionCacheScope({ filePath, env }),
+    primaryHealthRevision: Number(planningSafety.primaryHealth?.revision || 0),
+    verification: planningSafety.readVerification,
+    verificationKey: getPlanningProjectionVerificationKey(planningSafety.readVerification),
+    payload,
+    etag,
+  };
+}
+
+async function readCachedPlanningRuntimeProjection({ filePath = "", env = process.env, planningSafety = null } = {}) {
+  const cached = planningRuntimeProjectionCache;
+  const scope = getPlanningRuntimeProjectionCacheScope({ filePath, env });
+  if (!cached || cached.scope !== scope) return null;
+
+  // A changed health revision or any fallback transition invalidates eagerly.
+  // The marker verification below is repeated after the route's initial
+  // safety probe, closing the same read-versus-write race as an uncached
+  // projection read.
+  if (!hasSafePlanningRuntimeProjectionAuthority(planningSafety)
+    || Number(cached.primaryHealthRevision) !== Number(planningSafety.primaryHealth?.revision || 0)
+    || cached.verificationKey !== getPlanningProjectionVerificationKey(planningSafety.readVerification)) {
+    invalidatePlanningRuntimeProjectionCache({ filePath, env });
+    return null;
+  }
+
+  const markerCurrent = await isPlanningProjectionReadVerificationCurrent({
+    primary: planningSafety.primary,
+    snapshot: planningSafety.snapshot,
+    verification: cached.verification,
+  });
+  if (!markerCurrent) {
+    invalidatePlanningRuntimeProjectionCache({ filePath, env });
+    return null;
+  }
+  return cached;
+}
+
 function matchesEtag(req, etag) {
   return String(req.headers?.["if-none-match"] || req.headers?.["If-None-Match"] || "").trim() === etag;
 }
@@ -203,6 +299,14 @@ function getPlanningBootstrapServerTiming({
     `planning-bootstrap;dur=${formatServerTimingDuration(bootstrapReadMs)}`,
     `total;dur=${formatServerTimingDuration(getElapsedTimingMs(startedAt))}`,
   ].join(", ");
+}
+
+function getPlanningRuntimeProjectionCacheServerTiming({ cache = "miss", startedAt = 0 } = {}) {
+  // This marker is operational telemetry only: it identifies whether the
+  // bounded runtime graph itself was reused, without exposing revisions,
+  // source IDs, a repository name or the cache key.
+  const normalizedCache = cache === "hit" ? "hit" : "miss";
+  return `planning-projection-cache;cache=${normalizedCache};dur=${formatServerTimingDuration(getElapsedTimingMs(startedAt))}`;
 }
 
 function sendNotModified(res, headers, etag, extraHeaders = {}) {
@@ -843,6 +947,38 @@ function getPlanningResponseEtag(revision, safety = null) {
     primaryUpdatedAt: String(safety.primaryHealth?.updatedAt || ""),
     fallbackReason: safety.fallbackReason,
   });
+}
+
+function getPlanningRuntimeProjectionEtag({ listed = {}, payload = null, planningSafety = null } = {}) {
+  // `listRuntimeProjection().revision` is intentionally the highest aggregate
+  // revision for compact list compatibility. It is not a global change token:
+  // a lower-revision order can change while that maximum stays the same. For
+  // the safe PostgreSQL path use the trigger-maintained parity epoch instead.
+  // It changes for every order, operation and slot write, and it is the same
+  // proof revalidated before a cached response is returned.
+  const verification = planningSafety?.readVerification;
+  if (!planningSafety?.fallbackReason
+    && planningSafety?.repository === planningSafety?.primary
+    && String(planningSafety?.primaryHealth?.storageBackend || "") === "postgresql"
+    && verification) {
+    return getPayloadEtag({
+      contract: "planning-runtime-projection-v1",
+      primaryRevision: Number(verification.primaryRevision || 0),
+      snapshotGeneration: Number(verification.snapshotGeneration || 0),
+      snapshotFingerprint: String(verification.snapshotFingerprint || ""),
+      parityContractVersion: Number(verification.contractVersion || 0),
+    });
+  }
+  // Preserve the established fallback ETag, whose fallback marker prevents a
+  // stale 304 during an authority transition. The snapshot adapter owns a
+  // global file revision, so retain its long-standing numeric ETag. A
+  // PostgreSQL primary without a durable marker uses the exact response
+  // payload rather than an unsafe max aggregate revision.
+  if (planningSafety?.fallbackReason) return getPlanningResponseEtag(listed.revision, planningSafety);
+  if (String(planningSafety?.primaryHealth?.storageBackend || "") !== "postgresql") {
+    return getPlanningResponseEtag(listed.revision, planningSafety);
+  }
+  return getPayloadEtag(payload || {});
 }
 
 function sendPlanningWriteParityConflict(res, headers, safety) {
@@ -1956,6 +2092,10 @@ export async function handleDomainApiRequest(req, res, url, {
       if (!result.item) {
         sendJson(res, headers, 422, { ok: false, apiVersion: "v1", error: result.error || "Published revision cannot create a work order" });
       } else {
+        // The create command changes the same runtime projection as quantity
+        // and slot commands. An idempotent replay may invalidate harmlessly;
+        // a newly created aggregate must never wait for marker polling.
+        invalidatePlanningRuntimeProjectionCache({ filePath, env });
         let snapshotSync;
         try {
           const snapshotRepository = await workOrdersRepositoryFactory({ env: { ...env, MES_DOMAIN_STORAGE: "snapshot" }, filePath });
@@ -2116,7 +2256,28 @@ export async function handleDomainApiRequest(req, res, url, {
   }
 
   if (url.pathname === `${API_PREFIX}/planning/work-orders/projection`) {
+    const projectionCacheTimingStartedAt = getRequestTimingNow();
     let planningSafety = await getPlanningSafety();
+    // Do not serve the cached graph until this request has independently
+    // established PostgreSQL as the safe primary and rechecked the same
+    // marker once more.  This keeps a conditional GET cheap without letting a
+    // stale response bypass the snapshot/parity boundary.
+    const cached = await readCachedPlanningRuntimeProjection({ filePath, env, planningSafety });
+    if (cached) {
+      const serverTiming = getPlanningRuntimeProjectionCacheServerTiming({
+        cache: "hit",
+        startedAt: projectionCacheTimingStartedAt,
+      });
+      if (matchesEtag(req, cached.etag)) {
+        sendNotModified(res, headers, cached.etag, { "Server-Timing": serverTiming });
+        return true;
+      }
+      // Cache stores the logical payload, never encoded bytes. `sendJson`
+      // therefore preserves per-request gzip/Vary behavior for clients with
+      // different Accept-Encoding headers.
+      sendJson(res, headers, 200, cached.payload, { ETag: cached.etag, "Server-Timing": serverTiming });
+      return true;
+    }
     const guardedRead = await readPlanningProjectionSafely({
       planningSafety,
       getPlanningSafety,
@@ -2137,12 +2298,17 @@ export async function handleDomainApiRequest(req, res, url, {
     const { listed, details } = guardedRead.result;
     const projection = buildPlanningRuntimeProjection(details.filter(Boolean));
     const payload = withPlanningFallback({ ok: true, apiVersion: "v1", storageMode: listed.storageMode, storageBackend: listed.storageBackend, revision: listed.revision, updatedAt: listed.updatedAt, projection }, planningSafety);
-    const etag = getPlanningResponseEtag(listed.revision, planningSafety);
+    const etag = getPlanningRuntimeProjectionEtag({ listed, payload, planningSafety });
+    cachePlanningRuntimeProjection({ filePath, env, planningSafety, listed, payload, etag });
+    const serverTiming = getPlanningRuntimeProjectionCacheServerTiming({
+      cache: "miss",
+      startedAt: projectionCacheTimingStartedAt,
+    });
     if (matchesEtag(req, etag)) {
-      sendNotModified(res, headers, etag);
+      sendNotModified(res, headers, etag, { "Server-Timing": serverTiming });
       return true;
     }
-    sendJson(res, headers, 200, payload, { ETag: etag });
+    sendJson(res, headers, 200, payload, { ETag: etag, "Server-Timing": serverTiming });
     return true;
   }
 
@@ -2268,6 +2434,10 @@ export async function handleDomainApiRequest(req, res, url, {
         sendJson(res, headers, 404, { ok: false, ...meta, error: "Planning operation or slot was not found" });
         return true;
       }
+      // A successful command owns a new aggregate epoch. Invalidate before
+      // best-effort snapshot delivery so concurrent readers cannot retain a
+      // same-process runtime graph while that delivery is still in flight.
+      invalidatePlanningRuntimeProjectionCache({ filePath, env });
       let snapshotSync = null;
       if (updated.storageBackend === "postgres" && workOrders.listPendingSnapshotSyncs) {
         try {
@@ -2335,6 +2505,9 @@ export async function handleDomainApiRequest(req, res, url, {
         sendJson(res, headers, 409, { ok: false, apiVersion: "v1", ...updated, error: "Work order was changed by another client" }, updated.item ? { ETag: getRevisionEtag(updated.item.concurrencyRevision) } : {});
         return true;
       }
+      // See slot scheduling above: once the durable command is accepted, the
+      // process-local projection must be rebuilt from its new marker/revision.
+      invalidatePlanningRuntimeProjectionCache({ filePath, env });
       // During the staged migration PostgreSQL is the write authority, while
       // legacy modules still read the shared snapshot. Delivery is best-effort:
       // a pending outbox record is retained on a transient failure and retried
