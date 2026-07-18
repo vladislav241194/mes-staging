@@ -72,7 +72,6 @@ import { createAppInteractionsModule } from "./modules/app_interactions/render.j
 import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work_items.js";
 import { createRoutesEventsModule } from "./modules/routes/events.js";
 import { createProductsRenderModule } from "./modules/products/render.js";
-import { createProductsEventsModule } from "./modules/products/events.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -169,7 +168,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.52";
+const APP_VERSION_FALLBACK = "v.1.499.53";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -6885,7 +6884,7 @@ appEventsService = createAppEventsServiceModule({
   createAppInteractionsModule,
   bindAuthPrototypeEvents: (...args) => bindAuthPrototypeEvents(...args),
   bindAuthSessionEvents: (...args) => bindAuthSessionEvents(...args),
-  createProductsEventsModule,
+  loadProductsEventsModule: () => import("./modules/products/events.js"),
   createSpekiSpecification,
   createRoutesEventsModule,
   cancelAuthPrototypePinFeedback,

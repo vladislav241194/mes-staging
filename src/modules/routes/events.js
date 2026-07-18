@@ -13,7 +13,7 @@ export function createRoutesEventsModule(dependencies = {}) {
     bomListId,
     buildDefaultSpecificationStructureItems,
     button,
-    createProductsEventsModule,
+    loadProductsEventsModule = () => Promise.reject(new Error("Products events runtime is unavailable")),
     createSpekiSpecification,
     currentWorkCenterId,
     deleteDirectoryStateRow,
@@ -816,106 +816,138 @@ function deleteRouteStepConfirmed(stepId) {
   render();
 }
 
-const {
-  bindSpekiEvents,
-  updateSpecificationStructure,
-  addSpecificationStructureItem,
-  getDefaultNomenclatureExecutionType,
-  getDefaultSpekiOperationForNomenclature,
-  updateSpecificationStructureItem,
-  getSpecificationStructureDescendantIds,
-  changeSpekiStructureLevel,
-  saveSpekiSpecification,
-  getSpecificationDeleteUsage,
-  deleteSpekiSpecification,
-  moveSpecificationStructureItem,
-  deleteSpecificationStructureItem,
-  bindNomenclatureEvents,
-  saveNomenclatureForm,
-  deleteNomenclatureItem,
-  bindBomListsEvents,
-  saveSpecificationModuleForm,
-  saveBomModuleForm,
-  deleteBomList,
-} = createProductsEventsModule({
-  addMs,
-  app,
-  batchIds,
-  BOARD_SPEC_TERM,
-  boardsPerPanel,
-  BOM_COMPONENT_FIELDS,
-  bomId,
-  bomListId,
-  buildDefaultSpecificationStructureItems,
-  button,
-  createSpekiSpecification,
-  deleteDirectoryStateRow,
-  departmentName,
-  element,
-  entry,
-  findOperationMapItemByNameAndWorkCenter,
-  form,
-  getDefaultStructureFulfillmentMode,
-  getDefaultStructureNomenclatureType,
-  getExecutionTypeForFulfillmentMode,
-  getActiveSpecificationForModule,
-  getBomList,
-  getOperationMapItem,
-  getOperationRouteWorkCenterId,
-  getSlotPlanningOrderId,
-  getSlotRouteId,
-  getSpecificationItemFulfillmentMode,
-  getSpecificationStructureItems,
-  getWorkCenter,
-  importHeaders,
-  importRows,
-  importBomFromXlsxFile,
-  input,
-  isSchedulableFulfillmentMode,
-  items,
-  makeId,
-  mergeFallback,
-  NOMENCLATURE_REA_COMPONENT_TYPE,
-  normalizeBoardsPerPanel,
-  normalizeDirectoryRow,
-  normalizeDirectoryState,
-  normalizeOptionalPositiveInteger,
-  normalizePlanningState,
-  normalizeNomenclatureType,
-  normalizeSpecificationStructureItem,
-  normalizeStructureFulfillmentMode,
-  note,
-  notifySaveSuccess,
-  openConfirmDialog,
-  operationName,
-  option,
-  parentId,
-  persistDirectoryState,
-  persistState,
-  persistUiState,
-  pickDefaultBomForSpecificationItem,
-  PRODUCT_COMPOSITION_TERM,
-  recordDirectoryEntityDeletion,
-  render,
-  resolveWorkCenterIdFromName,
-  route,
-  routeId,
-  slot,
-  slotMatchesProductionContext,
-  status,
-  step,
-  structureItems,
-  syncSpecificationDerivedFields,
-  toDateInput,
-  unit,
-  withDirectoryEntityRemovalAllowed,
-  withPlanningEntityRemovalAllowed,
-  getUi: () => ui,
-  getPlanningState: () => planningState,
-  getDirectoryState: () => directoryState,
-  setPlanningState: (nextState) => dependencies.setPlanningState?.(nextState),
-  setDirectoryState: (nextState) => dependencies.setDirectoryState?.(nextState),
-});
+  let productsEventsApi = null;
+  let productsEventsLoad = null;
+
+  function getProductsEventsDependencies() {
+    return {
+      addMs,
+      app,
+      batchIds,
+      BOARD_SPEC_TERM,
+      boardsPerPanel,
+      BOM_COMPONENT_FIELDS,
+      bomId,
+      bomListId,
+      buildDefaultSpecificationStructureItems,
+      button,
+      createSpekiSpecification,
+      deleteDirectoryStateRow,
+      departmentName,
+      element,
+      entry,
+      findOperationMapItemByNameAndWorkCenter,
+      form,
+      getDefaultStructureFulfillmentMode,
+      getDefaultStructureNomenclatureType,
+      getExecutionTypeForFulfillmentMode,
+      getActiveSpecificationForModule,
+      getBomList,
+      getOperationMapItem,
+      getOperationRouteWorkCenterId,
+      getSlotPlanningOrderId,
+      getSlotRouteId,
+      getSpecificationItemFulfillmentMode,
+      getSpecificationStructureItems,
+      getWorkCenter,
+      importHeaders,
+      importRows,
+      importBomFromXlsxFile,
+      input,
+      isSchedulableFulfillmentMode,
+      items,
+      makeId,
+      mergeFallback,
+      NOMENCLATURE_REA_COMPONENT_TYPE,
+      normalizeBoardsPerPanel,
+      normalizeDirectoryRow,
+      normalizeDirectoryState,
+      normalizeOptionalPositiveInteger,
+      normalizePlanningState,
+      normalizeNomenclatureType,
+      normalizeSpecificationStructureItem,
+      normalizeStructureFulfillmentMode,
+      note,
+      notifySaveSuccess,
+      openConfirmDialog,
+      operationName,
+      option,
+      parentId,
+      persistDirectoryState,
+      persistState,
+      persistUiState,
+      pickDefaultBomForSpecificationItem,
+      PRODUCT_COMPOSITION_TERM,
+      recordDirectoryEntityDeletion,
+      render,
+      resolveWorkCenterIdFromName,
+      route,
+      routeId,
+      slot,
+      slotMatchesProductionContext,
+      status,
+      step,
+      structureItems,
+      syncSpecificationDerivedFields,
+      toDateInput,
+      unit,
+      withDirectoryEntityRemovalAllowed,
+      withPlanningEntityRemovalAllowed,
+      getUi: () => ui,
+      getPlanningState: () => planningState,
+      getDirectoryState: () => directoryState,
+      setPlanningState: (nextState) => dependencies.setPlanningState?.(nextState),
+      setDirectoryState: (nextState) => dependencies.setDirectoryState?.(nextState),
+    };
+  }
+
+  async function ensureProductsEvents() {
+    if (productsEventsApi) return productsEventsApi;
+    if (!productsEventsLoad) {
+      productsEventsLoad = Promise.resolve()
+        .then(() => loadProductsEventsModule())
+        .then((module) => {
+          const createProductsEventsModule = module?.createProductsEventsModule;
+          if (typeof createProductsEventsModule !== "function") {
+            throw new Error("Products events runtime did not export its factory");
+          }
+          productsEventsApi = createProductsEventsModule(getProductsEventsDependencies());
+          return productsEventsApi;
+        })
+        .catch((error) => {
+          productsEventsLoad = null;
+          throw error;
+        });
+    }
+    return productsEventsLoad;
+  }
+
+  function bindProductsEvents(method, ...args) {
+    const bind = (api) => api?.[method]?.(...args);
+    if (productsEventsApi) {
+      bind(productsEventsApi);
+      return;
+    }
+    const renderRoot = app.firstElementChild;
+    void ensureProductsEvents()
+      .then((api) => {
+        if (app.firstElementChild !== renderRoot) return;
+        bind(api);
+      })
+      .catch((error) => console.error(`[MES routes] ${method} runtime failed to load`, error));
+  }
+
+  function bindSpekiEvents(...args) {
+    bindProductsEvents("bindSpekiEvents", ...args);
+  }
+
+  function bindNomenclatureEvents(...args) {
+    bindProductsEvents("bindNomenclatureEvents", ...args);
+  }
+
+  function bindBomListsEvents(...args) {
+    bindProductsEvents("bindBomListsEvents", ...args);
+  }
 
 
   return {
