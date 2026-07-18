@@ -32,6 +32,10 @@ function assertBootstrapTiming(headers = {}, message) {
   assert(entries.every((entry) => /^(?:planning-safety|planning-parity|planning-bootstrap|total);dur=\d+(?:\.\d+)?$/.test(entry)), `${message}: timing values must remain numeric only`);
 }
 
+function resetCounters(counters = {}) {
+  Object.keys(counters).forEach((key) => { counters[key] = 0; });
+}
+
 function item({ quantity = 12, slotMetadata = { source: "fixture" } } = {}) {
   return {
     id: "route-1",
@@ -246,6 +250,24 @@ assert(fallbackCounters.atomic === 1 && fallbackCounters.health === 1 && fallbac
 assert(fallbackCounters.snapshotFactory === 1 && fallbackCounters.snapshotHealth === 1 && fallbackCounters.snapshotBootstrap === 1, "rejected atomic admission must obtain a fresh compatible snapshot result");
 assert(pending.headers.ETag !== admitted.headers.ETag, "snapshot fallback must not reuse the atomic primary response ETag");
 assertBootstrapTiming(pending.headers, "atomic fallback route");
+
+resetCounters(fallbackCounters);
+pendingPrimary.readObservedWorkbenchBootstrap = async () => {
+  fallbackCounters.atomic += 1;
+  return { admitted: false, reason: "atomic-read-unavailable" };
+};
+const unavailable = await request({ primary: pendingPrimary, snapshot: pendingSnapshot, counters: fallbackCounters });
+assert(unavailable.statusCode === 200 && unavailable.json.item?.quantity === 7 && unavailable.json.fallbackReason === "postgres-projection-stale", "non-admitted atomic read must resume the established snapshot fallback");
+assert(fallbackCounters.atomic === 1 && fallbackCounters.health === 1 && fallbackCounters.snapshotBootstrap === 1, "non-admitted atomic read must not leave the route without a generic safety result");
+
+resetCounters(fallbackCounters);
+pendingPrimary.readObservedWorkbenchBootstrap = async () => {
+  fallbackCounters.atomic += 1;
+  throw new Error("atomic read transient failure");
+};
+const thrownAtomic = await request({ primary: pendingPrimary, snapshot: pendingSnapshot, counters: fallbackCounters });
+assert(thrownAtomic.statusCode === 200 && thrownAtomic.json.item?.quantity === 7 && thrownAtomic.json.fallbackReason === "postgres-projection-stale", "thrown atomic read must be caught before the same safe fallback");
+assert(fallbackCounters.atomic === 1 && fallbackCounters.health === 1 && fallbackCounters.snapshotBootstrap === 1, "thrown atomic read must preserve generic fallback availability");
 
 const observerOffCounters = { primaryFactory: 0, snapshotFactory: 0, atomic: 0, health: 0, marker: 0, normalBootstrap: 0, snapshotHealth: 0, snapshotBootstrap: 0 };
 const observerOffPrimary = {
