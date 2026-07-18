@@ -16,7 +16,13 @@ assert(app.includes("if (serverProjectionApplied) return { applied: true, slot: 
   "Schedule changes must stop before the compatibility mutation after server projection succeeds.");
 assert(app.includes("async function hydratePlanningWorkbenchBootstrap"),
   "Planning must have a compact list and selected-detail bootstrap.");
-assert(app.includes("onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap()"),
-  "Planning startup must not eagerly load the full runtime projection.");
+assert(app.includes("async function hydrateInitialPlanningServerBootstrap()"),
+  "Startup must choose the narrowest server projection for the active module.");
+assert(/if \(ui\?\.activeModule === "gantt"\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(app),
+  "A direct Gantt boot must use the complete PostgreSQL projection instead of the shared snapshot.");
+assert(app.includes("return hydratePlanningWorkbenchBootstrap();"),
+  "Planning startup must retain the compact workbench bootstrap outside Gantt.");
+assert(app.includes("planningRuntimeProjectionForceRefreshRequested"),
+  "A command that joins an in-flight projection must retain one forced follow-up refresh.");
 
 console.log("Planning server authority bridge QA: OK");

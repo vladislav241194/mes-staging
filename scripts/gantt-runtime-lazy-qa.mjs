@@ -10,6 +10,18 @@ expect(!appSource.includes('import { createGanttRuntimeModule } from "./modules/
 expect(appSource.includes('createLazyGanttRuntimeModule'), "App must use the Gantt lazy facade");
 expect(appSource.includes('title: "Загружаем график"'), "Gantt needs a visible loading state");
 expect(appSource.includes('ganttRuntime.load()'), "Gantt must request its runtime when the module opens");
+expect(appSource.includes('function ensureGanttPlanningRuntimeProjection()'), "Gantt must start its server runtime projection before the lazy renderer reads the legacy graph");
+expect(/if \(ui\?\.activeModule === "gantt"\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(appSource), "A cold Gantt boot must prefer the PostgreSQL runtime projection");
+expect(appSource.includes('if (planningRuntimeProjectionLoad) return planningRuntimeProjectionLoad;'), "The shared-state handshake and Gantt shell must coalesce one projection request");
+expect(appSource.includes('function hasGanttPlanningProjectionReady()'), "Gantt must have an explicit projection-ready gate");
+expect(appSource.includes('if (!hasGanttPlanningProjectionReady())'), "Gantt must show its loading shell before the runtime reads route, step, or slot collections");
+expect(appSource.indexOf('if (!hasGanttPlanningProjectionReady())') < appSource.indexOf('if (!ganttRuntime.isReady())'), "The projection gate must run before Gantt runtime loading and row construction");
+expect(appSource.includes('async function ensureGanttPlanningSnapshotFallback()'), "A Gantt server-read failure must promote the compatibility snapshot explicitly");
+expect(appSource.includes('if (planningRuntimeProjectionState.status === "fallback")'), "Gantt must stay on its fallback path instead of starting a second projection read during recovery");
+expect(appSource.includes('if (metadataOnly === false)'), "A cold-boot Gantt fallback must wait for runtime-state apply completion, not transport-mode changes");
+expect(appSource.includes('ganttPlanningFallbackAwaitingInitialSharedSnapshot'), "A synchronous shared-state apply render must not start a second Gantt fallback while the required cold-boot snapshot is still completing");
+expect(appSource.includes('ui?.activeModule === "planning" || ui?.activeModule === "gantt"'), "A deferred Gantt navigation must retry its fallback after shared-state metadata synchronizes");
+expect(appSource.includes('while (planningRuntimeProjectionForceRefreshRequested);'), "A forced command refresh must run again after joining an in-flight non-forced projection");
 expect(facadeSource.includes('import("./render.js")'), "Lazy facade must dynamically import the Gantt implementation");
 expect(facadeSource.includes('Gantt runtime method ${key} was called before it loaded'), "Lazy facade must fail explicitly if a premature Gantt call escapes the loading guard");
 expect(facadeSource.includes('key === "then" || key === "catch" || key === "finally"'), "Gantt lazy facade must not become an accidental thenable");

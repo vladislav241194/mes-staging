@@ -23,7 +23,11 @@ expect(!source.includes("if (restored && renderOnChange && ui.activeModule === \
 expect(readModelSource.includes('async function refreshWorkbenchBootstrap(activeId = "", { force = false } = {})'), "Work-order read model must expose the combined workbench bootstrap reader.");
 expect(readModelSource.includes('`${url}/bootstrap${params}`'), "Workbench bootstrap must use the dedicated one-request endpoint.");
 expect(readModelSource.includes('bootstrapEntries: new Map()') && readModelSource.includes('bootstrapLoading: new Map()'), "Independent selections must retain keyed bootstrap cache and in-flight requests.");
-expect(source.includes('onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap()'), "Planning startup must use the compact bootstrap instead of the full runtime projection.");
+expect(source.includes('async function hydrateInitialPlanningServerBootstrap()'), "Initial Planning bootstrap must choose a server projection by the active module.");
+expect(/if \(ui\?\.activeModule === "gantt"\) \{\s*const applied = await hydratePlanningRuntimeProjection\(\);/.test(source), "A direct Gantt boot must request the PostgreSQL runtime projection before the compatibility snapshot.");
+expect(source.includes('return hydratePlanningWorkbenchBootstrap();'), "Planning startup must retain the compact workbench bootstrap outside Gantt.");
+expect(source.includes('onPlanningBootstrap: () => hydrateInitialPlanningServerBootstrap()'), "Runtime-state startup must use the module-aware Planning server bootstrap.");
+expect(source.includes('onPlanningSnapshotSynchronized: () => hydratePlanningAfterSharedSync()'), "A successful Gantt bootstrap must not immediately start a redundant workbench request.");
 expect(appEventsSource.includes('ensurePlanningRuntimeProjection = async () => false'), "Scheduling must declare the on-demand runtime-projection dependency.");
 expect(appEventsSource.includes('const projectionReady = await ensurePlanningRuntimeProjection();'), "Scheduling must load the complete projection only immediately before placement.");
 if (failures.length) {

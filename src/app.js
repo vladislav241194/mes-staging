@@ -169,7 +169,7 @@ const renderMesModulePatternPage = createMesModulePatternRenderer({
   renderUiModuleSidebar,
 });
 
-const APP_VERSION_FALLBACK = "v.1.499.50";
+const APP_VERSION_FALLBACK = "v.1.499.51";
 const APP_VERSION = (
   typeof window !== "undefined"
   && typeof window.__MES_DEPLOY_VERSION__ === "string"
@@ -3532,6 +3532,13 @@ let canApplyPlanningRuntimeProjection = () => false;
 let planningDomainApiModuleLoad = null;
 let planningWorkbenchSnapshotFallbackState = "idle";
 let planningWorkbenchSnapshotFallbackPromise = null;
+let planningRuntimeProjectionLoad = null;
+let planningRuntimeProjectionForceRefreshRequested = false;
+let ganttPlanningProjectionGateLoad = null;
+let ganttPlanningFallbackReady = false;
+let ganttPlanningFallbackAttempted = false;
+let ganttPlanningFallbackAwaitingInitialSharedSnapshot = false;
+let ganttPlanningModuleWasActive = false;
 const PLANNING_STARTUP_PROJECTION_MODULE_IDS = new Set([
   // These modules directly render the legacy route / step / slot graph. Keep
   // their established BFF -> narrow-snapshot fallback until their own bounded
@@ -3728,37 +3735,173 @@ async function hydratePlanningWorkbenchBootstrap({ force = false, renderOnChange
   if (renderOnChange && result.changed && ui.activeModule === "planning") render();
   return true;
 }
-async function hydratePlanningRuntimeProjection({ force = false } = {}) {
-  if (planningRuntimeProjectionState.status === "loading") return false;
-  planningRuntimeProjectionState = { ...planningRuntimeProjectionState, status: "loading", error: "" };
-  try {
-    if (!await ensurePlanningDomainApiModule()) return false;
-    const result = await planningRuntimeProjectionReadModel.refresh({ force });
-    if (!result.ok || !result.projection) {
-      planningRuntimeProjectionState = { status: "fallback", error: result.error || "Planning runtime projection is unavailable", revision: 0 };
-      return false;
-    }
-    if (!canApplyPlanningRuntimeProjection(planningState, result.projection)) {
-      planningRuntimeProjectionState = { status: "fallback", error: "Planning runtime projection differs from compatibility snapshot", revision: 0 };
-      return false;
-    }
-    // PostgreSQL data replaces only the in-memory planning collections. The
-    // compatibility snapshot stays untouched until the next migration gate,
-    // so an unsuccessful server read cannot erase local recovery data.
-    planningState = {
-      ...planningState,
-      routes: result.projection.routes,
-      routeSteps: result.projection.routeSteps,
-      slots: result.projection.slots,
-    };
-    invalidateWeeklyPlanningPeriod();
-    planningRuntimeProjectionState = { status: "server", error: "", revision: Number(result.projection.revision || 0) };
-    if (ui?.activeModule === "planning" || ui?.activeModule === "gantt") render({ skipRememberScroll: true });
-    return true;
-  } catch {
-    planningRuntimeProjectionState = { status: "fallback", error: "Planning runtime projection is unavailable", revision: 0 };
-    return false;
+async function hydrateInitialPlanningServerBootstrap() {
+  // Gantt needs the complete route / operation / slot graph, while the
+  // Planning workbench only needs its compact list and selected order.  Use
+  // the existing PostgreSQL projection for a direct Gantt entry so the
+  // shared-state service can retain its metadata-only handshake on success.
+  // Returning false is intentional: runtime_state then restores exactly one
+  // compatibility snapshot instead of presenting a partial graph.
+  if (ui?.activeModule === "gantt") {
+    const applied = await hydratePlanningRuntimeProjection();
+    // `applySharedStateSnapshot()` may synchronously render before runtime
+    // state emits its post-sync completion hook.  Keep that intervening render
+    // behind the loading gate: the required cold-boot fallback is already in
+    // progress and must not start a second PostgreSQL read or snapshot fetch.
+    ganttPlanningFallbackAwaitingInitialSharedSnapshot = !applied;
+    return applied;
   }
+  return hydratePlanningWorkbenchBootstrap();
+}
+async function hydratePlanningAfterSharedSync({ metadataOnly = true } = {}) {
+  // A direct Gantt boot with a failed PostgreSQL projection has already made
+  // runtime_state fetch the full compatibility snapshot.  A fast navigation
+  // from a deferred module is different: its metadata-only sync contains no
+  // graph, so promote the compatibility fallback only after metadata becomes
+  // available.  In either case, never let Gantt render the pre-sync graph.
+  if (ui?.activeModule === "gantt") {
+    if (planningRuntimeProjectionState.status !== "fallback") return true;
+    if (metadataOnly === false) {
+      // runtime_state calls this hook only after it has atomically applied the
+      // requested full Planning snapshot.  This is the explicit completion
+      // proof for a direct Gantt boot; `valueProjection` alone changes before
+      // an asynchronous fallback request finishes and is not safe to inspect.
+      ganttPlanningFallbackReady = true;
+      ganttPlanningFallbackAttempted = false;
+      ganttPlanningFallbackAwaitingInitialSharedSnapshot = false;
+      if (ui?.activeModule === "gantt") render({ skipRememberScroll: true });
+      return true;
+    }
+    const fallbackApplied = await ensureGanttPlanningSnapshotFallback();
+    if (fallbackApplied && ui?.activeModule === "gantt") render({ skipRememberScroll: true });
+    return fallbackApplied;
+  }
+  return hydratePlanningWorkbenchBootstrap({ renderOnChange: true });
+}
+function noteGanttPlanningProjectionModuleEntry() {
+  const ganttIsActive = ui?.activeModule === "gantt";
+  const enteredGantt = ganttIsActive && !ganttPlanningModuleWasActive;
+  ganttPlanningModuleWasActive = ganttIsActive;
+  // A failed read is not a permanent client-state decision.  On the next
+  // Gantt entry retry PostgreSQL, while retaining the known safe snapshot as
+  // a fallback if the retry fails again.
+  if (enteredGantt && ["server", "fallback"].includes(planningRuntimeProjectionState.status)) {
+    planningRuntimeProjectionState = { status: "idle", error: "", revision: 0 };
+    ganttPlanningFallbackReady = false;
+    ganttPlanningFallbackAttempted = false;
+    ganttPlanningFallbackAwaitingInitialSharedSnapshot = false;
+  }
+}
+function hasGanttPlanningProjectionReady() {
+  return planningRuntimeProjectionState.status === "server" || ganttPlanningFallbackReady;
+}
+async function ensureGanttPlanningSnapshotFallback() {
+  if (ganttPlanningFallbackReady) return true;
+  if (planningWorkbenchSnapshotFallbackState === "applied") {
+    ganttPlanningFallbackReady = true;
+    return true;
+  }
+  if (planningWorkbenchSnapshotFallbackPromise) {
+    const restored = await planningWorkbenchSnapshotFallbackPromise;
+    if (restored) ganttPlanningFallbackReady = true;
+    return ganttPlanningFallbackReady;
+  }
+  if (ganttPlanningFallbackAwaitingInitialSharedSnapshot) return false;
+  if (!sharedStateStatus.enabled || ganttPlanningFallbackAttempted) return false;
+  ganttPlanningFallbackAttempted = true;
+  const restored = await restorePlanningWorkbenchSnapshotFallback();
+  if (restored) ganttPlanningFallbackReady = true;
+  return ganttPlanningFallbackReady;
+}
+function ensureGanttPlanningRuntimeProjection() {
+  // A non-initial navigation to Gantt happens after the generic shared-state
+  // handshake. Start the full PostgreSQL projection once, before the lazy
+  // Gantt renderer reaches the legacy collections.  Rendering is gated below
+  // until this promise has either applied PostgreSQL data or completed the
+  // explicit compatibility fallback.
+  if (hasGanttPlanningProjectionReady()) return Promise.resolve(true);
+  if (ganttPlanningProjectionGateLoad) return ganttPlanningProjectionGateLoad;
+  ganttPlanningProjectionGateLoad = (async () => {
+    if (planningRuntimeProjectionState.status === "fallback") {
+      return ensureGanttPlanningSnapshotFallback();
+    }
+    const applied = await hydratePlanningRuntimeProjection();
+    if (applied) return true;
+    return ensureGanttPlanningSnapshotFallback();
+  })().then((ready) => {
+    // Successful PostgreSQL hydration already performs the one required
+    // repaint.  Compatibility fallback has no renderer of its own, so it
+    // needs this explicit completion render instead.
+    if (ui?.activeModule === "gantt" && planningRuntimeProjectionState.status !== "server") {
+      render({ skipRememberScroll: true });
+    }
+    return ready;
+  }).finally(() => {
+    ganttPlanningProjectionGateLoad = null;
+  });
+  return ganttPlanningProjectionGateLoad;
+}
+async function hydratePlanningRuntimeProjection({ force = false } = {}) {
+  // Both the initial shared-state handshake and the first Gantt render can
+  // request this projection in the same browser tick. They must share one
+  // network request; otherwise a slow link spuriously activates the legacy
+  // snapshot fallback while PostgreSQL is already returning the graph.
+  if (force) planningRuntimeProjectionForceRefreshRequested = true;
+  if (planningRuntimeProjectionLoad) return planningRuntimeProjectionLoad;
+  planningRuntimeProjectionLoad = (async () => {
+    let applied = false;
+    do {
+      const refreshForce = planningRuntimeProjectionForceRefreshRequested;
+      planningRuntimeProjectionForceRefreshRequested = false;
+      planningRuntimeProjectionState = { ...planningRuntimeProjectionState, status: "loading", error: "" };
+      try {
+        if (!await ensurePlanningDomainApiModule()) {
+          planningRuntimeProjectionState = { status: "fallback", error: "Planning domain API module is unavailable", revision: 0 };
+          applied = false;
+          continue;
+        }
+        const result = await planningRuntimeProjectionReadModel.refresh({ force: refreshForce });
+        if (!result.ok || !result.projection) {
+          planningRuntimeProjectionState = { status: "fallback", error: result.error || "Planning runtime projection is unavailable", revision: 0 };
+          applied = false;
+          continue;
+        }
+        if (!canApplyPlanningRuntimeProjection(planningState, result.projection)) {
+          planningRuntimeProjectionState = { status: "fallback", error: "Planning runtime projection differs from compatibility snapshot", revision: 0 };
+          applied = false;
+          continue;
+        }
+        // PostgreSQL data replaces only the in-memory planning collections. The
+        // compatibility snapshot stays untouched until the next migration gate,
+        // so an unsuccessful server read cannot erase local recovery data.
+        planningState = {
+          ...planningState,
+          routes: result.projection.routes,
+          routeSteps: result.projection.routeSteps,
+          slots: result.projection.slots,
+        };
+        invalidateWeeklyPlanningPeriod();
+        planningRuntimeProjectionState = { status: "server", error: "", revision: Number(result.projection.revision || 0) };
+        ganttPlanningFallbackReady = false;
+        ganttPlanningFallbackAttempted = false;
+        ganttPlanningFallbackAwaitingInitialSharedSnapshot = false;
+        applied = true;
+      } catch {
+        planningRuntimeProjectionState = { status: "fallback", error: "Planning runtime projection is unavailable", revision: 0 };
+        applied = false;
+      }
+      // A write can complete while a previous read is still in flight.  A
+      // forced caller must then observe one more PostgreSQL projection rather
+      // than accepting the pre-command response it happened to join.
+    } while (planningRuntimeProjectionForceRefreshRequested);
+    if (applied && (ui?.activeModule === "planning" || ui?.activeModule === "gantt")) {
+      render({ skipRememberScroll: true });
+    }
+    return applied;
+  })().finally(() => {
+    planningRuntimeProjectionLoad = null;
+  });
+  return planningRuntimeProjectionLoad;
 }
 function getShiftExecutionDispatchScope() {
   // Ask the loaded board for its actual current rows.  `slotRows` is only a
@@ -5286,9 +5429,11 @@ function initializeRuntimeStateServiceModule() {
   getInitialPlanningBootstrapMode: () => (
     PLANNING_STARTUP_PROJECTION_MODULE_IDS.has(ui?.activeModule) ? "required" : "deferred"
   ),
-  onPlanningBootstrap: () => hydratePlanningWorkbenchBootstrap(),
-  onPlanningSnapshotSynchronized: () => hydratePlanningWorkbenchBootstrap({ renderOnChange: true }),
-  shouldHydratePlanningAfterSharedSync: () => ui?.activeModule === "planning",
+  onPlanningBootstrap: () => hydrateInitialPlanningServerBootstrap(),
+  onPlanningSnapshotSynchronized: () => hydratePlanningAfterSharedSync(),
+  shouldHydratePlanningAfterSharedSync: () => (
+    ui?.activeModule === "planning" || ui?.activeModule === "gantt"
+  ),
   onSystemDomainsSnapshotRetired: () => {
     // A tombstone proves the browser may no longer authorize or mutate from
     // its cached compatibility copy. Rehydrate only from PostgreSQL.
@@ -5996,6 +6141,7 @@ function renderCurrentModule(options = {}) {
     syncUiWithUrlParams();
     ensureAuthGateModule();
     ensureAuthorizedModule();
+    noteGanttPlanningProjectionModuleEntry();
     resetRemovedGanttFilters();
     persistUiState({ skipRememberScroll: options.skipRememberScroll });
     scheduleGlobalSaveUxRefresh();
@@ -6011,6 +6157,27 @@ function renderCurrentModule(options = {}) {
 
     if (ui.activeModule !== "gantt") {
       throw new Error(`Special MES module has no explicit runtime renderer: ${ui.activeModule}`);
+    }
+
+    void ensureGanttPlanningRuntimeProjection();
+
+    if (!hasGanttPlanningProjectionReady()) {
+      const fallbackUnavailable = planningRuntimeProjectionState.status === "fallback"
+        && sharedStateStatus.enabled
+        && ganttPlanningFallbackAttempted;
+      app.innerHTML = renderUiAppShell({
+        pageId: "gantt",
+        className: "planning-app-shell planning-gantt-shell",
+        blueprint: getMesModuleBlueprintDefinition("gantt"),
+        body: renderUiEmptyState({
+          title: fallbackUnavailable ? "Не удалось подготовить график" : "Загружаем график",
+          description: fallbackUnavailable
+            ? "Серверный план и резервная копия сейчас недоступны. Обновите страницу и повторите попытку."
+            : "Получаем актуальный производственный план.",
+        }),
+      });
+      bindGlobalNavigation();
+      return;
     }
 
     if (!ganttRuntime.isReady()) {

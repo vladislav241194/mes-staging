@@ -1103,7 +1103,11 @@ async function startSharedStateSync() {
       // synchronizing, run exactly the same safe hydration after metadata is
       // ready instead of leaving a cold local snapshot on screen.
       if (serverPlanningApplied || shouldHydratePlanningAfterSharedSync()) {
-        void onPlanningSnapshotSynchronized();
+        void onPlanningSnapshotSynchronized({
+          serverPlanningApplied,
+          requestedPlanningBootstrapMode,
+          metadataOnly,
+        });
       }
     } else {
       await startBootstrapSnapshotBootstrap();
