@@ -290,9 +290,12 @@ module's completed read model instead of duplicating PostgreSQL hydration or
 plan/fact calculations. Production-shell QA proves literal 25-group,
 eleven-column parity on one compact PostgreSQL payload, default legacy,
 session-scoped activation, table-owned overflow, unchanged state and clean
-console. The integration also closes a legacy Structure-helper lazy-load race
-for both renderers. Its artifact is `201,150 B` raw / `63,156 B` gzip /
-`54,408 B` Brotli. It has not been released or activated on Pilot.
+console. The owner now projects formatted deviation-note/report context and
+React matches the legacy focus/blur interaction in a viewport-safe popover;
+Weekly owns no write commands. The integration also closes a legacy Structure-
+helper lazy-load race for both renderers. Its artifact is `202,775 B` raw /
+`63,714 B` gzip / `54,840 B` Brotli. It has not been released or activated on
+Pilot.
 
 Timesheet is the sixteenth production-integrated scenario and the second dense planning
 proof. Its adapter accepts the completed legacy read model; browser QA proves
@@ -432,8 +435,9 @@ will be repeated after the Structure Employees commit and before rebasing.
    Types create/edit/delete are locally complete default-off write evaluations;
    Operations create/edit is locally complete with linked Planning reference
    proof, while its Specifications-aware delete remains legacy. Component Types
-   and Operations still need separately gated Pilot write checkpoints; all
-   remaining module commands are pending.**
+   and Operations still need separately gated Pilot write checkpoints. Weekly
+   Production Control is read-only by product contract and has no command
+   scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.
 
 Live readiness was refreshed after the first write-parity checkpoint. Pilot is

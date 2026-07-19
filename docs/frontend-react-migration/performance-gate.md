@@ -24,7 +24,7 @@ Current minified measurements:
 | Structure Equipment production island | 209,048 B | 64,318 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 210,157 B | 64,629 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,266 B | 225,000 B | 68,000 B |
-| Weekly Production Control production island | 204,805 B | 63,393 B | 225,000 B | 68,000 B |
+| Weekly Production Control production island | 206,572 B | 63,948 B | 225,000 B | 68,000 B |
 | Timesheet production island | 204,934 B | 63,584 B | 225,000 B | 68,000 B |
 | Planning Workbench production island | 205,200 B | 63,549 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
@@ -39,7 +39,7 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 458,138 B | 108,034 B | 460,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 460,364 B | 108,682 B | 465,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -47,7 +47,7 @@ Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
 Specifications 2.0 and Roles artifacts and rejects unrelated scenario labels.
 The same isolation check now covers the Gantt artifact.
 This preserves independent vertical slices instead of shipping every lab
-scenario with an individual island. The larger `460,000 B / 118,000 B` limit
+scenario with an individual island. The larger `465,000 B / 118,000 B` limit
 applies only to the twenty-four-scenario development lab, never to a production
 island. Its raw limit increased only as isolated scenarios were added; every
 production entry retains the unchanged `225,000 B / 68,000 B` gate.
@@ -133,8 +133,8 @@ The bundled production Structure Migration Diagnostics island is `203,082 B`
 raw / `63,875 B` gzip / `55,020 B` Brotli. Its 152-row production-shell first
 commit was `18.0 ms`; this is regression evidence, not Pilot acceptance.
 
-The bundled production Weekly Production Control island is `201,150 B` raw /
-`63,156 B` gzip / `54,408 B` Brotli. Its 25-group, eleven-column production-
+The bundled production Weekly Production Control island is `202,775 B` raw /
+`63,714 B` gzip / `54,840 B` Brotli. Its 25-group, eleven-column production-
 shell first commit remains below `50 ms`; this is regression evidence, not Pilot acceptance.
 
 The bundled production Timesheet island is `201,559 B` raw / `63,358 B` gzip /

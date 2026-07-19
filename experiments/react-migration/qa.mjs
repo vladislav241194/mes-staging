@@ -888,6 +888,8 @@ try {
     ["assembly::line-1", 7, 100, 100],
     ["smt::dek", 7, 500, 494],
   ], "Weekly Control adapter must preserve group order and daily density");
+  const weeklyDeviationNote = weeklyControlModel.groups[0].days.find((day) => day.note)?.note;
+  assert(weeklyDeviationNote?.title.includes("Отклонение") && weeklyDeviationNote.text === "Причина проверяется", "Weekly Control adapter must preserve the owner-prepared deviation note contract");
   assert.equal(weeklyControlAdapter.formatWeeklyControlQuantity(12.6, "шт."), "13 шт.");
   assert.equal(weeklyControlAdapter.formatWeeklyControlPercent(5.5), "+6%");
   assert.deepEqual(weeklyControlAdapter.adaptWeeklyProductionControl({}).groups, [], "invalid Weekly Control payload must fail closed");
@@ -1506,8 +1508,8 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations"], "Nomenclature, Component Types and Operations create/edit must retain locally complete command parity");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics"], "only diagnostics may have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 20, "all 20 remaining command scenarios must stay explicit");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 19, "all 19 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

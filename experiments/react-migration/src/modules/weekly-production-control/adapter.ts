@@ -17,6 +17,18 @@ export interface WeeklyControlDay {
   tone: string;
   noteCount: number;
   reportCount: number;
+  note: WeeklyControlDayNote | null;
+}
+
+export interface WeeklyControlDayNote {
+  title: string;
+  plan: string;
+  fact: string;
+  author: string;
+  text: string;
+  extraNotes: string;
+  reportText: string;
+  extraReports: string;
 }
 
 export interface WeeklyControlGroup {
@@ -41,6 +53,7 @@ export const formatWeeklyControlPercent = (value: number): string => {
 
 function adaptDay(value: unknown, fallback: UnknownRecord = {}): WeeklyControlDay | null {
   const source = asRecord(value);
+  const noteSource = asRecord(source.note);
   const id = asText(source.id, asText(fallback.id));
   if (!id) return null;
   return {
@@ -55,6 +68,16 @@ function adaptDay(value: unknown, fallback: UnknownRecord = {}): WeeklyControlDa
     tone: asText(source.tone, "neutral"),
     noteCount: asArray(source.deviationNotes).length,
     reportCount: asArray(source.reports).length,
+    note: asText(noteSource.title) ? {
+      title: asText(noteSource.title),
+      plan: asText(noteSource.plan),
+      fact: asText(noteSource.fact),
+      author: asText(noteSource.author, "Заметка отклонения"),
+      text: asText(noteSource.text, "Заметка не заполнена."),
+      extraNotes: asText(noteSource.extraNotes),
+      reportText: asText(noteSource.reportText),
+      extraReports: asText(noteSource.extraReports),
+    } : null,
   };
 }
 

@@ -370,10 +370,23 @@ export function createWeeklyProductionControlModule(dependencies = {}) {
         day,
         reports: day.reports.length ? day.reports : group.reports,
       })));
+    const groupsWithInteraction = groups.map((group) => ({
+      ...group,
+      days: group.days.map((day) => {
+        const noteCount = Array.isArray(day.deviationNotes) ? day.deviationNotes.length : 0;
+        const reportCount = Array.isArray(day.reports) ? day.reports.length : 0;
+        return {
+          ...day,
+          note: day.isDeviation || noteCount || reportCount
+            ? getWeeklyProductionControlDayNoteData(day, group.unit)
+            : null,
+        };
+      }),
+    }));
   
     return {
       rows,
-      groups,
+      groups: groupsWithInteraction,
       days,
       weekStart,
       weekEnd,

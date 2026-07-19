@@ -10,7 +10,27 @@ const makeDays = (plan: number[], fact: number[]) => days.map((day, index) => {
   const factQuantity = fact[index] || 0;
   const deviationPercent = planQuantity ? ((factQuantity - planQuantity) / planQuantity) * 100 : factQuantity ? 100 : 0;
   const isDeviation = (planQuantity > 0 || factQuantity > 0) && Math.abs(deviationPercent) > 5;
-  return { ...day, planQuantity, factQuantity, deviationPercent, isDeviation, tone: isDeviation ? "risk" : factQuantity >= planQuantity && planQuantity > 0 ? "ok" : "neutral", deviationNotes: isDeviation ? [{ text: "Причина проверяется" }] : [], reports: [] };
+  const roundedDeviation = Math.round(deviationPercent);
+  return {
+    ...day,
+    planQuantity,
+    factQuantity,
+    deviationPercent,
+    isDeviation,
+    tone: isDeviation ? "risk" : factQuantity >= planQuantity && planQuantity > 0 ? "ok" : "neutral",
+    deviationNotes: isDeviation ? [{ text: "Причина проверяется" }] : [],
+    reports: [],
+    note: isDeviation ? {
+      title: `Отклонение ${roundedDeviation > 0 ? "+" : ""}${roundedDeviation}%`,
+      plan: `План: ${planQuantity} шт.`,
+      fact: `Факт: ${factQuantity} шт.`,
+      author: "Исполнитель",
+      text: "Причина проверяется",
+      extraNotes: "",
+      reportText: "",
+      extraReports: "",
+    } : null,
+  };
 });
 
 const groups = [

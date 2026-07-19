@@ -18,16 +18,17 @@ The Directories cluster additionally has Component Types `8/8` and Operations
 
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations has locally complete create/edit parity while its
-reference-clearing delete remains an explicit legacy-only slice;
-Structure Migration Diagnostics is intentionally read-only and owns no
-commands. The remaining scenarios retain their explicit next vertical scopes.
+reference-clearing delete remains an explicit legacy-only slice. Structure
+Migration Diagnostics and Weekly Production Control are intentionally
+read-only product modules and own no write commands. The remaining scenarios
+retain their explicit next vertical scopes.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
 | 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
-| 4 | Weekly Production Control | Pending | Medium | Week selection and report actions without duplicating aggregation |
+| 4 | Weekly Production Control | Not applicable: product module is read-only | Medium | Pilot read-only acceptance with keyboard deviation-note and report inspection |
 | 5 | Nomenclature Types | Pending | High | Create/edit plus reference synchronization |
 | 6 | Statuses | Pending | High | Non-system status create/edit with lifecycle protection |
 | 7 | Boards/BOM | Pending | High | Board create/edit before import, row editing and delete |
@@ -56,3 +57,11 @@ completed and unrelated slots. The audit also found and repaired a missing
 `applyPlanningOrderLaborToSlot` dependency at the legacy service boundary.
 Delete additionally touches Specifications and therefore stays separate and
 legacy-only.
+
+Weekly Production Control's earlier “week selection” command scope was removed
+after source audit: no such legacy command exists, and the module explicitly
+describes itself as an informational read-only projection. Its real missing
+interaction was the focus/hover deviation note and workplace report popover.
+The legacy owner now includes the already formatted note contract in its read
+model; React renders it with the same text, keyboard focus behavior and
+viewport-safe presentation without reproducing aggregation or report logic.

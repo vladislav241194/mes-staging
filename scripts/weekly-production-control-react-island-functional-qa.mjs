@@ -3,8 +3,56 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
+import { createWeeklyProductionControlModule } from "../src/modules/weekly_production_control/render.js";
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const startOfDay = (value) => { const date = new Date(value); date.setHours(0, 0, 0, 0); return date; };
+const startOfWeek = (value) => { const date = startOfDay(value); const day = date.getDay() || 7; date.setDate(date.getDate() - day + 1); return date; };
+const toDateInput = (value) => { const date = new Date(value); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; };
+const shortDate = (value) => { const date = new Date(value); return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}`; };
+
+function verifyOwnerPreparedNoteContract() {
+  const weekStart = startOfWeek(new Date());
+  const plannedStart = new Date(weekStart.getTime() + 8 * 60 * 60 * 1000);
+  const plannedEnd = new Date(weekStart.getTime() + 10 * 60 * 60 * 1000);
+  const factAt = plannedEnd.toISOString();
+  const row = { id: "weekly-note-slot", slot: { id: "weekly-note-slot" }, plannedStart, plannedEnd, quantity: 20, unit: "шт.", workCenterId: "D3", workCenterLabel: "SMT", resourceLabel: "Линия SMT" };
+  const module = createWeeklyProductionControlModule({
+    DAY_MS: 24 * 60 * 60 * 1000,
+    addMs: (value, ms) => new Date(new Date(value).getTime() + ms),
+    formatDate: (value) => `${shortDate(value)}.${new Date(value).getFullYear()}`,
+    formatDateTimeShort: (value) => `${shortDate(value)} ${new Date(value).toTimeString().slice(0, 5)}`,
+    formatShiftWorkOrderPersonName: (value) => String(value || "Исполнитель"),
+    formatShortDate: shortDate,
+    getAuthSessionFactEntriesForGanttSlot: () => [],
+    getGanttLinkedRecordEntries: () => [["weekly-note-slot", { actualQuantity: 10, defectQuantity: 0, updatedAt: factAt, deviationNotes: [{ employeeName: "QA Исполнитель", text: "QA причина отклонения", createdAt: factAt }] }]],
+    getPlanningState: () => ({}),
+    getPlanningTableSlotRows: () => [row],
+    getProductionStructureMatrixRuntimeOverrides: () => ({}),
+    getProductionStructureResources: () => [{ id: "line-smt", name: "Линия SMT", workCenterId: "D3", participatesInPlanning: "yes" }],
+    getProductionStructureWorkCenters: () => [{ id: "D3", name: "SMT", isActive: true, showInGantt: true }],
+    getShiftMasterAssignmentsForGanttSlot: () => [],
+    getShiftMasterBoardFactEntriesForGanttSlot: () => [],
+    getShiftWorkOrderIssueReports: () => [{ id: "weekly-note-report", employeeName: "QA Исполнитель", text: "QA report", createdAt: factAt }],
+    getUi: () => ({ weeklyProductionControlWeekAnchor: toDateInput(weekStart) }),
+    getWeekNumber: () => 1,
+    isGanttFactRecordReported: () => true,
+    mapLegacyWorkCenterId: (value) => String(value || ""),
+    normalizeLookupText: (value) => String(value || "").trim().toLocaleLowerCase("ru-RU"),
+    normalizePlainRecord: (value) => value && typeof value === "object" ? value : {},
+    normalizeShiftMasterBoardQuantity: (value) => Math.max(0, Number(value || 0) || 0),
+    normalizeShiftMasterFactQuantity: (value) => Math.max(0, Number(value || 0) || 0),
+    startOfDay,
+    startOfWeek,
+    toDate: (value) => new Date(value),
+    toDateInput,
+  });
+  const model = module.getWeeklyProductionControlModel();
+  const note = model.groups.flatMap((group) => group.days).find((day) => day.note)?.note;
+  assert(note?.title === "Отклонение -50%" && note.text === "QA причина отклонения" && note.reportText === "QA report", `Weekly owner-prepared note contract failed: ${JSON.stringify(note)}`);
+}
+
+verifyOwnerPreparedNoteContract();
 const compactRows = [{
   id: "weekly-react-slot-1",
   routeId: "weekly-react-route-1",

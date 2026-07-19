@@ -56,6 +56,31 @@ try {
   assert(initial.headers.length === 11 && initial.headers[0] === "Участок / оборудование" && initial.headers.at(-1) === "Report", "weekly matrix columns must preserve legacy order");
   assert(initial.metrics["План"] === "600 шт." && initial.metrics["Факт"] === "594 шт." && initial.metrics["Отклонения >5%"] === "3", "weekly summary must preserve fixture totals");
   assert(!initial.pageOverflow && initial.tableOwnsOverflow, "dense weekly matrix must own horizontal overflow");
+  const noteTargetCount = await evaluate(client, () => document.querySelectorAll("[data-weekly-production-note]").length);
+  assert(noteTargetCount > 0, "Weekly fixture must expose at least one focusable deviation note");
+  await evaluate(client, () => {
+    const target = document.querySelector("[data-weekly-production-note]");
+    target?.focus();
+    target?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+  });
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-weekly-react-note-popover]")), { message: "Weekly deviation note did not open on keyboard focus" });
+  const note = await evaluate(client, () => {
+    const popover = document.querySelector("[data-weekly-react-note-popover]");
+    const rect = popover?.getBoundingClientRect();
+    return {
+      text: popover?.textContent?.replace(/\s+/g, " ").trim() || "",
+      inViewport: Boolean(rect && rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight),
+      focused: document.activeElement?.matches?.("[data-weekly-production-note]") === true,
+    };
+  });
+  assert(note.text.includes("Отклонение") && note.text.includes("План:") && note.text.includes("Факт:") && note.text.includes("Причина проверяется"), `deviation note/report context is incomplete: ${note.text}`);
+  assert(note.inViewport && note.focused, "keyboard note popover must stay inside the viewport and retain cell focus");
+  await evaluate(client, () => {
+    const target = document.querySelector("[data-weekly-production-note]");
+    target?.blur();
+    target?.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+  });
+  await waitForCondition(client, () => !document.querySelector("[data-weekly-react-note-popover]"), { message: "Weekly deviation note did not close on blur" });
   await evaluate(client, () => document.querySelector("[data-lifecycle-update]")?.click());
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-island-revision="2"]')), { message: "Weekly Control update did not commit revision 2" });
   const updatedFact = await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="MetricCard"]')].find((card) => card.querySelector("span")?.textContent?.trim() === "Факт")?.querySelector("strong")?.textContent?.trim());
@@ -66,6 +91,7 @@ try {
   console.log("Weekly Production Control React isolated browser QA: OK");
   console.log("- two resource groups, seven days and 14 plan/fact cells: pass");
   console.log("- summary and payload revision 1 -> 2: pass");
+  console.log("- keyboard deviation-note/report context and viewport-safe popover: pass");
   console.log("- table-owned overflow, disabled fallback and clean console: pass");
 } finally {
   if (chrome) await cleanupChrome(chrome);
