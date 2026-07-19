@@ -616,3 +616,19 @@ back on legacy Weekly Control. The next migration scope must remain a separate
 vertical scenario; this checkpoint does not authorize default-on activation.
 The exact active commit `7784ab4` was fast-forward promoted to `origin/main`;
 the acceptance documentation is intentionally a later branch-only commit.
+
+## Shift Master Board Pilot checkpoint
+
+Release `v.1.499.77-c97b5a9` is active on Pilot from exact upstream commit
+`c97b5a9`. Releases `.75` and `.76` were deliberately rejected during bounded
+read-only evaluation: `.75` lacked the production island stylesheet, and `.76`
+still rendered the typed physical-transfer projection as inline text. Both
+permissions were removed immediately and neither evaluation wrote data.
+
+The accepted `.77` view reached `ready`, matched the current three lanes and
+two cards, preserved summary `126 / 1 / 0`, date and eight-master scope, and
+rendered the selected task plus `Откуда / Куда / Результат` as scoped MES
+panels. Health and all four PostgreSQL readiness domains remained green.
+Deactivation was verified with zero React targets and all three legacy lanes;
+every current session is back on legacy. Manual lane movement and any default-on
+decision remain separate future scopes.

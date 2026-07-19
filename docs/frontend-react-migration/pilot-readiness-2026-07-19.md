@@ -2,7 +2,7 @@
 
 Date: 2026-07-19
 Candidate branch: `codex/frontend-react-migration`
-Current released commit: `7784ab4`
+Current released commit: `c97b5a9`
 
 ## Read-only live evidence
 
@@ -392,3 +392,47 @@ Pilot is healthy on `v.1.499.74`; Weekly is legacy for every session.
 The exact active release commit `7784ab4` was then fast-forward promoted to
 GitHub `main`; the later evidence-only documentation commit remains on the
 frontend migration branch.
+
+## Shift Master Board read-only Pilot evaluation
+
+The operational board was released and evaluated through three immutable
+all-flags-off checkpoints. No Pilot assignment, fact, carryover or other
+production record was written during any live evaluation.
+
+Release `v.1.499.75-94698e7` proved data and lifecycle parity but failed the
+visual gate: the React board mounted with the same three lanes, two cards,
+`126 / 1 / 0` summary, eight permitted masters and a first commit of
+`1166.10 ms`, while its production stylesheet was absent. The evaluation
+drop-in was removed immediately and legacy was restored.
+
+Release `v.1.499.76-5e63b63` added a scoped production stylesheet and a
+computed-style regression gate. The live board then rendered its shell, KPI,
+panels, lanes and cards correctly, but the physical-transfer projection still
+appeared as unstructured inline text. This second evaluation was also rejected
+and deactivated without writes.
+
+Release `v.1.499.77-c97b5a9` from exact commit
+`c97b5a939527613fb46f2c8e345598d8e6264329` completed the scoped transfer
+contract. Its manifest records source digest
+`b33a0a9a3313bf9722e5278161d532ef134a63efff12f7b10a86723a66b1939d`
+and dist digest
+`e8ed771db456844fe1b8f96976f8ecb2b6838d9ab8787d949de81213315988a1`.
+
+Accepted live evidence:
+
+- public health returned `ok`, version `v.1.499.77`, with shared-state ready;
+- all four PostgreSQL domain readiness checks passed;
+- the authenticated session explicitly requested the read-only board island;
+- React reached `ready` and showed the same current scope: three lanes, two
+  cards, summary `126 / 1 / 0`, date `2026-07-16` and eight master options;
+- the board, KPI, selected work card, lane cards and physical-transfer
+  `Откуда / Куда / Результат` projection rendered as bounded MES panels;
+- the transfer preserved the owner-provided semantics: `Слесарная операция ->
+  Оптическая инспекция -> Следующая операция`, remainder `60`;
+- no horizontal overflow or visually unscoped raw board content remained.
+
+After acceptance the root-owned evaluation drop-in was removed. A retained
+evaluation query mounted zero React targets and restored all three legacy
+lanes. The service remained active and healthy on `.77`; every session now uses
+legacy Shift Master Board. Default-on activation and manual lane movement are
+separate future checkpoints.

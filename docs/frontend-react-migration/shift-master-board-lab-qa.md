@@ -1,7 +1,7 @@
 # Shift Master Board React lab QA
 
 Date: 2026-07-19
-Status: production-integrated date/master, assignment, fact, carryover, typed-transfer and SZN-print island; disabled by default; no Pilot activation
+Status: production-integrated and Pilot-accepted read-only date/master, assignment, fact, carryover, typed-transfer and SZN-print island; disabled by default
 
 ## Vertical scenario
 
@@ -91,7 +91,11 @@ clean console. Current first commit is `25.90 ms`; the production base bundle is
 `217,258 B` raw / `67,589 B` gzip / `58,223 B` Brotli. The already shared print
 chunk is `13,774 B` raw / `3,351 B` gzip / `3,145 B` Brotli and is loaded only
 when the user opens SZN.
-Pilot remains unchanged.
+Pilot acceptance completed on immutable release `v.1.499.77-c97b5a9`. The live
+read-only island matched the current three-lane/two-card scope and rendered the
+typed transfer as three bounded MES cards. The evaluation permission was then
+disabled and the retained query restored legacy. No Pilot command or data write
+was issued; default-on and manual lane movement remain separate checkpoints.
 
 The frozen backend still requires at least one durable source row in a dispatch
 scope. A future date containing only a carryover therefore remains a legacy
