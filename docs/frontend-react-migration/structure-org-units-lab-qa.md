@@ -15,11 +15,12 @@ hierarchy, code and archive status.
 
 Local-only command scenario:
 
-`create child unit -> reject hierarchy cycle -> edit with revision conflict -> retry -> read through legacy`.
+`create child unit -> reject hierarchy cycle -> edit with revision conflict -> retry -> reject referenced-parent archive -> explicitly archive leaf -> read through legacy`.
 
 The command owner remains in `src/app.js`, requires the PostgreSQL primary
-System Domains surface and `productionStructureMatrix.edit`, and keeps archive
-in legacy.
+System Domains surface and `productionStructureMatrix.edit`. Archive is
+ID-bound, requires a second confirmation and rejects active incoming hierarchy,
+production and employment references before the existing owner.
 
 ## Evidence
 
@@ -33,12 +34,14 @@ in legacy.
 - local write QA creates a twentieth child row and preserves its exact parent;
 - an indirect cycle is rejected before any PUT reaches the command API;
 - conflict does not mutate the revision, retry advances it exactly once;
-- hidden server-only fields survive edit and the result reads back as 20 rows
-  through legacy;
+- a referenced parent archive is rejected before PUT;
+- leaf archive persists `isActive=false` plus valid `archivedAt`; hidden and
+  parent fields survive and the archived result reads back as 20 rows through legacy;
 - the disposable compatibility snapshot remains byte-for-byte unchanged;
-- latest local Org Units first commit was `17.70 ms`.
+- latest local Org Units first commit was `16.40 ms`.
 
-The production artifact is `213,588 B` raw / `65,204 B` gzip, below the
+The independent artifact is `214,582 B` raw / `65,440 B` gzip; bundled production
+is `207,704 B` raw / `64,964 B` gzip / `56,095 B` Brotli, below the
 `225,000 B / 68,000 B` gate. The aggregate lab uses the separate read-only
 scenario and remains below `505,000 B / 122,000 B`. Both read and write remain
 false by default.

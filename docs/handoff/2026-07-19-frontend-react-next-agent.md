@@ -205,3 +205,19 @@ actions/console, затем немедленно деактивировать и
 - Corrective audit после checkpoint добавил обязательный host guard: должность
   с действующим employment assignment отклоняется до PUT. QA доказывает нулевую
   ревизию/attempt для такой команды; latest first commit `19.60 ms`.
+
+## Продолжение: Structure Org Units archive checkpoint
+
+- Org Units получил typed archive с ID-bound подтверждением и existing
+  `archiveSystemDomainEntity("orgUnits", ...)` owner. Host отклоняет target с
+  активными child org units, work centers, positions, equipment или employment
+  assignments до PUT.
+- QA создаёт 20-й leaf-unit, доказывает cycle rejection, conflict/retry,
+  отклоняет архив родителя с активным ребёнком без mutation, затем архивирует
+  leaf и проверяет `isActive=false`, `archivedAt`, parent/hidden preservation и
+  архивный legacy read-back. Snapshot остаётся byte-identical.
+- Pilot write не выполнялся; reactivation остаётся отдельным owner-gap из-за
+  сохранения старого `archivedAt` generic upsert-ом.
+- Размеры: independent `214582 / 65440 B`; bundled production
+  `207704 / 64964 / 56095 B`; full lab `556607 / 126132 B`; first commit
+  `16.40 ms`.

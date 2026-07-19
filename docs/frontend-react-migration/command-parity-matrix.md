@@ -115,7 +115,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 7 | Boards/BOM | Local complete: board metadata create/edit/delete with Specifications cleanup; import and BOM rows remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write/delete with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
 | 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
-| 10 | Structure Org Units | Local complete: create/edit with parent existence and hierarchy-cycle validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable child unit and cleanup |
+| 10 | Structure Org Units | Local complete: create/edit/archive with hierarchy-cycle and active-reference rejection plus ID-bound confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable leaf unit; reactivation remains owner-gap |
 | 11 | Structure Equipment | Local complete: create/edit/archive with organization, work-center, quantity, schedule validation and explicit archive confirmation | High | Separately gated Pilot write evaluation with disposable equipment; scheduling commands remain legacy |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
@@ -201,14 +201,15 @@ before PUT and unchanged disposable compatibility state. The audit also
 fixed Structure active-host routing so a write-gated registry cannot disable
 legacy event binding while another host is selected.
 
-Structure Org Units adds hierarchy-safe PostgreSQL create/edit. Its local-only
+Structure Org Units adds hierarchy-safe PostgreSQL create/edit/archive. Its local-only
 editor saves name, code, type, parent and active state through the same
 revision-checked System Domains owner. Production-shell QA proves parent
-existence, rejects an indirect parent cycle before any PUT, preserves hidden
-fields, exercises conflict-without-mutation plus retry, returns the twentieth
-row through legacy and leaves the disposable compatibility snapshot unchanged.
-Archive remains legacy and Pilot write acceptance is a separate controlled
-checkpoint.
+existence, rejects an indirect parent cycle and archive of a referenced parent
+before any PUT, preserves hidden/parent fields, exercises
+conflict-without-mutation plus retry, archives the leaf with
+`isActive=false`/`archivedAt`, returns the twentieth archived row through legacy
+and leaves the disposable compatibility snapshot unchanged. Pilot write
+acceptance is a separate controlled checkpoint.
 
 Structure Work Centers adds hierarchy-safe PostgreSQL create/edit for name,
 code, organization, parent, Planning participation, Gantt visibility and active
