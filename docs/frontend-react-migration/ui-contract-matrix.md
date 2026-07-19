@@ -281,14 +281,15 @@ density, action fallback and zero Ops writes.
 
 ## Specifications 2.0 production evidence
 
-The protected-canvas proof deliberately migrates only immutable revision
-inspection, not the editor. The legacy host derives registry summaries and
-accepts the selected server item only when source entry, revision number and
-fingerprint match PostgreSQL. React reuses ModulePage, ModuleSidebar, Panel,
-MetricGrid, TableWrap, StatusToken and ActionButton, while owning only local
-tree collapse. Production-shell QA proves revision 7 with four hierarchy rows,
-default legacy, exact server parity, editor fallback, zero publication,
-attachment or work-order writes, unchanged state and a clean console.
+The protected-canvas proof keeps immutable revision inspection and now adds one
+bounded existing-row draft editor. The legacy host derives registry summaries,
+allowlisted draft fields and accepts the selected server item only when source
+entry, revision number and fingerprint match PostgreSQL. React reuses
+ModulePage, ModuleSidebar, Panel, MetricGrid, TableWrap, StatusToken and
+ActionButton, while owning local tree collapse and form state. Production-shell
+QA proves revision 7 with four hierarchy rows, default legacy, exact server
+parity, one owner-backed draft save, one compatibility persistence, unchanged
+published tree and zero publication, attachment or work-order API writes.
 
 ## Gantt production evidence
 

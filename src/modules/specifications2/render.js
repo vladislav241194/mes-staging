@@ -412,6 +412,9 @@ export function createSpecifications2Module(dependencies = {}) {
     const publication = selectedEntry.publication && typeof selectedEntry.publication === "object"
       ? selectedEntry.publication
       : null;
+    const draftRows = selectedEntry.editorRows?.length
+      ? normalizeSpecifications2EditorRows(selectedEntry.editorRows)
+      : createSpecifications2EditorRows(selectedEntry.treeRows || []);
     const publicationState = getSpecifications2PublicationState(selectedEntry);
     const serverRevision = publication?.revision ? getPublishedRevision(selectedEntry.id) : null;
     if (publication?.revision) hydratePublishedRevision(selectedEntry);
@@ -451,6 +454,16 @@ export function createSpecifications2Module(dependencies = {}) {
         publicationLabel: publicationState.label,
         publicationRevision: Number(publication?.revision || 0),
         publishedAt: publication?.releasedAt || publication?.publishedAt || "",
+        draftRows: draftRows.map((row) => ({
+          id: String(row.id || ""),
+          parentId: String(row.parentId || ""),
+          order: Number(row.order || 0),
+          label: row.label || "",
+          designation: row.designation || "",
+          type: row.type || "Компонент",
+          quantity: row.quantity ?? "",
+          unitOfMeasure: row.unitOfMeasure || "",
+        })),
         serverRevision: serverItem ? {
           id: String(serverItem.id || ""),
           sourceEntryId: String(serverItem.sourceEntryId || ""),
@@ -1604,6 +1617,55 @@ export function createSpecifications2Module(dependencies = {}) {
     `;
   }
 
+  function applySpecifications2DraftAction(entryId, action, { renderOnChange = true } = {}) {
+    const requestedEntryId = String(entryId || "");
+    const store = readStore();
+    const selectedId = store.selectedId || store.registry[0]?.id || "";
+    if (!requestedEntryId || requestedEntryId !== selectedId) {
+      return { ok: false, message: "Выбранная спецификация изменилась. Откройте строку заново." };
+    }
+    const entry = store.registry.find((item) => item.id === selectedId);
+    if (!entry) return { ok: false, message: "Черновик спецификации больше не существует." };
+    const editorRows = entry.editorRows?.length
+      ? normalizeSpecifications2EditorRows(entry.editorRows)
+      : createSpecifications2EditorRows(entry.treeRows || []);
+    const rowId = String(action?.id || "");
+    if (!editorRows.some((row) => row.id === rowId)) {
+      return { ok: false, message: "Строка черновика больше не существует." };
+    }
+    if (action.type === "update") {
+      const label = String(action.value?.label || "").trim();
+      const type = String(action.value?.type || "").trim();
+      if (!label || !type) return { ok: false, message: "Заполните наименование и тип строки." };
+    }
+    editorUi.historyEntryId = entry.id;
+    editorUi.historyRows = editorRows.map((row) => ({ ...row }));
+    const nextRows = action.type === "remove"
+      ? removeSpecifications2EditorBranch(editorRows, rowId)
+      : applySpecifications2EditorAction(editorRows, action);
+    const registry = store.registry.map((item) => item.id === selectedId ? {
+      ...item,
+      editorRows: nextRows,
+      editedAt: new Date().toISOString(),
+      selectedComponentKey: action.focusId ? `edit:${action.focusId}` : item.selectedComponentKey,
+    } : item);
+    writeStore({ ...store, registry, selectedId });
+    editorUi.draft = null;
+    editorUi.menuRowId = "";
+    editorUi.confirmRemoveId = "";
+    if (renderOnChange) render({ skipRememberScroll: true });
+    return { ok: true, entryId: selectedId, rowId };
+  }
+
+  function updateSpecifications2DraftRow(entryId, rowId, value, options = {}) {
+    return applySpecifications2DraftAction(entryId, {
+      type: "update",
+      id: rowId,
+      focusId: rowId,
+      value,
+    }, options);
+  }
+
   function bindSpecifications2Events() {
     if (!editorOutsideClickBound) {
       editorOutsideClickBound = true;
@@ -2313,28 +2375,8 @@ export function createSpecifications2Module(dependencies = {}) {
     const updateSelectedEditorRows = (action) => {
       const store = readStore();
       const selectedId = store.selectedId || store.registry[0]?.id || "";
-      const registry = store.registry.map((entry) => {
-        if (entry.id !== selectedId) return entry;
-        const editorRows = entry.editorRows?.length
-          ? normalizeSpecifications2EditorRows(entry.editorRows)
-          : createSpecifications2EditorRows(entry.treeRows || []);
-        editorUi.historyEntryId = entry.id;
-        editorUi.historyRows = editorRows.map((row) => ({ ...row }));
-        const nextRows = action.type === "remove"
-          ? removeSpecifications2EditorBranch(editorRows, action.id)
-          : applySpecifications2EditorAction(editorRows, action);
-        return {
-          ...entry,
-          editorRows: nextRows,
-          editedAt: new Date().toISOString(),
-          selectedComponentKey: action.focusId ? `edit:${action.focusId}` : entry.selectedComponentKey,
-        };
-      });
-      writeStore({ ...store, registry, selectedId });
-      editorUi.draft = null;
-      editorUi.menuRowId = "";
-      editorUi.confirmRemoveId = "";
-      render({ skipRememberScroll: true });
+      const result = applySpecifications2DraftAction(selectedId, action);
+      if (!result.ok) return;
       if (action.type === "remove") notifySaveSuccess("Ветка спецификации удалена");
     };
     document.querySelector("[data-specifications2-editor-undo]")?.addEventListener("click", () => {
@@ -2632,6 +2674,7 @@ export function createSpecifications2Module(dependencies = {}) {
     bindSpecifications2Events,
     getSpecifications2ReactModel,
     renderSpecifications2Page,
+    updateSpecifications2DraftRow,
   };
 }
 

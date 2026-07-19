@@ -33,15 +33,15 @@ Current minified measurements:
 | Employee Desktop production island | 207,932 B | 64,056 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 202,893 B | 63,121 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
-| Specifications 2.0 production island | 208,864 B | 64,433 B | 225,000 B | 68,000 B |
+| Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
 | Gantt production island | 207,957 B | 64,253 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 212,831 B | 65,382 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 211,805 B | 64,829 B | 225,000 B | 68,000 B |
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 504,778 B | 116,494 B | 505,000 B | 122,000 B |
-| Shared lab CSS | 19,470 B | 3,912 B | 19,500 B | 4,000 B |
+| Full twenty-four-scenario lab | 509,333 B | 117,430 B | 512,000 B | 124,000 B |
+| Shared lab CSS | 20,207 B | 4,010 B | 20,500 B | 4,200 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,

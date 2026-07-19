@@ -143,6 +143,12 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .specifications2-react-object small { color: #718296; font-size: 9px; }
 .specifications2-react-detail { display: grid; align-content: start; gap: 12px; }
 .specifications2-react-detail .action { width: 100%; }
+.specifications2-react-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; }
+.specifications2-react-editor label { display: grid; gap: 6px; color: #52667a; font-size: 10px; font-weight: 700; }
+.specifications2-react-editor label.full, .specifications2-react-editor .full { grid-column: 1 / -1; }
+.specifications2-react-editor input, .specifications2-react-editor select { min-width: 0; border: 1px solid #cbd8e6; border-radius: 8px; padding: 9px 10px; color: #1f3347; background: #fff; font: inherit; font-size: 11px; }
+.specifications2-react-editor-actions { display: flex; justify-content: flex-end; }
+.specifications2-react-command-error { margin: 0; color: #a33a32; font-size: 11px; }
 .gantt-react-toolbar { display:grid; grid-template-columns:minmax(260px,1fr) 120px auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
 .gantt-react-toolbar > div { display:grid; gap:3px; }
 .gantt-react-toolbar span,.gantt-react-label small { color:#718296; font-size:9px; }

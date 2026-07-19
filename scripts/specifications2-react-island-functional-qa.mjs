@@ -56,7 +56,7 @@ const original = await readFile(sharedStateFile, "utf8");
 const port = await getFreePort(); const origin = `http://127.0.0.1:${port}`;
 const preview = spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, MES_REACT_SPECIFICATIONS2: "1", MES_REACT_SPECIFICATIONS2_READ_ONLY_EVALUATION: "1" }, stdio: ["ignore", "pipe", "pipe"] });
 let previewOutput = ""; preview.stdout.on("data", (chunk) => { previewOutput += chunk; }); preview.stderr.on("data", (chunk) => { previewOutput += chunk; });
-let chrome = null; const consoleProblems = []; let revisionReads = 0; let specificationWrites = 0;
+let chrome = null; const consoleProblems = []; let revisionReads = 0; let specificationWrites = 0; let sharedStateWrites = 0;
 try {
   await waitPreview(origin); chrome = await launchChrome("mes-specifications2-react-island-qa-"); const { client } = chrome;
   client.socket.addEventListener("message", (event) => {
@@ -64,6 +64,11 @@ try {
     if (message.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(message.params?.type)) consoleProblems.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" "));
     if (message.method !== "Fetch.requestPaused") return;
     const requestUrl = new URL(message.params.request.url); const method = message.params.request.method;
+    if (requestUrl.pathname === "/api/shared-state" && method !== "GET") {
+      sharedStateWrites += 1;
+      void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }], body: Buffer.from(JSON.stringify({ ok: true, version: 2 })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
+      return;
+    }
     if (requestUrl.pathname === `/api/v1/specifications2/revisions/by-source/${entry.id}`) {
       revisionReads += 1;
       void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: '"spec-kt7-r7"' }], body: Buffer.from(JSON.stringify({ ok: true, item: serverItem })).toString("base64") }).catch((error) => consoleProblems.push(error.message));
@@ -74,7 +79,7 @@ try {
   });
   await client.send("Page.enable"); await client.send("Runtime.enable");
   await client.send("Page.addScriptToEvaluateOnNewDocument", { source: `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify({ selectedId: entry.id, registry: [entry] }))}); localStorage.setItem("mes-specifications-2-tab-v1", "tree");` });
-  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/specifications2*", requestStage: "Request" }] });
+  await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/specifications2*", requestStage: "Request" }, { urlPattern: "*api/shared-state*", requestStage: "Request" }] });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await client.send("Page.navigate", { url: `${origin}/?module=specifications2&qa-auth-bypass=1` });
   await waitForCondition(client, () => Boolean(document.querySelector(".specifications2-page")), { message: "Specifications 2.0 legacy page missing", timeoutMs: 20_000 });
@@ -95,10 +100,52 @@ try {
   assert(revisionReads >= 2, "legacy and React paths must read the PostgreSQL revision projection");
   assert(specificationWrites === 0, "read-only Specifications 2.0 evaluation must never call publication, attachment or work-order writes");
   assert(await readFile(sharedStateFile, "utf8") === original, "Specifications 2.0 read-only QA changed shared state");
+
+  await client.send("Page.navigate", { url: `${origin}/?module=specifications2&qa-auth-bypass=1&react-specifications2=1&react-specifications2-write=1` });
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-specifications2-island][data-react-island-state="ready"]')), { message: "Specifications 2.0 write-evaluation island not ready", timeoutMs: 20_000 });
+  await evaluate(client, () => [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Изменить строку черновика"))?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-specifications2-draft-editor]")), { message: "Specifications 2.0 draft editor did not open", timeoutMs: 10_000 });
+  await evaluate(client, () => {
+    const select = document.querySelector("[data-specifications2-draft-row]");
+    select.value = "board";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await waitForCondition(client, () => document.querySelector("[data-specifications2-draft-label]")?.value === "Плата управления", { message: "Specifications 2.0 draft row selection did not hydrate", timeoutMs: 10_000 });
+  await evaluate(client, () => {
+    const input = document.querySelector("[data-specifications2-draft-label]");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, "Плата управления КТ-7");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelector("[data-specifications2-draft-editor]")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+  await waitForCondition(client, () => {
+    const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
+    return store.registry?.[0]?.editorRows?.find((row) => row.id === "board")?.label === "Плата управления КТ-7";
+  }, { message: "Specifications 2.0 owner did not persist the edited draft row", timeoutMs: 10_000 });
+  for (let index = 0; index < 80 && sharedStateWrites !== 1; index += 1) await delay(100);
+  assert(sharedStateWrites === 1, `draft save must emit one compatibility persistence, received ${sharedStateWrites}`);
+  const writeResult = await evaluate(client, () => {
+    const store = JSON.parse(localStorage.getItem("mes-specifications-2-registry-v1") || "{}");
+    const selected = store.registry?.[0];
+    return {
+      publicationRevision: selected?.publication?.revision,
+      publicationFingerprint: selected?.publication?.fingerprint,
+      draftLabel: selected?.editorRows?.find((row) => row.id === "board")?.label,
+      publishedLabel: [...document.querySelectorAll("[data-specifications2-tree-row] strong")].map((node) => node.textContent?.trim()).find((label) => label === "АБВГ.468332.002"),
+      badge: document.querySelector(".lab-badge")?.textContent?.trim(),
+    };
+  });
+  assert(writeResult.publicationRevision === 7 && writeResult.publicationFingerprint === entry.publication.fingerprint, `published revision metadata changed during draft edit: ${JSON.stringify(writeResult)}`);
+  assert(writeResult.draftLabel === "Плата управления КТ-7" && writeResult.publishedLabel === "АБВГ.468332.002", `draft/published separation failed: ${JSON.stringify(writeResult)}`);
+  assert(writeResult.badge === "React · draft edit evaluation", `write-evaluation badge missing: ${JSON.stringify(writeResult)}`);
+  assert(specificationWrites === 0, "draft editor must not call publication, attachment or work-order APIs");
+  assert(await readFile(sharedStateFile, "utf8") === original, "intercepted draft QA changed the disposable server snapshot");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   console.log("Specifications 2.0 React production-shell functional QA: OK");
   console.log(`- PostgreSQL revision ${serverItem.revisionNo}, ${react.rows} tree rows, ${react.metrics} metrics; first commit ${react.commitMs.toFixed(2)} ms`);
-  console.log("- default legacy, fingerprint parity, write fallback, zero API writes, unchanged state and clean console: pass");
+  console.log("- one existing draft row saved through the legacy owner; published revision 7 remained unchanged");
+  console.log("- default legacy, read-only parity, one compatibility persistence, zero Specifications API writes and clean console: pass");
 } catch (error) {
   if (previewOutput.trim()) console.error(previewOutput.trim());
   throw error;

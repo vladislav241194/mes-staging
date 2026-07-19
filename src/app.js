@@ -2177,6 +2177,7 @@ let renderSpecifications2Page = () => renderUiModulePage({
   content: renderUiEmptyState({ title: "Загружаем модуль", description: "Спецификация откроется автоматически." }),
 });
 let getSpecifications2ReactModel = () => ({ registry: [], selectedEntry: null, serverStatus: "empty", serverError: "" });
+let updateSpecifications2DraftRow = () => ({ ok: false, message: "Модуль Specifications 2.0 ещё не загружен." });
 let specifications2ModuleLoad = null;
 let specifications2ModuleReady = false;
 let specifications2RevisionsReadModel = null;
@@ -2222,6 +2223,7 @@ function initializeSpecifications2Module(factory, buildSpecifications2Publicatio
     bindSpecifications2Events,
     getSpecifications2ReactModel,
     renderSpecifications2Page,
+    updateSpecifications2DraftRow,
   } = factory({
     escapeAttribute,
     escapeHtml,
@@ -3210,12 +3212,13 @@ const contourAdminReactIslandHost = createContourAdminReactIslandHost({
 });
 function getSpecifications2ReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   return {
     featureFlagEnabled: params.get("react-specifications2") === "1",
     readOnlyEvaluation: params.get("react-specifications2-readonly") === "1",
+    writeEvaluation: params.get("react-specifications2-write") === "1",
   };
 }
 function isSpecifications2ReactEvaluationRequested() {
@@ -3233,13 +3236,30 @@ const specifications2ReactIslandHost = createSpecifications2ReactIslandHost({
       featureFlagEnabled,
       moduleReady: specifications2ModuleReady,
       serverReadReady: model?.serverStatus === "ready",
-      accessMode: (serverEvaluationAllowed && isSpecifications2ReactEvaluationRequested()) || localQa.readOnlyEvaluation
-        ? "read-only-evaluation"
-        : "editor",
+      accessMode: localQa.writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isSpecifications2ReactEvaluationRequested()) || localQa.readOnlyEvaluation
+          ? "read-only-evaluation"
+          : "editor",
     };
   },
-  getPayload: () => ({ model: getSpecifications2ReactModel() }),
+  getPayload: () => {
+    const localQa = getSpecifications2ReactLocalQaOverrides();
+    return { model: getSpecifications2ReactModel(), capabilities: { draftEdit: localQa.writeEvaluation } };
+  },
   getTargetRoot: () => app,
+  executeCommand: async (command = {}) => {
+    const localQa = getSpecifications2ReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "save-draft-row") {
+      return { ok: false, message: "Редактирование черновика Specifications 2.0 недоступно." };
+    }
+    const payload = command.payload || {};
+    const result = updateSpecifications2DraftRow(payload.entryId, payload.rowId, payload.value, { renderOnChange: false });
+    if (!result?.ok) return result;
+    notifySaveSuccess("Элемент спецификации изменён");
+    if (ui.activeModule === "specifications2") render({ skipRememberScroll: true });
+    return result;
+  },
   requestLegacyRender: (_reason, scope = "") => {
     const [action, targetId] = String(scope || "").split(":");
     if (action === "select" && targetId) {

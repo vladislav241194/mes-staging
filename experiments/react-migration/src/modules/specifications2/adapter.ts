@@ -35,6 +35,17 @@ export interface Specifications2Route {
   operationCount: number;
 }
 
+export interface Specifications2DraftRow {
+  id: string;
+  parentId: string;
+  order: number;
+  label: string;
+  designation: string;
+  type: string;
+  quantity: string;
+  unitOfMeasure: string;
+}
+
 function adaptTreeItems(value: unknown): Specifications2TreeItem[] {
   const source = list(value).map((raw, index) => {
     const item = record(raw);
@@ -75,6 +86,7 @@ function adaptTreeItems(value: unknown): Specifications2TreeItem[] {
 export function adaptSpecifications2Payload(payload: unknown) {
   const root = record(payload);
   const model = record(root.model || payload);
+  const capabilities = record(root.capabilities);
   const selected = record(model.selectedEntry);
   const serverRevision = record(selected.serverRevision);
   const registry = list(model.registry).map((raw, index): Specifications2RegistryItem => {
@@ -102,8 +114,22 @@ export function adaptSpecifications2Payload(payload: unknown) {
     };
   });
   const treeItems = adaptTreeItems(serverRevision.treeItems);
+  const draftRows = list(selected.draftRows).map((raw, index): Specifications2DraftRow => {
+    const item = record(raw);
+    return {
+      id: text(item.id, `draft-row-${index + 1}`),
+      parentId: text(item.parentId),
+      order: number(item.order),
+      label: text(item.label, "Без названия"),
+      designation: text(item.designation),
+      type: text(item.type, "Компонент"),
+      quantity: text(item.quantity),
+      unitOfMeasure: text(item.unitOfMeasure),
+    };
+  }).filter((item, index, items) => item.id && items.findIndex((candidate) => candidate.id === item.id) === index);
   return {
     registry,
+    canEditDraft: Boolean(capabilities.draftEdit),
     serverStatus: text(model.serverStatus, "empty"),
     serverError: text(model.serverError),
     selectedEntry: selected.id ? {
@@ -115,6 +141,7 @@ export function adaptSpecifications2Payload(payload: unknown) {
       publicationLabel: text(selected.publicationLabel, "Черновик"),
       publicationRevision: number(selected.publicationRevision),
       publishedAt: text(selected.publishedAt),
+      draftRows,
       serverRevision: serverRevision.id ? {
         id: text(serverRevision.id),
         sourceEntryId: text(serverRevision.sourceEntryId),

@@ -203,13 +203,15 @@ server-authenticated admin-only hostname boundary and additionally requires two
 false-by-default permissions plus an explicit read-only session request. A
 public host, editor access or a missing request retains legacy.
 
-`mountSpecifications2ReactIsland(...)` owns only inspection of the selected
-immutable published revision and its PostgreSQL tree. The host exposes a compact
+`mountSpecifications2ReactIsland(...)` owns inspection of the selected immutable
+published revision and its PostgreSQL tree plus a localhost-only command proof
+for updating one existing pre-publication draft row. The host exposes a compact
 read model only after source entry, revision number and fingerprint all match
-the server projection. React owns local branch collapse; registry switching,
-XLSX upload, tree editing, routes, norms, attachments, publication and work-
-order creation return through `unsupported-scope`. Missing or mismatched
-PostgreSQL data, editor access or a missing session request retains legacy.
+the server projection, rechecks the write gate and delegates the typed command
+to `updateSpecifications2DraftRow`. React owns local branch collapse; registry
+switching, XLSX upload, add/remove/reparent, routes, norms, attachments,
+publication and work-order creation return through `unsupported-scope`. Missing
+or mismatched PostgreSQL data or a missing evaluation request retains legacy.
 
 `mountGanttReactIsland(...)` owns the read-only schedule canvas, local slot-
 passport selection and inspection of visible dependencies. The legacy Gantt

@@ -8,6 +8,7 @@ export function createSpecifications2ReactIslandHost({
   getPayload,
   getTargetRoot,
   requestLegacyRender,
+  executeCommand,
   reportError = (error) => console.error("[MES] Specifications 2.0 React island failed", error),
 } = {}) {
   return createReactIslandHost({
@@ -22,7 +23,7 @@ export function createSpecifications2ReactIslandHost({
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.moduleReady) return "module-not-ready";
       if (!activation.serverReadReady) return "postgres-revision-not-confirmed";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -32,6 +33,6 @@ export function createSpecifications2ReactIslandHost({
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountSpecifications2ReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountSpecifications2ReactIsland(target, payload, { onError, onReady, onRequestLegacy, onCommand: (command) => executeCommand?.(command) }),
   });
 }

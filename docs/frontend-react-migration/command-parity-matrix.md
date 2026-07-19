@@ -45,6 +45,13 @@ inside React using the existing `getDependencyPairs` owner; drag, resize,
 optimization and all schedule mutations remain legacy. The remaining scenarios
 retain their explicit next vertical scopes.
 
+Specifications 2.0 now has locally complete editing of one existing draft row
+through its unchanged compatibility owner. React receives only the selected
+draft row fields, while add/remove/reparent, publication, attachments, routes
+and work-order commands remain legacy. Production-shell QA proves one
+compatibility persistence, unchanged published revision metadata/tree and zero
+Specifications API writes.
+
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
 | 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
@@ -66,7 +73,7 @@ retain their explicit next vertical scopes.
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy | Critical | Separately gated Pilot read-only acceptance of the three React-owned presentation paths |
 | 18 | Shift Master Board | Local complete: card selection and owner-backed all/mine/open/attention focus; mutations remain legacy | Critical | Separately gated Pilot read-only focus acceptance, then bounded assignment scope |
 | 19 | Employee Desktop | Local complete: task start through the existing owner; fact and report remain legacy | Critical | Separately gated Pilot task-start acceptance before fact and report commands |
-| 20 | Specifications 2.0 | Pending | Critical | Draft editor save before publish, attachment and work-order commands |
+| 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
 | 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |
 | 22 | Authorization | Pending | Critical | PIN entry and failed-attempt UX before session authority transfer |
 | 23 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
