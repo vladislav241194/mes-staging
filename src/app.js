@@ -2649,6 +2649,8 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
       const positionId = String(input.positionId || "").trim();
       const position = (getSystemDomainsRegistries().positions || []).find((row) => row.id === positionId);
       if (!position || position.isActive === false) return { ok: false, message: "Активная должность больше не существует." };
+      const activeAssignment = (getSystemDomainsRegistries().employmentAssignments || []).find((assignment) => assignment.positionId === positionId && assignment.isActive !== false && !assignment.validTo);
+      if (activeAssignment) return { ok: false, message: "Нельзя архивировать должность с действующим назначением сотрудника." };
       try {
         const result = await archiveSystemDomainEntity("positions", positionId, { source: "react:structure-positions:archive", serverCommand: true, surface: "production-structure" });
         if (result !== true) return { ok: false, message: "Архивирование должности отклонено проверкой System Domains." };

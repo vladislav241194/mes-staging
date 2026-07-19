@@ -174,6 +174,14 @@ try {
     const archiveUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-positions=1&react-structure-positions-write=1&qa-reload=positions-archive-revision-3`;
     await client.send("Page.navigate", { url: archiveUrl });
     await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]').length === 50, { message: "Positions archive projection did not hydrate", timeoutMs: 15_000 });
+    const usedPositionId = apiDomains.registries.employmentAssignments.find((assignment) => assignment.positionId && assignment.isActive !== false && !assignment.validTo)?.positionId || "";
+    assert(usedPositionId, "Positions archive QA requires one position with an active employment assignment");
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), usedPositionId);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Архивировать"), { message: "Used position archive action did not become available for host rejection proof" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Архивировать")?.click());
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить архивирование")?.click());
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("действующим назначением"), { message: "position with active employment assignment was not rejected" });
+    assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "used position archive must fail before PostgreSQL mutation");
     await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
     await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Архивировать"), { message: "Position archive action did not become available" });
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Архивировать")?.click());
