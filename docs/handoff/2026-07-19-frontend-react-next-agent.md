@@ -412,3 +412,27 @@ actions/console, затем немедленно деактивировать и
 - После блока доказательная оценка глобальной миграции: примерно `87%`
   выполнено, примерно `13%` осталось (`+1 п.п.`). Оценка не включает два
   оставшихся Boards scopes, Planning/Gantt/role lifecycle и внешние Pilot gates.
+
+## Продолжение 2026-07-20: Boards/BOM add-from-Nomenclature checkpoint
+
+- Закрыт последний ручной row-create scope Boards: typed
+  `add-bom-nomenclature-row` несёт board ID, Nomenclature ID и полный
+  expected-table snapshot. Host повторно проверяет local write gate, RBAC,
+  существование платы/позиции, точный РЭА-тип и конкурентное изменение, затем
+  делегирует существующему `addNomenclatureToBom`.
+- React не создаёт строку и не вычисляет sequence/note/totals. Успех принимается
+  только после owner read-back: прежний префикс неизменен, добавлена ровно одна
+  строка и её `nomenclatureId` совпадает. Host projection показывает только
+  eligible options; exact boolean `bomRowAdd` остаётся fail-closed.
+- Production-shell QA добавляет `rea-add` на пустую вторую плату, доказывает
+  owner values, примечание `Добавлено из номенклатуры`, sequence `1`, корпусной
+  total, сохранность hidden Nomenclature field/source link и Planning. Legacy
+  читает полную новую строку. Обнаруженная потеря выбора второй платы после
+  authoritative rerender исправлена через существующий `ui.activeBomId`.
+- Quantity, все девять BOM cells, row delete и board create/edit/delete проходят
+  тем же regression. Performance gate зелёный: Boards `220698 / 67136 B`, full
+  lab `557071 / 126284 B`; first commit `20.70 ms` при gate `2000 ms`.
+- Excel import теперь единственный оставшийся Boards command scope. Pilot
+  write/release/flags не менялись, legacy rollback сохранён. После блока
+  доказательная оценка глобальной миграции: примерно `88%` выполнено, примерно
+  `12%` осталось (`+1 п.п.`).

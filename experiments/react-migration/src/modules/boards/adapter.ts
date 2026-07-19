@@ -78,10 +78,14 @@ export interface BoardItem {
 }
 
 export interface BoardDeleteUsage { specificationsCount: number; bomRowsCount: number }
+export interface BomNomenclatureOption { id: string; label: string; meta: string }
 export interface BoardsModel {
   boards: BoardItem[];
+  bomNomenclatureOptions: BomNomenclatureOption[];
+  selectedBoardId: string;
   canCreateEdit: boolean;
   canDelete: boolean;
+  canAddBomRows: boolean;
   canEditBomRows: boolean;
   canDeleteBomRows: boolean;
   deleteUsageById: Record<string, BoardDeleteUsage>;
@@ -216,10 +220,22 @@ export function adaptBoardsModel(payload: unknown): BoardsModel {
       bomRowsCount: normalizeQuantity(entry.bomRowsCount),
     }];
   }));
+  const optionSource = Array.isArray(root.bomNomenclatureOptions) ? root.bomNomenclatureOptions : [];
+  const bomNomenclatureOptions = optionSource.flatMap((entry): BomNomenclatureOption[] => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const dto = entry as Record<string, unknown>;
+    const id = text(dto.id);
+    const label = text(dto.label);
+    if (!id || !label) return [];
+    return [{ id, label, meta: text(dto.meta) }];
+  });
   return {
     boards,
+    bomNomenclatureOptions,
+    selectedBoardId: boards.some((board) => board.id === text(root.selectedBoardId)) ? text(root.selectedBoardId) : boards[0]?.id || "",
     canCreateEdit: capabilities.createEdit === true,
     canDelete: capabilities.delete === true,
+    canAddBomRows: capabilities.bomRowAdd === true,
     canEditBomRows: capabilities.bomRowEdit === true,
     canDeleteBomRows: capabilities.bomRowDelete === true,
     deleteUsageById,

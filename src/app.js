@@ -2464,10 +2464,21 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     }));
     return {
       ...directoryState,
+      selectedBoardId: String(ui.activeBomId || "").trim(),
+      bomNomenclatureOptions: (directoryState.nomenclature || [])
+        .filter((item) => normalizeLookupText(item?.type) === normalizeLookupText("РЭА компоненты"))
+        .sort((left, right) => String(left?.name || "").localeCompare(String(right?.name || ""), "ru"))
+        .map((item) => ({
+          id: String(item?.id || "").trim(),
+          label: String(item?.name || "Компонент без названия").trim(),
+          meta: [item?.article, item?.package].map((value) => String(value || "").trim()).filter(Boolean).join(" · "),
+        }))
+        .filter((item) => item.id),
       deleteUsageById,
       capabilities: {
         createEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         delete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
+        bomRowAdd: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         bomRowEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
         bomRowDelete: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }),
       },
@@ -2488,10 +2499,26 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
       return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
     }
-    if (!["save", "delete", "update-bom-quantity", "update-bom-cell", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Excel-импорт и добавление строки из номенклатуры остаются в legacy-контуре." };
+    if (!["save", "delete", "add-bom-nomenclature-row", "update-bom-quantity", "update-bom-cell", "delete-bom-row"].includes(command.type)) return { ok: false, message: "Excel-импорт остаётся в legacy-контуре." };
     if (!await ensureNomenclatureRenderModule()) return { ok: false, message: "Владелец платы ещё не загрузился." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     const rowSignature = (values = []) => values.map((value, index) => index === 6 ? Number(value || 0) : String(value ?? "").trim());
+    if (command.type === "add-bom-nomenclature-row") {
+      const bomId = String(input.bomId || "").trim(); const nomenclatureId = String(input.nomenclatureId || "").trim();
+      const bom = getBomList(bomId); const rows = getBomImportRows(bom); const nomenclatureItem = getNomenclatureItem(nomenclatureId);
+      const expectedRows = Array.isArray(input.expectedRows) && input.expectedRows.every((values) => Array.isArray(values))
+        ? input.expectedRows.map((values) => normalizeBomImportRow({ values }).values)
+        : null;
+      if (!bom || !nomenclatureItem) return { ok: false, message: "Плата или позиция номенклатуры больше не существует." };
+      if (normalizeLookupText(nomenclatureItem.type) !== normalizeLookupText("РЭА компоненты")) return { ok: false, message: "В BOM можно добавить только РЭА-компонент." };
+      if (!expectedRows || JSON.stringify(rows.map((row) => rowSignature(row.values))) !== JSON.stringify(expectedRows.map(rowSignature))) return { ok: false, message: "Таблица BOM изменилась в другом сеансе. Обновите экран и повторите." };
+      const previousRows = rows.map((row) => rowSignature(row.values));
+      addNomenclatureToBom(bomId, nomenclatureId);
+      const authoritativeRows = getBomImportRows(getBomList(bomId)); const appendedRow = authoritativeRows.at(-1);
+      if (authoritativeRows.length !== rows.length + 1 || JSON.stringify(authoritativeRows.slice(0, -1).map((row) => rowSignature(row.values))) !== JSON.stringify(previousRows) || String(appendedRow?.nomenclatureId || "") !== nomenclatureId) return { ok: false, message: "Владелец BOM не подтвердил добавление строки." };
+      queueMicrotask(() => { if (ui.activeModule === "nomenclature" && ui.activeNomenclaturePane === "boards") render({ skipRememberScroll: true }); });
+      return { ok: true, id: `${bomId}:${authoritativeRows.length - 1}`, rowCount: authoritativeRows.length };
+    }
     if (command.type === "update-bom-cell") {
       const bomId = String(input.bomId || "").trim(); const rowIndex = Number(input.rowIndex); const columnIndex = Number(input.columnIndex);
       const bom = getBomList(bomId); const rows = getBomImportRows(bom);

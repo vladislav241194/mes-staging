@@ -84,18 +84,21 @@ owner accepts create/edit only for persisted user-authority rows, while every
 system lifecycle row and delete remain read-only.
 
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
-Boards/BOM read, board-metadata create/edit/delete, all nine existing-row BOM
-cell commands and ID/table-bound row deletion. Its production host
+Boards/BOM read, board-metadata create/edit/delete, Nomenclature row add, all
+nine existing-row BOM cell commands and ID/table-bound row deletion. Its production host
 requires a separate false-by-default feature policy and the `boards` pane.
-React dispatches only typed board save/delete, cell-edit or row-delete commands
+React dispatches only typed board save/delete, Nomenclature row-add, cell-edit
+or row-delete commands
 to the existing Products owner and renders the host-owned delete-usage projection.
 The host verifies board/row existence, integer quantity, the exact eight-field
 non-quantity allowlist and the complete expected normalized row before invoking
 `updateBomImportCell`. It accepts the result only after reading the complete
-owner-normalized row back. Row deletion
+owner-normalized row back. Row add carries the complete expected table, and the
+host delegates to `addNomenclatureToBom` before accepting exactly one appended
+owner row with the requested Nomenclature identity and unchanged prefix. Row deletion
 must match the complete authoritative table snapshot before delegating to
 `deleteBomImportRow`, then reads the remaining rows back from the owner. Excel
-import and add-from-Nomenclature do not transfer from legacy. The aggregate fixture lab
+import does not transfer from legacy. The aggregate fixture lab
 uses a separate read-only Boards scenario, so command UI does not leak into
 read evaluation.
 

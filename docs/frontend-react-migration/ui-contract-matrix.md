@@ -125,15 +125,18 @@ confirmation contracts and existing command owner. The bounded quantity form
 and eight text inputs delegate to the existing `updateBomImportCell` owner
 after the host rechecks the complete expected row, exact column allowlist and
 nonnegative integer where applicable. Text inputs commit on blur/Enter and
-accept the complete owner-normalized row back. A separate
+accept the complete owner-normalized row back. A bounded select exposes only
+host-projected eligible Nomenclature and sends the complete expected table to
+`addNomenclatureToBom`; it remains available on an empty saved board and
+preserves selection across authoritative rerender. A separate
 row action carries the full expected table into an accessible confirmation;
 the host rechecks every row before delegating to `deleteBomImportRow` and reads
 the remaining owner projection back. Independently addressable Nomenclature is
 retained. The host supplies the
 owner-calculated delete-usage projection; React never reimplements
 Specifications linkage. Delete clears only the selected board references,
-retains the independent Nomenclature result and leaves Planning unchanged. The
-Excel import and add-from-Nomenclature remain protected legacy slices.
+retains the independent Nomenclature result and leaves Planning unchanged.
+Excel import remains a protected legacy slice.
 
 ## Structure Employees read-model evidence
 

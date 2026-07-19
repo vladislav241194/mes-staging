@@ -17,8 +17,9 @@ export function BoardsScenario({
 }) {
   const model = useMemo(() => adaptBoardsModel(payload), [payload]);
   const boards = model.boards;
-  const [selectedId, setSelectedId] = useState(boards[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(model.selectedBoardId);
   const [draft, setDraft] = useState<BoardDraft | null>(null);
+  const [nomenclatureId, setNomenclatureId] = useState("");
   const [deletePending, setDeletePending] = useState(false);
   const [rowDeletePending, setRowDeletePending] = useState<BomRowDeleteTarget | null>(null);
   const { clearCommandError, commandError, runCommand, saving } = useCommandRunner(onCommand);
@@ -45,6 +46,7 @@ export function BoardsScenario({
           meta={getBoardSidebarMeta(board)}
           onClick={() => {
             setSelectedId(board.id);
+            setNomenclatureId("");
             setRowDeletePending(null);
             clearCommandError();
             onSelectionChange?.(board.id);
@@ -67,10 +69,19 @@ export function BoardsScenario({
     const result = await runCommand({ type: "delete-bom-row", payload: rowDeletePending }, "Не удалось удалить строку BOM.");
     if (result && result.ok !== false) setRowDeletePending(null);
   };
+  const addBomNomenclatureRow = async () => {
+    if (!selected || !model.canAddBomRows || !nomenclatureId) return;
+    const result = await runCommand({ type: "add-bom-nomenclature-row", payload: { bomId: selected.id, nomenclatureId, expectedRows: selected.rows.map((item) => [...item.values]) } }, "Не удалось добавить строку BOM.");
+    if (result && result.ok !== false) setNomenclatureId("");
+  };
 
   return (
     <ModulePage header={header} sidebar={sidebar}>
       <Panel heading={<div className="panel-heading"><div><h2>{selected?.name || "Плата не выбрана"}</h2><p>{selected ? `${selected.rows.length} строк · покомпонентный расчет платы` : "Выберите плату в перечне"}</p></div><div className="react-nomenclature-detail-actions"><ActionButton disabled={!model.canCreateEdit} onClick={() => setDraft(createBoardDraft())} title={model.canCreateEdit ? "Создать карточку платы" : "Write evaluation выключен"}>Новая плата</ActionButton><ActionButton disabled title="Excel-импорт остаётся отдельным legacy-срезом">Импортировать *.xlsx</ActionButton></div></div>}>
+        {selected && model.canAddBomRows ? <form className="react-bom-nomenclature-add" data-react-bom-nomenclature-add={selected.id} onSubmit={(event) => { event.preventDefault(); void addBomNomenclatureRow(); }}>
+          <label><span>Добавить строку из номенклатуры</span><select aria-label="РЭА-компонент для BOM" disabled={saving || !model.bomNomenclatureOptions.length} onChange={(event) => setNomenclatureId(event.currentTarget.value)} value={nomenclatureId}><option value="">Выберите РЭА-компонент</option>{model.bomNomenclatureOptions.map((option) => <option key={option.id} value={option.id}>{option.label}{option.meta ? ` · ${option.meta}` : ""}</option>)}</select></label>
+          <button disabled={saving || !nomenclatureId} type="submit">Добавить строку</button>
+        </form> : null}
         {selected ? selected.rows.length ? <>
           <MetricGrid className="board-summary" label="Подсчет импортированных компонентов">
             <MetricCard label="Компонентов" meta="на одну плату" value={formatComponentCount(selected.componentTotal)} />
@@ -87,8 +98,9 @@ export function BoardsScenario({
           {rowDeletePending ? <DeleteConfirmation busy={saving} error={commandError} id="react-bom-row-delete-title" onCancel={() => { setRowDeletePending(null); clearCommandError(); }} onConfirm={() => { void deleteBomRow(); }} title="Удалить строку BOM?">
             <p>Строка {rowDeletePending.rowIndex + 1} «{rowDeletePending.label}» будет удалена только из выбранной платы.</p>
             <p>Связанная номенклатура останется независимо доступной.</p>
-          </DeleteConfirmation> : commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
+          </DeleteConfirmation> : null}
         </> : <EmptyState title="Пока нет импортированных строк" text="Карточка платы сохранена, но компонентный состав ещё не импортирован." /> : <EmptyState title="Платы пока не созданы" text="Read-only сценарий покажет платы после появления данных BOM." />}
+        {commandError && !rowDeletePending ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
       </Panel>
 
       {draft ? <Panel heading={<div className="panel-heading"><div><h2>{deletePending ? "Подтверждение удаления" : draft.isNew ? "Новая плата" : "Редактирование платы"}</h2><p>Существующий владелец Boards/BOM</p></div><ActionButton onClick={() => { if (deletePending) setDeletePending(false); else setDraft(null); clearCommandError(); }} variant="secondary">Отмена</ActionButton></div>}>
@@ -136,11 +148,12 @@ function BomTextCellEditor({ ariaLabel, disabled, id, onCommit, value }: { ariaL
 
 interface BoardDraft { isNew: boolean; bomId: string; name: string; boardCode: string; resultItem: string }
 interface BomRowDeleteTarget { bomId: string; rowIndex: number; expectedRows: readonly (readonly (string | number)[])[]; label: string }
-interface BoardsCommandResult { ok?: boolean; message?: string; value?: string | number }
+interface BoardsCommandResult { ok?: boolean; message?: string; value?: string | number; rowCount?: number }
 const createBoardDraft = (board?: BoardItem): BoardDraft => ({ isNew: !board, bomId: board?.id || "", name: board?.name || "", boardCode: board?.boardCode === "-" ? "" : board?.boardCode || "", resultItem: board?.resultItem === "-" ? "" : board?.resultItem || "" });
 export type BoardsReactCommand =
   | { type: "save"; payload: BoardDraft }
   | { type: "delete"; payload: { bomId: string } }
+  | { type: "add-bom-nomenclature-row"; payload: { bomId: string; nomenclatureId: string; expectedRows: readonly (readonly (string | number)[])[] } }
   | { type: "update-bom-quantity"; payload: { bomId: string; rowIndex: number; expectedValues: readonly (string | number)[]; quantity: string } }
   | { type: "update-bom-cell"; payload: { bomId: string; rowIndex: number; columnIndex: number; expectedValues: readonly (string | number)[]; value: string } }
   | { type: "delete-bom-row"; payload: BomRowDeleteTarget };

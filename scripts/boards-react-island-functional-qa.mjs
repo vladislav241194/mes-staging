@@ -54,6 +54,7 @@ function createDirectoryFixture() {
     ],
     nomenclature: [
       { id: "rea-001", article: "RC0603-10K", name: "Резистор 10 кОм", type: "РЭА компоненты", unit: "шт.", package: "0603", manufacturer: "Yageo", status: "Активен", hiddenMarker: "preserve-existing-nomenclature" },
+      { id: "rea-add", article: "CAP0603-1U", name: "Конденсатор 1 мкФ", type: "РЭА компоненты", unit: "шт.", package: "0603", manufacturer: "Murata", status: "Активен", hiddenMarker: "preserve-added-nomenclature" },
       { id: "rea-xp", article: "HDR-2", name: "Разъем питания", type: "РЭА компоненты", unit: "шт.", package: "Connector", manufacturer: "Amphenol", status: "Активен", sourceBomIds: ["board-control"], hiddenMarker: "preserve-row-nomenclature" },
       { id: "pcb-001", article: "АБВГ.469659.001", name: "Смонтированная плата управления", type: "Печатные платы", unit: "шт.", package: "PCB", manufacturer: "—", status: "Активен", sourceBomResultId: "board-control" },
     ],
@@ -272,10 +273,47 @@ async function main() {
       boards: document.querySelectorAll('[data-ui-component="SidebarItem"]').length - 1,
       newDisabled: [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Новая плата"))?.disabled,
       importDisabled: [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Импортировать"))?.disabled,
+      addForm: document.querySelectorAll('[data-react-bom-nomenclature-add="board-control"]').length,
+      addOptionValues: [...document.querySelectorAll('[data-react-bom-nomenclature-add="board-control"] option')].map((option) => option.value).filter(Boolean),
     }));
-    assert(writeInitial.badge.includes("create/edit") && writeInitial.boards === 2 && writeInitial.newDisabled === false && writeInitial.importDisabled === true, `Boards write capability boundary failed: ${JSON.stringify(writeInitial)}`);
+    assert(writeInitial.badge.includes("create/edit") && writeInitial.boards === 2 && writeInitial.newDisabled === false && writeInitial.importDisabled === true && writeInitial.addForm === 1, `Boards write capability boundary failed: ${JSON.stringify(writeInitial)}`);
+    assert(writeInitial.addOptionValues.includes("rea-add") && !writeInitial.addOptionValues.includes("pcb-001"), `Boards add options must expose owner-eligible REA only: ${JSON.stringify(writeInitial.addOptionValues)}`);
     await delay(250);
     const planningBeforeWrite = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent.includes("Плата питания"))?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-bom-nomenclature-add="board-power"]')), { message: "empty Board did not expose the bounded Nomenclature row-add form" });
+    const beforeBomRowAdd = await readFile(writeSharedStateFile, "utf8");
+    const emptyAddState = await evaluate(client, () => ({
+      rows: document.querySelectorAll(".bom-table tbody tr").length,
+      buttonDisabled: document.querySelector('[data-react-bom-nomenclature-add="board-power"] button')?.disabled,
+    }));
+    assert(emptyAddState.rows === 0 && emptyAddState.buttonDisabled === true, `empty row-add selection must fail closed: ${JSON.stringify(emptyAddState)}`);
+    assert(await readFile(writeSharedStateFile, "utf8") === beforeBomRowAdd, "empty BOM row-add selection mutated the disposable state");
+    await evaluate(client, () => {
+      const form = document.querySelector('[data-react-bom-nomenclature-add="board-power"]');
+      const select = form?.querySelector("select");
+      if (!form || !select) throw new Error("Missing React BOM Nomenclature row-add controls");
+      select.value = "rea-add";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await delay(80);
+    await evaluate(client, () => document.querySelector('[data-react-bom-nomenclature-add="board-power"]')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelectorAll(".bom-table tbody tr").length === 1 && !document.querySelector('[role="alert"]'), { message: "BOM Nomenclature row owner result did not return to React", timeoutMs: 10_000 });
+    let afterBomRowAdd = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const persistedSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      afterBomRowAdd = JSON.parse(persistedSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (afterBomRowAdd.bomLists.find((board) => board.id === "board-power")?.importRows?.length === 1) break;
+      await delay(120);
+    }
+    const addedRowBoard = afterBomRowAdd.bomLists.find((board) => board.id === "board-power");
+    assert(JSON.stringify(addedRowBoard.importRows[0].values) === JSON.stringify([1, "Конденсатор 1 мкФ", "", "CAP0603-1U", "Murata", "0603", 1, "Добавлено из номенклатуры", ""]), `owner-created BOM row mismatch: ${JSON.stringify(addedRowBoard.importRows[0])}`);
+    assert(addedRowBoard.importRows[0].nomenclatureId === "rea-add" && addedRowBoard.c0603 === 1, "BOM row add lost Nomenclature identity or component totals");
+    assert(afterBomRowAdd.nomenclature.some((item) => item.id === "rea-add" && item.hiddenMarker === "preserve-added-nomenclature" && item.sourceBomIds?.includes("board-power")), "BOM row add did not preserve and synchronize the existing Nomenclature item");
+    assert(JSON.stringify(JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY])) === JSON.stringify(planningBeforeWrite), "BOM row add changed Planning state");
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent.includes("Плата управления"))?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-bom-quantity-form="board-control:0"]')), { message: "Boards row-add QA did not restore the control board" });
 
     const beforeInvalidBomQuantity = await readFile(writeSharedStateFile, "utf8");
     await evaluate(client, () => {
@@ -450,8 +488,15 @@ async function main() {
     });
     assert(JSON.stringify(legacyEditedBomValues) === JSON.stringify(["10", "Резистор 12 кОм React", "R1-R12", "RC0603-12K", "Yageo React", "0805", "12", "0.5% React", "QA-extra"]), `legacy Boards did not read all eight React field edits: ${JSON.stringify(legacyEditedBomValues)}`);
     assert(!await evaluate(client, () => [...document.querySelectorAll('[data-bom-column-index="3"]')].some((input) => input.value === "HDR-2")), "legacy Boards still exposed the deleted BOM row");
+    await evaluate(client, () => document.querySelector('[data-bom-open="board-power"]')?.click());
+    await waitForCondition(client, () => document.querySelector('[data-bom-import-cell="board-power"][data-bom-row-index="0"][data-bom-column-index="3"]')?.value === "CAP0603-1U", { message: "legacy Boards did not read back the Nomenclature-added BOM row" });
+    const legacyAddedBomValues = await evaluate(client, () => [...document.querySelectorAll('.bom-import-table tbody tr:first-child [data-bom-import-cell]')].map((input) => input.value));
+    assert(JSON.stringify(legacyAddedBomValues) === JSON.stringify(["1", "Конденсатор 1 мкФ", "", "CAP0603-1U", "Murata", "0603", "1", "Добавлено из номенклатуры", ""]), `legacy Boards row-add read-back mismatch: ${JSON.stringify(legacyAddedBomValues)}`);
     await client.send("Page.navigate", { url: `${writeOrigin}/?module=bomLists&qa-auth-bypass=1&react-boards=1&react-boards-write=1` });
     await waitForCondition(client, () => Boolean(document.querySelector('[data-react-boards-island][data-react-island-state="ready"] .lab-badge')), { message: "Boards write evaluation did not remount its React content after legacy read-back", timeoutMs: 15_000 });
+
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent.includes("Плата управления React"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "Плата управления React", { message: "control Board did not become selected after row-add legacy read-back" });
 
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Редактировать плату"))?.click());
     await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Плата управления React", { message: "Board editor did not reopen for delete" });
@@ -483,6 +528,7 @@ async function main() {
     }
     assert(!persistedAfterDelete.bomLists.some((board) => board.id === "board-control"), "Board delete did not persist the BOM removal");
     assert(persistedAfterDelete.bomLists.some((board) => board.id === createdBoard.id) && persistedAfterDelete.bomLists.some((board) => board.id === "board-power"), "Board delete changed unrelated boards");
+    assert(persistedAfterDelete.bomLists.find((board) => board.id === "board-power")?.importRows?.[0]?.nomenclatureId === "rea-add", "Board delete changed the independently added BOM row");
     const specificationAfterDelete = persistedAfterDelete.specifications.find((specification) => specification.id === "spec-board-control");
     assert(specificationAfterDelete?.bomListA === "" && Number(specificationAfterDelete?.bomQtyA || 0) === 0, `Board delete did not clear direct Specifications references: ${JSON.stringify(specificationAfterDelete)}`);
     assert(specificationAfterDelete?.structureItems.every((item) => item.bomListId !== "board-control"), `Board delete did not clear structure references: ${JSON.stringify(specificationAfterDelete)}`);
@@ -501,7 +547,7 @@ async function main() {
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled writes and unchanged state file: pass");
     console.log(`- return to legacy Nomenclature with ${returned.legacyRows} normalized rows: pass`);
-    console.log("- local RBAC-gated edits for all nine BOM cells, ID/table-bound row delete and board create/edit/delete, owner normalization, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature retention and unchanged Planning: pass");
+    console.log("- local RBAC-gated Nomenclature row add, all nine BOM cell edits, ID/table-bound row delete and board create/edit/delete, owner normalization, invalid rejection, legacy read-back, cancel safety, hidden-row/board preservation, reference cleanup, Nomenclature retention and unchanged Planning: pass");
   } catch (error) {
     if (chrome) {
       const browserState = await evaluate(chrome.client, () => ({

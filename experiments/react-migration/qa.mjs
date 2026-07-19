@@ -248,17 +248,23 @@ try {
   assert.deepEqual(boardsAdapter.adaptBoards({ bomLists: [{ id: "", name: "invalid" }, null] }), [], "invalid Boards records must fail closed");
   const boardsCommandModel = boardsAdapter.adaptBoardsModel({
     bomLists: [{ id: "board-qa", name: "QA", importRows: [{ values: [1, "R", "R1", "", "", "0603", 1, "", ""] }] }],
+    selectedBoardId: "board-qa",
+    bomNomenclatureOptions: [{ id: "rea-qa", label: "Резистор QA", meta: "R-QA · 0603" }, { id: "", label: "invalid" }, null],
     deleteUsageById: { "board-qa": { specificationsCount: 1, bomRowsCount: 1 } },
-    capabilities: { createEdit: true, delete: true, bomRowEdit: true, bomRowDelete: true },
+    capabilities: { createEdit: true, delete: true, bomRowAdd: true, bomRowEdit: true, bomRowDelete: true },
   });
   assert.equal(boardsCommandModel.canCreateEdit, true);
+  assert.equal(boardsCommandModel.selectedBoardId, "board-qa");
   assert.equal(boardsCommandModel.canDelete, true);
+  assert.equal(boardsCommandModel.canAddBomRows, true);
   assert.equal(boardsCommandModel.canEditBomRows, true);
   assert.equal(boardsCommandModel.canDeleteBomRows, true);
+  assert.deepEqual(boardsCommandModel.bomNomenclatureOptions, [{ id: "rea-qa", label: "Резистор QA", meta: "R-QA · 0603" }]);
   assert.deepEqual(boardsCommandModel.deleteUsageById["board-qa"], { specificationsCount: 1, bomRowsCount: 1 });
-  const boardsFailClosedModel = boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true", delete: "true", bomRowEdit: "true", bomRowDelete: "true" } });
+  const boardsFailClosedModel = boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true", delete: "true", bomRowAdd: "true", bomRowEdit: "true", bomRowDelete: "true" } });
   assert.equal(boardsFailClosedModel.canCreateEdit, false, "non-boolean Boards write capability must fail closed");
   assert.equal(boardsFailClosedModel.canDelete, false, "non-boolean Boards delete capability must fail closed");
+  assert.equal(boardsFailClosedModel.canAddBomRows, false, "non-boolean BOM-row add capability must fail closed");
   assert.equal(boardsFailClosedModel.canEditBomRows, false, "non-boolean BOM-row capability must fail closed");
   assert.equal(boardsFailClosedModel.canDeleteBomRows, false, "non-boolean BOM-row delete capability must fail closed");
 
@@ -1413,6 +1419,10 @@ try {
   assert.match(productionAppSource, /await ensureNomenclatureRenderModule\(\)/, "Boards write must await its lazy result-Nomenclature owner before mutation");
   assert.match(productionAppSource, /saveBomCommand\(\{/);
   assert.match(productionAppSource, /deleteBomCommand\(\{ bomId:/);
+  assert.match(productionAppSource, /command\.type === "add-bom-nomenclature-row"/, "Boards Nomenclature row add must retain one typed host branch");
+  assert.match(productionAppSource, /addNomenclatureToBom\(bomId, nomenclatureId\)/, "Boards row add must delegate to the existing owner");
+  assert.match(productionAppSource, /authoritativeRows\.length !== rows\.length \+ 1/, "Boards row add must verify exactly one authoritative row");
+  assert.match(productionAppSource, /String\(appendedRow\?\.nomenclatureId \|\| ""\) !== nomenclatureId/, "Boards row add must verify the owner-linked Nomenclature identity");
   assert.match(productionAppSource, /command\.type === "update-bom-cell"/, "Boards non-quantity cell edits must retain one typed host branch");
   assert.match(productionAppSource, /editableColumns = \[0, 1, 2, 3, 4, 5, 7, 8\]/, "Boards generic cell command must exclude the separately validated quantity column");
   assert.match(productionAppSource, /updateBomImportCell\(bomId, rowIndex, columnIndex, input\.value\)/, "Boards generic cell edit must delegate to the existing owner");
