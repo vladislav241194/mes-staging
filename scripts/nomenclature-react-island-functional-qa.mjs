@@ -68,6 +68,7 @@ async function stopProcess(child) {
 async function main() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-nomenclature-react-functional-"));
   const sharedStateFile = join(temporaryRoot, "shared-state.json");
+  const writeSharedStateFile = join(temporaryRoot, "write-shared-state.json");
   const directoryFixture = createDirectoryFixture();
   const snapshot = {
     version: 1,
@@ -81,7 +82,9 @@ async function main() {
     events: [],
   };
   await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
+  await writeFile(writeSharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
   assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary shared-state file must be owner-readable only");
+  assert(((await stat(writeSharedStateFile)).mode & 0o777) === 0o600, "temporary write shared-state file must be owner-readable only");
   const originalSnapshot = await readFile(sharedStateFile, "utf8");
   const previewPort = await getFreePort();
   const legacyPreviewPort = await getFreePort();
@@ -130,7 +133,7 @@ async function main() {
       PORT: String(writePreviewPort),
       APP_ENV: "local",
       MES_ADMIN_HOSTS: "admin.mes-line.ru",
-      MES_SHARED_STATE_FILE: sharedStateFile,
+      MES_SHARED_STATE_FILE: writeSharedStateFile,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -338,26 +341,30 @@ async function main() {
       editButton?.click();
     });
     await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Тестовая позиция React изменена", { message: "updated row editor did not open before legacy fallback" });
+    let reactEditPersisted = false;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const currentSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      const currentDirectory = JSON.parse(currentSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      reactEditPersisted = currentDirectory.nomenclature.some((item) => item.article === "REACT-WRITE-002");
+      if (reactEditPersisted) break;
+      await delay(120);
+    }
+    assert(reactEditPersisted, "React edit must persist before the legacy default is reloaded");
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=nomenclature&qa-auth-bypass=1` });
+    await waitForCondition(client, () => document.querySelectorAll("[data-nomenclature-row-open]").length === 5, { message: "legacy projection did not load after React edit" });
     await evaluate(client, () => {
-      const deleteButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
-        .find((button) => button.textContent.includes("Удалить в legacy"));
-      deleteButton?.click();
+      const row = [...document.querySelectorAll("[data-nomenclature-row-open]")]
+        .find((entry) => entry.textContent.includes("Тестовая позиция React изменена"));
+      row?.click();
     });
     await waitForCondition(client, () => (
       !document.querySelector("[data-react-nomenclature-island]")
       && document.querySelector('#nomenclatureForm input[name="name"]')?.value === "Тестовая позиция React изменена"
-    ), { message: "unsupported delete scope did not restore the exact legacy editor" });
-    await evaluate(client, () => {
-      const form = document.querySelector("#nomenclatureForm");
-      const description = form?.elements.namedItem("description");
-      description.value = "Legacy и React используют один command owner";
-      form.requestSubmit();
-    });
-    await waitForCondition(client, () => document.querySelector('#nomenclatureForm textarea[name="description"]')?.value === "Legacy и React используют один command owner", { message: "legacy form did not preserve its save path after command extraction" });
+    ), { message: "legacy default did not open the exact row created by React" });
     let writeSnapshot = null;
     let persistedDirectory = null;
     for (let attempt = 0; attempt < 40; attempt += 1) {
-      writeSnapshot = JSON.parse(await readFile(sharedStateFile, "utf8"));
+      writeSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
       persistedDirectory = JSON.parse(writeSnapshot.values[DIRECTORY_STORAGE_KEY]);
       if (persistedDirectory.nomenclature.length === 5 && persistedDirectory.nomenclature.some((item) => item.article === "REACT-WRITE-002")) break;
       await delay(120);
@@ -367,8 +374,82 @@ async function main() {
     assert(persistedDirectory.nomenclature.length === 5, `write evaluation must create exactly one position, got ${persistedDirectory.nomenclature.length}`);
     assert(created?.name === "Тестовая позиция React изменена" && created?.type === "Механика", "create/edit must preserve the typed command values");
     assert(created?.package === "QA-CASE" && created?.manufacturer === "MES QA", "create/edit must preserve all legacy editor fields");
-    assert(created?.description === "Legacy и React используют один command owner", "legacy form and React must delegate to the same save contract");
+    assert(created?.description === "Временная запись из изолированного write QA", "React command must preserve the legacy description field");
     assert(persistedState === snapshot.values[STATE_STORAGE_KEY], "Nomenclature command must not modify Planning state");
+
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=nomenclature&qa-auth-bypass=1&react-nomenclature=1&react-nomenclature-write=1` });
+    await waitForCondition(client, () => document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 5, { message: "write projection did not reload before React delete" });
+    await evaluate(client, () => {
+      const row = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+        .find((entry) => entry.textContent.includes("Тестовая позиция React изменена"));
+      row?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "Тестовая позиция React изменена", { message: "created row did not become selected before React delete" });
+    await evaluate(client, () => {
+      const editButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.trim() === "Редактировать");
+      editButton?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Тестовая позиция React изменена", { message: "React editor did not reopen before delete" });
+    await evaluate(client, () => {
+      const deleteButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.trim() === "Удалить");
+      deleteButton?.click();
+    });
+    await waitForCondition(client, () => Boolean(document.querySelector('.react-nomenclature-delete-confirm[role="alertdialog"]')), { message: "React delete confirmation did not open" });
+    const deleteConfirmation = await evaluate(client, () => document.querySelector(".react-nomenclature-delete-confirm")?.textContent.replace(/\s+/g, " ").trim() || "");
+    assert(deleteConfirmation.includes("Тестовая позиция React изменена"), "delete confirmation must identify the selected item");
+    assert(deleteConfirmation.includes("0 составов изделия, 0 строк BOM"), "delete confirmation must expose legacy usage counts");
+    await evaluate(client, () => {
+      const cancelButton = [...document.querySelectorAll('.react-nomenclature-delete-confirm [data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.trim() === "Не удалять");
+      cancelButton?.click();
+    });
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")) && !document.querySelector(".react-nomenclature-delete-confirm"), { message: "delete cancel did not restore the React editor" });
+    await evaluate(client, () => {
+      const deleteButton = [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.trim() === "Удалить");
+      deleteButton?.click();
+    });
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-delete-confirm")), { message: "React delete confirmation did not reopen" });
+    await evaluate(client, () => {
+      const approveButton = [...document.querySelectorAll('.react-nomenclature-delete-confirm [data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.trim() === "Удалить");
+      approveButton?.click();
+    });
+    await delay(500);
+    const deleteDebug = await evaluate(client, () => ({
+      targetState: document.querySelector("[data-react-nomenclature-island]")?.getAttribute("data-react-island-state") || "",
+      rows: [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].map((row) => row.textContent.replace(/\s+/g, " ").trim()),
+      commandError: document.querySelector(".react-nomenclature-command-error")?.textContent?.trim() || "",
+      confirmationOpen: Boolean(document.querySelector(".react-nomenclature-delete-confirm")),
+      localRows: JSON.parse(localStorage.getItem("mes-planning-prototype-directories-v2") || "{}").nomenclature?.length ?? -1,
+      localHasDeletedArticle: (JSON.parse(localStorage.getItem("mes-planning-prototype-directories-v2") || "{}").nomenclature || []).some((item) => item.article === "REACT-WRITE-002"),
+      sharedStateDebug: window.__MES_SHARED_STATE_DEBUG__ || null,
+    }));
+    const postDeleteSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+    const postDeleteDirectory = JSON.parse(postDeleteSnapshot.values[DIRECTORY_STORAGE_KEY]);
+    deleteDebug.persistedRows = postDeleteDirectory.nomenclature.length;
+    deleteDebug.persistedHasDeletedArticle = postDeleteDirectory.nomenclature.some((item) => item.article === "REACT-WRITE-002");
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4
+      && ![...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("REACT-WRITE-002"))
+    ), { message: `React delete command did not return the original four-row projection: ${JSON.stringify(deleteDebug)}` });
+    let deletedSnapshot = null;
+    let deletedDirectory = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      deletedSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      deletedDirectory = JSON.parse(deletedSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (deletedDirectory.nomenclature.length === 4 && !deletedDirectory.nomenclature.some((item) => item.article === "REACT-WRITE-002")) break;
+      await delay(120);
+    }
+    assert(deletedDirectory.nomenclature.length === 4, `delete evaluation must remove exactly one position, got ${deletedDirectory.nomenclature.length}`);
+    assert(JSON.stringify(deletedDirectory.nomenclature.map((item) => item.id)) === JSON.stringify(directoryFixture.nomenclature.map((item) => item.id)), "delete must preserve every original nomenclature row and order");
+    const planningDomainRows = (raw) => {
+      const state = JSON.parse(raw);
+      return { routes: state.routes || [], routeSteps: state.routeSteps || [], slots: state.slots || [] };
+    };
+    assert(JSON.stringify(planningDomainRows(deletedSnapshot.values[STATE_STORAGE_KEY])) === JSON.stringify(planningDomainRows(persistedState)), "Nomenclature delete must not modify Planning routes, steps or slots");
     assert(consoleProblems.length === 0, `write-evaluation browser console must stay clean:\n${consoleProblems.join("\n")}`);
     console.log("Nomenclature React production-shell functional QA: OK");
     console.log("- same server payload: 4 legacy rows = 4 React rows");
@@ -378,8 +459,8 @@ async function main() {
     console.log("- disabled writes and unchanged state file: pass");
     console.log("- legacy Boards fallback with 2 boards: pass");
     console.log("- React create + edit through the legacy command owner: pass");
-    console.log("- legacy edit through the extracted command owner: pass");
-    console.log("- delete scope returns to the exact legacy editor: pass");
+    console.log("- legacy default opens the exact row created by React: pass");
+    console.log("- React delete confirmation, cancel and exact one-row removal: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
     if (legacyPreviewOutput.trim()) console.error(legacyPreviewOutput.trim());

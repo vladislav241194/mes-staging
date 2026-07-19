@@ -20,7 +20,6 @@ const frozenBackendPrefixes = [
 ];
 const frozenBackendFiles = new Set([
   "server.js",
-  "src/modules/runtime_state/service.js",
 ]);
 const frozenBackendScriptPatterns = [
   /^scripts\/domain-/,
@@ -90,6 +89,8 @@ try {
   });
   assert.equal(readModel.items[0]?.type, "РЭА компоненты", "legacy REA alias must normalize");
   assert.equal(readModel.canCreateEdit, false, "write capability must fail closed");
+  assert.equal(readModel.canDelete, false, "delete capability must fail closed");
+  assert.deepEqual(readModel.deleteUsageById.ok, { specificationsCount: 0, bomRowsCount: 0 }, "missing delete usage must fail closed to zero counts");
   assert.deepEqual(readModel.types.map((entry) => entry.label), ["РЭА компоненты"], "inactive types must be hidden");
 
   const viewModelOutput = join(temporaryRoot, "view-model.mjs");
@@ -1446,6 +1447,26 @@ try {
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
   assert.deepEqual(frozenBackendDiff, [], `migration branch changed frozen backend contracts:\n${frozenBackendDiff.join("\n")}`);
+  const { stdout: runtimeStateDiff } = await execFileAsync("git", ["diff", "--unified=0", acceptedPostgresBaseline, "--", "src/modules/runtime_state/service.js"], { cwd: repositoryRoot });
+  const allowedRuntimeStateAdditions = new Set([
+    "+async function persistDirectoryStateWithRemoval() {",
+    "+  const previousValue = directoryEntityRemovalAllowed;",
+    "+  directoryEntityRemovalAllowed = true;",
+    "+  try {",
+    "+    persistDirectoryState();",
+    "+    return await pushSharedState(\"directory-removal\");",
+    "+  } finally {",
+    "+    directoryEntityRemovalAllowed = previousValue;",
+    "+  }",
+    "+}",
+    "+",
+    "+    persistDirectoryStateWithRemoval,",
+  ]);
+  const unexpectedRuntimeStateLines = runtimeStateDiff.split("\n").filter((line) => (
+    (line.startsWith("+") && !line.startsWith("+++") && !allowedRuntimeStateAdditions.has(line))
+    || (line.startsWith("-") && !line.startsWith("---"))
+  ));
+  assert.deepEqual(unexpectedRuntimeStateLines, [], `frontend migration changed runtime state outside the reviewed directory-removal flush:\n${unexpectedRuntimeStateLines.join("\n")}`);
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });
   assert.match(performanceBudget, /"nomenclature"/);

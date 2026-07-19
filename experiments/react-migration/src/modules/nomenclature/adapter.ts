@@ -46,6 +46,13 @@ export interface NomenclatureReadModel {
   types: NomenclatureTypeOption[];
   boardCount: number;
   canCreateEdit: boolean;
+  canDelete: boolean;
+  deleteUsageById: Record<string, NomenclatureDeleteUsage>;
+}
+
+export interface NomenclatureDeleteUsage {
+  specificationsCount: number;
+  bomRowsCount: number;
 }
 
 const inactiveStatuses = new Set(["отключен", "удален", "архив"]);
@@ -126,5 +133,24 @@ export function adaptNomenclatureReadModel(payload: unknown): NomenclatureReadMo
   });
   const boardCount = Array.isArray(record.bomLists) ? record.bomLists.length : 0;
   const capabilities = record.capabilities && typeof record.capabilities === "object" ? record.capabilities as Record<string, unknown> : {};
-  return { items, types: [...declaredTypes, ...inferredTypes], boardCount, canCreateEdit: capabilities.createEdit === true };
+  const rawDeleteUsage = capabilities.deleteUsageById && typeof capabilities.deleteUsageById === "object"
+    ? capabilities.deleteUsageById as Record<string, unknown>
+    : {};
+  const deleteUsageById = Object.fromEntries(items.map((item) => {
+    const usage = rawDeleteUsage[item.id] && typeof rawDeleteUsage[item.id] === "object"
+      ? rawDeleteUsage[item.id] as Record<string, unknown>
+      : {};
+    return [item.id, {
+      specificationsCount: Math.max(0, Number(usage.specificationsCount) || 0),
+      bomRowsCount: Math.max(0, Number(usage.bomRowsCount) || 0),
+    }];
+  }));
+  return {
+    items,
+    types: [...declaredTypes, ...inferredTypes],
+    boardCount,
+    canCreateEdit: capabilities.createEdit === true,
+    canDelete: capabilities.delete === true,
+    deleteUsageById,
+  };
 }

@@ -1876,6 +1876,17 @@ function withPlanningEntityRemovalAllowed(callback) {
   }
 }
 
+async function persistDirectoryStateWithRemoval() {
+  const previousValue = directoryEntityRemovalAllowed;
+  directoryEntityRemovalAllowed = true;
+  try {
+    persistDirectoryState();
+    return await pushSharedState("directory-removal");
+  } finally {
+    directoryEntityRemovalAllowed = previousValue;
+  }
+}
+
 function loadDirectoryState() {
   try {
     const raw = localStorage.getItem(DIRECTORY_STORAGE_KEY);
@@ -2005,6 +2016,7 @@ let planningCoreService = {};
     preserveCriticalDirectoryEntities,
     withDirectoryEntityRemovalAllowed,
     withPlanningEntityRemovalAllowed,
+    persistDirectoryStateWithRemoval,
     loadDirectoryState,
     ensureStatusDirectoryDefaults,
     isSameNumericValue,

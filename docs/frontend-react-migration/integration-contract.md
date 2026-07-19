@@ -43,9 +43,11 @@ browser storage, or manipulate DOM outside its target.
 
 `mountNomenclatureReactIsland(...)` remains a narrow convenience wrapper for
 the first feature-flag integration. Its read-only mode remains unchanged. The
-separate write-evaluation capability owns only the create/edit form and calls
-the existing `products/events.saveNomenclatureCommand`; delete returns to the
-selected legacy editor. Component Types proves the generic boundary in the lab
+separate write-evaluation capability owns the create/edit form and usage-aware
+delete confirmation. It calls the existing
+`products/events.saveNomenclatureCommand` and the extracted
+`deleteNomenclatureCommand`; both remain the single command owners. Component
+Types proves the generic boundary in the lab
 but is not approved for production activation yet.
 
 `mountComponentTypesReactIsland(...)` owns only the Directories `componentTypes`
@@ -226,11 +228,10 @@ creation, it unmounts that root before rethrowing to the feature gate.
 
 - Default: off.
 - Scope: Nomenclature item list in explicit read-only mode, plus a separately
-  gated create/edit write evaluation.
+  gated create/edit/delete write evaluation.
 - Activation: explicit local/runtime configuration after PostgreSQL acceptance.
-- Editor mode: legacy by default. Create/edit may mount only with the independent
-  write permission and session request; delete remains legacy until separately
-  implemented and accepted.
+- Editor mode: legacy by default. Create/edit/delete may mount only with the
+  independent write permission and session request.
 - Boards pane: local host payload, feature flag, same-data and rollback gates
   pass; authenticated Pilot acceptance remains pending.
 - Structure registries other than Employees: legacy until separately migrated;

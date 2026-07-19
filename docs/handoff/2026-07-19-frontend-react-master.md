@@ -418,9 +418,9 @@ will be repeated after the Structure Employees commit and before rebasing.
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
 5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature write evaluation requires its independent third permission, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
-7. Migrate commands one vertical scope at a time. **Nomenclature create/edit is
-   the first default-off write evaluation; delete and all remaining commands
-   are pending.**
+7. Migrate commands one vertical scope at a time. **Nomenclature
+   create/edit/delete is the first complete default-off write evaluation; all
+   remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.
 
 Live readiness was refreshed after the first write-parity checkpoint. Pilot is
@@ -484,3 +484,8 @@ same release-tree digest
 using the release procedure's compatibility-artifact exclusions. This is not a
 staged or active Pilot release: no external state changed, and staging plus
 activation still require explicit authorization.
+
+The exact candidate remains commit `b1b77cf` and release ID
+`v.1.499.73-b1b77cf`. The later Nomenclature delete-parity checkpoint is not
+part of that immutable candidate and must receive a new visible version before
+any future release.

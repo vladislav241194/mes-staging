@@ -76,6 +76,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     getDefaultStructureNomenclatureType,
     getExecutionTypeForFulfillmentMode,
     getActiveSpecificationForModule,
+    getBomImportRows = () => [],
     getBomList,
     getGanttSlotStatusView,
     getManualPlanningAssignmentForRouteStep,
@@ -83,6 +84,8 @@ export function createAppEventsServiceModule(dependencies = {}) {
     getMesFlowTransitionsForStatus,
     getMesStatusView,
     getModuleDefinitions,
+    getNomenclatureDeleteUsage = () => ({ specificationsCount: 0, bomRowsCount: 0 }),
+    getNomenclatureItem = () => null,
     getOperationMapItem,
     getOperationMapRows,
     getOperationRouteWorkCenterId,
@@ -183,6 +186,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     parentId = "",
     parsePlanningOrderLaborKey,
     persistDirectoryState,
+    persistDirectoryStateWithRemoval,
     persistState,
     persistUiState,
     pickDefaultBomForSpecificationItem,
@@ -1458,6 +1462,8 @@ function getRoutesEventsDependencies() {
     getActiveSpecificationForModule,
     getBomList,
     getManualPlanningAssignmentForRouteStep,
+    getNomenclatureDeleteUsage,
+    getNomenclatureItem,
     getOperationMapItem,
     getOperationMapRows,
     getOperationRouteWorkCenterId,
@@ -1524,6 +1530,7 @@ function getRoutesEventsDependencies() {
     options,
     parentId,
     persistDirectoryState,
+    persistDirectoryStateWithRemoval,
     persistState,
     persistUiState,
     pickDefaultBomForSpecificationItem,
@@ -1622,6 +1629,7 @@ function createEmptyRouteModuleStep(...args) { return callRoutesEvents("createEm
 function bindSpekiEvents(...args) { return bindRoutesEventsMethod("bindSpekiEvents", ...args); }
 function bindNomenclatureEvents(...args) { return bindRoutesEventsMethod("bindNomenclatureEvents", ...args); }
 function saveNomenclatureCommand(...args) { return callRoutesEventsAsync("saveNomenclatureCommand", ...args); }
+function deleteNomenclatureCommand(...args) { return callRoutesEventsAsync("deleteNomenclatureCommand", ...args); }
 function bindBomListsEvents(...args) { return bindRoutesEventsMethod("bindBomListsEvents", ...args); }
 function getRouteStepAddTargetTaskId(...args) { return callRoutesEvents("getRouteStepAddTargetTaskId", ...args); }
 function addRouteModuleStep(...args) { return callRoutesEvents("addRouteModuleStep", ...args); }
@@ -1844,6 +1852,9 @@ function deleteDirectoryStateRow(sectionId, row) {
   }
 
   directoryState = normalizeDirectoryState(directoryState, { mergeFallback: false });
+  dependencies.setDirectoryState?.(directoryState);
+  if (sectionId === "specifications") dependencies.setPlanningState?.(planningState);
+  return directoryState;
 }
 
 function rememberScroll() {
@@ -1932,6 +1943,7 @@ function updateDependencyClip(shell) {
     bindSpekiEvents,
     bindNomenclatureEvents,
     saveNomenclatureCommand,
+    deleteNomenclatureCommand,
     bindBomListsEvents,
     bindPlanningEvents,
     bindShiftCalendarEvents,

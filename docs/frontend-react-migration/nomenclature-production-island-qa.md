@@ -8,9 +8,9 @@ Base: accepted PostgreSQL/main handoff `fc71e01`
 The existing Nomenclature runtime now has a real React island host. The host
 reads the current `directoryState` payload through the already validated typed
 adapter. Read-only mode remains unchanged. A separate write-evaluation boundary
-can invoke create/edit through the same `products/events` command owner as the
-legacy form; React receives neither storage handles nor mutable global state,
-and no API or PostgreSQL contract changes.
+can invoke create/edit/delete through the same `products/events` command owners
+as the legacy form and confirmation path; React receives neither storage
+handles nor mutable global state, and no API or PostgreSQL contract changes.
 
 The read-only server rollout requires the first two runtime values to be exactly
 `true`; write evaluation additionally requires the third:
@@ -18,7 +18,7 @@ The read-only server rollout requires the first two runtime values to be exactly
 - `MES_REACT_NOMENCLATURE`;
 - `MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION`;
 - `MES_REACT_NOMENCLATURE_WRITE_EVALUATION` for the separately gated
-  create/edit evaluation.
+  create/edit/delete evaluation.
 
 The second value permits an evaluation request; it does not switch every
 session into read-only mode. A session must also request
@@ -55,7 +55,8 @@ remote host.
 - Boards/BOM pane: legacy (`unsupported-scope`);
 - editor-capable session without the explicit write-evaluation flag: legacy
   (`write-parity-incomplete`);
-- delete remains an explicit handoff to the exact selected legacy editor;
+- delete uses a React confirmation with the legacy usage counts, then delegates
+  reference cleanup and persistence to the existing command owner;
 - dynamic bundle load or React render failure: the island is unmounted and the
   module rerenders once in legacy for the rest of the page session;
 - the Boards sidebar action inside React requests the same legacy fallback and
@@ -63,8 +64,8 @@ remote host.
 
 The production bundle is emitted separately at
 `dist/src/react-islands/nomenclature.js`, so it is not part of the default app
-startup path. Current production artifact is `205,773 B` raw / `64,539 B` gzip /
-`55,547 B` Brotli,
+startup path. Current production artifact is `207,653 B` raw / `64,967 B` gzip /
+`55,921 B` Brotli,
 inside the isolated `225,000 B` raw / `68,000 B` gzip budget.
 Its request URL uses the content hash of the island artifact rather than the
 human-readable application version, so an island-only update cannot reuse a
@@ -79,12 +80,20 @@ stale immutable browser response.
 - the production island uses the automatic JSX runtime and does not depend on
   a browser-global `React` variable;
 - root bundle performance budget passes (`app 202,535 B` Brotli in the current build);
-- root production build passes at release-candidate version `v.1.499.72`;
-- frozen backend guard passes.
+- root production build passes at release-candidate version `v.1.499.73`;
+- frozen backend guard passes; its only reviewed client-runtime exception is
+  the bounded directory-removal flush used to prevent a stale shared-state
+  response from restoring a confirmed deletion.
 
-This is local integration evidence, not Pilot acceptance. The two flags remain
+This is local integration evidence, not Pilot acceptance. The flags remain
 off until an authenticated evaluation session and same-data visual comparison
 are scheduled.
+
+Disposable write QA uses a separate owner-only (`0600`) shared-state file from
+the read-only comparisons. It proves create, edit, delete confirmation, cancel,
+exact one-row removal, preservation of the original four rows and order, and
+unchanged Planning routes, route steps and slots. No Pilot or repository data
+is created or deleted.
 
 ## Local browser checkpoint
 

@@ -2354,7 +2354,11 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     const localQa = getNomenclatureReactLocalQaOverrides();
     const canCreateEdit = localQa.writeEvaluation
       || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested());
-    return { ...directoryState, capabilities: { createEdit: canCreateEdit } };
+    const deleteUsageById = Object.fromEntries((directoryState.nomenclature || []).map((item) => [
+      String(item.id || ""),
+      getNomenclatureDeleteUsage(item.id),
+    ]));
+    return { ...directoryState, capabilities: { createEdit: canCreateEdit, delete: canCreateEdit, deleteUsageById } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: (reason, scope = "") => {
@@ -2371,8 +2375,17 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
     const writeAllowed = localQa.writeEvaluation
       || (MES_RUNTIME_CONFIG.MES_REACT_NOMENCLATURE_WRITE_EVALUATION === true && isNomenclatureReactWriteEvaluationRequested());
     if (!writeAllowed) throw new Error("Nomenclature React write evaluation is disabled");
-    if (command.type !== "save") throw new Error("Unsupported Nomenclature React command");
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "delete") {
+      const result = await deleteNomenclatureCommand({ itemId: String(input.itemId || "") });
+      return {
+        ok: result?.ok === true,
+        id: String(result?.id || ""),
+        code: String(result?.code || ""),
+        message: String(result?.message || ""),
+      };
+    }
+    if (command.type !== "save") throw new Error("Unsupported Nomenclature React command");
     const result = await saveNomenclatureCommand({
       isNew: input.isNew === true,
       itemId: String(input.itemId || ""),
@@ -6282,6 +6295,7 @@ function loadDirectoryState(...args) { return runtimeStateService.loadDirectoryS
 function ensureStatusDirectoryDefaults(...args) { return runtimeStateService.ensureStatusDirectoryDefaults(...args); }
 function isSameNumericValue(...args) { return runtimeStateService.isSameNumericValue(...args); }
 function persistDirectoryState(...args) { return runtimeStateService.persistDirectoryState(...args); }
+function persistDirectoryStateWithRemoval(...args) { return runtimeStateService.persistDirectoryStateWithRemoval(...args); }
 function initializeRuntimeStateServiceModule() {
   runtimeStateService = createRuntimeStateServiceModule({
   APP_VERSION,
@@ -7855,7 +7869,7 @@ function bindGlobalNavigation(...args) { return appEventsService.bindGlobalNavig
 function getModuleMenuButtonFromEventTarget(...args) { return appEventsService.getModuleMenuButtonFromEventTarget(...args); }
 function openModuleFromMenuButton(...args) { return appEventsService.openModuleFromMenuButton(...args); }
 function ensureRoutesEvents(...args) { return appEventsService.ensureRoutesEvents(...args); }
-function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); }
+function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function deleteNomenclatureCommand(...args) { return appEventsService.deleteNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); }
 function bindPlanningEvents(...args) { return appEventsService.bindPlanningEvents(...args); }
 function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCalendarEvents(...args); }
 function applyOperationMapChangesToRoutes(...args) { return appEventsService.applyOperationMapChangesToRoutes(...args); }
@@ -7953,7 +7967,10 @@ appEventsService = createAppEventsServiceModule({
   getDefaultStructureNomenclatureType,
   getExecutionTypeForFulfillmentMode,
   getActiveSpecificationForModule,
+  getBomImportRows: (...args) => typeof getBomImportRows === "function" ? getBomImportRows(...args) : [],
   getBomList: (...args) => typeof getBomList === "function" ? getBomList(...args) : null,
+  getNomenclatureDeleteUsage: (...args) => typeof getNomenclatureDeleteUsage === "function" ? getNomenclatureDeleteUsage(...args) : { specificationsCount: 0, bomRowsCount: 0 },
+  getNomenclatureItem: (...args) => typeof getNomenclatureItem === "function" ? getNomenclatureItem(...args) : null,
   getGanttSlotStatusView,
   getManualPlanningAssignmentForRouteStep,
   getMesDocumentKind,
@@ -8041,6 +8058,7 @@ appEventsService = createAppEventsServiceModule({
   notifySaveSuccess,
   parsePlanningOrderLaborKey,
   persistDirectoryState,
+  persistDirectoryStateWithRemoval,
   persistState,
   persistUiState,
   pickDefaultBomForSpecificationItem,

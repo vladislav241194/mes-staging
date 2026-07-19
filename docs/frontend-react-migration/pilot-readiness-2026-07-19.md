@@ -70,3 +70,7 @@ This is only a clean local release candidate. No server staging, activation,
 rollout flag, real record or Pilot data was changed. The immutable manifest and
 server-side checksums can only be created by the established staging command
 after explicit deployment authorization.
+
+The exact all-flags-off candidate is locked at `b1b77cf` with release ID
+`v.1.499.73-b1b77cf`. Later Nomenclature delete-parity commits are the next
+development checkpoint and must not be substituted into that release ID.

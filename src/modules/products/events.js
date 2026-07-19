@@ -23,6 +23,8 @@ export function createProductsEventsModule(dependencies = {}) {
     getExecutionTypeForFulfillmentMode,
     getActiveSpecificationForModule,
     getBomList,
+    getNomenclatureDeleteUsage,
+    getNomenclatureItem,
     getOperationMapItem,
     getOperationRouteWorkCenterId,
     getSlotPlanningOrderId,
@@ -54,6 +56,7 @@ export function createProductsEventsModule(dependencies = {}) {
     option,
     parentId,
     persistDirectoryState,
+    persistDirectoryStateWithRemoval,
     persistState,
     persistUiState,
     pickDefaultBomForSpecificationItem,
@@ -893,14 +896,22 @@ function saveNomenclatureForm(form) {
   return result;
 }
 
-function deleteNomenclatureItem(itemId) {
+async function deleteNomenclatureCommand(command = {}) {
+  const itemId = String(command.itemId || "").trim();
   const item = getNomenclatureItem(itemId);
-  if (!item) return;
+  if (!item) return { ok: false, code: "not-found", message: "Позиция номенклатуры не найдена." };
+  const usage = getNomenclatureDeleteUsage(itemId);
 
-  deleteDirectoryStateRow("nomenclature", item);
-  persistDirectoryState();
+  const nextDirectoryState = deleteDirectoryStateRow("nomenclature", item);
+  if (nextDirectoryState) replaceDirectoryState(nextDirectoryState);
+  await persistDirectoryStateWithRemoval();
   persistUiState();
   render();
+  return { ok: true, id: itemId, usage };
+}
+
+function deleteNomenclatureItem(itemId) {
+  return deleteNomenclatureCommand({ itemId });
 }
 
 function bindBomListsEvents() {
@@ -1107,6 +1118,7 @@ function deleteBomList(bomId) {
     bindNomenclatureEvents,
     saveNomenclatureCommand,
     saveNomenclatureForm,
+    deleteNomenclatureCommand,
     deleteNomenclatureItem,
     bindBomListsEvents,
     saveSpecificationModuleForm,

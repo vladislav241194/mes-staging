@@ -30,9 +30,9 @@
 ## Что ещё не завершено
 
 - authenticated Pilot QA и решение о default-on для уже встроенных islands;
-- перенос остальных write-команд: delete Номенклатуры, справочники,
-  назначения, факт и публикация; create/edit Номенклатуры уже реализованы как
-  отдельный default-off evaluation-срез;
+- перенос остальных write-команд: справочники, назначения, факт и публикация;
+  create/edit/delete Номенклатуры уже реализованы как один отдельный default-off
+  evaluation-срез;
 - PIN/сессия и write-команды авторизации; React уже покрывает только безопасный
   выбор отдела, участка и сотрудника, а Gantt, Specifications 2.0 и Contour
   Admin также production-интегрированы read-only default-off;

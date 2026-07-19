@@ -32,10 +32,9 @@ const createDraft = (item?: NomenclatureItem): NomenclatureDraft => ({
   status: item?.statusLabel || "Активен",
 });
 
-export interface NomenclatureReactCommand {
-  type: "save";
-  payload: NomenclatureDraft;
-}
+export type NomenclatureReactCommand =
+  | { type: "save"; payload: NomenclatureDraft }
+  | { type: "delete"; payload: { itemId: string } };
 
 export function NomenclatureScenario({ payload, onCommand, onRequestLegacy }: { payload: unknown; onCommand?(command: NomenclatureReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptNomenclatureReadModel(payload), [payload]);
@@ -43,6 +42,7 @@ export function NomenclatureScenario({ payload, onCommand, onRequestLegacy }: { 
   const [filter, setFilter] = useState<NomenclatureFilter>("all");
   const [selectedId, setSelectedId] = useState(model.items[0]?.id ?? "");
   const [draft, setDraft] = useState<NomenclatureDraft | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
   const [commandError, setCommandError] = useState("");
   const [saving, setSaving] = useState(false);
   const activeFilter = resolveAvailableFilter(filters.map((entry) => entry.id), filter, "all");
@@ -62,8 +62,21 @@ export function NomenclatureScenario({ payload, onCommand, onRequestLegacy }: { 
       setSaving(false);
     }
   };
+  const deleteDraft = async () => {
+    if (!draft || draft.isNew || !onCommand || !model.canDelete) return;
+    setSaving(true);
+    setCommandError("");
+    try {
+      const result = await onCommand({ type: "delete", payload: { itemId: draft.itemId } });
+      if (result && result.ok === false) setCommandError(result.message || "Не удалось удалить позицию.");
+    } catch (error) {
+      setCommandError(error instanceof Error ? error.message : "Не удалось удалить позицию.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge">{model.canCreateEdit ? "React · create/edit evaluation" : "React preview · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Технологии" title="Номенклатура" badge={<span className="lab-badge">{model.canCreateEdit ? `React · create/edit${model.canDelete ? "/delete" : ""} evaluation` : "React preview · только чтение"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Разделы номенклатуры" title="Разделы">
       {filters.map((entry) => (
@@ -101,8 +114,17 @@ export function NomenclatureScenario({ payload, onCommand, onRequestLegacy }: { 
         </TableWrap> : <EmptyState title="Позиций пока нет" text="В выбранном разделе ещё нет позиций номенклатуры." />}
       </Panel>
 
-      {draft ? <Panel heading={<div className="panel-heading"><div><h2>{draft.isNew ? "Новая позиция" : "Редактирование позиции"}</h2><p>Команда выполняется существующим legacy-владельцем данных</p></div><ActionButton onClick={() => { setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
-        <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
+      {draft ? <Panel heading={<div className="panel-heading"><div><h2>{deletePending ? "Подтверждение удаления" : draft.isNew ? "Новая позиция" : "Редактирование позиции"}</h2><p>Команда выполняется существующим legacy-владельцем данных</p></div><ActionButton onClick={() => { if (deletePending) setDeletePending(false); else setDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton></div>}>
+        {deletePending ? <div className="react-nomenclature-delete-confirm" role="alertdialog" aria-labelledby="react-nomenclature-delete-title">
+          <h3 id="react-nomenclature-delete-title">Удалить позицию номенклатуры?</h3>
+          <p>Позиция «{draft.name || "без названия"}» будет удалена из номенклатуры.</p>
+          <p>Ссылки будут очищены: {model.deleteUsageById[draft.itemId]?.specificationsCount || 0} составов изделия, {model.deleteUsageById[draft.itemId]?.bomRowsCount || 0} строк BOM.</p>
+          {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
+          <div className="react-nomenclature-editor-actions">
+            <ActionButton disabled={saving} onClick={() => setDeletePending(false)} variant="secondary">Не удалять</ActionButton>
+            <ActionButton disabled={saving} onClick={() => { void deleteDraft(); }} variant="danger">{saving ? "Удаление…" : "Удалить"}</ActionButton>
+          </div>
+        </div> : <form className="react-nomenclature-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
           <label><span>Наименование</span><input name="name" onChange={(event) => setDraftField("name", event.currentTarget.value)} required value={draft.name} /></label>
           <label><span>Артикул</span><input name="article" onChange={(event) => setDraftField("article", event.currentTarget.value)} value={draft.article} /></label>
           <label><span>Раздел</span><select name="type" onChange={(event) => setDraftField("type", event.currentTarget.value)} value={draft.type}>{model.types.map((entry) => <option key={entry.id} value={entry.label}>{entry.label}</option>)}</select></label>
@@ -114,10 +136,10 @@ export function NomenclatureScenario({ payload, onCommand, onRequestLegacy }: { 
           <label className="full"><span>Описание</span><textarea name="description" onChange={(event) => setDraftField("description", event.currentTarget.value)} rows={3} value={draft.description} /></label>
           {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
           <div className="react-nomenclature-editor-actions">
-            {!draft.isNew ? <ActionButton onClick={() => onRequestLegacy?.(`write:edit:${encodeURIComponent(draft.itemId)}`)} variant="danger">Удалить в legacy</ActionButton> : null}
+            {!draft.isNew ? <ActionButton disabled={!model.canDelete} onClick={() => { setDeletePending(true); setCommandError(""); }} title={model.canDelete ? "Удалить через существующую команду" : "Delete evaluation выключен"} variant="danger">Удалить</ActionButton> : null}
             <button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : draft.isNew ? "Создать позицию" : "Сохранить позицию"}</button>
           </div>
-        </form>
+        </form>}
       </Panel> : <DetailPanel
         emptyText="В разделе нет позиций"
         eyebrow="Карточка позиции"
