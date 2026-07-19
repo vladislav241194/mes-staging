@@ -460,6 +460,14 @@ await writeFile(
   directoryNomenclatureTypesReactIslandHostSource.replaceAll(directoryNomenclatureTypesReactIslandVersionMarker, directoryNomenclatureTypesReactIslandVersion),
 );
 
+const directoryStatusesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "statuses.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "statuses-island.tsx"), directoryStatusesReactIslandOutput);
+const directoryStatusesReactIslandVersion = await fileHash(directoryStatusesReactIslandOutput);
+const directoryStatusesReactIslandHostSource = await readFile(directoryComponentTypesReactIslandHostPath, "utf8");
+const directoryStatusesReactIslandVersionMarker = "__MES_DIRECTORY_STATUSES_REACT_BUNDLE_VERSION__";
+if (!directoryStatusesReactIslandHostSource.includes(directoryStatusesReactIslandVersionMarker)) throw new Error("Cannot find Directory Statuses React island bundle version marker");
+await writeFile(directoryComponentTypesReactIslandHostPath, directoryStatusesReactIslandHostSource.replaceAll(directoryStatusesReactIslandVersionMarker, directoryStatusesReactIslandVersion));
+
 // The token is intentionally calculated before esbuild emits dynamic chunks.
 // Deriving it from output chunk names creates a circular hash graph and makes
 // identical source produce different cache URLs on consecutive builds.
@@ -551,5 +559,6 @@ console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);
 console.log(`- src/react-islands/nomenclature-types.js?v=${directoryNomenclatureTypesReactIslandVersion}`);
+console.log(`- src/react-islands/statuses.js?v=${directoryStatusesReactIslandVersion}`);
 if (faviconVersion) console.log(`- favicon.svg?v=${faviconVersion}${deployCacheSuffix}`);
 console.log(`- app version: ${appDisplayVersion}`);

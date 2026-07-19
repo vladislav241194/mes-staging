@@ -60,6 +60,11 @@ automatic type synchronization. The shared directory host uses one explicit
 legacy override so returning from any migrated directory cannot cycle into a
 different React section.
 
+`mountStatusesReactIsland(...)` consumes the host-computed Statuses projection,
+including lifecycle, contract, transition, audit and impact semantics. React
+owns only application-area filtering, selection and the read passport; it does
+not reproduce MES status policy.
+
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
 the read-only Boards/BOM scenario. Its production host requires a separate
 false-by-default feature permission, read-only permission, session request and

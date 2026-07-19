@@ -4,10 +4,11 @@ import { NomenclatureScenario } from "./modules/nomenclature/NomenclatureScenari
 import { RolesScenario } from "./modules/roles/RolesScenario";
 import { OperationsScenario } from "./modules/operations/OperationsScenario";
 import { NomenclatureTypesScenario } from "./modules/nomenclature-types/NomenclatureTypesScenario";
+import { StatusesScenario } from "./modules/statuses/StatusesScenario";
 import { StructureEmployeesScenario } from "./modules/structure-employees/StructureEmployeesScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "roles" | "operations" | "nomenclatureTypes";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
   onRequestLegacy?(): void;
@@ -20,6 +21,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "roles") return <RolesScenario payload={payload} />;
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "statuses") return <StatusesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   return <NomenclatureScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
 }
 
@@ -45,4 +47,5 @@ export { mountRolesReactIsland } from "./roles-island";
 export { mountComponentTypesReactIsland } from "./component-types-island";
 export { mountOperationsReactIsland } from "./operations-island";
 export { mountNomenclatureTypesReactIsland } from "./nomenclature-types-island";
+export { mountStatusesReactIsland } from "./statuses-island";
 export type { ReactMigrationIslandHandle, ReactMigrationIslandOptions, ReactMigrationIslandReadyEvent } from "./island-runtime";

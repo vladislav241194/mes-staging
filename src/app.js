@@ -76,7 +76,7 @@ import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
-import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost } from "./modules/directories/react_island_host.js";
+import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2535,6 +2535,35 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
     };
   },
   getPayload: () => directoryState,
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, sectionId) => {
+    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
+    if (ui.activeModule === "directories") render({ skipRememberScroll: true });
+  },
+});
+function getDirectoryStatusesReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-directory-statuses") === "1", readOnlyEvaluation: params.get("react-directory-statuses-readonly") === "1" };
+}
+function isDirectoryStatusesReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-directory-statuses-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost({
+  getActivation: () => {
+    const localQa = getDirectoryStatusesReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_STATUSES === true || localQa.featureFlagEnabled),
+      activeSection: normalizeDirectorySectionId(ui.activeDirectory),
+      accessMode: (serverEvaluationAllowed && isDirectoryStatusesReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => ({ statuses: getDirectoryData("statuses").rows }),
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
@@ -6213,6 +6242,7 @@ function initializeModuleRuntime() {
           componentTypes: directoryComponentTypesReactIslandHost,
           operations: directoryOperationsReactIslandHost,
           nomenclatureTypes: directoryNomenclatureTypesReactIslandHost,
+          statuses: directoryStatusesReactIslandHost,
         };
         const activeReactHost = directoryReactHosts[normalizeDirectorySectionId(ui.activeDirectory)];
         Object.values(directoryReactHosts).forEach((host) => {
@@ -6223,13 +6253,14 @@ function initializeModuleRuntime() {
         return renderDirectoryPage();
       },
       bind: () => {
-        if (directoryComponentTypesReactIslandHost.isReactEligible() || directoryOperationsReactIslandHost.isReactEligible() || directoryNomenclatureTypesReactIslandHost.isReactEligible()) return;
+        if (directoryComponentTypesReactIslandHost.isReactEligible() || directoryOperationsReactIslandHost.isReactEligible() || directoryNomenclatureTypesReactIslandHost.isReactEligible() || directoryStatusesReactIslandHost.isReactEligible()) return;
         bindDirectoryEvents();
       },
       afterRender: () => {
         void directoryComponentTypesReactIslandHost.mount();
         void directoryOperationsReactIslandHost.mount();
         void directoryNomenclatureTypesReactIslandHost.mount();
+        void directoryStatusesReactIslandHost.mount();
       },
     },
     specifications2: {

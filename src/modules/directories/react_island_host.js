@@ -3,6 +3,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 const COMPONENT_TYPES_VERSION = "__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__";
 const OPERATIONS_VERSION = "__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__";
 const NOMENCLATURE_TYPES_VERSION = "__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUNDLE_VERSION__";
+const STATUSES_VERSION = "__MES_DIRECTORY_STATUSES_REACT_BUNDLE_VERSION__";
 
 function createDirectoryReadIslandHost({
   bundleName,
@@ -84,5 +85,15 @@ export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
     reportError: options.reportError || ((error) => console.error("[MES] Directory Nomenclature Types React island failed", error)),
     scope: "nomenclatureTypes",
     targetAttribute: "data-react-directory-nomenclature-types-island",
+  });
+}
+
+export function createDirectoryStatusesReactIslandHost(options = {}) {
+  return createDirectoryReadIslandHost({
+    ...options,
+    bundleName: "statuses", bundleVersion: STATUSES_VERSION,
+    className: "mes-react-directory-statuses-island", mountExport: "mountStatusesReactIsland",
+    reportError: options.reportError || ((error) => console.error("[MES] Directory Statuses React island failed", error)),
+    scope: "statuses", targetAttribute: "data-react-directory-statuses-island",
   });
 }

@@ -168,3 +168,11 @@ projection only after legacy normalization, so the existing synchronization
 from Nomenclature items is preserved rather than duplicated. Production-shell
 QA matched five normalized rows, every visible cell and source order, and
 proved loop-free return to the current full legacy section.
+
+## Directories Statuses production evidence
+
+Statuses is the dense registry proof: 85 current runtime rows, seven table
+columns and a fourteen-field passport. The host computes all domain-specific
+lifecycle and impact text before the typed boundary. React reuses registry
+primitives without turning the five-part impact composition into a universal
+table variant.

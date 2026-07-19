@@ -33,7 +33,8 @@ const roles = await measureEntry("roles-island.tsx", { raw: 225_000, gzip: 68_00
 const componentTypes = await measureEntry("component-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const operations = await measureEntry("operations-island.tsx", { raw: 225_000, gzip: 68_000 });
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
-const lab = await measureEntry("main.tsx", { raw: 280_000, gzip: 85_000 });
+const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
+const lab = await measureEntry("main.tsx", { raw: 290_000, gzip: 85_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -48,6 +49,8 @@ const operationsText = new TextDecoder().decode(operations.bytes);
 assert.doesNotMatch(operationsText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Operations production island must not bundle unrelated scenarios");
 const nomenclatureTypesText = new TextDecoder().decode(nomenclatureTypes.bytes);
 assert.doesNotMatch(nomenclatureTypesText, /Вся номенклатура|SMT-монтаж|Роли и доступ/, "Nomenclature Types production island must not bundle unrelated scenarios");
+const statusesText = new TextDecoder().decode(statuses.bytes);
+assert.doesNotMatch(statusesText, /Вся номенклатура|SMT-монтаж|Роли и доступ/, "Statuses production island must not bundle unrelated scenarios");
 
 const css = await readFile(join(sourceRoot, "styles.css"));
 const cssMeasurement = { raw: css.length, gzip: gzipSync(css).length };
@@ -62,6 +65,7 @@ console.log(JSON.stringify({
   componentTypes: componentTypes.measurement,
   operations: operations.measurement,
   nomenclatureTypes: nomenclatureTypes.measurement,
+  statuses: statuses.measurement,
   fullLab: lab.measurement,
   styles: cssMeasurement,
 }));
