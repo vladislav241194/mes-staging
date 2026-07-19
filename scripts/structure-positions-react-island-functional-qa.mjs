@@ -171,13 +171,30 @@ try {
     assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "position edit retry must advance exactly one revision");
     const edited = apiDomains.registries.positions.find((position) => position.id === created.id);
     assert(edited?.name === "Инженер PostgreSQL QA обновлён" && edited?.serverOnlyMarker === "position-hidden-field", "position edit lost visible or hidden fields");
+    const archiveUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-positions=1&react-structure-positions-write=1&qa-reload=positions-archive-revision-3`;
+    await client.send("Page.navigate", { url: archiveUrl });
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]').length === 50, { message: "Positions archive projection did not hydrate", timeoutMs: 15_000 });
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Архивировать"), { message: "Position archive action did not become available" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Архивировать")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить архивирование"), { message: "Position archive confirmation was not explicit" });
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].find((row) => !row.textContent?.includes(id))?.click(), created.id);
+    assert(await evaluate(client, () => ![...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить архивирование")), "position archive confirmation must not follow another selected row");
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить архивирование"), { message: "Position-specific archive confirmation was not retained" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить архивирование")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("Инженер PostgreSQL QA обновлён") && row.textContent?.includes("архив")), { message: "archived position did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 4 && successfulWrites === 3 && putAttempts === 4, "position archive must advance exactly one revision");
+    const archived = apiDomains.registries.positions.find((position) => position.id === created.id);
+    assert(archived?.isActive === false && Number.isFinite(Date.parse(archived?.archivedAt || "")), "position archive owner did not persist inactive state and archivedAt");
+    assert(archived?.serverOnlyMarker === "position-hidden-field" && archived?.orgUnitId === references.orgUnitId && archived?.workCenterId === references.workCenterId && archived?.defaultScheduleTemplateId === references.scheduleTemplateId, "position archive changed hidden or reference fields");
     assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "position commands must carry surface, If-Match and idempotency key");
 
     await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&qa-reload=positions-legacy-readback` });
     await waitForCondition(client, () => location.search.includes("positions-legacy-readback") && document.readyState === "complete", { message: "legacy Positions read-back navigation did not complete" });
     await waitForCondition(client, () => /Должностей\s*50/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "legacy shell did not hydrate revised Positions", timeoutMs: 15_000 });
     await selectRegistry(client, "positions");
-    await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]').length === 50 && [...document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Инженер PostgreSQL QA обновлён")), { message: "legacy Positions did not read back the React write" });
+    await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]').length === 50 && [...document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Инженер PostgreSQL QA обновлён") && row.textContent?.includes("архив")), { message: "legacy Positions did not read back the React archive" });
   } else if (qaConfig.registryId === "orgUnits") {
     primaryAuthorityReady = true;
     await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
@@ -387,7 +404,7 @@ try {
   console.log(`Structure ${qaConfig.label} React production-shell functional QA: OK`);
   console.log(`- same PostgreSQL payload: ${qaConfig.rowCount} legacy rows = ${qaConfig.rowCount} React rows; first commit ${initial.commitMs.toFixed(2)} ms`);
   console.log(`- ${qaConfig.cellCount} cells/order, ${qaConfig.isDiagnostics ? "four issue groups" : "selection/detail"}, seven registries, six metrics, legacy fallback and unchanged state: pass`);
-  if (qaConfig.registryId === "positions") console.log("- PostgreSQL create/edit, conflict retry, references, hidden fields, 50-row legacy read-back and unchanged snapshot: pass");
+  if (qaConfig.registryId === "positions") console.log("- PostgreSQL create/edit/archive, explicit confirmation, conflict retry, references, hidden fields, 50-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "orgUnits") console.log("- PostgreSQL create/edit, hierarchy-cycle rejection, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "workCenters") console.log("- PostgreSQL create/edit, hierarchy-cycle rejection, Planning/Gantt flags, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "equipment") console.log("- PostgreSQL create/edit/archive, explicit confirmation, quantity/reference validation, conflict retry, hidden fields, 7-row legacy read-back and unchanged snapshot: pass");

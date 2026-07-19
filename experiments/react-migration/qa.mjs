@@ -512,6 +512,8 @@ try {
   const positionsAdapter = await import(`${pathToFileURL(positionsAdapterOutput).href}?qa=${Date.now()}`);
   assert.deepEqual(positionsAdapter.adaptStructurePositions({ registries: { positions: {} } }).positions, [], "invalid positions registry must fail closed");
   const positionsModel = positionsAdapter.adaptStructurePositions(structureEmployeesFixture);
+  assert.equal(positionsModel.canArchive, false, "Positions archive capability must fail closed");
+  assert.equal(positionsAdapter.adaptStructurePositions({ ...structureEmployeesFixture, capabilities: { archive: true } }).canArchive, true, "Positions archive capability must be explicit");
   assert.deepEqual(positionsModel.positions.map((position) => [position.id, position.kindLabel, position.orgUnitLabel, position.workCenterLabel, position.statusLabel]), [
     ["POS-MASTER", "Мастер", "Отдел нанесения влагозащитных покрытий", "Влагозащита", "активно"],
     ["POS-MANUAL", "Исполнитель", "Отдел ручного монтажа", "Ручной монтаж", "активно"],

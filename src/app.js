@@ -2634,7 +2634,7 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
       accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructurePositionsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
   },
-  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructurePositionsReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("positions") } }),
+  getPayload: () => { const commandReady = getStructurePositionsReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("positions"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => {
     setProductionStructureMatrixActiveRegistry(registryId || "positions");
@@ -2642,9 +2642,22 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
   },
   executeCommand: async (command = {}) => {
     const localQa = getStructurePositionsReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования должностей недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда должностей недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("positions")) return { ok: false, message: "PostgreSQL-команда или право редактирования должностей недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "archive") {
+      const positionId = String(input.positionId || "").trim();
+      const position = (getSystemDomainsRegistries().positions || []).find((row) => row.id === positionId);
+      if (!position || position.isActive === false) return { ok: false, message: "Активная должность больше не существует." };
+      try {
+        const result = await archiveSystemDomainEntity("positions", positionId, { source: "react:structure-positions:archive", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Архивирование должности отклонено проверкой System Domains." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: positionId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные должности изменились в другом сеансе. Проверьте значения и повторите архивирование." : error?.message || "Сервер не принял архивирование должности." };
+      }
+    }
     const positionId = String(input.positionId || "").trim() || makeId("position");
     const name = String(input.name || "").trim().replace(/\s+/g, " ");
     const kind = String(input.kind || "worker").trim();
