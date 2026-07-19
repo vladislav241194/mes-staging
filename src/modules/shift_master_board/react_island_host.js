@@ -4,7 +4,7 @@ const SHIFT_MASTER_BOARD_REACT_TARGET = "[data-react-shift-master-board-island]"
 const SHIFT_MASTER_BOARD_REACT_BUNDLE_VERSION = "__MES_SHIFT_MASTER_BOARD_REACT_BUNDLE_VERSION__";
 const SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION = "__MES_SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION__";
 
-export function createShiftMasterBoardReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, openCarryover, openSource, printDocument, selectFocus, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Master Board React island failed", error) } = {}) {
+export function createShiftMasterBoardReactIslandHost({ executeCommand, getActivation, getPayload, getTargetRoot, openCarryover, openSource, printDocument, selectDate, selectFocus, selectMaster, requestLegacyRender, reportError = (error) => console.error("[MES] Shift Master Board React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
     targetSelector: SHIFT_MASTER_BOARD_REACT_TARGET,
@@ -22,6 +22,6 @@ export function createShiftMasterBoardReactIslandHost({ executeCommand, getActiv
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountShiftMasterBoardReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined, onLoadPrintRenderer: async () => { const url = new URL("./react-islands/shift-work-orders-print.js", import.meta.url); url.searchParams.set("v", SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION.startsWith("__MES_") ? String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev") : SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION); return import(url.href); }, onOpenCarryover: openCarryover, onOpenSource: openSource, onPrintDocument: printDocument, onSelectFocus: selectFocus, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountShiftMasterBoardReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined, onLoadPrintRenderer: async () => { const url = new URL("./react-islands/shift-work-orders-print.js", import.meta.url); url.searchParams.set("v", SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION.startsWith("__MES_") ? String(globalThis.window?.__MES_DEPLOY_VERSION__ || "dev") : SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION); return import(url.href); }, onOpenCarryover: openCarryover, onOpenSource: openSource, onPrintDocument: printDocument, onSelectDate: selectDate, onSelectFocus: selectFocus, onSelectMaster: selectMaster, onRequestLegacy }),
   });
 }

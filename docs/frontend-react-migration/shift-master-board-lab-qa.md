@@ -1,11 +1,11 @@
 # Shift Master Board React lab QA
 
 Date: 2026-07-19
-Status: production-integrated assignment, fact, carryover, typed-transfer and SZN-print island; disabled by default; no Pilot activation
+Status: production-integrated date/master, assignment, fact, carryover, typed-transfer and SZN-print island; disabled by default; no Pilot activation
 
 ## Vertical scenario
 
-`Open Workshop -> inspect shift lanes -> select a task -> switch board focus ->
+`Open Workshop -> select a shift date and permitted master -> inspect shift lanes -> select a task -> switch board focus ->
 distribute a bounded quantity between eligible executors -> read the assignment
 back -> record a partial shift fact -> read the canonical fact and carryover back
 -> open the canonical remainder on the next shift -> return to the source task
@@ -21,6 +21,11 @@ legacy DOM directly.
 - local card selection stays inside the React island;
 - all four focus controls stay inside React, but the host owner normalizes the
   focus and rebuilds rows, lanes, selection and KPIs;
+- the date input sends only an ISO date to the existing workbench owner; the
+  production shell proves PostgreSQL scope rehydration `19 -> 20 -> 19`;
+- the master selector is present only when the owner grants `admin` or
+  `productionHead` selection and returns only a validated profile ID plus the
+  owner-backed `mine` projection;
 - a localhost-only write evaluation opens shared `ModalOverlay` forms for
   assignment and fact; both accept only bounded integer quantities;
 - React sends typed `save-assignment` and `save-fact` commands; the host rechecks
@@ -45,8 +50,8 @@ legacy DOM directly.
 - SZN preview reuses the existing lazy shared React renderer. The host validates
   the selected row/executor, records the existing print status and owns
   `window.print()`;
-- read-only evaluation still returns assignment and fact to legacy; date/master
-  picker changes and manual lane movement remain legacy;
+- read-only evaluation still returns assignment and fact to legacy; date and
+  permitted master navigation stay in React, while manual lane movement remains legacy;
 - no storage handle or API client crosses the island boundary.
 
 ## Evidence
@@ -62,18 +67,19 @@ legacy DOM directly.
   can return to `Все`;
 - two-executor assignment `80 + 40 = 120`, partial fact `100 - 4 = 96`,
   remainder preview `24`, next-shift/source navigation and corrected fact
-  `120`, owner-backed revision `1 -> 8`, typed transfer and lazy SZN print,
+  `120`, date and master switching, owner-backed revision `1 -> 12`, typed transfer and lazy SZN print,
   disabled flag, no page overflow and clean console;
-- independent entry `224,581 B` raw / `67,777 B` gzip under the unchanged
+- independent entry `225,000 B` raw / `67,937 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full aggregate lab `551,620 B / 125,388 B` under its development-only
-  `552,000 B / 126,000 B` budget;
+- full aggregate lab `554,332 B / 125,925 B` under its development-only
+  `555,000 B / 126,000 B` budget;
 - shared lab CSS `29,860 B / 5,345 B` under its development-only
   `30,000 B / 5,350 B` budget.
 
 Production-shell QA proves default legacy, explicit session-only read access,
 three lanes and one PostgreSQL-backed task card on both renderers, read-only
-assignment fallback, owner-backed focus `Все -> empty Незакрытые -> Все`, then
+assignment fallback, date rehydration `19 -> 20 -> 19`, `productionHead`
+master switching, owner-backed focus `Все -> empty Незакрытые -> Все`, then
 one write-evaluation assignment, one partial fact and one carryover with
 canonical read-back. It then navigates to the next shift, selects the canonical
 carryover alongside a normal next-shift production row, returns to the source,
@@ -81,8 +87,8 @@ corrects the fact and observes one canonical cancellation. The test intercepts
 exactly one assignment, two fact writes, one carryover create and one carryover
 cancel, renders the typed transfer, lazy-loads the shared SZN preview, records
 the print through the host owner, leaves the 0600 fixture unchanged and keeps a
-clean console. Current first commit is `28.90 ms`; the production base bundle is
-`216,869 B` raw / `67,426 B` gzip / `63,949 B` Brotli. The already shared print
+clean console. Current first commit is `25.90 ms`; the production base bundle is
+`217,258 B` raw / `67,589 B` gzip / `58,223 B` Brotli. The already shared print
 chunk is `13,774 B` raw / `3,351 B` gzip / `3,145 B` Brotli and is loaded only
 when the user opens SZN.
 Pilot remains unchanged.

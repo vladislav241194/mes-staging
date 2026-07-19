@@ -18,7 +18,7 @@ import { weeklyProductionControlFixture, weeklyProductionControlUpdateFixture } 
 import { timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fixture";
 import { planningWorkbenchFixture, planningWorkbenchUpdateFixture } from "./modules/planning-workbench/fixture";
 import { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
-import { createShiftMasterBoardAssignmentFixture, createShiftMasterBoardCarryoverFixture, createShiftMasterBoardFactFixture, createShiftMasterBoardFocusFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
+import { createShiftMasterBoardAssignmentFixture, createShiftMasterBoardCarryoverFixture, createShiftMasterBoardDateFixture, createShiftMasterBoardFactFixture, createShiftMasterBoardFocusFixture, createShiftMasterBoardMasterFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
 import { createEmployeeDesktopFactFixture, createEmployeeDesktopReportFixture, createEmployeeDesktopStartedFixture, employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
 import { contourAdminFixture, contourAdminUpdateFixture } from "./modules/contour-admin/fixture";
 import { specifications2Fixture, specifications2UpdateFixture } from "./modules/specifications2/fixture";
@@ -92,7 +92,9 @@ const featureGate = createReactIslandFeatureGate({
       onLoadShiftWorkOrderPrintPackage: async () => shiftWorkOrdersPrintPackageFixture,
       onLoadShiftWorkOrderPrintRenderer: async () => import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews"),
       onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
+      onSelectShiftMasterBoardDate: (dateKey) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardDateFixture(dateKey)); },
       onSelectShiftMasterBoardFocus: (focus) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFocusFixture(focus)); },
+      onSelectShiftMasterBoardMaster: (masterId) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardMasterFixture(masterId)); },
       onOpenShiftMasterBoardCarryover: (dateKey, carryoverId) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardCarryoverFixture(dateKey, carryoverId)); },
       onOpenShiftMasterBoardSource: () => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFactFixture("assigned", { actualQuantity: 100, defectQuantity: 4, laborMinutes: 240, executorCount: 2, comment: "", deviationComment: "" })); },
       onShiftMasterBoardCommand: async (command) => { markRevisionStart(nextExpectedRevision); featureGate.update(command.type === "save-assignment" ? createShiftMasterBoardAssignmentFixture(command.rowId, command.executors) : createShiftMasterBoardFactFixture(command.rowId, command)); return { ok: true }; },

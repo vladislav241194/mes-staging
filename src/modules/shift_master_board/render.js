@@ -1694,8 +1694,13 @@ function getShiftMasterBoardModel() {
     profile.id,
     profileCountRows.filter((row) => shiftMasterProfileOwnsWorkCenter(profile, row.workCenterId)).length,
   ]));
+  const masterOptions = access.canSelectMaster ? profiles.map((profile) => ({
+    id: profile.id,
+    name: profile.name || "Мастер",
+  })) : [];
   return {
     window,
+    dateKey: toDateInput(window.start),
     rows,
     allRows,
     lanes,
@@ -1704,6 +1709,7 @@ function getShiftMasterBoardModel() {
     access,
     authPerson: access.person,
     canSelectMaster: access.canSelectMaster,
+    masterOptions,
     isScopedToMaster: access.isScopedToMaster,
     profileRowCounts,
     selectedRow,

@@ -3102,10 +3102,21 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     window.addEventListener("afterprint", restoreTitle, { once: true });
     window.requestAnimationFrame(() => window.print());
   },
+  selectDate: (dateKey = "") => {
+    setShiftWorkbenchDate(dateKey);
+  },
   selectFocus: (focus = "") => {
     const nextFocus = normalizeShiftMasterBoardFocus(focus);
     if (nextFocus === ui.shiftMasterBoardFocus) return;
     ui.shiftMasterBoardFocus = nextFocus;
+    queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
+  },
+  selectMaster: (masterId = "") => {
+    const id = String(masterId || "").trim();
+    const model = getShiftMasterBoardModel();
+    if (!model.canSelectMaster || !id || !(model.profiles || []).some((profile) => profile?.id === id) || id === model.activeProfile?.id) return;
+    ui.activeShiftMasterId = id;
+    ui.shiftMasterBoardFocus = "mine";
     queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
   },
   requestLegacyRender: (_reason, scope = "") => {
