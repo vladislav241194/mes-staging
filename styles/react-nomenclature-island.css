@@ -241,6 +241,7 @@
 .mes-react-auth-picker-island .auth-picker-react-people > div { display:grid; grid-template-columns:repeat(3,minmax(200px,1fr)); gap:9px; }
 .mes-react-auth-picker-island .auth-picker-react-people button { display:flex; align-items:center; justify-content:space-between; gap:9px; min-height:72px; padding:12px; border:1px solid #dce5ef; border-radius:11px; color:#18314d; background:#fff; text-align:left; cursor:pointer; }
 .mes-react-auth-picker-island .auth-picker-react-people button > span { display:grid; gap:4px; }
+[data-react-directory-nomenclature-types-island].mes-react-nomenclature-island .module-layout .panel { border-radius:18px !important; }
 
 @media (max-width: 1180px) {
   .mes-react-specifications2-island .workspace { grid-template-columns: minmax(0, 1fr); }

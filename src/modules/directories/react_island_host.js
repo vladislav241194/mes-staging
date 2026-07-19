@@ -86,7 +86,7 @@ export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
     allowWriteEvaluation: true,
     bundleName: "nomenclature-types",
     bundleVersion: NOMENCLATURE_TYPES_VERSION,
-    className: "mes-react-directory-nomenclature-types-island",
+    className: "mes-react-nomenclature-island mes-react-directory-nomenclature-types-island",
     mountExport: "mountNomenclatureTypesReactIsland",
     reportError: options.reportError || ((error) => console.error("[MES] Directory Nomenclature Types React island failed", error)),
     scope: "nomenclatureTypes",
