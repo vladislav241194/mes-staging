@@ -176,14 +176,18 @@ selection across the three existing lanes. React also owns the four focus
 controls, but sends only the focus ID to the host; the existing owner normalizes
 it and rebuilds rows, lanes, selected row and KPI totals before the island is
 remounted. An empty focused projection retains the toolbar and can return to
-`all`. A localhost-only write evaluation sends a typed `save-assignment`
-command. The host rechecks role permission, employee access-matrix membership,
-Timesheet availability, uniqueness and quantity bounds, delegates to the
-existing Shift Execution PostgreSQL owner and refreshes the canonical projection
-before React reports success. Read-only assignment, date/master changes, fact,
-carryover, transfer and print return through `unsupported-scope`. Missing
-coverage, an open legacy overlay, editor access or a missing session request
-retains legacy.
+`all`. A localhost-only write evaluation sends typed `save-assignment` and
+`save-fact` commands. The host rechecks role permission, employee access-matrix
+membership, Timesheet availability, uniqueness, quantity and defect bounds,
+delegates to the existing Shift Execution PostgreSQL owner and refreshes the
+canonical projection before React reports success. The owner also supplies the
+transfer contract and canonical carryover IDs. React navigates next/source
+shifts, corrects a fact, cancels the exact carryover and renders the physical-
+transfer result. SZN uses the existing lazy shared print renderer; the host
+validates the selected row and executor, records its print status and invokes
+`window.print()`. Read-only assignment/fact, date/master changes and manual lane
+movement return through `unsupported-scope`. Missing coverage, an open legacy
+overlay, editor access or a missing session request retains legacy.
 
 `mountEmployeeDesktopReactIsland(...)` owns the executor task view
 behind two false-by-default server permissions, PostgreSQL System Domains and

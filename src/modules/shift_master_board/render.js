@@ -3803,6 +3803,7 @@ function bindShiftMasterBoardEvents() {
     canMoveShiftMasterBoardCardToLane,
     moveShiftMasterBoardCardToLane,
     saveShiftMasterBoardAssignment,
+    markShiftMasterBoardSheetPrinted,
     saveShiftMasterBoardFact,
     removeShiftMasterBoardCarryoverForSource,
     createShiftMasterBoardCarryover,

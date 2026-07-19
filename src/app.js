@@ -822,7 +822,7 @@ function ensureRoutesRenderModule() {
   return routesRenderModuleLoad;
 }
 
-let getShiftWorkOrderRows, getShiftMasterBoardSlotRows, groupShiftRowsByWorkCenter, groupShiftRowsByOrder, getDispatchWindow, getShiftWorkbenchWindow, getShiftWindowDayCount, renderShiftWindowRuler, normalizeDateInput, setShiftWorkbenchDate, moveShiftWorkbenchDate, setShiftWorkbenchToday, renderShiftCalendarControl, isSlotInsideDispatchWindow, getDispatchSlotTone, getDispatchSlotWindowStyle, buildDispatchWorkCenterRows, buildDispatchRouteRows, buildDispatchSignals, getDispatchCheckpointReferenceTime, buildDispatchCheckpoints, buildDispatchBoardData, normalizeShiftMasterBoardQuantity, getShiftMasterBoardAssignment, getShiftMasterBoardFact, getShiftMasterBoardAssignmentQuantity, getShiftMasterBoardRowById, getShiftMasterBoardNextRouteStep, getShiftMasterBoardTransferTarget, getShiftMasterBoardCarryoverForSource, buildShiftMasterBoardTransferContract, buildShiftMasterBoardSheetContract, getShiftMasterBoardLaborMinutesPerUnit, getShiftMasterBoardTimesheetCapacity, getShiftMasterBoardLaneId, getShiftMasterBoardRow, getShiftMasterBoardGroupKey, groupShiftMasterBoardRows, getShiftMasterBoardWeek, getShiftMasterBoardCarryoverRows, getShiftMasterBoardFallbackRows, getShiftMasterBoardModel, getShiftMasterBoardExecutorLoadMap, renderShiftMasterBoardPage, renderShiftMasterBoardTopControls, renderShiftMasterBoardKpi, renderShiftMasterBoardLanes, renderShiftMasterBoardLane, renderShiftMasterBoardCard, renderShiftMasterBoardDetail, renderShiftMasterBoardTaskContext, renderShiftMasterBoardInlineSummary, renderShiftMasterBoardSummaryCell, getShiftMasterBoardRouteChain, renderShiftMasterBoardRouteChain, renderShiftMasterBoardCoverage, renderShiftMasterBoardEmployeeOptions, renderShiftMasterBoardAvailableEmployeeLoadbar, renderShiftMasterBoardAssignment, renderShiftMasterBoardDocument, renderShiftMasterBoardSheetModal, renderShiftMasterBoardActionModal, getShiftMasterDemoLanes, getShiftMasterRowOrderLabel, getShiftMasterRowRouteLabel, getShiftMasterRowRoutePartLabel, readShiftMasterBoardAssignmentPanel, readShiftMasterBoardCurrentAssignmentPatch, mergeShiftMasterBoardIssueAssignment, persistShiftMasterBoardAssignmentInput, updateShiftMasterBoardAvailableQuantityPreview, updateShiftMasterBoardLane, canMoveShiftMasterBoardCardToLane, moveShiftMasterBoardCardToLane, saveShiftMasterBoardAssignment, saveShiftMasterBoardFact, removeShiftMasterBoardCarryoverForSource, createShiftMasterBoardCarryover, bindShiftMasterBoardEvents;
+let getShiftWorkOrderRows, getShiftMasterBoardSlotRows, groupShiftRowsByWorkCenter, groupShiftRowsByOrder, getDispatchWindow, getShiftWorkbenchWindow, getShiftWindowDayCount, renderShiftWindowRuler, normalizeDateInput, setShiftWorkbenchDate, moveShiftWorkbenchDate, setShiftWorkbenchToday, renderShiftCalendarControl, isSlotInsideDispatchWindow, getDispatchSlotTone, getDispatchSlotWindowStyle, buildDispatchWorkCenterRows, buildDispatchRouteRows, buildDispatchSignals, getDispatchCheckpointReferenceTime, buildDispatchCheckpoints, buildDispatchBoardData, normalizeShiftMasterBoardQuantity, getShiftMasterBoardAssignment, getShiftMasterBoardFact, getShiftMasterBoardAssignmentQuantity, getShiftMasterBoardRowById, getShiftMasterBoardNextRouteStep, getShiftMasterBoardTransferTarget, getShiftMasterBoardCarryoverForSource, buildShiftMasterBoardTransferContract, buildShiftMasterBoardSheetContract, getShiftMasterBoardLaborMinutesPerUnit, getShiftMasterBoardTimesheetCapacity, getShiftMasterBoardLaneId, getShiftMasterBoardRow, getShiftMasterBoardGroupKey, groupShiftMasterBoardRows, getShiftMasterBoardWeek, getShiftMasterBoardCarryoverRows, getShiftMasterBoardFallbackRows, getShiftMasterBoardModel, getShiftMasterBoardExecutorLoadMap, renderShiftMasterBoardPage, renderShiftMasterBoardTopControls, renderShiftMasterBoardKpi, renderShiftMasterBoardLanes, renderShiftMasterBoardLane, renderShiftMasterBoardCard, renderShiftMasterBoardDetail, renderShiftMasterBoardTaskContext, renderShiftMasterBoardInlineSummary, renderShiftMasterBoardSummaryCell, getShiftMasterBoardRouteChain, renderShiftMasterBoardRouteChain, renderShiftMasterBoardCoverage, renderShiftMasterBoardEmployeeOptions, renderShiftMasterBoardAvailableEmployeeLoadbar, renderShiftMasterBoardAssignment, renderShiftMasterBoardDocument, renderShiftMasterBoardSheetModal, renderShiftMasterBoardActionModal, getShiftMasterDemoLanes, getShiftMasterRowOrderLabel, getShiftMasterRowRouteLabel, getShiftMasterRowRoutePartLabel, readShiftMasterBoardAssignmentPanel, readShiftMasterBoardCurrentAssignmentPatch, mergeShiftMasterBoardIssueAssignment, persistShiftMasterBoardAssignmentInput, updateShiftMasterBoardAvailableQuantityPreview, updateShiftMasterBoardLane, canMoveShiftMasterBoardCardToLane, moveShiftMasterBoardCardToLane, saveShiftMasterBoardAssignment, markShiftMasterBoardSheetPrinted, saveShiftMasterBoardFact, removeShiftMasterBoardCarryoverForSource, createShiftMasterBoardCarryover, bindShiftMasterBoardEvents;
 let getPlanningWorkItemId, parsePlanningWorkItemId, getPlanningWorkItemSet, getDefaultPlanningWorkItem, getPlanningActiveWorkItem;
 function initializeShiftMasterBoardModule(factory) {
   ({
@@ -901,6 +901,7 @@ function initializeShiftMasterBoardModule(factory) {
     canMoveShiftMasterBoardCardToLane,
     moveShiftMasterBoardCardToLane,
     saveShiftMasterBoardAssignment,
+    markShiftMasterBoardSheetPrinted,
     saveShiftMasterBoardFact,
     removeShiftMasterBoardCarryoverForSource,
     createShiftMasterBoardCarryover,
@@ -1087,6 +1088,7 @@ renderShiftMasterBoardPage = () => renderShiftMasterBoardShellState({
 });
 renderShiftMasterBoardSheetModal = () => "";
 renderShiftMasterBoardActionModal = () => "";
+markShiftMasterBoardSheetPrinted = () => null;
 bindShiftMasterBoardEvents = () => {};
 let shiftMasterBoardModuleLoad = null;
 let shiftMasterBoardModuleError = null;
@@ -3085,6 +3087,20 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
       .find((item) => item?.sourceRowId === sourceRowId && (item?.sourceDateKey === dateKey || String(sourceRowId).endsWith(`::${dateKey}`))) || null;
     if (!carryover) return;
     setShiftWorkbenchDate(dateKey, { selectedSlotId: sourceRowId });
+  },
+  printDocument: (rowId = "", employeeId = "", title = "") => {
+    const model = getShiftMasterBoardModel();
+    const row = (model.allRows || []).find((item) => item?.id === rowId) || null;
+    if (!row) return;
+    const executors = Array.isArray(row.boardAssignment?.executors) ? row.boardAssignment.executors : [];
+    const employee = employeeId ? executors.find((item) => item?.employeeId === employeeId) || null : executors[0] || null;
+    if (employeeId && !employee) return;
+    markShiftMasterBoardSheetPrinted(row.id, employee?.employeeId || "");
+    const previousTitle = document.title;
+    const restoreTitle = () => { document.title = previousTitle; window.removeEventListener("afterprint", restoreTitle); };
+    document.title = String(title || row.documentNumber || "");
+    window.addEventListener("afterprint", restoreTitle, { once: true });
+    window.requestAnimationFrame(() => window.print());
   },
   selectFocus: (focus = "") => {
     const nextFocus = normalizeShiftMasterBoardFocus(focus);

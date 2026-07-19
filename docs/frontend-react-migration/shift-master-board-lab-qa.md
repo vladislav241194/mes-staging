@@ -1,7 +1,7 @@
 # Shift Master Board React lab QA
 
 Date: 2026-07-19
-Status: production-integrated assignment, fact and carryover-navigation island; disabled by default; no Pilot activation
+Status: production-integrated assignment, fact, carryover, typed-transfer and SZN-print island; disabled by default; no Pilot activation
 
 ## Vertical scenario
 
@@ -9,7 +9,8 @@ Status: production-integrated assignment, fact and carryover-navigation island; 
 distribute a bounded quantity between eligible executors -> read the assignment
 back -> record a partial shift fact -> read the canonical fact and carryover back
 -> open the canonical remainder on the next shift -> return to the source task
--> correct the fact -> cancel the canonical remainder.`
+-> correct the fact -> cancel the canonical remainder -> inspect the physical
+transfer -> preview and print the executor SZN.`
 
 The typed adapter consumes the completed `getShiftMasterBoardModel()` result.
 It does not read PostgreSQL, shared state, Shift Execution repositories or the
@@ -39,8 +40,13 @@ legacy DOM directly.
   canonical ID without waiting for a future-date dispatch;
 - returning from a carryover to its source task uses the same date owner. A
   cached scope now re-renders React even when its ETag is unchanged;
-- read-only evaluation still returns assignment and fact to legacy; master
-  picker changes, manual transfer and print remain legacy;
+- React renders the owner's `Откуда -> Куда -> Результат` transfer projection
+  without recalculating route semantics;
+- SZN preview reuses the existing lazy shared React renderer. The host validates
+  the selected row/executor, records the existing print status and owns
+  `window.print()`;
+- read-only evaluation still returns assignment and fact to legacy; date/master
+  picker changes and manual lane movement remain legacy;
 - no storage handle or API client crosses the island boundary.
 
 ## Evidence
@@ -56,12 +62,12 @@ legacy DOM directly.
   can return to `Все`;
 - two-executor assignment `80 + 40 = 120`, partial fact `100 - 4 = 96`,
   remainder preview `24`, next-shift/source navigation and corrected fact
-  `120`, owner-backed revision `1 -> 8`, print fallback,
+  `120`, owner-backed revision `1 -> 8`, typed transfer and lazy SZN print,
   disabled flag, no page overflow and clean console;
-- independent entry `220,660 B` raw / `66,936 B` gzip under the unchanged
+- independent entry `224,581 B` raw / `67,777 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full aggregate lab `545,945 B / 124,524 B` under its development-only
-  `547,000 B / 126,000 B` budget;
+- full aggregate lab `551,620 B / 125,388 B` under its development-only
+  `552,000 B / 126,000 B` budget;
 - shared lab CSS `29,860 B / 5,345 B` under its development-only
   `30,000 B / 5,350 B` budget.
 
@@ -73,9 +79,12 @@ canonical read-back. It then navigates to the next shift, selects the canonical
 carryover alongside a normal next-shift production row, returns to the source,
 corrects the fact and observes one canonical cancellation. The test intercepts
 exactly one assignment, two fact writes, one carryover create and one carryover
-cancel, leaves the 0600 fixture unchanged and keeps a clean console. Current
-first commit is `25.40 ms`; the production bundle is `213,675 B` raw /
-`66,609 B` gzip / `63,150 B` Brotli.
+cancel, renders the typed transfer, lazy-loads the shared SZN preview, records
+the print through the host owner, leaves the 0600 fixture unchanged and keeps a
+clean console. Current first commit is `28.90 ms`; the production base bundle is
+`216,869 B` raw / `67,426 B` gzip / `63,949 B` Brotli. The already shared print
+chunk is `13,774 B` raw / `3,351 B` gzip / `3,145 B` Brotli and is loaded only
+when the user opens SZN.
 Pilot remains unchanged.
 
 The frozen backend still requires at least one durable source row in a dispatch

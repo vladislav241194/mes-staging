@@ -973,6 +973,8 @@ try {
   assert.match(shiftMasterBoardScenarioSource, /onSelectFocus\?\.\(option\.id\)/);
   assert.match(shiftMasterBoardScenarioSource, /type: "save-assignment"/);
   assert.match(shiftMasterBoardScenarioSource, /data-shift-master-board-assignment/);
+  assert.match(shiftMasterBoardScenarioSource, /data-shift-master-board-transfer/);
+  assert.match(shiftMasterBoardScenarioSource, /ShiftWorkOrderPrintPreview/);
   assert.doesNotMatch(shiftMasterBoardScenarioSource, /onRequestLegacy\?\.\("focus/);
 
   const sources = await collectSources(sourceRoot);
@@ -1484,8 +1486,11 @@ try {
   const shiftMasterBoardHostSource = await readFile(join(repositoryRoot, "src/modules/shift_master_board/react_island_host.js"), "utf8");
   assert.match(shiftMasterBoardHostSource, /onSelectFocus: selectFocus/);
   assert.match(shiftMasterBoardHostSource, /onCommand: executeCommand/);
+  assert.match(shiftMasterBoardHostSource, /shift-work-orders-print\.js/);
+  assert.match(shiftMasterBoardHostSource, /__MES_SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION__/);
   assert.match(productionAppSource, /selectFocus: \(focus = ""\)/);
   assert.match(productionAppSource, /ui\.shiftMasterBoardFocus = nextFocus/);
+  assert.match(productionAppSource, /markShiftMasterBoardSheetPrinted\(row\.id/);
   assert.match(productionAppSource, /params\.get\("react-shift-master-board-write"\) === "1"/);
   assert.match(productionAppSource, /mirrorShiftMasterBoardAssignmentToServer\(row, saved\)/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
@@ -1622,7 +1627,7 @@ try {
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
   assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 0, "no registered command scenario may remain implicit or pending");
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /Pilot read-only acceptance.*print\/package previews/);
-  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /Pilot acceptance of assignment.*canonical carryover lifecycle/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /Pilot acceptance of assignment.*typed transfer.*SZN print/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /Pilot acceptance of the complete worker task flow/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "specifications2")?.nextVerticalScope || "", /Pilot draft-row edit acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "gantt")?.nextVerticalScope || "", /Pilot dependency-inspection acceptance/);

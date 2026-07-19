@@ -83,7 +83,7 @@ then proved one create plus one edit through the existing command owner.
 | Timesheet | measured by the same callback | browser gate passed | overtime updated, revision 2 |
 | Planning Workbench | measured by the same callback | browser gate passed | quantity conflict/retry, authoritative slot refresh and legacy read-back |
 | Shift Work Orders | measured by the same callback | browser gate passed | attachment and lazy SZN/package overlays, host print callback, selection/collapse and revision 2 |
-| Shift Master Board | 25.40 ms in production shell | browser gate passed | focus recovery, assignment, partial/corrected facts, canonical carryover create/navigation/cancel |
+| Shift Master Board | 28.90 ms in production shell | browser gate passed | focus recovery, assignment, facts, canonical carryover, typed transfer and lazy SZN print |
 | Employee Desktop | measured by the same callback | browser gate passed | task/fact/photo Report read-back, deviation guard, revision 5 |
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
@@ -168,19 +168,22 @@ compatibility snapshot. This is regression evidence, not Pilot acceptance.
 
 The bundled production Shift Work Orders base island is `213,696 B` raw /
 `66,343 B` gzip / `57,159 B` Brotli, and its lazy print chunk is `13,774 B`
-raw / `3,351 B` gzip / `2,890 B` Brotli. Its one-assignment PostgreSQL-backed
+raw / `3,351 B` gzip / `3,145 B` Brotli. Its one-assignment PostgreSQL-backed
 production-shell gate keeps zero writes, lazily opens both SZN and package
 previews and delegates two print calls to the host; the isolated lab
 additionally proves an in-React attachment overlay with Escape close. This is
 regression evidence, not Pilot acceptance.
 
-The bundled production Shift Master Board island is `213,675 B` raw /
-`66,609 B` gzip / `63,150 B` Brotli. Its one-card PostgreSQL-backed production-
-shell first commit was `25.40 ms`; owner-backed focus proves
+The bundled production Shift Master Board island is `216,869 B` raw /
+`67,426 B` gzip / `63,949 B` Brotli. Its one-card PostgreSQL-backed production-
+shell first commit was `28.90 ms`; owner-backed focus proves
 `all -> empty open -> all`, read-only assignment returns to legacy and the
 write evaluation proves assignment, partial fact, immediate canonical
 carryover read-back, next/source navigation, corrected fact and exact canonical
-cancellation. This is regression evidence, not Pilot acceptance.
+cancellation. Typed transfer stays in the base island; SZN reuses the existing
+`13,774 B` raw / `3,351 B` gzip / `3,145 B` Brotli lazy print chunk and delegates
+print-record/browser-print ownership to the host. This is regression evidence,
+not Pilot acceptance.
 
 The bundled production Employee Desktop island is `214,902 B` raw /
 `66,681 B` gzip / `57,535 B` Brotli. Its one-task PostgreSQL-backed production-

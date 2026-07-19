@@ -52,9 +52,9 @@ const operations = await measureEntry("operations-island.tsx", { raw: 225_000, g
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
 // The aggregate lab intentionally contains every scenario; production islands keep their stricter per-entry budgets above.
-// Employee Desktop context plus the Shift Master assignment, fact and carryover navigation add bounded forms over the shared modal contract while each
+// Employee Desktop context plus the Shift Master assignment, fact, carryover navigation and lazy SZN trigger add bounded UI over shared contracts while each
 // separately loaded production island remains under the unchanged 225/68 KB gate.
-const lab = await measureEntry("main.tsx", { raw: 547_000, gzip: 126_000 });
+const lab = await measureEntry("main.tsx", { raw: 552_000, gzip: 126_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);

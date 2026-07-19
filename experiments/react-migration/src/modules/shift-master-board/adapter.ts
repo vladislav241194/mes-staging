@@ -5,15 +5,20 @@ const number = (value: unknown): number => Number.isFinite(Number(value)) ? Math
 const tone = (value: unknown): "success" | "warning" | "neutral" => ["ok", "success", "active", "primary"].includes(text(value)) ? "success" : text(value) === "warning" ? "warning" : "neutral";
 const personName = (value: unknown, fallback = "Не назначен") => { const parts = text(value).split(/\s+/).filter(Boolean); return parts.length > 2 ? `${parts[0]} ${parts[1]}` : parts.join(" ") || fallback; };
 
-export interface ShiftMasterBoardExecutor { id: string; name: string; quantity: number }
+export interface ShiftMasterBoardExecutor { id: string; name: string; quantity: number; note: string }
 export interface ShiftMasterBoardAssignableEmployee { id: string; name: string; quantity: number; available: boolean; availabilityLabel: string }
+export interface ShiftMasterBoardTransfer {
+  fromOperationName: string; fromWorkCenterLabel: string; toOperationName: string; toWorkCenterLabel: string;
+  targetLabel: string; remainingQuantity: number;
+}
 export interface ShiftMasterBoardRow {
   id: string; documentNumber: string; operationName: string; orderLabel: string; routePartLabel: string;
-  workCenterLabel: string; timeLabel: string; plannedQuantity: number; assignedQuantity: number; factQuantity: number;
+  workCenterLabel: string; resourceLabel: string; timeLabel: string; issuedAt: string; plannedQuantity: number; assignedQuantity: number; factQuantity: number;
   remainingQuantity: number; unit: string; laneId: string; signal: { label: string; tone: "success" | "warning" | "neutral" };
   masterName: string; executors: ShiftMasterBoardExecutor[]; assignableEmployees: ShiftMasterBoardAssignableEmployee[]; factUpdatedAt: string; riskLabel: string;
   factReady: boolean; hasFact: boolean; actualQuantity: number; defectQuantity: number; laborMinutes: number; executorCount: number; factComment: string; deviationComment: string;
   isCarryover: boolean; sourceRowId: string; sourceDateKey: string; carryoverReason: string; transferStatus: string; carryoverId: string; carryoverDateKey: string; carryoverRemainingQuantity: number; transferTargetLabel: string;
+  transfer: ShiftMasterBoardTransfer;
 }
 export interface ShiftMasterBoardLane { id: string; label: string; caption: string; tone: "success" | "warning" | "neutral"; rows: ShiftMasterBoardRow[] }
 export interface ShiftMasterBoardModel {
@@ -29,14 +34,14 @@ function adaptRow(value: unknown): ShiftMasterBoardRow | null {
   const source = record(value); const assignment = record(source.boardAssignment || source.assignment); const fact = record(source.boardFact || source.fact); const signal = record(source.boardSignal || source.signal); const transfer = record(source.boardTransferContract || fact.transferContract || assignment.transferContract);
   const id = text(source.id || source.sourceRowId); if (!id) return null;
   const plannedQuantity = number(source.plannedQuantity); const assignedQuantity = number(source.boardAssignedQuantity ?? source.assignedQuantity); const factQuantity = number(source.boardGoodQuantity ?? source.factQuantity);
-  const executors = list(assignment.executors || source.executors).map((value, index) => { const executor = record(value); return { id: text(executor.employeeId || executor.id, `executor-${index + 1}`), name: personName(executor.employeeName || executor.name, "Исполнитель"), quantity: number(executor.quantity) }; });
+  const executors = list(assignment.executors || source.executors).map((value, index) => { const executor = record(value); return { id: text(executor.employeeId || executor.id, `executor-${index + 1}`), name: personName(executor.employeeName || executor.name, "Исполнитель"), quantity: number(executor.quantity), note: text(executor.note) }; });
   const executorById = new Map(executors.map((executor) => [executor.id, executor]));
   const assignableEmployees = list(source.employees || source.availableEmployees).map((value, index) => { const employee = record(value); const availability = record(employee.availability); const employeeId = text(employee.id || employee.employeeId, `employee-${index + 1}`); const current = executorById.get(employeeId); return { id: employeeId, name: personName(employee.name || employee.employeeName || current?.name, "Исполнитель"), quantity: current?.quantity || 0, available: availability.isAvailable === true, availabilityLabel: text(availability.label, availability.isAvailable === true ? "доступен по Табелю" : "недоступен по Табелю") }; });
   executors.forEach((executor) => { if (!assignableEmployees.some((employee) => employee.id === executor.id)) assignableEmployees.push({ ...executor, available: false, availabilityLabel: "текущее назначение вне доступной смены" }); });
   return {
     id, documentNumber: text(source.documentNumber, "СЗН не сформирован"), operationName: text(source.operationName, "Операция"),
     orderLabel: text(source.orderLabel || source.routeName || source.taskLabel, "Заказ-наряд"), routePartLabel: text(source.routePartLabel || source.taskLabel, "Основной маршрут"),
-    workCenterLabel: text(source.workCenterLabel, "Участок не задан"), timeLabel: text(source.timeLabel, "время не задано"),
+    workCenterLabel: text(source.workCenterLabel, "Участок не задан"), resourceLabel: text(source.resourceLabel), timeLabel: text(source.timeLabel, "время не задано"), issuedAt: text(assignment.issuedAt),
     plannedQuantity, assignedQuantity, factQuantity, remainingQuantity: Math.max(0, plannedQuantity - factQuantity), unit: text(source.unit, "шт."),
     laneId: text(source.boardLaneId, "intake"), signal: { label: text(signal.label, "нужно распределить"), tone: tone(signal.tone) },
     masterName: personName(assignment.masterName || source.masterName, "Мастер не назначен"),
@@ -48,6 +53,14 @@ function adaptRow(value: unknown): ShiftMasterBoardRow | null {
     isCarryover: source.isBoardCarryover === true, sourceRowId: text(source.sourceRowId), sourceDateKey: text(source.sourceDateKey), carryoverReason: text(source.note || source.reason),
     transferStatus: text(transfer.status), carryoverId: text(transfer.carryoverId || (source.isBoardCarryover ? id : "")), carryoverDateKey: text(transfer.carryoverDateKey || source.dateKey),
     carryoverRemainingQuantity: number(transfer.remainingQuantity || (source.isBoardCarryover ? plannedQuantity : 0)), transferTargetLabel: text(transfer.targetLabel, "Остаток в следующую смену"),
+    transfer: {
+      fromOperationName: text(transfer.fromOperationName || source.operationName, "Операция"),
+      fromWorkCenterLabel: text(transfer.fromWorkCenterLabel || source.workCenterLabel, "Участок не задан"),
+      toOperationName: text(transfer.toOperationName, "Завершение маршрута"),
+      toWorkCenterLabel: text(transfer.toWorkCenterLabel, "Выход маршрута"),
+      targetLabel: text(transfer.targetLabel, "Закрытие операции"),
+      remainingQuantity: number(transfer.remainingQuantity),
+    },
   };
 }
 

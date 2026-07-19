@@ -42,7 +42,10 @@ availability and quantity bounds, then executes and refreshes PostgreSQL
 through the Shift Execution owner. A partial fact immediately reconciles the
 POST result to its canonical ID; React opens the next-shift remainder, returns
 to the source task and corrects the fact, while the owner cancels that exact
-canonical remainder. Manual transfer remains legacy. Employee Desktop now
+canonical remainder. React also renders the owner's typed physical-transfer
+contract and lazy-loads the shared SZN preview; the host records the print and
+invokes the browser print boundary. Date/master switching and manual lane
+movement remain legacy. Employee Desktop now
 starts an available task and records its quantities/deviation note through the
 existing authenticated fact aggregation owner; React validates the visible
 task, disables repeats and reads back `В работе` and `факт записан`, while
@@ -93,7 +96,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy | Critical | Separately gated Pilot read-only acceptance of the three React-owned presentation paths |
-| 18 | Shift Master Board | Local complete: card selection, focus, bounded executor assignment, fact/correction and canonical carryover create/navigate/cancel; manual transfer remains legacy | Critical | Separately gated Pilot acceptance of the full assignment/fact/carryover flow before transfer commands |
+| 18 | Shift Master Board | Local complete: card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; date/master switching and manual lane movement remain legacy | Critical | Separately gated Pilot acceptance of the complete owner-backed flow before the remaining navigation/drag scopes |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners | Critical | Separately gated Pilot acceptance of the complete worker task flow before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
 | 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |

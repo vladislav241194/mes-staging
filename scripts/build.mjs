@@ -488,10 +488,13 @@ const shiftMasterBoardReactIslandOutput = join(stagingDistDir, "src", "react-isl
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "shift-master-board-island.tsx"), shiftMasterBoardReactIslandOutput);
 const shiftMasterBoardReactIslandVersion = await fileHash(shiftMasterBoardReactIslandOutput);
 const shiftMasterBoardReactIslandHostPath = join(stagingDistDir, "src", "modules", "shift_master_board", "react_island_host.js");
-const shiftMasterBoardReactIslandHostSource = await readFile(shiftMasterBoardReactIslandHostPath, "utf8");
+let shiftMasterBoardReactIslandHostSource = await readFile(shiftMasterBoardReactIslandHostPath, "utf8");
 const shiftMasterBoardReactIslandVersionMarker = "__MES_SHIFT_MASTER_BOARD_REACT_BUNDLE_VERSION__";
 if (!shiftMasterBoardReactIslandHostSource.includes(shiftMasterBoardReactIslandVersionMarker)) throw new Error("Cannot find Shift Master Board React island bundle version marker");
-await writeFile(shiftMasterBoardReactIslandHostPath, shiftMasterBoardReactIslandHostSource.replaceAll(shiftMasterBoardReactIslandVersionMarker, shiftMasterBoardReactIslandVersion));
+shiftMasterBoardReactIslandHostSource = shiftMasterBoardReactIslandHostSource.replaceAll(shiftMasterBoardReactIslandVersionMarker, shiftMasterBoardReactIslandVersion);
+const shiftMasterBoardPrintVersionMarker = "__MES_SHIFT_MASTER_BOARD_PRINT_BUNDLE_VERSION__";
+if (!shiftMasterBoardReactIslandHostSource.includes(shiftMasterBoardPrintVersionMarker)) throw new Error("Cannot find Shift Master Board print bundle version marker");
+await writeFile(shiftMasterBoardReactIslandHostPath, shiftMasterBoardReactIslandHostSource.replaceAll(shiftMasterBoardPrintVersionMarker, shiftWorkOrdersPrintVersion));
 
 const employeeDesktopReactIslandOutput = join(stagingDistDir, "src", "react-islands", "employee-desktop.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "employee-desktop-island.tsx"), employeeDesktopReactIslandOutput);
