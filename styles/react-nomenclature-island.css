@@ -159,6 +159,8 @@
 .mes-react-gantt-island .module-page { padding:16px; }
 .mes-react-gantt-island .module-layout { display:block; }
 .mes-react-gantt-island .workspace { display:grid; gap:14px; }
+.mes-react-gantt-island .action { padding:9px 13px; border:0; border-radius:10px; color:#fff; background:#2f6fe4; cursor:pointer; }
+.mes-react-gantt-island .action:disabled { opacity:.45; cursor:default; }
 .mes-react-gantt-island :is(.gantt-react-toolbar,.gantt-react-detail) .action { color:#18314d; background:#e8eef5; }
 .mes-react-gantt-island .gantt-react-toolbar { display:grid; grid-template-columns:minmax(260px,1fr) 120px auto auto; align-items:center; gap:12px; padding:12px 14px; border:1px solid rgba(71,112,154,.16); border-radius:18px; background:#fff; }
 .mes-react-gantt-island .gantt-react-toolbar > div { display:grid; gap:3px; }
