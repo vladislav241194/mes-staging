@@ -2579,10 +2579,10 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
 });
 function getStructurePositionsReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-structure-positions") === "1", readOnlyEvaluation: params.get("react-structure-positions-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-structure-positions") === "1", readOnlyEvaluation: params.get("react-structure-positions-readonly") === "1", writeEvaluation: params.get("react-structure-positions-write") === "1" };
 }
 function isStructurePositionsReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search);
@@ -2596,14 +2596,40 @@ const structurePositionsReactIslandHost = createStructurePositionsReactIslandHos
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_POSITIONS === true || localQa.featureFlagEnabled,
       serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
-      accessMode: (serverEvaluationAllowed && isStructurePositionsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructurePositionsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
   },
-  getPayload: () => systemDomainsState,
+  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructurePositionsReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("positions") } }),
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => {
     setProductionStructureMatrixActiveRegistry(registryId || "positions");
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getStructurePositionsReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования должностей недоступна." };
+    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("positions")) return { ok: false, message: "PostgreSQL-команда или право редактирования должностей недоступны." };
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const positionId = String(input.positionId || "").trim() || makeId("position");
+    const name = String(input.name || "").trim().replace(/\s+/g, " ");
+    const kind = String(input.kind || "worker").trim();
+    const orgUnitId = String(input.orgUnitId || "").trim();
+    const workCenterId = String(input.workCenterId || "").trim();
+    const defaultScheduleTemplateId = String(input.defaultScheduleTemplateId || "").trim();
+    const registries = getSystemDomainsRegistries();
+    if (!name) return { ok: false, message: "Заполните название должности." };
+    if (!["manager", "supervisor", "worker"].includes(kind)) return { ok: false, message: "Выбрана неизвестная категория должности." };
+    if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId)) return { ok: false, message: "Выбранное подразделение больше не существует." };
+    if (workCenterId && !(registries.workCenters || []).some((row) => row.id === workCenterId)) return { ok: false, message: "Выбранный рабочий центр больше не существует." };
+    if (defaultScheduleTemplateId && !(registries.scheduleTemplates || []).some((row) => row.id === defaultScheduleTemplateId)) return { ok: false, message: "Выбранный базовый график больше не существует." };
+    try {
+      const result = await upsertSystemDomainEntity("positions", { id: positionId, name, code: String(input.code || "").trim(), kind, orgUnitId, workCenterId, defaultScheduleTemplateId, isActive: input.isActive !== false }, { source: "react:structure-positions", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      if (result !== true) return { ok: false, message: "Изменение должности отклонено проверкой System Domains." };
+      queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+      return { ok: true, id: positionId };
+    } catch (error) {
+      return { ok: false, message: error?.conflict === true ? "Данные должности изменились в другом сеансе. Проверьте значения и повторите сохранение." : error?.message || "Сервер не принял изменение должности." };
+    }
   },
 });
 function getStructureOrgUnitsReactLocalQaOverrides() {
@@ -5997,10 +6023,13 @@ function upsertSystemDomainEntity(registryName = "", entity = {}, options = {}) 
       surface: options.surface || "production-structure",
     });
   }
-  return updateSystemDomainRegistry(normalizedRegistryName, (rows) => [
-    ...rows.filter((row) => row.id !== id),
-    { ...entity, id, updatedAt: new Date().toISOString() },
-  ], { source: options.source, serverCommand: options.serverCommand !== false, surface: options.surface || "production-structure" });
+  return updateSystemDomainRegistry(normalizedRegistryName, (rows) => {
+    const currentEntity = rows.find((row) => row.id === id) || {};
+    return [
+      ...rows.filter((row) => row.id !== id),
+      { ...currentEntity, ...entity, id, updatedAt: new Date().toISOString() },
+    ];
+  }, { source: options.source, serverCommand: options.serverCommand !== false, surface: options.surface || "production-structure" });
 }
 
 function archiveSystemDomainEntity(registryName = "", entityId = "", options = {}) {
@@ -7214,7 +7243,7 @@ function initializeModuleRuntime() {
         }
         ensureProductionStructureMatrixModule();
         const structureReactHosts = { employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost };
-        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : isStructureResponsibilityPoliciesReactEvaluationRequested() ? structureReactHosts.responsibilityPolicies : isStructureEquipmentReactEvaluationRequested() ? structureReactHosts.equipment : isStructureWorkCentersReactEvaluationRequested() ? structureReactHosts.workCenters : isStructureOrgUnitsReactEvaluationRequested() ? structureReactHosts.orgUnits : isStructurePositionsReactEvaluationRequested() ? structureReactHosts.positions : structureReactHosts.employees;
+        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : isStructureResponsibilityPoliciesReactEvaluationRequested() ? structureReactHosts.responsibilityPolicies : isStructureEquipmentReactEvaluationRequested() ? structureReactHosts.equipment : isStructureWorkCentersReactEvaluationRequested() ? structureReactHosts.workCenters : isStructureOrgUnitsReactEvaluationRequested() ? structureReactHosts.orgUnits : (isStructurePositionsReactEvaluationRequested() || getStructurePositionsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.positions : structureReactHosts.employees;
         Object.values(structureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();

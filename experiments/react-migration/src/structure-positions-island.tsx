@@ -1,4 +1,4 @@
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
-import { StructurePositionsScenario } from "./modules/structure-positions/StructurePositionsScenario";
-export interface StructurePositionsIslandOptions extends ReactMigrationIslandOptions { onRequestLegacy?(scope?: string): void }
-export function mountStructurePositionsReactIsland(target: HTMLElement, initialPayload: unknown, options: StructurePositionsIslandOptions = {}) { const { onRequestLegacy, ...runtimeOptions } = options; return mountReactIsland(target, (payload) => <StructurePositionsScenario payload={payload} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions); }
+import { StructurePositionsScenario, type StructurePositionsReactCommand } from "./modules/structure-positions/StructurePositionsScenario";
+export interface StructurePositionsIslandOptions extends ReactMigrationIslandOptions { onRequestLegacy?(scope?: string): void; onCommand?(command: StructurePositionsReactCommand): Promise<{ ok?: boolean; id?: string; message?: string } | void> }
+export function mountStructurePositionsReactIsland(target: HTMLElement, initialPayload: unknown, options: StructurePositionsIslandOptions = {}) { const { onCommand, onRequestLegacy, ...runtimeOptions } = options; return mountReactIsland(target, (payload) => <StructurePositionsScenario payload={payload} onCommand={onCommand} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions); }

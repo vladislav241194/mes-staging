@@ -58,6 +58,7 @@ export function createStructurePositionsReactIslandHost({
   getPayload,
   getTargetRoot,
   requestLegacyRender,
+  executeCommand,
   reportError = (error) => console.error("[MES] Structure Positions React island failed", error),
 } = {}) {
   return createReactIslandHost({
@@ -71,7 +72,7 @@ export function createStructurePositionsReactIslandHost({
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -82,7 +83,7 @@ export function createStructurePositionsReactIslandHost({
       return import(islandUrl.href);
     },
     mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => (
-      loadedIsland.mountStructurePositionsReactIsland(target, payload, { onError, onReady, onRequestLegacy })
+      loadedIsland.mountStructurePositionsReactIsland(target, payload, { onError, onReady, onRequestLegacy, onCommand: (command) => executeCommand?.(command) })
     ),
   });
 }

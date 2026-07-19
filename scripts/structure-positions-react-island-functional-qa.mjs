@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
+import { SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY, SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
 import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
 import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
 import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
@@ -55,6 +55,7 @@ const migration = migrateLegacySystemDomains({
   matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS,
   legacyUi: {
     accessRoleProfiles: [
+      { id: "admin", label: "Администратор QA", scope: "global", defaultModule: "productionStructureMatrix", modulePermissions: { productionStructureMatrix: { view: true, edit: true } } },
       { id: "master", label: "Мастер производства", scope: "workCenter", defaultModule: "shiftMasterBoard", modulePermissions: { productionStructureMatrix: { view: true, edit: true } } },
       { id: "executor", label: "Исполнитель", scope: "self", defaultModule: "authSessionPrototype", modulePermissions: { productionStructureMatrix: { view: true, edit: false } } },
     ],
@@ -78,15 +79,26 @@ let enabledOutput = ""; let legacyOutput = "";
 enabledPreview.stdout.on("data", (chunk) => { enabledOutput += chunk.toString(); }); enabledPreview.stderr.on("data", (chunk) => { enabledOutput += chunk.toString(); });
 legacyPreview.stdout.on("data", (chunk) => { legacyOutput += chunk.toString(); }); legacyPreview.stderr.on("data", (chunk) => { legacyOutput += chunk.toString(); });
 let chrome = null; let interceptedReads = 0; const consoleProblems = [];
+let apiDomains = structuredClone(migration.domains); let apiRevision = 1; let putAttempts = 0; let successfulWrites = 0; let forceConflictOnce = false; let primaryAuthorityReady = false; const commandRequests = [];
 try {
   await Promise.all([waitPreview(enabledOrigin), waitPreview(legacyOrigin)]);
   chrome = await launchChrome("mes-structure-positions-react-qa-"); const { client } = chrome;
-  const responseBody = Buffer.from(JSON.stringify({ ok: true, revision: 1, item: migration.domains })).toString("base64");
+  const responseBody = (value) => Buffer.from(JSON.stringify(value)).toString("base64");
+  const fulfill = (requestId, payload, { statusCode = 200, revision = apiRevision } = {}) => client.send("Fetch.fulfillRequest", { requestId, responseCode: statusCode, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: `"${revision}"` }], body: responseBody(payload) }).catch((error) => consoleProblems.push(error.message));
   client.socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.method === "Fetch.requestPaused") {
       const requestUrl = new URL(message.params.request.url);
-      if (requestUrl.pathname === "/api/v1/system-domains") { interceptedReads += 1; void client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: '"1"' }], body: responseBody }).catch((error) => consoleProblems.push(error.message)); }
+      const method = String(message.params.request.method || "GET").toUpperCase();
+      if (requestUrl.pathname === "/api/v1/system-domains/capabilities" && qaConfig.registryId === "positions") { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...(primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {}) } }); }
+      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "GET") { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains }); }
+      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT" && qaConfig.registryId === "positions") {
+        putAttempts += 1; const requestHeaders = message.params.request.headers || {}; const header = (name) => Object.entries(requestHeaders).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || ""; const body = JSON.parse(message.params.request.postData || "{}");
+        commandRequests.push({ expectedRevision: Number(body.expectedRevision || 0), ifMatch: String(header("If-Match")), idempotencyKey: String(header("Idempotency-Key")), surface: String(body.surface || "") });
+        if (forceConflictOnce) { forceConflictOnce = false; void fulfill(message.params.requestId, { ok: false, conflict: true, revision: apiRevision, error: "System Domains revision conflict" }, { statusCode: 409 }); }
+        else if (Number(body.expectedRevision) !== apiRevision || String(header("If-Match")) !== `"${apiRevision}"`) void fulfill(message.params.requestId, { ok: false, conflict: true, revision: apiRevision, error: "stale revision" }, { statusCode: 409 });
+        else { apiDomains = structuredClone(body.domains); apiRevision += 1; successfulWrites += 1; void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains, snapshotSync: { queued: true } }); }
+      }
       else void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message));
       return;
     }
@@ -99,6 +111,7 @@ try {
   await selectRegistry(client, qaConfig.registryId); await waitForCondition(client, (config) => document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : `[data-system-domain-table="${config.registryId}"] [data-system-domain-row]`).length === config.rowCount, { arg: qaConfig, message: `legacy ${qaConfig.label} missing` });
   const legacyRows = await evaluate(client, (config) => [...document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : `[data-system-domain-table="${config.registryId}"] [data-system-domain-row]`)].map((row) => { const cells = [...row.querySelectorAll("td")]; return (config.isDiagnostics ? cells : cells.slice(0, -1)).map((cell) => cell.textContent.replace(/\s+/g, " ").trim()).join(" "); }), qaConfig);
   const legacyMetrics = await evaluate(client, () => Object.fromEntries([...document.querySelectorAll('.production-structure-kpis article')].map((card) => [card.querySelector("span")?.textContent?.trim() || "", Number(card.querySelector("strong")?.textContent || 0)])));
+  if (qaConfig.registryId === "positions") await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
 
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1` });
   await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 19, { message: "enabled default canonical payload missing" });
@@ -116,10 +129,57 @@ try {
   if (!qaConfig.isDiagnostics) { const second = await evaluate(client, async () => { const rows = [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]; const target = rows[Math.min(1, rows.length - 1)]; target?.click(); await new Promise((resolve) => setTimeout(resolve, 50)); return [document.querySelectorAll('[data-ui-component="SelectableRow"].is-selected').length, target?.textContent?.replace(/\s+/g, " ").trim() || "", document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent?.trim() || ""]; }); assert(second[0] === 1 && second[1].includes(second[2]), `${qaConfig.label} selection/detail synchronization failed`); }
   await evaluate(client, (config) => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((entry) => entry.textContent?.includes(config.fallbackLabel))?.click(), qaConfig);
   await waitForCondition(client, (config) => Boolean(!document.querySelector(`[${config.target}]`) && document.querySelectorAll(`[data-system-domain-table="${config.fallbackRegistry}"] [data-system-domain-row]`).length === config.fallbackCount), { arg: qaConfig, message: `${qaConfig.label} legacy fallback failed` });
+  if (qaConfig.registryId === "positions") {
+    primaryAuthorityReady = true;
+    await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
+    const writeUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-positions=1&react-structure-positions-write=1&qa-reload=positions-write`;
+    await client.send("Page.navigate", { url: writeUrl });
+    await waitForCondition(client, () => location.search.includes("qa-reload=positions-write") && document.readyState === "complete", { message: "Positions write page navigation did not complete" });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-structure-positions-island]')) || /Должностей\s*49/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "Positions write shell did not hydrate revision 1" });
+    await waitForCondition(client, () => { if (document.querySelector('[data-react-structure-positions-island]') || document.querySelector('[data-system-domain-table="positions"]')) return true; document.querySelector('[data-system-domain-registry="positions"]')?.click(); return false; }, { message: "Positions registry did not become active after hydration", timeoutMs: 10_000 });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-structure-positions-island][data-react-island-state="ready"]')) && [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Новая запись" && !button.disabled), { message: "Positions PostgreSQL write evaluation did not become ready", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Новая запись")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="name"]')), { message: "new position editor did not open" });
+    const references = { orgUnitId: migration.domains.registries.orgUnits[0].id, workCenterId: migration.domains.registries.workCenters[0].id, scheduleTemplateId: migration.domains.registries.scheduleTemplates[0].id };
+    await evaluate(client, (values) => { const setControl = (selector, value) => { const control = document.querySelector(selector); if (!control) throw new Error(`missing ${selector}`); const prototype = control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value); control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true })); }; setControl('input[name="name"]', "Инженер PostgreSQL QA"); setControl('input[name="code"]', "QA-POS-01"); setControl('select[name="kind"]', "supervisor"); setControl('select[name="orgUnitId"]', values.orgUnitId); setControl('select[name="workCenterId"]', values.workCenterId); setControl('select[name="defaultScheduleTemplateId"]', values.scheduleTemplateId); document.querySelector('form.react-nomenclature-editor')?.requestSubmit(); }, references);
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]').length === 50, { message: "created position did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 2 && successfulWrites === 1, "position create must advance one PostgreSQL revision");
+    const created = apiDomains.registries.positions.find((position) => position.code === "QA-POS-01");
+    assert(created?.id && created.orgUnitId === references.orgUnitId && created.workCenterId === references.workCenterId && created.defaultScheduleTemplateId === references.scheduleTemplateId, "created position references were not preserved");
+    created.serverOnlyMarker = "position-hidden-field";
+
+    const editUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-positions=1&react-structure-positions-write=1&qa-reload=positions-revision-2`;
+    await client.send("Page.navigate", { url: editUrl });
+    await waitForCondition(client, () => location.search.includes("positions-revision-2") && document.readyState === "complete", { message: "Positions revision 2 navigation did not complete" });
+    await waitForCondition(client, () => /Должностей\s*50/.test(document.querySelector(".production-structure-content")?.textContent || "") || document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]').length === 50, { message: "Positions revision 2 did not hydrate", timeoutMs: 15_000 });
+    await waitForCondition(client, () => { if (document.querySelector('[data-react-structure-positions-island]') || document.querySelector('[data-system-domain-table="positions"]')) return true; document.querySelector('[data-system-domain-registry="positions"]')?.click(); return false; }, { message: "Positions edit registry did not become active", timeoutMs: 10_000 });
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]').length === 50, { message: "Positions edit projection did not mount" });
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Редактировать должность")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="name"]')), { message: "position edit form did not open" });
+    await evaluate(client, () => { const setInput = (selector, value) => { const input = document.querySelector(selector); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); }; setInput('input[name="name"]', "Инженер PostgreSQL QA обновлён"); setInput('input[name="code"]', "QA-POS-02"); });
+    forceConflictOnce = true;
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("изменились в другом сеансе"), { message: "position revision conflict was not visible" });
+    assert(apiRevision === 2 && successfulWrites === 1 && putAttempts === 2, "conflicted position edit must not mutate System Domains");
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]').length === 50 && [...document.querySelectorAll('[data-react-structure-positions-island] [data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("Инженер PostgreSQL QA обновлён")), { message: "position edit retry did not return", timeoutMs: 15_000 });
+    assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "position edit retry must advance exactly one revision");
+    const edited = apiDomains.registries.positions.find((position) => position.id === created.id);
+    assert(edited?.name === "Инженер PostgreSQL QA обновлён" && edited?.serverOnlyMarker === "position-hidden-field", "position edit lost visible or hidden fields");
+    assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "position commands must carry surface, If-Match and idempotency key");
+
+    await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&qa-reload=positions-legacy-readback` });
+    await waitForCondition(client, () => location.search.includes("positions-legacy-readback") && document.readyState === "complete", { message: "legacy Positions read-back navigation did not complete" });
+    await waitForCondition(client, () => /Должностей\s*50/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "legacy shell did not hydrate revised Positions", timeoutMs: 15_000 });
+    await selectRegistry(client, "positions");
+    await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]').length === 50 && [...document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Инженер PostgreSQL QA обновлён")), { message: "legacy Positions did not read back the React write" });
+  }
   assert(interceptedReads >= 3, "functional QA must exercise PostgreSQL read-model hydration on all navigations");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`); assert(await readFile(sharedStateFile, "utf8") === original, "read-only Positions scenario changed state");
   console.log(`Structure ${qaConfig.label} React production-shell functional QA: OK`);
   console.log(`- same PostgreSQL payload: ${qaConfig.rowCount} legacy rows = ${qaConfig.rowCount} React rows; first commit ${initial.commitMs.toFixed(2)} ms`);
   console.log(`- ${qaConfig.cellCount} cells/order, ${qaConfig.isDiagnostics ? "four issue groups" : "selection/detail"}, seven registries, six metrics, legacy fallback and unchanged state: pass`);
-} catch (error) { if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); throw error; }
+  if (qaConfig.registryId === "positions") console.log("- PostgreSQL create/edit, conflict retry, references, hidden fields, 50-row legacy read-back and unchanged snapshot: pass");
+} catch (error) { if (chrome) { const browserState = await evaluate(chrome.client, () => ({ url: location.href, headings: [...document.querySelectorAll("h1,h2")].map((node) => node.textContent?.trim()).slice(0, 8), target: Boolean(document.querySelector('[data-react-structure-positions-island]')), targetState: document.querySelector('[data-react-structure-positions-island]')?.getAttribute("data-react-island-state"), registryButtons: [...document.querySelectorAll('[data-system-domain-registry]')].map((button) => ({ id: button.getAttribute("data-system-domain-registry"), text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), connected: button.isConnected, disabled: button.disabled, pointerEvents: getComputedStyle(button).pointerEvents })), buttons: [...document.querySelectorAll("button")].filter((button) => button.offsetParent !== null).map((button) => ({ text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), disabled: button.disabled })).slice(-20), visibleText: document.querySelector("main")?.textContent?.replace(/\s+/g, " ").trim().slice(-1000) })).catch(() => null); if (browserState) console.error(`BROWSER_STATE ${JSON.stringify(browserState)}`); } if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); throw error; }
 finally { if (chrome) await cleanupChrome(chrome); await Promise.all([stop(enabledPreview), stop(legacyPreview)]); await rm(temporaryRoot, { recursive: true, force: true }); }

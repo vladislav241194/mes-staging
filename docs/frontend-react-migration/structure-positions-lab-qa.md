@@ -5,13 +5,27 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Read-only vertical scenario:
+Read scenario plus a local-only PostgreSQL command evaluation:
 
-`open Structure and Employees -> Positions -> select a position -> inspect its passport`.
+`open Structure and Employees -> Positions -> select a position -> inspect its passport -> create/edit a position`.
 
 The typed adapter consumes the authenticated PostgreSQL System Domains
 projection. It resolves organization unit, work center, schedule and category
 labels without changing stable IDs or domain authority.
+
+The write slice exposes the existing legacy fields only: name, code, category,
+organization unit, work center, base schedule and active state. It delegates to
+the canonical System Domains owner and keeps archive in legacy.
+
+## Command safety
+
+The host requires localhost-only `react-structure-positions-write=1`, current
+PostgreSQL read readiness, the `production-structure` command surface and
+`productionStructureMatrix:edit` RBAC. Non-empty organization, work-center and
+schedule IDs must exist in the current projection. The owner refreshes the
+revision, checks exact compatibility parity and sends the full candidate with
+`If-Match` plus an idempotency key. Fields not exposed by the editor are merged
+from the existing entity.
 
 ## Evidence
 
@@ -25,11 +39,18 @@ labels without changing stable IDs or domain authority.
 - selection/detail, all seven registries, six metrics, requested Org Units
   fallback, unchanged state and clean console passed;
 - Employees regression QA still matched all 76 rows after host routing changed;
-- repeated local Positions commits stayed below `20 ms`.
+- local create/edit QA advances `49 -> 50` rows, forces one revision conflict
+  without mutation, retries successfully and reads the edit through legacy;
+- organization, work-center and base-schedule references plus a hidden server
+  field survive the write cycle;
+- every command carries the production surface, matching `If-Match` revision
+  and a non-empty idempotency key;
+- latest local production-shell commit was `20.60 ms`, below the `2000 ms`
+  local gate.
 
-The independent entry is `209,326 B` raw / `64,392 B` gzip. The production
-artifact is `203,728 B` raw / `63,958 B` gzip / `55,098 B` Brotli. It remains
-false by default.
+The production island is `215,168 B` raw / `65,465 B` gzip, within the unchanged
+`225,000 B / 68,000 B` budget. The full lab is `474,000 B / 110,581 B`, below
+`475,000 B / 118,000 B`. It remains false by default.
 
 ## Pilot acceptance
 
@@ -49,4 +70,5 @@ read-only Positions scope.
   the evaluation query retained.
 
 The rollout flags are off, the temporary root directory has been removed, and
-no Pilot data was written. Command migration is not accepted by this slice.
+no Pilot data was written. Pilot command migration is not accepted by this slice.
+Local create/edit completion does not authorize Pilot writes or archive.

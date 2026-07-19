@@ -18,7 +18,7 @@ Current minified measurements:
 | Nomenclature production island | 210,915 B | 64,817 B | 225,000 B | 68,000 B |
 | Boards/BOM production island | 212,565 B | 65,324 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 216,825 B | 65,878 B | 225,000 B | 68,000 B |
-| Structure Positions production island | 209,401 B | 64,418 B | 225,000 B | 68,000 B |
+| Structure Positions production island | 215,168 B | 65,465 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 208,771 B | 64,265 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 209,465 B | 64,375 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 209,048 B | 64,318 B | 225,000 B | 68,000 B |
@@ -39,7 +39,7 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 473,819 B | 110,521 B | 475,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 474,000 B | 110,581 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
