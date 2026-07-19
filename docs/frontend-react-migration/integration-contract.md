@@ -189,11 +189,17 @@ write evaluation sends typed `start-task` or `save-fact` commands to the host.
 The host revalidates task visibility, completion/start state, authenticated
 ownership, quantity bounds, defect balance and deviation-comment requirements,
 then invokes the existing `startAuthSessionTask` or `saveAuthSessionTaskFact`
-owner and remounts from its read model. A
-direct module entry first hydrates the full Planning PostgreSQL graph, then
-derives the bounded dispatch scope. Person switching plus Report, structure,
-route and PDF scopes return through `unsupported-scope`; authentication,
-photos and problem-report saves stay in legacy.
+owner and remounts from its read model. The second typed pair,
+`prepare-report-photo` and `save-report`, keeps file
+selection/preview in React but delegates image compression and report creation
+to `prepareAuthSessionReportPhoto` and `saveAuthSessionTaskReport`. Journal
+counts are read back through `getShiftWorkOrderIssueSummary`. This journal is
+still compatibility UI-state rather than a PostgreSQL domain, so the React
+slice preserves that authority instead of introducing a parallel API. A direct
+module entry first hydrates the full Planning PostgreSQL graph, then
+derives the bounded dispatch scope. Person switching plus structure, route and
+PDF scopes return through `unsupported-scope`; authentication stays in its
+separate React/legacy session boundary.
 Missing coverage, an open legacy modal, ordinary editor access or a missing
 session request retains legacy.
 

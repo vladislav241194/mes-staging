@@ -3116,7 +3116,9 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     const authPersonId = String(model.authPerson?.id || "");
     const canStartTask = localQa.writeEvaluation && (model.tasks || []).some((task) => !task.isDone && !task.isStarted && (!authPersonId || task.employeeId === authPersonId));
     const canSaveFact = localQa.writeEvaluation && (model.tasks || []).some((task) => task.isStarted && !task.isDone && (!authPersonId || task.employeeId === authPersonId));
-    return { model, capabilities: { taskStart: canStartTask, factSave: canSaveFact } };
+    const canSaveReport = localQa.writeEvaluation && (model.tasks || []).some((task) => !authPersonId || task.employeeId === authPersonId);
+    const reportSummaries = Object.fromEntries((model.tasks || []).map((task) => [task.id, getShiftWorkOrderIssueSummary(task.rowId)]));
+    return { model, reportSummaries, capabilities: { taskStart: canStartTask, factSave: canSaveFact, reportSave: canSaveReport } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
@@ -3168,6 +3170,28 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
       if (saved !== true) return { ok: false, message: "Факт не записан: состояние задания изменилось или владелец записи недоступен." };
       queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
       return { ok: true, id: task.id };
+    }
+    if (command.type === "prepare-report-photo") {
+      const file = command.file;
+      if (!(file instanceof File)) return { ok: false, message: "Выбранный файл недоступен." };
+      if (!String(file.type || "").startsWith("image/")) return { ok: false, message: "Для Report можно прикрепить только изображение." };
+      if (file.size > 20 * 1024 * 1024) return { ok: false, message: "Исходное изображение не должно превышать 20 МБ." };
+      const photo = await prepareAuthSessionReportPhoto(file, command.source === "camera" ? "camera" : "file");
+      if (!photo) return { ok: false, message: "Не удалось подготовить изображение." };
+      return { ok: true, photo };
+    }
+    if (command.type === "save-report") {
+      const text = String(command.text || "").trim();
+      const photoSource = normalizePlainRecord(command.photo);
+      const hasPhotoInput = Object.keys(photoSource).length > 0;
+      const hasPhoto = Boolean(photoSource.id && photoSource.name && (photoSource.dataUrl || photoSource.storageNote));
+      if (!text && !hasPhoto) return { ok: false, message: "Добавьте фото или описание проблемы." };
+      if (hasPhotoInput && (!hasPhoto || !String(photoSource.type || "").startsWith("image/") || !["camera", "file"].includes(String(photoSource.source || "")))) return { ok: false, message: "Реквизиты подготовленного изображения не прошли проверку." };
+      if (photoSource.dataUrl && (!String(photoSource.dataUrl).startsWith("data:image/") || String(photoSource.dataUrl).length > 320000)) return { ok: false, message: "Подготовленное изображение не прошло проверку." };
+      const report = saveAuthSessionTaskReport(task.id, { text, photo: hasPhoto ? photoSource : null, renderOnChange: false });
+      if (!report?.id) return { ok: false, message: "Report не сохранён: владелец журнала недоступен." };
+      queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
+      return { ok: true, id: report.id };
     }
     return { ok: false, message: "Неизвестная команда рабочего стола." };
   },
@@ -4043,6 +4067,7 @@ let normalizeShiftWorkOrderIssueReports = (value = {}) => normalizePlainRecord(v
 let renderAuthPrototypePage = () => renderUiModulePage({ ariaLabel: "Вход", className: "auth-prototype-page", content: renderUiEmptyState({ title: "Загружаем вход", description: "Экран откроется автоматически." }) });
 let renderAuthSessionModal = () => "";
 let renderAuthSessionPrototypePage = () => renderUiModulePage({ ariaLabel: "Рабочая сессия", className: "auth-session-page", content: renderUiEmptyState({ title: "Загружаем рабочую сессию", description: "Экран откроется автоматически." }) });
+let prepareAuthSessionReportPhoto = async () => null;
 let saveAuthSessionTaskReport = () => false;
 let setAuthSessionFactDraft = () => {};
 let setAuthSessionReportDraft = () => {};
@@ -4072,6 +4097,7 @@ function initializeAuthRenderModule(factory) {
     renderAuthPrototypePage,
     renderAuthSessionModal,
     renderAuthSessionPrototypePage,
+    prepareAuthSessionReportPhoto,
     saveAuthSessionTaskReport,
     setAuthSessionFactDraft,
     setAuthSessionReportDraft,

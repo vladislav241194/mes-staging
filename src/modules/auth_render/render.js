@@ -748,19 +748,27 @@ export function createAuthRenderModule(dependencies = {}) {
     };
   }
   
-  function saveAuthSessionTaskReport(taskId = "") {
+  function saveAuthSessionTaskReport(taskId = "", options = {}) {
     const model = getAuthSessionPrototypeModel();
     const task = model.allTasks.find((item) => item.id === taskId)
       || model.selectedTask
       || null;
-    if (!task?.rowId) return;
+    if (!task?.rowId) return false;
+    const hasProvidedText = Object.prototype.hasOwnProperty.call(options, "text");
+    const hasProvidedPhoto = Object.prototype.hasOwnProperty.call(options, "photo");
+    if (hasProvidedText || hasProvidedPhoto) {
+      setAuthSessionReportDraft(task.id, {
+        ...(hasProvidedText ? { text: String(options.text || "") } : {}),
+        ...(hasProvidedPhoto ? { photo: options.photo || null } : {}),
+      });
+    }
     const textField = app.querySelector("[data-auth-session-report-text]");
     const draft = getAuthSessionReportDraft(task.id);
-    const text = String(textField?.value || draft.text || "").trim();
+    const text = String(hasProvidedText ? draft.text : textField?.value || draft.text || "").trim();
     const photo = draft.photo || null;
     if (!text && !photo) {
       notifySaveSuccess("Добавьте фото или описание проблемы.");
-      return;
+      return false;
     }
     const rowId = String(task.rowId || "").trim();
     const store = normalizeShiftWorkOrderIssueReports(ui.shiftWorkOrderIssueReports);
@@ -787,7 +795,8 @@ export function createAuthRenderModule(dependencies = {}) {
     ui.authSessionModal = null;
     persistUiState();
     notifySaveSuccess("Report сохранен в Журнале СЗН.");
-    render();
+    if (options.renderOnChange !== false) render();
+    return report;
   }
   
   function buildAuthSessionStoredAssignmentRow(rowId = "", assignment = {}) {
@@ -1583,6 +1592,7 @@ export function createAuthRenderModule(dependencies = {}) {
     renderAuthPrototypePage,
     renderAuthSessionModal,
     renderAuthSessionPrototypePage,
+    prepareAuthSessionReportPhoto,
     saveAuthSessionTaskReport,
     setAuthSessionFactDraft,
     setAuthSessionReportDraft,

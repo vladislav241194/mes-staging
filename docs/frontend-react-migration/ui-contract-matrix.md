@@ -255,15 +255,18 @@ The third operational-family proof consumes the completed legacy
 OperationalPage, Panel, MetricGrid, MetricCard, StatusToken and ActionButton
 while retaining the task board, route chain and employee fact passport. The
 fixture proves three assignments, seven metrics, local task selection,
-owner-backed task start, quantity/deviation fact save and a payload update.
-Report, structure, route, PDF and person switching return to legacy. The production host requires
+owner-backed task start, quantity/deviation fact save, photo Report and a
+payload update. Structure, route, PDF and person switching return to legacy. The production host requires
 PostgreSQL System Domains, complete Shift Execution coverage, two
 false-by-default permissions and an explicit session request; the start command
 is available only through a separate localhost write evaluation. Production-
 shell QA proves one identical PostgreSQL-backed task in legacy and React,
 read-only denial, one persisted transition to `В работе`, duplicate denial,
 deviation validation, exactly one Shift Execution fact command, owner-model
-read-back and unchanged intercepted test state. A direct module entry also hydrates the Planning PostgreSQL graph before
+read-back, one owner-prepared/persisted photo Report with journal-counter
+read-back and unchanged intercepted test state. Report retains its existing
+compatibility UI-state authority and creates no extra Shift Execution command.
+A direct module entry also hydrates the Planning PostgreSQL graph before
 deriving its bounded dispatch scope.
 
 ## Contour Admin production evidence

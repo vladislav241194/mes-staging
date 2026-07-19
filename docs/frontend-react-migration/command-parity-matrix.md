@@ -41,7 +41,8 @@ assignment, fact, carryover and transfer remain legacy. Employee Desktop now
 starts an available task and records its quantities/deviation note through the
 existing authenticated fact aggregation owner; React validates the visible
 task, disables repeats and reads back `В работе` and `факт записан`, while
-photos and report commands remain legacy. Gantt now also keeps dependency inspection
+photo preparation and Report creation reuse the existing journal owner. The
+Report journal remains compatibility UI-state rather than PostgreSQL. Gantt now also keeps dependency inspection
 inside React using the existing `getDependencyPairs` owner; drag, resize,
 optimization and all schedule mutations remain legacy. The remaining scenarios
 retain their explicit next vertical scopes.
@@ -86,7 +87,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy | Critical | Separately gated Pilot read-only acceptance of the three React-owned presentation paths |
 | 18 | Shift Master Board | Local complete: card selection and owner-backed all/mine/open/attention focus; mutations remain legacy | Critical | Separately gated Pilot read-only focus acceptance, then bounded assignment scope |
-| 19 | Employee Desktop | Local complete: task start and quantity/deviation fact save through existing owners; photos and report remain legacy | Critical | Separately gated Pilot task-start acceptance and fact-save acceptance before report commands |
+| 19 | Employee Desktop | Local complete: task start, quantity/deviation fact save and photo Report through existing owners | Critical | Separately gated Pilot task-start acceptance, fact-save and photo-Report acceptance before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
 | 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |

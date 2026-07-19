@@ -19,7 +19,7 @@ import { timesheetFixture, timesheetUpdateFixture } from "./modules/timesheet/fi
 import { planningWorkbenchFixture, planningWorkbenchUpdateFixture } from "./modules/planning-workbench/fixture";
 import { shiftWorkOrdersFixture, shiftWorkOrdersPrintPackageFixture, shiftWorkOrdersUpdateFixture } from "./modules/shift-work-orders/fixture";
 import { createShiftMasterBoardFocusFixture, shiftMasterBoardFixture, shiftMasterBoardUpdateFixture } from "./modules/shift-master-board/fixture";
-import { createEmployeeDesktopFactFixture, createEmployeeDesktopStartedFixture, employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
+import { createEmployeeDesktopFactFixture, createEmployeeDesktopReportFixture, createEmployeeDesktopStartedFixture, employeeDesktopFixture, employeeDesktopUpdateFixture } from "./modules/employee-desktop/fixture";
 import { contourAdminFixture, contourAdminUpdateFixture } from "./modules/contour-admin/fixture";
 import { specifications2Fixture, specifications2UpdateFixture } from "./modules/specifications2/fixture";
 import { mountReactMigrationIsland, type ReactMigrationScenarioId } from "./mount";
@@ -94,9 +94,11 @@ const featureGate = createReactIslandFeatureGate({
       onPrintDocument: (title) => { root.dataset.printDocumentTitle = title; },
       onSelectShiftMasterBoardFocus: (focus) => { markRevisionStart(nextExpectedRevision); featureGate.update(createShiftMasterBoardFocusFixture(focus)); },
       onEmployeeDesktopCommand: async (command) => {
+        if (command.type === "prepare-report-photo") { const dataUrl = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || "")); reader.onerror = () => resolve(""); reader.readAsDataURL(command.file); }); return { ok: true, photo: { id: "photo-lab", name: command.file.name, type: command.file.type, size: command.file.size, source: command.source, dataUrl, storageNote: "" } }; }
         markRevisionStart(nextExpectedRevision);
         if (command.type === "start-task") featureGate.update(createEmployeeDesktopStartedFixture(command.taskId));
-        else featureGate.update(createEmployeeDesktopFactFixture(command.taskId, command.actualQuantity, command.defectQuantity));
+        else if (command.type === "save-fact") featureGate.update(createEmployeeDesktopFactFixture(command.taskId, command.actualQuantity, command.defectQuantity));
+        else featureGate.update(createEmployeeDesktopReportFixture(command.taskId, Boolean(command.photo)));
         return { ok: true };
       },
       onRequestLegacy: () => featureGate.requestLegacy("unsupported-scope"),
