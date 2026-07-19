@@ -10,10 +10,16 @@ export interface AuthPickerDepartment { id: string; name: string; caption: strin
 const adaptPerson = (value: unknown, index: number): AuthPickerPerson => { const item = record(value); return { id: text(item.id, `person-${index + 1}`), name: text(item.name, "Сотрудник"), role: text(item.role, "Роль не задана"), department: text(item.department), personKind: text(item.personKind, "employee"), canDistribute: Boolean(item.canDistribute), canExecute: item.canExecute !== false }; };
 
 export function adaptAuthPickerPayload(payload: unknown) {
-  const root = record(payload); const model = record(root.model || payload);
+  const root = record(payload); const model = record(root.model || payload); const capabilities = record(root.capabilities); const authState = record(root.authState);
   const departments = list(model.departments).map((raw, departmentIndex): AuthPickerDepartment => {
     const department = record(raw);
     return { id: text(department.id, `department-${departmentIndex + 1}`), name: text(department.name, "Отдел"), caption: text(department.caption), employeeCount: number(department.employeeCount), directPeople: list(department.directPeople).map(adaptPerson), units: list(department.units).map((unitRaw, unitIndex) => { const unit = record(unitRaw); return { id: text(unit.id, `unit-${unitIndex + 1}`), name: text(unit.name, "Участок"), caption: text(unit.caption), employeeCount: number(unit.employeeCount), people: list(unit.people).map(adaptPerson) }; }) };
   }).filter((department) => department.id);
-  return { departments, employeeCount: new Set(departments.flatMap((department) => [...department.directPeople, ...department.units.flatMap((unit) => unit.people)]).map((person) => person.id)).size };
+  return {
+    departments,
+    employeeCount: new Set(departments.flatMap((department) => [...department.directPeople, ...department.units.flatMap((unit) => unit.people)]).map((person) => person.id)).size,
+    canEnterPin: Boolean(capabilities.pinEntry),
+    attemptsLeft: Math.max(0, number(authState.attemptsLeft)),
+    result: text(authState.result),
+  };
 }

@@ -57,9 +57,56 @@ try {
   }
   const handoff = await evaluate(client, () => ({ page: document.querySelector("main.app-shell")?.dataset.layoutPage, pinDigits: document.querySelectorAll("[data-auth-pin-digit]").length, filled: document.querySelectorAll(".auth-prototype-pin-display .is-filled").length, attemptsText: document.querySelector(".auth-prototype-pin-note")?.textContent || "" }));
   assert(handoff.page === "authPrototype" && handoff.pinDigits === 10 && handoff.filled === 0 && /Осталось попыток/.test(handoff.attemptsText), `legacy PIN handoff failed: ${JSON.stringify(handoff)}`);
+
+  await evaluate(client, () => {
+    const state = JSON.parse(localStorage.getItem("mes-planning-prototype-ui-v1") || "{}");
+    localStorage.setItem("mes-planning-prototype-ui-v1", JSON.stringify({ ...state, authPrototypeDepartment: "", authPrototypeUnit: "", authPrototypePersonId: "", authPrototypeResult: "", authPrototypeAttemptsLeft: 5, authGateUnlocked: false, authCurrentUserId: "" }));
+    localStorage.removeItem("mes-planning-prototype-auth-session-v1");
+  });
+  await client.send("Page.navigate", { url: `${origin}/?module=authPrototype&qa=auth-functional&react-auth-picker=1&react-auth-picker-write=1` });
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-react-auth-picker-island][data-react-island-state="ready"]')) && document.querySelectorAll(".auth-picker-react-grid > button").length > 0, { message: "Authorization React PIN evaluation not ready", timeoutMs: 20_000 });
+  await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());
+  await waitForCondition(client, () => document.querySelectorAll(".auth-picker-react-grid > button, [data-auth-picker-person]").length > 0, { message: "write-evaluation department selection did not advance", timeoutMs: 5_000 });
+  if (await evaluate(client, () => !document.querySelector("[data-auth-picker-person]"))) await evaluate(client, () => document.querySelector(".auth-picker-react-grid > button")?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-picker-person]")), { message: "write-evaluation employee selection missing", timeoutMs: 5_000 });
+  const reactPersonId = await evaluate(client, () => document.querySelector("[data-auth-picker-person]")?.getAttribute("data-auth-picker-person") || "");
+  await evaluate(client, () => document.querySelector("[data-auth-picker-person]")?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-auth-picker-pin-step]")) && document.querySelectorAll("[data-auth-picker-pin-digit]").length === 10, { message: "React PIN step missing", timeoutMs: 5_000 });
+  for (let index = 1; index <= 4; index += 1) {
+    await evaluate(client, () => document.querySelector('[data-auth-picker-pin-digit="0"]')?.click());
+    await waitForCondition(client, (count) => document.querySelectorAll(".auth-picker-react-pin-display .is-filled").length === count, { arg: index, message: `React PIN digit ${index} did not render`, timeoutMs: 3_000 });
+  }
+  await evaluate(client, () => document.querySelector('[data-auth-picker-pin-digit="0"]')?.click());
+  await waitForCondition(client, () => /Неверный PIN/.test(document.querySelector("[role=alert]")?.textContent || "") && /Осталось попыток: 4/.test(document.querySelector(".auth-picker-react-pin-note")?.textContent || ""), { message: "failed PIN feedback did not stay in React", timeoutMs: 10_000 });
+  const failedAttempt = await evaluate(client, () => ({
+    reactReady: document.querySelector("[data-react-auth-picker-island]")?.getAttribute("data-react-island-state"),
+    filled: document.querySelectorAll(".auth-picker-react-pin-display .is-filled").length,
+    session: localStorage.getItem("mes-planning-prototype-auth-session-v1"),
+    storedUi: localStorage.getItem("mes-planning-prototype-ui-v1") || "",
+    legacyDraft: window.authPrototypePinDraft,
+  }));
+  assert(failedAttempt.reactReady === "ready" && failedAttempt.filled === 0 && !failedAttempt.session, `failed PIN attempt changed session authority: ${JSON.stringify(failedAttempt)}`);
+  assert(!failedAttempt.storedUi.includes("00000") && !failedAttempt.storedUi.includes("55555") && !failedAttempt.legacyDraft, "PIN leaked into persistent or legacy state");
+  for (let index = 1; index <= 4; index += 1) {
+    await evaluate(client, () => document.querySelector('[data-auth-picker-pin-digit="5"]')?.click());
+    await waitForCondition(client, (count) => document.querySelectorAll(".auth-picker-react-pin-display .is-filled").length === count, { arg: index, message: `valid React PIN digit ${index} did not render`, timeoutMs: 3_000 });
+  }
+  await evaluate(client, () => document.querySelector('[data-auth-picker-pin-digit="5"]')?.click());
+  await waitForCondition(client, () => {
+    const session = JSON.parse(localStorage.getItem("mes-planning-prototype-auth-session-v1") || "null");
+    return session?.unlocked === true && !document.querySelector("[data-react-auth-picker-island]");
+  }, { message: "valid PIN did not transfer to the existing session owner", timeoutMs: 10_000 });
+  const success = await evaluate(client, () => {
+    const sessionText = localStorage.getItem("mes-planning-prototype-auth-session-v1") || "";
+    const session = JSON.parse(sessionText || "null");
+    return { session, sessionText, activePage: document.querySelector("main.app-shell")?.dataset.layoutPage, pinInUi: (localStorage.getItem("mes-planning-prototype-ui-v1") || "").includes("55555") };
+  });
+  assert(success.session?.userId === reactPersonId && success.session?.unlocked === true, `session owner received wrong person: ${JSON.stringify(success)}`);
+  assert(!success.sessionText.includes("55555") && !success.pinInUi, "successful PIN leaked into session or UI storage");
   assert(reads >= 1 && writes === 0, `Authorization picker must be read-only: reads=${reads}, writes=${writes}`);
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
   console.log("Authorization picker React production-shell functional QA: OK");
-  console.log(`- ${initial.departments} departments; React has no PIN keypad; employee handoff opens clean legacy PIN`);
-  console.log("- PostgreSQL System Domains gate, zero writes and clean console: pass");
+  console.log(`- ${initial.departments} departments; read-only handoff still opens clean legacy PIN`);
+  console.log("- React rejected one PIN with 4 attempts left, then delegated successful session creation to the existing owner");
+  console.log("- no PIN persistence, zero System Domains writes and clean console: pass");
 } catch (error) { if (previewOutput.trim()) console.error(previewOutput.trim()); throw error; } finally { if (chrome) await cleanupChrome(chrome); await stop(preview); }

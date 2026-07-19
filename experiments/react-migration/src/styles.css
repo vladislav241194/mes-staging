@@ -195,3 +195,15 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .auth-picker-react-people > div { display:grid; grid-template-columns:repeat(3,minmax(200px,1fr)); gap:9px; }
 .auth-picker-react-people button { display:flex; align-items:center; justify-content:space-between; gap:9px; min-height:72px; padding:12px; border:1px solid #dce5ef; border-radius:11px; color:#18314d; background:#fff; text-align:left; cursor:pointer; }
 .auth-picker-react-people button > span { display:grid; gap:4px; }
+.auth-picker-react-pin { display:grid; justify-items:center; gap:14px; max-width:420px; margin:0 auto; padding:22px; }
+.auth-picker-react-pin > div:first-child { display:grid; justify-items:center; gap:3px; color:#18314d; }
+.auth-picker-react-pin small,.auth-picker-react-pin-note { color:#718296; font-size:10px; }
+.auth-picker-react-pin-display { display:flex; gap:10px; }
+.auth-picker-react-pin-display span { width:16px; height:16px; border:2px solid #b9c8d8; border-radius:50%; background:#fff; }
+.auth-picker-react-pin-display span.is-filled { border-color:#2f6fe4; background:#2f6fe4; }
+.auth-picker-react-pin-display.is-error span { border-color:#c84942; }
+.auth-picker-react-keypad { display:grid; grid-template-columns:repeat(3,54px); gap:8px; }
+.auth-picker-react-keypad button { width:54px; height:48px; border:1px solid #cbd8e6; border-radius:10px; color:#18314d; background:#fff; font-size:16px; font-weight:700; cursor:pointer; }
+.auth-picker-react-keypad button:disabled { opacity:.45; cursor:not-allowed; }
+.auth-picker-react-pin-note,.auth-picker-react-pin-error { margin:0; text-align:center; }
+.auth-picker-react-pin-error { color:#a52f2f; font-size:11px; font-weight:700; }

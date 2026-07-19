@@ -25,7 +25,7 @@
     { "id": "employeeDesktop", "family": "operational", "readParity": "local-production-shell", "commandParity": "local-complete", "risk": "critical", "nextVerticalScope": "separately gated Pilot task-start acceptance before fact and report commands", "legacyRollback": true },
     { "id": "specifications2", "family": "protected-canvas", "readParity": "local-production-shell", "commandParity": "local-complete", "risk": "critical", "nextVerticalScope": "separately gated Pilot draft-row edit acceptance before attachment and work-order commands", "legacyRollback": true },
     { "id": "gantt", "family": "protected-canvas", "readParity": "local-production-shell", "commandParity": "local-complete", "risk": "critical", "nextVerticalScope": "separately gated Pilot dependency-inspection acceptance before drag, resize and optimization mutations", "legacyRollback": true },
-    { "id": "authPicker", "family": "authorization", "readParity": "local-production-shell", "commandParity": "pending", "risk": "critical", "nextVerticalScope": "PIN entry and failed-attempt UX before session authority transfer", "legacyRollback": true },
+    { "id": "authPicker", "family": "authorization", "readParity": "local-production-shell", "commandParity": "local-complete", "risk": "critical", "nextVerticalScope": "separately gated Pilot PIN acceptance before any default-on decision", "legacyRollback": true },
     { "id": "contourAdmin", "family": "administration", "readParity": "local-production-shell", "commandParity": "pending", "risk": "critical", "nextVerticalScope": "keep backup, sync, deploy, promote and rollback in protected legacy until a separate Ops approval", "legacyRollback": true }
   ]
 }

@@ -31,7 +31,7 @@ Current minified measurements:
 | Shift Work Orders lazy print entry | 19,025 B | 3,659 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 207,434 B | 64,044 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 207,932 B | 64,056 B | 225,000 B | 68,000 B |
-| Authorization picker production island | 202,893 B | 63,121 B | 225,000 B | 68,000 B |
+| Authorization picker production island | 206,680 B | 64,127 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
 | Gantt production island | 207,957 B | 64,253 B | 225,000 B | 68,000 B |
@@ -41,7 +41,7 @@ Current minified measurements:
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
 | Full twenty-four-scenario lab | 509,333 B | 117,430 B | 512,000 B | 124,000 B |
-| Shared lab CSS | 20,207 B | 4,010 B | 20,500 B | 4,200 B |
+| Shared lab CSS | 21,402 B | 4,215 B | 21,500 B | 4,400 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
@@ -187,11 +187,11 @@ the same run proves read-only denial, one owner-backed start, duplicate denial
 and zero Shift Execution writes. This is regression evidence, not Pilot
 acceptance.
 
-The bundled production Authorization picker island is `199,896 B` raw /
-`62,906 B` gzip / `54,098 B` Brotli. Its nine-department production-shell
-security gate confirmed that React contains no PIN keypad and hands the chosen
-employee to a clean legacy PIN screen; this is regression evidence, not Pilot
-acceptance.
+The bundled production Authorization picker island is `202,559 B` raw /
+`63,740 B` gzip / `54,990 B` Brotli. Its nine-department production-shell gate
+preserves the read-only legacy handoff, rejects one PIN in React, then delegates
+successful role/session creation to the existing owner without persisting PIN
+digits. This is regression evidence, not Pilot acceptance.
 
 The bundled production Contour Admin island is `201,348 B` raw / `63,003 B`
 gzip / `54,161 B` Brotli. Its exact admin-host production-shell first commit

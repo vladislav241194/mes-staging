@@ -52,6 +52,12 @@ and work-order commands remain legacy. Production-shell QA proves one
 compatibility persistence, unchanged published revision metadata/tree and zero
 Specifications API writes.
 
+Authorization now has locally complete PIN entry and failed-attempt feedback.
+The five digits remain only in React component memory and cross one transient
+typed command; the existing auth owner still validates the PIN, decrements and
+persists the attempt counter, assigns the role and creates the session. Neither
+failed nor successful PIN values appear in UI or session storage.
+
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
 | 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
@@ -75,7 +81,7 @@ Specifications API writes.
 | 19 | Employee Desktop | Local complete: task start through the existing owner; fact and report remain legacy | Critical | Separately gated Pilot task-start acceptance before fact and report commands |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
 | 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |
-| 22 | Authorization | Pending | Critical | PIN entry and failed-attempt UX before session authority transfer |
+| 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
 | 23 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 

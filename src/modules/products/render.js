@@ -94,6 +94,7 @@ export function createProductsRenderModule(dependencies = {}) {
     renderUiPanelBody,
     renderUiStatusToken,
     renderUiTableWrap,
+    resetAuthPrototypeKeypad = () => {},
     resolveProductionResourceType,
     resourceParticipatesInCalculation,
     resourceParticipatesInPlanning,
@@ -1755,23 +1756,33 @@ export function createProductsRenderModule(dependencies = {}) {
     return "executor";
   }
   
-  function scheduleAuthPrototypePinValidation(pin = "", selectedPersonId = "") {
+  function scheduleAuthPrototypePinValidation(pin = "", selectedPersonId = "", { renderOnChange = true } = {}) {
     cancelAuthPrototypePinFeedback();
     const successResult = "pin-ok";
     const errorResult = "pin-error";
     const people = getAuthPrototypePeople();
-    const selectedPerson = getAuthPrototypePinPerson(people);
+    const selectedPerson = (people.employees || []).find((person) => person.id === selectedPersonId)
+      || getAuthPrototypePinPerson(people);
     const canLogin = Boolean(selectedPerson?.id && selectedPerson.id === selectedPersonId && isAuthPrototypePinCorrect(pin));
     if (canLogin) {
       completeAuthPrototypeLogin(successResult, { personId: selectedPerson.id });
-      return;
+      return { ok: true, authenticated: true, personId: selectedPerson.id };
     }
   
     setAuthPrototypeAttemptsLeft(getAuthPrototypeAttemptsLeft() - 1);
     const locked = getAuthPrototypeAttemptsLeft() <= 0;
     ui.authPrototypeResult = locked ? `${errorResult}-locked` : errorResult;
     resetAuthPrototypeKeypad();
-    render();
+    persistUiState();
+    if (renderOnChange) render();
+    return {
+      ok: true,
+      authenticated: false,
+      attemptsLeft: getAuthPrototypeAttemptsLeft(),
+      locked,
+      result: ui.authPrototypeResult,
+      message: locked ? "Вход заблокирован: попытки исчерпаны." : "Неверный PIN.",
+    };
   }
   
   function completeAuthPrototypeLogin(result = "pin-ok", options = {}) {

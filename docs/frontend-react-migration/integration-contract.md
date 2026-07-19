@@ -224,14 +224,17 @@ resize, optimization and every editor command return through
 `unsupported-scope`. A snapshot fallback, unloaded runtime, editor access or
 missing session request retains legacy.
 
-`mountAuthPickerReactIsland(...)` owns only the unauthenticated organizational
-picker before PIN entry. Its typed payload allowlists department, unit and
-employee presentation fields from PostgreSQL System Domains. PIN value/draft,
-attempt counters, validation, role activation, gate unlock and session state
-are absent from the React boundary. Employee selection returns through
-`unsupported-scope` to the unchanged legacy PIN renderer with a cleared draft.
-Any existing person/PIN state, unlocked gate, non-server projection, editor
-mode or missing evaluation request retains legacy.
+`mountAuthPickerReactIsland(...)` owns the unauthenticated organizational picker
+and a localhost-only PIN command evaluation. Its typed payload allowlists
+department, unit and employee presentation fields from PostgreSQL System
+Domains plus remaining attempts; PIN draft, validation function, role
+activation, gate unlock and session state remain absent. React holds digits in
+component memory and sends one typed command. The host revalidates gate state,
+employee existence, five-digit shape and attempts, then delegates to
+`scheduleAuthPrototypePinValidation`; the existing owner alone creates the
+session. Read-only employee selection still returns to the clean legacy PIN
+renderer. An unlocked gate, non-server projection or missing evaluation retains
+legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice plus a
 localhost-only passport metadata write evaluation over a host-supplied System

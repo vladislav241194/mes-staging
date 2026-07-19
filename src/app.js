@@ -3145,10 +3145,10 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
 });
 function getAuthPickerReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1" && params.get("qa") !== "auth-functional") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-auth-picker") === "1", readOnlyEvaluation: params.get("react-auth-picker-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1" && params.get("qa") !== "auth-functional") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-auth-picker") === "1", readOnlyEvaluation: params.get("react-auth-picker-readonly") === "1", writeEvaluation: params.get("react-auth-picker-write") === "1" };
 }
 function isAuthPickerReactEvaluationRequested() {
   return new URLSearchParams(window.location.search).get("react-auth-picker-evaluation") === "1";
@@ -3163,14 +3163,37 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
       systemDomainsReady: systemDomainsServerReadState.status === "server"
         || (localQa.readOnlyEvaluation && hasObservedSystemDomainsPrimaryAuthority()),
       authGateReady: !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
-      pickerReady: !ui.authPrototypePersonId && !authPrototypePinDraft && !ui.authPrototypeResult,
-      accessMode: (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      pickerReady: !ui.authPrototypePersonId && !authPrototypePinDraft && (localQa.writeEvaluation || !ui.authPrototypeResult),
+      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
     if (localQa.featureFlagEnabled) window.__MES_AUTH_PICKER_ACTIVATION__ = activation;
     return activation;
   },
-  getPayload: () => ({ model: getAuthPrototypeReactModel() }),
+  getPayload: () => {
+    const localQa = getAuthPickerReactLocalQaOverrides();
+    return {
+      model: getAuthPrototypeReactModel(),
+      capabilities: { pinEntry: localQa.writeEvaluation },
+      authState: localQa.writeEvaluation ? { attemptsLeft: getAuthPrototypeAttemptsLeft(), result: String(ui.authPrototypeResult || "") } : {},
+    };
+  },
   getTargetRoot: () => app,
+  executeCommand: async (command = {}) => {
+    const localQa = getAuthPickerReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "submit-pin") return { ok: false, message: "Ввод PIN в React недоступен." };
+    if (isAuthGateUnlocked()) return { ok: false, message: "Сессия уже авторизована." };
+    const personId = String(command.personId || "").trim();
+    const pin = String(command.pin || "");
+    const model = getAuthPrototypeReactModel();
+    const people = (model.departments || []).flatMap((department) => [
+      ...(department.directPeople || []),
+      ...(department.units || []).flatMap((unit) => unit.people || []),
+    ]);
+    if (!people.some((person) => person.id === personId)) return { ok: false, message: "Сотрудник больше не доступен для входа." };
+    if (!/^\d{5}$/.test(pin)) return { ok: false, message: "PIN должен состоять из пяти цифр." };
+    if (getAuthPrototypeAttemptsLeft() <= 0) return { ok: false, locked: true, message: "Вход заблокирован: попытки исчерпаны." };
+    return scheduleAuthPrototypePinValidation(pin, personId, { renderOnChange: false });
+  },
   requestLegacyRender: (_reason, scope = "") => {
     const [action, encodedPersonId, encodedDepartmentId, encodedUnitId] = String(scope || "").split(":");
     if (action === "person") {
@@ -3922,6 +3945,7 @@ function initializeProductsRenderModule() {
   renderUiPanelBody,
   renderUiStatusToken,
   renderUiTableWrap,
+  resetAuthPrototypeKeypad: () => { authPrototypeKeypadDigits = []; },
   resolveProductionResourceType,
   resourceParticipatesInCalculation,
   resourceParticipatesInPlanning,

@@ -32,7 +32,7 @@ unresolved.
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error, bounded typed form | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control read-only + Timesheet day fact + Planning Workbench quantity |
 | Operational | Status, action, panel, table tree, metric grid, read-only attachment overlay, lazy print-preview shell, owner-backed board focus | Workshop assignment and worker fact entry | Shift Work Orders document journal plus Shift Master Board focus/read navigation |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
-| Admin/standalone | Contour controls and pre-PIN organizational picker | PIN/session authority and standalone shell | Separate security acceptance path |
+| Admin/standalone | Contour controls, organizational picker and local-only PIN form | Session authority and standalone shell | Separate security acceptance path |
 
 ## Difference classification
 
@@ -307,13 +307,14 @@ legacy.
 
 ## Authorization picker production evidence
 
-The standalone authorization proof covers only department, unit and employee
-selection. React reuses the page/header/panel/metric/status contracts but its
-typed adapter explicitly excludes PIN, attempts, validation and session state.
-Production-shell QA renders nine departments and verifies that no keypad exists
-under the React root. Selecting an employee unmounts the island and opens the
-existing legacy ten-key PIN screen with an empty draft; zero domain writes and
-a clean console are required.
+The standalone authorization proof covers department, unit, employee and a
+local-only PIN evaluation. React reuses the page/header/panel/metric/status
+contracts, adds a shuffled keypad, and keeps digits solely in component memory;
+the typed adapter excludes PIN, validation and session state. Production-shell
+QA renders nine departments, preserves the read-only legacy PIN handoff,
+rejects one PIN with four attempts left, then proves successful owner-backed
+session creation for the selected employee. Neither PIN reaches storage, System
+Domains writes remain zero and the console stays clean.
 
 ## Roles and Access read-model evidence
 
