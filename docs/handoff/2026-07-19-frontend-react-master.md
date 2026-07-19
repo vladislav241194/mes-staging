@@ -273,13 +273,15 @@ and clean console. All six registry regressions remain exact. Its artifact is
 `203,082 B` raw / `63,875 B` gzip / `55,020 B` Brotli. It has not been released
 or activated on Pilot.
 
-Weekly Production Control is now the fifteenth isolated scenario and the first
-dense planning-family proof. Its adapter consumes the existing module's
-completed read model instead of duplicating PostgreSQL hydration or plan/fact
-calculations. Browser QA proves two resource groups, seven days, 14 dense cells,
-summary parity, revision `1 -> 2`, table-owned overflow, disabled fallback and a
-clean console. The independent entry is `204,704 B` raw / `63,343 B` gzip. It
-is not yet connected to the production shell or activated on Pilot.
+Weekly Production Control is now the fifteenth production-integrated scenario
+and the first dense planning-family island. Its adapter consumes the existing
+module's completed read model instead of duplicating PostgreSQL hydration or
+plan/fact calculations. Production-shell QA proves literal 25-group,
+eleven-column parity on one compact PostgreSQL payload, default legacy,
+session-scoped activation, table-owned overflow, unchanged state and clean
+console. The integration also closes a legacy Structure-helper lazy-load race
+for both renderers. Its artifact is `201,150 B` raw / `63,156 B` gzip /
+`54,408 B` Brotli. It has not been released or activated on Pilot.
 
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
@@ -299,11 +301,11 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations and Roles/Access read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access and Weekly Production Control read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections, and for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies and Roles/Access using PostgreSQL-hydrated System Domains; no fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types and Statuses; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses and Weekly Production Control; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
 

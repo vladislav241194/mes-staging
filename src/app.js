@@ -77,6 +77,7 @@ import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react
 import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactIslandHost, createStructureMigrationDiagnosticsReactIslandHost, createStructureOrgUnitsReactIslandHost, createStructurePositionsReactIslandHost, createStructureResponsibilityPoliciesReactIslandHost, createStructureWorkCentersReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
+import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -1693,7 +1694,7 @@ function ensureProductionStructureMatrixModule() {
     ensureLegacyProductionStructure(),
   ]).then(([{ createProductionStructureMatrixModule }, matrixData]) => {
     initializeProductionStructureMatrixModule(createProductionStructureMatrixModule, matrixData);
-    if (ui.activeModule === "productionStructureMatrix") render();
+    if (ui.activeModule === "productionStructureMatrix" || ui.activeModule === "weeklyProductionControl") render();
   }).catch((error) => {
     console.error("Не удалось загрузить структуру производства", error);
     renderProductionStructureMatrixPage = () => renderUiModulePage({
@@ -1701,7 +1702,7 @@ function ensureProductionStructureMatrixModule() {
       className: "production-structure-matrix-page",
       content: renderUiEmptyState({ title: "Модуль недоступен", description: "Обновите страницу и повторите попытку." }),
     });
-    if (ui.activeModule === "productionStructureMatrix") render();
+    if (ui.activeModule === "productionStructureMatrix" || ui.activeModule === "weeklyProductionControl") render();
   });
 }
 
@@ -2509,6 +2510,42 @@ const structureMigrationDiagnosticsReactIslandHost = createStructureMigrationDia
   getActivation: () => { const params = new URLSearchParams(window.location.search); const localQa = params.get("qa-auth-bypass") === "1" && ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION === true; return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS === true || (localQa && params.get("react-structure-migration-diagnostics") === "1"), serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: (serverEvaluationAllowed && isStructureMigrationDiagnosticsReactEvaluationRequested()) || (localQa && params.get("react-structure-migration-diagnostics-readonly") === "1") ? "read-only-evaluation" : "editor" }; },
   getPayload: () => ({ item: systemDomainsState, migrationReport: systemDomainsMigrationReport, legacyMatrixRows: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_ROWS, legacyMatrixColumns: productionStructureMatrixData.PRODUCTION_STRUCTURE_MATRIX_COLUMNS }), getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "migrationDiagnostics"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+});
+function getWeeklyProductionControlReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-weekly-production-control") === "1",
+    readOnlyEvaluation: params.get("react-weekly-production-control-readonly") === "1",
+  };
+}
+function isWeeklyProductionControlReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-weekly-production-control-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const weeklyProductionControlReactIslandHost = createWeeklyProductionControlReactIslandHost({
+  getActivation: () => {
+    const localQa = getWeeklyProductionControlReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_WEEKLY_PRODUCTION_CONTROL === true || localQa.featureFlagEnabled,
+      serverReadReady: Array.isArray(weeklyPlanningPeriodState.rows)
+        && !weeklyPlanningPeriodState.loading
+        && !weeklyPlanningPeriodState.error
+        && !weeklyPlanningPeriodState.fallbackReason,
+      accessMode: (serverEvaluationAllowed && isWeeklyProductionControlReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
+  getPayload: () => ({ model: getWeeklyProductionControlRuntimeInstance().getWeeklyProductionControlModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: () => {
+    if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
+  },
 });
 function getRolesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -6421,10 +6458,17 @@ function initializeModuleRuntime() {
         "getWeeklyProductionControlModel",
       ],
       render: (instance) => {
+        ensureProductionStructureMatrixModule();
         hydrateWeeklyPlanningPeriod();
+        const reactDecision = weeklyProductionControlReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return weeklyProductionControlReactIslandHost.renderTarget();
         return instance.renderWeeklyProductionControlPage();
       },
-      bind: (instance) => instance.bindWeeklyProductionControlEvents(),
+      bind: (instance) => {
+        if (weeklyProductionControlReactIslandHost.isReactEligible()) return;
+        instance.bindWeeklyProductionControlEvents();
+      },
+      afterRender: () => { void weeklyProductionControlReactIslandHost.mount(); },
     },
     productionStructureMatrix: {
       render: () => {

@@ -15,22 +15,22 @@ Current minified measurements:
 
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
-| Nomenclature production island | 205,469 B | 63,705 B | 225,000 B | 68,000 B |
-| Boards/BOM production island | 208,616 B | 64,478 B | 225,000 B | 68,000 B |
-| Structure Employees production island | 210,459 B | 64,768 B | 225,000 B | 68,000 B |
-| Structure Positions production island | 209,326 B | 64,392 B | 225,000 B | 68,000 B |
-| Structure Org Units production island | 208,696 B | 64,239 B | 225,000 B | 68,000 B |
-| Structure Work Centers production island | 209,390 B | 64,349 B | 225,000 B | 68,000 B |
-| Structure Equipment production island | 208,973 B | 64,291 B | 225,000 B | 68,000 B |
-| Structure Responsibility Policies production island | 210,082 B | 64,604 B | 225,000 B | 68,000 B |
-| Structure Migration Diagnostics production island | 208,915 B | 64,240 B | 225,000 B | 68,000 B |
-| Weekly Production Control independent entry | 204,704 B | 63,343 B | 225,000 B | 68,000 B |
-| Roles and Access independent entry | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
-| Component Types independent entry | 204,857 B | 63,539 B | 225,000 B | 68,000 B |
-| Operations independent entry | 203,364 B | 63,173 B | 225,000 B | 68,000 B |
-| Nomenclature Types independent entry | 203,242 B | 63,096 B | 225,000 B | 68,000 B |
-| Statuses independent entry | 204,588 B | 63,461 B | 225,000 B | 68,000 B |
-| Full fifteen-scenario lab | 341,330 B | 86,395 B | 350,000 B | 92,000 B |
+| Nomenclature production island | 205,524 B | 63,734 B | 225,000 B | 68,000 B |
+| Boards/BOM production island | 208,671 B | 64,505 B | 225,000 B | 68,000 B |
+| Structure Employees production island | 210,514 B | 64,795 B | 225,000 B | 68,000 B |
+| Structure Positions production island | 209,381 B | 64,420 B | 225,000 B | 68,000 B |
+| Structure Org Units production island | 208,751 B | 64,263 B | 225,000 B | 68,000 B |
+| Structure Work Centers production island | 209,445 B | 64,378 B | 225,000 B | 68,000 B |
+| Structure Equipment production island | 209,028 B | 64,320 B | 225,000 B | 68,000 B |
+| Structure Responsibility Policies production island | 210,137 B | 64,632 B | 225,000 B | 68,000 B |
+| Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
+| Weekly Production Control production island | 204,805 B | 63,386 B | 225,000 B | 68,000 B |
+| Roles and Access independent entry | 208,856 B | 64,539 B | 225,000 B | 68,000 B |
+| Component Types independent entry | 204,912 B | 63,569 B | 225,000 B | 68,000 B |
+| Operations independent entry | 203,419 B | 63,204 B | 225,000 B | 68,000 B |
+| Nomenclature Types independent entry | 203,297 B | 63,126 B | 225,000 B | 68,000 B |
+| Statuses independent entry | 204,643 B | 63,488 B | 225,000 B | 68,000 B |
+| Full fifteen-scenario lab | 341,431 B | 86,439 B | 350,000 B | 92,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure
@@ -109,6 +109,10 @@ shell first commit was `17.2 ms`; this is regression evidence, not Pilot accepta
 The bundled production Structure Migration Diagnostics island is `203,082 B`
 raw / `63,875 B` gzip / `55,020 B` Brotli. Its 152-row production-shell first
 commit was `18.0 ms`; this is regression evidence, not Pilot acceptance.
+
+The bundled production Weekly Production Control island is `201,150 B` raw /
+`63,156 B` gzip / `54,408 B` Brotli. Its 25-group, eleven-column production-
+shell first commit remains below `50 ms`; this is regression evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

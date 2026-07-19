@@ -1,7 +1,7 @@
 # Weekly Production Control React migration QA
 
 Date: 2026-07-19
-Status: isolated read-only scenario; production host not connected
+Status: production-integrated read-only island; disabled by default
 
 ## Vertical scenario
 
@@ -21,7 +21,7 @@ it does not call APIs, read global state or reproduce production calculations.
 - the dense table owns horizontal overflow instead of widening the page;
 - a disabled feature flag restores the lab legacy fallback;
 - browser console remains clean;
-- independent minified entry: `204,704 B` raw / `63,343 B` gzip, under the
+- independent minified entry: `204,805 B` raw / `63,386 B` gzip, under the
   unchanged `225,000 B / 68,000 B` production-island ceiling.
 
 Command:
@@ -30,7 +30,12 @@ Command:
 npm run qa:weekly-production-control-react-lab
 ```
 
-This is not a production integration or Pilot acceptance claim. The next gate
-is an application host that passes `getWeeklyProductionControlModel()` output
-behind false-by-default runtime and session flags, followed by literal parity
-against the actual legacy renderer on the same read model.
+The production host now passes `getWeeklyProductionControlModel()` output
+behind two false-by-default runtime permissions and an explicit authenticated
+session request. Production-shell QA proves literal parity for 25 completed
+resource/work-center groups and eleven columns on one compact PostgreSQL period
+payload. It also found and closed a legacy lazy-load race: Weekly now initializes
+its Structure read helpers and rerenders both paths after all six resources are
+available. The bundled production artifact is `201,150 B` raw / `63,156 B`
+gzip / `54,408 B` Brotli. This is local production-shell evidence, not Pilot
+acceptance or default-on activation.

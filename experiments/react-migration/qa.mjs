@@ -897,6 +897,8 @@ try {
   for (const marker of requiredMarkers) {
     assert.match(uiSource, new RegExp(`data-ui-component=[{]?['\"]${marker}`), `missing ${marker} contract marker`);
   }
+  assert.match(uiSource, /className="table-wrap ui-table-wrap"/, "React TableWrap must use the production table class");
+  assert.match(uiSource, /data-scroll-contract="horizontal-only"/, "React TableWrap must retain explicit horizontal overflow ownership");
 
   const mountSource = await readFile(join(sourceRoot, "mount.tsx"), "utf8");
   assert.match(mountSource, /export function mountReactMigrationIsland/);
@@ -1058,6 +1060,15 @@ try {
   assert.deepEqual(makeStructureMigrationDiagnosticsHost({ featureFlagEnabled: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "server-read-pending" });
   assert.deepEqual(makeStructureMigrationDiagnosticsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
   const eligibleStructureMigrationDiagnosticsHost = makeStructureMigrationDiagnosticsHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" }); assert.deepEqual(eligibleStructureMigrationDiagnosticsHost.prepareRender(), { activateReact: true, reason: "eligible" }); assert.match(eligibleStructureMigrationDiagnosticsHost.renderTarget(), /data-react-structure-migration-diagnostics-island/);
+
+  const weeklyProductionControlHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeWeeklyProductionControlHost = (activation) => weeklyProductionControlHostModule.createWeeklyProductionControlReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
+  assert.deepEqual(makeWeeklyProductionControlHost({ featureFlagEnabled: false, serverReadReady: true, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "disabled" });
+  assert.deepEqual(makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: false, accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "server-read-pending" });
+  assert.deepEqual(makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
+  const eligibleWeeklyProductionControlHost = makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleWeeklyProductionControlHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleWeeklyProductionControlHost.renderTarget(), /data-react-weekly-production-control-island/);
 
   const rolesProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/access_roles/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeRolesProductionHost = (activation) => rolesProductionHostModule.createRolesReactIslandHost({
@@ -1221,6 +1232,12 @@ try {
   assert.match(productionAppSource, /productionStructureMatrixData = matrixData/);
   assert.match(productionAppSource, /legacyMatrixRows: productionStructureMatrixData\.PRODUCTION_STRUCTURE_MATRIX_ROWS/);
   assert.match(productionAppSource, /structureMigrationDiagnosticsReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL === true/);
+  assert.match(productionAppSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-weekly-production-control-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /weeklyProductionControlReactIslandHost\.mount\(\)/);
+  assert.match(productionAppSource, /ensureProductionStructureMatrixModule\(\);[\s\S]*?hydrateWeeklyPlanningPeriod\(\)/);
   assert.match(productionAppSource, /MES_REACT_ROLES === true/);
   assert.match(productionAppSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-roles"\) === "1"/);
@@ -1272,6 +1289,9 @@ try {
   assert.match(structureProductionHostSource, /createStructureEquipmentReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructureResponsibilityPoliciesReactIslandHost/);
   assert.match(structureProductionHostSource, /createStructureMigrationDiagnosticsReactIslandHost/);
+  const weeklyProductionControlHostSource = await readFile(join(repositoryRoot, "src/modules/weekly_production_control/react_island_host.js"), "utf8");
+  assert.match(weeklyProductionControlHostSource, /createReactIslandHost/);
+  assert.match(weeklyProductionControlHostSource, /__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
@@ -1295,6 +1315,7 @@ try {
   assert.match(productionBuildSource, /react-islands", "structure-equipment\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-responsibility-policies\.js/);
   assert.match(productionBuildSource, /react-islands", "structure-migration-diagnostics\.js/);
+  assert.match(productionBuildSource, /react-islands", "weekly-production-control\.js/);
   assert.match(productionBuildSource, /react-islands", "roles\.js/);
   assert.match(productionBuildSource, /react-islands", "component-types\.js/);
   assert.match(productionBuildSource, /react-islands", "operations\.js/);
@@ -1311,6 +1332,7 @@ try {
   assert.match(productionBuildSource, /replaceAll\(structureEquipmentReactIslandVersionMarker, structureEquipmentReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(structureResponsibilityPoliciesReactIslandVersionMarker, structureResponsibilityPoliciesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(structureMigrationDiagnosticsReactIslandVersionMarker, structureMigrationDiagnosticsReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(weeklyProductionControlReactIslandVersionMarker, weeklyProductionControlReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(rolesReactIslandVersionMarker, rolesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryComponentTypesReactIslandVersionMarker, directoryComponentTypesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryOperationsReactIslandVersionMarker, directoryOperationsReactIslandVersion\)/);
@@ -1336,6 +1358,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_STRUCTURE_MIGRATION_DIAGNOSTICS_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_ROLES:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_ROLES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES:.*=== "1"/);
@@ -1382,6 +1406,7 @@ try {
   const productionStructureEquipmentBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-equipment.js"), "utf8"); assert.match(productionStructureEquipmentBundle, /mountStructureEquipmentReactIsland/);
   const productionStructureResponsibilityPoliciesBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-responsibility-policies.js"), "utf8"); assert.match(productionStructureResponsibilityPoliciesBundle, /mountStructureResponsibilityPoliciesReactIsland/);
   const productionStructureMigrationDiagnosticsBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/structure-migration-diagnostics.js"), "utf8"); assert.match(productionStructureMigrationDiagnosticsBundle, /mountStructureMigrationDiagnosticsReactIsland/);
+  const productionWeeklyProductionControlBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/weekly-production-control.js"), "utf8"); assert.match(productionWeeklyProductionControlBundle, /mountWeeklyProductionControlReactIsland/);
   const productionRolesIslandBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/roles.js"), "utf8");
   assert.match(productionRolesIslandBundle, /mountRolesReactIsland/);
   const productionComponentTypesBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/component-types.js"), "utf8");
@@ -1402,6 +1427,7 @@ try {
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_EQUIPMENT_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_RESPONSIBILITY_POLICIES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_STRUCTURE_MIGRATION_DIAGNOSTICS_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_ROLES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__/);

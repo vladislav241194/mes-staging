@@ -168,13 +168,17 @@ Diagnostics deliberately reuses panels, metrics, empty states, status tokens and
 the table wrapper without adopting CRUD/detail contracts. It preserves 152 source
 rows, six metrics and four issue groups while keeping the legacy matrix read-only.
 
-## Weekly Production Control isolated evidence
+## Weekly Production Control production evidence
 
 Weekly Control is the first dense planning-family proof. It reuses the shared
 header, panel, metric, status, table, empty-state and lifecycle contracts while
 keeping its seven-day matrix specialized. The typed boundary consumes the
 legacy module's completed read model, so week selection, PostgreSQL hydration,
 plan/fact aggregation, reports and deviation policy remain production-owned.
+The production-shell comparison proves 25 completed groups and eleven columns
+in identical order and text. The shared React `TableWrap` now emits the actual
+`ui-table-wrap` class plus `horizontal-only` scroll contract, closing a common
+production overflow gap for every island without scenario-specific CSS.
 
 ## Roles and Access read-model evidence
 

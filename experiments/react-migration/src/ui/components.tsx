@@ -49,7 +49,7 @@ export function Panel({ heading, children }: { heading: ReactNode; children: Rea
 }
 
 export function TableWrap({ children }: { children: ReactNode }) {
-  return <div className="table-wrap" data-ui-component="TableWrap">{children}</div>;
+  return <div className="table-wrap ui-table-wrap" data-scroll-contract="horizontal-only" data-ui-component="TableWrap">{children}</div>;
 }
 
 export function MetricGrid({ children, className = "", label }: { children: ReactNode; className?: string; label: string }) {

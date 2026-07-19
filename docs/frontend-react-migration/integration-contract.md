@@ -1,7 +1,7 @@
 # React island integration contract
 
 Date: 2026-07-19
-Status: isolated lifecycle verified; not connected to MES
+Status: production integrations available behind disabled-by-default flags
 
 ## Purpose
 
@@ -100,11 +100,12 @@ typed boundary; responsibility editing and Workshop commands remain legacy.
 composition. The host supplies the existing report and legacy matrix after lazy
 load; React neither bundles nor mutates those sources.
 
-`mountWeeklyProductionControlReactIsland(...)` is currently an isolated dense-
-planning proof. Its adapter accepts the completed legacy weekly read model;
-PostgreSQL period hydration, structure lookups, fact/report aggregation and
-deviation calculations stay outside React. Production flags and a host mount
-have not yet been added.
+`mountWeeklyProductionControlReactIsland(...)` owns the dense weekly read view
+behind two false-by-default server permissions, compact PostgreSQL read
+readiness and an explicit session request. Its adapter accepts the completed
+legacy weekly read model; PostgreSQL period hydration, structure lookups,
+fact/report aggregation and deviation calculations stay outside React. A
+fallback response, API error or missing session request retains legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
