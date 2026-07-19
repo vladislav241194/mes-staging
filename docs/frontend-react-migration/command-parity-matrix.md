@@ -14,7 +14,9 @@ System Domains registries: Employees `76/76`, Positions `49/49`, Org Units
 `19/19`, Work Centers `19/19` and Equipment `6/6`. Every evaluation was
 session-scoped, measured, returned to legacy and left all rollout flags off.
 The Directories cluster additionally has Component Types `8/8` and Operations
-`22/22` accepted with literal visible-cell and row-order parity.
+`22/22` accepted with literal visible-cell and row-order parity. Weekly
+Production Control is accepted on its current `25 x 11` Pilot projection,
+including the deviation-note interaction and same-data legacy rollback.
 
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations has locally complete create/edit parity while its
@@ -28,7 +30,7 @@ retain their explicit next vertical scopes.
 | 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
-| 4 | Weekly Production Control | Not applicable: product module is read-only | Medium | Pilot read-only acceptance with keyboard deviation-note and report inspection |
+| 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Pending | High | Create/edit plus reference synchronization |
 | 6 | Statuses | Pending | High | Non-system status create/edit with lifecycle protection |
 | 7 | Boards/BOM | Pending | High | Board create/edit before import, row editing and delete |
@@ -65,3 +67,6 @@ interaction was the focus/hover deviation note and workplace report popover.
 The legacy owner now includes the already formatted note contract in its read
 model; React renders it with the same text, keyboard focus behavior and
 viewport-safe presentation without reproducing aggregation or report logic.
+Pilot acceptance on `v.1.499.74-7784ab4` proved the current `25 x 11` matrix,
+all 25 normalized row projections, live deviation-note focus, clean console and
+rollback to the same legacy data. Both rollout flags are currently off.

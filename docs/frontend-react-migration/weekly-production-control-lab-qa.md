@@ -1,7 +1,7 @@
 # Weekly Production Control React migration QA
 
 Date: 2026-07-19
-Status: production-integrated read-only island; disabled by default
+Status: Pilot read-only acceptance complete; disabled by default
 
 ## Vertical scenario
 
@@ -49,4 +49,37 @@ acceptance or default-on activation.
 
 The source audit also corrected the command ledger: Weekly Control owns no
 write commands and no legacy week-selector command. Its command status is
-therefore `not-applicable`; Pilot read-only acceptance remains the next gate.
+therefore `not-applicable`.
+
+## Pilot acceptance
+
+Release `v.1.499.74-7784ab4` was built from clean upstream commit `7784ab4`,
+staged as an immutable artifact and activated with
+`v.1.499.73-b1b77cf` retained as the immediate rollback target. The release
+manifest records source digest
+`4351a52a4d4bb3b0206fcd9fe7d6b2c16ff414aa94e46b022e1f18200e6c8bf8`
+and dist digest
+`39c6c47d9dbf05a7fb9fccc6a2a42f3f54bf6998383fe4d37b13dbf3468dba20`.
+
+The root-owned evaluation enabled only
+`MES_REACT_WEEKLY_PRODUCTION_CONTROL=1` and
+`MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION=1`. An existing
+authenticated QA session explicitly requested the evaluation and proved:
+
+- island state `ready`, revision `1`, first commit `214.80 ms`;
+- the current week `13.07.2026-19.07.2026`, `25` resource groups and `11`
+  columns;
+- plan `28 171`, fact `1`, `17` deviations and `0` workplace reports;
+- all 25 normalized React row projections exactly matched the same legacy
+  rows after rollback (SHA-256
+  `db7cd6bd49f1a9a4e13e652c58aede3fc8da1352339a03ce7396a21fe67b0ee7`);
+- focusing a live deviation cell opened the owner-prepared note with plan,
+  fact and missing-reason guidance; its `390 px` popover remained fully inside
+  the `1986 x 1851` viewport;
+- the page did not horizontally overflow and the browser console remained
+  free of warnings and errors.
+
+No application data was created or changed. Deactivation removed the isolated
+systemd drop-in, both Weekly flags returned to `false`, health remained `ok`,
+and the same authenticated query rendered legacy with the same `25 x 11`
+matrix. Every Pilot session currently uses legacy Weekly Control.

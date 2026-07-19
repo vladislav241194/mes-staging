@@ -506,3 +506,21 @@ The exact candidate remains commit `b1b77cf` and release ID
 `v.1.499.73-b1b77cf`. The later Nomenclature delete-parity checkpoint is not
 part of that immutable candidate and must receive a new visible version before
 any future release.
+
+## Weekly Control Pilot checkpoint
+
+Release `v.1.499.74-7784ab4` is now active on Pilot from clean upstream commit
+`7784ab4`. Its source digest is
+`4351a52a4d4bb3b0206fcd9fe7d6b2c16ff414aa94e46b022e1f18200e6c8bf8`
+and its dist digest is
+`39c6c47d9dbf05a7fb9fccc6a2a42f3f54bf6998383fe4d37b13dbf3468dba20`.
+The prior `.73-b1b77cf` release is the immediate rollback target.
+
+The authenticated Weekly evaluation accepted the real `25 x 11` projection,
+revision `1`, `214.80 ms` first commit, current summary
+`28 171 / 1 / 17 / 0`, viewport-safe deviation-note focus and clean console.
+All normalized React rows matched the same legacy rows after deactivation.
+No data was written. The isolated rollout drop-in is removed, both Weekly
+flags are false, health is `ok`, shared-state is `ready`, and every session is
+back on legacy Weekly Control. The next migration scope must remain a separate
+vertical scenario; this checkpoint does not authorize default-on activation.

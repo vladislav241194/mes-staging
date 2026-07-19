@@ -2,7 +2,7 @@
 
 Date: 2026-07-19
 Candidate branch: `codex/frontend-react-migration`
-Released candidate commit: `b1b77cf`
+Current released commit: `7784ab4`
 
 ## Read-only live evidence
 
@@ -362,3 +362,30 @@ RBAC owner: hidden fields survive, ordinary and overridden route steps follow
 the established rules, only unfinished unlocked slots recalculate, and legacy
 reads back the result. A separately gated Pilot create/edit checkpoint remains
 pending. Delete stays legacy because it also clears Specifications references.
+
+## Weekly Production Control read-only Pilot evaluation
+
+The ninth live slice was released as immutable artifact
+`v.1.499.74-7784ab4`; the previous `.73-b1b77cf` artifact is its immediate
+rollback target. Before activation, shared-state and metadata backups were
+created with mode `0600`. Local and public health remained `ok` with
+`sharedState=ready`.
+
+- only `MES_REACT_WEEKLY_PRODUCTION_CONTROL=1` and
+  `MES_REACT_WEEKLY_PRODUCTION_CONTROL_READ_ONLY_EVALUATION=1` were enabled;
+- the authenticated session explicitly requested
+  `react-weekly-production-control-evaluation=1`;
+- React reached `ready`, revision `1`, in `214.80 ms` and rendered the current
+  25-row, 11-column week matrix;
+- the summary remained `28 171` planned, `1` actual, `17` deviations and zero
+  workplace reports;
+- a live deviation-cell focus exposed the owner-prepared plan/fact/reason
+  context in a viewport-safe popover;
+- normalized React and post-deactivation legacy rows had the same SHA-256
+  signature, proving exact same-data semantic parity for all 25 rows;
+- no page overflow, warning or browser error was present.
+
+No Pilot record was created, edited or deleted. The isolated drop-in was
+removed, both Weekly runtime values are again `false`, and an authenticated
+reload with the retained query rendered legacy with the same `25 x 11` matrix.
+Pilot is healthy on `v.1.499.74`; Weekly is legacy for every session.
