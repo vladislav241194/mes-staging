@@ -8,14 +8,15 @@ QA fails when a production-integrated scenario is missing, duplicated, loses
 its rollback declaration, or is marked complete without an explicit status.
 
 All 24 scenarios have local production-shell read evidence and keep legacy
-rollback. Authenticated Pilot acceptance is still pending. Nomenclature is the
+rollback. The all-flags-off Pilot baseline is accepted; React-island acceptance
+is still pending. Nomenclature is the
 only scenario with locally complete command parity; Structure Migration
 Diagnostics is intentionally read-only and owns no commands. The remaining 22
 scenarios have an explicit next vertical scope.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
-| 1 | Nomenclature | Local complete: create/edit/delete | Medium | Pilot read-only evaluation, then separately approved write evaluation |
+| 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
 | 2 | Component Types | Pending | Low | Disposable create/edit/delete through the existing directory owner |
 | 3 | Operations | Pending | Medium | Create/edit and work-center reference parity; delete stays separate |
 | 4 | Weekly Production Control | Pending | Medium | Week selection and report actions without duplicating aggregation |

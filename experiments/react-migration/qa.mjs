@@ -1477,7 +1477,7 @@ try {
     "structureResponsibilityPolicies", "structureWorkCenters", "timesheet", "weeklyProductionControl",
   ];
   assert.equal(commandParityMatrix.schemaVersion, 1, "command-parity matrix schema must be explicit");
-  assert.equal(commandParityMatrix.pilotAcceptance, "pending", "Pilot acceptance must not be claimed before authenticated evidence");
+  assert.equal(commandParityMatrix.pilotAcceptance, "all-flags-off-baseline-accepted", "command parity must distinguish the accepted legacy baseline from pending React-island acceptance");
   assert.deepEqual(
     commandParityMatrix.scenarios.map((scenario) => scenario.id).sort(),
     expectedCommandScenarioIds,

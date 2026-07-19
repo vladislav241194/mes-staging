@@ -2,7 +2,7 @@
 
 Date: 2026-07-19
 Candidate branch: `codex/frontend-react-migration`
-Candidate commit: `311fd5d`
+Released candidate commit: `b1b77cf`
 
 ## Read-only live evidence
 
@@ -54,10 +54,10 @@ checksummed release procedure with all React flags off first.
    Nomenclature store is empty, so a non-empty or write-parity claim cannot be
    made without creating data.
 
-## Current decision
+## Pre-deployment decision
 
-Local source, browser and stabilization gates are green, but authenticated
-candidate acceptance is still missing. The next visible version is prepared as
+At the pre-deployment checkpoint, local source, browser and stabilization gates
+were green, but authenticated candidate acceptance was still missing. The next visible version was prepared as
 `v.1.499.73`; all React flags remain disabled by default. The complete
 `qa:stabilize` gate passes, including release provenance, rollback and
 activation diagnostics, and two consecutive production builds have the same
@@ -66,10 +66,8 @@ release-tree digest
 when the operational bootstrap artifact paths are excluded exactly as in the
 release procedure.
 
-This is only a clean local release candidate. No server staging, activation,
-rollout flag, real record or Pilot data was changed. The immutable manifest and
-server-side checksums can only be created by the established staging command
-after explicit deployment authorization.
+At that checkpoint this was only a clean local release candidate: no server
+staging, activation, rollout flag, real record or Pilot data had changed.
 
 The exact all-flags-off candidate is locked at `b1b77cf` with release ID
 `v.1.499.73-b1b77cf`. Later Nomenclature delete-parity commits are the next
@@ -88,5 +86,35 @@ or persisting supplied credentials and without changing Pilot state:
 - the browser console contained no warnings or errors;
 - the HTTP response identified Caddy as the active reverse proxy.
 
-This refresh proves only the unchanged live baseline. Deployment of
-`v.1.499.73-b1b77cf` still requires explicit authorization.
+This refresh proved only the unchanged pre-deployment baseline.
+
+## All-flags-off deployment result
+
+Release `v.1.499.73-b1b77cf` was staged and activated on Pilot after explicit
+authorization. The release manifest records exact commit
+`b1b77cf8c0c45fb661beaab44bb8373122744c10`, source digest
+`fe530672634f023d27feef421430977fd014d5c3e3ae2219e746423dcb6f49cf`, and
+dist digest
+`39ea1956930450f9b0385a9aa93ecb9fc576fd4d0b02b19d9e2b1bdc72d6db8d`.
+
+Post-activation evidence:
+
+- local and public health are `ok`; the public version is `v.1.499.73` and
+  shared-state is `ready`;
+- `/srv/mes/pilot/app` points to the immutable `.73-b1b77cf` artifact, while
+  `.72-6985693` is recorded as the immediate rollback target;
+- no `MES_REACT_*` values are present in the effective service environment, so
+  every React island remains disabled by default;
+- the authenticated browser loaded
+  `./src/app.js?v=c8acd01fdb11-v.1.499.73`, rendered legacy Nomenclature and
+  legacy authorization, found zero React mount targets, and logged no warnings
+  or errors;
+- all four domain readiness checks passed from PostgreSQL; a bounded
+  Shift Execution dispatch read returned complete, server-authoritative
+  coverage for its exact row/work-center/date scope without writes;
+- the pre-deploy shared-state backup and metadata both have mode `0600`;
+- the exact active commit was fast-forward promoted to GitHub `main`.
+
+This completes acceptance steps 1-3. React itself has not yet been activated or
+accepted on Pilot. Step 4 requires a separate approval to enable only the
+Nomenclature read-only evaluation; write evaluation remains forbidden.
