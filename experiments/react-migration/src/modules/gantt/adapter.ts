@@ -5,6 +5,7 @@ const number = (value: unknown): number => Number.isFinite(Number(value)) ? Numb
 
 export interface GanttSlotModel { id: string; rowId: string; routeId: string; title: string; meta: string; status: string; statusLabel: string; quantity: number; plannedStart: string; plannedEnd: string; x: number; width: number; top: number; height: number; aggregate: boolean; }
 export interface GanttRowModel { id: string; type: string; label: string; meta: string; top: number; height: number; slots: GanttSlotModel[]; }
+export interface GanttDependencyModel { id: string; fromSlotId: string; toSlotId: string; fromTitle: string; toTitle: string; fromRowLabel: string; toRowLabel: string; fromEnd: string; toStart: string; gapMinutes: number; kind: "finish-start" | "transfer"; }
 
 export function adaptGanttPayload(payload: unknown) {
   const root = record(payload);
@@ -25,9 +26,10 @@ export function adaptGanttPayload(payload: unknown) {
       }),
     };
   });
+  const dependencies = list(source.dependencies).flatMap((raw, index): GanttDependencyModel[] => { const dependency = record(raw); const fromSlotId = text(dependency.fromSlotId); const toSlotId = text(dependency.toSlotId); if (!fromSlotId || !toSlotId) return []; return [{ id: text(dependency.id, `${fromSlotId}__${toSlotId}__${index}`), fromSlotId, toSlotId, fromTitle: text(dependency.fromTitle, fromSlotId), toTitle: text(dependency.toTitle, toSlotId), fromRowLabel: text(dependency.fromRowLabel, "Ресурс не указан"), toRowLabel: text(dependency.toRowLabel, "Ресурс не указан"), fromEnd: text(dependency.fromEnd), toStart: text(dependency.toStart), gapMinutes: number(dependency.gapMinutes), kind: dependency.kind === "transfer" ? "transfer" : "finish-start" }]; });
   return {
-    projectionSource: text(source.projectionSource, "server"), scale: text(source.scale, "days"), windowStart: text(source.windowStart), windowEnd: text(source.windowEnd), leftWidth: number(source.leftWidth), timelineHeight: number(source.timelineHeight), timelineWidth: Math.max(1, number(source.timelineWidth)), totalHeight: Math.max(1, number(source.totalHeight)), dependencyCount: number(source.dependencyCount),
+    projectionSource: text(source.projectionSource, "server"), scale: text(source.scale, "days"), windowStart: text(source.windowStart), windowEnd: text(source.windowEnd), leftWidth: number(source.leftWidth), timelineHeight: number(source.timelineHeight), timelineWidth: Math.max(1, number(source.timelineWidth)), totalHeight: Math.max(1, number(source.totalHeight)), dependencyCount: dependencies.length,
     ticks: list(source.ticks).map((raw, index) => { const tick = record(raw); return { id: text(tick.id, `tick-${index}`), label: text(tick.label), sublabel: text(tick.sublabel), left: number(tick.left), width: Math.max(1, number(tick.width)), weekend: Boolean(tick.weekend) }; }), rows,
-    slotCount: rows.reduce((total, row) => total + row.slots.length, 0), routeCount: rows.filter((row) => row.type === "route").length,
+    dependencies, slotCount: rows.reduce((total, row) => total + row.slots.length, 0), routeCount: rows.filter((row) => row.type === "route").length,
   };
 }

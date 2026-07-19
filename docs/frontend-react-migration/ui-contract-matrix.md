@@ -292,14 +292,17 @@ attachment or work-order writes, unchanged state and a clean console.
 
 ## Gantt production evidence
 
-The Gantt proof migrates only schedule inspection and local slot-passport
-selection. Scale, timeline ticks, rows, heights and slot rectangles come from
-the completed legacy runtime after the PostgreSQL projection gate; React does
-not reproduce scheduling or calendar math. The canvas preserves
+The Gantt proof migrates schedule inspection, local slot-passport selection and
+visible dependency inspection. Scale, timeline ticks, rows, heights, slot
+rectangles and dependency pairs come from the completed legacy runtime after
+the PostgreSQL projection gate; React does not reproduce scheduling, calendar
+or dependency rules. The canvas preserves
 `GanttRuntime`, `GanttCanvas`, `GanttTimeline`, `GanttRowsLayer`, `GanttSlot`,
 row and slot identity markers. Production-shell QA proves three rows, two
-slots, a `15.30 ms` first commit, default legacy, editor fallback and zero
-Planning writes. Dependencies, drag, resize and optimization remain legacy.
+slots, one `Монтаж -> Контроль` dependency with a 60-minute interval, target-
+slot selection, a `17.10 ms` first commit, default legacy, editor fallback and
+zero Planning writes. Dependency editing, drag, resize and optimization remain
+legacy.
 
 ## Authorization picker production evidence
 

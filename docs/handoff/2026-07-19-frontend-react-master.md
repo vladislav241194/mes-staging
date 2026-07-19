@@ -431,12 +431,16 @@ commit below `20 ms`, editor fallback, zero Specifications API writes and unchan
 Gantt is the twenty-third production-integrated scenario. Its read boundary is
 not a second scheduler: the existing runtime computes the PostgreSQL-backed
 scale, rows, heights and slot rectangles, and React renders that completed
-geometry with local slot-passport selection. Toolbar/filter/scale,
-dependencies, drag, resize, optimization and editor scopes return to legacy.
+geometry with local slot-passport selection. The same runtime now serializes
+visible pairs from `getDependencyPairs(planningState)`; React owns their source,
+target, type and interval inspection plus local target-slot selection. Toolbar,
+filter, scale, dependency editing, drag, resize, optimization and editor scopes
+return to legacy.
 Production-shell QA proves default legacy, revision-19 PostgreSQL projection,
-three rows, two slots, first commit `15.30 ms`, editor fallback and zero
-Planning writes. The production artifact is `201,763 B` raw / `63,352 B` gzip /
-`54,525 B` Brotli. It has not been released or activated on Pilot.
+three rows, two slots, one `Монтаж -> Контроль` dependency with a 60-minute
+interval, target-slot selection, first commit `17.10 ms`, editor fallback and
+zero Planning writes. The production artifact is `204,190 B` raw / `63,874 B`
+gzip / `55,121 B` Brotli. It has not been released or activated on Pilot.
 
 Authorization picker is the twenty-fourth production-integrated scenario. It
 owns only department, unit and employee selection from PostgreSQL System
@@ -518,7 +522,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    locally complete; Pilot read-only focus acceptance plus assignment, fact,
    carryover and transfer remain separate. Employee Desktop task start is
    locally complete through the existing authenticated fact-draft owner;
-   Pilot task-start acceptance plus fact and report commands remain separate. Weekly
+   Pilot task-start acceptance plus fact and report commands remain separate.
+   Gantt dependency inspection and local target-slot selection are locally
+   complete through the existing dependency-pair owner; Pilot read acceptance,
+   dependency editing, drag, resize and optimization remain separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

@@ -40,8 +40,10 @@ owner still normalizes the focus and rebuilds rows, lanes, selection and KPIs;
 assignment, fact, carryover and transfer remain legacy. Employee Desktop now
 starts an available task through its existing authenticated fact-draft owner;
 React validates the visible task, disables repeats and reads back `В работе`,
-while fact and report commands remain legacy. The remaining scenarios retain
-their explicit next vertical scopes.
+while fact and report commands remain legacy. Gantt now also keeps dependency inspection
+inside React using the existing `getDependencyPairs` owner; drag, resize,
+optimization and all schedule mutations remain legacy. The remaining scenarios
+retain their explicit next vertical scopes.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
@@ -64,8 +66,10 @@ their explicit next vertical scopes.
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy | Critical | Separately gated Pilot read-only acceptance of the three React-owned presentation paths |
 | 18 | Shift Master Board | Local complete: card selection and owner-backed all/mine/open/attention focus; mutations remain legacy | Critical | Separately gated Pilot read-only focus acceptance, then bounded assignment scope |
 | 19 | Employee Desktop | Local complete: task start through the existing owner; fact and report remain legacy | Critical | Separately gated Pilot task-start acceptance before fact and report commands |
-| 20 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
-| 21 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
+| 20 | Specifications 2.0 | Pending | Critical | Draft editor save before publish, attachment and work-order commands |
+| 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |
+| 22 | Authorization | Pending | Critical | PIN entry and failed-attempt UX before session authority transfer |
+| 23 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 
 The Directories cluster now has Component Types read parity accepted on Pilot

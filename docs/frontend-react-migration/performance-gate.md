@@ -34,7 +34,7 @@ Current minified measurements:
 | Authorization picker production island | 202,893 B | 63,121 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 208,864 B | 64,433 B | 225,000 B | 68,000 B |
-| Gantt production island | 204,733 B | 63,564 B | 225,000 B | 68,000 B |
+| Gantt production island | 207,957 B | 64,253 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 212,831 B | 65,382 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 211,805 B | 64,829 B | 225,000 B | 68,000 B |
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
@@ -202,9 +202,11 @@ The bundled production Specifications 2.0 island is `204,557 B` raw /
 shell first commit stayed below `20 ms`; this is regression evidence, not Pilot
 acceptance.
 
-The bundled production Gantt island is `201,763 B` raw / `63,352 B` gzip /
-`54,525 B` Brotli. Its three-row/two-slot PostgreSQL production-shell first
-commit was `15.30 ms`; this is regression evidence, not Pilot acceptance.
+The bundled production Gantt island is `204,190 B` raw / `63,874 B` gzip /
+`55,121 B` Brotli. Its three-row/two-slot PostgreSQL production-shell first
+commit was `17.10 ms`; the same run proves inspection of one owner-derived
+dependency, target-slot selection and zero Planning writes. This is regression
+evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

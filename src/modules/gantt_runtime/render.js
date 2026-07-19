@@ -5301,8 +5301,30 @@ function getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, projec
     });
     return { id: row.id, type: row.type, label: rowLabel, meta: rowMeta, top: round(layout.top), height: round(layout.height), slots };
   });
-  const slotIds = new Set(modelRows.flatMap((row) => row.slots.map((slot) => slot.id)));
-  const dependencyCount = getDependencyPairs(planningState).filter((pair) => slotIds.has(String(pair.fromId || pair.fromSlotId || "")) && slotIds.has(String(pair.toId || pair.toSlotId || ""))).length;
+  const visibleSlots = modelRows.flatMap((row) => row.slots.filter((slot) => !slot.aggregate).map((slot) => ({ ...slot, rowLabel: row.label })));
+  const slotViewById = new Map(visibleSlots.map((slot) => [slot.id, slot]));
+  const planningSlotById = byId(planningState.slots);
+  const dependencies = getDependencyPairs(planningState).flatMap((pair, index) => {
+    const fromSlotId = String(pair.fromId || pair.fromSlotId || "");
+    const toSlotId = String(pair.toId || pair.toSlotId || "");
+    const from = slotViewById.get(fromSlotId);
+    const to = slotViewById.get(toSlotId);
+    if (!from || !to) return [];
+    const gapMinutes = Math.round((toDate(to.plannedStart).getTime() - toDate(from.plannedEnd).getTime()) / 60_000);
+    return [{
+      id: `${fromSlotId}__${toSlotId}__${index}`,
+      fromSlotId,
+      toSlotId,
+      fromTitle: from.title,
+      toTitle: to.title,
+      fromRowLabel: from.rowLabel,
+      toRowLabel: to.rowLabel,
+      fromEnd: from.plannedEnd,
+      toStart: to.plannedStart,
+      gapMinutes,
+      kind: isTransferBatchDependencyPair(planningSlotById[fromSlotId], planningSlotById[toSlotId]) ? "transfer" : "finish-start",
+    }];
+  });
   return {
     projectionSource: String(projectionSource || "server"),
     scale: String(ui.scale || "days"),
@@ -5321,7 +5343,8 @@ function getGanttReactModel(scaleInfo, rows, rowLayout, slotPlacementMap, projec
       weekend: [0, 6].includes(toDate(tick.start).getDay()),
     })),
     rows: modelRows,
-    dependencyCount,
+    dependencyCount: dependencies.length,
+    dependencies,
   };
 }
 
