@@ -199,8 +199,13 @@ separate localhost-only metadata gate changes label, description and default
 module through the revision-checked `access-control` owner; conflict retry,
 legacy read-back and preservation of grants, assignments, scope, flags and a
 hidden server field pass. Its production artifact is `207,239 B` raw /
-`65,088 B` gzip / `56,024 B` Brotli. It has not been released or activated on
-Pilot.
+`65,088 B` gzip / `56,024 B` Brotli. Authenticated Pilot acceptance completed
+on `v.1.499.91-78a872e`: the actual seven roles, thirteen modules and zero
+explicit assignments rendered read-only, with a `13.1 ms` compact commit.
+Live QA found and closed both a missing production-style selector and a fixed
+desktop rail in the compact shell; desktop and effective `487 x 1055` contracts
+are now automated. Session and retained-query fallback restored the exact
+seven-role legacy page. Flags are off and no Pilot data was mutated.
 
 Directories Component Types is the fifth production-integrated island. Its
 read mode activates only inside `componentTypes`, behind two server flags and

@@ -90,7 +90,24 @@ full legacy Roles page and its commands.
 canonical roles, thirteen module definitions, explicit employee assignments,
 default legacy, a revision conflict without mutation, successful retry, legacy
 read-back, unchanged grants/assignments/scope/read-only/active/hidden fields,
-an unchanged compatibility snapshot, clean console, and a `< 25 ms` first
-local React commit. The production artifact is `207,239 B` raw / `65,088 B`
-gzip / `56,024 B` Brotli. No release or Pilot activation has been made;
-authenticated Pilot acceptance and rollback proof remain pending.
+an unchanged compatibility snapshot, clean console, production styling and a
+compact `487 px` contract. The production artifact is `207,239 B` raw /
+`65,088 B` gzip / `56,024 B` Brotli.
+
+## Pilot acceptance
+
+Authenticated read-only acceptance completed on immutable release
+`v.1.499.91-78a872e`. The live PostgreSQL projection contained seven roles,
+thirteen modules and no explicit employee assignments; React preserved those
+actual counts, selected one role, kept every command disabled and committed in
+`13.1 ms` in the compact check. Desktop QA proved the two-column registry,
+18 px panels and no page overflow. Effective `487 x 1055` QA proved one-column
+content, two-column role and metric grids, table-local horizontal scrolling and
+no document overflow.
+
+The first live evaluation exposed that the Roles host class was absent from the
+shared production CSS selector; the next check exposed the fixed desktop rail
+in the compact shell. Both regressions now fail automated UI-contract QA. The
+session fallback and the retained-query server fallback each restored the exact
+seven-role legacy page. All Roles flags are off, health is green, and no Pilot
+write or real-data mutation was performed.
