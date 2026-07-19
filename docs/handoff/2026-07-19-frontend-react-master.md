@@ -590,8 +590,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    confirmation; Pilot write acceptance and scheduling commands remain
    separate. Structure Responsibility Policies
    create/edit is locally complete with unique-master, mode and employee-list
-   validation while Workshop assignability remains runtime-owned; archive and
-   Pilot write acceptance remain separate. Timesheet single-day attendance and
+   validation while Workshop assignability remains runtime-owned. Archive is
+   blocked because the PostgreSQL policy repository does not persist lifecycle
+   fields; an owner/schema contract and Pilot write acceptance remain separate.
+   Timesheet single-day attendance and
    permanent-schedule save/remove are locally complete through the PostgreSQL
    owner; Pilot write acceptance remains separate. Roles passport metadata,
    six-action grant toggles and role default scope are locally complete through

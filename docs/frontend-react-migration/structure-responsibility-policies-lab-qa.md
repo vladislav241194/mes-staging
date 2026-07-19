@@ -20,6 +20,12 @@ React edits only the canonical master/mode/manual-target contract. Existing
 operational runtime remains responsible for calculating the assignable employee
 set used by the Workshop.
 
+Archive was audited and intentionally not exposed. The generic owner can add
+`isActive=false` and `archivedAt` to its in-memory candidate, but the current
+`system_responsibility_policies` table and repository persist neither field.
+Server read-back would therefore erase the lifecycle result. This requires a
+separate owner/schema contract, not a React-side workaround.
+
 ## Evidence
 
 - invalid containers and policies without stable ID/subject fail closed;

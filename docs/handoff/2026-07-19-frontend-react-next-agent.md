@@ -239,3 +239,16 @@ actions/console, затем немедленно деактивировать и
 - Размеры: independent `216718 / 65617 B`; bundled production
   `209251 / 65135 / 56225 B`; full lab `556607 / 126132 B`; first commit
   `27.30 ms`.
+
+## Продолжение: Responsibility Policies archive audit
+
+- Archive не реализован: existing generic owner формирует `isActive=false` и
+  `archivedAt`, но `system_responsibility_policies` и PostgreSQL repository не
+  сохраняют и не гидратируют эти lifecycle fields. После server round-trip
+  политика снова выглядела бы активной.
+- Это owner/schema gap, а не React UI scope. В рамках миграции запрещено
+  подменять его локальной кнопкой или переносить operational authority.
+- Create/edit остаётся доказанным local-only scope, legacy rollback сохранён,
+  Pilot write не выполнялся. Следующий безопасный lifecycle-кандидат — Employees,
+  где owner атомарно деактивирует сотрудника и закрывает primary assignment, а
+  оба поля уже персистятся PostgreSQL repository.
