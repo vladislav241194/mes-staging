@@ -100,6 +100,6 @@ export function adaptShiftWorkOrders(payload: unknown) {
     rows, documents, selectedRow,
     sourceWindowLabel: text(sourceWindow.label, "текущая смена"),
     operationCount: documents.reduce((sum, document) => sum + document.operations.length, 0),
-    canActivate: Boolean(rows.length && documents.length && selectedRow), canSaveFact: capabilities.factSave === true,
+    canActivate: Boolean(rows.length && documents.length && selectedRow), canSaveFact: capabilities.factSave === true, canSaveAssignment: capabilities.assignmentSave === true,
   };
 }

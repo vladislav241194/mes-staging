@@ -3312,6 +3312,29 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     return { ok: true, id: routeId, quantity };
   },
 });
+async function executeShiftExecutionAssignmentCommand(command = {}, { activeModule = "shiftMasterBoard" } = {}) {
+  const rowId = String(command.rowId || "").trim(); const model = getShiftMasterBoardModel();
+  const row = (model.allRows || []).find((item) => item.id === rowId) || null;
+  if (!row) return { ok: false, message: "Задание больше не доступно в текущем PostgreSQL-окне смены." };
+  if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign")) return { ok: false, message: "Нет права распределять задания." };
+  const allowedEmployees = new Map((row.employees || []).filter((employee) => employee?.id).map((employee) => [employee.id, employee])); const seen = new Set();
+  const executors = Array.isArray(command.executors) ? command.executors.map((executor) => ({ employeeId: String(executor?.employeeId || "").trim(), quantity: Number(executor?.quantity) })) : [];
+  if (!executors.length) return { ok: false, message: "Назначьте количество хотя бы одному исполнителю." };
+  const invalidExecutor = executors.some((executor) => {
+    const employee = allowedEmployees.get(executor.employeeId);
+    if (!executor.employeeId || seen.has(executor.employeeId) || !employee || employee.availability?.isAvailable !== true || !Number.isSafeInteger(executor.quantity) || executor.quantity <= 0 || executor.quantity > 9_999_999) return true;
+    seen.add(executor.employeeId); return false;
+  });
+  if (invalidExecutor) return { ok: false, message: "Исполнители или количества не прошли проверку матрицы доступа." };
+  const assignedQuantity = executors.reduce((sum, executor) => sum + executor.quantity, 0); const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
+  if (assignedQuantity > plannedQuantity) return { ok: false, message: "Распределённое количество не может превышать план сменной задачи." };
+  const saved = saveShiftMasterBoardAssignment(row.id, { masterId: row.masterProfile?.id || row.boardAssignment?.masterId || model.activeProfile?.id || "", executors, updatedAt: new Date().toISOString() }, { notifyOwner: false });
+  if (!saved) return { ok: false, message: "Распределение не сохранено владельцем доски мастера." };
+  const serverResult = await mirrorShiftMasterBoardAssignmentToServer(row, saved);
+  if (serverResult?.ok !== true) return { ok: false, message: serverResult?.conflict ? "Распределение изменилось на сервере. Данные обновлены, повторите действие." : serverResult?.error || "PostgreSQL не подтвердил распределение." };
+  queueMicrotask(() => { if (ui.activeModule === activeModule) render({ skipRememberScroll: true }); });
+  return { ok: true, id: row.id };
+}
 async function executeShiftExecutionFactCommand(command = {}, { activeModule = "shiftMasterBoard" } = {}) {
   const rowId = String(command.rowId || "").trim();
   const model = getShiftMasterBoardModel();
@@ -3365,14 +3388,22 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
   getPayload: () => {
     const model = getShiftWorkOrderJournalViewModel(); const board = getShiftMasterBoardModel(); const localQa = getShiftWorkOrdersReactLocalQaOverrides();
     const roleCanRecordFact = getAccessRoleModulePermission(board.access?.role?.id, "shiftMasterBoard", "edit");
+    const roleCanAssign = getAccessRoleModulePermission(board.access?.role?.id, "shiftMasterBoard", "assign");
     const commandsReady = localQa.writeEvaluation && shiftExecutionServerState.commandsEnabled === true;
     const factContexts = (board.allRows || []).map((row) => {
       const fact = normalizePlainRecord(row.boardFact);
       return { rowId: row.id, canEdit: commandsReady && roleCanRecordFact && Boolean(getShiftExecutionServerAssignment(row)?.id), hasFact: Boolean(fact.updatedAt), actualQuantity: Number(fact.actualQuantity || 0), laborMinutes: Number(fact.laborMinutes || 0), executorCount: Number(fact.executorCount || 0), comment: String(fact.comment || ""), deviationComment: String(fact.deviationComment || "") };
     });
-    return { model, capabilities: { factSave: commandsReady && roleCanRecordFact }, factContexts };
+    return { model, capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact }, factContexts };
   },
   getTargetRoot: () => app,
+  loadAssignmentContext: async (rowId = "") => {
+    const journal = getShiftWorkOrderJournalViewModel(); const board = getShiftMasterBoardModel(); const id = String(rowId || "").trim();
+    if (!(journal.rows || []).some((row) => row.id === id || row.sourceRowId === id)) return null;
+    const row = (board.allRows || []).find((item) => item.id === id) || null;
+    if (!row) return null;
+    return { rowId: row.id, operationName: row.operationName, plannedQuantity: row.plannedQuantity, unit: row.unit, executors: row.boardAssignment?.executors || [], employees: row.employees || [] };
+  },
   loadPrintPackage: async (rowId = "") => {
     const model = getShiftWorkOrderJournalViewModel();
     const row = (model.rows || []).find((item) => item.id === rowId || item.sourceRowId === rowId) || null;
@@ -3403,8 +3434,10 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getShiftWorkOrdersReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || shiftExecutionServerState.commandsEnabled !== true || command.type !== "save-fact") return { ok: false, message: "Изменение факта в React недоступно." };
-    return executeShiftExecutionFactCommand(command, { activeModule: "shiftWorkOrders" });
+    if (!localQa.writeEvaluation || shiftExecutionServerState.commandsEnabled !== true) return { ok: false, message: "Изменения Журнала СЗН в React недоступны." };
+    if (command.type === "save-assignment") return executeShiftExecutionAssignmentCommand(command, { activeModule: "shiftWorkOrders" });
+    if (command.type === "save-fact") return executeShiftExecutionFactCommand(command, { activeModule: "shiftWorkOrders" });
+    return { ok: false, message: "Неизвестная команда Журнала СЗН." };
   },
 });
 function getShiftMasterBoardReactLocalQaOverrides() {
@@ -3500,24 +3533,7 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     const row = (model.allRows || []).find((item) => item.id === rowId) || null;
     if (!row) return { ok: false, message: "Задание больше не доступно на доске мастера." };
     if (command.type === "save-assignment") {
-      if (!getAccessRoleModulePermission(model.access?.role?.id, "shiftMasterBoard", "assign")) return { ok: false, message: "Нет права распределять задания." };
-      const allowedEmployees = new Map((row.employees || []).filter((employee) => employee?.id).map((employee) => [employee.id, employee])); const seen = new Set();
-      const executors = Array.isArray(command.executors) ? command.executors.map((executor) => ({ employeeId: String(executor?.employeeId || "").trim(), quantity: Number(executor?.quantity) })) : [];
-      if (!executors.length) return { ok: false, message: "Назначьте количество хотя бы одному исполнителю." };
-      const invalidExecutor = executors.some((executor) => {
-        const employee = allowedEmployees.get(executor.employeeId);
-        if (!executor.employeeId || seen.has(executor.employeeId) || !employee || employee.availability?.isAvailable !== true || !Number.isSafeInteger(executor.quantity) || executor.quantity <= 0 || executor.quantity > 9_999_999) return true;
-        seen.add(executor.employeeId); return false;
-      });
-      if (invalidExecutor) return { ok: false, message: "Исполнители или количества не прошли проверку матрицы доступа." };
-      const assignedQuantity = executors.reduce((sum, executor) => sum + executor.quantity, 0); const plannedQuantity = normalizeShiftMasterBoardQuantity(row.plannedQuantity || 0);
-      if (assignedQuantity > plannedQuantity) return { ok: false, message: "Распределённое количество не может превышать план сменной задачи." };
-      const saved = saveShiftMasterBoardAssignment(row.id, { masterId: row.masterProfile?.id || row.boardAssignment?.masterId || model.activeProfile?.id || "", executors, updatedAt: new Date().toISOString() }, { notifyOwner: false });
-      if (!saved) return { ok: false, message: "Распределение не сохранено владельцем доски мастера." };
-      const serverResult = await mirrorShiftMasterBoardAssignmentToServer(row, saved);
-      if (serverResult?.ok !== true) return { ok: false, message: serverResult?.conflict ? "Распределение изменилось на сервере. Данные обновлены, повторите действие." : serverResult?.error || "PostgreSQL не подтвердил распределение." };
-      queueMicrotask(() => { if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true }); });
-      return { ok: true, id: row.id };
+      return executeShiftExecutionAssignmentCommand(command, { activeModule: "shiftMasterBoard" });
     }
     if (command.type === "save-fact") {
       return executeShiftExecutionFactCommand(command, { activeModule: "shiftMasterBoard" });

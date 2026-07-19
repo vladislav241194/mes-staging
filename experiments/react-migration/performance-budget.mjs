@@ -56,7 +56,7 @@ const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip:
 // Employee Desktop context plus the Shift Master assignment, fact, carryover navigation, lazy SZN trigger, the Statuses
 // lifecycle plus Specifications 2.0 publication and exact-revision work-order confirmations add bounded UI over shared contracts. Every separately loaded
 // production island remains under the unchanged 225/68 KB gate; only the aggregate all-scenarios lab receives headroom.
-const lab = await measureEntry("main.tsx", { raw: 566_000, gzip: 128_000 });
+const lab = await measureEntry("main.tsx", { raw: 567_000, gzip: 128_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -84,11 +84,12 @@ assert.doesNotMatch(planningWorkbenchText, /Вся номенклатура|Ти
 const shiftWorkOrdersText = new TextDecoder().decode(shiftWorkOrders.bytes);
 assert.doesNotMatch(shiftWorkOrdersText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Work Orders island must not bundle unrelated scenarios");
 assert.doesNotMatch(shiftWorkOrdersText, /work-order-print-sheet/, "Shift Work Orders base island must lazy-load print previews");
-assert.doesNotMatch(shiftWorkOrdersText, /data-shift-work-orders-fact|Трудозатраты, мин/, "Shift Work Orders base island must lazy-load the fact editor");
+assert.doesNotMatch(shiftWorkOrdersText, /data-shift-work-orders-(?:fact|assignment)|Трудозатраты, мин/, "Shift Work Orders base island must lazy-load command editors");
 const shiftWorkOrdersPrintText = new TextDecoder().decode(shiftWorkOrdersPrint.bytes);
 assert.match(shiftWorkOrdersPrintText, /work-order-print-sheet/);
 const shiftWorkOrdersFactText = new TextDecoder().decode(shiftWorkOrdersFact.bytes);
 assert.match(shiftWorkOrdersFactText, /data-shift-work-orders-fact/);
+assert.match(shiftWorkOrdersFactText, /data-shift-work-orders-assignment/);
 const shiftMasterBoardText = new TextDecoder().decode(shiftMasterBoard.bytes);
 assert.doesNotMatch(shiftMasterBoardText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Master Board island must not bundle unrelated scenarios");
 const employeeDesktopText = new TextDecoder().decode(employeeDesktop.bytes);

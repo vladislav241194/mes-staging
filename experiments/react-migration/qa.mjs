@@ -996,8 +996,9 @@ try {
   assert.equal(shiftWorkOrdersModel.canActivate, true, "Shift Work Orders needs documents, operations, assignments and a selected detail");
   assert.deepEqual([shiftWorkOrdersModel.documents.length, shiftWorkOrdersModel.operationCount, shiftWorkOrdersModel.rows.length], [2, 3, 3]);
   assert.deepEqual(shiftWorkOrdersModel.rows.map((row) => [row.documentNumber, row.status.id, row.issueReportCount]), [["СЗН-1042-01", "issued", 1], ["СЗН-1042-02", "assigned", 0], ["СЗН-1041-01", "closed", 0]]);
-  const shiftWorkOrdersFactModel = shiftWorkOrdersAdapter.adaptShiftWorkOrders({ ...shiftWorkOrdersFixture, capabilities: { factSave: true }, factContexts: [{ rowId: "a-1", canEdit: true, hasFact: true, actualQuantity: 91, laborMinutes: 240, executorCount: 2, comment: "QA", deviationComment: "" }] });
+  const shiftWorkOrdersFactModel = shiftWorkOrdersAdapter.adaptShiftWorkOrders({ ...shiftWorkOrdersFixture, capabilities: { assignmentSave: true, factSave: true }, factContexts: [{ rowId: "a-1", canEdit: true, hasFact: true, actualQuantity: 91, laborMinutes: 240, executorCount: 2, comment: "QA", deviationComment: "" }] });
   assert.equal(shiftWorkOrdersFactModel.canSaveFact, true, "Shift Work Orders fact capability must be explicit");
+  assert.equal(shiftWorkOrdersFactModel.canSaveAssignment, true, "Shift Work Orders assignment capability must be explicit");
   assert.deepEqual([shiftWorkOrdersFactModel.rows[0].factEditable, shiftWorkOrdersFactModel.rows[0].actualQuantity, shiftWorkOrdersFactModel.rows[0].laborMinutes, shiftWorkOrdersFactModel.rows[0].executorCount, shiftWorkOrdersFactModel.rows[0].factComment], [true, 91, 240, 2, "QA"], "Shift Work Orders fact context must stay bound to the exact row ID");
   assert.equal(shiftWorkOrdersAdapter.adaptShiftWorkOrders({}).canActivate, false, "invalid Shift Work Orders payload must fail closed");
   const shiftPrintPackage = shiftWorkOrdersAdapter.adaptWorkOrderPrintPackage(shiftWorkOrdersPrintPackageFixture);
