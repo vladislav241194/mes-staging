@@ -276,7 +276,7 @@ row, rejects an indirect hierarchy cycle before PUT, preserves explicit
 Planning/Gantt flags, exercises conflict and retry, preserves hidden fields and
 reads the result through legacy. The runtime impact audit also repairs explicit
 parent-clear and false-flag fallback defects and proves stable employee/Shift
-references across rename. Its artifact is `215,495 B` raw / `65,482 B` gzip.
+references across rename. Its artifact is `215,471 B` raw / `65,474 B` gzip.
 Pilot write evaluation remains separate.
 
 Structure Equipment is now the twelfth production-integrated island and has a
@@ -323,13 +323,20 @@ helper lazy-load race for both renderers. Its artifact is `202,775 B` raw /
 `63,714 B` gzip / `54,840 B` Brotli. It has not been released or activated on
 Pilot.
 
-Timesheet is the sixteenth production-integrated scenario and the second dense planning
-proof. Its adapter accepts the completed legacy read model; browser QA proves
+Timesheet is the sixteenth production-integrated scenario and the second dense
+planning proof, now with a local-only one-day attendance save/remove gate. Its
+adapter accepts the completed legacy read model; browser QA proves
 exact 76-employee parity across 96 rows and 35 columns on canonical System
 Domains, default legacy, table-owned overflow, unchanged state and direct
-legacy editor fallback. Its bundled artifact is `201,559 B` raw / `63,358 B`
-gzip / `54,518 B` Brotli. It has not been released or activated on Pilot and
-moves no attendance or schedule command.
+legacy editor fallback. Command QA rejects invalid absence/overtime before PUT,
+saves a sick day, reads it through legacy, exercises conflict-without-mutation,
+retries reset and preserves an unrelated hidden event field. The React host
+reuses the legacy event builder and the existing revision-checked `timesheet`
+owner. Its bundled artifact is `210,506 B` raw / `64,915 B` gzip. Permanent
+schedule commands and Pilot writes remain separate. The legacy Timesheet
+browser suite was also moved from obsolete localStorage assertions to a mocked
+PostgreSQL-primary API and proves its existing fact and `2/2` schedule editors
+still advance two server revisions.
 
 Planning Workbench is the seventeenth production-integrated scenario. The legacy renderer
 now exposes a completed read-model for PostgreSQL list/detail projection,
@@ -455,7 +462,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata and PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata, PostgreSQL-backed Structure Employees/Positions/Org Units/Work Centers/Equipment/Responsibility Policies create/edit and Timesheet single-day attendance save/remove have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
@@ -477,7 +484,9 @@ will be repeated after the Structure Employees commit and before rebasing.
    Pilot write acceptance remain separate. Structure Responsibility Policies
    create/edit is locally complete with unique-master, mode and employee-list
    validation while Workshop assignability remains runtime-owned; archive and
-   Pilot write acceptance remain separate. Weekly
+   Pilot write acceptance remain separate. Timesheet single-day attendance
+   save/remove is locally complete through the PostgreSQL owner; permanent
+   schedule assignment and Pilot write acceptance remain separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

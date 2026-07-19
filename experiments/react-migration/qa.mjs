@@ -911,6 +911,10 @@ try {
   assert.deepEqual([timesheetModel.employeeCount, timesheetModel.departmentCount, timesheetModel.days.length], [3, 2, 7]);
   assert.deepEqual(timesheetModel.groups.map((group) => [group.department, group.employees.length]), [["Отдел ручного монтажа", 2], ["Склад", 1]]);
   assert.equal(timesheetModel.groups[0].employees[0].cells[2].overtime, 2, "Timesheet adapter must preserve overtime facts");
+  const editableTimesheetModel = timesheetAdapter.adaptTimesheet({ ...timesheetFixture, capabilities: { attendanceEdit: true, editableEmployeeIds: ["employee-1"], attendanceEventKeys: ["employee-1|2026-07-15"] } });
+  assert.equal(editableTimesheetModel.canEditAttendance, true, "Timesheet write payload must expose the bounded attendance capability");
+  assert.equal(editableTimesheetModel.groups[0].employees[0].canEditAttendance, true, "Timesheet employee capability must stay explicit");
+  assert.equal(editableTimesheetModel.groups[0].employees[0].cells[2].hasAttendanceEvent, true, "Timesheet reset must only target an explicit attendance event");
   assert.equal(timesheetAdapter.formatTimesheetHours(7.25), "7,25");
   assert.deepEqual(timesheetAdapter.adaptTimesheet({}).groups, [], "invalid Timesheet payload must fail closed");
 
@@ -1160,6 +1164,11 @@ try {
   const eligibleWeeklyProductionControlHost = makeWeeklyProductionControlHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleWeeklyProductionControlHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleWeeklyProductionControlHost.renderTarget(), /data-react-weekly-production-control-island/);
+
+  const timesheetProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/timesheet/react_island_host.js")).href}?qa=${Date.now()}`);
+  const makeTimesheetProductionHost = (activation) => timesheetProductionHostModule.createTimesheetReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
+  assert.deepEqual(makeTimesheetProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "editor" }).prepareRender(), { activateReact: false, reason: "write-parity-incomplete" });
+  assert.deepEqual(makeTimesheetProductionHost({ featureFlagEnabled: true, serverReadReady: true, accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" });
 
   const specifications2ProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/specifications2/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeSpecifications2ProductionHost = (activation) => specifications2ProductionHostModule.createSpecifications2ReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
@@ -1553,9 +1562,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies"], "twelve scenarios must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "timesheet"], "thirteen scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 10, "all 10 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 9, "all 9 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

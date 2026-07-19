@@ -20,12 +20,12 @@ Current minified measurements:
 | Structure Employees production island | 216,825 B | 65,878 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 215,168 B | 65,465 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 213,588 B | 65,204 B | 225,000 B | 68,000 B |
-| Structure Work Centers production island | 215,495 B | 65,482 B | 225,000 B | 68,000 B |
+| Structure Work Centers production island | 215,471 B | 65,474 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 214,824 B | 65,385 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 215,212 B | 65,557 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,266 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,948 B | 225,000 B | 68,000 B |
-| Timesheet production island | 204,934 B | 63,584 B | 225,000 B | 68,000 B |
+| Timesheet production island | 210,506 B | 64,915 B | 225,000 B | 68,000 B |
 | Planning Workbench production island | 205,200 B | 63,549 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
@@ -39,7 +39,7 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 474,630 B | 110,737 B | 475,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 474,631 B | 110,704 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -116,8 +116,8 @@ PostgreSQL-backed rows; create/edit QA additionally returns a twentieth row,
 rejects an indirect hierarchy cycle before mutation and preserves legacy
 read-back. This is regression evidence, not Pilot acceptance.
 
-The bundled production Structure Work Centers island is `215,495 B` raw /
-`65,482 B` gzip. Its latest production-shell first commit was `141.10 ms` across 19
+The bundled production Structure Work Centers island is `215,471 B` raw /
+`65,474 B` gzip. Its latest production-shell first commit was `141.10 ms` across 19
 PostgreSQL-backed rows; create/edit QA additionally returns a twentieth row,
 rejects an indirect hierarchy cycle before mutation, preserves explicit
 Planning/Gantt flags and proves legacy read-back. A separate read adapter keeps
@@ -146,9 +146,11 @@ The bundled production Weekly Production Control island is `202,775 B` raw /
 `63,714 B` gzip / `54,840 B` Brotli. Its 25-group, eleven-column production-
 shell first commit remains below `50 ms`; this is regression evidence, not Pilot acceptance.
 
-The bundled production Timesheet island is `201,559 B` raw / `63,358 B` gzip /
-`54,518 B` Brotli. Its 76-employee, 35-column production-shell first commit was
-`206.60 ms`; this is regression evidence, not Pilot acceptance.
+The bundled production Timesheet island is `210,506 B` raw / `64,915 B` gzip.
+Its latest 76-employee, 35-column production-shell first commit was `422.60 ms`;
+single-day save/reset QA additionally proves validation, conflict retry and
+legacy read-back. A separate read scenario keeps the aggregate lab inside its
+existing budget. This is regression evidence, not Pilot acceptance.
 
 The bundled production Planning Workbench island is `201,793 B` raw /
 `63,311 B` gzip / `54,483 B` Brotli. Its two-order PostgreSQL-bootstrap

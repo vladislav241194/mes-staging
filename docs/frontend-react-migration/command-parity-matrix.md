@@ -25,7 +25,8 @@ Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner, while reference-sensitive,
 lifecycle, import, BOM-row and delete commands remain explicit legacy-only
-slices. Structure Migration Diagnostics and Weekly Production Control are intentionally
+slices. Timesheet now has locally complete single-day attendance save/remove;
+permanent schedule assignment remains legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. The remaining scenarios
 retain their explicit next vertical scopes.
 
@@ -44,7 +45,7 @@ retain their explicit next vertical scopes.
 | 11 | Structure Equipment | Local complete: create/edit with organization, work-center, quantity and schedule validation; archive remains legacy | High | Separately gated Pilot write evaluation with disposable equipment and cleanup |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
-| 14 | Timesheet | Pending | High | One attendance-day save/remove scenario |
+| 14 | Timesheet | Local complete: one-day attendance save/remove; permanent schedules remain legacy | High | Separately gated Pilot write evaluation on a disposable attendance day |
 | 15 | Roles and Access | Pending | Critical | Role metadata before grants, assignments and scopes |
 | 16 | Planning and operational modules | Pending | Critical | Navigation/local actions before scheduling, assignment or fact mutations |
 | 17 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
@@ -141,6 +142,15 @@ Production-shell QA proves exact reference IDs, conflict-without-mutation plus
 retry, hidden-field preservation, `7`-row legacy read-back and an unchanged
 disposable compatibility snapshot. Archive remains legacy and Pilot write
 acceptance is separate.
+
+Timesheet adds a bounded React editor for the fact of one selected day while
+the permanent employee schedule remains in legacy. The host reuses the existing
+legacy attendance-event builder and the revision-checked `timesheet` System
+Domains command owner. Production-shell QA rejects absence plus overtime before
+PUT, saves a sick day, reads it through legacy, exposes a revision conflict
+without mutation, retries reset, restores the projected schedule and preserves
+an unrelated hidden event field. All writes use a localhost-only gate; Pilot
+remains default-off and read-only.
 
 Structure Responsibility Policies completes the non-critical Structure command
 set without moving assignability logic into React. The editor writes the master,

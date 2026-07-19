@@ -4,10 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { getProductionStructureEmployees } from "../src/production_structure_service.js";
+import { SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY } from "../src/app_constants.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { migrateLegacySystemDomains } from "../src/modules/system_domains/service.js";
 
 const defaultUrl = new URL("/?module=timesheet&qa=timesheet-functional&qa-auth-bypass=1", process.env.MES_QA_URL || "http://localhost:4174/").toString();
 const UI_STORAGE_KEY = "mes-planning-prototype-ui-v1";
-const SYSTEM_DOMAINS_STORAGE_KEY = "mes-planning-prototype-system-domains-v1";
 
 function getArg(name, fallback) {
   const prefix = `${name}=`;
@@ -211,6 +213,9 @@ function assert(condition, message) {
 
 async function main() {
   const employees = getProductionStructureEmployees().filter((employee) => employee.name);
+  const baseline = migrateLegacySystemDomains({ matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS }); const supervisorPosition = baseline.domains.registries.positions.find((position) => position.kind === "supervisor"); const masterId = baseline.domains.registries.employmentAssignments.find((assignment) => assignment.positionId === supervisorPosition?.id)?.employeeId || ""; const executorId = baseline.domains.registries.employmentAssignments.find((assignment) => assignment.employeeId !== masterId)?.employeeId || "";
+  const migration = migrateLegacySystemDomains({ matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS, legacyUi: { accessRoleProfiles: [{ id: "admin", label: "Администратор QA", scope: "global", defaultModule: "timesheet", modulePermissions: { timesheet: { view: true, edit: true } } }, { id: "master", label: "Мастер QA", scope: "workCenter", defaultModule: "timesheet", modulePermissions: { timesheet: { view: true, edit: true } } }, { id: "executor", label: "Исполнитель QA", scope: "self", defaultModule: "timesheet", modulePermissions: { timesheet: { view: true, edit: false } } }], accessRoleAssignments: { [masterId]: "master", [executorId]: "executor" } }, migratedAt: "2026-07-19T00:00:00.000Z" });
+  let apiDomains = structuredClone(migration.domains); let apiRevision = 1; let putCount = 0;
   const url = withQuery(getArg("--url", defaultUrl), {
     module: "timesheet",
     qa: "timesheet-functional",
@@ -228,8 +233,18 @@ async function main() {
     });
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    const responseBody = (value) => Buffer.from(JSON.stringify(value)).toString("base64");
+    const fulfill = (requestId, payload, { statusCode = 200, revision = apiRevision } = {}) => client.send("Fetch.fulfillRequest", { requestId, responseCode: statusCode, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: `"${revision}"` }], body: responseBody(payload) });
+    client.socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data); if (message.method !== "Fetch.requestPaused") return; const requestUrl = new URL(message.params.request.url); const method = String(message.params.request.method || "GET").toUpperCase();
+      if (requestUrl.pathname === "/api/v1/system-domains/capabilities") void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["timesheet"], consistency: { details: { authority: { mode: "postgres-primary" } } } } });
+      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "GET") void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains });
+      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT") { const body = JSON.parse(message.params.request.postData || "{}"); if (Number(body.expectedRevision) !== apiRevision) void fulfill(message.params.requestId, { ok: false, conflict: true, revision: apiRevision }, { statusCode: 409 }); else { apiDomains = structuredClone(body.domains); apiRevision += 1; putCount += 1; void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains, snapshotSync: { queued: true } }); } }
+      else void client.send("Fetch.continueRequest", { requestId: message.params.requestId });
+    });
+    await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/v1/system-domains*", requestStage: "Request" }] });
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: "sessionStorage.setItem('mes-planning-prototype-shared-disabled-until-v1', String(Date.now() + 60 * 60 * 1000));",
+      source: `sessionStorage.setItem('mes-planning-prototype-shared-disabled-until-v1', String(Date.now() + 60 * 60 * 1000)); sessionStorage.setItem(${JSON.stringify(SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY)}, '1');`,
     });
     await client.send("Emulation.setDeviceMetricsOverride", {
       width: 1710,
@@ -264,7 +279,7 @@ async function main() {
     assert(initial.firstDayButtonRect?.width >= 28 && initial.firstDayButtonRect?.height >= 28, "Timesheet day button is below touch target.");
     assert(initial.firstEmployeeId && initial.firstDateKey, "Timesheet first editable cell was not found.");
 
-    const editedAttendance = await evaluate(client, async ({ employeeId, dateKey, uiStorageKey, systemDomainsStorageKey }) => {
+    const editedAttendance = await evaluate(client, async ({ employeeId, dateKey, uiStorageKey }) => {
       const cell = document.querySelector(`[data-timesheet-cell][data-timesheet-employee-id="${CSS.escape(employeeId)}"][data-timesheet-date="${CSS.escape(dateKey)}"]`);
       cell?.querySelector("[data-timesheet-day-button]")?.click();
       const form = document.querySelector("[data-timesheet-attendance-form]");
@@ -286,27 +301,27 @@ async function main() {
       form.requestSubmit();
       await new Promise((resolve) => setTimeout(resolve, 120));
       const ui = JSON.parse(localStorage.getItem(uiStorageKey) || "{}");
-      const domains = JSON.parse(localStorage.getItem(systemDomainsStorageKey) || "{}");
       return {
         opened: true,
+        editable: !form.querySelector("fieldset")?.disabled,
         formsSeparated: Boolean(scheduleForm && !form.querySelector("[name='scheduleCode']") && !scheduleForm.querySelector("[name='value']")),
         legacyCellOverride: ui.timesheetCellOverrides?.[`${employeeId}::${dateKey}`] || null,
-        attendanceEvent: (domains.registries?.attendanceEvents || []).find((event) => event.employeeId === employeeId && event.date === dateKey) || null,
       };
     }, {
       employeeId: initial.firstEmployeeId,
       dateKey: initial.firstDateKey,
       uiStorageKey: UI_STORAGE_KEY,
-      systemDomainsStorageKey: SYSTEM_DOMAINS_STORAGE_KEY,
     });
     await delay(700);
+    const savedAttendanceEvent = (apiDomains.registries?.attendanceEvents || []).find((event) => event.employeeId === initial.firstEmployeeId && event.date === initial.firstDateKey) || null;
 
     assert(editedAttendance.opened, "Timesheet editor modal did not open.");
+    assert(editedAttendance.editable, "Timesheet command fixture did not receive edit permission.");
     assert(editedAttendance.formsSeparated, "Attendance fact and permanent schedule are not separated into independent forms.");
-    assert(editedAttendance.attendanceEvent?.type === "sick", `Canonical sick attendance event was not saved: ${JSON.stringify(editedAttendance.attendanceEvent)}`);
+    assert(savedAttendanceEvent?.type === "sick", `Canonical sick attendance event was not saved: ${JSON.stringify(savedAttendanceEvent)}; puts=${putCount}; console=${consoleProblems.slice(0, 3).join(" | ")}`);
     assert(!editedAttendance.legacyCellOverride, "Attendance save wrote back to legacy timesheetCellOverrides.");
 
-    const editedSchedule = await evaluate(client, async ({ employeeId, dateKey, uiStorageKey, systemDomainsStorageKey }) => {
+    const editedSchedule = await evaluate(client, async ({ employeeId, dateKey, uiStorageKey }) => {
       const scheduleButton = document.querySelector(`[data-timesheet-schedule-button][data-timesheet-employee-id="${CSS.escape(employeeId)}"]`);
       scheduleButton?.click();
       const form = document.querySelector("[data-timesheet-schedule-form]");
@@ -325,48 +340,43 @@ async function main() {
       form.requestSubmit();
       await new Promise((resolve) => setTimeout(resolve, 120));
       const ui = JSON.parse(localStorage.getItem(uiStorageKey) || "{}");
-      const domains = JSON.parse(localStorage.getItem(systemDomainsStorageKey) || "{}");
-      const scheduleAssignment = (domains.registries?.scheduleAssignments || []).find((assignment) => (
-        assignment.employeeId === employeeId && assignment.validFrom === dateKey
-      )) || null;
       return {
         opened: true,
         legacyScheduleOverride: ui.timesheetScheduleOverrides?.[employeeId] || null,
-        scheduleAssignment,
-        scheduleTemplate: (domains.registries?.scheduleTemplates || []).find((template) => template.id === scheduleAssignment?.scheduleTemplateId) || null,
       };
     }, {
       employeeId: initial.firstEmployeeId,
       dateKey: initial.firstDateKey,
       uiStorageKey: UI_STORAGE_KEY,
-      systemDomainsStorageKey: SYSTEM_DOMAINS_STORAGE_KEY,
     });
     await delay(700);
+    const savedScheduleAssignment = (apiDomains.registries?.scheduleAssignments || []).find((assignment) => assignment.employeeId === initial.firstEmployeeId && assignment.validFrom === initial.firstDateKey) || null;
+    const savedScheduleTemplate = (apiDomains.registries?.scheduleTemplates || []).find((template) => template.id === savedScheduleAssignment?.scheduleTemplateId) || null;
 
     assert(editedSchedule.opened, "Independent schedule editor did not open.");
-    assert(editedSchedule.scheduleTemplate?.code === "2/2", `Canonical 2/2 assignment was not saved: ${JSON.stringify(editedSchedule)}`);
-    assert(Number(editedSchedule.scheduleAssignment?.patternOffset) === 2, "Canonical schedule cycle offset was not saved.");
+    assert(savedScheduleTemplate?.code === "2/2", `Canonical 2/2 assignment was not saved: ${JSON.stringify({ savedScheduleAssignment, savedScheduleTemplate })}`);
+    assert(Number(savedScheduleAssignment?.patternOffset) === 2, "Canonical schedule cycle offset was not saved.");
     assert(!editedSchedule.legacyScheduleOverride, "Schedule save wrote back to legacy timesheetScheduleOverrides.");
 
-    const reflected = await evaluate(client, ({ employeeId, dateKey, systemDomainsStorageKey }) => {
+    const reflected = await evaluate(client, ({ employeeId, dateKey }) => {
       const cell = document.querySelector(`[data-timesheet-cell][data-timesheet-employee-id="${CSS.escape(employeeId)}"][data-timesheet-date="${CSS.escape(dateKey)}"]`);
       const schedule = document.querySelector(`[data-timesheet-schedule-button][data-timesheet-employee-id="${CSS.escape(employeeId)}"]`);
-      const domains = JSON.parse(localStorage.getItem(systemDomainsStorageKey) || "{}");
       return {
         cellValue: cell?.dataset.timesheetValue || "",
         cellAvailability: cell?.dataset.timesheetAvailability || "",
         cellText: cell?.textContent?.trim().replace(/\s+/g, " ") || "",
         scheduleText: schedule?.textContent?.trim().replace(/\s+/g, " ") || "",
         editorStillOpen: Boolean(document.querySelector("[data-timesheet-editor-form]")),
-        attendanceEvents: (domains.registries?.attendanceEvents || []).filter((event) => event.employeeId === employeeId && event.date === dateKey),
       };
-    }, { employeeId: initial.firstEmployeeId, dateKey: initial.firstDateKey, systemDomainsStorageKey: SYSTEM_DOMAINS_STORAGE_KEY });
+    }, { employeeId: initial.firstEmployeeId, dateKey: initial.firstDateKey });
 
     assert(!reflected.editorStillOpen, "Timesheet editor stayed open after save.");
     assert(reflected.cellValue === "sick", `Timesheet cell did not reflect saved state: ${JSON.stringify(reflected)}`);
     assert(reflected.cellText.includes("Б/л"), `Timesheet sick cell text is missing: ${reflected.cellText}`);
     assert(reflected.scheduleText.includes("2/2") && reflected.scheduleText.includes("08:00-20:00"), `Timesheet schedule did not reflect canonical template: ${reflected.scheduleText}`);
-    assert(!consoleProblems.length, `Console problems: ${consoleProblems.slice(0, 5).join("; ")}`);
+    assert(putCount === 2 && apiRevision === 3, `Timesheet commands must advance two PostgreSQL revisions: puts=${putCount} revision=${apiRevision}`);
+    const unexpectedConsoleProblems = consoleProblems.filter((message) => !message.includes("PostgreSQL-primary proof is unavailable; local compatibility write is blocked"));
+    assert(!unexpectedConsoleProblems.length, `Console problems: ${unexpectedConsoleProblems.slice(0, 5).join("; ")}`);
 
     console.log("Timesheet Functional QA OK");
     console.log(JSON.stringify({

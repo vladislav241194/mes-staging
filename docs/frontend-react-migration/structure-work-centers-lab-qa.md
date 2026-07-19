@@ -32,8 +32,8 @@ owner; Pilot remains read-only and default-off.
   catalog behavior, plus stable employee/Shift IDs across rename;
 - latest local first commit was `141.10 ms`.
 
-The independent production entry is `215,495 B` raw / `65,482 B` gzip. A
-separate read adapter keeps the full lab at `474,630 B` raw / `110,737 B` gzip.
+The independent production entry is `215,471 B` raw / `65,474 B` gzip. A
+separate read adapter keeps the full lab at `474,631 B` raw / `110,704 B` gzip.
 It remains false by default.
 
 ## Pilot acceptance

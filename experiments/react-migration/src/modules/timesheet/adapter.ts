@@ -21,6 +21,10 @@ export interface TimesheetCell {
   hours: number;
   plannedHours: number;
   overtime: number;
+  start: string;
+  end: string;
+  comment: string;
+  hasAttendanceEvent: boolean;
 }
 
 export interface TimesheetEmployee {
@@ -33,6 +37,7 @@ export interface TimesheetEmployee {
   cells: TimesheetCell[];
   totalHours: number;
   overtimeHours: number;
+  canEditAttendance: boolean;
 }
 
 export interface TimesheetGroup {
@@ -47,7 +52,7 @@ function dateParts(value: unknown) {
   return { id, day: String(date.getDate()), weekday: date.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", ""), isWeekend: date.getDay() === 0 || date.getDay() === 6 };
 }
 
-function adaptCell(value: unknown, fallbackDate = ""): TimesheetCell {
+function adaptCell(value: unknown, fallbackDate = "", attendanceEventKeys = new Set<string>(), employeeId = ""): TimesheetCell {
   const cell = asRecord(value);
   const display = asArray(cell.display).map((entry) => asText(entry)).filter(Boolean);
   return {
@@ -60,10 +65,14 @@ function adaptCell(value: unknown, fallbackDate = ""): TimesheetCell {
     hours: asNumber(cell.hours),
     plannedHours: asNumber(cell.plannedHours),
     overtime: asNumber(cell.overtime),
+    start: asText(cell.start),
+    end: asText(cell.end),
+    comment: asText(cell.comment),
+    hasAttendanceEvent: attendanceEventKeys.has(`${employeeId}|${asText(cell.dateKey, fallbackDate)}`),
   };
 }
 
-function adaptEmployee(value: unknown, days: TimesheetDay[], index: number): TimesheetEmployee | null {
+function adaptEmployee(value: unknown, days: TimesheetDay[], editableEmployeeIds: Set<string>, attendanceEventKeys: Set<string>): TimesheetEmployee | null {
   const employee = asRecord(value);
   const id = asText(employee.timesheetId, asText(employee.id));
   const name = asText(employee.name);
@@ -76,20 +85,24 @@ function adaptEmployee(value: unknown, days: TimesheetDay[], index: number): Tim
     personKind: asText(employee.personKind, "employee"),
     scheduleCode: asText(schedule.code, "—"),
     scheduleMode: asText(schedule.mode, "Не определён"),
-    cells: asArray(employee.cells).map((cell, cellIndex) => adaptCell(cell, days[cellIndex]?.id || "")),
+    cells: asArray(employee.cells).map((cell, cellIndex) => adaptCell(cell, days[cellIndex]?.id || "", attendanceEventKeys, id)),
     totalHours: asNumber(employee.totalHours),
     overtimeHours: asNumber(employee.overtimeHours),
+    canEditAttendance: editableEmployeeIds.has(id),
   };
 }
 
 export function adaptTimesheet(payload: unknown) {
   const root = asRecord(payload);
   const source = asRecord(root.model || payload);
+  const capabilities = asRecord(root.capabilities);
+  const editableEmployeeIds = new Set(asArray(capabilities.editableEmployeeIds).map((value) => asText(value)).filter(Boolean));
+  const attendanceEventKeys = new Set(asArray(capabilities.attendanceEventKeys).map((value) => asText(value)).filter(Boolean));
   const days = asArray(source.days).map(dateParts).filter(Boolean) as TimesheetDay[];
   const groups = asArray(source.groups).map((value): TimesheetGroup | null => {
     const group = asRecord(value);
     const department = asText(group.department, "Без отдела");
-    const employees = asArray(group.employees).map((employee, index) => adaptEmployee(employee, days, index)).filter(Boolean) as TimesheetEmployee[];
+    const employees = asArray(group.employees).map((employee) => adaptEmployee(employee, days, editableEmployeeIds, attendanceEventKeys)).filter(Boolean) as TimesheetEmployee[];
     return employees.length ? { department, employees } : null;
   }).filter(Boolean) as TimesheetGroup[];
   const employees = groups.flatMap((group) => group.employees);
@@ -106,6 +119,7 @@ export function adaptTimesheet(payload: unknown) {
     unknownDayCount: asNumber(source.unknownDayCount),
     calendarSource: asText(source.calendarSource, "unknown"),
     canActivate: days.length > 0 && employees.every((employee) => employee.cells.length === days.length),
+    canEditAttendance: capabilities.attendanceEdit === true && editableEmployeeIds.size > 0,
   };
 }
 

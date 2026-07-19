@@ -3,7 +3,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 const TIMESHEET_REACT_TARGET = "[data-react-timesheet-island]";
 const TIMESHEET_REACT_BUNDLE_VERSION = "__MES_TIMESHEET_REACT_BUNDLE_VERSION__";
 
-export function createTimesheetReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError = (error) => console.error("[MES] Timesheet React island failed", error) } = {}) {
+export function createTimesheetReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, reportError = (error) => console.error("[MES] Timesheet React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
     targetSelector: TIMESHEET_REACT_TARGET,
@@ -11,7 +11,7 @@ export function createTimesheetReactIslandHost({ getActivation, getPayload, getT
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -21,6 +21,6 @@ export function createTimesheetReactIslandHost({ getActivation, getPayload, getT
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountTimesheetReactIsland(target, payload, { onError, onReady, onRequestLegacy }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady, onRequestLegacy }) => loadedIsland.mountTimesheetReactIsland(target, payload, { onError, onReady, onRequestLegacy, onCommand: (command) => executeCommand?.(command) }),
   });
 }

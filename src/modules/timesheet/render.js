@@ -1111,6 +1111,7 @@ export function createTimesheetModule(dependencies = {}) {
 
   return {
     bindTimesheetEvents,
+    buildAttendanceEventsFromFormData,
     formatTimesheetHours,
     getTimesheetCell,
     getTimesheetDayOption,

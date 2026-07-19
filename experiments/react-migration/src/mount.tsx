@@ -13,7 +13,7 @@ import { StructureEquipmentReadScenario } from "./modules/structure-equipment/St
 import { StructureResponsibilityPoliciesReadScenario } from "./modules/structure-responsibility-policies/StructureResponsibilityPoliciesReadScenario";
 import { StructureMigrationDiagnosticsScenario } from "./modules/structure-migration-diagnostics/StructureMigrationDiagnosticsScenario";
 import { WeeklyProductionControlScenario } from "./modules/weekly-production-control/WeeklyProductionControlScenario";
-import { TimesheetScenario } from "./modules/timesheet/TimesheetScenario";
+import { TimesheetReadScenario } from "./modules/timesheet/TimesheetReadScenario";
 import { PlanningWorkbenchScenario } from "./modules/planning-workbench/PlanningWorkbenchScenario";
 import { ShiftWorkOrdersScenario } from "./modules/shift-work-orders/ShiftWorkOrdersScenario";
 import { ShiftMasterBoardScenario } from "./modules/shift-master-board/ShiftMasterBoardScenario";
@@ -39,7 +39,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "structureResponsibilityPolicies") return <StructureResponsibilityPoliciesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureMigrationDiagnostics") return <StructureMigrationDiagnosticsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "weeklyProductionControl") return <WeeklyProductionControlScenario payload={payload} />;
-  if (scenario === "timesheet") return <TimesheetScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "timesheet") return <TimesheetReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "planningWorkbench") return <PlanningWorkbenchScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftWorkOrders") return <ShiftWorkOrdersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftMasterBoard") return <ShiftMasterBoardScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
