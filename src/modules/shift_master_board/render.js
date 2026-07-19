@@ -684,11 +684,11 @@ function normalizeDateInput(value = "") {
   return Number.isNaN(date.getTime()) ? "" : toDateInput(date);
 }
 
-function setShiftWorkbenchDate(value = "") {
+function setShiftWorkbenchDate(value = "", options = {}) {
   const nextDate = normalizeDateInput(value);
   if (!nextDate) return false;
   ui.windowStart = nextDate;
-  ui.shiftMasterBoardSelectedSlotId = "";
+  ui.shiftMasterBoardSelectedSlotId = String(options.selectedSlotId || "").trim();
   ui.activeDispatchSlotId = "";
   persistUiState();
   render();
@@ -1338,6 +1338,9 @@ function getShiftMasterBoardRow(row = {}) {
   const laneId = getShiftMasterBoardLaneId(row, assignment, fact);
   const completion = plannedQuantity > 0 ? Math.round(Math.min(140, goodQuantity / plannedQuantity * 100)) : 0;
   const allocation = plannedQuantity > 0 ? Math.round(Math.min(140, assignedQuantity / plannedQuantity * 100)) : 0;
+  const boardTransferContract = row.isBoardCarryover
+    ? null
+    : buildShiftMasterBoardTransferContract(row, assignment, fact);
   const signal = fact.updatedAt
     ? goodQuantity >= plannedQuantity && fact.defectQuantity <= 0
       ? { tone: "ok", label: "факт закрыт" }
@@ -1361,6 +1364,7 @@ function getShiftMasterBoardRow(row = {}) {
     boardAllocation: allocation,
     boardCompletion: completion,
     boardSignal: signal,
+    boardTransferContract,
   };
 }
 
@@ -1441,7 +1445,7 @@ function getShiftMasterBoardCarryoverRows(window = getShiftWorkbenchWindow(), ma
       const timesheetOvertimeHours = availableEmployees.reduce((sum, employee) => sum + Number(employee.availability?.overtime || 0), 0);
       const startsAt = addMs(window.start, 8 * 60 * 60 * 1000);
       const endsAt = addMs(startsAt, 90 * 60 * 1000);
-      const plannedQuantity = normalizeShiftMasterBoardQuantity(item.plannedQuantity || 0);
+      const plannedQuantity = normalizeShiftMasterBoardQuantity(item.plannedQuantity || item.remainingQuantity || 0);
       return {
         id: item.id,
         slotId: item.id,

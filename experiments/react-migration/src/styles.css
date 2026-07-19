@@ -98,6 +98,10 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .shift-master-board-react-executors { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3ebf3; border-radius: 12px; }
 .shift-master-board-react-executors header, .shift-master-board-react-executors div, .shift-master-board-react-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .shift-master-board-react-executors p { margin: 0; color: #718296; font-size: 11px; }
+.shift-master-board-react-carryover { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #f1c56c; border-radius: 12px; background: #fff8e7; }
+.shift-master-board-react-carryover > div { display: grid; gap: 3px; }
+.shift-master-board-react-carryover span, .shift-master-board-react-carryover small { color: #806329; font-size: 10px; }
+.shift-master-board-react-carryover.is-received { border-color: #b9cde2; background: #f2f7fc; }
 .shift-master-board-react-assignment { display: grid; gap: 8px; }
 .shift-master-board-react-assignment > label { display: grid; grid-template-columns: minmax(0,1fr) 110px; align-items: center; gap: 12px; padding: 11px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
 .shift-master-board-react-assignment > label > span { display: grid; gap: 3px; }

@@ -52,9 +52,9 @@ const operations = await measureEntry("operations-island.tsx", { raw: 225_000, g
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
 // The aggregate lab intentionally contains every scenario; production islands keep their stricter per-entry budgets above.
-// Employee Desktop context plus Shift Master assignment and fact add bounded forms over the shared modal contract while each
+// Employee Desktop context plus the Shift Master assignment, fact and carryover navigation add bounded forms over the shared modal contract while each
 // separately loaded production island remains under the unchanged 225/68 KB gate.
-const lab = await measureEntry("main.tsx", { raw: 542_000, gzip: 126_000 });
+const lab = await measureEntry("main.tsx", { raw: 546_000, gzip: 126_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -109,7 +109,7 @@ assert.doesNotMatch(statusesText, /Вся номенклатура|SMT-монт�
 
 const css = await readFile(join(sourceRoot, "styles.css"));
 const cssMeasurement = { raw: css.length, gzip: gzipSync(css).length };
-assert.ok(cssMeasurement.raw <= 29_700, `styles raw bundle ${cssMeasurement.raw} exceeds 29700`);
+assert.ok(cssMeasurement.raw <= 30_000, `styles raw bundle ${cssMeasurement.raw} exceeds 30000`);
 assert.ok(cssMeasurement.gzip <= 5_350, `styles gzip bundle ${cssMeasurement.gzip} exceeds 5350`);
 
 console.log(JSON.stringify({

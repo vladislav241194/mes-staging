@@ -13,6 +13,7 @@ export interface ShiftMasterBoardRow {
   remainingQuantity: number; unit: string; laneId: string; signal: { label: string; tone: "success" | "warning" | "neutral" };
   masterName: string; executors: ShiftMasterBoardExecutor[]; assignableEmployees: ShiftMasterBoardAssignableEmployee[]; factUpdatedAt: string; riskLabel: string;
   factReady: boolean; hasFact: boolean; actualQuantity: number; defectQuantity: number; laborMinutes: number; executorCount: number; factComment: string; deviationComment: string;
+  isCarryover: boolean; sourceRowId: string; carryoverReason: string; transferStatus: string; carryoverId: string; carryoverDateKey: string; carryoverRemainingQuantity: number; transferTargetLabel: string;
 }
 export interface ShiftMasterBoardLane { id: string; label: string; caption: string; tone: "success" | "warning" | "neutral"; rows: ShiftMasterBoardRow[] }
 export interface ShiftMasterBoardModel {
@@ -25,7 +26,7 @@ export interface ShiftMasterBoardModel {
 const focus = (value: unknown): ShiftMasterBoardModel["focus"] => ["mine", "open", "attention"].includes(text(value)) ? text(value) as ShiftMasterBoardModel["focus"] : "all";
 
 function adaptRow(value: unknown): ShiftMasterBoardRow | null {
-  const source = record(value); const assignment = record(source.boardAssignment || source.assignment); const fact = record(source.boardFact || source.fact); const signal = record(source.boardSignal || source.signal);
+  const source = record(value); const assignment = record(source.boardAssignment || source.assignment); const fact = record(source.boardFact || source.fact); const signal = record(source.boardSignal || source.signal); const transfer = record(source.boardTransferContract || fact.transferContract || assignment.transferContract);
   const id = text(source.id || source.sourceRowId); if (!id) return null;
   const plannedQuantity = number(source.plannedQuantity); const assignedQuantity = number(source.boardAssignedQuantity ?? source.assignedQuantity); const factQuantity = number(source.boardGoodQuantity ?? source.factQuantity);
   const executors = list(assignment.executors || source.executors).map((value, index) => { const executor = record(value); return { id: text(executor.employeeId || executor.id, `executor-${index + 1}`), name: personName(executor.employeeName || executor.name, "Исполнитель"), quantity: number(executor.quantity) }; });
@@ -44,6 +45,9 @@ function adaptRow(value: unknown): ShiftMasterBoardRow | null {
     factReady: assignment.issued === true || text(assignment.status) === "issued" || source.isIssued === true,
     hasFact: Boolean(text(fact.updatedAt || source.masterFactUpdatedAt)), actualQuantity: number(fact.actualQuantity), defectQuantity: number(fact.defectQuantity), laborMinutes: number(fact.laborMinutes),
     executorCount: number(fact.executorCount), factComment: text(fact.comment), deviationComment: text(fact.deviationComment),
+    isCarryover: source.isBoardCarryover === true, sourceRowId: text(source.sourceRowId), carryoverReason: text(source.note || source.reason),
+    transferStatus: text(transfer.status), carryoverId: text(transfer.carryoverId || (source.isBoardCarryover ? id : "")), carryoverDateKey: text(transfer.carryoverDateKey || source.dateKey),
+    carryoverRemainingQuantity: number(transfer.remainingQuantity || (source.isBoardCarryover ? plannedQuantity : 0)), transferTargetLabel: text(transfer.targetLabel, "Остаток в следующую смену"),
   };
 }
 

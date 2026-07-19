@@ -3074,6 +3074,12 @@ const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
     return { model, capabilities: { assignmentSave: commandsReady && roleCanAssign, factSave: commandsReady && roleCanRecordFact } };
   },
   getTargetRoot: () => app,
+  openCarryover: (dateKey = "", carryoverId = "") => {
+    const carryover = Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers))
+      .find((item) => item?.id === carryoverId && item?.dateKey === dateKey) || null;
+    if (!carryover) return;
+    setShiftWorkbenchDate(dateKey, { selectedSlotId: carryover.id });
+  },
   selectFocus: (focus = "") => {
     const nextFocus = normalizeShiftMasterBoardFocus(focus);
     if (nextFocus === ui.shiftMasterBoardFocus) return;
@@ -5670,12 +5676,20 @@ function applyShiftExecutionDispatchProjection(result = {}) {
     coveredSourceRowIds,
     { removeCovered: replaceCovered },
   );
+  const selectedCarryover = normalizePlainRecord(ui.shiftMasterBoardCarryovers)[ui.shiftMasterBoardSelectedSlotId] || null;
   ui.shiftMasterBoardCarryovers = mergeShiftExecutionCarryovers(
     ui.shiftMasterBoardCarryovers,
     projection.carryovers,
     String(result.scope?.dateKey || ""),
     { replaceDate: replaceCovered },
   );
+  if (selectedCarryover && !ui.shiftMasterBoardCarryovers[ui.shiftMasterBoardSelectedSlotId]) {
+    const canonicalSelection = Object.values(normalizePlainRecord(ui.shiftMasterBoardCarryovers)).find((carryover) => (
+      carryover?.sourceRowId === selectedCarryover.sourceRowId
+      && carryover?.dateKey === selectedCarryover.dateKey
+    ));
+    if (canonicalSelection?.id) ui.shiftMasterBoardSelectedSlotId = canonicalSelection.id;
+  }
   return true;
 }
 
