@@ -184,14 +184,16 @@ overlay, editor access or a missing session request retains legacy.
 behind two false-by-default server permissions, PostgreSQL System Domains and
 complete current Shift Execution coverage, plus an explicit session request.
 Its adapter consumes the completed legacy `getAuthSessionPrototypeModel()` and
-owns local task selection. An additional localhost-only write evaluation sends
-only `start-task` and the visible task ID to the host. The host revalidates task
-visibility, completion/start state and authenticated ownership, then invokes
-the existing `startAuthSessionTask` owner and remounts from its read model. A
+owns local task selection plus fact-form state. An additional localhost-only
+write evaluation sends typed `start-task` or `save-fact` commands to the host.
+The host revalidates task visibility, completion/start state, authenticated
+ownership, quantity bounds, defect balance and deviation-comment requirements,
+then invokes the existing `startAuthSessionTask` or `saveAuthSessionTaskFact`
+owner and remounts from its read model. A
 direct module entry first hydrates the full Planning PostgreSQL graph, then
-derives the bounded dispatch scope. Person switching plus fact, Report,
-structure, route and PDF scopes return through `unsupported-scope`;
-authentication, fact input, photos and fact/report saves stay in legacy.
+derives the bounded dispatch scope. Person switching plus Report, structure,
+route and PDF scopes return through `unsupported-scope`; authentication,
+photos and problem-report saves stay in legacy.
 Missing coverage, an open legacy modal, ordinary editor access or a missing
 session request retains legacy.
 

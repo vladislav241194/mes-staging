@@ -30,7 +30,7 @@ Current minified measurements:
 | Shift Work Orders production island | 220,036 B | 66,703 B | 225,000 B | 68,000 B |
 | Shift Work Orders lazy print entry | 19,025 B | 3,659 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 207,434 B | 64,044 B | 225,000 B | 68,000 B |
-| Employee Desktop production island | 207,932 B | 64,056 B | 225,000 B | 68,000 B |
+| Employee Desktop production island | 212,773 B | 64,935 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 206,680 B | 64,127 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 207,695 B | 63,985 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
@@ -40,8 +40,8 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 512,656 B | 118,010 B | 515,000 B | 125,000 B |
-| Shared lab CSS | 22,053 B | 4,332 B | 22,500 B | 4,600 B |
+| Full twenty-four-scenario lab | 517,773 B | 118,951 B | 518,000 B | 125,000 B |
+| Shared lab CSS | 23,604 B | 4,532 B | 23,750 B | 4,600 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
@@ -84,7 +84,7 @@ then proved one create plus one edit through the existing command owner.
 | Planning Workbench | measured by the same callback | browser gate passed | quantity conflict/retry, authoritative slot refresh and legacy read-back |
 | Shift Work Orders | measured by the same callback | browser gate passed | attachment and lazy SZN/package overlays, host print callback, selection/collapse and revision 2 |
 | Shift Master Board | measured by the same callback | browser gate passed | owner-backed focus 4 -> 3 cards, empty-focus recovery and revision 3 |
-| Employee Desktop | measured by the same callback | browser gate passed | task start read back as `В работе`, selection preserved, revision 3 |
+| Employee Desktop | measured by the same callback | browser gate passed | task start and fact read back as `В работе` / `факт записан`, deviation guard, revision 4 |
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
 
@@ -180,11 +180,12 @@ shell first commit was `34.20 ms`; owner-backed focus additionally proves
 `all -> empty open -> all` without a Shift Execution write. This is regression
 evidence, not Pilot acceptance.
 
-The bundled production Employee Desktop island is `203,436 B` raw /
-`63,673 B` gzip / `54,892 B` Brotli. Its one-task PostgreSQL-backed production-
-shell first commit was `33.30 ms`, below the `2,000 ms` production-shell gate;
-the same run proves read-only denial, one owner-backed start, duplicate denial
-and zero Shift Execution writes. This is regression evidence, not Pilot
+The bundled production Employee Desktop island is `206,618 B` raw /
+`64,528 B` gzip / `55,645 B` Brotli. Its one-task PostgreSQL-backed production-
+shell first commit was `32.20 ms`, below the `2,000 ms` production-shell gate;
+the same run proves read-only denial, one owner-backed start, duplicate denial,
+deviation validation and exactly one PostgreSQL fact command with read-back.
+This is regression evidence, not Pilot
 acceptance.
 
 The bundled production Authorization picker island is `202,559 B` raw /

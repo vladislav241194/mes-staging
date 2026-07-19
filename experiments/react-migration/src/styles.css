@@ -109,6 +109,19 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .employee-desktop-react-route article.is-current { border-color: #2f6fe4; background: #eef4ff; }
 .employee-desktop-react-detail .metric-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
 .employee-desktop-react-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.employee-desktop-react-fact { display: grid; gap: 12px; padding: 14px; border: 1px solid #d9e5f2; border-radius: 12px; background: #f8fafc; }
+.employee-desktop-react-fact > header, .employee-desktop-react-fact > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.employee-desktop-react-fact > header div { display: grid; gap: 2px; }
+.employee-desktop-react-fact > header span, .employee-desktop-react-fact label > span, .employee-desktop-react-fact small { color: #718296; font-size: 10px; }
+.employee-desktop-react-fact-fields { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 10px; }
+.employee-desktop-react-fact label { display: grid; gap: 5px; }
+.employee-desktop-react-fact input, .employee-desktop-react-fact textarea { width: 100%; border: 1px solid #cdd9e6; border-radius: 9px; color: #18314d; background: #fff; }
+.employee-desktop-react-fact input { min-height: 44px; padding: 8px 11px; font-size: 20px; font-weight: 700; }
+.employee-desktop-react-fact textarea { resize: vertical; padding: 9px 11px; font: inherit; }
+.employee-desktop-react-fact input:focus, .employee-desktop-react-fact textarea:focus { border-color: #2f6fe4; outline: 2px solid rgba(47,111,228,.14); }
+.employee-desktop-react-fact input:disabled, .employee-desktop-react-fact textarea:disabled { color: #718296; background: #edf1f5; }
+.employee-desktop-react-fact-comment small { line-height: 1.35; }
+.employee-desktop-react-fact > footer small { max-width: 310px; line-height: 1.35; text-align: right; }
 .employee-desktop-react-viewer { padding: 8px 10px; border: 0; border-radius: 9px; color: #18314d; background: #edf3fa; cursor: pointer; }
 .employee-desktop-react-kpis { padding: 12px; border-bottom: 1px solid #e3ebf3; background: #f8fafc; }
 .employee-desktop-react-tasks { display: grid; gap: 8px; padding: 12px; }

@@ -3115,7 +3115,8 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     const localQa = getEmployeeDesktopReactLocalQaOverrides();
     const authPersonId = String(model.authPerson?.id || "");
     const canStartTask = localQa.writeEvaluation && (model.tasks || []).some((task) => !task.isDone && !task.isStarted && (!authPersonId || task.employeeId === authPersonId));
-    return { model, capabilities: { taskStart: canStartTask } };
+    const canSaveFact = localQa.writeEvaluation && (model.tasks || []).some((task) => task.isStarted && !task.isDone && (!authPersonId || task.employeeId === authPersonId));
+    return { model, capabilities: { taskStart: canStartTask, factSave: canSaveFact } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
@@ -3130,19 +3131,45 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getEmployeeDesktopReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "start-task") return { ok: false, message: "Запуск задания недоступен." };
+    if (!localQa.writeEvaluation) return { ok: false, message: "Команды рабочего стола в React недоступны." };
     const taskId = String(command.taskId || "").trim();
     const model = getAuthSessionPrototypeModel();
     const task = (model.tasks || []).find((item) => item.id === taskId) || null;
     if (!task) return { ok: false, message: "Задание больше не доступно на рабочем столе." };
-    if (task.isDone) return { ok: false, message: "Завершённое задание нельзя взять в работу." };
-    if (task.isStarted) return { ok: false, message: "Задание уже находится в работе." };
-    if (model.authPerson?.id && task.employeeId !== model.authPerson.id) return { ok: false, message: "Нет права запускать задание другого сотрудника." };
-    ui.authSessionSelectedTaskId = task.id;
-    const started = startAuthSessionTask(task.id, { renderOnChange: false });
-    if (started !== true) return { ok: false, message: "Задание не запущено: его состояние уже изменилось." };
-    queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
-    return { ok: true, id: task.id };
+    if (model.authPerson?.id && task.employeeId !== model.authPerson.id) return { ok: false, message: "Нет права изменять задание другого сотрудника." };
+    if (command.type === "start-task") {
+      if (task.isDone) return { ok: false, message: "Завершённое задание нельзя взять в работу." };
+      if (task.isStarted) return { ok: false, message: "Задание уже находится в работе." };
+      ui.authSessionSelectedTaskId = task.id;
+      const started = startAuthSessionTask(task.id, { renderOnChange: false });
+      if (started !== true) return { ok: false, message: "Задание не запущено: его состояние уже изменилось." };
+      queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
+      return { ok: true, id: task.id };
+    }
+    if (command.type === "save-fact") {
+      if (task.isDone) return { ok: false, message: "Факт по этому заданию уже записан." };
+      if (!task.isStarted) return { ok: false, message: "Сначала возьмите задание в работу." };
+      const parseQuantity = (value) => {
+        const source = String(value ?? "").trim();
+        if (!/^\d{1,7}$/.test(source)) return null;
+        const parsed = Number(source);
+        return Number.isSafeInteger(parsed) ? parsed : null;
+      };
+      const actualQuantity = parseQuantity(command.actualQuantity);
+      const defectQuantity = parseQuantity(command.defectQuantity);
+      if (actualQuantity === null || defectQuantity === null) return { ok: false, message: "Количество должно быть целым числом от 0 до 9 999 999." };
+      if (defectQuantity > actualQuantity) return { ok: false, message: "Количество брака не может превышать выполненное количество." };
+      const deviationComment = String(command.deviationComment || "").trim();
+      if (deviationComment.length > 500) return { ok: false, message: "Причина отклонения не должна превышать 500 символов." };
+      const candidate = { actualQuantity, defectQuantity, deviationComment };
+      if (doesAuthSessionFactNeedDeviationComment(task, candidate) && !deviationComment) return { ok: false, message: "Укажите причину отклонения: годное количество ниже плана больше чем на 5%." };
+      ui.authSessionSelectedTaskId = task.id;
+      const saved = await saveAuthSessionTaskFact(task.id, { fact: candidate, renderOnChange: false });
+      if (saved !== true) return { ok: false, message: "Факт не записан: состояние задания изменилось или владелец записи недоступен." };
+      queueMicrotask(() => { if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true }); });
+      return { ok: true, id: task.id };
+    }
+    return { ok: false, message: "Неизвестная команда рабочего стола." };
   },
 });
 function getAuthPickerReactLocalQaOverrides() {
@@ -4022,6 +4049,7 @@ let setAuthSessionReportDraft = () => {};
 let bindAuthPrototypeEvents = () => {};
 let bindAuthSessionEvents = () => {};
 let startAuthSessionTask = () => false;
+let saveAuthSessionTaskFact = async () => false;
 let authRenderModuleLoad = null;
 let authEventsModuleLoad = null;
 let authModulesReady = false;
@@ -4130,7 +4158,7 @@ function ensureAuthRenderModule() {
 }
 
 function initializeAuthEventsModule(factory) {
-  ({ bindAuthPrototypeEvents, bindAuthSessionEvents, startAuthSessionTask } = factory({
+  ({ bindAuthPrototypeEvents, bindAuthSessionEvents, startAuthSessionTask, saveAuthSessionTaskFact } = factory({
     app,
     AUTH_PIN_TEMPORARILY_DISABLED,
     bindGenericModalCloseEvents,

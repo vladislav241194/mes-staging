@@ -246,16 +246,28 @@ function startAuthSessionTask(taskId = "", options = {}) {
   return true;
 }
 
-async function saveAuthSessionTaskFact(taskId = "") {
-  if (!taskId) return;
+async function saveAuthSessionTaskFact(taskId = "", options = {}) {
+  if (!taskId) return false;
   const model = getAuthSessionPrototypeModel();
   const task = model.allTasks.find((item) => item.id === taskId) || model.selectedTask || null;
-  if (!task) return;
+  if (!task) return false;
+  const providedFact = normalizePlainRecord(options.fact);
+  if (Object.keys(providedFact).length) {
+    const actualQuantity = normalizeShiftMasterBoardQuantity(providedFact.actualQuantity || 0);
+    const defectQuantity = normalizeShiftMasterBoardQuantity(providedFact.defectQuantity || 0);
+    if (defectQuantity > actualQuantity) return false;
+    setAuthSessionFactDraft(task.id, {
+      actualQuantity,
+      defectQuantity,
+      deviationComment: String(providedFact.deviationComment || "").trim().slice(0, 500),
+      status: getAuthSessionFactDraft(task.id).updatedAt ? "done" : "in_progress",
+    });
+  }
   const current = getAuthSessionFactDraft(task.id);
   const deviationComment = String(current.deviationComment || "").trim();
   if (doesAuthSessionFactNeedDeviationComment(task, current) && !deviationComment) {
     notifySaveSuccess("Нужно указать причину отклонения: факт ниже плана больше чем на 5%.");
-    return;
+    return false;
   }
   const now = new Date().toISOString();
   setAuthSessionFactDraft(task.id, {
@@ -306,23 +318,32 @@ async function saveAuthSessionTaskFact(taskId = "") {
     // The board action may be a lazy resolver.  Await it before redrawing so
     // the Work Desk cannot report a closed operation while the common fact
     // projection is still absent.
-    const savedFact = await saveShiftMasterBoardFact(task.rowId, {
-      actualQuantity,
-      defectQuantity,
-      laborMinutes,
-      executorCount: rowTasksWithCurrent.length,
-      comment: deviationCommentText || `Факт внесен с рабочих столов исполнителей: ${rowTasksWithCurrent.length}`,
-      deviationComment: deviationCommentText,
-      deviationNotes,
-      updatedAt: now,
-    });
+    let savedFact = null;
+    try {
+      savedFact = await saveShiftMasterBoardFact(task.rowId, {
+        actualQuantity,
+        defectQuantity,
+        laborMinutes,
+        executorCount: rowTasksWithCurrent.length,
+        comment: deviationCommentText || `Факт внесен с рабочих столов исполнителей: ${rowTasksWithCurrent.length}`,
+        deviationComment: deviationCommentText,
+        deviationNotes,
+        updatedAt: now,
+      });
+    } catch (error) {
+      console.error("Рабочий стол не смог вызвать владельца общего факта операции.", error);
+    }
     if (!savedFact) {
       // Keep the worker's draft recoverable if the lazy board chunk cannot be
       // loaded.  Most importantly, do not claim that the operation closed
       // until the shared fact projection accepted the write.
+      setAuthSessionFactDraft(task.id, {
+        ...current,
+        status: current.updatedAt ? "done" : "in_progress",
+      });
       persistUiState();
       console.error("Рабочий стол не смог записать общий факт операции.");
-      render();
+      if (options.renderOnChange !== false) render();
       return false;
     }
     notifySaveSuccess("Факт операции закрыт по всем исполнителям и отражен в Ганте.");
@@ -330,7 +351,8 @@ async function saveAuthSessionTaskFact(taskId = "") {
     persistUiState();
     notifySaveSuccess("Факт сотрудника сохранен и отражен в Ганте. Операция закроется после фактов остальных исполнителей.");
   }
-  render();
+  if (options.renderOnChange !== false) render();
+  return true;
 }
 
 function bindAuthSessionEvents() {
