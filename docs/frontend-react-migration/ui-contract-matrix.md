@@ -127,6 +127,14 @@ mounts the read-only island. Shared `MetricGrid`/`MetricCard` primitives now
 serve both canonical structure metrics and the Boards component summary without
 turning either process composition into a universal table variant.
 
+## Structure Positions read-model evidence
+
+Positions reuses the canonical Structure sidebar, metric, table, row, detail
+and status contracts. Its adapter preserves 49 stable IDs and resolves category,
+organization, work-center and schedule references from the same PostgreSQL
+snapshot. Five table cells match legacy literally; editor commands remain a
+separate protected command surface.
+
 ## Roles and Access read-model evidence
 
 The fifth scenario consumes canonical `accessRoles`, `grants`,

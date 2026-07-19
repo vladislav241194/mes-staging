@@ -394,6 +394,14 @@ await writeFile(
   structureEmployeesReactIslandHostSource.replaceAll(structureEmployeesReactIslandVersionMarker, structureEmployeesReactIslandVersion),
 );
 
+const structurePositionsReactIslandOutput = join(stagingDistDir, "src", "react-islands", "structure-positions.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "structure-positions-island.tsx"), structurePositionsReactIslandOutput);
+const structurePositionsReactIslandVersion = await fileHash(structurePositionsReactIslandOutput);
+const structurePositionsReactIslandHostSource = await readFile(structureEmployeesReactIslandHostPath, "utf8");
+const structurePositionsReactIslandVersionMarker = "__MES_STRUCTURE_POSITIONS_REACT_BUNDLE_VERSION__";
+if (!structurePositionsReactIslandHostSource.includes(structurePositionsReactIslandVersionMarker)) throw new Error("Cannot find Structure Positions React island bundle version marker");
+await writeFile(structureEmployeesReactIslandHostPath, structurePositionsReactIslandHostSource.replaceAll(structurePositionsReactIslandVersionMarker, structurePositionsReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -555,6 +563,7 @@ console.log(`- src/app.js?v=${appVersion}${deployCacheSuffix}`);
 console.log(`- src/react-islands/nomenclature.js?v=${nomenclatureReactIslandVersion}`);
 console.log(`- src/react-islands/boards.js?v=${boardsReactIslandVersion}`);
 console.log(`- src/react-islands/structure-employees.js?v=${structureEmployeesReactIslandVersion}`);
+console.log(`- src/react-islands/structure-positions.js?v=${structurePositionsReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);

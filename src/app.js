@@ -74,7 +74,7 @@ import { createPlanningWorkItemHelpers } from "./modules/planning_workbench/work
 import { createProductsRenderModule } from "./modules/products/render.js";
 import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_island_host.js";
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
-import { createStructureEmployeesReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
+import { createStructureEmployeesReactIslandHost, createStructurePositionsReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
@@ -2397,6 +2397,35 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => {
     setProductionStructureMatrixActiveRegistry(registryId || "employees");
+    if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
+  },
+});
+function getStructurePositionsReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-structure-positions") === "1", readOnlyEvaluation: params.get("react-structure-positions-readonly") === "1" };
+}
+function isStructurePositionsReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-structure-positions-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const structurePositionsReactIslandHost = createStructurePositionsReactIslandHost({
+  getActivation: () => {
+    const localQa = getStructurePositionsReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_POSITIONS_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_POSITIONS === true || localQa.featureFlagEnabled,
+      serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
+      accessMode: (serverEvaluationAllowed && isStructurePositionsReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => systemDomainsState,
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, registryId) => {
+    setProductionStructureMatrixActiveRegistry(registryId || "positions");
     if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true });
   },
 });
@@ -6322,15 +6351,19 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("productionStructureMatrix", { fallbackToLegacy: false });
         }
         ensureProductionStructureMatrixModule();
-        const reactDecision = structureEmployeesReactIslandHost.prepareRender();
-        if (reactDecision.activateReact) return structureEmployeesReactIslandHost.renderTarget();
+        const usePositionsHost = isStructurePositionsReactEvaluationRequested();
+        const activeReactHost = usePositionsHost ? structurePositionsReactIslandHost : structureEmployeesReactIslandHost;
+        const inactiveReactHost = usePositionsHost ? structureEmployeesReactIslandHost : structurePositionsReactIslandHost;
+        inactiveReactHost.prepareRender();
+        const reactDecision = activeReactHost.prepareRender();
+        if (reactDecision.activateReact) return activeReactHost.renderTarget();
         return renderProductionStructureMatrixPage();
       },
       bind: () => {
-        if (structureEmployeesReactIslandHost.isReactEligible()) return;
+        if (structureEmployeesReactIslandHost.isReactEligible() || structurePositionsReactIslandHost.isReactEligible()) return;
         bindProductionStructureMatrixEvents();
       },
-      afterRender: () => { void structureEmployeesReactIslandHost.mount(); },
+      afterRender: () => { void structureEmployeesReactIslandHost.mount(); void structurePositionsReactIslandHost.mount(); },
     },
     timesheet: {
       render: () => {

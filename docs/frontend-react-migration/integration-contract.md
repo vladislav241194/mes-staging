@@ -75,6 +75,11 @@ registry slice over a host-supplied System Domains snapshot. The host retains
 all registry navigation, authorization and command ownership; choosing any
 registry other than Employees requests unchanged legacy rendering.
 
+`mountStructurePositionsReactIsland(...)` uses the same authenticated System
+Domains snapshot in a separate bundle and feature policy. It owns only the
+Positions read table and passport. Create/save/archive commands and every
+other Structure registry remain in the legacy renderer.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-
