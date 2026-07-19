@@ -4,7 +4,7 @@
   "pilotAcceptance": "all-flags-off-baseline-accepted",
   "scenarios": [
     { "id": "nomenclature", "family": "registry", "readParity": "local-production-shell", "commandParity": "local-complete", "risk": "medium", "nextVerticalScope": "separately approved authenticated Pilot read-only evaluation, then separately approved write evaluation", "legacyRollback": true },
-    { "id": "componentTypes", "family": "registry", "readParity": "local-production-shell", "commandParity": "pending", "risk": "low", "nextVerticalScope": "create/edit/delete one disposable component type through the existing directory command owner", "legacyRollback": true },
+    { "id": "componentTypes", "family": "registry", "readParity": "local-production-shell", "commandParity": "local-complete", "risk": "low", "nextVerticalScope": "separately gated authenticated Pilot write evaluation with a directories:edit role and disposable-row cleanup", "legacyRollback": true },
     { "id": "operations", "family": "registry", "readParity": "local-production-shell", "commandParity": "pending", "risk": "medium", "nextVerticalScope": "create/edit one operation and prove work-center reference parity; keep delete legacy until usage cleanup is covered", "legacyRollback": true },
     { "id": "nomenclatureTypes", "family": "registry", "readParity": "local-production-shell", "commandParity": "pending", "risk": "high", "nextVerticalScope": "create/edit with nomenclature and specification type-reference synchronization", "legacyRollback": true },
     { "id": "statuses", "family": "registry", "readParity": "local-production-shell", "commandParity": "pending", "risk": "high", "nextVerticalScope": "create/edit one non-system status while preserving lifecycle contracts", "legacyRollback": true },

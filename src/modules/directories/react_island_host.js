@@ -6,6 +6,7 @@ const NOMENCLATURE_TYPES_VERSION = "__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUN
 const STATUSES_VERSION = "__MES_DIRECTORY_STATUSES_REACT_BUNDLE_VERSION__";
 
 function createDirectoryReadIslandHost({
+  allowWriteEvaluation = false,
   bundleName,
   bundleVersion,
   className,
@@ -15,6 +16,7 @@ function createDirectoryReadIslandHost({
   mountExport,
   reportError,
   requestLegacyRender,
+  executeCommand,
   scope,
   targetAttribute,
 }) {
@@ -30,7 +32,7 @@ function createDirectoryReadIslandHost({
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (activation.activeSection !== scope) return "unsupported-scope";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (activation.accessMode !== "read-only-evaluation" && !(allowWriteEvaluation && activation.accessMode === "write-evaluation")) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -44,6 +46,7 @@ function createDirectoryReadIslandHost({
         onError,
         onReady,
         onRequestLegacy: () => onRequestLegacy("legacy-directory"),
+        onCommand: executeCommand ? (command) => executeCommand(command) : undefined,
       })
     ),
   });
@@ -52,6 +55,7 @@ function createDirectoryReadIslandHost({
 export function createDirectoryComponentTypesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowWriteEvaluation: true,
     bundleName: "component-types",
     bundleVersion: COMPONENT_TYPES_VERSION,
     className: "mes-react-directory-component-types-island",

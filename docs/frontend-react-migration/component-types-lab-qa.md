@@ -6,14 +6,16 @@ Baseline: `49d0e1eeecd7b653bdb09d61e73068bb12d22741`
 
 ## Scope
 
-Second standalone read-only registry scenario. It mirrors the actual legacy
+Second standalone registry scenario. It mirrors the actual legacy
 `directoryState.componentTypes` fields and the eight columns configured by
-`getDirectoryData("componentTypes")`. It does not call MES APIs, persist state,
-or change any PostgreSQL-owned file.
+`getDirectoryData("componentTypes")`. Read mode remains the default; a separate
+local write-evaluation path delegates to the existing RBAC-protected directory
+command owner and does not change any PostgreSQL-owned file.
 
 ## Automated evidence
 
-`node experiments/react-migration/qa.mjs` passed with 17 typed sources:
+`node experiments/react-migration/qa.mjs` passes with the full typed migration
+source set:
 
 - malformed rows and payloads fail closed;
 - numeric fields normalize to finite non-negative values;
@@ -24,6 +26,8 @@ or change any PostgreSQL-owned file.
   absent;
 - PostgreSQL stop-list is unchanged from the baseline;
 - the standalone bundle builds.
+- write capabilities fail closed unless explicitly supplied by the production
+  host.
 
 ## Browser evidence
 
@@ -56,7 +60,22 @@ React. All eight formatted cells and row order match, including Russian decimal
 format and the `комп./ч`, `сек`, and `шт.` units. Family filtering, selection,
 detail, return to the full legacy directories list, disabled React writes, unchanged state,
 clean console, and a `< 25 ms` local first commit pass. The production artifact
-is `201,269 B` raw / `63,156 B` gzip / `54,455 B` Brotli.
+remains below its `225,000 B` raw / `68,000 B` gzip budget.
+
+## Local command parity
+
+The local production-shell QA now also runs a separate write contour. React
+creates one disposable Component Type, edits its name and coefficient, and
+then verifies the exact persisted fields through the legacy table. Deletion
+uses the existing directory mutation primitive with the established
+`persistDirectoryStateWithRemoval` flush so a shared-state rebase cannot revive
+the deleted row.
+
+After cleanup, all four original fixture rows and their order are restored.
+Planning routes, route steps and slots are byte-equivalent by domain projection,
+and the browser console remains clean. The write path is available only when
+the local QA request is explicit and the current RBAC subject has
+`directories:edit`; capabilities otherwise remain false.
 
 ## Pilot acceptance
 
@@ -73,5 +92,7 @@ directory shell.
 
 Deactivation restored the unchanged eight-row legacy table in an authenticated
 session even with the evaluation query retained. All flags are off, the
-temporary root directory is removed, and no Pilot data was written. Disposable
-create/edit/delete remains a separate command slice.
+temporary root directory is removed, and no Pilot data was written. The Pilot
+write checkpoint remains separate and requires an authenticated
+`directories:edit` subject plus its own server-side write gate; the current QA
+role correctly remains read-only.

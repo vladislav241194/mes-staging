@@ -620,7 +620,7 @@ try {
     format: "esm",
     target: "node20",
   });
-  const { adaptComponentTypes } = await import(`${pathToFileURL(componentTypesAdapterOutput).href}?qa=${Date.now()}`);
+  const { adaptComponentTypes, adaptComponentTypesModel } = await import(`${pathToFileURL(componentTypesAdapterOutput).href}?qa=${Date.now()}`);
   const componentTypes = adaptComponentTypes({ componentTypes: [
     { id: "ct-valid", name: "QFN", package: "QFN", family: "Микросхемы", coefficient: 0.06, placementsPerHour: 5500.9, setupSeconds: 34.8, defaultCount: 1.7, status: "Активен" },
     { id: "", name: "Missing id" },
@@ -639,6 +639,8 @@ try {
     statusTone: "success",
   }]);
   assert.deepEqual(adaptComponentTypes({ componentTypes: {} }), [], "invalid component-types payload must fail closed");
+  assert.deepEqual(adaptComponentTypesModel({ componentTypes: [], capabilities: { createEdit: true, delete: true } }), { items: [], canCreateEdit: true, canDelete: true }, "Component Types adapter must expose only explicit write capabilities");
+  assert.deepEqual(adaptComponentTypesModel({ componentTypes: [] }), { items: [], canCreateEdit: false, canDelete: false }, "Component Types write capabilities must fail closed");
 
   const componentTypesViewModelOutput = join(temporaryRoot, "component-types-view-model.mjs");
   await build({
@@ -983,6 +985,7 @@ try {
   const componentTypesIslandSource = await readFile(join(sourceRoot, "component-types-island.tsx"), "utf8");
   assert.match(componentTypesIslandSource, /export function mountComponentTypesReactIsland/);
   assert.match(componentTypesIslandSource, /onRequestLegacy/);
+  assert.match(componentTypesIslandSource, /onCommand/);
 
   const operationsIslandSource = await readFile(join(sourceRoot, "operations-island.tsx"), "utf8");
   assert.match(operationsIslandSource, /export function mountOperationsReactIsland/);
@@ -1185,6 +1188,11 @@ try {
   const eligibleDirectoryComponentTypesHost = makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "componentTypes", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleDirectoryComponentTypesHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleDirectoryComponentTypesHost.renderTarget(), /data-react-directory-component-types-island/);
+  assert.deepEqual(
+    makeDirectoryComponentTypesHost({ featureFlagEnabled: true, activeSection: "componentTypes", accessMode: "write-evaluation" }).prepareRender(),
+    { activateReact: true, reason: "eligible" },
+    "Component Types must accept only its explicit write-evaluation mode in addition to read-only evaluation",
+  );
 
   const makeDirectoryOperationsHost = (activation) => directoryComponentTypesHostModule.createDirectoryOperationsReactIslandHost({
     getActivation: () => activation,
@@ -1316,7 +1324,10 @@ try {
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-directory-component-types"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-component-types-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-component-types-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-component-types-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /canEditDirectorySection\("componentTypes"\)/);
+  assert.match(productionAppSource, /persistDirectoryStateWithRemoval\(\)/);
   assert.match(productionAppSource, /componentTypes: directoryComponentTypesReactIslandHost/);
   assert.match(productionAppSource, /operations: directoryOperationsReactIslandHost/);
   assert.match(productionAppSource, /nomenclatureTypes: directoryNomenclatureTypesReactIslandHost/);
@@ -1487,9 +1498,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature"], "only Nomenclature has locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes"], "Nomenclature and Component Types must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics"], "only diagnostics may have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 22, "all 22 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 21, "all 21 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

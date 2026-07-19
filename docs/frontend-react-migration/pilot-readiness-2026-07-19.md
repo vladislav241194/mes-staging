@@ -325,4 +325,8 @@ Deactivation removed all React flags. Health stayed green, an authenticated
 session retaining the evaluation query mounted no island, and the same eight
 legacy rows remained unchanged. The temporary rollout directory was removed
 and no Pilot data was written. Component Types is currently legacy for every
-session.
+session. Local command parity is now complete: an isolated RBAC-enabled QA
+contour creates, edits, verifies through legacy and removes one disposable row,
+restoring the original fixture and preserving Planning routes, steps and slots.
+No Pilot write flag has been introduced; live write acceptance remains a
+separate checkpoint for a `directories:edit` role.

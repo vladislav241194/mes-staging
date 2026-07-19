@@ -23,6 +23,12 @@ export interface ComponentTypeItem {
   statusTone: "success" | "neutral";
 }
 
+export interface ComponentTypesModel {
+  items: ComponentTypeItem[];
+  canCreateEdit: boolean;
+  canDelete: boolean;
+}
+
 function text(value: unknown): string {
   return String(value ?? "").trim();
 }
@@ -59,4 +65,18 @@ export function adaptComponentTypes(payload: unknown): ComponentTypeItem[] {
       statusTone: statusLabel.toLocaleLowerCase("ru-RU").includes("актив") ? "success" : "neutral",
     }];
   });
+}
+
+export function adaptComponentTypesModel(payload: unknown): ComponentTypesModel {
+  const capabilities = payload && typeof payload === "object"
+    ? (payload as Record<string, unknown>).capabilities
+    : null;
+  const capabilityRecord = capabilities && typeof capabilities === "object"
+    ? capabilities as Record<string, unknown>
+    : {};
+  return {
+    items: adaptComponentTypes(payload),
+    canCreateEdit: capabilityRecord.createEdit === true,
+    canDelete: capabilityRecord.delete === true,
+  };
 }

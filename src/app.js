@@ -2985,12 +2985,13 @@ const rolesReactIslandHost = createRolesReactIslandHost({
 });
 function getDirectoryComponentTypesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   return {
     featureFlagEnabled: params.get("react-directory-component-types") === "1",
     readOnlyEvaluation: params.get("react-directory-component-types-readonly") === "1",
+    writeEvaluation: params.get("react-directory-component-types-write") === "1",
   };
 }
 function isDirectoryComponentTypesReactEvaluationRequested() {
@@ -3006,16 +3007,66 @@ const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReac
     return {
       featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES === true || localQa.featureFlagEnabled),
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: (serverEvaluationAllowed && isDirectoryComponentTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+      accessMode: localQa.writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isDirectoryComponentTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
         : "editor",
     };
   },
-  getPayload: () => directoryState,
+  getPayload: () => {
+    const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
+    const canWrite = localQa.writeEvaluation && canEditDirectorySection("componentTypes");
+    return { ...directoryState, capabilities: { createEdit: canWrite, delete: canWrite } };
+  },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || !canEditDirectorySection("componentTypes")) {
+      return { ok: false, message: "Запись типов компонентов недоступна для текущей роли." };
+    }
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "delete") {
+      const itemId = String(input.itemId || "").trim();
+      const rowIndex = (directoryState.componentTypes || []).findIndex((item) => String(item.id || "") === itemId);
+      if (rowIndex < 0) return { ok: false, message: "Тип компонента уже отсутствует." };
+      const row = directoryState.componentTypes[rowIndex];
+      const nextDirectoryState = deleteDirectoryStateRow("componentTypes", row);
+      if (!nextDirectoryState) return { ok: false, message: "Не удалось удалить тип компонента." };
+      await persistDirectoryStateWithRemoval();
+      ui.selectedDirectoryRows.componentTypes = Math.max(0, Math.min(rowIndex, (directoryState.componentTypes || []).length - 1));
+      persistUiState();
+      render({ skipRememberScroll: true });
+      return { ok: true, id: itemId };
+    }
+    if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда типов компонентов." };
+    const isNew = input.isNew === true;
+    const itemId = isNew ? makeId("ct") : String(input.itemId || "").trim();
+    const rowIndex = isNew ? -1 : (directoryState.componentTypes || []).findIndex((item) => String(item.id || "") === itemId);
+    if (!isNew && rowIndex < 0) return { ok: false, message: "Тип компонента уже отсутствует." };
+    const name = String(input.name || "").trim();
+    if (!name) return { ok: false, message: "Заполните поле «Тип»." };
+    const row = {
+      id: itemId,
+      name,
+      package: String(input.package || "").trim(),
+      family: String(input.family || "").trim(),
+      coefficient: Math.max(0, Number(input.coefficient) || 0),
+      placementsPerHour: Math.max(0, Math.trunc(Number(input.placementsPerHour) || 0)),
+      setupSeconds: Math.max(0, Math.trunc(Number(input.setupSeconds) || 0)),
+      defaultCount: Math.max(0, Math.trunc(Number(input.defaultCount) || 0)),
+      status: String(input.status || "").trim() || "Активен",
+    };
+    const result = saveDirectoryRow("componentTypes", rowIndex, row);
+    if (result === false) return { ok: false, message: "Не удалось сохранить тип компонента." };
+    ui.selectedDirectoryRows.componentTypes = rowIndex >= 0 ? rowIndex : Math.max(0, (directoryState.componentTypes || []).length - 1);
+    persistUiState();
+    render({ skipRememberScroll: true });
+    return { ok: true, id: itemId, isNew };
   },
 });
 function getDirectoryOperationsReactLocalQaOverrides() {

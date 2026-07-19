@@ -54,6 +54,7 @@ async function openLegacyComponentTypes(client) {
 async function main() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-directory-component-types-react-"));
   const sharedStateFile = join(temporaryRoot, "shared-state.json");
+  const writeSharedStateFile = join(temporaryRoot, "write-shared-state.json");
   const snapshot = {
     version: 1,
     updatedAt: "2026-07-19T00:00:00.000Z",
@@ -66,13 +67,17 @@ async function main() {
     events: [],
   };
   await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
+  await writeFile(writeSharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
   assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state must be owner-readable only");
+  assert(((await stat(writeSharedStateFile)).mode & 0o777) === 0o600, "temporary write state must be owner-readable only");
   const originalSnapshot = await readFile(sharedStateFile, "utf8");
   const previewPort = await getFreePort();
   const legacyPort = await getFreePort();
+  const writePort = await getFreePort();
   const origin = `http://127.0.0.1:${previewPort}`;
   const legacyOrigin = `http://127.0.0.1:${legacyPort}`;
-  const spawnPreview = (port, enabled) => spawn(process.execPath, ["scripts/preview-dist.mjs"], {
+  const writeOrigin = `http://127.0.0.1:${writePort}`;
+  const spawnPreview = (port, enabled, stateFile = sharedStateFile) => spawn(process.execPath, ["scripts/preview-dist.mjs"], {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -80,7 +85,7 @@ async function main() {
       PORT: String(port),
       APP_ENV: "local",
       MES_ADMIN_HOSTS: "admin.mes-line.ru",
-      MES_SHARED_STATE_FILE: sharedStateFile,
+      MES_SHARED_STATE_FILE: stateFile,
       ...(enabled ? {
         MES_REACT_DIRECTORY_COMPONENT_TYPES: "1",
         MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION: "1",
@@ -90,16 +95,20 @@ async function main() {
   });
   const preview = spawnPreview(previewPort, true);
   const legacyPreview = spawnPreview(legacyPort, false);
+  const writePreview = spawnPreview(writePort, false, writeSharedStateFile);
   let previewOutput = "";
   let legacyOutput = "";
+  let writeOutput = "";
   preview.stdout.on("data", (chunk) => { previewOutput += chunk.toString(); });
   preview.stderr.on("data", (chunk) => { previewOutput += chunk.toString(); });
   legacyPreview.stdout.on("data", (chunk) => { legacyOutput += chunk.toString(); });
   legacyPreview.stderr.on("data", (chunk) => { legacyOutput += chunk.toString(); });
+  writePreview.stdout.on("data", (chunk) => { writeOutput += chunk.toString(); });
+  writePreview.stderr.on("data", (chunk) => { writeOutput += chunk.toString(); });
   let chrome = null;
   const consoleProblems = [];
   try {
-    await Promise.all([waitForPreview(origin), waitForPreview(legacyOrigin)]);
+    await Promise.all([waitForPreview(origin), waitForPreview(legacyOrigin), waitForPreview(writeOrigin)]);
     chrome = await launchChrome("mes-directory-component-types-react-qa-");
     const { client } = chrome;
     client.socket.addEventListener("message", (event) => {
@@ -176,19 +185,157 @@ async function main() {
     ), { message: "All directories action did not restore the current full legacy directory section" });
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
     assert(await readFile(sharedStateFile, "utf8") === originalSnapshot, "read-only Component Types scenario must not modify state");
+
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=directories&qa-auth-bypass=1&react-directory-component-types=1&react-directory-component-types-write=1` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-directory-id="componentTypes"]')), { message: "write contour did not render directory navigation" });
+    await evaluate(client, () => document.querySelector('[data-directory-id="componentTypes"]')?.click());
+    await waitForCondition(client, () => Boolean(
+      document.querySelector('[data-react-directory-component-types-island][data-react-island-state="ready"]')
+      && document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4
+    ), { message: "Component Types write evaluation did not mount", timeoutMs: 15_000 });
+    const writeActivation = await evaluate(client, () => ({
+      badge: document.querySelector(".lab-badge")?.textContent?.trim() || "",
+      addDisabled: [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.includes("Добавить тип"))?.disabled,
+    }));
+    assert(writeActivation.badge.includes("create/edit/delete") && writeActivation.addDisabled === false, `write capability did not reach React: ${JSON.stringify(writeActivation)}`);
+
+    await evaluate(client, () => {
+      [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.includes("Добавить тип"))?.click();
+    });
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")), { message: "Component Types create editor did not open" });
+    await evaluate(client, () => {
+      const form = document.querySelector(".react-nomenclature-editor");
+      const setValue = (name, value) => {
+        const control = form?.elements.namedItem(name);
+        if (!control) throw new Error(`Missing Component Types editor field: ${name}`);
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(control, value);
+        control.dispatchEvent(new Event("input", { bubbles: true }));
+        control.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      setValue("name", "React QA тип");
+      setValue("package", "QA-100");
+      setValue("family", "QA семейство");
+      setValue("coefficient", "1.25");
+      setValue("placementsPerHour", "12345");
+      setValue("setupSeconds", "45");
+      setValue("defaultCount", "7");
+      setValue("status", "Активен");
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 5
+      && [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("React QA тип"))
+    ), { message: "Component Types create did not return the five-row projection" });
+
+    await evaluate(client, () => {
+      [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+        .find((row) => row.textContent.includes("React QA тип"))?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "React QA тип", { message: "created Component Type did not become selectable" });
+    await evaluate(client, () => {
+      [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+        .find((button) => button.textContent.trim() === "Редактировать")?.click();
+    });
+    await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "React QA тип", { message: "Component Types edit form did not open" });
+    await evaluate(client, () => {
+      const form = document.querySelector(".react-nomenclature-editor");
+      const name = form?.elements.namedItem("name");
+      const coefficient = form?.elements.namedItem("coefficient");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(name, "React QA тип изменён");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(coefficient, "1.5");
+      coefficient.dispatchEvent(new Event("input", { bubbles: true }));
+      form.requestSubmit();
+    });
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .some((row) => row.textContent.includes("React QA тип изменён") && row.textContent.includes("1,5")), { message: "Component Types edit did not return the updated projection" });
+
+    let persistedAfterEdit = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const current = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      const directory = JSON.parse(current.values[DIRECTORY_STORAGE_KEY]);
+      persistedAfterEdit = directory.componentTypes.find((item) => item.name === "React QA тип изменён");
+      if (persistedAfterEdit?.coefficient === 1.5) break;
+      await delay(120);
+    }
+    assert(persistedAfterEdit?.package === "QA-100" && persistedAfterEdit?.family === "QA семейство", "create/edit must preserve Component Types text fields");
+    assert(persistedAfterEdit?.placementsPerHour === 12345 && persistedAfterEdit?.setupSeconds === 45 && persistedAfterEdit?.defaultCount === 7, "create/edit must preserve Component Types numeric fields");
+
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=directories&qa-auth-bypass=1` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-directory-id="componentTypes"]')), { message: "legacy contour did not reload after React edit" });
+    await evaluate(client, () => document.querySelector('[data-directory-id="componentTypes"]')?.click());
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-directory-row]').length === 5
+      && [...document.querySelectorAll('[data-directory-row]')].some((row) => row.textContent.includes("React QA тип изменён"))
+    ), { message: "legacy projection did not expose the React-created Component Type" });
+
+    await client.send("Page.navigate", { url: `${writeOrigin}/?module=directories&qa-auth-bypass=1&react-directory-component-types=1&react-directory-component-types-write=1` });
+    await waitForCondition(client, () => Boolean(
+      document.querySelector('[data-directory-id="componentTypes"]')
+      || document.querySelector('[data-react-directory-component-types-island]')
+    ), { message: "write contour did not reload before delete" });
+    await evaluate(client, () => document.querySelector('[data-directory-id="componentTypes"]')?.click());
+    await waitForCondition(client, () => document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 5, { message: "write projection did not reload before delete" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')]
+      .find((row) => row.textContent.includes("React QA тип изменён"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "React QA тип изменён", { message: "temporary Component Type was not selected before delete" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Редактировать")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector(".react-nomenclature-editor")), { message: "edit form did not reopen before delete" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Удалить")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('[role="alertdialog"]')), { message: "delete confirmation did not open" });
+    const deleteText = await evaluate(client, () => document.querySelector('[role="alertdialog"]')?.textContent?.replace(/\s+/g, " ").trim() || "");
+    assert(deleteText.includes("React QA тип изменён"), "delete confirmation must identify the selected Component Type");
+    await evaluate(client, () => [...document.querySelectorAll('[role="alertdialog"] [data-ui-component="ActionButton"]')]
+      .find((button) => button.textContent.trim() === "Удалить")?.click());
+    await delay(500);
+    const deleteDebug = await evaluate(client, () => ({
+      targetState: document.querySelector('[data-react-directory-component-types-island]')?.getAttribute("data-react-island-state") || "",
+      rowCount: document.querySelectorAll('[data-ui-component="SelectableRow"]').length,
+      rows: [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].map((row) => row.textContent.replace(/\s+/g, " ").trim()),
+      commandError: document.querySelector(".react-nomenclature-command-error")?.textContent?.trim() || "",
+      confirmationOpen: Boolean(document.querySelector('[role="alertdialog"]')),
+      localRows: JSON.parse(localStorage.getItem("mes-planning-prototype-directories-v2") || "{}").componentTypes?.length ?? -1,
+    }));
+    await waitForCondition(client, () => (
+      document.querySelectorAll('[data-ui-component="SelectableRow"]').length === 4
+      && ![...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("React QA тип"))
+    ), { message: `Component Types delete did not restore the original four-row projection: ${JSON.stringify(deleteDebug)}` });
+
+    let finalWriteSnapshot = null;
+    let finalWriteDirectory = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      finalWriteSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+      finalWriteDirectory = JSON.parse(finalWriteSnapshot.values[DIRECTORY_STORAGE_KEY]);
+      if (finalWriteDirectory.componentTypes.length === 4) break;
+      await delay(120);
+    }
+    assert(JSON.stringify(finalWriteDirectory.componentTypes) === JSON.stringify(directoryFixture.componentTypes), "create/edit/delete cleanup must restore every original Component Type and row order");
+    const planningDomainRows = (raw) => {
+      const state = JSON.parse(raw);
+      return { routes: state.routes || [], routeSteps: state.routeSteps || [], slots: state.slots || [] };
+    };
+    assert(JSON.stringify(planningDomainRows(finalWriteSnapshot.values[STATE_STORAGE_KEY])) === JSON.stringify(planningDomainRows(snapshot.values[STATE_STORAGE_KEY])), "Component Types commands must not modify Planning routes, steps or slots");
+    assert(consoleProblems.length === 0, `write-evaluation browser console must stay clean:\n${consoleProblems.join("\n")}`);
+
     console.log("Directory Component Types React production-shell functional QA: OK");
     console.log("- same payload: 4 legacy rows = 4 React rows, eight cells and order match");
     console.log("- server-enabled default without session request: editable legacy");
     console.log("- family filter, selection, detail and legacy return: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
     console.log("- disabled React writes, unchanged state and clean console: pass");
+    console.log("- local RBAC-gated create/edit/delete through the existing owner, legacy read-back and cleanup: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
     if (legacyOutput.trim()) console.error(legacyOutput.trim());
+    if (writeOutput.trim()) console.error(writeOutput.trim());
     throw error;
   } finally {
     if (chrome) await cleanupChrome(chrome);
-    await Promise.all([stopProcess(preview), stopProcess(legacyPreview)]);
+    await Promise.all([stopProcess(preview), stopProcess(legacyPreview), stopProcess(writePreview)]);
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 }
