@@ -1437,6 +1437,27 @@ function deleteOperationMapItem(operationId, { deferDirectoryPersist = false } =
   return true;
 }
 
+async function deleteUserManagedDirectoryStatus(statusId, { deferDirectoryPersist = false } = {}) {
+  if (!canEditCustomStatusDirectorySection()) return false;
+  const normalizedStatusId = String(statusId || "").trim();
+  if (!normalizedStatusId) return false;
+  const rows = directoryState.statuses || [];
+  const rowIndex = rows.findIndex((item) => String(item?.id || "") === normalizedStatusId);
+  const row = rowIndex >= 0 ? rows[rowIndex] : null;
+  if (!row || !isUserManagedDirectoryStatus(row)) return false;
+
+  deleteDirectoryStateRow("statuses", row);
+  ui.directoryEditor = null;
+  const nextRows = directoryState.statuses || [];
+  ui.selectedDirectoryRows.statuses = nextRows.length ? Math.min(rowIndex, nextRows.length - 1) : 0;
+  if (!deferDirectoryPersist) await persistDirectoryStateWithRemoval();
+  persistState();
+  persistUiState();
+  notifySaveSuccess("Пользовательский статус удалён");
+  render();
+  return true;
+}
+
 // The route editor is not needed to render the startup modules. Keep its
 // mutations and optional products-event bridge behind the same lazy boundary
 // as the route renderer. All dependencies stay late-bound through the state
@@ -2023,6 +2044,7 @@ function updateDependencyClip(shell) {
     applyOperationMapChangesToRoutes,
     getOperationDeleteUsage,
     deleteOperationMapItem,
+    deleteUserManagedDirectoryStatus,
     openProjectInPlanning,
     bindDirectoryForm,
     saveDirectoryRow,

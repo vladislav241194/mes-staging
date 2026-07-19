@@ -733,8 +733,12 @@ try {
   const statuses = adaptStatuses({ statuses: [{ id: "ready", name: "Готов", group: "Документы", code: "ready" }, { id: "custom-status-qa", name: "QA", group: "Документы", code: "qa", statusAuthority: "user" }, { id: "", name: "invalid" }] });
   assert.deepEqual(statuses.map((item) => [item.id, item.name, item.group, item.code, item.isUserManaged]), [["ready", "Готов", "Документы", "ready", false], ["custom-status-qa", "QA", "Документы", "qa", true]]);
   assert.deepEqual(adaptStatuses({ statuses: {} }), []);
-  assert.equal(adaptStatusesModel({ statuses: [], capabilities: { createEditCustom: true } }).canCreateEditCustom, true);
-  assert.equal(adaptStatusesModel({ statuses: [], capabilities: { createEditCustom: "true" } }).canCreateEditCustom, false, "non-boolean custom Status capability must fail closed");
+  const statusesCommandModel = adaptStatusesModel({ statuses: [], capabilities: { createEditCustom: true, deleteCustom: true } });
+  assert.equal(statusesCommandModel.canCreateEditCustom, true);
+  assert.equal(statusesCommandModel.canDeleteCustom, true);
+  const statusesFailClosed = adaptStatusesModel({ statuses: [], capabilities: { createEditCustom: "true", deleteCustom: "true" } });
+  assert.equal(statusesFailClosed.canCreateEditCustom, false, "non-boolean custom Status write capability must fail closed");
+  assert.equal(statusesFailClosed.canDeleteCustom, false, "non-boolean custom Status delete capability must fail closed");
   const statusesViewModelOutput = join(temporaryRoot, "statuses-view-model.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/statuses/view-model.ts")], outfile: statusesViewModelOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
   const statusesViewModel = await import(`${pathToFileURL(statusesViewModelOutput).href}?qa=${Date.now()}`);

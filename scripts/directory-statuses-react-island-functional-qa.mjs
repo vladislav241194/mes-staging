@@ -172,14 +172,48 @@ try {
   const planningProjection = (state) => ({ routes: state.routes || [], routeSteps: state.routeSteps || [], slots: state.slots || [] });
   assert(JSON.stringify(planningProjection(persistedPlanning)) === JSON.stringify(planningProjection(planningBeforeCustomWrite)), `custom Status write changed Planning routes/steps/slots\nbefore=${JSON.stringify(planningProjection(planningBeforeCustomWrite))}\nafter=${JSON.stringify(planningProjection(persistedPlanning))}`);
 
+  await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((row) => row.textContent.includes("Готов к маркировке"))?.click());
+  await waitForCondition(client, () => document.querySelector('[data-ui-component="DetailPanel"] h2')?.textContent === "Готов к маркировке", { message: "edited custom Status was not selectable before delete" });
+  await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent.includes("Редактировать пользовательский"))?.click());
+  await waitForCondition(client, () => document.querySelector('.react-nomenclature-editor input[name="name"]')?.value === "Готов к маркировке", { message: "custom Status editor did not reopen before delete" });
+  await evaluate(client, () => [...document.querySelectorAll('.react-nomenclature-editor [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-ui-component="DeleteConfirmation"][role="alertdialog"]')), { message: "custom Status delete confirmation did not open" });
+  const deleteCancelBaseline = await readFile(writeSharedStateFile, "utf8");
+  await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="DeleteConfirmation"] [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Не удалять")?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector('.react-nomenclature-editor input[name="name"]')), { message: "custom Status delete cancellation did not return to editor" });
+  await delay(250);
+  assert(await readFile(writeSharedStateFile, "utf8") === deleteCancelBaseline, "custom Status delete cancellation changed persisted state");
+
+  await evaluate(client, () => [...document.querySelectorAll('.react-nomenclature-editor [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
+  await waitForCondition(client, () => Boolean(document.querySelector('[data-ui-component="DeleteConfirmation"][role="alertdialog"]')), { message: "custom Status delete confirmation did not reopen" });
+  await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="DeleteConfirmation"] [data-ui-component="ActionButton"]')].find((button) => button.textContent.trim() === "Удалить")?.click());
+  await waitForCondition(client, (expectedCount) => document.querySelectorAll('[data-ui-component="SelectableRow"]').length === expectedCount
+    && ![...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent.includes("Готов к маркировке")), { arg: writeInitial.count, message: "custom Status delete did not restore the initial projection" });
+
+  let persistedAfterDelete = null;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const persistedSnapshot = JSON.parse(await readFile(writeSharedStateFile, "utf8"));
+    persistedAfterDelete = JSON.parse(persistedSnapshot.values[DIRECTORY_STORAGE_KEY]);
+    if (!persistedAfterDelete.statuses.some((row) => row.id === customRow.id)) break;
+    await delay(120);
+  }
+  assert(!persistedAfterDelete.statuses.some((row) => row.id === customRow.id), "custom Status deletion was not persisted");
+  assert(persistedAfterDelete.statuses.some((row) => row.id === "route-draft" && row.name === "Черновик" && row.code === "draft"), "system Status changed during custom deletion");
+  const planningAfterDelete = JSON.parse(JSON.parse(await readFile(writeSharedStateFile, "utf8")).values[STATE_STORAGE_KEY]);
+  assert(JSON.stringify(planningProjection(planningAfterDelete)) === JSON.stringify(planningProjection(planningBeforeCustomWrite)), `custom Status deletion changed Planning routes/steps/slots\nbefore=${JSON.stringify(planningProjection(planningBeforeCustomWrite))}\nafter=${JSON.stringify(planningProjection(planningAfterDelete))}`);
+
   await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Все справочники"))?.click());
   await waitForCondition(client, () => Boolean(!document.querySelector("[data-react-directory-statuses-island]") && document.querySelector('[data-directory-id="statuses"].is-active')), { message: "custom Status legacy return failed" });
-  assert(await evaluate(client, () => [...document.querySelectorAll('[data-directory-row]')].some((row) => row.textContent.includes("Готов к маркировке"))), "legacy Statuses did not read back the custom row");
+  const legacyAfterDelete = await evaluate(client, () => ({
+    hasCustom: [...document.querySelectorAll('[data-directory-row]')].some((row) => row.textContent.includes("Готов к маркировке")),
+    hasSystem: [...document.querySelectorAll('[data-directory-row]')].some((row) => row.textContent.includes("Черновик")),
+  }));
+  assert(!legacyAfterDelete.hasCustom && legacyAfterDelete.hasSystem, `legacy Statuses delete read-back mismatch: ${JSON.stringify(legacyAfterDelete)}`);
   assert(consoleProblems.length === 0, `browser console problems after custom write:\n${consoleProblems.join("\n")}`);
   console.log("Directory Statuses React production-shell functional QA: OK");
   console.log(`- exact parity: ${legacyRows.length} rows, seven cells and order; first commit ${initial.commitMs.toFixed(2)} ms`);
   console.log("- default legacy, group filter, compact layout, selection/detail, legacy return, unchanged state and clean console: pass");
-  console.log("- local RBAC-gated custom create/edit, system-row protection, persistence, legacy read-back and unchanged Planning state: pass");
+  console.log("- local RBAC-gated custom create/edit/delete, cancel safety, system-row protection, persistence, legacy read-back and unchanged Planning state: pass");
 } catch (error) {
   if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); if (writeOutput.trim()) console.error(writeOutput.trim()); throw error;
 } finally {

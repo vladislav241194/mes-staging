@@ -730,3 +730,21 @@ island reached revision `1` in `557.70 ms`; task start remained disabled and no
 fact or Report command was invoked. A clean `.81` tab had no browser warnings
 or errors. Evaluation is disabled, zero React targets were verified after
 reload and the default Employee Desktop path is legacy.
+
+## Statuses custom delete checkpoint
+
+The local Statuses vertical scenario now covers create, edit, cancel-safe
+delete, confirmed delete and legacy removal read-back. Commit authority is
+rechecked by `app_events`: only a persisted `custom-status-*` row with
+`statusAuthority: "user"` and current `directories:edit` RBAC may be removed.
+System, forged, missing and RBAC-denied targets fail closed. Deletion records
+the directory removal, preserves every system row and leaves Planning
+routes/steps/slots byte-equivalent.
+
+The full production-shell QA passed with 85-row read parity, `19.40 ms` first
+commit, a byte-identical cancellation snapshot, confirmed persistence and
+legacy read-back without the disposable row. Adjacent Operations and
+Nomenclature Types destructive functional suites remain green. The standalone
+Statuses island is `213,503 B` raw / `65,173 B` gzip; production output is
+`207,032 B` raw / `64,632 B` gzip / `55,697 B` Brotli. Pilot write activation
+does not exist and no real Pilot data was mutated.

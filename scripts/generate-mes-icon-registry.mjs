@@ -11,11 +11,7 @@ const outputPath = join(projectRoot, "src", "icons", "registry.js");
 
 const runtimeRegistry = JSON.parse(await readFile(join(sourceRoot, "mappings", "runtime-mixed-registry.json"), "utf-8"));
 const mixedManifest = JSON.parse(await readFile(join(sourceRoot, "reports", "mixed-icon-manifest.json"), "utf-8"));
-const brandLogoSvg = normalizeSvg(
-  (await readFile(join(projectRoot, "favicon.svg"), "utf-8"))
-    .replaceAll('fill="#fff"', 'fill="currentColor"')
-    .replaceAll('fill="#ffffff"', 'fill="currentColor"'),
-);
+const brandLogoSvg = '<svg viewBox="0 0 512 512"><image href="./favicon.svg" width="512" height="512"/></svg>';
 
 const LEGACY_ALIASES = {
   arrowLeft: "arrow-left",

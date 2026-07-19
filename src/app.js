@@ -3922,7 +3922,10 @@ const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost(
     const localQa = getDirectoryStatusesReactLocalQaOverrides();
     return {
       statuses: getDirectoryData("statuses").rows,
-      capabilities: { createEditCustom: localQa.writeEvaluation && canEditCustomStatusDirectorySection() },
+      capabilities: {
+        createEditCustom: localQa.writeEvaluation && canEditCustomStatusDirectorySection(),
+        deleteCustom: localQa.writeEvaluation && canEditCustomStatusDirectorySection(),
+      },
     };
   },
   getTargetRoot: () => app,
@@ -3935,8 +3938,22 @@ const directoryStatusesReactIslandHost = createDirectoryStatusesReactIslandHost(
     if (!localQa.writeEvaluation || !canEditCustomStatusDirectorySection()) {
       return { ok: false, message: "Создание пользовательских статусов недоступно для текущей роли." };
     }
-    if (command.type !== "save-custom") return { ok: false, message: "Неподдерживаемая команда реестра статусов." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "delete-custom") {
+      const itemId = String(input.itemId || "").trim();
+      const rows = directoryState.statuses || [];
+      const rowIndex = rows.findIndex((item) => String(item?.id || "") === itemId);
+      if (rowIndex < 0) return { ok: false, message: "Пользовательский статус уже отсутствует." };
+      if (!isUserManagedDirectoryStatus(rows[rowIndex])) return { ok: false, message: "Системные статусы удалить нельзя." };
+      const nextCount = Math.max(0, rows.length - 1);
+      ui.selectedDirectoryRows.statuses = nextCount ? Math.min(rowIndex, nextCount - 1) : 0;
+      if (await deleteUserManagedDirectoryStatus(itemId, { deferDirectoryPersist: true }) !== true) {
+        return { ok: false, message: "Не удалось удалить пользовательский статус." };
+      }
+      await persistDirectoryStateWithRemoval();
+      return { ok: true, id: itemId };
+    }
+    if (command.type !== "save-custom") return { ok: false, message: "Неподдерживаемая команда реестра статусов." };
     const isNew = input.isNew === true;
     const itemId = isNew ? makeId("custom-status") : String(input.itemId || "").trim();
     const rows = directoryState.statuses || [];
@@ -8792,6 +8809,7 @@ function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCal
 function applyOperationMapChangesToRoutes(...args) { return appEventsService.applyOperationMapChangesToRoutes(...args); }
 function getOperationDeleteUsage(...args) { return appEventsService.getOperationDeleteUsage(...args); }
 function deleteOperationMapItem(...args) { return appEventsService.deleteOperationMapItem(...args); }
+function deleteUserManagedDirectoryStatus(...args) { return appEventsService.deleteUserManagedDirectoryStatus(...args); }
 function openProjectInPlanning(...args) { return appEventsService.openProjectInPlanning(...args); }
 function bindDirectoryEvents(...args) { return appEventsService.bindDirectoryEvents(...args); }
 function bindDirectoryForm(...args) { return appEventsService.bindDirectoryForm(...args); }

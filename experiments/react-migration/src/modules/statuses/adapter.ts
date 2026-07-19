@@ -16,7 +16,7 @@ export interface StatusReadItem {
   registryKindValue: string; isUserManaged: boolean;
 }
 
-export interface StatusesModel { items: StatusReadItem[]; canCreateEditCustom: boolean }
+export interface StatusesModel { items: StatusReadItem[]; canCreateEditCustom: boolean; canDeleteCustom: boolean }
 
 function text(value: unknown, fallback = "—") { return String(value ?? "").trim() || fallback; }
 
@@ -49,5 +49,9 @@ export function adaptStatuses(payload: unknown): StatusReadItem[] {
 export function adaptStatusesModel(payload: unknown): StatusesModel {
   const root = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
   const capabilities = root.capabilities && typeof root.capabilities === "object" ? root.capabilities as Record<string, unknown> : {};
-  return { items: adaptStatuses(payload), canCreateEditCustom: capabilities.createEditCustom === true };
+  return {
+    items: adaptStatuses(payload),
+    canCreateEditCustom: capabilities.createEditCustom === true,
+    canDeleteCustom: capabilities.deleteCustom === true,
+  };
 }
