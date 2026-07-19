@@ -71,7 +71,7 @@ function adaptEmployee(value: unknown, days: TimesheetDay[], index: number): Tim
   const schedule = asRecord(employee.schedule);
   return {
     id,
-    name,
+    name: asText(employee.displayName, name),
     role: asText(employee.role, "Сотрудник"),
     personKind: asText(employee.personKind, "employee"),
     scheduleCode: asText(schedule.code, "—"),

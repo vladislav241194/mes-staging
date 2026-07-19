@@ -514,6 +514,7 @@ export function createTimesheetModule(dependencies = {}) {
         const cells = days.map((day) => getTimesheetCell(employee, day, index, schedule, calendarContext));
         return {
           ...employee,
+          displayName: formatPersonDisplayName(employee.name, { fallback: "Сотрудник" }),
           timesheetId,
           sourceIndex: index,
           department,
@@ -843,7 +844,7 @@ export function createTimesheetModule(dependencies = {}) {
                         </th>
                       </tr>
                       ${group.employees.map((employee) => {
-                        const employeeDisplayName = formatPersonDisplayName(employee.name, { fallback: "Сотрудник" });
+                        const employeeDisplayName = employee.displayName;
                         return `
                         <tr class="timesheet-employee-row">
                           <th class="timesheet-person-cell">
@@ -1115,6 +1116,8 @@ export function createTimesheetModule(dependencies = {}) {
     getTimesheetDayOption,
     getTimesheetEmployeeSchedule,
     getTimesheetModel,
+    moveTimesheetPeriod,
+    openTimesheetEditor,
     renderTimesheetEditorModal,
     renderTimesheetPage,
     resetTimesheetEditorCell,

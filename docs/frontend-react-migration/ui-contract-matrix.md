@@ -180,7 +180,7 @@ in identical order and text. The shared React `TableWrap` now emits the actual
 `ui-table-wrap` class plus `horizontal-only` scroll contract, closing a common
 production overflow gap for every island without scenario-specific CSS.
 
-## Timesheet isolated evidence
+## Timesheet production evidence
 
 Timesheet reuses the same dense-family header, metrics, panels, status tokens
 and table overflow contract while keeping its calendar cells and departmental
@@ -188,7 +188,9 @@ group rows specialized. The typed boundary consumes the completed legacy
 `getTimesheetModel()` result: three fixture employees, two departments, seven
 days and 21 cells retain order and values. Period, view, schedule and day
 actions return to legacy, where PostgreSQL hydration, editors and commands stay
-authoritative. This is an isolated lab proof, not a production integration.
+authoritative. Production-shell comparison proves identical 76 employees, 96
+rows and 35 columns from one canonical PostgreSQL-backed projection. The host
+is disabled by default and every interactive scope returns to legacy.
 
 ## Roles and Access read-model evidence
 

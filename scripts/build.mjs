@@ -451,6 +451,15 @@ const weeklyProductionControlReactIslandVersionMarker = "__MES_WEEKLY_PRODUCTION
 if (!weeklyProductionControlReactIslandHostSource.includes(weeklyProductionControlReactIslandVersionMarker)) throw new Error("Cannot find Weekly Production Control React island bundle version marker");
 await writeFile(weeklyProductionControlReactIslandHostPath, weeklyProductionControlReactIslandHostSource.replaceAll(weeklyProductionControlReactIslandVersionMarker, weeklyProductionControlReactIslandVersion));
 
+const timesheetReactIslandOutput = join(stagingDistDir, "src", "react-islands", "timesheet.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "timesheet-island.tsx"), timesheetReactIslandOutput);
+const timesheetReactIslandVersion = await fileHash(timesheetReactIslandOutput);
+const timesheetReactIslandHostPath = join(stagingDistDir, "src", "modules", "timesheet", "react_island_host.js");
+const timesheetReactIslandHostSource = await readFile(timesheetReactIslandHostPath, "utf8");
+const timesheetReactIslandVersionMarker = "__MES_TIMESHEET_REACT_BUNDLE_VERSION__";
+if (!timesheetReactIslandHostSource.includes(timesheetReactIslandVersionMarker)) throw new Error("Cannot find Timesheet React island bundle version marker");
+await writeFile(timesheetReactIslandHostPath, timesheetReactIslandHostSource.replaceAll(timesheetReactIslandVersionMarker, timesheetReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -619,6 +628,7 @@ console.log(`- src/react-islands/structure-equipment.js?v=${structureEquipmentRe
 console.log(`- src/react-islands/structure-responsibility-policies.js?v=${structureResponsibilityPoliciesReactIslandVersion}`);
 console.log(`- src/react-islands/structure-migration-diagnostics.js?v=${structureMigrationDiagnosticsReactIslandVersion}`);
 console.log(`- src/react-islands/weekly-production-control.js?v=${weeklyProductionControlReactIslandVersion}`);
+console.log(`- src/react-islands/timesheet.js?v=${timesheetReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);

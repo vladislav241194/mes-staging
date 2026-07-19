@@ -1,7 +1,7 @@
 # Timesheet React migration QA
 
 Date: 2026-07-19
-Status: isolated read-only lab; not production-integrated
+Status: production-integrated read-only island; disabled by default
 
 ## Vertical scenario
 
@@ -32,5 +32,20 @@ npm run qa:timesheet-react-lab
 ```
 
 This proves the read-model and dense-calendar component boundary only. It is
-not wired to the MES shell, is not activated on Pilot and does not move any
-attendance or schedule command out of legacy.
+wired to the MES shell only behind two false-by-default permissions, PostgreSQL
+read readiness and a session-scoped request. It is not activated on Pilot and
+does not move any attendance or schedule command out of legacy.
+
+Production-shell QA uses the canonical 76-employee System Domains projection.
+It proves exact parity across 96 table rows and 35 columns, default legacy,
+direct fallback into the seven-day legacy view and existing day editor,
+table-owned overflow, unchanged `0600` state and a clean console. First commit
+remained below `250 ms` in repeated local runs; the bundled
+artifact is `201,559 B` raw / `63,358 B` gzip / `54,518 B` Brotli. This is local
+regression evidence, not Pilot acceptance.
+
+Production command:
+
+```sh
+npm run qa:timesheet-react-island
+```

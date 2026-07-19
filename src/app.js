@@ -78,6 +78,7 @@ import { createStructureEmployeesReactIslandHost, createStructureEquipmentReactI
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
+import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -1694,7 +1695,7 @@ function ensureProductionStructureMatrixModule() {
     ensureLegacyProductionStructure(),
   ]).then(([{ createProductionStructureMatrixModule }, matrixData]) => {
     initializeProductionStructureMatrixModule(createProductionStructureMatrixModule, matrixData);
-    if (ui.activeModule === "productionStructureMatrix" || ui.activeModule === "weeklyProductionControl") render();
+    if (["productionStructureMatrix", "weeklyProductionControl", "timesheet"].includes(ui.activeModule)) render();
   }).catch((error) => {
     console.error("Не удалось загрузить структуру производства", error);
     renderProductionStructureMatrixPage = () => renderUiModulePage({
@@ -1702,7 +1703,7 @@ function ensureProductionStructureMatrixModule() {
       className: "production-structure-matrix-page",
       content: renderUiEmptyState({ title: "Модуль недоступен", description: "Обновите страницу и повторите попытку." }),
     });
-    if (ui.activeModule === "productionStructureMatrix" || ui.activeModule === "weeklyProductionControl") render();
+    if (["productionStructureMatrix", "weeklyProductionControl", "timesheet"].includes(ui.activeModule)) render();
   });
 }
 
@@ -2547,6 +2548,38 @@ const weeklyProductionControlReactIslandHost = createWeeklyProductionControlReac
     if (ui.activeModule === "weeklyProductionControl") render({ skipRememberScroll: true });
   },
 });
+function getTimesheetReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-timesheet") === "1", readOnlyEvaluation: params.get("react-timesheet-readonly") === "1" };
+}
+function isTimesheetReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-timesheet-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const timesheetReactIslandHost = createTimesheetReactIslandHost({
+  getActivation: () => {
+    const localQa = getTimesheetReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_TIMESHEET_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_TIMESHEET === true || localQa.featureFlagEnabled,
+      serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState),
+      accessMode: (serverEvaluationAllowed && isTimesheetReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => ({ model: getTimesheetModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, scope = "") => {
+    const [action, value, dateKey] = String(scope || "").split(":");
+    if (action === "view" && ["week", "month"].includes(value)) { ui.timesheetView = value; persistUiState(); }
+    if (action === "period") moveTimesheetPeriod(Number(value || 0));
+    if (["day", "schedule"].includes(action)) openTimesheetEditor(value, dateKey);
+    if (ui.activeModule === "timesheet") render({ skipRememberScroll: true });
+  },
+});
 function getRolesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
   if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
@@ -3188,6 +3221,8 @@ let getTimesheetCell = () => ({ value: "work", code: "work", hours: 8, overtime:
 let getTimesheetDayOption = (value = "work") => ({ value, label: value });
 let getTimesheetEmployeeSchedule = () => null;
 let getTimesheetModel = () => ({ rows: [] });
+let moveTimesheetPeriod = () => {};
+let openTimesheetEditor = () => {};
 let renderTimesheetEditorModal = () => "";
 let renderTimesheetPage = () => renderUiModulePage({
   ariaLabel: "Табель",
@@ -3202,6 +3237,8 @@ function initializeTimesheetModule(factory) {
     getTimesheetDayOption,
     getTimesheetEmployeeSchedule,
     getTimesheetModel,
+    moveTimesheetPeriod,
+    openTimesheetEditor,
     renderTimesheetEditorModal,
     renderTimesheetPage,
   } = factory({
@@ -6494,11 +6531,15 @@ function initializeModuleRuntime() {
         if (systemDomainsServerReadState.status !== "server") {
           void hydrateSystemDomainsServerRead("timesheet", { fallbackToLegacy: false });
         }
+        ensureProductionStructureMatrixModule();
         ensureTimesheetModule();
+        const reactDecision = timesheetReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return timesheetReactIslandHost.renderTarget();
         return renderTimesheetPage();
       },
       renderModals: () => renderTimesheetEditorModal(),
-      bind: () => bindTimesheetEvents(),
+      bind: () => { if (!timesheetReactIslandHost.isReactEligible()) bindTimesheetEvents(); },
+      afterRender: () => { void timesheetReactIslandHost.mount(); },
     },
     roles: {
       render: () => {

@@ -25,7 +25,7 @@ Current minified measurements:
 | Structure Responsibility Policies production island | 210,137 B | 64,632 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 204,805 B | 63,386 B | 225,000 B | 68,000 B |
-| Timesheet independent entry | 204,904 B | 63,575 B | 225,000 B | 68,000 B |
+| Timesheet production island | 204,904 B | 63,575 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,856 B | 64,539 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,912 B | 63,569 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,419 B | 63,204 B | 225,000 B | 68,000 B |
@@ -115,6 +115,10 @@ commit was `18.0 ms`; this is regression evidence, not Pilot acceptance.
 The bundled production Weekly Production Control island is `201,150 B` raw /
 `63,156 B` gzip / `54,408 B` Brotli. Its 25-group, eleven-column production-
 shell first commit remains below `50 ms`; this is regression evidence, not Pilot acceptance.
+
+The bundled production Timesheet island is `201,559 B` raw / `63,358 B` gzip /
+`54,518 B` Brotli. Its 76-employee, 35-column production-shell first commit was
+`206.60 ms`; this is regression evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 
