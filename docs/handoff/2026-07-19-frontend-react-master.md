@@ -84,9 +84,10 @@ Why first:
 - the resulting primitives can later support Roles, Production Structure, and
   Directories without forcing those modules to have identical layouts.
 
-The initial implementation lives under `experiments/react-migration/`. It is a
-standalone architecture lab using a fixture through a typed adapter. It is not
-wired into the MES application and is not a release candidate.
+The initial implementations live under `experiments/react-migration/`. Each
+standalone architecture lab uses a fixture through a typed adapter before
+production integration. Timesheet is currently at this isolated stage; it is
+not wired into the MES application and is not a release candidate.
 
 The second proof is `Component Types: open -> filter by family -> select a type
 -> inspect its calculation fields.` It mirrors all eight legacy columns and
@@ -283,6 +284,14 @@ console. The integration also closes a legacy Structure-helper lazy-load race
 for both renderers. Its artifact is `201,150 B` raw / `63,156 B` gzip /
 `54,408 B` Brotli. It has not been released or activated on Pilot.
 
+Timesheet is the sixteenth isolated scenario and the second dense planning
+proof. Its adapter accepts the completed legacy read model; browser QA proves
+three employees, two departments, seven days, 21 cells, twelve columns,
+revision update, table-owned overflow and explicit legacy editor fallback.
+Its independent artifact is `204,904 B` raw / `63,575 B` gzip. It has no
+production host, has not been released or activated on Pilot, and moves no
+attendance or schedule command.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -301,7 +310,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access and Weekly Production Control read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control and Timesheet read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections, and for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies and Roles/Access using PostgreSQL-hydrated System Domains; no fixture reaches production.**

@@ -877,6 +877,20 @@ try {
   assert.equal(weeklyControlAdapter.formatWeeklyControlPercent(5.5), "+6%");
   assert.deepEqual(weeklyControlAdapter.adaptWeeklyProductionControl({}).groups, [], "invalid Weekly Control payload must fail closed");
 
+  const timesheetOutput = join(temporaryRoot, "timesheet.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/timesheet/adapter.ts")], outfile: timesheetOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const timesheetAdapter = await import(`${pathToFileURL(timesheetOutput).href}?qa=${Date.now()}`);
+  const timesheetFixtureOutput = join(temporaryRoot, "timesheet-fixture.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/timesheet/fixture.ts")], outfile: timesheetFixtureOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const { timesheetFixture } = await import(`${pathToFileURL(timesheetFixtureOutput).href}?qa=${Date.now()}`);
+  const timesheetModel = timesheetAdapter.adaptTimesheet(timesheetFixture);
+  assert.equal(timesheetModel.canActivate, true, "Timesheet needs one cell per employee and visible day");
+  assert.deepEqual([timesheetModel.employeeCount, timesheetModel.departmentCount, timesheetModel.days.length], [3, 2, 7]);
+  assert.deepEqual(timesheetModel.groups.map((group) => [group.department, group.employees.length]), [["Отдел ручного монтажа", 2], ["Склад", 1]]);
+  assert.equal(timesheetModel.groups[0].employees[0].cells[2].overtime, 2, "Timesheet adapter must preserve overtime facts");
+  assert.equal(timesheetAdapter.formatTimesheetHours(7.25), "7,25");
+  assert.deepEqual(timesheetAdapter.adaptTimesheet({}).groups, [], "invalid Timesheet payload must fail closed");
+
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
     ["legacy app import", /src\/app\.js/],
@@ -1390,6 +1404,7 @@ try {
   assert.match(performanceBudget, /"structureResponsibilityPolicies"/);
   assert.match(performanceBudget, /"structureMigrationDiagnostics"/);
   assert.match(performanceBudget, /"weeklyProductionControl"/);
+  assert.match(performanceBudget, /"timesheet"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });

@@ -36,12 +36,13 @@ const structureEquipment = await measureEntry("structure-equipment-island.tsx", 
 const structureResponsibilityPolicies = await measureEntry("structure-responsibility-policies-island.tsx", { raw: 225_000, gzip: 68_000 });
 const structureMigrationDiagnostics = await measureEntry("structure-migration-diagnostics-island.tsx", { raw: 225_000, gzip: 68_000 });
 const weeklyProductionControl = await measureEntry("weekly-production-control-island.tsx", { raw: 225_000, gzip: 68_000 });
+const timesheet = await measureEntry("timesheet-island.tsx", { raw: 225_000, gzip: 68_000 });
 const roles = await measureEntry("roles-island.tsx", { raw: 225_000, gzip: 68_000 });
 const componentTypes = await measureEntry("component-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const operations = await measureEntry("operations-island.tsx", { raw: 225_000, gzip: 68_000 });
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
-const lab = await measureEntry("main.tsx", { raw: 350_000, gzip: 92_000 });
+const lab = await measureEntry("main.tsx", { raw: 360_000, gzip: 95_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -62,6 +63,8 @@ const structureMigrationDiagnosticsText = new TextDecoder().decode(structureMigr
 assert.doesNotMatch(structureMigrationDiagnosticsText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Structure Migration Diagnostics production island must not bundle unrelated scenarios");
 const weeklyProductionControlText = new TextDecoder().decode(weeklyProductionControl.bytes);
 assert.doesNotMatch(weeklyProductionControlText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Weekly Production Control island must not bundle unrelated scenarios");
+const timesheetText = new TextDecoder().decode(timesheet.bytes);
+assert.doesNotMatch(timesheetText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Timesheet island must not bundle unrelated scenarios");
 const rolesText = new TextDecoder().decode(roles.bytes);
 assert.doesNotMatch(rolesText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Roles production island must not bundle unrelated scenarios");
 const componentTypesText = new TextDecoder().decode(componentTypes.bytes);
@@ -89,6 +92,7 @@ console.log(JSON.stringify({
   structureResponsibilityPolicies: structureResponsibilityPolicies.measurement,
   structureMigrationDiagnostics: structureMigrationDiagnostics.measurement,
   weeklyProductionControl: weeklyProductionControl.measurement,
+  timesheet: timesheet.measurement,
   roles: roles.measurement,
   componentTypes: componentTypes.measurement,
   operations: operations.measurement,

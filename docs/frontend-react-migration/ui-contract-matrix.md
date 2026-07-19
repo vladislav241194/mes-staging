@@ -29,7 +29,7 @@ unresolved.
 | --- | --- | --- | --- |
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
-| Dense planning | Header, toolbar, status, loading/error | Dense grids, calendar and planning calculations | After registry proof |
+| Dense planning | Header, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, calendar and planning calculations | Weekly Production Control + Timesheet read-only scenarios |
 | Operational | Status, action, overlay frames | Workshop board, worker fact entry, shift documents | After PostgreSQL final acceptance |
 | Protected canvas | Shell-level states only | Gantt geometry and Specifications tree/editor | Late migration with dedicated guardrails |
 | Admin/standalone | Buttons, panels, states | Security perimeter and standalone shell | Separate acceptance path |
@@ -179,6 +179,16 @@ The production-shell comparison proves 25 completed groups and eleven columns
 in identical order and text. The shared React `TableWrap` now emits the actual
 `ui-table-wrap` class plus `horizontal-only` scroll contract, closing a common
 production overflow gap for every island without scenario-specific CSS.
+
+## Timesheet isolated evidence
+
+Timesheet reuses the same dense-family header, metrics, panels, status tokens
+and table overflow contract while keeping its calendar cells and departmental
+group rows specialized. The typed boundary consumes the completed legacy
+`getTimesheetModel()` result: three fixture employees, two departments, seven
+days and 21 cells retain order and values. Period, view, schedule and day
+actions return to legacy, where PostgreSQL hydration, editors and commands stay
+authoritative. This is an isolated lab proof, not a production integration.
 
 ## Roles and Access read-model evidence
 
