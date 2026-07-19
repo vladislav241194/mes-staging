@@ -681,7 +681,7 @@ try {
 
   const nomenclatureTypesAdapterOutput = join(temporaryRoot, "nomenclature-types-adapter.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/nomenclature-types/adapter.ts")], outfile: nomenclatureTypesAdapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
-  const { adaptNomenclatureTypes } = await import(`${pathToFileURL(nomenclatureTypesAdapterOutput).href}?qa=${Date.now()}`);
+  const { adaptNomenclatureTypes, adaptNomenclatureTypesModel } = await import(`${pathToFileURL(nomenclatureTypesAdapterOutput).href}?qa=${Date.now()}`);
   const nomenclatureTypes = adaptNomenclatureTypes({ nomenclatureTypes: [
     { id: "type-rea", name: "РЭА компоненты", code: "REA", description: "Электронные компоненты", status: "Активен" },
     { id: "", name: "invalid" },
@@ -692,6 +692,8 @@ try {
     ["type-old", "—", "—", "neutral"],
   ]);
   assert.deepEqual(adaptNomenclatureTypes({ nomenclatureTypes: {} }), [], "invalid nomenclature-types payload must fail closed");
+  assert.equal(adaptNomenclatureTypesModel({ nomenclatureTypes: [], capabilities: { createEdit: true } }).canCreateEdit, true, "explicit Nomenclature Types write capability must cross the typed adapter");
+  assert.equal(adaptNomenclatureTypesModel({ nomenclatureTypes: [], capabilities: { createEdit: "true" } }).canCreateEdit, false, "non-boolean Nomenclature Types write capability must fail closed");
   const nomenclatureTypesViewModelOutput = join(temporaryRoot, "nomenclature-types-view-model.mjs");
   await build({ entryPoints: [join(sourceRoot, "modules/nomenclature-types/view-model.ts")], outfile: nomenclatureTypesViewModelOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
   const nomenclatureTypesViewModel = await import(`${pathToFileURL(nomenclatureTypesViewModelOutput).href}?qa=${Date.now()}`);
@@ -993,6 +995,15 @@ try {
   assert.match(operationsIslandSource, /export function mountOperationsReactIsland/);
   assert.match(operationsIslandSource, /onRequestLegacy/);
 
+  const nomenclatureTypesIslandSource = await readFile(join(sourceRoot, "nomenclature-types-island.tsx"), "utf8");
+  assert.match(nomenclatureTypesIslandSource, /export function mountNomenclatureTypesReactIsland/);
+  assert.match(nomenclatureTypesIslandSource, /onRequestLegacy/);
+  assert.match(nomenclatureTypesIslandSource, /onCommand/);
+
+  const appEventsServiceSource = await readFile(join(repositoryRoot, "src/modules/app_events/service.js"), "utf8");
+  assert.match(appEventsServiceSource, /syncNomenclatureTypeRenameInCurrentDirectoryState/);
+  assert.match(appEventsServiceSource, /!String\(previousName \|\| ""\)\.trim\(\)/, "Nomenclature Type create must not normalize an empty previous name into the default REA type");
+
   const specifications2IslandSource = await readFile(join(sourceRoot, "specifications2-island.tsx"), "utf8");
   assert.match(specifications2IslandSource, /export function mountSpecifications2ReactIsland/);
   assert.match(specifications2IslandSource, /onRequestLegacy/);
@@ -1248,6 +1259,11 @@ try {
   const eligibleDirectoryNomenclatureTypesHost = makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: true, activeSection: "nomenclatureTypes", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleDirectoryNomenclatureTypesHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleDirectoryNomenclatureTypesHost.renderTarget(), /data-react-directory-nomenclature-types-island/);
+  assert.deepEqual(
+    makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: true, activeSection: "nomenclatureTypes", accessMode: "write-evaluation" }).prepareRender(),
+    { activateReact: true, reason: "eligible" },
+    "Nomenclature Types must accept only its explicit local write-evaluation mode in addition to read-only evaluation",
+  );
 
   const makeDirectoryStatusesHost = (activation) => directoryComponentTypesHostModule.createDirectoryStatusesReactIslandHost({ getActivation: () => activation, getPayload: () => ({}), getTargetRoot: () => null });
   assert.deepEqual(makeDirectoryStatusesHost({ featureFlagEnabled: false, activeSection: "statuses", accessMode: "read-only-evaluation" }).prepareRender(), { activateReact: false, reason: "disabled" });
@@ -1354,7 +1370,10 @@ try {
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /canEditDirectorySection\("nomenclatureTypes"\)/);
+  assert.match(productionAppSource, /saveDirectoryRow\("nomenclatureTypes"/);
   assert.match(productionAppSource, /directoryNomenclatureTypesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_STATUSES === true/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_STATUSES_READ_ONLY_EVALUATION === true/);
@@ -1507,9 +1526,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations"], "Nomenclature, Component Types and Operations create/edit must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes"], "Nomenclature, Component Types, Operations and Nomenclature Types create/edit must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 19, "all 19 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 18, "all 18 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

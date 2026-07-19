@@ -3155,12 +3155,13 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
 });
 function getDirectoryNomenclatureTypesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   return {
     featureFlagEnabled: params.get("react-directory-nomenclature-types") === "1",
     readOnlyEvaluation: params.get("react-directory-nomenclature-types-readonly") === "1",
+    writeEvaluation: params.get("react-directory-nomenclature-types-write") === "1",
   };
 }
 function isDirectoryNomenclatureTypesReactEvaluationRequested() {
@@ -3175,16 +3176,53 @@ const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTyp
     return {
       featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_NOMENCLATURE_TYPES === true || localQa.featureFlagEnabled),
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
-      accessMode: (serverEvaluationAllowed && isDirectoryNomenclatureTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+      accessMode: localQa.writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isDirectoryNomenclatureTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
         : "editor",
     };
   },
-  getPayload: () => directoryState,
+  getPayload: () => {
+    const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
+    return {
+      ...directoryState,
+      capabilities: { createEdit: localQa.writeEvaluation && canEditDirectorySection("nomenclatureTypes") },
+    };
+  },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, sectionId) => {
     if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || !canEditDirectorySection("nomenclatureTypes")) {
+      return { ok: false, message: "Запись типов номенклатуры недоступна для текущей роли." };
+    }
+    if (command.type !== "save") return { ok: false, message: "Неподдерживаемая команда типов номенклатуры." };
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const isNew = input.isNew === true;
+    const itemId = isNew ? makeId("nt") : String(input.itemId || "").trim();
+    const rowIndex = isNew ? -1 : (directoryState.nomenclatureTypes || []).findIndex((item) => String(item.id || "") === itemId);
+    if (!isNew && rowIndex < 0) return { ok: false, message: "Тип номенклатуры уже отсутствует." };
+    const name = String(input.name || "").trim();
+    if (!name) return { ok: false, message: "Заполните поле «Тип номенклатуры»." };
+    const previous = rowIndex >= 0 ? directoryState.nomenclatureTypes[rowIndex] : {};
+    const row = {
+      ...previous,
+      id: itemId,
+      name,
+      code: String(input.code || "").trim(),
+      description: String(input.description || "").trim(),
+      status: String(input.status || "").trim() || "Активен",
+    };
+    const result = saveDirectoryRow("nomenclatureTypes", rowIndex, row);
+    if (result === false) return { ok: false, message: "Не удалось сохранить тип номенклатуры." };
+    ui.selectedDirectoryRows.nomenclatureTypes = rowIndex >= 0 ? rowIndex : Math.max(0, (directoryState.nomenclatureTypes || []).length - 1);
+    persistUiState();
+    render({ skipRememberScroll: true });
+    return { ok: true, id: itemId, isNew };
   },
 });
 function getDirectoryStatusesReactLocalQaOverrides() {

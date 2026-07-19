@@ -83,6 +83,7 @@ export function createDirectoryOperationsReactIslandHost(options = {}) {
 export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
   return createDirectoryReadIslandHost({
     ...options,
+    allowWriteEvaluation: true,
     bundleName: "nomenclature-types",
     bundleVersion: NOMENCLATURE_TYPES_VERSION,
     className: "mes-react-directory-nomenclature-types-island",

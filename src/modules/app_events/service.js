@@ -1732,7 +1732,7 @@ function saveDirectoryRow(sectionId, rowIndex, row) {
   };
 
   if (sectionId === "nomenclatureTypes") {
-    syncNomenclatureTypeRename(previousTypeName, normalizedRow.name);
+    syncNomenclatureTypeRenameInCurrentDirectoryState(previousTypeName, normalizedRow.name);
     if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(previousTypeName)) {
       ui.nomenclatureTypeFilter = normalizedRow.name || "all";
     }
@@ -1741,6 +1741,30 @@ function saveDirectoryRow(sectionId, rowIndex, row) {
 
   persistDirectoryState();
   notifySaveSuccess(rowIndex >= 0 ? "Запись справочника сохранена" : "Запись справочника создана");
+}
+
+function syncNomenclatureTypeRenameInCurrentDirectoryState(previousName, nextName) {
+  if (!String(previousName || "").trim() || !String(nextName || "").trim()) return false;
+  const previous = normalizeNomenclatureType(previousName);
+  const next = normalizeNomenclatureType(nextName);
+  if (!previous || !next || normalizeLookupText(previous) === normalizeLookupText(next)) return false;
+  directoryState.nomenclature = (directoryState.nomenclature || []).map((item) => (
+    normalizeLookupText(item.type) === normalizeLookupText(previous)
+      ? { ...item, type: next, updatedAt: new Date().toISOString() }
+      : item
+  ));
+  directoryState.specifications = (directoryState.specifications || []).map((specification) => ({
+    ...specification,
+    structureItems: getSpecificationStructureItems(specification).map((item) => (
+      normalizeLookupText(item.nomenclatureType) === normalizeLookupText(previous)
+        ? { ...item, nomenclatureType: next }
+        : item
+    )),
+  }));
+  if (normalizeLookupText(ui.nomenclatureTypeFilter) === normalizeLookupText(previous)) {
+    ui.nomenclatureTypeFilter = next;
+  }
+  return true;
 }
 
 function deleteDirectoryRow(sectionId, rowIndex) {

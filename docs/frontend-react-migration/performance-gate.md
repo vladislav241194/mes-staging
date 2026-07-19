@@ -37,9 +37,9 @@ Current minified measurements:
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 211,805 B | 64,829 B | 225,000 B | 68,000 B |
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
-| Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
+| Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 460,364 B | 108,682 B | 465,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 464,289 B | 109,275 B | 465,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -96,9 +96,9 @@ The bundled production Operations island is `200,213 B` raw / `62,802 B`
 gzip / `54,111 B` Brotli. Its production-shell first commit measured below
 `25 ms` locally; this is regression evidence, not Pilot acceptance.
 
-The bundled production Nomenclature Types island is `200,131 B` raw /
-`62,738 B` gzip / `53,938 B` Brotli. Its production-shell first commit was
-`18.6 ms` locally; this is regression evidence, not Pilot acceptance.
+The bundled production Nomenclature Types island is `203,085 B` raw /
+`63,699 B` gzip / `54,776 B` Brotli. Its production-shell first commit was
+`22.40 ms` locally; this is regression evidence, not Pilot acceptance.
 
 The bundled production Statuses island is `200,980 B` raw / `62,993 B` gzip /
 `54,248 B` Brotli. Its production-shell first commit was below `20 ms` while

@@ -751,6 +751,7 @@ export function createProductsRenderModule(dependencies = {}) {
   }
   
   function syncNomenclatureTypeRename(previousName, nextName) {
+    if (!String(previousName || "").trim() || !String(nextName || "").trim()) return;
     const previous = normalizeNomenclatureType(previousName);
     const next = normalizeNomenclatureType(nextName);
     if (!previous || !next || normalizeLookupText(previous) === normalizeLookupText(next)) return;

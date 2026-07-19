@@ -15,6 +15,11 @@ export interface NomenclatureTypeReadItem {
   statusTone: "success" | "neutral";
 }
 
+export interface NomenclatureTypesModel {
+  items: NomenclatureTypeReadItem[];
+  canCreateEdit: boolean;
+}
+
 function text(value: unknown): string {
   return String(value ?? "").trim();
 }
@@ -39,4 +44,17 @@ export function adaptNomenclatureTypes(payload: unknown): NomenclatureTypeReadIt
       statusTone: statusLabel.toLocaleLowerCase("ru-RU").includes("актив") ? "success" : "neutral",
     }];
   });
+}
+
+export function adaptNomenclatureTypesModel(payload: unknown): NomenclatureTypesModel {
+  const root = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload as Record<string, unknown>
+    : {};
+  const capabilities = root.capabilities && typeof root.capabilities === "object"
+    ? root.capabilities as Record<string, unknown>
+    : {};
+  return {
+    items: adaptNomenclatureTypes(payload),
+    canCreateEdit: capabilities.createEdit === true,
+  };
 }

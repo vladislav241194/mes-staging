@@ -19,8 +19,9 @@ Production Control is accepted on its current `25 x 11` Pilot projection,
 including the deviation-note interaction and same-data legacy rollback.
 
 Nomenclature and Component Types have locally complete create/edit/delete
-command parity. Operations has locally complete create/edit parity while its
-reference-clearing delete remains an explicit legacy-only slice. Structure
+command parity. Operations and Nomenclature Types have locally complete
+create/edit parity while their reference-sensitive deletes remain explicit
+legacy-only slices. Structure
 Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. The remaining scenarios
 retain their explicit next vertical scopes.
@@ -31,7 +32,7 @@ retain their explicit next vertical scopes.
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
-| 5 | Nomenclature Types | Pending | High | Create/edit plus reference synchronization |
+| 5 | Nomenclature Types | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot read-only evaluation, then write evaluation with a disposable type and reference audit |
 | 6 | Statuses | Pending | High | Non-system status create/edit with lifecycle protection |
 | 7 | Boards/BOM | Pending | High | Board create/edit before import, row editing and delete |
 | 8 | Structure registries | Pending | High/Critical | One registry and one command at a time, preserving PostgreSQL references |
@@ -59,6 +60,15 @@ completed and unrelated slots. The audit also found and repaired a missing
 `applyPlanningOrderLaborToSlot` dependency at the legacy service boundary.
 Delete additionally touches Specifications and therefore stays separate and
 legacy-only.
+
+Nomenclature Types now has local RBAC-gated create/edit parity through the
+existing directory owner. Its disposable-snapshot QA proves create, rename,
+Nomenclature item type propagation, Specifications 2.0 structure-reference
+propagation, legacy read-back and no changes to unrelated Planning rows. The
+owner audit also repaired two legacy defects: synchronization previously used
+an unavailable/stale state boundary, and a new row's empty previous name could
+normalize to `РЭА компоненты` and recategorize existing items. Pilot remains
+default-off and has no write runtime flag for this scenario.
 
 Weekly Production Control's earlier “week selection” command scope was removed
 after source audit: no such legacy command exists, and the module explicitly
