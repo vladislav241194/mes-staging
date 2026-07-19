@@ -41,6 +41,7 @@ const planningWorkbench = await measureEntry("planning-workbench-island.tsx", { 
 const shiftWorkOrders = await measureEntry("shift-work-orders-island.tsx", { raw: 225_000, gzip: 68_000 });
 const shiftMasterBoard = await measureEntry("shift-master-board-island.tsx", { raw: 225_000, gzip: 68_000 });
 const employeeDesktop = await measureEntry("employee-desktop-island.tsx", { raw: 225_000, gzip: 68_000 });
+const authPicker = await measureEntry("auth-picker-island.tsx", { raw: 225_000, gzip: 68_000 });
 const contourAdmin = await measureEntry("contour-admin-island.tsx", { raw: 225_000, gzip: 68_000 });
 const specifications2 = await measureEntry("specifications2-island.tsx", { raw: 225_000, gzip: 68_000 });
 const gantt = await measureEntry("gantt-island.tsx", { raw: 225_000, gzip: 68_000 });
@@ -80,6 +81,8 @@ const shiftMasterBoardText = new TextDecoder().decode(shiftMasterBoard.bytes);
 assert.doesNotMatch(shiftMasterBoardText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Master Board island must not bundle unrelated scenarios");
 const employeeDesktopText = new TextDecoder().decode(employeeDesktop.bytes);
 assert.doesNotMatch(employeeDesktopText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Employee Desktop island must not bundle unrelated scenarios");
+const authPickerText = new TextDecoder().decode(authPicker.bytes);
+assert.doesNotMatch(authPickerText, /pinDraft|scheduleAuthPrototypePinValidation|completeAuthPrototypeLogin|unlockAuthGate/, "Authorization picker island must not bundle PIN or session authority");
 const contourAdminText = new TextDecoder().decode(contourAdmin.bytes);
 assert.doesNotMatch(contourAdminText, /Вся номенклатура|Типы компонентов|Рабочий стол/, "Contour Admin island must not bundle unrelated scenarios");
 const specifications2Text = new TextDecoder().decode(specifications2.bytes);
@@ -99,7 +102,7 @@ assert.doesNotMatch(statusesText, /Вся номенклатура|SMT-монт�
 
 const css = await readFile(join(sourceRoot, "styles.css"));
 const cssMeasurement = { raw: css.length, gzip: gzipSync(css).length };
-assert.ok(cssMeasurement.raw <= 17_000, `styles raw bundle ${cssMeasurement.raw} exceeds 17000`);
+assert.ok(cssMeasurement.raw <= 18_500, `styles raw bundle ${cssMeasurement.raw} exceeds 18500`);
 assert.ok(cssMeasurement.gzip <= 4_000, `styles gzip bundle ${cssMeasurement.gzip} exceeds 4000`);
 
 console.log(JSON.stringify({
@@ -118,6 +121,7 @@ console.log(JSON.stringify({
   shiftWorkOrders: shiftWorkOrders.measurement,
   shiftMasterBoard: shiftMasterBoard.measurement,
   employeeDesktop: employeeDesktop.measurement,
+  authPicker: authPicker.measurement,
   contourAdmin: contourAdmin.measurement,
   specifications2: specifications2.measurement,
   gantt: gantt.measurement,

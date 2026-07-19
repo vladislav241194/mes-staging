@@ -83,6 +83,7 @@ import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workb
 import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_orders/react_island_host.js";
 import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createEmployeeDesktopReactIslandHost } from "./modules/auth_render/employee_desktop_react_island_host.js";
+import { createAuthPickerReactIslandHost } from "./modules/auth_render/auth_picker_react_island_host.js";
 import { createContourAdminReactIslandHost } from "./modules/contour_admin/react_island_host.js";
 import { createSpecifications2ReactIslandHost } from "./modules/specifications2/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
@@ -2744,6 +2745,49 @@ const employeeDesktopReactIslandHost = createEmployeeDesktopReactIslandHost({
     if (ui.activeModule === "authSessionPrototype") render({ skipRememberScroll: true });
   },
 });
+function getAuthPickerReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1" && params.get("qa") !== "auth-functional") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-auth-picker") === "1", readOnlyEvaluation: params.get("react-auth-picker-readonly") === "1" };
+}
+function isAuthPickerReactEvaluationRequested() {
+  return new URLSearchParams(window.location.search).get("react-auth-picker-evaluation") === "1";
+}
+const authPickerReactIslandHost = createAuthPickerReactIslandHost({
+  getActivation: () => {
+    const localQa = getAuthPickerReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER_READ_ONLY_EVALUATION === true;
+    const activation = {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER === true || localQa.featureFlagEnabled,
+      moduleReady: authModulesReady,
+      systemDomainsReady: systemDomainsServerReadState.status === "server"
+        || (localQa.readOnlyEvaluation && hasObservedSystemDomainsPrimaryAuthority()),
+      authGateReady: !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
+      pickerReady: !ui.authPrototypePersonId && !authPrototypePinDraft && !ui.authPrototypeResult,
+      accessMode: (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+    if (localQa.featureFlagEnabled) window.__MES_AUTH_PICKER_ACTIVATION__ = activation;
+    return activation;
+  },
+  getPayload: () => ({ model: getAuthPrototypeReactModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, scope = "") => {
+    const [action, encodedPersonId, encodedDepartmentId, encodedUnitId] = String(scope || "").split(":");
+    if (action === "person") {
+      cancelAuthPrototypePinFeedback();
+      ui.authPrototypeDepartment = decodeURIComponent(encodedDepartmentId || "");
+      ui.authPrototypeUnit = decodeURIComponent(encodedUnitId || "");
+      ui.authPrototypePersonId = decodeURIComponent(encodedPersonId || "");
+      ui.authPrototypeResult = "";
+      authPrototypePinDraft = "";
+      resetAuthPrototypeAttempts();
+      persistUiState();
+    }
+    if (ui.activeModule === "authPrototype") render({ skipRememberScroll: true });
+  },
+});
 function getContourAdminReactLocalQaOverrides() {
   if (!isAdminRuntimeHost()) return { featureFlagEnabled: false, readOnlyEvaluation: false };
   const params = new URLSearchParams(window.location.search);
@@ -3274,6 +3318,7 @@ function getEmployeeDepartmentLabelForWorkCenters(workCenterIds = []) {
 
 let doesAuthSessionFactNeedDeviationComment = () => false;
 let getAuthPrototypeSelectedExecutor = () => null;
+let getAuthPrototypeReactModel = () => ({ departments: [] });
 let getAuthSessionFactDeviationPercent = () => 0;
 let getAuthSessionFactDraft = () => ({ actualQuantity: 0, defectQuantity: 0 });
 let getAuthSessionPrototypeModel = () => ({ allTasks: [], selectedTask: null });
@@ -3300,6 +3345,7 @@ function initializeAuthRenderModule(factory) {
   ({
     doesAuthSessionFactNeedDeviationComment,
     getAuthPrototypeSelectedExecutor,
+    getAuthPrototypeReactModel,
     getAuthSessionFactDeviationPercent,
     getAuthSessionFactDraft,
     getAuthSessionPrototypeModel,
@@ -3336,6 +3382,8 @@ function initializeAuthRenderModule(factory) {
   getAuthPrototypeDirectDepartmentPeople,
   getAuthPrototypePeople,
   getAuthPrototypePeopleByUnit,
+  getAuthPrototypePinDraft: () => authPrototypePinDraft,
+  getAuthPrototypeKeypadDigitsState: () => authPrototypeKeypadDigits,
   getAuthPrototypePinFeedbackTone,
   getAuthPrototypeSelectedDepartment,
   getAuthPrototypeSelectedPerson,
@@ -3380,6 +3428,8 @@ function initializeAuthRenderModule(factory) {
   renderUiPanelBody,
   renderUiPanelFooter,
   renderUiStatusToken,
+  setAuthPrototypePinDraft: (nextValue) => { authPrototypePinDraft = String(nextValue || ""); },
+  setAuthPrototypeKeypadDigitsState: (nextValue) => { authPrototypeKeypadDigits = Array.isArray(nextValue) ? nextValue : []; },
   }));
 }
 
@@ -6745,9 +6795,12 @@ function initializeModuleRuntime() {
           void hydrateSystemDomainsServerRead("authPrototype", { fallbackToLegacy: false });
         }
         ensureAuthModules();
+        const reactDecision = authPickerReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return authPickerReactIslandHost.renderTarget();
         return renderAuthPrototypePage();
       },
-      bind: () => bindAuthPrototypeEvents(),
+      bind: () => { if (!authPickerReactIslandHost.isReactEligible()) bindAuthPrototypeEvents(); },
+      afterRender: () => { void authPickerReactIslandHost.mount(); },
     },
     authSessionPrototype: {
       render: () => {

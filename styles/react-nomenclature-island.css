@@ -187,6 +187,22 @@
 .mes-react-gantt-island .gantt-react-lane button span { font-size:8px; }
 .mes-react-gantt-island .gantt-react-detail { display:grid; align-content:start; gap:12px; }
 .mes-react-gantt-island .gantt-react-detail .action { width:100%; }
+.mes-react-auth-picker-island .module-page { min-height:100vh; padding:28px; }
+.mes-react-auth-picker-island .module-layout,.mes-react-auth-picker-island .workspace { display:block; }
+.mes-react-auth-picker-island .metric-grid { grid-template-columns:repeat(3,minmax(120px,1fr)); margin:14px 0; }
+.mes-react-auth-picker-island .panel-heading .action { color:#18314d; background:#e8eef5; }
+.mes-react-auth-picker-island .auth-picker-react-security { display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid #cce5d9; border-radius:14px; color:#52667a; background:#f3fbf7; font-size:11px; }
+.mes-react-auth-picker-island .auth-picker-react-security > span:last-child { flex:1; }
+.mes-react-auth-picker-island .auth-picker-react-grid { display:grid; grid-template-columns:repeat(3,minmax(180px,1fr)); gap:10px; padding:16px; }
+.mes-react-auth-picker-island .auth-picker-react-grid > button { display:grid; gap:5px; min-height:104px; padding:15px; border:1px solid #dce5ef; border-radius:12px; color:#18314d; background:#fff; text-align:left; cursor:pointer; }
+.mes-react-auth-picker-island .auth-picker-react-grid > button:hover { border-color:#2f6fe4; background:#f4f8fd; }
+.mes-react-auth-picker-island .auth-picker-react-grid span,.mes-react-auth-picker-island .auth-picker-react-grid small,.mes-react-auth-picker-island .auth-picker-react-people label span,.mes-react-auth-picker-island .auth-picker-react-people button small { color:#718296; font-size:9px; }
+.mes-react-auth-picker-island .auth-picker-react-people { display:grid; gap:12px; padding:16px; }
+.mes-react-auth-picker-island .auth-picker-react-people label { display:grid; gap:5px; }
+.mes-react-auth-picker-island .auth-picker-react-people input { width:100%; min-height:40px; padding:8px 11px; border:1px solid #cbd8e6; border-radius:9px; }
+.mes-react-auth-picker-island .auth-picker-react-people > div { display:grid; grid-template-columns:repeat(3,minmax(200px,1fr)); gap:9px; }
+.mes-react-auth-picker-island .auth-picker-react-people button { display:flex; align-items:center; justify-content:space-between; gap:9px; min-height:72px; padding:12px; border:1px solid #dce5ef; border-radius:11px; color:#18314d; background:#fff; text-align:left; cursor:pointer; }
+.mes-react-auth-picker-island .auth-picker-react-people button > span { display:grid; gap:4px; }
 
 @media (max-width: 1180px) {
   .mes-react-specifications2-island .workspace { grid-template-columns: minmax(0, 1fr); }

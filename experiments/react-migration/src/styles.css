@@ -166,3 +166,15 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .gantt-react-lane button span { font-size:8px; }
 .gantt-react-detail { display:grid; align-content:start; gap:12px; }
 .gantt-react-detail .action { width:100%; }
+.auth-picker-react-security { display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid #cce5d9; border-radius:14px; color:#52667a; background:#f3fbf7; font-size:11px; }
+.auth-picker-react-security > span:last-child { flex:1; }
+.auth-picker-react-grid { display:grid; grid-template-columns:repeat(3,minmax(180px,1fr)); gap:10px; padding:16px; }
+.auth-picker-react-grid > button { display:grid; gap:5px; min-height:104px; padding:15px; border:1px solid #dce5ef; border-radius:12px; color:#18314d; background:#fff; text-align:left; cursor:pointer; }
+.auth-picker-react-grid > button:hover { border-color:#2f6fe4; background:#f4f8fd; }
+.auth-picker-react-grid span,.auth-picker-react-grid small,.auth-picker-react-people label span,.auth-picker-react-people button small { color:#718296; font-size:9px; }
+.auth-picker-react-people { display:grid; gap:12px; padding:16px; }
+.auth-picker-react-people label { display:grid; gap:5px; }
+.auth-picker-react-people input { width:100%; min-height:40px; padding:8px 11px; border:1px solid #cbd8e6; border-radius:9px; }
+.auth-picker-react-people > div { display:grid; grid-template-columns:repeat(3,minmax(200px,1fr)); gap:9px; }
+.auth-picker-react-people button { display:flex; align-items:center; justify-content:space-between; gap:9px; min-height:72px; padding:12px; border:1px solid #dce5ef; border-radius:11px; color:#18314d; background:#fff; text-align:left; cursor:pointer; }
+.auth-picker-react-people button > span { display:grid; gap:4px; }

@@ -496,6 +496,15 @@ const employeeDesktopReactIslandVersionMarker = "__MES_EMPLOYEE_DESKTOP_REACT_BU
 if (!employeeDesktopReactIslandHostSource.includes(employeeDesktopReactIslandVersionMarker)) throw new Error("Cannot find Employee Desktop React island bundle version marker");
 await writeFile(employeeDesktopReactIslandHostPath, employeeDesktopReactIslandHostSource.replaceAll(employeeDesktopReactIslandVersionMarker, employeeDesktopReactIslandVersion));
 
+const authPickerReactIslandOutput = join(stagingDistDir, "src", "react-islands", "auth-picker.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "auth-picker-island.tsx"), authPickerReactIslandOutput);
+const authPickerReactIslandVersion = await fileHash(authPickerReactIslandOutput);
+const authPickerReactIslandHostPath = join(stagingDistDir, "src", "modules", "auth_render", "auth_picker_react_island_host.js");
+const authPickerReactIslandHostSource = await readFile(authPickerReactIslandHostPath, "utf8");
+const authPickerReactIslandVersionMarker = "__MES_AUTH_PICKER_REACT_BUNDLE_VERSION__";
+if (!authPickerReactIslandHostSource.includes(authPickerReactIslandVersionMarker)) throw new Error("Cannot find Authorization picker React island bundle version marker");
+await writeFile(authPickerReactIslandHostPath, authPickerReactIslandHostSource.replaceAll(authPickerReactIslandVersionMarker, authPickerReactIslandVersion));
+
 const contourAdminReactIslandOutput = join(stagingDistDir, "src", "react-islands", "contour-admin.js");
 await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "contour-admin-island.tsx"), contourAdminReactIslandOutput);
 const contourAdminReactIslandVersion = await fileHash(contourAdminReactIslandOutput);
@@ -696,6 +705,7 @@ console.log(`- src/react-islands/planning-workbench.js?v=${planningWorkbenchReac
 console.log(`- src/react-islands/shift-work-orders.js?v=${shiftWorkOrdersReactIslandVersion}`);
 console.log(`- src/react-islands/shift-master-board.js?v=${shiftMasterBoardReactIslandVersion}`);
 console.log(`- src/react-islands/employee-desktop.js?v=${employeeDesktopReactIslandVersion}`);
+console.log(`- src/react-islands/auth-picker.js?v=${authPickerReactIslandVersion}`);
 console.log(`- src/react-islands/contour-admin.js?v=${contourAdminReactIslandVersion}`);
 console.log(`- src/react-islands/specifications2.js?v=${specifications2ReactIslandVersion}`);
 console.log(`- src/react-islands/gantt.js?v=${ganttReactIslandVersion}`);

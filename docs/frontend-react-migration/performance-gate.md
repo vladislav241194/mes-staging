@@ -30,6 +30,7 @@ Current minified measurements:
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 206,267 B | 63,641 B | 225,000 B | 68,000 B |
+| Authorization picker production island | 202,893 B | 63,121 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 208,864 B | 64,433 B | 225,000 B | 68,000 B |
 | Gantt production island | 204,733 B | 63,564 B | 225,000 B | 68,000 B |
@@ -39,7 +40,7 @@ Current minified measurements:
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
 | Full twenty-two-scenario lab | 438,958 B | 104,836 B | 445,000 B | 118,000 B |
-| Shared lab CSS | 16,747 B | 3,442 B | 17,000 B | 4,000 B |
+| Shared lab CSS | 18,256 B | 3,685 B | 18,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
@@ -153,6 +154,12 @@ acceptance.
 The bundled production Employee Desktop island is `202,416 B` raw /
 `63,416 B` gzip / `54,553 B` Brotli. Its one-task PostgreSQL-backed production-
 shell first commit stayed below `50 ms`; this is regression evidence, not Pilot
+acceptance.
+
+The bundled production Authorization picker island is `199,896 B` raw /
+`62,906 B` gzip / `54,098 B` Brotli. Its nine-department production-shell
+security gate confirmed that React contains no PIN keypad and hands the chosen
+employee to a clean legacy PIN screen; this is regression evidence, not Pilot
 acceptance.
 
 The bundled production Contour Admin island is `201,348 B` raw / `63,003 B`

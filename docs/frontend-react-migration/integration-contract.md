@@ -180,6 +180,15 @@ dependencies, drag, resize, optimization and every editor command return
 through `unsupported-scope`. A snapshot fallback, unloaded runtime, editor
 access or missing session request retains legacy.
 
+`mountAuthPickerReactIsland(...)` owns only the unauthenticated organizational
+picker before PIN entry. Its typed payload allowlists department, unit and
+employee presentation fields from PostgreSQL System Domains. PIN value/draft,
+attempt counters, validation, role activation, gate unlock and session state
+are absent from the React boundary. Employee selection returns through
+`unsupported-scope` to the unchanged legacy PIN renderer with a cleared draft.
+Any existing person/PIN state, unlocked gate, non-server projection, editor
+mode or missing evaluation request retains legacy.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

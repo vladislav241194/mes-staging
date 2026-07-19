@@ -32,7 +32,7 @@ unresolved.
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control + Timesheet + Planning Workbench read-only scenarios |
 | Operational | Status, action, panel, table tree, metric grid, overlay frames | Workshop board, worker fact entry, print/photo commands | Shift Work Orders read-only document journal |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
-| Admin/standalone | Buttons, panels, states | Security perimeter and standalone shell | Separate acceptance path |
+| Admin/standalone | Contour controls and pre-PIN organizational picker | PIN/session authority and standalone shell | Separate security acceptance path |
 
 ## Difference classification
 
@@ -278,6 +278,16 @@ not reproduce scheduling or calendar math. The canvas preserves
 row and slot identity markers. Production-shell QA proves three rows, two
 slots, a `15.30 ms` first commit, default legacy, editor fallback and zero
 Planning writes. Dependencies, drag, resize and optimization remain legacy.
+
+## Authorization picker production evidence
+
+The standalone authorization proof covers only department, unit and employee
+selection. React reuses the page/header/panel/metric/status contracts but its
+typed adapter explicitly excludes PIN, attempts, validation and session state.
+Production-shell QA renders nine departments and verifies that no keypad exists
+under the React root. Selecting an employee unmounts the island and opens the
+existing legacy ten-key PIN screen with an empty draft; zero domain writes and
+a clean console are required.
 
 ## Roles and Access read-model evidence
 

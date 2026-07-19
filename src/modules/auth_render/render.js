@@ -18,6 +18,8 @@ export function createAuthRenderModule(dependencies = {}) {
     getAuthPrototypeDirectDepartmentPeople,
     getAuthPrototypePeople,
     getAuthPrototypePeopleByUnit,
+    getAuthPrototypePinDraft = () => "",
+    getAuthPrototypeKeypadDigitsState = () => [],
     getAuthPrototypePinFeedbackTone,
     getAuthPrototypeSelectedDepartment,
     getAuthPrototypeSelectedPerson,
@@ -68,6 +70,8 @@ export function createAuthRenderModule(dependencies = {}) {
     renderUiPanelBody,
     renderUiPanelFooter = ({ body = "" } = {}) => `<footer>${body}</footer>`,
     renderUiStatusToken,
+    setAuthPrototypePinDraft = () => {},
+    setAuthPrototypeKeypadDigitsState = () => {},
   } = dependencies;
   const ui = new Proxy({}, {
     get(_target, property) {
@@ -221,7 +225,7 @@ export function createAuthRenderModule(dependencies = {}) {
   }
   
   function renderAuthPrototypeUnifiedPinStep(people, departmentRow, unitRow, selectedPerson) {
-    const pinLength = Math.min(5, authPrototypePinDraft.length);
+    const pinLength = Math.min(5, String(getAuthPrototypePinDraft() || "").length);
     const result = String(ui.authPrototypeResult || "");
     const attemptsLeft = getAuthPrototypeAttemptsLeft();
     const isLocked = attemptsLeft <= 0 || result === "pin-error-locked" || isAuthPrototypePinFeedbackLocked(result);
@@ -294,16 +298,16 @@ export function createAuthRenderModule(dependencies = {}) {
   }
   
   function resetAuthPrototypeKeypad() {
-    authPrototypeKeypadDigits = shuffleAuthPrototypeDigits(authPrototypeKeypadDigits);
+    setAuthPrototypeKeypadDigitsState(shuffleAuthPrototypeDigits(getAuthPrototypeKeypadDigitsState()));
   }
   
   function getAuthPrototypeKeypadDigits() {
-    if (authPrototypeKeypadDigits.length !== 10) resetAuthPrototypeKeypad();
-    return authPrototypeKeypadDigits;
+    if (getAuthPrototypeKeypadDigitsState().length !== 10) resetAuthPrototypeKeypad();
+    return getAuthPrototypeKeypadDigitsState();
   }
   
   function resetAuthPrototypePinEntry() {
-    authPrototypePinDraft = "";
+    setAuthPrototypePinDraft("");
     resetAuthPrototypeKeypad();
   }
   
@@ -1504,6 +1508,38 @@ export function createAuthRenderModule(dependencies = {}) {
       `,
     });
   }
+
+  function getAuthPrototypeReactModel() {
+    const people = getAuthPrototypePeople();
+    const adaptPerson = (person = {}) => ({
+      id: String(person.id || ""),
+      name: formatAuthPersonName(person.name),
+      role: String(person.role || "Роль не задана"),
+      department: String(person.department || ""),
+      personKind: String(person.personKind || "employee"),
+      canDistribute: Boolean(person.canDistribute),
+      canExecute: person.canExecute !== false,
+    });
+    return {
+      departments: getAuthPrototypeDepartmentRows(people).map((department) => {
+        const units = getAuthPrototypeUnitRows(people, department);
+        return {
+          id: String(department.id || ""),
+          name: String(department.name || "Отдел"),
+          caption: String(department.caption || ""),
+          employeeCount: Number(department.employees || 0),
+          directPeople: getAuthPrototypeDirectDepartmentPeople(people, department).map(adaptPerson),
+          units: units.map((unit) => ({
+            id: String(unit.id || ""),
+            name: String(unit.name || "Участок"),
+            caption: String(unit.caption || ""),
+            employeeCount: Number(unit.employees || 0),
+            people: getAuthPrototypePeopleByUnit(people, department, unit).map(adaptPerson),
+          })),
+        };
+      }),
+    };
+  }
   
   function renderAuthSessionPrototypePage() {
     const model = getAuthSessionPrototypeModel();
@@ -1532,6 +1568,7 @@ export function createAuthRenderModule(dependencies = {}) {
   return {
     doesAuthSessionFactNeedDeviationComment,
     getAuthPrototypeSelectedExecutor,
+    getAuthPrototypeReactModel,
     getAuthSessionFactDeviationPercent,
     getAuthSessionFactDraft,
     getAuthSessionPrototypeModel,
