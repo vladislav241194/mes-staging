@@ -314,6 +314,15 @@ fact, print/photo implementation, Workshop runtime and Shift Execution authority
 remain untouched. The production artifact is `208,178 B` raw / `64,883 B`
 gzip / `55,856 B` Brotli. It has not been released or activated on Pilot.
 
+The standalone Dispatch module was audited and intentionally skipped: its
+blueprint is a disabled, headerless placeholder with no reads, writes, table
+or actions. Shift Master Board is instead the next meaningful operational
+slice. Its isolated React proof consumes the completed legacy board model and
+renders four lanes, four task cards and seven read metrics. Selection and
+revision update pass; assignment, fact, carryover, transfer, print, date,
+focus and master scopes return to legacy. Its independent entry is `206,411 B`
+raw / `63,788 B` gzip. Production integration is still pending.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -332,7 +341,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet, Planning Workbench and Shift Work Orders read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders and Shift Master Board read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; and for Shift Work Orders using the complete PostgreSQL Shift Execution projection. No fixture reaches production.**

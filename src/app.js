@@ -1090,7 +1090,7 @@ function ensureShiftMasterBoardModule() {
   shiftMasterBoardModuleLoad = import("./modules/shift_master_board/render.js")
     .then(({ createShiftMasterBoardModule }) => {
       initializeShiftMasterBoardModule(createShiftMasterBoardModule);
-    if (["shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui.activeModule)) {
+    if (["shiftMasterBoard", "authSessionPrototype"].includes(ui.activeModule) || ui.activeModule === "shiftWorkOrders") {
       render({ skipRememberScroll: true });
     }
     })

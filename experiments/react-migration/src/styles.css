@@ -74,3 +74,26 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .roles-grant-table td:not(:first-child):not(:nth-child(2)), .roles-grant-table th:not(:first-child):not(:nth-child(2)) { text-align: center; }
 .roles-assignment-table { min-width: 760px; }
 .primary-cell { font-weight: 650; }
+.shift-master-board-react { display: grid; gap: 14px; }
+.shift-master-board-react-toolbar { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(390px, 1.4fr) minmax(200px, .7fr); align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+.shift-master-board-react-toolbar > div:first-child, .shift-master-board-react-master { display: grid; gap: 3px; }
+.shift-master-board-react-toolbar span, .shift-master-board-react-toolbar small { color: #718296; font-size: 10px; }
+.shift-master-board-react-kpis { grid-template-columns: repeat(3, minmax(90px, 1fr)); }
+.shift-master-board-react-master { padding: 10px; border: 0; border-radius: 10px; color: #18314d; background: #f0f5fb; text-align: left; cursor: pointer; }
+.shift-master-board-react-grid { display: grid; grid-template-columns: minmax(360px, .85fr) minmax(560px, 1.4fr); align-items: start; gap: 14px; }
+.shift-master-board-react-detail { display: grid; gap: 14px; padding: 16px; }
+.shift-master-board-react-title { display: grid; gap: 3px; }
+.shift-master-board-react-title span, .shift-master-board-react-title small { color: #718296; font-size: 10px; }
+.shift-master-board-react-detail .metric-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+.shift-master-board-react-executors { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3ebf3; border-radius: 12px; }
+.shift-master-board-react-executors header, .shift-master-board-react-executors div, .shift-master-board-react-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shift-master-board-react-executors p { margin: 0; color: #718296; font-size: 11px; }
+.shift-master-board-react-lanes { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 8px; padding: 12px; overflow-x: auto; }
+.shift-master-board-react-lane { min-width: 150px; border: 1px solid #e3ebf3; border-radius: 12px; background: #f8fafc; overflow: hidden; }
+.shift-master-board-react-lane > header { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 10px; border-bottom: 1px solid #e3ebf3; }
+.shift-master-board-react-lane > header small { grid-column: 1 / -1; color: #718296; font-size: 9px; }
+.shift-master-board-react-lane > div { display: grid; gap: 7px; padding: 8px; }
+.shift-master-board-react-lane button { display: grid; gap: 7px; padding: 10px; border: 1px solid #dce5ef; border-radius: 10px; color: #18314d; background: #fff; text-align: left; cursor: pointer; }
+.shift-master-board-react-lane button.is-active { border-color: #2f6fe4; box-shadow: 0 0 0 2px rgba(47,111,228,.12); }
+.shift-master-board-react-lane button small { color: #718296; font-size: 9px; }
+.shift-master-board-react-lane button > span:not(.status) { font-size: 10px; }

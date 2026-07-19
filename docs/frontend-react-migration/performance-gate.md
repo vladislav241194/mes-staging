@@ -28,19 +28,20 @@ Current minified measurements:
 | Timesheet production island | 204,934 B | 63,584 B | 225,000 B | 68,000 B |
 | Planning Workbench production island | 205,200 B | 63,549 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
+| Shift Master Board isolated entry | 206,411 B | 63,788 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full eighteen-scenario lab | 385,945 B | 95,275 B | 390,000 B | 105,000 B |
-| Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
+| Full nineteen-scenario lab | 399,691 B | 97,623 B | 405,000 B | 108,000 B |
+| Shared lab CSS | 8,900 B | 2,171 B | 9,500 B | 2,800 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
-Shift Work Orders and Roles artifacts and rejects unrelated scenario labels.
+Shift Work Orders, Shift Master Board and Roles artifacts and rejects unrelated scenario labels.
 This preserves independent vertical slices instead of shipping every lab
-scenario with an individual island. The larger `390,000 B / 105,000 B` limit
-applies only to the eighteen-scenario development lab, never to a production
+scenario with an individual island. The larger `405,000 B / 108,000 B` limit
+applies only to the nineteen-scenario development lab, never to a production
 island. Its raw limit increased only as isolated scenarios were added; every
 production entry retains the unchanged `225,000 B / 68,000 B` gate.
 
@@ -66,6 +67,7 @@ Browser evidence from one local run:
 | Timesheet | measured by the same callback | browser gate passed | overtime updated, revision 2 |
 | Planning Workbench | measured by the same callback | browser gate passed | Gantt readiness updated, revision 2 |
 | Shift Work Orders | measured by the same callback | browser gate passed | selection/collapse preserved, revision 2 |
+| Shift Master Board | measured by the same callback | browser gate passed | card selection preserved, revision 2 |
 
 The bundled production Roles island is `204,264 B` raw / `64,094 B` gzip /
 `55,289 B` Brotli. Its production-shell first commit measured below `25 ms` on the

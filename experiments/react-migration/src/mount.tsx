@@ -16,9 +16,10 @@ import { WeeklyProductionControlScenario } from "./modules/weekly-production-con
 import { TimesheetScenario } from "./modules/timesheet/TimesheetScenario";
 import { PlanningWorkbenchScenario } from "./modules/planning-workbench/PlanningWorkbenchScenario";
 import { ShiftWorkOrdersScenario } from "./modules/shift-work-orders/ShiftWorkOrdersScenario";
+import { ShiftMasterBoardScenario } from "./modules/shift-master-board/ShiftMasterBoardScenario";
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
 
-export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "structureResponsibilityPolicies" | "structureMigrationDiagnostics" | "weeklyProductionControl" | "timesheet" | "planningWorkbench" | "shiftWorkOrders" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
+export type ReactMigrationScenarioId = "nomenclature" | "componentTypes" | "boards" | "structureEmployees" | "structurePositions" | "structureOrgUnits" | "structureWorkCenters" | "structureEquipment" | "structureResponsibilityPolicies" | "structureMigrationDiagnostics" | "weeklyProductionControl" | "timesheet" | "planningWorkbench" | "shiftWorkOrders" | "shiftMasterBoard" | "roles" | "operations" | "nomenclatureTypes" | "statuses";
 
 export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptions {
   onRequestLegacy?(scope?: string): void;
@@ -38,6 +39,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "timesheet") return <TimesheetScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "planningWorkbench") return <PlanningWorkbenchScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftWorkOrders") return <ShiftWorkOrdersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "shiftMasterBoard") return <ShiftMasterBoardScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "roles") return <RolesScenario payload={payload} />;
   if (scenario === "operations") return <OperationsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "nomenclatureTypes") return <NomenclatureTypesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -73,6 +75,7 @@ export { mountWeeklyProductionControlReactIsland } from "./weekly-production-con
 export { mountTimesheetReactIsland } from "./timesheet-island";
 export { mountPlanningWorkbenchReactIsland } from "./planning-workbench-island";
 export { mountShiftWorkOrdersReactIsland } from "./shift-work-orders-island";
+export { mountShiftMasterBoardReactIsland } from "./shift-master-board-island";
 export { mountRolesReactIsland } from "./roles-island";
 export { mountComponentTypesReactIsland } from "./component-types-island";
 export { mountOperationsReactIsland } from "./operations-island";
