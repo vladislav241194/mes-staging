@@ -26,4 +26,23 @@ hierarchy, code and archive status.
 
 The independent entry is `208,696 B` raw / `64,239 B` gzip. The production
 artifact is `203,298 B` raw / `63,823 B` gzip / `55,093 B` Brotli. It remains
-false by default and has not been released or activated on Pilot.
+false by default.
+
+## Pilot acceptance
+
+The production host shipped disabled by default in release
+`v.1.499.73-b1b77cf`. On 2026-07-19, one authenticated session evaluated Org
+Units in read-only mode.
+
+- all `19` PostgreSQL-backed rows matched legacy in order and in all five read
+  fields;
+- first React commit was `33.30 ms`;
+- selection preserved the parent hierarchy and opened the correct passport;
+- the seven registry counts and six metrics remained aligned;
+- create stayed disabled;
+- requesting Work Centers returned to the exact `19`-row legacy registry;
+- deactivation restored the unchanged `19`-row legacy Org Units view even with
+  the evaluation query retained.
+
+The flags are off, the temporary root directory has been removed, and no Pilot
+data was written. Command migration is outside this accepted slice.

@@ -218,3 +218,28 @@ green, the retained session query mounted no React island, and legacy still
 contained the same `49` rows and values. The temporary rollout directory was
 removed. No Pilot data was written. Structure Positions is currently legacy
 for every session.
+
+## Structure Org Units read-only Pilot evaluation
+
+The fourth live slice evaluated the PostgreSQL-backed organization hierarchy.
+Rollout controls from commit `9b5c938` were executed from an isolated root-only
+directory without changing the immutable release artifact.
+
+- only `MES_REACT_STRUCTURE_ORG_UNITS=1` and
+  `MES_REACT_STRUCTURE_ORG_UNITS_READ_ONLY_EVALUATION=1` were active;
+- the authenticated session requested
+  `react-structure-org-units-evaluation=1`;
+- the island reached `ready`, revision `1`, in `33.30 ms`;
+- all `19` React rows matched all `19` legacy rows in order and in all five
+  read fields: unit, type, parent, code and status;
+- selecting `Участок упаковки и маркировки изделий` preserved its `Склад`
+  parent and opened the expected stable-ID passport;
+- registry counts stayed `19 / 19 / 49 / 76 / 6 / 0`, and create remained
+  disabled;
+- requesting `Рабочие центры` unmounted React and opened the exact `19`-row
+  legacy registry with its command surface.
+
+Deactivation removed all React flags. Health stayed green, the retained session
+query mounted no island, and the same `19` legacy rows remained unchanged. The
+temporary rollout directory was removed and no Pilot data was written. Org
+Units is currently legacy for every session.
