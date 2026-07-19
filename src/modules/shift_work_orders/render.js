@@ -111,7 +111,9 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
         };
       });
     const updatedAt = fact.updatedAt || sheetContract.updatedAt || assignment.updatedAt || row.issuedAt || row.startsAt || "";
-    const issueSummary = getShiftWorkOrderIssueSummary(row);
+    const rawIssueSummary = getShiftWorkOrderIssueSummary(row) || {};
+    const issueSummary = { reportCount: Math.max(0, Number(rawIssueSummary.reportCount || 0) || 0), photoCount: Math.max(0, Number(rawIssueSummary.photoCount || 0) || 0) };
+    const issueReports = getShiftWorkOrderIssueReports(row);
     return {
       id: row.id || sheetContract.rowId || options.id || "",
       sourceRowId: row.id || sheetContract.rowId || options.id || "",
@@ -153,6 +155,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
       dateLabel: updatedAt ? formatDateTimeShort(updatedAt) : "дата не задана",
       timeLabel: row.timeLabel || "",
       issueSummary,
+      issueReports,
     };
   }
   
@@ -166,7 +169,10 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
     const factQuantity = normalizeShiftMasterBoardQuantity(transfer.factQuantity || sheetContract.factQuantity || fact.actualQuantity || 0);
     const remainingQuantity = normalizeShiftMasterBoardQuantity(transfer.remainingQuantity || Math.max(0, plannedQuantity - factQuantity));
     const updatedAt = fact.updatedAt || sheetContract.updatedAt || assignment.updatedAt || "";
-    const issueSummary = getShiftWorkOrderIssueSummary({ id, sourceRowId: sheetContract.rowId || assignment.sourceRowId || id });
+    const issueTarget = { id, sourceRowId: sheetContract.rowId || assignment.sourceRowId || id };
+    const rawIssueSummary = getShiftWorkOrderIssueSummary(issueTarget) || {};
+    const issueSummary = { reportCount: Math.max(0, Number(rawIssueSummary.reportCount || 0) || 0), photoCount: Math.max(0, Number(rawIssueSummary.photoCount || 0) || 0) };
+    const issueReports = getShiftWorkOrderIssueReports(issueTarget);
     return {
       id,
       sourceRowId: sheetContract.rowId || assignment.sourceRowId || id,
@@ -202,6 +208,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
       dateLabel: updatedAt ? formatDateTimeShort(updatedAt) : "дата не задана",
       timeLabel: "",
       issueSummary,
+      issueReports,
     };
   }
   

@@ -1,0 +1,86 @@
+import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { SYSTEM_DOMAINS_STORAGE_KEY } from "../src/app_constants.js";
+import { PRODUCTION_STRUCTURE_MATRIX_ROWS } from "../src/production_structure_matrix_data.js";
+import { DEFAULT_PRODUCTION_WORK_CENTERS } from "../src/production_structure_default_work_centers.js";
+import { migrateLegacySystemDomains, serializeSystemDomains } from "../src/modules/system_domains/service.js";
+import { cleanupChrome, delay, evaluate, getFreePort, launchChrome, waitForCondition } from "./browser-cdp-qa-utils.mjs";
+
+const STATE_STORAGE_KEY = "mes-planning-prototype-state-v2";
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+async function waitPreview(origin) { for (let index = 0; index < 120; index += 1) { try { const response = await fetch(`${origin}/?module=shiftWorkOrders&qa=1&qa-auth-bypass=1`); if (response.ok && (await response.text()).includes('id="app"')) return; } catch {} await delay(120); } throw new Error(`Shift Work Orders preview did not start at ${origin}`); }
+async function stop(child) { if (child.exitCode === null && !child.killed) child.kill("SIGTERM"); await new Promise((resolve) => { if (child.exitCode !== null) return resolve(); const timer = setTimeout(resolve, 1200); child.once("exit", () => { clearTimeout(timer); resolve(); }); }); }
+const responseBody = (value) => Buffer.from(JSON.stringify(value)).toString("base64");
+const normalizedJournal = () => ({
+  headers: [...document.querySelectorAll(".shift-work-orders-table thead th")].map((cell) => cell.textContent.replace(/\s+/g, " ").trim()),
+  rows: [...document.querySelectorAll("[data-shift-work-order-row]")].map((row) => [...row.querySelectorAll("td")].map((cell) => cell.textContent.replace(/^[▸▾↳\s]+/, "").replace(/\s+/g, " ").trim())),
+  documents: document.querySelectorAll("[data-shift-work-order-package-row]").length,
+  operations: document.querySelectorAll("[data-shift-work-order-operation-row]").length,
+  issueCount: document.querySelector("[data-visual-qa-target='shift-work-orders-issue-reports'] header span")?.textContent?.replace(/\s+/g, " ").trim() || "",
+});
+
+const temporaryRoot = await mkdtemp(join(tmpdir(), "mes-shift-work-orders-react-"));
+const sharedStateFile = join(temporaryRoot, "shared-state.json");
+const baseline = migrateLegacySystemDomains({ matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS });
+const employeeIds = baseline.domains.registries.employees.slice(0, 2).map((employee) => employee.id);
+const migration = migrateLegacySystemDomains({
+  matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS,
+  legacyUi: {
+    accessRoleProfiles: [
+      { id: "master", label: "Мастер QA", scope: "workCenter", defaultModule: "shiftMasterBoard", modulePermissions: { shiftWorkOrders: { view: true }, shiftMasterBoard: { view: true, edit: true, assign: true } } },
+      { id: "executor", label: "Исполнитель QA", scope: "self", defaultModule: "authSessionPrototype", modulePermissions: { shiftWorkOrders: { view: true } } },
+    ],
+    accessRoleAssignments: { [employeeIds[0]]: "master", [employeeIds[1]]: "executor" },
+  },
+  migratedAt: "2026-07-19T00:00:00.000Z",
+});
+assert(migration.report.validation.valid, "Shift Work Orders System Domains fixture must be valid");
+const workCenter = DEFAULT_PRODUCTION_WORK_CENTERS[0];
+const employee = migration.domains.registries.employees[0];
+assert(workCenter?.id && employee?.id, "Shift Work Orders fixture needs a work center and executor");
+const projection = {
+  routes: [{ id: "route-react-qa", number: "ЗН-REACT-QA", name: "Контроллер React QA", quantity: 120, planningQuantity: 120, status: "released", planningStatus: "scheduled", specificationId: "spec-react-qa", metadata: { id: "route-react-qa", name: "Контроллер React QA", planningQuantity: 120 } }],
+  routeSteps: [{ id: "step-react-qa", routeId: "route-react-qa", operationId: "OP-REACT-QA", operationName: "Монтаж React QA", workCenterId: workCenter.id, planningWorkCenterId: workCenter.id, quantityMultiplier: 1, sequence: 1, specTaskName: "Контроллер React QA" }],
+  slots: [{ id: "slot-react-qa", routeId: "route-react-qa", planningOrderId: "route-react-qa", routeStepId: "step-react-qa", operationName: "Монтаж React QA", workCenterId: workCenter.id, plannedStart: "2026-07-19T08:00:00.000Z", plannedEnd: "2026-07-19T16:00:00.000Z", quantity: 120, plannedQuantity: 120, status: "planned" }],
+};
+const snapshot = { version: 1, updatedAt: "2026-07-19T00:00:00.000Z", updatedBy: { actor: "shift-work-orders-react-qa" }, values: { [STATE_STORAGE_KEY]: JSON.stringify({ version: 1, workCenters: [{ ...workCenter, name: workCenter.name || "QA участок", code: workCenter.code || "QA" }], ...projection }), [SYSTEM_DOMAINS_STORAGE_KEY]: serializeSystemDomains(migration.domains) }, sharedUi: {}, shiftExecutionRetirement: { transitionId: "shift-react-qa-retired", sourceDigest: "a".repeat(64), sourceSnapshotVersion: 1, retiredAt: "2026-07-19T00:00:00.000Z" }, events: [] };
+await writeFile(sharedStateFile, `${JSON.stringify(snapshot)}\n`, { mode: 0o600 });
+assert(((await stat(sharedStateFile)).mode & 0o777) === 0o600, "temporary state permissions changed");
+const original = await readFile(sharedStateFile, "utf8");
+const enabledPort = await getFreePort(); const legacyPort = await getFreePort(); const enabledOrigin = `http://127.0.0.1:${enabledPort}`; const legacyOrigin = `http://127.0.0.1:${legacyPort}`;
+const start = (port, enabled) => spawn(process.execPath, ["scripts/preview-dist.mjs"], { cwd: process.cwd(), env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), APP_ENV: "local", MES_ADMIN_HOSTS: "admin.mes-line.ru", MES_SHARED_STATE_FILE: sharedStateFile, ...(enabled ? { MES_REACT_SHIFT_WORK_ORDERS: "1", MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION: "1" } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
+const enabledPreview = start(enabledPort, true); const legacyPreview = start(legacyPort, false); let enabledOutput = ""; let legacyOutput = ""; enabledPreview.stdout.on("data", (chunk) => { enabledOutput += chunk; }); enabledPreview.stderr.on("data", (chunk) => { enabledOutput += chunk; }); legacyPreview.stdout.on("data", (chunk) => { legacyOutput += chunk; }); legacyPreview.stderr.on("data", (chunk) => { legacyOutput += chunk; });
+let chrome = null; const consoleProblems = []; let interceptedReads = 0; let shiftCommandWrites = 0; let sharedStateWrites = 0;
+try {
+  await Promise.all([waitPreview(enabledOrigin), waitPreview(legacyOrigin)]); chrome = await launchChrome("mes-shift-work-orders-react-qa-"); const { client } = chrome;
+  client.socket.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data); if (message.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(message.params?.type)) consoleProblems.push((message.params.args || []).map((arg) => arg.value || arg.description || "").join(" ")); if (message.method !== "Fetch.requestPaused") return;
+    const requestUrl = new URL(message.params.request.url); const method = message.params.request.method;
+    const fulfill = (payload, etag = '"shift-work-orders-react-1"') => client.send("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json; charset=utf-8" }, { name: "Cache-Control", value: "no-store" }, { name: "ETag", value: etag }], body: responseBody(payload) }).catch((error) => consoleProblems.push(error.message));
+    if (requestUrl.pathname === "/api/v1/system-domains/capabilities") { interceptedReads += 1; void fulfill({ ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], consistency: { details: { authority: { mode: "postgres-primary" } } } } }); return; }
+    if (requestUrl.pathname === "/api/v1/system-domains") { interceptedReads += 1; void fulfill({ ok: true, revision: 1, item: migration.domains }); return; }
+    if (requestUrl.pathname === "/api/v1/planning/work-orders/projection") { interceptedReads += 1; void fulfill({ ok: true, projection }); return; }
+    if (requestUrl.pathname === "/api/v1/workshop/shift-execution/capabilities") { interceptedReads += 1; void fulfill({ ok: true, capabilities: { assignmentCreationEnabled: true, primaryPostgres: true, schemaReady: true } }); return; }
+    if (requestUrl.pathname === "/api/v1/workshop/shift-execution/dispatch") {
+      interceptedReads += 1; const sourceRowIds = requestUrl.searchParams.getAll("sourceRowId").sort(); const workCenterIds = requestUrl.searchParams.getAll("workCenterId").sort(); const dateKey = requestUrl.searchParams.get("dateKey") || "2026-07-19"; const sourceRowId = sourceRowIds[0];
+      void fulfill({ ok: true, items: [{ id: "assignment-react-qa", sourceRowId, sourceSlotId: "slot-react-qa", workOrderId: "route-react-qa", operationId: "step-react-qa", workCenterId: workCenter.id, masterId: "master-react-qa", plannedQuantity: 120, assignedQuantity: 80, unit: "шт.", status: "issued", issuedAt: "2026-07-19T08:05:00.000Z", updatedAt: "2026-07-19T08:10:00.000Z", revision: 1, executors: [{ employeeId: employee.id, employeeName: employee.name, quantity: 80 }], currentFact: { id: "fact-react-qa", actualQuantity: 60, defectQuantity: 2, laborMinutes: 180, executorCount: 1, reportedAt: "2026-07-19T12:30:00.000Z" } }], carryovers: [], coveredSourceRowIds: sourceRowIds, coverageComplete: true, scope: { dateKey, sourceRowIds, workCenterIds } }); return;
+    }
+    if (requestUrl.pathname.startsWith("/api/v1/workshop/shift-execution") && method !== "GET") { shiftCommandWrites += 1; void fulfill({ ok: false, error: "write forbidden in read-only QA" }); return; }
+    if (requestUrl.pathname === "/api/shared-state" && method !== "GET") { sharedStateWrites += 1; void fulfill({ ok: true, version: 2 }); return; }
+    void client.send("Fetch.continueRequest", { requestId: message.params.requestId }).catch((error) => consoleProblems.push(error.message));
+  });
+  await client.send("Page.enable"); await client.send("Runtime.enable"); await client.send("Fetch.enable", { patterns: [{ urlPattern: "*api/*", requestStage: "Request" }] }); await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
+  await client.send("Page.navigate", { url: `${legacyOrigin}/?module=shiftWorkOrders&qa=1&qa-auth-bypass=1` }); await waitForCondition(client, () => document.querySelectorAll("[data-shift-work-order-row]").length === 1, { message: "legacy Shift Work Orders did not render PostgreSQL projection", timeoutMs: 20_000 }); const legacy = await evaluate(client, normalizedJournal);
+  await client.send("Page.navigate", { url: `${enabledOrigin}/?module=shiftWorkOrders&qa=1&qa-auth-bypass=1` }); await waitForCondition(client, () => document.querySelectorAll("[data-shift-work-order-row]").length === 1, { message: "enabled Shift Work Orders legacy default missing", timeoutMs: 20_000 }); assert(await evaluate(client, () => !document.querySelector("[data-react-shift-work-orders-island]")), "server permission without session request must retain legacy Shift Work Orders");
+  await client.send("Page.navigate", { url: `${enabledOrigin}/?module=shiftWorkOrders&qa=1&qa-auth-bypass=1&react-shift-work-orders-evaluation=1&react-shift-work-orders=1&react-shift-work-orders-readonly=1` }); await waitForCondition(client, () => Boolean(document.querySelector('[data-react-shift-work-orders-island][data-react-island-state="ready"]')) && document.querySelectorAll("[data-shift-work-order-row]").length === 1, { message: "Shift Work Orders React island not ready", timeoutMs: 20_000 });
+  const react = await evaluate(client, normalizedJournal); const state = await evaluate(client, () => { const target = document.querySelector("[data-react-shift-work-orders-island]"); return { revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }; });
+  assert(JSON.stringify(react.headers) === JSON.stringify(legacy.headers), `Shift Work Orders header parity failed: ${JSON.stringify({ legacy: legacy.headers, react: react.headers })}`);
+  assert(react.rows.length === legacy.rows.length && react.documents === legacy.documents && react.operations === legacy.operations, `Shift Work Orders tree density parity failed: ${JSON.stringify({ legacy, react })}`);
+  assert(state.revision === "1" && Number.isFinite(state.commitMs) && state.commitMs < 2000 && !state.pageOverflow, "Shift Work Orders React telemetry/overflow failed");
+  await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.includes("Печать СЗН"))?.click()); await waitForCondition(client, () => !document.querySelector("[data-react-shift-work-orders-island]") && Boolean(document.querySelector(".shift-work-order-print-modal")), { message: "Shift Work Orders print did not return to legacy modal", timeoutMs: 10_000 });
+  assert(interceptedReads >= 8, "legacy and React paths must consume PostgreSQL-backed projections"); assert(shiftCommandWrites === 0, "read-only Shift Work Orders QA attempted a Shift Execution command"); assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`); assert(await readFile(sharedStateFile, "utf8") === original, "intercepted read-only QA changed shared state");
+  console.log("Shift Work Orders React production-shell functional QA: OK"); console.log(`- parity: ${react.documents} work order, ${react.operations} operation, ${react.rows.length} assignment, 8 columns; first commit ${state.commitMs.toFixed(2)} ms`); console.log(`- PostgreSQL projections, default legacy, print fallback, zero Shift Execution writes, ${sharedStateWrites} compatibility write(s) intercepted, unchanged state and clean console: pass`);
+} catch (error) { if (chrome) { const debug = await evaluate(chrome.client, () => ({ href: location.href, text: document.querySelector("#app")?.textContent?.replace(/\s+/g, " ").trim().slice(0, 1200), rows: document.querySelectorAll("[data-shift-work-order-row]").length, parents: document.querySelectorAll("[data-shift-work-order-package-row]").length, shared: window.__MES_SHARED_STATE_DEBUG__, runtime: window.__mesRuntime?.getPlanningRuntimeProjectionStatus?.() || null })).catch((debugError) => ({ debugError: debugError.message })); console.error("Shift Work Orders React QA debug:", JSON.stringify({ debug, interceptedReads, consoleProblems })); } if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); throw error; } finally { if (chrome) await cleanupChrome(chrome); await Promise.all([stop(enabledPreview), stop(legacyPreview)]); await rm(temporaryRoot, { recursive: true, force: true }); }

@@ -302,13 +302,17 @@ and clean console. Its bundled artifact is `201,793 B` raw / `63,311 B` gzip /
 `54,483 B` Brotli. It moves no quantity, date, labor, Gantt or cancel command
 and has not been released or activated on Pilot.
 
-Shift Work Orders is the next isolated operational-family proof. Its typed
+Shift Work Orders is the eighteenth production-integrated scenario and the
+first operational-family proof. Its typed
 adapter consumes the completed journal model and renders two fixture work
 orders, three operations, three assignments, eight columns and the selected
 read detail. Selection, tree collapse, revision update and legacy command
-fallback pass. Assignment, fact, print/photo implementation, Workshop runtime
-and Shift Execution authority remain untouched. The independent lab artifact
-is `210,824 B` raw / `64,526 B` gzip; production integration is still pending.
+fallback pass. Production-shell QA proves one PostgreSQL-backed work order,
+operation and assignment, default legacy, explicit read-only activation,
+print fallback, zero Shift Execution writes and unchanged state. Assignment,
+fact, print/photo implementation, Workshop runtime and Shift Execution authority
+remain untouched. The production artifact is `208,178 B` raw / `64,883 B`
+gzip / `55,856 B` Brotli. It has not been released or activated on Pilot.
 
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
@@ -331,8 +335,8 @@ will be repeated after the Structure Employees commit and before rebasing.
 1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet, Planning Workbench and Shift Work Orders read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
-4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; and for Planning Workbench using the PostgreSQL list/detail bootstrap. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet and Planning Workbench; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
+4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; and for Shift Work Orders using the complete PostgreSQL Shift Execution projection. No fixture reaches production.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench and Shift Work Orders; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
 

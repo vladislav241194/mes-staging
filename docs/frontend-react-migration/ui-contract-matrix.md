@@ -203,16 +203,18 @@ four object/operation rows. Production-shell QA adds PostgreSQL bootstrap
 parity for two orders and two visible hierarchy rows. The host is disabled by
 default; all selection and command scopes return to legacy.
 
-## Shift Work Orders isolated evidence
+## Shift Work Orders production evidence
 
 The first operational-family proof consumes the completed legacy
 `getShiftWorkOrderJournalViewModel()` boundary and normalizes only the read
 projection: document packages, operations, assignments, eight table columns,
-selected detail, quantities, transfer and executors. The fixture proves two
+selected detail, quantities, transfer, executors and issue reports. The fixture proves two
 work orders, three operations and three assignments, local selection and tree
 collapse, plus a payload revision. Print, package, photo and Workshop actions
 request legacy; assignment, fact and Shift Execution authority are untouched.
-Production integration remains a separate gate.
+Production-shell QA proves the same tree density on one PostgreSQL-backed
+work order, operation and assignment, default legacy, explicit read-only
+session activation, print fallback, zero commands and unchanged state.
 
 ## Roles and Access read-model evidence
 

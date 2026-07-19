@@ -84,7 +84,7 @@ assert(!dispatchScope.includes("getShiftMasterBoardSlotRows("), "dispatch scope 
 // only run after the lazy factory exposes the real model, then re-renders the
 // active board to start the scoped server read.
 const loaderInitialize = moduleLoader.indexOf("initializeShiftMasterBoardModule(createShiftMasterBoardModule);");
-const loaderRerender = moduleLoader.indexOf('["shiftMasterBoard", "authSessionPrototype"].includes(ui.activeModule)');
+const loaderRerender = moduleLoader.indexOf('["shiftMasterBoard", "shiftWorkOrders", "authSessionPrototype"].includes(ui.activeModule)');
 const renderModuleLoad = masterBoardRender.indexOf("ensureShiftMasterBoardModule();");
 const renderHydration = masterBoardRender.indexOf('if (typeof getShiftMasterBoardModel === "function") hydrateShiftExecutionServerProjection();');
 assert(loaderInitialize >= 0 && loaderRerender > loaderInitialize, "lazy board factory must initialize before re-rendering the active board");

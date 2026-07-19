@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { getPublicRuntimeConfig, renderRuntimeConfigScript } from "./shared-state-storage.mjs";
+const disabled = getPublicRuntimeConfig({});
+assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS, false);
+assert.equal(disabled.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION, false);
+const enabled = getPublicRuntimeConfig({ MES_REACT_SHIFT_WORK_ORDERS: "1", MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION: "1", DATABASE_URL: "must-not-leak" });
+assert.equal(enabled.MES_REACT_SHIFT_WORK_ORDERS, true);
+assert.equal(enabled.MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION, true);
+const script = renderRuntimeConfigScript({ MES_REACT_SHIFT_WORK_ORDERS: "1", MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION: "1", DATABASE_URL: "must-not-leak" });
+assert.match(script, /"MES_REACT_SHIFT_WORK_ORDERS":true/);
+assert.match(script, /"MES_REACT_SHIFT_WORK_ORDERS_READ_ONLY_EVALUATION":true/);
+assert.doesNotMatch(script, /must-not-leak/);
+console.log("Shift Work Orders React runtime policy QA passed.");

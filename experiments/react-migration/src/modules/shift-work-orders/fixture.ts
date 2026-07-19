@@ -6,6 +6,7 @@ const row = (id: string, documentNumber: string, operationName: string, workCent
   remainingQuantity: Math.max(0, values.planned - values.fact), unit: "шт.", status: { id: values.status, label: values.status === "closed" ? "факт внесен" : values.status === "issued" ? "в работе" : "распределено", tone: values.tone },
   stageLabel: values.status === "closed" ? "СЗН с фактом" : values.status === "issued" ? "СЗН в работе" : "сменное задание",
   updatedAt: values.updated, dateLabel: values.updated, shiftDateKey: "2026-07-19", issueSummary: { reportCount: values.reports || 0, photoCount: values.photos || 0 },
+  issueReports: values.reports ? [{ id: `report-${id}`, rowId: id, employeeName: values.executor, text: "Не хватает комплектующих для продолжения операции.", createdAt: values.updated, operationName, workCenterLabel, photo: values.photos ? { id: `photo-${id}`, name: "report.jpg", dataUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", storageNote: "Локальная QA-фикстура" } : null }] : [],
   transfer: { fromOperationName: operationName, fromWorkCenterLabel: workCenterLabel, toOperationName: operationName === "Монтаж" ? "Контроль" : "Упаковка", toWorkCenterLabel: operationName === "Монтаж" ? "ОТК" : "Склад" },
 });
 const rows = [

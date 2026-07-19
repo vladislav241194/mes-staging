@@ -27,13 +27,13 @@ Current minified measurements:
 | Weekly Production Control production island | 204,805 B | 63,393 B | 225,000 B | 68,000 B |
 | Timesheet production island | 204,934 B | 63,584 B | 225,000 B | 68,000 B |
 | Planning Workbench production island | 205,200 B | 63,549 B | 225,000 B | 68,000 B |
-| Shift Work Orders isolated entry | 210,824 B | 64,526 B | 225,000 B | 68,000 B |
+| Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full eighteen-scenario lab | 382,793 B | 94,415 B | 390,000 B | 105,000 B |
+| Full eighteen-scenario lab | 385,945 B | 95,275 B | 390,000 B | 105,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -127,6 +127,11 @@ The bundled production Timesheet island is `201,559 B` raw / `63,358 B` gzip /
 The bundled production Planning Workbench island is `201,793 B` raw /
 `63,311 B` gzip / `54,483 B` Brotli. Its two-order PostgreSQL-bootstrap
 production-shell first commit was `18.70 ms`; this is regression evidence, not
+Pilot acceptance.
+
+The bundled production Shift Work Orders island is `208,178 B` raw /
+`64,883 B` gzip / `55,856 B` Brotli. Its one-assignment PostgreSQL-backed
+production-shell first commit was `43.30 ms`; this is regression evidence, not
 Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
