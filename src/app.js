@@ -3928,7 +3928,12 @@ const rolesReactIslandHost = createRolesReactIslandHost({
       && systemDomainsServerCommandState.enabled === true
       && systemDomainsServerCommandState.surfaces.includes("access-control")
       && authorizeSystemDomainAction("roles", "configure");
-    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady, defaultScopeEdit: commandReady, lifecycleEdit: commandReady } };
+    const assignmentReady = localQa.writeEvaluation
+      && systemDomainsServerCommandState.status === "ready"
+      && systemDomainsServerCommandState.enabled === true
+      && systemDomainsServerCommandState.surfaces.includes("access-control")
+      && (getSystemDomainsRegistries().employees || []).some((employee) => authorizeSystemDomainAction("roles", "assign", getAccessControlEmployeeContext(employee.id)));
+    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady, defaultScopeEdit: commandReady, lifecycleEdit: commandReady, assignmentEdit: assignmentReady } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: () => {
@@ -3936,10 +3941,42 @@ const rolesReactIslandHost = createRolesReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getRolesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save-metadata", "set-grant", "set-default-scope", "deactivate-role", "reactivate-role"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
+    if (!localQa.writeEvaluation || !["save-metadata", "set-grant", "set-default-scope", "deactivate-role", "reactivate-role", "set-assignment"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("access-control")) return { ok: false, message: "PostgreSQL-команда ролей недоступна." };
-    if (!authorizeSystemDomainAction("roles", "configure")) return { ok: false, message: "Нет права на настройку ролей." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "set-assignment") {
+      const employeeId = String(input.employeeId || "").trim(); const confirmEmployeeId = String(input.confirmEmployeeId || "").trim(); const expectedPreviousRoleId = String(input.expectedPreviousRoleId || "").trim(); const nextRoleId = String(input.roleId || "").trim();
+      const employee = (getSystemDomainsRegistries().employees || []).find((item) => String(item.id || "") === employeeId);
+      if (!employee || confirmEmployeeId !== employeeId) return { ok: false, message: "Подтверждение относится к другому сотруднику." };
+      if (!authorizeSystemDomainAction("roles", "assign", getAccessControlEmployeeContext(employeeId))) return { ok: false, message: "Нет права назначать роль этому сотруднику." };
+      if (String(getAuthenticatedAccessPerson()?.id || "") === employeeId) return { ok: false, message: "Нельзя менять собственное явное назначение в React evaluation." };
+      const assignments = (getSystemDomainsRegistries().roleAssignments || []).filter((assignment) => String(assignment.employeeId || assignment.subjectId || "") === employeeId);
+      const currentRoleId = assignments.length === 1 ? String(assignments[0].roleId || "") : "";
+      if (assignments.length > 1) return { ok: false, message: "У сотрудника несколько явных назначений; используйте legacy-интерфейс для разрешения конфликта." };
+      if (assignments.some((assignment) => [assignment.validFrom, assignment.validTo, assignment.effectiveFrom, assignment.effectiveTo].some((value) => String(value || "").trim()))) return { ok: false, message: "Назначение имеет период действия; измените его в legacy-интерфейсе." };
+      if (currentRoleId !== expectedPreviousRoleId) return { ok: false, message: "Назначение сотрудника изменилось в другом сеансе." };
+      if (nextRoleId && !(getSystemDomainsRegistries().accessRoles || []).some((item) => item.id === nextRoleId && item.isActive !== false)) return { ok: false, message: "Новая роль недоступна или деактивирована." };
+      if (nextRoleId === currentRoleId) return { ok: false, message: "Назначение не изменилось." };
+      try {
+        const updated = await setSubjectRoleAssignment({
+          subjectId: employeeId,
+          subjectType: "employee",
+          roleId: nextRoleId,
+          operation: nextRoleId ? "replace-effective" : "clear-effective",
+          // The React command is immediate-only. An empty lower boundary avoids turning
+          // a local calendar date into a future UTC boundary around midnight.
+          effectiveAt: null,
+        });
+        if (updated !== true) return { ok: false, message: "Изменение назначения отклонено проверкой access-control." };
+        const authoritative = (getSystemDomainsRegistries().roleAssignments || []).filter((assignment) => String(assignment.employeeId || assignment.subjectId || "") === employeeId);
+        if (nextRoleId ? authoritative.length !== 1 || String(authoritative[0].roleId || "") !== nextRoleId : authoritative.length !== 0) return { ok: false, message: "Access-control не подтвердил новое назначение." };
+        queueMicrotask(() => { if (ui.activeModule === "roles") render({ skipRememberScroll: true }); });
+        return { ok: true, id: employeeId, roleId: nextRoleId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Назначения изменились в другом сеансе. Проверьте данные и повторите." : error?.message || "Сервер не принял назначение роли." };
+      }
+    }
+    if (!authorizeSystemDomainAction("roles", "configure")) return { ok: false, message: "Нет права на настройку ролей." };
     const roleId = String(input.roleId || "").trim(); const label = String(input.label || "").trim(); const description = String(input.description || "").trim(); const defaultModuleId = String(input.defaultModuleId || "").trim();
     const role = (getSystemDomainsRegistries().accessRoles || []).find((item) => item.id === roleId);
     if (!role) return { ok: false, message: "Роль больше не существует." };

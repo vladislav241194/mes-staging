@@ -35,12 +35,12 @@ Current minified measurements:
 | Contour Admin production island | 207,695 B | 63,983 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 218,918 B | 66,198 B | 225,000 B | 68,000 B |
 | Gantt production island | 210,560 B | 64,962 B | 225,000 B | 68,000 B |
-| Roles and Access independent entry | 219,016 B | 66,400 B | 225,000 B | 68,000 B |
+| Roles and Access independent entry | 222,758 B | 66,971 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 212,161 B | 64,999 B | 225,000 B | 68,000 B |
 | Operations independent entry | 210,478 B | 64,840 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 210,301 B | 64,630 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 213,503 B | 65,173 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 562,628 B | 127,063 B | 564,000 B | 128,000 B |
+| Full twenty-four-scenario lab | 563,255 B | 127,281 B | 564,000 B | 128,000 B |
 | Shared lab CSS | 29,860 B | 5,345 B | 30,000 B | 5,350 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -88,10 +88,10 @@ then proved one create plus one edit through the existing command owner.
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
 
-The bundled production Roles island is `211,411 B` raw / `66,049 B` gzip /
-`56,889 B` Brotli. Its production-shell first commit remains below the `2,000 ms`
-local gate (`17.90 ms` in the latest full run); metadata/grant/default-scope and
-unassigned-role lifecycle QA additionally prove revision-conflict retry,
+The bundled production Roles island is `214,423 B` raw / `66,615 B` gzip /
+`57,356 B` Brotli. Its production-shell first commit remains below the `2,000 ms`
+local gate (`28.60 ms` in the latest full run); metadata/grant/default-scope,
+exact-employee assignment and unassigned-role lifecycle QA additionally prove revision-conflict retry,
 assigned/current-role fail-closed guards, inactive grant denial, cleanup,
 protected-registry preservation and legacy read-back. This is regression
 evidence, not Pilot acceptance.

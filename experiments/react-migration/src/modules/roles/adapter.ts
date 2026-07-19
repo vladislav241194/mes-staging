@@ -48,6 +48,10 @@ export interface RoleAssignedEmployee {
   orgUnitLabel: string;
 }
 
+export interface RoleEmployeeOption extends RoleAssignedEmployee {
+  currentRoleId: string;
+}
+
 export interface AccessRoleReadItem {
   id: string;
   label: string;
@@ -67,10 +71,12 @@ export interface RolesReadModel {
   roles: AccessRoleReadItem[];
   modules: RolesModuleDefinition[];
   assignmentCount: number;
+  employees: RoleEmployeeOption[];
   canEditMetadata: boolean;
   canEditGrants: boolean;
   canEditDefaultScope: boolean;
   canEditLifecycle: boolean;
+  canEditAssignments: boolean;
 }
 
 function text(value: unknown): string {
@@ -185,6 +191,13 @@ export function adaptRoles(payload: unknown): RolesReadModel {
     item.allowedModuleCount = modules.filter((moduleItem) => roleAllows(item, moduleItem.id, "view")).length;
     return [item];
   });
+  const explicitRoleByEmployee = new Map(assignmentRows.map((assignment) => [text(assignment.employeeId || assignment.subjectId), text(assignment.roleId)]));
+  const employeeOptions = employeeRows.flatMap((employee): RoleEmployeeOption[] => {
+    const id = text(employee.id); if (!id) return [];
+    const employment = employmentRows.find((row) => text(row.employeeId) === id && row.isPrimary !== false) || employmentRows.find((row) => text(row.employeeId) === id);
+    const position = positions.get(text(employment?.positionId)); const orgUnit = orgUnits.get(text(employment?.orgUnitId));
+    return [{ id, name: text(employee.displayName || employee.name) || id, personnelNumber: text(employee.personnelNumber) || "—", positionLabel: text(position?.name || position?.label || position?.id) || "—", orgUnitLabel: text(orgUnit?.name || orgUnit?.label || orgUnit?.id) || "—", currentRoleId: explicitRoleByEmployee.get(id) || "" }];
+  }).sort((left, right) => left.name.localeCompare(right.name, "ru") || left.id.localeCompare(right.id, "en"));
 
-  return { roles, modules, assignmentCount: assignmentRows.length, canEditMetadata: capabilities.metadataEdit === true, canEditGrants: capabilities.grantsEdit === true, canEditDefaultScope: capabilities.defaultScopeEdit === true, canEditLifecycle: capabilities.lifecycleEdit === true };
+  return { roles, modules, employees: employeeOptions, assignmentCount: assignmentRows.length, canEditMetadata: capabilities.metadataEdit === true, canEditGrants: capabilities.grantsEdit === true, canEditDefaultScope: capabilities.defaultScopeEdit === true, canEditLifecycle: capabilities.lifecycleEdit === true, canEditAssignments: capabilities.assignmentEdit === true };
 }

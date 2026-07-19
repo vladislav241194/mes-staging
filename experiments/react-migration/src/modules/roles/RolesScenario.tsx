@@ -14,10 +14,11 @@ export type RolesReactCommand = { type: "save-metadata"; payload: RoleMetadataDr
 export type RoleGrantCommand = { type: "set-grant"; payload: { roleId: string; moduleId: string; action: typeof ROLE_ACTIONS[number]["id"]; allowed: boolean } };
 export type RoleDefaultScopeCommand = { type: "set-default-scope"; payload: { roleId: string; scope: "factory" | "department" | "workCenter" | "self" } };
 export type RoleLifecycleCommand = { type: "deactivate-role" | "reactivate-role"; payload: { roleId: string; confirmRoleId: string } };
+export type RoleAssignmentCommand = { type: "set-assignment"; payload: { employeeId: string; confirmEmployeeId: string; expectedPreviousRoleId: string; roleId: string } };
 
 export function RolesScenario({ payload, onCommand }: {
   payload: unknown;
-  onCommand?(command: RolesReactCommand | RoleGrantCommand | RoleDefaultScopeCommand | RoleLifecycleCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onCommand?(command: RolesReactCommand | RoleGrantCommand | RoleDefaultScopeCommand | RoleLifecycleCommand | RoleAssignmentCommand): Promise<{ ok?: boolean; message?: string } | void>;
 }) {
   const model = useMemo(() => adaptRoles(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.roles[0]?.id || "");
@@ -28,6 +29,8 @@ export function RolesScenario({ payload, onCommand }: {
   const [scopeSaving, setScopeSaving] = useState(false);
   const [lifecycleIntent, setLifecycleIntent] = useState<"deactivate" | "reactivate" | "">("");
   const [lifecycleSaving, setLifecycleSaving] = useState(false);
+  const [assignmentDraft, setAssignmentDraft] = useState<{ employeeId: string; expectedPreviousRoleId: string; roleId: string } | null>(null);
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
   const selected = resolveVisibleRole(model.roles, selectedId);
   const visibleDefaultModules = selected ? model.modules.filter((moduleItem) => roleAllows(selected, moduleItem.id, "view")) : [];
   const openMetadataEditor = () => {
@@ -74,6 +77,15 @@ export function RolesScenario({ payload, onCommand }: {
     } catch (error) { setCommandError(error instanceof Error ? error.message : "Изменение статуса роли отклонено."); }
     finally { setLifecycleSaving(false); }
   };
+  const commitAssignment = async () => {
+    if (!assignmentDraft || !onCommand || assignmentSaving) return;
+    setAssignmentSaving(true); setCommandError("");
+    try {
+      const result = await onCommand({ type: "set-assignment", payload: { ...assignmentDraft, confirmEmployeeId: assignmentDraft.employeeId } });
+      if (result && result.ok === false) setCommandError(result.message || "Изменение назначения отклонено."); else setAssignmentDraft(null);
+    } catch (error) { setCommandError(error instanceof Error ? error.message : "Изменение назначения отклонено."); }
+    finally { setAssignmentSaving(false); }
+  };
   const header = <ModuleHeader eyebrow="Система · System Domains" title="Роли и доступ" badge={<span className="lab-badge">{model.canEditMetadata ? "React · metadata evaluation" : "React migration lab"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Роли доступа" title="Роли и доступ">
@@ -119,7 +131,8 @@ export function RolesScenario({ payload, onCommand }: {
               </tr>)}</tbody>
             </table></TableWrap>
           </Panel>
-          <Panel heading={<div className="panel-heading"><div><h2>Явные назначения</h2><p>{selected.assignedEmployees.length || "Нет"} сотрудников с этой ролью</p></div></div>}>
+          <Panel heading={<div className="panel-heading"><div><h2>Явные назначения</h2><p>{selected.assignedEmployees.length || "Нет"} сотрудников с этой ролью</p></div>{!assignmentDraft ? <ActionButton disabled={!model.canEditAssignments || !model.employees.length} onClick={() => { const employee = selected.assignedEmployees[0] || model.employees[0]; const option = model.employees.find((item) => item.id === employee?.id); if (option) setAssignmentDraft({ employeeId: option.id, expectedPreviousRoleId: option.currentRoleId, roleId: option.currentRoleId }); setCommandError(""); }}>Изменить назначение</ActionButton> : null}</div>}>
+            {assignmentDraft ? <div className="react-nomenclature-delete-confirm" data-react-role-assignment-confirm={assignmentDraft.employeeId} role="alertdialog"><label><span>Сотрудник</span><select data-react-role-assignment-employee value={assignmentDraft.employeeId} onChange={(event) => { const option = model.employees.find((item) => item.id === event.currentTarget.value); if (option) setAssignmentDraft({ employeeId: option.id, expectedPreviousRoleId: option.currentRoleId, roleId: option.currentRoleId }); }}>{model.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} · {employee.personnelNumber}</option>)}</select></label><label><span>Новая явная роль</span><select data-react-role-assignment-role value={assignmentDraft.roleId} onChange={(event) => { const roleId = event.currentTarget.value; setAssignmentDraft((current) => current ? { ...current, roleId } : current); }}><option value="">Снять явное назначение</option>{model.roles.filter((role) => role.active).map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</select></label><p>Подтверждается stable employee ID <code>{assignmentDraft.employeeId}</code>; прежняя роль: <code>{assignmentDraft.expectedPreviousRoleId || "none"}</code>.</p>{commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}<div className="react-nomenclature-editor-actions"><ActionButton disabled={assignmentSaving} onClick={() => { setAssignmentDraft(null); setCommandError(""); }} variant="secondary">Отмена</ActionButton><ActionButton disabled={assignmentSaving || assignmentDraft.roleId === assignmentDraft.expectedPreviousRoleId} onClick={() => void commitAssignment()}>{assignmentSaving ? "Сохранение…" : "Подтвердить назначение"}</ActionButton></div></div> : null}
             {selected.assignedEmployees.length ? <TableWrap><table className="roles-assignment-table">
               <thead><tr><th>Сотрудник</th><th>Табельный номер</th><th>Должность</th><th>Подразделение</th></tr></thead>
               <tbody>{selected.assignedEmployees.map((employee) => <tr key={employee.id}><td className="primary-cell">{employee.name}</td><td>{employee.personnelNumber}</td><td>{employee.positionLabel}</td><td>{employee.orgUnitLabel}</td></tr>)}</tbody>

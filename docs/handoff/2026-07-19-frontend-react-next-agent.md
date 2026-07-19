@@ -643,3 +643,29 @@ actions/console, затем немедленно деактивировать и
   выполнено, примерно `3%` осталось (`+1 п.п.`). Прирост относится только к
   exact-revision work-order creation; Pilot write acceptance, attachments,
   route editing и owner gaps других модулей не переоценены.
+
+## Продолжение 2026-07-20: Roles exact-employee assignment checkpoint
+
+- React получил typed `set-assignment` для immediate replace/clear одного
+  явного назначения. Диалог привязан к exact stable employee ID и передаёт
+  expected previous role; cancel не выполняет PUT.
+- Host повторно проверяет PostgreSQL/access-control readiness,
+  employee-scoped `roles:assign`, существование сотрудника, активность target
+  role и expected previous role. Self-mutation и несколько явных строк
+  отклоняются до PUT; owner остаётся единственной точкой записи.
+- Immediate-команда использует пустую нижнюю границу периода. Это устраняет
+  найденный UTC-boundary дефект, при котором локальная дата в первые часы МСК
+  считалась ещё не наступившей в legacy effective-date read model.
+- Production-shell QA доказывает exact-ID confirmation, cancel, conflict/retry,
+  replace `master -> reserve`, PostgreSQL и legacy read-back, cleanup
+  `reserve -> master`, неизменные hidden fields и дальнейший unassigned-role
+  lifecycle. First commit `28.60 ms`; compact/production UI и console clean.
+- Performance: independent `222758 / 66971 B`, bundled production
+  `214423 / 66615 / 57356 B`, full lab `563255 / 127281 B`; production и
+  aggregate budgets зелёные. Pilot write/deploy/version/flags не менялись,
+  legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `98%`
+  выполнено, примерно `2%` осталось (`+1 п.п.`). Прирост относится только к
+  immediate single-assignment parity; multiple/effective-window assignments,
+  personal/assignment scopes, `readOnly`, assigned-role lifecycle, Pilot write
+  acceptance и остальные owner gaps не переоценены.

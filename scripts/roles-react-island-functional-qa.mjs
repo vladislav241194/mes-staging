@@ -44,7 +44,7 @@ async function main() {
     matrixRows: PRODUCTION_STRUCTURE_MATRIX_ROWS,
     legacyUi: {
       accessRoleProfiles: [
-        { id: "admin", label: "Администратор QA", scope: "factory", defaultModule: "roles", modulePermissions: { roles: { view: true, print: true, configure: true } } },
+        { id: "admin", label: "Администратор QA", scope: "factory", defaultModule: "roles", modulePermissions: { roles: { view: true, print: true, assign: true, configure: true } } },
         { id: "master", label: "Мастер QA", scope: "workCenter", defaultModule: "shiftMasterBoard", modulePermissions: { shiftMasterBoard: { view: true, edit: true, assign: true }, timesheet: { view: true } } },
         { id: "auditor", label: "Аудитор QA", scope: "factory", defaultModule: "roles", readOnly: true, modulePermissions: { roles: { view: true, print: true }, gantt: { view: true, print: true } } },
         { id: "reserve", label: "Резервная роль QA", scope: "factory", defaultModule: "roles", modulePermissions: { roles: { view: true, print: true } } },
@@ -333,6 +333,71 @@ async function main() {
     assert(JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsBefore && apiDomains.registries.accessRoles.find((role) => role.id === "admin")?.serverOnlyMarker === "role-hidden-field", "default-scope command changed assignments or a hidden role field");
     const grantsLifecycleBefore = JSON.stringify(apiDomains.registries.grants);
 
+    const assignmentAction = async (label) => evaluate(client, (text) => { const button = [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((item) => item.textContent?.trim() === text); button?.click(); return Boolean(button); }, label);
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&react-roles=1&react-roles-write=1&qa-reload=roles-assignment-write` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-roles-island][data-react-island-state="ready"]')), { message: "Roles React did not stabilize before assignment evaluation", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Мастер QA"))?.click());
+    await waitForCondition(client, () => document.querySelector('[data-react-role-default-scope="master"]')?.value === "workCenter", { message: "master role was not selected before assignment evaluation" });
+    assert(await assignmentAction("Изменить назначение"), "assignment editor action was not available for the selected role");
+    try {
+      await waitForCondition(client, (employeeId) => document.querySelector(`[data-react-role-assignment-confirm="${employeeId}"]`)?.textContent?.includes(`stable employee ID ${employeeId}`), { arg: employeeIds[1], message: "assignment confirmation was not bound to exact employee ID" });
+    } catch (error) {
+      const diagnostic = await evaluate(client, () => ({ confirmId: document.querySelector("[data-react-role-assignment-confirm]")?.getAttribute("data-react-role-assignment-confirm") || "", text: document.querySelector("[data-react-role-assignment-confirm]")?.textContent?.replace(/\s+/g, " ").trim() || "", selected: [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.getAttribute("aria-current") === "true")?.textContent?.trim() || "" }));
+      throw new Error(`${error.message}: ${JSON.stringify({ expected: employeeIds[1], diagnostic })}`);
+    }
+    await assignmentAction("Отмена");
+    await waitForCondition(client, () => !document.querySelector("[data-react-role-assignment-confirm]"), { message: "assignment confirmation did not cancel" });
+    assert(apiRevision === 6 && successfulWrites === 5 && putAttempts === 8, "cancelled assignment must not reach PUT");
+    await assignmentAction("Изменить назначение");
+    await waitForCondition(client, () => Boolean(document.querySelector("[data-react-role-assignment-role]")), { message: "assignment editor did not reopen" });
+    await evaluate(client, () => { const field = document.querySelector("[data-react-role-assignment-role]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(field, "reserve"); field.dispatchEvent(new Event("change", { bubbles: true })); });
+    forceConflictOnce = true;
+    assert(await assignmentAction("Подтвердить назначение"), "assignment confirmation action disappeared before conflict");
+    try {
+      await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("Назначения изменились"), { message: "assignment revision conflict was not visible" });
+    } catch (error) {
+      const alert = await evaluate(client, () => document.querySelector('[role="alert"]')?.textContent?.trim() || "");
+      throw new Error(`${error.message}: ${alert}`);
+    }
+    assert(apiRevision === 6 && successfulWrites === 5 && putAttempts === 9, "conflicted assignment must not mutate System Domains");
+    assert(await assignmentAction("Подтвердить назначение"), "assignment confirmation action disappeared before retry");
+    for (let attempt = 0; attempt < 100 && apiRevision !== 7; attempt += 1) await delay(100);
+    assert(apiRevision === 7 && successfulWrites === 6 && putAttempts === 10, "assignment retry must advance exactly one PostgreSQL revision");
+    assert(apiDomains.registries.roleAssignments.find((row) => row.employeeId === employeeIds[1])?.roleId === "reserve", "assignment owner did not persist the replacement role");
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&qa-reload=roles-assignment-legacy-readback` });
+    try {
+      await waitForCondition(client, (employeeId) => document.querySelector(`[data-access-role-assignment="${employeeId}"]`)?.value === "reserve", { arg: employeeIds[1], message: "legacy Roles did not read back the replacement assignment", timeoutMs: 15_000 });
+    } catch (error) {
+      const diagnostic = await evaluate(client, () => [...document.querySelectorAll("[data-access-role-assignment]")].slice(0, 6).map((field) => ({ id: field.getAttribute("data-access-role-assignment"), value: field.value })));
+      throw new Error(`${error.message}: ${JSON.stringify({ expected: employeeIds[1], diagnostic })}`);
+    }
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&react-roles=1&react-roles-write=1&qa-reload=roles-assignment-cleanup` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-roles-island][data-react-island-state="ready"]')), { message: "Roles React did not return for assignment cleanup", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Резервная роль QA"))?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((item) => item.textContent?.trim() === "Изменить назначение" && !item.disabled), { message: "replacement assignment did not hydrate through React" });
+    await assignmentAction("Изменить назначение");
+    await waitForCondition(client, () => document.querySelector("[data-react-role-assignment-role]")?.value === "reserve", { message: "assignment cleanup editor lost the authoritative previous role" });
+    await evaluate(client, () => { const field = document.querySelector("[data-react-role-assignment-role]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(field, "master"); field.dispatchEvent(new Event("change", { bubbles: true })); });
+    await assignmentAction("Подтвердить назначение");
+    for (let attempt = 0; attempt < 100 && apiRevision !== 8; attempt += 1) await delay(100);
+    assert(apiRevision === 8 && successfulWrites === 7 && putAttempts === 11, "assignment cleanup must advance exactly one PostgreSQL revision");
+    const restoredAssignment = apiDomains.registries.roleAssignments.filter((row) => row.employeeId === employeeIds[1]);
+    assert(restoredAssignment.length === 1 && restoredAssignment[0].roleId === "master" && apiDomains.registries.roleAssignments.length === JSON.parse(assignmentsBefore).length, "assignment cleanup did not restore the original effective role coordinates");
+    restoredAssignment[0].validFrom = "2099-01-01";
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&react-roles=1&react-roles-write=1&qa-reload=roles-assignment-dated-guard` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-roles-island][data-react-island-state="ready"]')), { message: "Roles React did not return for dated-assignment guard", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Мастер QA"))?.click());
+    await assignmentAction("Изменить назначение");
+    await waitForCondition(client, () => Boolean(document.querySelector("[data-react-role-assignment-role]")), { message: "dated-assignment editor did not open" });
+    await evaluate(client, () => { const field = document.querySelector("[data-react-role-assignment-role]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(field, "reserve"); field.dispatchEvent(new Event("change", { bubbles: true })); });
+    await assignmentAction("Подтвердить назначение");
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("период действия"), { message: "dated assignment did not fail closed before PUT" });
+    assert(apiRevision === 8 && successfulWrites === 7 && putAttempts === 11, "dated assignment guard must reject before PUT");
+    delete restoredAssignment[0].validFrom;
+    const assignmentsAfterCleanup = JSON.stringify(apiDomains.registries.roleAssignments);
+    await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&react-roles=1&react-roles-write=1&qa-reload=roles-lifecycle-write` });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-roles-island][data-react-island-state="ready"]')), { message: "Roles React did not return for lifecycle evaluation", timeoutMs: 15_000 });
+
     const lifecycleAction = async (label) => evaluate(client, (text) => {
       const button = [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((item) => item.textContent?.trim() === text);
       button?.click();
@@ -343,7 +408,7 @@ async function main() {
     await lifecycleAction("Деактивировать");
     await delay(100);
     assert(!await evaluate(client, () => Boolean(document.querySelector('[data-react-role-lifecycle-confirm="master"]'))), "disabled assigned-role action must not open lifecycle confirmation");
-    assert(apiRevision === 6 && successfulWrites === 5 && putAttempts === 8, "assigned role rejection must happen before PUT");
+    assert(apiRevision === 8 && successfulWrites === 7 && putAttempts === 11, "assigned role rejection must happen before PUT");
 
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Резервная роль QA"))?.click());
     await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((item) => item.textContent?.trim() === "Деактивировать" && !item.disabled), { message: "unassigned role lifecycle action did not become available" });
@@ -352,14 +417,14 @@ async function main() {
     forceConflictOnce = true;
     await lifecycleAction("Подтвердить деактивацию");
     await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("изменились в другом сеансе"), { message: "role lifecycle revision conflict was not visible" });
-    assert(apiRevision === 6 && successfulWrites === 5 && putAttempts === 9 && apiDomains.registries.accessRoles.find((role) => role.id === "reserve")?.isActive !== false, "conflicted role deactivation must not mutate System Domains");
+    assert(apiRevision === 8 && successfulWrites === 7 && putAttempts === 12 && apiDomains.registries.accessRoles.find((role) => role.id === "reserve")?.isActive !== false, "conflicted role deactivation must not mutate System Domains");
     await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((item) => item.textContent?.trim() === "Подтвердить деактивацию" && !item.disabled), { message: "role lifecycle confirmation did not unlock after conflict" });
     await lifecycleAction("Подтвердить деактивацию");
-    for (let attempt = 0; attempt < 100 && apiRevision !== 7; attempt += 1) await delay(100);
-    assert(apiRevision === 7 && successfulWrites === 6 && putAttempts === 10, "role deactivation retry must advance exactly one PostgreSQL revision");
+    for (let attempt = 0; attempt < 100 && apiRevision !== 9; attempt += 1) await delay(100);
+    assert(apiRevision === 9 && successfulWrites === 8 && putAttempts === 13, "role deactivation retry must advance exactly one PostgreSQL revision");
     const reserveInactive = apiDomains.registries.accessRoles.find((role) => role.id === "reserve");
     assert(reserveInactive?.isActive === false && reserveInactive?.serverOnlyMarker === "role-lifecycle-hidden-field", "role owner did not persist inactive state or preserve hidden fields");
-    assert(JSON.stringify(apiDomains.registries.grants) === grantsLifecycleBefore && JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsBefore, "role deactivation changed grants or assignments");
+    assert(JSON.stringify(apiDomains.registries.grants) === grantsLifecycleBefore && JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsAfterCleanup, "role deactivation changed grants or assignments");
 
     await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&qa-reload=roles-lifecycle-legacy-inactive` });
     await waitForCondition(client, () => Boolean(document.querySelector('[data-access-role-select="reserve"]')), { message: "legacy Roles did not return for inactive role read-back" });
@@ -374,12 +439,12 @@ async function main() {
     await lifecycleAction("Активировать");
     await waitForCondition(client, () => document.querySelector('[data-react-role-lifecycle-confirm="reserve"]')?.textContent?.includes("stable ID reserve"), { message: "role reactivation confirmation did not remain ID-bound" });
     await lifecycleAction("Подтвердить активацию");
-    for (let attempt = 0; attempt < 100 && apiRevision !== 8; attempt += 1) await delay(100);
-    assert(apiRevision === 8 && successfulWrites === 7 && putAttempts === 11, "role reactivation must advance exactly one PostgreSQL revision");
+    for (let attempt = 0; attempt < 100 && apiRevision !== 10; attempt += 1) await delay(100);
+    assert(apiRevision === 10 && successfulWrites === 9 && putAttempts === 14, "role reactivation must advance exactly one PostgreSQL revision");
     const reserveActive = apiDomains.registries.accessRoles.find((role) => role.id === "reserve");
     assert(reserveActive?.isActive === true && reserveActive?.serverOnlyMarker === "role-lifecycle-hidden-field", "role owner did not restore active state or preserve hidden fields");
     assert(reserveActive?.label === reserveBefore?.label && reserveActive?.scope === reserveBefore?.scope && reserveActive?.defaultModuleId === reserveBefore?.defaultModuleId, "role lifecycle changed ordinary metadata");
-    assert(JSON.stringify(apiDomains.registries.grants) === grantsLifecycleBefore && JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsBefore, "role reactivation changed grants or assignments");
+    assert(JSON.stringify(apiDomains.registries.grants) === grantsLifecycleBefore && JSON.stringify(apiDomains.registries.roleAssignments) === assignmentsAfterCleanup, "role reactivation changed grants or assignments");
     await client.send("Page.navigate", { url: `${origin}/?module=roles&qa-auth-bypass=1&qa-reload=roles-lifecycle-legacy-active` });
     await waitForCondition(client, () => Boolean(document.querySelector('[data-access-role-select="reserve"]')), { message: "legacy Roles did not return after reactivation" });
     await evaluate(client, () => document.querySelector('[data-access-role-select="reserve"]')?.click());
@@ -391,7 +456,7 @@ async function main() {
     console.log(`- ${initial.roles} canonical roles, ${initial.modules} modules, explicit assignments: pass`);
     console.log("- server-enabled default without session request: legacy");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
-    console.log("- metadata, grant, default-scope and unassigned-role lifecycle save/cleanup, conflict retry, assignment/read-only/dependency guards, hidden field and legacy read-back: pass");
+    console.log("- metadata, grant, default-scope, exact-employee assignment and unassigned-role lifecycle save/cleanup, conflict retry, dated-window/read-only/dependency guards, hidden field and legacy read-back: pass");
     console.log("- production and compact UI contracts, unchanged compatibility snapshot and clean console: pass");
   } catch (error) {
     if (previewOutput.trim()) console.error(previewOutput.trim());
