@@ -520,3 +520,21 @@ passport and no page overflow. The dependency inspector opened a real
 production relationship; no schedule write was invoked. Evaluation was
 disabled, retained-query reload mounted zero React targets, legacy returned,
 and health remained `ok` on `.85`.
+
+## Nomenclature Types read-only Pilot evaluation
+
+Release `v.1.499.86-6b5cec6` from exact commit
+`6b5cec6696f177c434e34ec0428f565c6778cc40` added isolated root-owned
+read-only rollout controls and connected the Nomenclature Types host to the
+shared MES React UI contract. Its manifest records source digest
+`7b6785301b97148b3a75440d0757a14f9db668f1e8f93080fc5e56b001c36c71`
+and dist digest `1eec2e3e97802e5f9e48a5ecb061d0ac78cf3b28c6e4c22038b968c013339ac8`.
+
+Authenticated acceptance rendered all 10 current types and the same four
+columns, reached revision `1` in `42 ms`, kept exactly one selected row and a
+matching detail card, and rendered the table panel, sidebar, disabled action
+and detail through the scoped common UI contract without overflow. Selecting
+`Упаковка и маркировка` updated the detail locally. Add/create/edit stayed
+disabled, no write command was invoked, and the clean tab had no warnings or
+errors. Evaluation was removed; the retained URL mounted zero React targets
+and restored the 10-row legacy directory. Pilot remained healthy on `.86`.

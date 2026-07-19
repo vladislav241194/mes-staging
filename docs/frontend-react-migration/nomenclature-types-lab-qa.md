@@ -2,6 +2,7 @@
 
 Date: 2026-07-19
 Branch: `codex/frontend-react-migration`
+Pilot status: authenticated read-only acceptance complete on `v.1.499.86-6b5cec6`; evaluation disabled
 
 ## Scope
 
@@ -64,6 +65,13 @@ The production host is false by default. Read-only activation still requires
 explicit runtime permissions plus a per-session request. Create/edit is
 available only through the local query
 `react-directory-nomenclature-types-write=1` and existing RBAC; there is no
-server or Pilot write flag. No release or Pilot activation was performed.
-Disabling the local evaluation immediately retains the unchanged legacy
-renderer and all legacy commands.
+server or Pilot write flag.
+
+Pilot release `.86-6b5cec6` added isolated root-owned rollout controls and
+joined the island host to the common MES React UI contract. Authenticated live
+QA rendered all 10 real types with four columns, one selected row and matching
+detail, revision `1`, first commit `42 ms`, disabled add/write actions, `18px`
+panel/detail radii, no page overflow and no console warnings or errors. Selecting
+`Упаковка и маркировка` updated its detail card locally. No create/edit command
+was invoked. After evaluation removal, the retained URL mounted zero React
+targets and restored the same 10-row legacy directory.

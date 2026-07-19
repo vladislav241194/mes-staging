@@ -29,7 +29,11 @@ Report commands were not invoked, evaluation was disabled and legacy restored.
 Gantt read-only acceptance now covers one real route, nine rows, 69 slots and
 50 dependency pairs on `.85`; the dependency inspector was exercised, no
 schedule write was invoked, evaluation was disabled and legacy restored. This
-brings authenticated Pilot read acceptance to 13 of 24 scenarios.
+Nomenclature Types read-only acceptance additionally covers all 10 real rows,
+four literal columns, selection/detail and the common panel contract on `.86`.
+No write command was enabled; evaluation was disabled and the 10-row legacy
+directory restored. This brings authenticated Pilot read acceptance to 14 of
+24 scenarios.
 
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations, Nomenclature Types, user-managed Statuses and board
@@ -98,7 +102,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 2 | Component Types | Local complete: create/edit/delete | Low | Separately gated Pilot write evaluation with a `directories:edit` role and disposable-row cleanup |
 | 3 | Operations | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot create/edit evaluation; delete stays separate until Specifications usage cleanup is covered |
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
-| 5 | Nomenclature Types | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot read-only evaluation, then write evaluation with a disposable type and reference audit |
+| 5 | Nomenclature Types | Local complete: create/edit; delete remains legacy; Pilot read accepted | Medium | Keep default-off; separately gate write evaluation with a disposable type and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit; system rows and delete protected | Medium | Separately gated Pilot read-only evaluation, then write evaluation with one disposable user-authority status |
 | 7 | Boards/BOM | Local complete: board metadata create/edit; import, BOM rows and delete remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
