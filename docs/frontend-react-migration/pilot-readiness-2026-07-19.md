@@ -2,7 +2,7 @@
 
 Date: 2026-07-19
 Candidate branch: `codex/frontend-react-migration`
-Current released commit: `b987e90`
+Current released commit: `bdf093c`
 
 ## Read-only live evidence
 
@@ -474,3 +474,27 @@ The evaluation drop-in was removed after acceptance. A reload retaining all
 three evaluation query parameters mounted zero React targets and restored the
 legacy journal with its one assignment row. Pilot remains healthy on `.79` and
 all sessions currently use legacy Shift Work Orders.
+
+## Employee Desktop read-only Pilot evaluation
+
+Release `v.1.499.80-6589841` added the isolated fail-closed rollout permission.
+Real data and React state were correct, but live visual QA showed that the lab
+CSS had not entered the production stylesheet. The unstyled evaluation was
+rejected and disabled immediately; no task, fact or Report command was invoked.
+
+Release `v.1.499.81-bdf093c` from exact commit
+`bdf093c5b8f29bd58e21ad6dae8ccf5302fc6ecb` adds scoped production CSS and a
+computed-style gate for the grid, panels, summary cards, tasks and actions. Its
+manifest records source digest
+`d5e431e280d922fa735b448424f31d242e219bfa0a3113fba8657bfade4c543e`
+and dist digest
+`32afd5920eb946dfcefa1e9d22fc1c1af3dd86b131477bd10f896dd87290927d`.
+
+Authenticated acceptance covered one current completed task, seven metrics,
+SZN `СЗН-20260716-S-LOCKSMITH-1-9C43`, assigned/fact/good `1 / 1 / 1` and
+defect `0`. The island reached `ready`, revision `1`, in `557.70 ms`. `Взять`
+stayed disabled; Structure exposed five rows, Route three nodes with one
+current node and PDF three instruction steps. A clean `.81` tab had no browser
+warnings or errors. After deactivation a retained-query reload mounted zero
+React targets and restored legacy; Pilot remained healthy and all sessions use
+legacy by default.

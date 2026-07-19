@@ -1,7 +1,7 @@
 # Employee Desktop React lab QA
 
 Date: 2026-07-19
-Status: production-integrated task-start, fact and photo Report proof; disabled by default; no Pilot activation
+Status: production-integrated task-start, fact and photo Report proof; Pilot-accepted read-only; disabled by default
 
 ## Vertical scenario
 
@@ -73,3 +73,13 @@ It also opens Structure, Route and PDF in React without a write and verifies
 the shared modal keyboard/close contract. The first local commit was `30.20 ms`,
 below the `2,000 ms` production-shell gate. The bundled artifact is `214,902 B`
 raw / `66,681 B` gzip / `57,535 B` Brotli. Pilot remains unchanged.
+
+## Pilot acceptance
+
+The first `.80` evaluation was rejected because production did not include the
+Employee Desktop CSS contract. Permission was removed without writes.
+`.81-bdf093c` added scoped styles and a computed-style gate, then passed
+authenticated read-only acceptance with one real task, seven metrics and the
+Structure, Route and PDF views. Task start remained disabled and no fact or
+Report command was invoked. Rollout permission is removed and legacy remains
+the default path.

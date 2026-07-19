@@ -23,6 +23,9 @@ transfer on immutable release `.77`; evaluation was disabled after acceptance.
 Shift Work Orders read-only acceptance covers the current one-document tree,
 selected SZN passport, typed transfer and both lazy print previews on `.79`;
 evaluation was likewise disabled and legacy restored.
+Employee Desktop read-only acceptance covers the current completed assignment,
+seven metrics and the Structure, Route and PDF overlays on `.81`; task/fact/
+Report commands were not invoked, evaluation was disabled and legacy restored.
 
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations, Nomenclature Types, user-managed Statuses and board
@@ -105,7 +108,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy; Pilot read accepted | Critical | Keep default-off; assignment/fact remain separate command scopes owned by Workshop and Employee Desktop |
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |
-| 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners | Critical | Separately gated Pilot acceptance of the complete worker task flow before default-on consideration |
+| 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners; Pilot read accepted | Critical | Separately gated Pilot write acceptance of task start/fact/Report before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
 | 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |

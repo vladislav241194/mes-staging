@@ -648,3 +648,18 @@ master/executor and `До -> Сейчас -> После` transfer, and opened bo
 and complete work-order package previews without invoking print. No command or
 data write occurred. The evaluation drop-in is removed; zero React targets and
 the same one-row legacy journal were verified after deactivation.
+
+## Employee Desktop Pilot checkpoint
+
+Release `.80-6589841` was rejected and disabled because its live React view
+rendered without the lab-only styles. Release `v.1.499.81-bdf093c` ships the
+scoped production contract and a computed-style gate covering the grid,
+panels, cards, task row and actions.
+
+Authenticated `.81` acceptance matched the current completed SZN assignment:
+one task, seven metrics, `1 / 1 / 0 / 1` assigned/fact/defect/good quantities,
+three route nodes, five Structure rows and three PDF instruction steps. The
+island reached revision `1` in `557.70 ms`; task start remained disabled and no
+fact or Report command was invoked. A clean `.81` tab had no browser warnings
+or errors. Evaluation is disabled, zero React targets were verified after
+reload and the default Employee Desktop path is legacy.
