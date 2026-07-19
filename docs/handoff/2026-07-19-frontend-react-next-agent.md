@@ -113,3 +113,23 @@ actions/console, затем немедленно деактивировать и
   disposable/cleanup сценария.
 - Сохранять legacy интерфейс как rollback до отдельного default-on решения.
 - Не использовать Blueprint.
+
+## Продолжение после handoff
+
+- Live preflight повторён: Pilot здоров на `v.1.500.01`, shared state `ready`,
+  активный artifact `v.1.500.01-16e0e86`, оба Contour Admin флага `false`.
+  `deploy` по-прежнему не имеет passwordless root, прямой root SSH закрыт;
+  activation script не запускался.
+- Следующим доказанным legacy-only scope выбран постоянный график Timesheet.
+  React теперь локально завершает typed save/remove через существующие
+  `saveScheduleAssignment` / `removeScheduleAssignment` и revision-checked
+  `timesheet` System Domains owner. PostgreSQL/API/RBAC/normalization не
+  перенесены в React.
+- Production-shell QA доказывает invalid-offset-before-PUT, save, legacy
+  read-back, remove, сохранность unrelated hidden assignment/event fields,
+  неизменный `0600` snapshot и default legacy. Артефакт Timesheet:
+  `214632 B` raw / `65508 B` gzip; latest first commit `213.50 ms`.
+- Pilot write не выполнялся, rollout flags не менялись, legacy rollback
+  сохранён. Следующий локальный command scope нужно снова выбирать из реально
+  существующего owner-кода; Pilot write остаётся отдельным разрешённым
+  disposable/cleanup checkpoint.

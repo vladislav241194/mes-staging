@@ -1,17 +1,17 @@
 # Timesheet React migration QA
 
 Date: 2026-07-19
-Status: production-integrated read island plus local-only attendance command; disabled by default
+Status: production-integrated read island plus local-only attendance and schedule commands; disabled by default
 
 ## Vertical scenario
 
 `Open Timesheet -> inspect the personnel calendar -> inspect attendance totals.`
 
 The typed adapter consumes the completed `getTimesheetModel()` result. Legacy
-remains authoritative for PostgreSQL hydration, period and view selection,
-employee schedules, attendance values and permanent schedule commands. React
-owns only a local-gated save/remove editor for one selected attendance day.
-React does not read global state or call an API.
+remains authoritative for PostgreSQL hydration plus period and view selection.
+React owns local-gated save/remove editors for one selected attendance day and
+one employee's permanent schedule. React does not read global state or call an
+API; the host delegates to the unchanged System Domains owner.
 
 ## Evidence
 
@@ -20,10 +20,10 @@ React does not read global state or call an API.
 - employee, planned-hours and overtime summary values survive the typed boundary;
 - payload revision `1 -> 2` updates the mounted view without remounting;
 - the dense table owns horizontal overflow instead of widening the page;
-- day, schedule, view and period actions explicitly request the legacy route;
+- read-only day/schedule plus view and period actions explicitly request the legacy route;
 - a disabled feature flag restores the lab legacy fallback;
 - browser console remains clean;
-- independent minified entry: `210,506 B` raw / `64,915 B` gzip, under the
+- independent minified entry: `214,632 B` raw / `65,508 B` gzip, under the
   unchanged `225,000 B / 68,000 B` production-island ceiling.
 
 Command:
@@ -32,23 +32,23 @@ Command:
 npm run qa:timesheet-react-lab
 ```
 
-This proves the read-model and dense-calendar component boundary plus the
-bounded one-day attendance command. It is
+This proves the read-model and dense-calendar component boundary plus bounded
+one-day attendance and permanent-schedule commands. It is
 wired to the MES shell only behind two false-by-default permissions, PostgreSQL
-read readiness and a session-scoped request. It does not move permanent
-schedule commands out of legacy.
+read readiness and a localhost-only write request. The production/Pilot route
+remains read-only and default-off.
 
 Production-shell QA uses the canonical 76-employee System Domains projection.
 It proves exact parity across 96 table rows and 35 columns, default legacy,
 direct fallback into the seven-day legacy view and existing day editor,
 table-owned overflow, unchanged `0600` state and a clean console. First commit
 remained below `250 ms` in repeated local runs; the bundled
-artifact is `210,506 B` raw / `64,915 B` gzip; the latest first commit was
-`422.60 ms`. Command QA additionally proves
-validation before PUT, sick-day save, exact legacy read-back, revision conflict
-without mutation, reset retry, unrelated hidden-field preservation and an
-unchanged `0600` compatibility snapshot. This is local regression evidence,
-not authorization for Pilot writes.
+artifact is `214,632 B` raw / `65,508 B` gzip; the latest first commit was
+`213.50 ms`. Command QA additionally proves
+validation before PUT, sick-day and alternate-schedule saves, exact legacy
+read-back, revision conflict without mutation, both resets, unrelated hidden
+event/assignment preservation and an unchanged `0600` compatibility snapshot.
+This is local regression evidence, not authorization for Pilot writes.
 
 The legacy `qa:timesheet` browser suite now exercises the same PostgreSQL-
 primary API contract instead of expecting obsolete localStorage authority. It

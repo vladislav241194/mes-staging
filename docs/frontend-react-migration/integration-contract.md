@@ -137,14 +137,15 @@ legacy weekly read model; PostgreSQL period hydration, structure lookups,
 fact/report aggregation and deviation calculations stay outside React. A
 fallback response, API error or missing session request retains legacy.
 
-`mountTimesheetReactIsland(...)` owns the personnel calendar, summary and a
-localhost-only single-day attendance save/remove evaluation. Its adapter
-consumes the completed legacy `getTimesheetModel()` read model and explicit
-per-employee capability/event coordinates. The host reuses the legacy
-attendance-event builder and delegates to the revision-checked `timesheet`
-System Domains owner. Period, view and permanent schedule interactions request
-legacy; PostgreSQL hydration stays outside React. A fallback response, API error
-or missing session request retains legacy.
+`mountTimesheetReactIsland(...)` owns the personnel calendar, summary and
+localhost-only single-day attendance plus permanent-schedule save/remove
+evaluations. Its adapter consumes the completed legacy `getTimesheetModel()`
+read model and explicit per-employee capabilities, event coordinates and
+schedule-template options. The host reuses the legacy attendance-event builder,
+`saveScheduleAssignment` and `removeScheduleAssignment`, then delegates to the
+revision-checked `timesheet` System Domains owner. Period and view interactions
+still request legacy; PostgreSQL hydration stays outside React. A fallback
+response, API error or missing session request retains legacy.
 
 `mountPlanningWorkbenchReactIsland(...)` owns the queue, readiness, visible
 structure, host-validated route/item selection and one localhost-only quantity

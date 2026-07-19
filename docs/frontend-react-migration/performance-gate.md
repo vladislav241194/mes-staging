@@ -25,7 +25,7 @@ Current minified measurements:
 | Structure Responsibility Policies production island | 215,221 B | 65,645 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,950 B | 225,000 B | 68,000 B |
-| Timesheet production island | 210,506 B | 64,920 B | 225,000 B | 68,000 B |
+| Timesheet production island | 214,632 B | 65,508 B | 225,000 B | 68,000 B |
 | Planning Workbench production island | 206,952 B | 64,065 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 220,229 B | 66,740 B | 225,000 B | 68,000 B |
 | Shift Work Orders lazy print entry | 19,025 B | 3,659 B | 225,000 B | 68,000 B |
@@ -152,10 +152,11 @@ The bundled production Weekly Production Control island is `202,775 B` raw /
 `63,714 B` gzip / `54,840 B` Brotli. Its 25-group, eleven-column production-
 shell first commit remains below `50 ms`; this is regression evidence, not Pilot acceptance.
 
-The bundled production Timesheet island is `210,506 B` raw / `64,915 B` gzip.
-Its latest 76-employee, 35-column production-shell first commit was `422.60 ms`;
-single-day save/reset QA additionally proves validation, conflict retry and
-legacy read-back. A separate read scenario keeps the aggregate lab inside its
+The bundled production Timesheet island is `214,632 B` raw / `65,508 B` gzip.
+Its latest 76-employee, 35-column production-shell first commit was `213.50 ms`;
+attendance and permanent-schedule save/reset QA additionally proves validation,
+conflict retry, hidden-field preservation and legacy read-back. A separate read
+scenario keeps the aggregate lab inside its
 existing budget. This is regression evidence, not Pilot acceptance.
 
 The Planning Workbench production entry is `206,952 B` raw / `64,065 B` gzip;

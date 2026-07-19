@@ -142,6 +142,41 @@ try {
   assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "attendance reset retry must advance exactly one revision");
   assert(!apiDomains.registries.attendanceEvents.some((event) => event.employeeId === coordinates.employeeId && event.date === coordinates.dateKey), "attendance reset left the selected day event behind");
   assert(!unrelatedEvent || apiDomains.registries.attendanceEvents.find((event) => event.id === unrelatedEvent.id)?.serverOnlyMarker === "attendance-unrelated-hidden-field", "attendance save/reset changed an unrelated hidden event field");
+  const baselineSchedule = structuredClone(apiDomains.registries.scheduleAssignments.find((assignment) => assignment.employeeId === coordinates.employeeId));
+  assert(baselineSchedule?.id && baselineSchedule?.scheduleTemplateId, "Timesheet schedule fixture has no editable baseline assignment");
+  const unrelatedSchedule = apiDomains.registries.scheduleAssignments.find((assignment) => assignment.employeeId !== coordinates.employeeId); if (unrelatedSchedule) unrelatedSchedule.serverOnlyMarker = "schedule-unrelated-hidden-field";
+  await client.send("Page.navigate", { url: `${enabledOrigin}/?module=timesheet&qa-auth-bypass=1&react-timesheet=1&react-timesheet-write=1&qa-reload=timesheet-schedule-save` });
+  await waitForCondition(client, (employeeId) => Boolean(document.querySelector(`[data-timesheet-employee="${employeeId}"][data-timesheet-schedule-editable="true"]`)), { arg: coordinates.employeeId, message: "Timesheet schedule command row did not become ready", timeoutMs: 15_000 });
+  await evaluate(client, (employeeId) => document.querySelector(`[data-timesheet-employee="${employeeId}"] td:nth-of-type(2) button`)?.click(), coordinates.employeeId);
+  await waitForCondition(client, () => Boolean(document.querySelector("[data-react-timesheet-schedule-form]")), { message: "React schedule editor did not open" });
+  await evaluate(client, () => { const offset = document.querySelector('input[name="patternOffset"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(offset, "7"); offset.dispatchEvent(new Event("input", { bubbles: true })); });
+  await waitForCondition(client, () => document.querySelector('input[name="patternOffset"]')?.value === "7", { message: "invalid schedule offset did not reach React state" });
+  await delay(100);
+  await evaluate(client, () => document.querySelector("[data-react-timesheet-schedule-form]")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+  await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("от 0 до 6"), { message: "invalid schedule offset was not rejected" });
+  assert(apiRevision === 3 && putAttempts === 3, "invalid schedule must be rejected before PostgreSQL mutation");
+  const scheduleTarget = await evaluate(client, () => { const select = document.querySelector('select[name="scheduleTemplateId"]'); const current = select?.value || ""; const target = [...(select?.options || [])].find((option) => option.value !== current); const set = (control, value) => { const prototype = control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value); control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true })); }; set(select, target?.value || current); set(document.querySelector('input[name="patternOffset"]'), "1"); const code = String(target?.textContent || "").split("·")[0].trim(); return { templateId: target?.value || current, code }; });
+  assert(scheduleTarget.templateId && scheduleTarget.code, "alternate schedule template is unavailable");
+  await waitForCondition(client, (value) => document.querySelector('select[name="scheduleTemplateId"]')?.value === value.templateId && document.querySelector('input[name="patternOffset"]')?.value === "1", { arg: scheduleTarget, message: "valid schedule draft did not reach React state" });
+  await delay(100);
+  await evaluate(client, () => document.querySelector("[data-react-timesheet-schedule-form]")?.requestSubmit());
+  for (let index = 0; index < 100 && apiRevision === 3; index += 1) await delay(50);
+  await waitForCondition(client, (value) => document.querySelector(`[data-timesheet-employee="${value.employeeId}"] td:nth-of-type(2) strong`)?.textContent?.trim() === value.code, { arg: { ...scheduleTarget, employeeId: coordinates.employeeId }, message: "saved schedule did not return through PostgreSQL read model", timeoutMs: 15_000 });
+  const scheduleFailure = await evaluate(client, () => document.querySelector('[role="alert"]')?.textContent?.trim() || "");
+  assert(apiRevision === 4 && successfulWrites === 3 && putAttempts === 4, `schedule save must advance exactly one PostgreSQL revision: revision=${apiRevision} writes=${successfulWrites} attempts=${putAttempts} alert=${scheduleFailure}`);
+  const savedSchedule = apiDomains.registries.scheduleAssignments.find((assignment) => assignment.employeeId === coordinates.employeeId);
+  assert(savedSchedule?.scheduleTemplateId === scheduleTarget.templateId && savedSchedule?.patternOffset === 1, "saved schedule template or offset was not preserved");
+  await client.send("Page.navigate", { url: `${legacyOrigin}/?module=timesheet&qa-auth-bypass=1&qa-reload=timesheet-schedule-readback` });
+  await waitForCondition(client, (value) => document.querySelector(`[data-timesheet-employee-id="${value.employeeId}"]`)?.closest("tr")?.querySelector("[data-timesheet-schedule-button]")?.textContent?.includes(value.code), { arg: { ...scheduleTarget, employeeId: coordinates.employeeId }, message: "legacy Timesheet did not read back the React schedule save", timeoutMs: 15_000 });
+  await client.send("Page.navigate", { url: `${enabledOrigin}/?module=timesheet&qa-auth-bypass=1&react-timesheet=1&react-timesheet-write=1&qa-reload=timesheet-schedule-remove` });
+  await waitForCondition(client, (value) => document.querySelector(`[data-timesheet-employee="${value.employeeId}"] td:nth-of-type(2) strong`)?.textContent?.trim() === value.code, { arg: { ...scheduleTarget, employeeId: coordinates.employeeId }, message: "saved schedule did not hydrate for reset", timeoutMs: 15_000 });
+  await evaluate(client, (employeeId) => document.querySelector(`[data-timesheet-employee="${employeeId}"] td:nth-of-type(2) button`)?.click(), coordinates.employeeId);
+  await waitForCondition(client, () => Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Сбросить назначение" && !button.disabled)), { message: "schedule reset action did not become available" });
+  await evaluate(client, () => [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Сбросить назначение")?.click());
+  await waitForCondition(client, (employeeId) => document.querySelector(`[data-timesheet-employee="${employeeId}"] td:nth-of-type(2) strong`)?.textContent?.trim() === "—", { arg: coordinates.employeeId, message: "schedule reset did not remove the effective assignment", timeoutMs: 15_000 });
+  assert(apiRevision === 5 && successfulWrites === 4 && putAttempts === 5, "schedule reset must advance exactly one PostgreSQL revision");
+  assert(!apiDomains.registries.scheduleAssignments.some((assignment) => assignment.employeeId === coordinates.employeeId), "schedule reset left the selected assignment behind");
+  assert(!unrelatedSchedule || apiDomains.registries.scheduleAssignments.find((assignment) => assignment.id === unrelatedSchedule.id)?.serverOnlyMarker === "schedule-unrelated-hidden-field", "schedule save/reset changed an unrelated hidden assignment field");
   assert(commandRequests.every((request) => request.surface === "timesheet" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "attendance commands must carry timesheet surface, If-Match and idempotency key");
   assert(interceptedReads >= 3, "legacy and React paths must consume the System Domains API");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`);
@@ -149,7 +184,7 @@ try {
   console.log("Timesheet React production-shell functional QA: OK");
   console.log(`- exact parity: 76 employees, ${react.headers.length} columns, ${react.rows.length} table rows; first commit ${state.commitMs.toFixed(2)} ms`);
   console.log("- PostgreSQL read, production/compact UI, default legacy, editor fallback, table-owned overflow, unchanged state and clean console: pass");
-  console.log("- one-day save/reset, validation, conflict retry, unrelated hidden field and legacy read-back: pass");
+  console.log("- one-day and permanent-schedule save/reset, validation, conflict retry, unrelated hidden fields and legacy read-back: pass");
 } catch (error) {
   if (chrome) {
     const debugState = await evaluate(chrome.client, () => ({

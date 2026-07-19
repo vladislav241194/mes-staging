@@ -2914,7 +2914,8 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
   getPayload: () => {
     const model = getTimesheetModel(); const localQa = getTimesheetReactLocalQaOverrides(); const registries = getSystemDomainsRegistries();
     const commandReady = localQa.writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("timesheet");
-    return { model, capabilities: { attendanceEdit: commandReady, editableEmployeeIds: commandReady ? model.employees.filter((employee) => canEditTimesheetEmployee(employee.timesheetId)).map((employee) => employee.timesheetId) : [], attendanceEventKeys: (registries.attendanceEvents || []).map((event) => `${String(event.employeeId || "").trim()}|${String(event.date || "").trim()}`).filter((value) => !value.startsWith("|") && !value.endsWith("|")) } };
+    const editableEmployeeIds = commandReady ? model.employees.filter((employee) => canEditTimesheetEmployee(employee.timesheetId)).map((employee) => employee.timesheetId) : [];
+    return { model, capabilities: { attendanceEdit: commandReady, scheduleEdit: commandReady, editableEmployeeIds, scheduleEditableEmployeeIds: editableEmployeeIds, scheduleTemplates: (registries.scheduleTemplates || []).map((template) => ({ id: template.id, code: template.code, caption: template.caption || template.name || "", start: template.startTime || template.start || "", end: template.endTime || template.end || "" })), attendanceEventKeys: (registries.attendanceEvents || []).map((event) => `${String(event.employeeId || "").trim()}|${String(event.date || "").trim()}`).filter((value) => !value.startsWith("|") && !value.endsWith("|")) } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
@@ -2926,23 +2927,37 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getTimesheetReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save-attendance", "remove-attendance"].includes(command.type)) return { ok: false, message: "Команда факта дня недоступна." };
+    if (!localQa.writeEvaluation || !["save-attendance", "remove-attendance", "save-schedule", "remove-schedule"].includes(command.type)) return { ok: false, message: "Команда табеля недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("timesheet")) return { ok: false, message: "PostgreSQL-команда табеля недоступна." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {}; const employeeId = String(input.employeeId || "").trim(); const dateKey = String(input.dateKey || "").trim();
     if (!employeeId || !(getSystemDomainsRegistries().employees || []).some((employee) => employee.id === employeeId)) return { ok: false, message: "Сотрудник больше не существует." };
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return { ok: false, message: "Дата факта дня некорректна." };
     if (!canEditTimesheetEmployee(employeeId)) return { ok: false, message: "Нет права изменять табель этого сотрудника." };
     try {
-      if (command.type === "remove-attendance") {
-        const removed = await removeAttendanceEvents({ employeeId, date: dateKey });
-        if (removed !== true) return { ok: false, message: "Сброс факта дня отклонён проверкой табеля." };
+      if (command.type === "save-schedule") {
+        const scheduleTemplateId = String(input.scheduleTemplateId || "").trim(); const effectiveFrom = String(input.effectiveFrom || "").trim(); const patternOffset = Number(input.patternOffset);
+        if (!(getSystemDomainsRegistries().scheduleTemplates || []).some((template) => template.id === scheduleTemplateId)) return { ok: false, message: "Выбранный график больше не существует." };
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) return { ok: false, message: "Дата начала графика некорректна." };
+        if (!Number.isInteger(patternOffset) || patternOffset < 0 || patternOffset > 6) return { ok: false, message: "Смещение цикла должно быть целым числом от 0 до 6." };
+        const saved = await saveScheduleAssignment({ id: String(input.assignmentId || `schedule-assignment:${employeeId}`).trim(), employeeId, scheduleTemplateId, effectiveFrom, effectiveTo: null, patternOffset, sourceRefs: [`react:timesheet:schedule:${employeeId}:${effectiveFrom}`] }, { mode: "replace-effective" });
+        if (saved !== true) return { ok: false, message: "Сохранение графика отклонено проверкой табеля." };
+      } else if (command.type === "remove-schedule") {
+        const assignmentId = String(input.assignmentId || "").trim(); const assignment = (getSystemDomainsRegistries().scheduleAssignments || []).find((row) => row.id === assignmentId && row.employeeId === employeeId);
+        if (!assignment) return { ok: false, message: "Назначение графика больше не существует." };
+        const removed = await removeScheduleAssignment({ employeeId, assignmentId });
+        if (removed !== true) return { ok: false, message: "Сброс графика отклонён проверкой табеля." };
       } else {
-        const form = new FormData(); ["value", "start", "end", "overtime", "comment"].forEach((field) => form.set(field, String(input[field] ?? ""))); form.set("employeeId", employeeId); form.set("dateKey", dateKey);
-        const change = buildTimesheetAttendanceEventsFromFormData(form);
-        const reasonMessages = { unknown_attendance_value: "Выберите состояние дня.", invalid_overtime: "Сверхурочные часы должны быть неотрицательным числом.", invalid_work_window: "Для рабочего дня заполните начало и окончание.", absence_overtime_conflict: "Для отсутствия нельзя указывать сверхурочные часы.", missing_overtime_minutes: "Для сверхурочной смены укажите часы сверхурочной работы.", unsupported_attendance_value: "Выбранное состояние дня не поддерживается." };
-        if (!change?.ok) return { ok: false, message: reasonMessages[change?.reason] || "Параметры факта дня некорректны." };
-        const saved = await saveAttendanceEvent(change.events, { mode: "replace-day", employeeId, date: dateKey });
-        if (saved !== true) return { ok: false, message: "Сохранение факта дня отклонено проверкой табеля." };
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return { ok: false, message: "Дата факта дня некорректна." };
+        if (command.type === "remove-attendance") {
+          const removed = await removeAttendanceEvents({ employeeId, date: dateKey });
+          if (removed !== true) return { ok: false, message: "Сброс факта дня отклонён проверкой табеля." };
+        } else {
+          const form = new FormData(); ["value", "start", "end", "overtime", "comment"].forEach((field) => form.set(field, String(input[field] ?? ""))); form.set("employeeId", employeeId); form.set("dateKey", dateKey);
+          const change = buildTimesheetAttendanceEventsFromFormData(form);
+          const reasonMessages = { unknown_attendance_value: "Выберите состояние дня.", invalid_overtime: "Сверхурочные часы должны быть неотрицательным числом.", invalid_work_window: "Для рабочего дня заполните начало и окончание.", absence_overtime_conflict: "Для отсутствия нельзя указывать сверхурочные часы.", missing_overtime_minutes: "Для сверхурочной смены укажите часы сверхурочной работы.", unsupported_attendance_value: "Выбранное состояние дня не поддерживается." };
+          if (!change?.ok) return { ok: false, message: reasonMessages[change?.reason] || "Параметры факта дня некорректны." };
+          const saved = await saveAttendanceEvent(change.events, { mode: "replace-day", employeeId, date: dateKey });
+          if (saved !== true) return { ok: false, message: "Сохранение факта дня отклонено проверкой табеля." };
+        }
       }
       queueMicrotask(() => { if (ui.activeModule === "timesheet") render({ skipRememberScroll: true }); });
       return { ok: true };

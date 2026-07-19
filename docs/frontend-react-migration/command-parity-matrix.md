@@ -48,8 +48,8 @@ Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner, while reference-sensitive,
 lifecycle, import, BOM-row and delete commands remain explicit legacy-only
-slices. Timesheet now has locally complete single-day attendance save/remove;
-permanent schedule assignment remains legacy. Roles and Access now has locally
+slices. Timesheet now has locally complete single-day attendance and permanent
+schedule save/remove. Roles and Access now has locally
 complete passport metadata editing through the `access-control` owner; grants,
 assignments, scopes, read-only and active remain legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. Planning Workbench now has
@@ -117,7 +117,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 11 | Structure Equipment | Local complete: create/edit with organization, work-center, quantity and schedule validation; archive remains legacy | High | Separately gated Pilot write evaluation with disposable equipment and cleanup |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
-| 14 | Timesheet | Local complete: one-day attendance save/remove; permanent schedules remain legacy | High | Separately gated Pilot write evaluation on a disposable attendance day |
+| 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
 | 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
 | 17 | Shift Work Orders | Local complete: attachment viewer plus SZN/package print previews; assignment, fact and Workshop remain legacy; Pilot read accepted | Critical | Keep default-off; assignment/fact remain separate command scopes owned by Workshop and Employee Desktop |
@@ -228,14 +228,15 @@ retry, hidden-field preservation, `7`-row legacy read-back and an unchanged
 disposable compatibility snapshot. Archive remains legacy and Pilot write
 acceptance is separate.
 
-Timesheet adds a bounded React editor for the fact of one selected day while
-the permanent employee schedule remains in legacy. The host reuses the existing
-legacy attendance-event builder and the revision-checked `timesheet` System
-Domains command owner. Production-shell QA rejects absence plus overtime before
-PUT, saves a sick day, reads it through legacy, exposes a revision conflict
-without mutation, retries reset, restores the projected schedule and preserves
-an unrelated hidden event field. All writes use a localhost-only gate; Pilot
-remains default-off and read-only.
+Timesheet adds bounded React editors for the fact of one selected day and the
+employee's permanent schedule. The typed host reuses the existing legacy
+attendance-event builder plus `saveScheduleAssignment` / `removeScheduleAssignment`
+and delegates every write to the revision-checked `timesheet` System Domains
+owner. Production-shell QA rejects absence plus overtime and an invalid cycle
+offset before PUT, saves both a sick day and an alternate schedule, reads both
+through legacy, exposes a revision conflict without mutation, resets both
+coordinates and preserves unrelated hidden event and assignment fields. All
+writes use a localhost-only gate; Pilot remains default-off and read-only.
 
 Structure Responsibility Policies completes the non-critical Structure command
 set without moving assignability logic into React. The editor writes the master,
