@@ -116,9 +116,11 @@ Planning participation and Gantt visibility remain explicit canonical fields.
 Archive and unsupported lifecycle commands remain legacy.
 
 `mountStructureEquipmentReactIsland(...)` owns the Equipment read table,
-passport and a local-only create/edit evaluation. Organization, work-center and
-schedule references are resolved from the same snapshot and validated by the
-host command owner. Archive and equipment scheduling commands remain legacy.
+passport and a local-only create/edit/archive evaluation. Organization,
+work-center and schedule references are resolved from the same snapshot and
+validated by the host command owner. Archive requires an explicit second
+confirmation and delegates to `archiveSystemDomainEntity`; the host rechecks
+that the target is still active. Equipment scheduling commands remain legacy.
 
 `mountStructureResponsibilityPoliciesReactIsland(...)` owns the policy read
 table, passport and a local-only create/edit evaluation. Employee labels and

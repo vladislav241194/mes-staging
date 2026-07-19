@@ -15,7 +15,7 @@ references, quantity and archive status.
 
 Local-only command scenario:
 
-`reject invalid quantity -> create equipment -> edit with revision conflict -> retry -> read through legacy`.
+`reject invalid quantity -> create equipment -> edit with revision conflict -> retry -> explicitly confirm archive -> read archived row through legacy`.
 
 The form covers all seven legacy fields, including `orgUnitId`, which is not
 visible in the five-column read table. The host remains the command owner and
@@ -32,11 +32,15 @@ requires PostgreSQL primary authority plus `productionStructureMatrix.edit`.
 - negative quantity is rejected before any PUT;
 - create preserves organization, work-center and schedule IDs plus quantity;
 - conflict does not mutate the revision and retry advances it exactly once;
-- hidden server-only fields survive edit and legacy reads back all seven rows;
+- archive requires a separate confirmation step and persists `isActive=false`
+  plus a valid `archivedAt` through the existing owner;
+- hidden server-only, organization, work-center, schedule and quantity fields
+  survive archive and legacy reads back all seven rows with archive status;
 - the disposable compatibility snapshot stays byte-for-byte unchanged;
-- latest local first commit was `32.30 ms`.
+- latest local first commit was `19.70 ms`.
 
-The production artifact is `214,824 B` raw / `65,385 B` gzip, below the
+The independent artifact is `215,820 B` raw / `65,636 B` gzip and the bundled
+production artifact is `208,849 B` raw / `65,161 B` gzip / `56,224 B` Brotli, below the
 `225,000 B / 68,000 B` gate. The aggregate lab uses a separate read-only
 scenario and remains below `505,000 B / 122,000 B`. Both read and write remain
 false by default.

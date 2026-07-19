@@ -46,7 +46,8 @@ board metadata has create/edit/delete.
 Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
-parity through the System Domains owner, while reference-sensitive,
+parity through the System Domains owner; Equipment also has explicit archive.
+Other reference-sensitive,
 lifecycle, import, BOM-row and delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
 schedule save/remove. Roles and Access now has locally complete passport
@@ -115,7 +116,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
 | 9 | Structure Positions | Local complete: create/edit with organization, work-center and schedule references; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable position and cleanup |
 | 10 | Structure Org Units | Local complete: create/edit with parent existence and hierarchy-cycle validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable child unit and cleanup |
-| 11 | Structure Equipment | Local complete: create/edit with organization, work-center, quantity and schedule validation; archive remains legacy | High | Separately gated Pilot write evaluation with disposable equipment and cleanup |
+| 11 | Structure Equipment | Local complete: create/edit/archive with organization, work-center, quantity, schedule validation and explicit archive confirmation | High | Separately gated Pilot write evaluation with disposable equipment; scheduling commands remain legacy |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
@@ -220,14 +221,15 @@ returns the twentieth row through legacy and leaves the disposable compatibility
 snapshot unchanged. Archive remains legacy and Pilot write acceptance is a
 separate controlled checkpoint.
 
-Structure Equipment adds PostgreSQL create/edit for all seven legacy fields,
+Structure Equipment adds PostgreSQL create/edit for all seven legacy fields and
+explicit two-step archive through the existing archive owner,
 including the organization reference that is not visible in the five-column
 read table. The command owner rejects a negative or fractional quantity and
 missing organization, work-center or schedule references before persistence.
 Production-shell QA proves exact reference IDs, conflict-without-mutation plus
-retry, hidden-field preservation, `7`-row legacy read-back and an unchanged
-disposable compatibility snapshot. Archive remains legacy and Pilot write
-acceptance is separate.
+retry, archive `isActive=false`/`archivedAt`, hidden/reference/quantity
+preservation, archived `7`-row legacy read-back and an unchanged disposable
+compatibility snapshot. Pilot write acceptance is separate.
 
 Timesheet adds bounded React editors for the fact of one selected day and the
 employee's permanent schedule. The typed host reuses the existing legacy

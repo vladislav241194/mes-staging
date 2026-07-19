@@ -21,7 +21,7 @@ Current minified measurements:
 | Structure Positions production island | 215,238 B | 65,544 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 213,634 B | 65,275 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 215,471 B | 65,455 B | 225,000 B | 68,000 B |
-| Structure Equipment production island | 214,876 B | 65,475 B | 225,000 B | 68,000 B |
+| Structure Equipment production island | 215,820 B | 65,636 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 215,221 B | 65,645 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,950 B | 225,000 B | 68,000 B |
@@ -131,11 +131,12 @@ Planning/Gantt flags and proves legacy read-back. A separate read adapter keeps
 the aggregate lab within budget. This is regression evidence, not Pilot
 acceptance.
 
-The bundled production Structure Equipment island is `214,824 B` raw /
-`65,385 B` gzip. Its production-shell first commit was `32.30 ms` across six
-PostgreSQL-backed rows; create/edit QA additionally returns a seventh row,
-rejects invalid quantity before mutation and preserves organization,
-work-center and schedule references. This is regression evidence, not Pilot
+The bundled production Structure Equipment island is `208,849 B` raw /
+`65,161 B` gzip / `56,224 B` Brotli. Its production-shell first commit was
+`19.70 ms` across six PostgreSQL-backed rows; create/edit/archive QA additionally
+returns a seventh row, rejects invalid quantity before mutation, requires an
+explicit archive confirmation and preserves organization, work-center,
+schedule, quantity and hidden fields. This is regression evidence, not Pilot
 acceptance.
 
 The bundled production Structure Responsibility Policies island is `215,212 B`

@@ -170,3 +170,20 @@ actions/console, затем немедленно деактивировать и
 - Последние размеры: Roles independent `215726 / 65944 B`; production
   `209296 / 65475 / 56485 B`; full lab `556520 / 126067 B`. Latest first
   commit `30.00 ms` при gate `2000 ms`.
+
+## Продолжение: Structure Equipment archive checkpoint
+
+- Следующим owner-backed scope выбран explicit Equipment archive. React
+  показывает отдельный второй шаг `Подтвердить архивирование`; host повторно
+  проверяет существование и активность equipment и делегирует существующему
+  `archiveSystemDomainEntity` на revision-checked `production-structure`.
+- Production-shell QA работает только с созданной внутри mock API строкой:
+  create, invalid quantity rejection, edit conflict/retry, archive,
+  `isActive=false` + валидный `archivedAt`, сохранность hidden marker,
+  org/work-center/schedule references и quantity, затем legacy read-back
+  архивной строки. Исходный `0600` compatibility snapshot byte-identical.
+- Re-activation не заявлена: generic upsert сохраняет старый `archivedAt`, что
+  требует отдельного owner-contract решения. Pilot write не выполнялся.
+- Размеры: independent `215820 / 65636 B`; bundled production
+  `208849 / 65161 / 56224 B`; full lab `556534 / 126077 B`; first commit
+  `19.70 ms`.
