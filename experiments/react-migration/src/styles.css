@@ -129,6 +129,14 @@ dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .contour-admin-react table { width: 100%; border-collapse: collapse; }
 .contour-admin-react th, .contour-admin-react td { padding: 9px; border-bottom: 1px solid #e3ebf3; font-size: 10px; text-align: left; vertical-align: top; }
 .contour-admin-react-guardrails { display: grid; gap: 9px; margin: 0; padding: 14px 14px 14px 32px; font-size: 11px; }
+.contour-admin-react-actions { display:flex; flex-direction:column; align-items:stretch; gap:6px; min-width:112px; }
+.contour-admin-react-actions .action { width:100%; }
+.contour-admin-react td small.is-ok,.contour-admin-react td small.is-error { margin-top:5px; font-weight:700; }
+.contour-admin-react td small.is-ok { color:#237a51; }
+.contour-admin-react td small.is-error { color:#a52f2f; }
+.contour-admin-react-confirm { display:grid; gap:12px; padding:16px; }
+.contour-admin-react-confirm p,.contour-admin-react-confirm strong { margin:0; font-size:11px; }
+.contour-admin-react-confirm > div { display:flex; justify-content:flex-end; gap:8px; }
 .specifications2-react { gap: 14px; }
 .specifications2-react-summary { display: grid; gap: 12px; padding: 14px; }
 .specifications2-react-summary .metric-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); }

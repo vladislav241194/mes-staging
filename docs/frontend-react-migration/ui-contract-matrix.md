@@ -272,12 +272,13 @@ The administrative proof consumes a completed host read model containing the
 three contour passports, five rollout scenarios, iteration measurements and
 safety guardrails. It reuses OperationalPage, ModuleHeader, Panel, MetricGrid,
 MetricCard, TableWrap, StatusToken and ActionButton. Local contour selection
-stays in React; every backup, sync, deploy, promote and rollback scope returns
-to the protected legacy Ops API. The production host additionally requires the
-existing authenticated `admin.mes-line.ru` route, two false-by-default runtime
-permissions and an explicit read-only session request. Production-shell QA
-proves default legacy, scoped styles, identical three-contour/five-scenario
-density, action fallback and zero Ops writes.
+stays in React; a local-only command slice adds explicit confirmation and safe
+result display for the existing backup/sync/promote/rollback Ops actions. React
+does not receive shell commands, cookies, audit storage or raw output. The host
+rechecks the action and the server retains authenticated `admin.mes-line.ru`,
+allowlist and confirmation-token enforcement. Production-shell QA proves
+default legacy, identical three-contour/five-scenario density, read-only
+fallback, cancellation with zero calls and one exact mocked confirmed call.
 
 ## Specifications 2.0 production evidence
 

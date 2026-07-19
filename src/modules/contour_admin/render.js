@@ -62,7 +62,7 @@ export function createContourAdminModule(dependencies = {}) {
       },
     ];
   }
-  
+
   function getContourAdminScenarios() {
     return [
       {
@@ -135,7 +135,7 @@ export function createContourAdminModule(dependencies = {}) {
       },
     ];
   }
-  
+
   function renderContourAdminScenarioActionButton(scenario, options = {}) {
     const apiActionId = options.apiActionId || "";
     return renderUiActionButton({
@@ -503,28 +503,20 @@ export function createContourAdminModule(dependencies = {}) {
       <span>${escapeHtml(ok ? `Выполнено${duration}` : `Ошибка${duration}: ${payload.error || payload.stderr || "неизвестная причина"}`)}</span>
     `;
   }
-  
-  async function runContourAdminAction(actionId, button, scenario = {}) {
-    const requiresConfirm = button.dataset.contourAdminConfirm === "true";
-    if (requiresConfirm) {
-      const confirmed = window.confirm(scenario.confirmMessage || `${scenario.label || actionId}?\n\nОперация требует ручного подтверждения.`);
-      if (!confirmed) return;
-    }
-  
-    button.disabled = true;
-    button.classList.add("is-loading");
-    setContourAdminActionResult({ ok: true, label: scenario.label || actionId, durationMs: 0 });
+
+  async function executeContourAdminAction(actionId, { confirmed = false } = {}) {
+    const scenarios = getContourAdminScenarios();
+    const scenario = scenarios.find((item) => item.actionId === actionId || item.precheckActionId === actionId);
+    if (!scenario || !actionId) return { ok: false, error: "Неизвестная защищённая операция." };
+    const requiresConfirm = Boolean(scenario.requiresConfirm && scenario.actionId === actionId);
+    if (requiresConfirm && !confirmed) return { ok: false, confirmationRequired: true, error: "Требуется ручное подтверждение операции." };
     try {
       const response = await fetch("/api/contour-admin/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: actionId,
-          confirm: requiresConfirm ? actionId : "",
-        }),
+        body: JSON.stringify({ action: actionId, confirm: requiresConfirm ? actionId : "" }),
       });
       const payload = await response.json().catch(() => ({ ok: false, error: "Не удалось прочитать ответ сервера" }));
-      setContourAdminActionResult(payload);
       appendLocalDataSafetyAudit("contourAdminActionExecuted", {
         actionId,
         scenarioId: scenario.id || "",
@@ -535,9 +527,28 @@ export function createContourAdminModule(dependencies = {}) {
       notifySaveSuccess(payload.ok
         ? `${scenario.label || actionId}: ${formatContourAdminDuration(payload.durationMs) || "готово"}`
         : `${scenario.label || actionId}: ошибка выполнения`);
+      return { ...payload, scenarioId: scenario.id, actionId };
     } catch (error) {
-      setContourAdminActionResult({ ok: false, label: scenario.label || actionId, error: error?.message || "сетевая ошибка" });
+      const payload = { ok: false, scenarioId: scenario.id, actionId, label: scenario.label || actionId, error: error?.message || "сетевая ошибка" };
+      appendLocalDataSafetyAudit("contourAdminActionExecuted", { actionId, scenarioId: scenario.id || "", ok: false, code: "network", durationMs: "" });
       notifySaveSuccess(`${scenario.label || actionId}: сетевая ошибка`);
+      return payload;
+    }
+  }
+
+  async function runContourAdminAction(actionId, button, scenario = {}) {
+    const requiresConfirm = button.dataset.contourAdminConfirm === "true";
+    if (requiresConfirm) {
+      const confirmed = window.confirm(scenario.confirmMessage || `${scenario.label || actionId}?\n\nОперация требует ручного подтверждения.`);
+      if (!confirmed) return;
+    }
+
+    button.disabled = true;
+    button.classList.add("is-loading");
+    setContourAdminActionResult({ ok: true, label: scenario.label || actionId, durationMs: 0 });
+    try {
+      const payload = await executeContourAdminAction(actionId, { confirmed: requiresConfirm });
+      setContourAdminActionResult(payload);
     } finally {
       button.disabled = false;
       button.classList.remove("is-loading");
@@ -569,6 +580,7 @@ export function createContourAdminModule(dependencies = {}) {
 
   return {
     bindContourAdminEvents,
+    executeContourAdminAction,
     getContourAdminModel,
     renderContourAdminPage,
   };

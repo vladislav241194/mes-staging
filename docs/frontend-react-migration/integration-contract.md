@@ -196,12 +196,13 @@ Missing coverage, an open legacy modal, ordinary editor access or a missing
 session request retains legacy.
 
 `mountContourAdminReactIsland(...)` owns the administrative read view over a
-completed host model. React owns only local contour selection and presentation
-of passports, rollout scenarios, timings and guardrails. Backup, sync, deploy,
-promote and rollback always request legacy. The production host preserves the
-server-authenticated admin-only hostname boundary and additionally requires two
-false-by-default permissions plus an explicit read-only session request. A
-public host, editor access or a missing request retains legacy.
+completed host model plus a local-only typed Ops command proof. React owns local
+contour selection, confirmation and safe result presentation; the host rechecks
+scenario/action membership and delegates to `executeContourAdminAction`. The
+existing owner alone calls the admin-only API, and the server retains cookie
+authentication, allowlist, confirmation token, audit and shell execution.
+Deploy requests without an API action remain legacy. A public host, missing
+local write gate or missing session request retains legacy.
 
 `mountSpecifications2ReactIsland(...)` owns inspection of the selected immutable
 published revision and its PostgreSQL tree plus a localhost-only command proof

@@ -58,6 +58,13 @@ typed command; the existing auth owner still validates the PIN, decrements and
 persists the attempt counter, assigns the role and creates the session. Neither
 failed nor successful PIN values appear in UI or session storage.
 
+Contour Admin now has locally complete protected Ops command presentation:
+React owns explicit confirmation and result state, while the host rechecks the
+scenario/action pair and the existing owner calls the unchanged admin-only Ops
+API. Server cookie authentication, action allowlist, required confirmation
+token, audit and command execution remain outside React. Local QA uses a mock
+endpoint and performs no backup, sync, promote or rollback operation.
+
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
 | 1 | Nomenclature | Local complete: create/edit/delete | Medium | Separately approved Pilot read-only evaluation, then separately approved write evaluation |
@@ -82,7 +89,7 @@ failed nor successful PIN values appear in UI or session storage.
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit before publish; structure/publication/server commands remain legacy | Critical | Separately gated Pilot draft-row edit acceptance before attachment and work-order commands |
 | 21 | Gantt | Local complete: dependency inspection and target-slot selection; schedule mutations remain legacy | Critical | Separately gated Pilot dependency-inspection acceptance before drag, resize and optimization |
 | 22 | Authorization | Local complete: PIN entry, failed-attempt feedback and owner-backed session handoff | Critical | Separately gated Pilot PIN acceptance before any default-on decision |
-| 23 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
+| 23 | Contour Admin | Local complete: confirmation/result UI over the protected Ops owner; deploy request without an API action remains legacy | Critical | Separately gated authenticated Admin acceptance with dry-run-first policy |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 
 The Directories cluster now has Component Types read parity accepted on Pilot

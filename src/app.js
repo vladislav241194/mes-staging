@@ -1793,6 +1793,7 @@ function ensureAccessRolesModule() {
 }
 
 let bindContourAdminEvents = () => {};
+let executeContourAdminAction = async () => ({ ok: false, error: "Contour Admin ещё не загружен." });
 let getContourAdminModel = () => ({ contours: [], scenarios: [], speedRows: [], guardrails: [] });
 let renderContourAdminPage = () => renderUiModulePage({
   ariaLabel: "Администрирование контура",
@@ -1805,6 +1806,7 @@ let contourAdminModuleReady = false;
 function initializeContourAdminModule(factory) {
   ({
     bindContourAdminEvents,
+    executeContourAdminAction,
     getContourAdminModel,
     renderContourAdminPage,
   } = factory({
@@ -3210,10 +3212,10 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
   },
 });
 function getContourAdminReactLocalQaOverrides() {
-  if (!isAdminRuntimeHost()) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!isAdminRuntimeHost()) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-contour-admin") === "1", readOnlyEvaluation: params.get("react-contour-admin-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-contour-admin") === "1", readOnlyEvaluation: params.get("react-contour-admin-readonly") === "1", writeEvaluation: params.get("react-contour-admin-write") === "1" };
 }
 function isContourAdminReactEvaluationRequested() {
   if (!isAdminRuntimeHost()) return false;
@@ -3226,11 +3228,30 @@ const contourAdminReactIslandHost = createContourAdminReactIslandHost({
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_CONTOUR_ADMIN === true || localQa.featureFlagEnabled,
       adminHostReady: isAdminRuntimeHost() && contourAdminModuleReady,
-      accessMode: (serverEvaluationAllowed && isContourAdminReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isContourAdminReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
   },
-  getPayload: () => ({ model: getContourAdminModel() }),
+  getPayload: () => ({ model: getContourAdminModel(), capabilities: { executeOps: getContourAdminReactLocalQaOverrides().writeEvaluation } }),
   getTargetRoot: () => app,
+  executeCommand: async (command = {}) => {
+    const localQa = getContourAdminReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "execute-ops") return { ok: false, message: "Защищённая Ops-команда недоступна." };
+    if (command.confirmed !== true) return { ok: false, confirmationRequired: true, message: "Подтвердите защищённую операцию." };
+    const actionId = String(command.actionId || "").trim();
+    const scenarioId = String(command.scenarioId || "").trim();
+    const scenario = getContourAdminModel().scenarios.find((item) => item.id === scenarioId);
+    if (!scenario || ![scenario.actionId, scenario.precheckActionId].filter(Boolean).includes(actionId)) return { ok: false, message: "Сценарий или операция изменились." };
+    const payload = await executeContourAdminAction(actionId, { confirmed: true });
+    return {
+      ok: payload?.ok === true,
+      actionId,
+      scenarioId,
+      label: String(payload?.label || scenario.label || actionId),
+      code: payload?.code ?? "",
+      durationMs: Number(payload?.durationMs || 0),
+      message: payload?.ok ? "Операция выполнена." : String(payload?.error || (payload?.code !== undefined ? `Операция завершилась с кодом ${payload.code}.` : "Операция завершилась с ошибкой.")),
+    };
+  },
   requestLegacyRender: () => { if (ui.activeModule === "contourAdmin") render({ skipRememberScroll: true }); },
 });
 function getSpecifications2ReactLocalQaOverrides() {

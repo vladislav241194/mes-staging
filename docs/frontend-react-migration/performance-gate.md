@@ -32,7 +32,7 @@ Current minified measurements:
 | Shift Master Board production island | 207,434 B | 64,044 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 207,932 B | 64,056 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 206,680 B | 64,127 B | 225,000 B | 68,000 B |
-| Contour Admin production island | 204,350 B | 63,207 B | 225,000 B | 68,000 B |
+| Contour Admin production island | 207,695 B | 63,985 B | 225,000 B | 68,000 B |
 | Specifications 2.0 production island | 213,439 B | 65,398 B | 225,000 B | 68,000 B |
 | Gantt production island | 207,957 B | 64,253 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 212,831 B | 65,382 B | 225,000 B | 68,000 B |
@@ -40,8 +40,8 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 509,333 B | 117,430 B | 512,000 B | 124,000 B |
-| Shared lab CSS | 21,402 B | 4,215 B | 21,500 B | 4,400 B |
+| Full twenty-four-scenario lab | 512,656 B | 118,010 B | 515,000 B | 125,000 B |
+| Shared lab CSS | 22,053 B | 4,332 B | 22,500 B | 4,600 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
@@ -193,9 +193,11 @@ preserves the read-only legacy handoff, rejects one PIN in React, then delegates
 successful role/session creation to the existing owner without persisting PIN
 digits. This is regression evidence, not Pilot acceptance.
 
-The bundled production Contour Admin island is `201,348 B` raw / `63,003 B`
-gzip / `54,161 B` Brotli. Its exact admin-host production-shell first commit
-stayed below `20 ms`; this is regression evidence, not Admin/Pilot acceptance.
+The bundled production Contour Admin island is `203,825 B` raw / `63,608 B`
+gzip / `54,810 B` Brotli. Its exact admin-host production-shell first commit
+stayed below `20 ms`; cancellation emitted no call and one confirmed mock
+emitted the exact allowlisted action/token. This is regression evidence, not
+Admin/Pilot acceptance.
 
 The bundled production Specifications 2.0 island is `204,557 B` raw /
 `64,193 B` gzip / `60,833 B` Brotli. Its four-row PostgreSQL revision production-
