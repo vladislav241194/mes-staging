@@ -5,12 +5,14 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Read-only vertical scenario:
+Read and local-only create/edit vertical scenario:
 
 `open Structure and Employees -> Work Centers -> select a center -> inspect its passport`.
 
 The typed adapter consumes the authenticated PostgreSQL System Domains snapshot,
 preserves all stable IDs and resolves organization and parent-center references.
+The write-gated editor delegates to the existing revision-checked System Domains
+owner; Pilot remains read-only and default-off.
 
 ## Evidence
 
@@ -21,11 +23,18 @@ preserves all stable IDs and resolves organization and parent-center references.
 - selection/passport, seven registry links, six metrics, exact Equipment fallback,
   unchanged state and clean console pass in the production shell;
 - Employees 76/76, Positions 49/49 and Org Units 19/19 regressions pass;
-- latest local first commit was `23.8 ms`.
+- local create returns a twentieth row with exact organization, parent and
+  explicit false Planning/Gantt flags;
+- an indirect hierarchy cycle is rejected before PUT;
+- conflict-without-mutation, retry, hidden-field preservation and exact legacy
+  read-back pass while the compatibility snapshot remains unchanged;
+- Planning/Gantt impact QA proves opt-out, restore, archive and new-center
+  catalog behavior, plus stable employee/Shift IDs across rename;
+- latest local first commit was `141.10 ms`.
 
-The independent entry is `209,390 B` raw / `64,349 B` gzip. The production
-artifact is `203,739 B` raw / `64,039 B` gzip / `55,095 B` Brotli. It remains
-false by default.
+The independent production entry is `215,495 B` raw / `65,482 B` gzip. A
+separate read adapter keeps the full lab at `474,630 B` raw / `110,737 B` gzip.
+It remains false by default.
 
 ## Pilot acceptance
 
@@ -45,4 +54,5 @@ Centers in read-only mode.
   with the evaluation query retained.
 
 The flags are off, the temporary root directory has been removed, and no Pilot
-data was written. Command migration is outside this accepted slice.
+data was written. The new command evidence is local-only; authenticated Pilot
+write acceptance remains a separate controlled checkpoint.

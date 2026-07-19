@@ -90,9 +90,13 @@ try {
     if (message.method === "Fetch.requestPaused") {
       const requestUrl = new URL(message.params.request.url);
       const method = String(message.params.request.method || "GET").toUpperCase();
-      if (requestUrl.pathname === "/api/v1/system-domains/capabilities" && ["positions", "orgUnits", "equipment", "responsibilityPolicies"].includes(qaConfig.registryId)) { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...(primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {}) } }); }
+      if (requestUrl.pathname === "/api/v1/system-domains/capabilities" && ["positions", "orgUnits", "workCenters", "equipment", "responsibilityPolicies"].includes(qaConfig.registryId)) {
+        interceptedReads += 1;
+        const consistency = primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {};
+        void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...consistency } });
+      }
       else if (requestUrl.pathname === "/api/v1/system-domains" && method === "GET") { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains }); }
-      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT" && ["positions", "orgUnits", "equipment", "responsibilityPolicies"].includes(qaConfig.registryId)) {
+      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT" && ["positions", "orgUnits", "workCenters", "equipment", "responsibilityPolicies"].includes(qaConfig.registryId)) {
         putAttempts += 1; const requestHeaders = message.params.request.headers || {}; const header = (name) => Object.entries(requestHeaders).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || ""; const body = JSON.parse(message.params.request.postData || "{}");
         commandRequests.push({ expectedRevision: Number(body.expectedRevision || 0), ifMatch: String(header("If-Match")), idempotencyKey: String(header("Idempotency-Key")), surface: String(body.surface || "") });
         if (forceConflictOnce) { forceConflictOnce = false; void fulfill(message.params.requestId, { ok: false, conflict: true, revision: apiRevision, error: "System Domains revision conflict" }, { statusCode: 409 }); }
@@ -111,7 +115,7 @@ try {
   await selectRegistry(client, qaConfig.registryId); await waitForCondition(client, (config) => document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : `[data-system-domain-table="${config.registryId}"] [data-system-domain-row]`).length === config.rowCount, { arg: qaConfig, message: `legacy ${qaConfig.label} missing` });
   const legacyRows = await evaluate(client, (config) => [...document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : `[data-system-domain-table="${config.registryId}"] [data-system-domain-row]`)].map((row) => { const cells = [...row.querySelectorAll("td")]; return (config.isDiagnostics ? cells : cells.slice(0, -1)).map((cell) => cell.textContent.replace(/\s+/g, " ").trim()).join(" "); }), qaConfig);
   const legacyMetrics = await evaluate(client, () => Object.fromEntries([...document.querySelectorAll('.production-structure-kpis article')].map((card) => [card.querySelector("span")?.textContent?.trim() || "", Number(card.querySelector("strong")?.textContent || 0)])));
-  if (["positions", "orgUnits", "equipment", "responsibilityPolicies"].includes(qaConfig.registryId)) await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
+  if (["positions", "orgUnits", "workCenters", "equipment", "responsibilityPolicies"].includes(qaConfig.registryId)) await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
 
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1` });
   await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 19, { message: "enabled default canonical payload missing" });
@@ -223,6 +227,52 @@ try {
     await waitForCondition(client, () => /Подразделений\s*20/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "legacy shell did not hydrate revised Org Units", timeoutMs: 15_000 });
     await selectRegistry(client, "orgUnits");
     await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 20 && [...document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Участок PostgreSQL QA обновлён")), { message: "legacy Org Units did not read back the React write" });
+  } else if (qaConfig.registryId === "workCenters") {
+    primaryAuthorityReady = true;
+    await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
+    const writeUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-work-centers=1&react-structure-work-centers-write=1&qa-reload=work-centers-write`;
+    await client.send("Page.navigate", { url: writeUrl });
+    await waitForCondition(client, () => { if (document.querySelector('[data-react-structure-work-centers-island]') || document.querySelector('[data-system-domain-table="workCenters"]')) return true; document.querySelector('[data-system-domain-registry="workCenters"]')?.click(); return false; }, { message: "Work Centers registry did not become active after hydration", timeoutMs: 10_000 });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-structure-work-centers-island][data-react-island-state="ready"]')) && [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Новая запись" && !button.disabled), { message: "Work Centers PostgreSQL write evaluation did not become ready", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Новая запись")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="name"]')), { message: "new work center editor did not open" });
+    const references = { orgUnitId: migration.domains.registries.orgUnits[0].id, parentWorkCenterId: migration.domains.registries.workCenters[0].id };
+    await evaluate(client, (values) => { const setControl = (selector, value) => { const control = document.querySelector(selector); if (!control) throw new Error(`missing ${selector}`); const prototype = control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value); control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true })); }; setControl('input[name="name"]', "Рабочий центр PostgreSQL QA"); setControl('input[name="code"]', "QA-WC-01"); setControl('select[name="orgUnitId"]', values.orgUnitId); setControl('select[name="parentWorkCenterId"]', values.parentWorkCenterId); setControl('select[name="participatesInPlanning"]', "false"); setControl('select[name="showInGantt"]', "false"); document.querySelector('form.react-nomenclature-editor')?.requestSubmit(); }, references);
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-work-centers-island] [data-ui-component="SelectableRow"]').length === 20, { message: "created work center did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 2 && successfulWrites === 1, "work center create must advance one PostgreSQL revision");
+    const created = apiDomains.registries.workCenters.find((center) => center.code === "QA-WC-01");
+    assert(created?.id && created.orgUnitId === references.orgUnitId && created.parentWorkCenterId === references.parentWorkCenterId && created.participatesInPlanning === false && created.showInGantt === false, "created work center hierarchy or Planning/Gantt flags were not preserved");
+    created.serverOnlyMarker = "work-center-hidden-field";
+
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-work-centers-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), references.parentWorkCenterId);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Редактировать рабочий центр")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('select[name="parentWorkCenterId"]')), { message: "parent work center editor did not open" });
+    await evaluate(client, (childId) => { const select = document.querySelector('select[name="parentWorkCenterId"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, childId); select.dispatchEvent(new Event("change", { bubbles: true })); document.querySelector('form.react-nomenclature-editor')?.requestSubmit(); }, created.id);
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("цикл"), { message: "work center hierarchy cycle was not rejected" });
+    assert(apiRevision === 2 && putAttempts === 1, "work center hierarchy cycle must be rejected before PostgreSQL mutation");
+
+    const editUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-work-centers=1&react-structure-work-centers-write=1&qa-reload=work-centers-revision-2`;
+    await client.send("Page.navigate", { url: editUrl });
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-work-centers-island] [data-ui-component="SelectableRow"]').length === 20, { message: "Work Centers revision 2 did not hydrate", timeoutMs: 15_000 });
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-work-centers-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Редактировать рабочий центр")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="name"]')), { message: "work center edit form did not open" });
+    await evaluate(client, () => { const setControl = (selector, value) => { const control = document.querySelector(selector); const prototype = control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value); control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true })); }; setControl('input[name="name"]', "Рабочий центр PostgreSQL QA обновлён"); setControl('input[name="code"]', "QA-WC-02"); setControl('select[name="parentWorkCenterId"]', ""); setControl('select[name="participatesInPlanning"]', "true"); setControl('select[name="showInGantt"]', "true"); });
+    forceConflictOnce = true;
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("изменились в другом сеансе"), { message: "work center revision conflict was not visible" });
+    assert(apiRevision === 2 && successfulWrites === 1 && putAttempts === 2, "conflicted work center edit must not mutate System Domains");
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-work-centers-island] [data-ui-component="SelectableRow"]').length === 20 && [...document.querySelectorAll('[data-react-structure-work-centers-island] [data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("Рабочий центр PostgreSQL QA обновлён")), { message: "work center edit retry did not return", timeoutMs: 15_000 });
+    assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "work center edit retry must advance exactly one revision");
+    const edited = apiDomains.registries.workCenters.find((center) => center.id === created.id);
+    assert(edited?.name === "Рабочий центр PostgreSQL QA обновлён" && edited?.parentWorkCenterId === "" && edited?.participatesInPlanning === true && edited?.showInGantt === true && edited?.serverOnlyMarker === "work-center-hidden-field", "work center edit lost hierarchy, flags or hidden fields");
+    assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "work center commands must carry surface, If-Match and idempotency key");
+
+    await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&qa-reload=work-centers-legacy-readback` });
+    await waitForCondition(client, () => /Рабочих центров\s*20/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "legacy shell did not hydrate revised Work Centers", timeoutMs: 15_000 });
+    await selectRegistry(client, "workCenters");
+    await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="workCenters"] [data-system-domain-row]').length === 20 && [...document.querySelectorAll('[data-system-domain-table="workCenters"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Рабочий центр PostgreSQL QA обновлён")), { message: "legacy Work Centers did not read back the React write" });
   } else if (qaConfig.registryId === "equipment") {
     primaryAuthorityReady = true;
     await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
@@ -322,6 +372,7 @@ try {
   console.log(`- ${qaConfig.cellCount} cells/order, ${qaConfig.isDiagnostics ? "four issue groups" : "selection/detail"}, seven registries, six metrics, legacy fallback and unchanged state: pass`);
   if (qaConfig.registryId === "positions") console.log("- PostgreSQL create/edit, conflict retry, references, hidden fields, 50-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "orgUnits") console.log("- PostgreSQL create/edit, hierarchy-cycle rejection, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
+  if (qaConfig.registryId === "workCenters") console.log("- PostgreSQL create/edit, hierarchy-cycle rejection, Planning/Gantt flags, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "equipment") console.log("- PostgreSQL create/edit, quantity/reference validation, conflict retry, hidden fields, 7-row legacy read-back and unchanged snapshot: pass");
   if (qaConfig.registryId === "responsibilityPolicies") console.log("- PostgreSQL create/edit, mode/employee validation, duplicate rejection, conflict retry, hidden fields, 2-row legacy read-back and unchanged snapshot: pass");
 } catch (error) { if (chrome) { const browserState = await evaluate(chrome.client, () => ({ url: location.href, headings: [...document.querySelectorAll("h1,h2")].map((node) => node.textContent?.trim()).slice(0, 8), target: Boolean(document.querySelector('[data-react-structure-positions-island]')), targetState: document.querySelector('[data-react-structure-positions-island]')?.getAttribute("data-react-island-state"), registryButtons: [...document.querySelectorAll('[data-system-domain-registry]')].map((button) => ({ id: button.getAttribute("data-system-domain-registry"), text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), connected: button.isConnected, disabled: button.disabled, pointerEvents: getComputedStyle(button).pointerEvents })), buttons: [...document.querySelectorAll("button")].filter((button) => button.offsetParent !== null).map((button) => ({ text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), disabled: button.disabled })).slice(-20), visibleText: document.querySelector("main")?.textContent?.replace(/\s+/g, " ").trim().slice(-1000) })).catch(() => null); if (browserState) console.error(`BROWSER_STATE ${JSON.stringify(browserState)}`); } if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); throw error; }

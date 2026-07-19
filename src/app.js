@@ -2686,9 +2686,9 @@ const structureOrgUnitsReactIslandHost = createStructureOrgUnitsReactIslandHost(
   },
 });
 function getStructureWorkCentersReactLocalQaOverrides() {
-  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]); if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  const params = new URLSearchParams(window.location.search); if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-structure-work-centers") === "1", readOnlyEvaluation: params.get("react-structure-work-centers-readonly") === "1" };
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]); if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  const params = new URLSearchParams(window.location.search); if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-structure-work-centers") === "1", readOnlyEvaluation: params.get("react-structure-work-centers-readonly") === "1", writeEvaluation: params.get("react-structure-work-centers-write") === "1" };
 }
 function isStructureWorkCentersReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search); if (params.get("react-structure-work-centers-evaluation") !== "1") return false;
@@ -2697,10 +2697,35 @@ function isStructureWorkCentersReactEvaluationRequested() {
 const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslandHost({
   getActivation: () => {
     const localQa = getStructureWorkCentersReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION === true;
-    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: (serverEvaluationAllowed && isStructureWorkCentersReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
+    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureWorkCentersReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
   },
-  getPayload: () => systemDomainsState, getTargetRoot: () => app,
+  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructureWorkCentersReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("workCenters") } }), getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "workCenters"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  executeCommand: async (command = {}) => {
+    const localQa = getStructureWorkCentersReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования рабочего центра недоступна." };
+    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("workCenters")) return { ok: false, message: "PostgreSQL-команда или право редактирования рабочих центров недоступны." };
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const workCenterId = String(input.workCenterId || "").trim() || makeId("work-center");
+    const name = String(input.name || "").trim().replace(/\s+/g, " ");
+    const orgUnitId = String(input.orgUnitId || "").trim();
+    const parentWorkCenterId = String(input.parentWorkCenterId || "").trim();
+    const registries = getSystemDomainsRegistries(); const workCenters = registries.workCenters || [];
+    if (!name) return { ok: false, message: "Заполните название рабочего центра." };
+    if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId)) return { ok: false, message: "Выбранное подразделение больше не существует." };
+    if (parentWorkCenterId && !workCenters.some((row) => row.id === parentWorkCenterId)) return { ok: false, message: "Выбранный родительский рабочий центр больше не существует." };
+    if (parentWorkCenterId === workCenterId) return { ok: false, message: "Рабочий центр не может быть родителем самому себе." };
+    const parents = new Map(workCenters.map((row) => [String(row.id || ""), String(row.parentWorkCenterId || "")])); let ancestorId = parentWorkCenterId; const visited = new Set();
+    while (ancestorId && !visited.has(ancestorId)) { if (ancestorId === workCenterId) return { ok: false, message: "Выбранный родитель создаёт цикл в иерархии рабочих центров." }; visited.add(ancestorId); ancestorId = parents.get(ancestorId) || ""; }
+    try {
+      const result = await upsertSystemDomainEntity("workCenters", { id: workCenterId, name, code: String(input.code || "").trim(), orgUnitId, parentWorkCenterId, participatesInPlanning: input.participatesInPlanning !== false, showInGantt: input.showInGantt !== false, isActive: input.isActive !== false }, { source: "react:structure-work-centers", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      if (result !== true) return { ok: false, message: "Изменение рабочего центра отклонено проверкой System Domains." };
+      queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+      return { ok: true, id: workCenterId };
+    } catch (error) {
+      return { ok: false, message: error?.conflict === true ? "Данные рабочего центра изменились в другом сеансе. Проверьте значения и повторите сохранение." : error?.message || "Сервер не принял изменение рабочего центра." };
+    }
+  },
 });
 function getStructureEquipmentReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]); if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
@@ -7325,7 +7350,7 @@ function initializeModuleRuntime() {
         }
         ensureProductionStructureMatrixModule();
         const structureReactHosts = { employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost };
-        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : (isStructureResponsibilityPoliciesReactEvaluationRequested() || getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.responsibilityPolicies : (isStructureEquipmentReactEvaluationRequested() || getStructureEquipmentReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.equipment : isStructureWorkCentersReactEvaluationRequested() ? structureReactHosts.workCenters : (isStructureOrgUnitsReactEvaluationRequested() || getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.orgUnits : (isStructurePositionsReactEvaluationRequested() || getStructurePositionsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.positions : structureReactHosts.employees;
+        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : (isStructureResponsibilityPoliciesReactEvaluationRequested() || getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.responsibilityPolicies : (isStructureEquipmentReactEvaluationRequested() || getStructureEquipmentReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.equipment : (isStructureWorkCentersReactEvaluationRequested() || getStructureWorkCentersReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.workCenters : (isStructureOrgUnitsReactEvaluationRequested() || getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.orgUnits : (isStructurePositionsReactEvaluationRequested() || getStructurePositionsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.positions : structureReactHosts.employees;
         Object.values(structureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();

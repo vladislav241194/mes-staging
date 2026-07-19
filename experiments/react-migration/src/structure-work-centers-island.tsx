@@ -1,4 +1,4 @@
 import { mountReactIsland, type ReactMigrationIslandOptions } from "./island-runtime";
-import { StructureWorkCentersScenario } from "./modules/structure-work-centers/StructureWorkCentersScenario";
-export interface StructureWorkCentersIslandOptions extends ReactMigrationIslandOptions { onRequestLegacy?(scope?: string): void }
-export function mountStructureWorkCentersReactIsland(target: HTMLElement, initialPayload: unknown, options: StructureWorkCentersIslandOptions = {}) { const { onRequestLegacy, ...runtimeOptions } = options; return mountReactIsland(target, (payload) => <StructureWorkCentersScenario payload={payload} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions); }
+import { StructureWorkCentersScenario, type StructureWorkCentersReactCommand } from "./modules/structure-work-centers/StructureWorkCentersScenario";
+export interface StructureWorkCentersIslandOptions extends ReactMigrationIslandOptions { onCommand?(command: StructureWorkCentersReactCommand): Promise<{ ok?: boolean; id?: string; message?: string } | void>; onRequestLegacy?(scope?: string): void }
+export function mountStructureWorkCentersReactIsland(target: HTMLElement, initialPayload: unknown, options: StructureWorkCentersIslandOptions = {}) { const { onCommand, onRequestLegacy, ...runtimeOptions } = options; return mountReactIsland(target, (payload) => <StructureWorkCentersScenario payload={payload} onCommand={onCommand} onRequestLegacy={onRequestLegacy} />, initialPayload, runtimeOptions); }

@@ -99,9 +99,12 @@ stay inside the typed adapter; parent existence and hierarchy cycles are checked
 by the host before delegation to the revision-checked System Domains owner.
 Archive and all unsupported commands remain legacy.
 
-`mountStructureWorkCentersReactIsland(...)` owns the Work Centers read table
-and passport. Organization and parent-center references are resolved at the
-typed boundary; planning/Gantt commands and every editor action remain legacy.
+`mountStructureWorkCentersReactIsland(...)` owns the Work Centers read table,
+passport and a local-only create/edit evaluation. Organization and parent-center
+references are resolved at the typed boundary. The host validates reference
+existence and hierarchy cycles before delegating the revision-checked command;
+Planning participation and Gantt visibility remain explicit canonical fields.
+Archive and unsupported lifecycle commands remain legacy.
 
 `mountStructureEquipmentReactIsland(...)` owns the Equipment read table,
 passport and a local-only create/edit evaluation. Organization, work-center and

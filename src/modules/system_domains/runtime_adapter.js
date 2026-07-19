@@ -63,6 +63,13 @@ export function projectSystemDomainWorkCenters(domains, legacyWorkCenters = []) 
     const legacy = byDomainId.get(domainId) || {};
     const runtimeId = runtimeIdByDomainId.get(domainId) || domainId;
     const parentDomainId = cleanText(center.parentWorkCenterId);
+    const hasDomainParent = Object.prototype.hasOwnProperty.call(center, "parentWorkCenterId");
+    const participatesInPlanning = typeof center.participatesInPlanning === "boolean"
+      ? center.participatesInPlanning
+      : Boolean(legacy.isPlanningUnit);
+    const showInGantt = typeof center.showInGantt === "boolean"
+      ? center.showInGantt
+      : legacy.showInGantt !== false;
     return {
       ...legacy,
       id: runtimeId,
@@ -71,10 +78,13 @@ export function projectSystemDomainWorkCenters(domains, legacyWorkCenters = []) 
       code: cleanText(center.code) || runtimeId,
       name: cleanText(center.name) || cleanText(legacy.name) || runtimeId,
       description: cleanText(legacy.description) || "Источник: Структура и сотрудники",
-      parentWorkCenterId: runtimeIdByDomainId.get(parentDomainId) || cleanText(legacy.parentWorkCenterId),
+      parentWorkCenterId: hasDomainParent
+        ? (runtimeIdByDomainId.get(parentDomainId) || "")
+        : cleanText(legacy.parentWorkCenterId),
       isActive: center.isActive !== false,
-      isPlanningUnit: Boolean(center.participatesInPlanning || center.showInGantt || legacy.isPlanningUnit),
-      showInGantt: center.showInGantt !== false,
+      participatesInPlanning,
+      isPlanningUnit: participatesInPlanning || showInGantt,
+      showInGantt,
       canPlanDirectly: Boolean(center.canPlanDirectly),
       availabilitySource: cleanText(center.availabilitySource) || cleanText(legacy.availabilitySource) || "Структура и сотрудники",
       source: "Структура и сотрудники",

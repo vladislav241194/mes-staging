@@ -48,6 +48,20 @@ assert.deepEqual(
   "Planning resource ids must stay stable through the canonical projection",
 );
 assert.ok(workCenters.filter((row) => row.isPlanningUnit).length >= legacyWorkCenters.filter((row) => row.isPlanningUnit).length);
+const explicitRuntimeDomains = structuredClone(domains);
+const explicitRuntimeCenter = explicitRuntimeDomains.registries.workCenters.find((center) => {
+  const projected = workCenters.find((row) => row.domainId === center.id);
+  return Boolean(projected?.parentWorkCenterId && projected?.isPlanningUnit);
+});
+assert.ok(explicitRuntimeCenter, "Fixture must contain a nested planning work center");
+explicitRuntimeCenter.parentWorkCenterId = "";
+explicitRuntimeCenter.participatesInPlanning = false;
+explicitRuntimeCenter.showInGantt = false;
+const explicitRuntimeProjection = projectSystemDomainWorkCenters(explicitRuntimeDomains, legacyWorkCenters).find((row) => row.domainId === explicitRuntimeCenter.id);
+assert.equal(explicitRuntimeProjection.parentWorkCenterId, "", "Explicitly cleared parent must not return from the legacy projection");
+assert.equal(explicitRuntimeProjection.participatesInPlanning, false, "Explicit planning opt-out must survive the runtime projection");
+assert.equal(explicitRuntimeProjection.isPlanningUnit, false, "Planning and Gantt opt-out must not return through legacy isPlanningUnit fallback");
+assert.equal(explicitRuntimeProjection.showInGantt, false, "Explicit Gantt opt-out must survive the runtime projection");
 assert.equal(
   employees.find((row) => row.id === "MGMT-PROD-DIRECTOR-EMP-01")?.department,
   "Административный отдел",

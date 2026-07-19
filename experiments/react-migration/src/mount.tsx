@@ -8,7 +8,7 @@ import { StatusesScenario } from "./modules/statuses/StatusesScenario";
 import { StructureEmployeesReadScenario } from "./modules/structure-employees/StructureEmployeesReadScenario";
 import { StructurePositionsReadScenario } from "./modules/structure-positions/StructurePositionsReadScenario";
 import { StructureOrgUnitsReadScenario } from "./modules/structure-org-units/StructureOrgUnitsReadScenario";
-import { StructureWorkCentersScenario } from "./modules/structure-work-centers/StructureWorkCentersScenario";
+import { StructureWorkCentersReadScenario } from "./modules/structure-work-centers/StructureWorkCentersReadScenario";
 import { StructureEquipmentReadScenario } from "./modules/structure-equipment/StructureEquipmentReadScenario";
 import { StructureResponsibilityPoliciesReadScenario } from "./modules/structure-responsibility-policies/StructureResponsibilityPoliciesReadScenario";
 import { StructureMigrationDiagnosticsScenario } from "./modules/structure-migration-diagnostics/StructureMigrationDiagnosticsScenario";
@@ -34,7 +34,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "structureEmployees") return <StructureEmployeesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structurePositions") return <StructurePositionsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureOrgUnits") return <StructureOrgUnitsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "structureWorkCenters") return <StructureWorkCentersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "structureWorkCenters") return <StructureWorkCentersReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureEquipment") return <StructureEquipmentReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureResponsibilityPolicies") return <StructureResponsibilityPoliciesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureMigrationDiagnostics") return <StructureMigrationDiagnosticsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
