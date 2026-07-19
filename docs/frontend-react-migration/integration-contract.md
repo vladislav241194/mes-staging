@@ -223,14 +223,16 @@ the selected journal row, initializes the existing Routes renderer owner before
 reading `getWorkOrderPrintPackageViewModel()`, and owns `window.print()` plus
 temporary document-title restoration. React neither recalculates package
 quantities nor writes runtime state. A localhost-only write evaluation exposes
-one typed `save-fact` callback for the exact current journal row. The host
-rebuilds the Shift Master Board read model, rechecks `shiftMasterBoard:edit`,
-the canonical server assignment and integer/defect bounds, then delegates to
-the same Shift Execution fact/carryover owner used by Shift Master Board and
-renders only after PostgreSQL refresh. The editor is an independent lazy chunk
-that receives the host island's React hooks and shared `ModalOverlay`, avoiding
-a second React runtime. Workshop and assignment return through
-`unsupported-scope`; Shift Execution repositories and server authority stay
+typed `save-assignment` and `save-fact` callbacks for the exact current journal
+row. Assignment context is loaded only on demand from the current Shift Master
+Board row; the host rechecks `shiftMasterBoard:assign`, access-matrix
+membership, Timesheet availability, uniqueness and planned-quantity bounds.
+For fact it rechecks `shiftMasterBoard:edit`, the canonical server assignment
+and integer/defect bounds. Both callbacks delegate to the same Shift Execution
+owners used by Shift Master Board and render only after PostgreSQL refresh. The
+command editors share one independent lazy chunk that receives the host
+island's React hooks and shared `ModalOverlay`, avoiding a second React runtime.
+Workshop returns through `unsupported-scope`; Shift Execution repositories and server authority stay
 outside React. Missing coverage, a historical/non-canonical row, an open
 legacy overlay, ordinary editor access or a missing session request retains
 legacy.

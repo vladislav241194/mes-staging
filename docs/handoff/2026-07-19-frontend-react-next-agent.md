@@ -736,3 +736,36 @@ actions/console, затем немедленно деактивировать и
   локально доказанному fact/correction scope Журнала СЗН. Assignment,
   подтверждённые owner/schema gaps и любые Pilot write-acceptance не
   переоценены.
+
+## Продолжение 2026-07-20: Shift Work Orders assignment checkpoint
+
+- Code checkpoint `699b4ad` добавляет typed `save-assignment` для точной строки
+  текущего Журнала СЗН. Контекст исполнителей загружается только по клику из
+  текущей Shift Master Board row и не попадает в базовый journal payload.
+- Общий helper повторно проверяет `shiftMasterBoard:assign`, membership в
+  access matrix, доступность по Табелю, unique employee IDs, положительные
+  целые количества и суммарный план. После этого он вызывает существующие
+  `saveShiftMasterBoardAssignment` и revision-checked Shift Execution
+  create/update owner; React не владеет RBAC, availability или persistence.
+- Assignment и fact используют один lazy command bundle с hooks и
+  `ModalOverlay` основного React runtime. Base bundle проверяется на отсутствие
+  обоих editor markers; production-entry gate `225000 / 68000 B` не повышался.
+- Production-shell QA доказывает default legacy и `0` writes в read-only,
+  assignment Escape/cancel без PATCH, correction `58 -> 57`, React и legacy
+  read-back, cleanup `57 -> 58`, затем прежний fact flow `58 -> 59 -> 58`.
+  Выполнено ровно два assignment PATCH и два fact POST; carryover writes нет,
+  temporary `0600` state byte-stable, console clean.
+- Полный Shift Master Board regression снова зелёный: date/master/focus,
+  assignment, fact, canonical carryover create/navigate/cancel, transfer и SZN
+  print используют тот же owner без регрессии.
+- Performance: independent base `224968 / 67925 B`, lazy command
+  `9370 / 3020 B`, production base `217934 / 67553 / 64100 B`, production lazy
+  command `6943 / 2817 / 2661 B`; development-only aggregate
+  `566267 / 127918 B` проходит `567000 / 128000 B`.
+- Pilot не деплоился и не изменялся; write activation по-прежнему существует
+  только в localhost QA, legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `99.5%`
+  выполнено, примерно `0.5%` осталось (`+0.5 п.п.`). Прирост относится только
+  к локально доказанному assignment scope Журнала СЗН. Оставшийся объём —
+  подтверждённые owner/schema gaps и отдельно разрешаемые Pilot write/default-
+  on решения; их нельзя закрыть одной frontend-реализацией.

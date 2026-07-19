@@ -62,12 +62,13 @@ read-only product modules and own no write commands. Planning Workbench now has
 locally complete route/item navigation and quantity editing through its current
 PostgreSQL-backed owner; dates, labor, Gantt transfer and cancel remain legacy.
 Shift Work Orders now keeps attachment inspection, SZN print preview, the
-work-order print package and bounded fact entry/correction inside React while
+work-order print package, bounded executor assignment and fact entry/correction inside React while
 reusing the existing package, print and Shift Execution owners. The host
-rechecks the current PostgreSQL window, `shiftMasterBoard:edit`, the canonical
-server assignment and integer/defect bounds before delegating the same fact and
+rechecks the current PostgreSQL window, `shiftMasterBoard:assign`/`edit`, the
+access matrix, Timesheet availability, canonical server assignment and
+quantity/defect bounds before delegating the same assignment, fact and
 carryover lifecycle used by Shift Master Board. React reads the refreshed
-journal projection back; assignment and Workshop remain legacy. The
+journal projection back; Workshop navigation remains legacy. The
 Shift Master Board now owns its date and RBAC-scoped master selectors, four focus controls, bounded executor
 assignment, fact entry/correction and the complete carryover navigation cycle.
 The existing host normalizes focus, rechecks RBAC, access matrix, Timesheet
@@ -134,7 +135,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
 | 15 | Roles and Access | Local complete: role label, description, default module, six-action grant toggles, role default scope, exact-employee immediate assignment replace/clear and ID-bound deactivate/reactivate for unassigned roles; multiple/effective-window assignment editing, personal/assignment scopes, read-only and assigned-role lifecycle remain legacy | Critical | Separately gated Pilot metadata/grant/default-scope/assignment/lifecycle write evaluation with disposable coordinates and verified cleanup/reactivation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
-| 17 | Shift Work Orders | Local complete: attachment viewer, SZN/package print previews and owner-backed fact entry/correction; assignment and Workshop remain legacy; Pilot read accepted | Critical | Keep default-off; assignment remains a separate command scope; any fact write acceptance on Pilot requires explicit disposable cleanup approval |
+| 17 | Shift Work Orders | Local complete: attachment viewer, SZN/package print previews and owner-backed assignment plus fact entry/correction; Workshop remains legacy; Pilot read accepted | Critical | Keep default-off; any assignment/fact write acceptance on Pilot requires explicit disposable cleanup approval |
 | 18 | Shift Master Board | Local complete: date and privileged-master switching, card selection, focus, bounded executor assignment, fact/correction, canonical carryover create/navigate/cancel, typed transfer and SZN preview/print; manual lane movement remains legacy; Pilot read accepted | Critical | Keep default-off; manual lane movement requires its own later command scope |
 | 19 | Employee Desktop | Local complete: task start, fact, photo Report and Structure/Route/PDF context through existing owners; Pilot read accepted | Critical | Separately gated Pilot write acceptance of task start/fact/Report before default-on consideration |
 | 20 | Specifications 2.0 | Local complete: existing draft-row edit, exact-ID server-primary publication with conflict/retry and PostgreSQL/legacy read-back, plus idempotent exact-revision work-order creation; add/remove/reparent, attachments and route editing remain legacy | Critical | Separately gated disposable Pilot publication/work-order acceptance before any default-on decision |

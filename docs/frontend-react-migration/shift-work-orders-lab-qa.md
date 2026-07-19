@@ -1,13 +1,13 @@
 # Shift Work Orders React migration QA
 
 Date: 2026-07-20
-Status: production-integrated and Pilot-accepted read island with local owner-backed fact/correction evidence; disabled by default
+Status: production-integrated and Pilot-accepted read island with local owner-backed assignment/fact evidence; disabled by default
 
 ## Vertical scenario
 
 `Open Shift Journal -> inspect document tree -> select an assignment -> read
 quantity, transfer and executor detail -> inspect/print SZN and work-order
-package -> enter/correct fact for the exact current PostgreSQL assignment.`
+package -> distribute the exact current task -> enter/correct fact.`
 
 The boundary consumes the existing completed
 `getShiftWorkOrderJournalViewModel()` result. It does not read PostgreSQL,
@@ -15,9 +15,9 @@ shared state or Shift Execution repositories directly.
 
 ## Command boundary
 
-- fact entry/correction is locally complete through the existing Shift
-  Execution owner and only in explicit localhost write evaluation;
-- assignment remains legacy;
+- executor assignment and fact entry/correction are locally complete through
+  the existing Shift Execution owner and only in explicit localhost write
+  evaluation;
 - Workshop navigation, which returns to the unchanged legacy runtime;
 - any Shift Execution authority, API or repository change.
 
@@ -45,26 +45,27 @@ read model.
   and five-column transfer contract; React now supplies the two semantic-free
   connector slots and current-step marker required by the existing MES visual
   contract instead of placing a card into an 18-pixel connector column;
-- independent base entry `223,677 B` raw / `67,703 B` gzip under the unchanged
+- independent base entry `224,968 B` raw / `67,925 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
 - lazy print entry `19,025 B` raw / `3,659 B` gzip under the same production-entry
   budget; the base entry is checked not to contain the print sheet;
-- lazy fact editor `5,269 B` raw / `2,098 B` gzip under the same budget; the
-  base entry is checked not to contain its fields, and the editor reuses the
+- lazy command editors `9,370 B` raw / `3,020 B` gzip under the same budget; the
+  base entry is checked not to contain assignment/fact fields, and the editors reuse the
   host island's React hooks instead of bundling a second hook runtime;
-- full twenty-four-scenario lab `565,019 B / 127,686 B` under its
-  development-only `566,000 B / 128,000 B` budget.
+- full twenty-four-scenario lab `566,267 B / 127,918 B` under its
+  development-only `567,000 B / 128,000 B` budget.
 
 Production-shell QA proves default legacy, explicit session-only read access,
 one PostgreSQL-backed work order/operation/assignment, identical eight-column
-tree density, lazy SZN/package/fact chunks, two host print callbacks and zero
-writes in read-only mode. In write evaluation, Escape sends no command; the
-typed correction posts once to the exact assignment fact endpoint, React and
-legacy both read `58 -> 59`, and cleanup posts once and restores `59 -> 58`.
-No assignment/carryover endpoint is touched, the 0600 test state is byte-stable
-and the console is clean. The production base bundle is `216,974 B` raw /
-`67,343 B` gzip / `63,914 B` Brotli; its lazy fact bundle is `4,097 B` raw /
-`1,928 B` gzip / `1,797 B` Brotli, and its lazy print bundle is `13,774 B` raw /
+tree density, lazy SZN/package/command chunks, two host print callbacks and zero
+writes in read-only mode. In write evaluation, Escape sends no command;
+assignment posts only to the exact revision-checked assignment endpoint, React
+and legacy read `58 -> 57`, and cleanup restores `57 -> 58`. Fact correction
+then posts once to the exact fact endpoint, React and legacy read `58 -> 59`,
+and cleanup restores `59 -> 58`. No carryover endpoint is touched, the 0600
+test state is byte-stable and the console is clean. The production base bundle
+is `217,934 B` raw / `67,553 B` gzip / `64,100 B` Brotli; its lazy command
+bundle is `6,943 B` raw / `2,817 B` gzip / `2,661 B` Brotli, and its lazy print bundle is `13,774 B` raw /
 `3,378 B` gzip / `3,137 B` Brotli. The production fixture has no report photo,
 so attachment behavior is proven by the isolated typed-payload browser gate;
 Pilot remains unchanged.
