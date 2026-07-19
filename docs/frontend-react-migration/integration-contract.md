@@ -135,11 +135,14 @@ assignment, fact entry, Shift Execution repositories and server authority stay
 outside React. Missing PostgreSQL coverage, an open legacy overlay, editor
 access or a missing session request retains legacy.
 
-`mountShiftMasterBoardReactIsland(...)` is currently an isolated read-only
-Workshop proof. Its adapter consumes the completed legacy board model and owns
-only local task-card selection across the four existing lanes. Date/focus/
-master changes plus assignment, fact, carryover, transfer and print scopes
-return through `unsupported-scope`. No production flag or host is claimed yet.
+`mountShiftMasterBoardReactIsland(...)` owns the read-only Workshop board
+behind two false-by-default server permissions, PostgreSQL System Domains and
+complete Shift Execution read readiness, plus an explicit session request.
+Its adapter consumes the completed legacy board model and owns only local task-
+card selection across the three existing lanes. Date/focus/master changes plus
+assignment, fact, carryover, transfer and print scopes return through
+`unsupported-scope`. Missing coverage, an open legacy overlay, editor access
+or a missing session request retains legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host

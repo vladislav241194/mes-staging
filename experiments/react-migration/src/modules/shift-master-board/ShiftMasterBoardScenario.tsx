@@ -12,7 +12,7 @@ export function ShiftMasterBoardScenario({ payload, onRequestLegacy }: { payload
   const selected = model.rows.find((row) => row.id === selectedId) || model.selectedRow || model.rows[0];
   return <OperationalPage className="shift-master-board-react" label="Мастерская">
     <header className="shift-master-board-react-toolbar" data-shift-master-board-toolbar>
-      <div><span>Смена</span><strong>{model.windowLabel}</strong></div>
+      <button className="shift-master-board-react-date" onClick={() => onRequestLegacy?.("date")} type="button"><span>Смена</span><strong>{model.windowLabel}</strong></button>
       <MetricGrid className="shift-master-board-react-kpis" label="Сводка смены"><MetricCard label="План" value={quantity(model.plannedQuantity)} /><MetricCard label="Распределено" value={quantity(model.assignedQuantity)} /><MetricCard label="Факт" value={quantity(model.factQuantity)} /></MetricGrid>
       <button className="shift-master-board-react-master" onClick={() => onRequestLegacy?.("master")} type="button"><strong>{model.activeMasterName}</strong><span>{model.activeMasterDepartment}</span></button>
     </header>

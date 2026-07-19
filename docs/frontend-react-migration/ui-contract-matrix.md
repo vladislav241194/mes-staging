@@ -216,15 +216,18 @@ Production-shell QA proves the same tree density on one PostgreSQL-backed
 work order, operation and assignment, default legacy, explicit read-only
 session activation, print fallback, zero commands and unchanged state.
 
-## Shift Master Board isolated evidence
+## Shift Master Board production evidence
 
 The second operational-family proof consumes the completed legacy
 `getShiftMasterBoardModel()` boundary. It reuses OperationalPage, Panel,
 MetricGrid, MetricCard, StatusToken and ActionButton while retaining the
-Workshop-specific four-lane card board. The fixture proves four lanes, four
+Workshop-specific three-lane card board. The fixture proves three lanes, four
 cards, seven summary/detail metrics, local card selection and payload update.
 All master/date/focus, assignment, fact, carryover, transfer and print scopes
-return to legacy. Production integration remains a separate gate.
+return to legacy.
+Production-shell QA proves identical three-lane/one-card density from the same
+PostgreSQL-backed runtime projection, default legacy, explicit read-only
+activation, assignment fallback, zero commands and unchanged state.
 
 ## Roles and Access read-model evidence
 

@@ -17,7 +17,7 @@ try {
   const origin = `http://127.0.0.1:${port}`; await client.send("Page.navigate", { url: `${origin}/?scenario=shift-master-board&lifecycle_qa=1` });
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-island-scenario="shiftMasterBoard"][data-react-island-revision="1"]')), { message: "Shift Master Board lab did not render" });
   const initial = await evaluate(client, () => ({ lanes: document.querySelectorAll("[data-shift-master-board-lane]").length, cards: document.querySelectorAll("[data-shift-master-board-card]").length, selected: document.querySelector('[data-shift-master-board-card][aria-pressed="true"]')?.getAttribute("data-shift-master-board-card"), detail: document.querySelector("[data-shift-master-board-detail]")?.getAttribute("data-shift-master-board-detail"), metrics: document.querySelectorAll('[data-ui-component="MetricCard"]').length, actions: document.querySelectorAll('[data-ui-component="ActionButton"]').length, pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
-  assert(initial.lanes === 4 && initial.cards === 4 && initial.selected === "assigned" && initial.detail === "assigned", "Shift Master Board lane/card/default selection parity failed");
+  assert(initial.lanes === 3 && initial.cards === 4 && initial.selected === "assigned" && initial.detail === "assigned", "Shift Master Board lane/card/default selection parity failed");
   assert(initial.metrics === 7 && initial.actions === 3 && !initial.pageOverflow, "Shift Master Board metrics/actions/overflow contract failed");
   await evaluate(client, () => document.querySelector('[data-shift-master-board-card="fact"]')?.click()); await waitForCondition(client, () => document.querySelector("[data-shift-master-board-detail]")?.getAttribute("data-shift-master-board-detail") === "fact", { message: "Shift Master Board local card selection failed" });
   await evaluate(client, () => document.querySelector("[data-lifecycle-update]")?.click()); await waitForCondition(client, () => Boolean(document.querySelector('[data-react-island-revision="2"]')), { message: "Shift Master Board update did not commit" });
@@ -25,6 +25,6 @@ try {
   await client.send("Page.navigate", { url: `${origin}/?scenario=shift-master-board&react=0` }); await waitForCondition(client, () => Boolean(document.querySelector('[data-legacy-fallback="disabled"]')), { message: "disabled Shift Master Board flag did not stay legacy" });
   assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
   console.log("Shift Master Board React isolated browser QA: OK");
-  console.log("- 4 lanes, 4 cards, 7 metrics, local selection and revision 1 -> 2: pass");
+  console.log("- 3 lanes, 4 cards, 7 metrics, local selection and revision 1 -> 2: pass");
   console.log("- assignment fallback, disabled flag, no page overflow and clean console: pass");
 } finally { if (chrome) await cleanupChrome(chrome); await stopServer(server); }

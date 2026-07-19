@@ -81,6 +81,7 @@ import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_p
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
 import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createShiftWorkOrdersReactIslandHost } from "./modules/shift_work_orders/react_island_host.js";
+import { createShiftMasterBoardReactIslandHost } from "./modules/shift_master_board/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2654,6 +2655,44 @@ const shiftWorkOrdersReactIslandHost = createShiftWorkOrdersReactIslandHost({
     }
     persistUiState();
     render({ skipRememberScroll: true });
+  },
+});
+function getShiftMasterBoardReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-shift-master-board") === "1", readOnlyEvaluation: params.get("react-shift-master-board-readonly") === "1" };
+}
+function isShiftMasterBoardReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-shift-master-board-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const shiftMasterBoardReactIslandHost = createShiftMasterBoardReactIslandHost({
+  getActivation: () => {
+    const localQa = getShiftMasterBoardReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_SHIFT_MASTER_BOARD_READ_ONLY_EVALUATION === true;
+    const overlayClosed = !ui.shiftMasterBoardPrintPreviewId && !ui.shiftMasterBoardPendingAction && !ui.shiftMasterBoardAssistOpen;
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_SHIFT_MASTER_BOARD === true || localQa.featureFlagEnabled,
+      serverReadReady: systemDomainsServerReadState.status === "server" && shiftExecutionServerState.status === "ready" && shiftExecutionServerState.primaryPostgres === true && shiftExecutionServerState.schemaReady === true && shiftExecutionServerState.coverageComplete === true && overlayClosed,
+      accessMode: (serverEvaluationAllowed && isShiftMasterBoardReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => ({ model: getShiftMasterBoardModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, scope = "") => {
+    const [action, rowId] = String(scope || "").split(":");
+    const model = getShiftMasterBoardModel();
+    const row = (model.allRows || []).find((item) => item.id === rowId) || model.selectedRow || null;
+    if (row?.id) ui.shiftMasterBoardSelectedSlotId = row.id;
+    if (action === "print" && row?.id) {
+      ui.shiftMasterBoardPrintPreviewId = row.id;
+      ui.shiftMasterBoardPrintPreviewEmployeeId = row.boardAssignment?.executors?.[0]?.employeeId || "";
+    }
+    persistUiState();
+    if (ui.activeModule === "shiftMasterBoard") render({ skipRememberScroll: true });
   },
 });
 function getRolesReactLocalQaOverrides() {
@@ -6707,10 +6746,13 @@ function initializeModuleRuntime() {
             description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
           });
         }
+        const reactDecision = shiftMasterBoardReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return shiftMasterBoardReactIslandHost.renderTarget();
         return renderShiftMasterBoardPage();
       },
       renderModals: () => `${renderShiftMasterBoardSheetModal()}${renderShiftMasterBoardActionModal()}`,
-      bind: () => bindShiftMasterBoardEvents(),
+      bind: () => { if (!shiftMasterBoardReactIslandHost.isReactEligible()) bindShiftMasterBoardEvents(); },
+      afterRender: () => { void shiftMasterBoardReactIslandHost.mount(); },
     },
     shiftWorkOrders: {
       render: () => {

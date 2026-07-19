@@ -28,14 +28,14 @@ Current minified measurements:
 | Timesheet production island | 204,934 B | 63,584 B | 225,000 B | 68,000 B |
 | Planning Workbench production island | 205,200 B | 63,549 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
-| Shift Master Board isolated entry | 206,411 B | 63,788 B | 225,000 B | 68,000 B |
+| Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
-| Full nineteen-scenario lab | 399,691 B | 97,623 B | 405,000 B | 108,000 B |
-| Shared lab CSS | 8,900 B | 2,171 B | 9,500 B | 2,800 B |
+| Full nineteen-scenario lab | 399,785 B | 97,638 B | 405,000 B | 108,000 B |
+| Shared lab CSS | 8,842 B | 2,161 B | 9,500 B | 2,800 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board and Roles artifacts and rejects unrelated scenario labels.
@@ -135,6 +135,11 @@ The bundled production Shift Work Orders island is `208,178 B` raw /
 `64,883 B` gzip / `55,856 B` Brotli. Its one-assignment PostgreSQL-backed
 production-shell first commit was `43.30 ms`; this is regression evidence, not
 Pilot acceptance.
+
+The bundled production Shift Master Board island is `202,787 B` raw /
+`63,572 B` gzip / `54,628 B` Brotli. Its one-card PostgreSQL-backed production-
+shell first commit was `22.10 ms`; this is regression evidence, not Pilot
+acceptance.
 
 All measured paths produced revision `1` then `2`.
 

@@ -7,11 +7,11 @@ const makeRow = (id: string, laneId: string, operationName: string, values: { pl
 const rows = [
   makeRow("intake", "intake", "Комплектация", { planned: 120, assigned: 0, fact: 0, signal: "нужно распределить", tone: "neutral" }),
   makeRow("assigned", "assigned", "Монтаж", { planned: 120, assigned: 80, fact: 0, signal: "распределено частично", tone: "warning", executor: "Иванов Иван Иванович" }),
-  makeRow("attention", "attention", "Контроль", { planned: 80, assigned: 80, fact: 50, signal: "требует внимания", tone: "warning", executor: "Петрова Анна Сергеевна" }),
+  makeRow("attention", "assigned", "Контроль", { planned: 80, assigned: 80, fact: 50, signal: "требует внимания", tone: "warning", executor: "Петрова Анна Сергеевна" }),
   makeRow("fact", "fact", "Упаковка", { planned: 60, assigned: 60, fact: 60, signal: "факт внесён", tone: "ok", executor: "Сидоров Павел Олегович" }),
 ];
 const lane = (id: string, label: string, caption: string, laneRows: typeof rows) => ({ id, label, caption, tone: id === "fact" ? "ok" : id === "attention" ? "warning" : "neutral", rows: laneRows });
-const lanes = [lane("intake", "Входящие", "ещё не распределены", [rows[0]]), lane("assigned", "Распределено", "исполнители назначены", [rows[1]]), lane("attention", "Внимание", "есть отклонение", [rows[2]]), lane("fact", "Факт", "работа закрыта", [rows[3]])];
+const lanes = [lane("intake", "План", "ожидает распределения мастером", [rows[0]]), lane("assigned", "В работе", "есть ресурс, исполнители или лист", [rows[1], rows[2]]), lane("fact", "Закрытие смены", "смена вернула результат", [rows[3]])];
 const model = { window: { label: "19.07.2026 · дневная смена" }, rows, lanes, selectedRow: rows[1], activeProfile: { name: "Смирнов Алексей Петрович", department: "Отдел ручного монтажа" }, plannedQuantity: 380, assignedQuantity: 220, factQuantity: 110, openQuantity: 270 };
 export const shiftMasterBoardFixture = { model };
 const updatedRows = rows.map((row) => row.id === "assigned" ? { ...row, boardAssignedQuantity: 120, boardSignal: { label: "распределено", tone: "active" }, boardAssignment: { ...row.boardAssignment, executors: [{ employeeId: "employee-assigned", employeeName: "Иванов Иван Иванович", quantity: 120 }] } } : row);

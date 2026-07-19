@@ -478,6 +478,15 @@ const shiftWorkOrdersReactIslandVersionMarker = "__MES_SHIFT_WORK_ORDERS_REACT_B
 if (!shiftWorkOrdersReactIslandHostSource.includes(shiftWorkOrdersReactIslandVersionMarker)) throw new Error("Cannot find Shift Work Orders React island bundle version marker");
 await writeFile(shiftWorkOrdersReactIslandHostPath, shiftWorkOrdersReactIslandHostSource.replaceAll(shiftWorkOrdersReactIslandVersionMarker, shiftWorkOrdersReactIslandVersion));
 
+const shiftMasterBoardReactIslandOutput = join(stagingDistDir, "src", "react-islands", "shift-master-board.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "shift-master-board-island.tsx"), shiftMasterBoardReactIslandOutput);
+const shiftMasterBoardReactIslandVersion = await fileHash(shiftMasterBoardReactIslandOutput);
+const shiftMasterBoardReactIslandHostPath = join(stagingDistDir, "src", "modules", "shift_master_board", "react_island_host.js");
+const shiftMasterBoardReactIslandHostSource = await readFile(shiftMasterBoardReactIslandHostPath, "utf8");
+const shiftMasterBoardReactIslandVersionMarker = "__MES_SHIFT_MASTER_BOARD_REACT_BUNDLE_VERSION__";
+if (!shiftMasterBoardReactIslandHostSource.includes(shiftMasterBoardReactIslandVersionMarker)) throw new Error("Cannot find Shift Master Board React island bundle version marker");
+await writeFile(shiftMasterBoardReactIslandHostPath, shiftMasterBoardReactIslandHostSource.replaceAll(shiftMasterBoardReactIslandVersionMarker, shiftMasterBoardReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -649,6 +658,7 @@ console.log(`- src/react-islands/weekly-production-control.js?v=${weeklyProducti
 console.log(`- src/react-islands/timesheet.js?v=${timesheetReactIslandVersion}`);
 console.log(`- src/react-islands/planning-workbench.js?v=${planningWorkbenchReactIslandVersion}`);
 console.log(`- src/react-islands/shift-work-orders.js?v=${shiftWorkOrdersReactIslandVersion}`);
+console.log(`- src/react-islands/shift-master-board.js?v=${shiftMasterBoardReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);
