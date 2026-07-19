@@ -26,7 +26,7 @@ Current minified measurements:
 | Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 204,805 B | 63,386 B | 225,000 B | 68,000 B |
 | Timesheet production island | 204,934 B | 63,585 B | 225,000 B | 68,000 B |
-| Planning Workbench independent entry | 205,180 B | 63,549 B | 225,000 B | 68,000 B |
+| Planning Workbench production island | 205,180 B | 63,549 B | 225,000 B | 68,000 B |
 | Roles and Access independent entry | 208,856 B | 64,539 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,912 B | 63,569 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,419 B | 63,204 B | 225,000 B | 68,000 B |
@@ -121,6 +121,11 @@ shell first commit remains below `50 ms`; this is regression evidence, not Pilot
 The bundled production Timesheet island is `201,559 B` raw / `63,358 B` gzip /
 `54,518 B` Brotli. Its 76-employee, 35-column production-shell first commit was
 `206.60 ms`; this is regression evidence, not Pilot acceptance.
+
+The bundled production Planning Workbench island is `201,793 B` raw /
+`63,311 B` gzip / `54,483 B` Brotli. Its two-order PostgreSQL-bootstrap
+production-shell first commit was `18.70 ms`; this is regression evidence, not
+Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

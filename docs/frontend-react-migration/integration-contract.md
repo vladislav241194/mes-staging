@@ -115,13 +115,15 @@ schedule interactions request legacy; attendance editing, PostgreSQL hydration
 and all save/remove commands remain legacy. A fallback response, API error or
 missing session request retains legacy.
 
-`mountPlanningWorkbenchReactIsland(...)` currently exists only as an isolated
-lab entry. Its adapter consumes the completed legacy
+`mountPlanningWorkbenchReactIsland(...)` owns the read-only queue, readiness
+and visible structure behind two false-by-default server permissions, a
+completed PostgreSQL work-order bootstrap and an explicit session request. Its
+adapter consumes the completed legacy
 `getPlanningWorkbenchModel()` result: PostgreSQL list/detail projection,
 snapshot fallback, readiness, labor and tree calculations remain outside
 React. Route/item selection and all quantity, date, Gantt and cancellation
-commands request legacy. A production host and authenticated-shell parity are
-not claimed yet.
+commands request legacy. A missing bootstrap, API error or missing session
+request retains legacy.
 
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host

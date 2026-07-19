@@ -1,7 +1,7 @@
 # Planning Workbench React migration QA
 
 Date: 2026-07-19
-Status: isolated read-only lab; not production-integrated
+Status: production-integrated read-only island; disabled by default
 
 ## Vertical scenario
 
@@ -32,6 +32,19 @@ Command:
 npm run qa:planning-workbench-react-lab
 ```
 
-This is not wired to the MES shell and is not activated on Pilot. Quantity,
-start-date, route selection, labor settings, send-to-Gantt, cancellation and
-all other commands remain legacy.
+The production host requires two false-by-default server permissions, a
+completed PostgreSQL list/detail bootstrap and an explicit session request.
+Production-shell QA proves parity for two work orders, five readiness metrics
+and two visible hierarchy rows; first commit measured `18.70 ms`. Route
+selection returns directly to the matching legacy detail. The `0600` state is
+unchanged and the console is clean. The bundled artifact is `201,793 B` raw /
+`63,311 B` gzip / `54,483 B` Brotli.
+
+Production command:
+
+```sh
+npm run qa:planning-workbench-react-island
+```
+
+It is not activated on Pilot. Quantity, start-date, labor settings,
+send-to-Gantt, cancellation and all other commands remain legacy.

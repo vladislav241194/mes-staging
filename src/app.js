@@ -79,6 +79,7 @@ import { createRolesReactIslandHost } from "./modules/access_roles/react_island_
 import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost, createDirectoryStatusesReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createWeeklyProductionControlReactIslandHost } from "./modules/weekly_production_control/react_island_host.js";
 import { createTimesheetReactIslandHost } from "./modules/timesheet/react_island_host.js";
+import { createPlanningWorkbenchReactIslandHost } from "./modules/planning_workbench/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2578,6 +2579,39 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
     if (action === "period") moveTimesheetPeriod(Number(value || 0));
     if (["day", "schedule"].includes(action)) openTimesheetEditor(value, dateKey);
     if (ui.activeModule === "timesheet") render({ skipRememberScroll: true });
+  },
+});
+function getPlanningWorkbenchReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return { featureFlagEnabled: params.get("react-planning-workbench") === "1", readOnlyEvaluation: params.get("react-planning-workbench-readonly") === "1" };
+}
+function isPlanningWorkbenchReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-planning-workbench-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost({
+  getActivation: () => {
+    const localQa = getPlanningWorkbenchReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH_READ_ONLY_EVALUATION === true;
+    const readStatus = workOrdersReadModel?.getStatus?.() || {};
+    return {
+      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH === true || localQa.featureFlagEnabled,
+      serverReadReady: readStatus.bootstrapAvailable === true && !readStatus.bootstrapLoading && !readStatus.bootstrapError && Boolean(getDomainWorkOrderDetail(ui.activeRouteId)),
+      accessMode: (serverEvaluationAllowed && isPlanningWorkbenchReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+    };
+  },
+  getPayload: () => ({ model: getPlanningWorkbenchModel() }),
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, scope = "") => {
+    const [action, ...parts] = String(scope || "").split(":");
+    const value = parts.join(":");
+    if (action === "route" && value) { ui.activeRouteId = value; ui.planningWorkItem = ""; persistUiState(); hydratePlanningWorkOrderReadModel(); }
+    if (action === "item" && value) { ui.planningWorkItem = value; persistUiState(); }
+    if (ui.activeModule === "planning") render({ skipRememberScroll: true });
   },
 });
 function getRolesReactLocalQaOverrides() {
@@ -6598,10 +6632,12 @@ function initializeModuleRuntime() {
             description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку.",
           });
         }
+        const reactDecision = planningWorkbenchReactIslandHost.prepareRender();
+        if (reactDecision.activateReact) return planningWorkbenchReactIslandHost.renderTarget();
         return renderPlanningWorkbenchPage();
       },
-      bind: () => bindPlanningEvents(),
-      afterRender: () => schedulePlanningRouteStructureSidebarSync(),
+      bind: () => { if (!planningWorkbenchReactIslandHost.isReactEligible()) bindPlanningEvents(); },
+      afterRender: () => { schedulePlanningRouteStructureSidebarSync(); void planningWorkbenchReactIslandHost.mount(); },
     },
     shiftMasterBoard: {
       render: () => {

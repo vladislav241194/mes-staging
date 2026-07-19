@@ -460,6 +460,15 @@ const timesheetReactIslandVersionMarker = "__MES_TIMESHEET_REACT_BUNDLE_VERSION_
 if (!timesheetReactIslandHostSource.includes(timesheetReactIslandVersionMarker)) throw new Error("Cannot find Timesheet React island bundle version marker");
 await writeFile(timesheetReactIslandHostPath, timesheetReactIslandHostSource.replaceAll(timesheetReactIslandVersionMarker, timesheetReactIslandVersion));
 
+const planningWorkbenchReactIslandOutput = join(stagingDistDir, "src", "react-islands", "planning-workbench.js");
+await bundleReactMigrationIsland(join(projectRoot, "experiments", "react-migration", "src", "planning-workbench-island.tsx"), planningWorkbenchReactIslandOutput);
+const planningWorkbenchReactIslandVersion = await fileHash(planningWorkbenchReactIslandOutput);
+const planningWorkbenchReactIslandHostPath = join(stagingDistDir, "src", "modules", "planning_workbench", "react_island_host.js");
+const planningWorkbenchReactIslandHostSource = await readFile(planningWorkbenchReactIslandHostPath, "utf8");
+const planningWorkbenchReactIslandVersionMarker = "__MES_PLANNING_WORKBENCH_REACT_BUNDLE_VERSION__";
+if (!planningWorkbenchReactIslandHostSource.includes(planningWorkbenchReactIslandVersionMarker)) throw new Error("Cannot find Planning Workbench React island bundle version marker");
+await writeFile(planningWorkbenchReactIslandHostPath, planningWorkbenchReactIslandHostSource.replaceAll(planningWorkbenchReactIslandVersionMarker, planningWorkbenchReactIslandVersion));
+
 const rolesReactIslandOutput = join(stagingDistDir, "src", "react-islands", "roles.js");
 await bundleReactMigrationIsland(
   join(projectRoot, "experiments", "react-migration", "src", "roles-island.tsx"),
@@ -629,6 +638,7 @@ console.log(`- src/react-islands/structure-responsibility-policies.js?v=${struct
 console.log(`- src/react-islands/structure-migration-diagnostics.js?v=${structureMigrationDiagnosticsReactIslandVersion}`);
 console.log(`- src/react-islands/weekly-production-control.js?v=${weeklyProductionControlReactIslandVersion}`);
 console.log(`- src/react-islands/timesheet.js?v=${timesheetReactIslandVersion}`);
+console.log(`- src/react-islands/planning-workbench.js?v=${planningWorkbenchReactIslandVersion}`);
 console.log(`- src/react-islands/roles.js?v=${rolesReactIslandVersion}`);
 console.log(`- src/react-islands/component-types.js?v=${directoryComponentTypesReactIslandVersion}`);
 console.log(`- src/react-islands/operations.js?v=${directoryOperationsReactIslandVersion}`);

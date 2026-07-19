@@ -292,13 +292,15 @@ legacy editor fallback. Its bundled artifact is `201,559 B` raw / `63,358 B`
 gzip / `54,518 B` Brotli. It has not been released or activated on Pilot and
 moves no attendance or schedule command.
 
-Planning Workbench is the seventeenth isolated scenario. The legacy renderer
+Planning Workbench is the seventeenth production-integrated scenario. The legacy renderer
 now exposes a completed read-model for PostgreSQL list/detail projection,
 snapshot fallback, readiness, labor and visible structure. Lab QA proves three
 queue entries, five readiness metrics, four hierarchy rows, payload update and
-legacy route fallback. Its independent artifact is `205,180 B` raw / `63,549 B`
-gzip. It has no production host and moves no quantity, date, Gantt or cancel
-command.
+legacy route fallback. Production-shell QA proves two-order PostgreSQL
+bootstrap parity, five readiness metrics, two hierarchy rows, unchanged state
+and clean console. Its bundled artifact is `201,793 B` raw / `63,311 B` gzip /
+`54,483 B` Brotli. It moves no quantity, date, labor, Gantt or cancel command
+and has not been released or activated on Pilot.
 
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
@@ -321,8 +323,8 @@ will be repeated after the Structure Employees commit and before rebasing.
 1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet and Planning Workbench read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
-4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections, and for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; no fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control and Timesheet; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
+4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; and for Planning Workbench using the PostgreSQL list/detail bootstrap. No fixture reaches production.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet and Planning Workbench; each requires two explicit runtime flags plus a session request, and every unsupported/write scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Only then propose default-on activation or the next integrated registry scope.
 

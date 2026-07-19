@@ -192,15 +192,16 @@ authoritative. Production-shell comparison proves identical 76 employees, 96
 rows and 35 columns from one canonical PostgreSQL-backed projection. The host
 is disabled by default and every interactive scope returns to legacy.
 
-## Planning Workbench isolated evidence
+## Planning Workbench production evidence
 
 Planning Workbench reuses the shared page, header, sidebar, metrics, panels,
 status and table contracts while retaining a specialized work-order hierarchy.
 The legacy module now exposes one completed read-model for PostgreSQL
 list/detail projection, snapshot fallback, readiness and visible structure.
-The isolated React proof preserves three queue entries, five decision metrics
-and four object/operation rows. All selection and command scopes return to
-legacy; production integration is not claimed yet.
+The isolated proof preserves three queue entries, five decision metrics and
+four object/operation rows. Production-shell QA adds PostgreSQL bootstrap
+parity for two orders and two visible hierarchy rows. The host is disabled by
+default; all selection and command scopes return to legacy.
 
 ## Roles and Access read-model evidence
 
