@@ -28,7 +28,7 @@ unresolved.
 | Family | Shared | Remains specialized | First proof |
 | --- | --- | --- | --- |
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
-| Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
+| Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read plus metadata create/edit |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control + Timesheet + Planning Workbench read-only scenarios |
 | Operational | Status, action, panel, table tree, metric grid, overlay frames | Workshop board, worker fact entry, print/photo commands | Shift Work Orders read-only document journal |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
@@ -117,8 +117,9 @@ component quantities only when rows exist.
 The board list reuses the shared `SidebarItem` with optional metadata. The BOM
 summary and nine-column table are process-specific composition inside the
 shared `Panel` and `TableWrap`; they are not promoted to universal registry
-variants. The actual legacy action column and editable inputs remain protected
-by editor fallback.
+variants. Board identity create/edit now reuses the shared form/action
+contracts and existing command owner. The actual BOM action column, imported
+cell inputs, Excel import and delete remain protected legacy slices.
 
 ## Structure Employees read-model evidence
 

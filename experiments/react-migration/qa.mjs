@@ -246,6 +246,8 @@ try {
   ], "Boards adapter must preserve rows and legacy component totals");
   assert.equal(adaptedBoards[0].headers[3], "Артикул производителя", "known legacy BOM header typo must normalize");
   assert.deepEqual(boardsAdapter.adaptBoards({ bomLists: [{ id: "", name: "invalid" }, null] }), [], "invalid Boards records must fail closed");
+  assert.equal(boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: true } }).canCreateEdit, true);
+  assert.equal(boardsAdapter.adaptBoardsModel({ bomLists: [], capabilities: { createEdit: "true" } }).canCreateEdit, false, "non-boolean Boards write capability must fail closed");
 
   const boardsViewModelOutput = join(temporaryRoot, "boards-view-model.mjs");
   await build({
@@ -980,6 +982,13 @@ try {
 
   const boardsIslandSource = await readFile(join(sourceRoot, "boards-island.tsx"), "utf8");
   assert.match(boardsIslandSource, /export function mountBoardsReactIsland/);
+  assert.match(boardsIslandSource, /onCommand/);
+
+  const productsEventsSource = await readFile(join(repositoryRoot, "src/modules/products/events.js"), "utf8");
+  assert.match(productsEventsSource, /function saveBomCommand/);
+  assert.match(productsEventsSource, /\.\.\.\(previousBom \|\| \{\}\)/, "Board edit must retain hidden metadata before applying typed fields");
+  assert.match(productsEventsSource, /projectId: String\(previousBom\?\.projectId \|\| ""\)/, "Board edit must retain its Specifications project reference");
+  assert.match(productsEventsSource, /upsertBomResultToNomenclature\(row, row\.updatedAt\)/);
 
   const structureEmployeesIslandSource = await readFile(join(sourceRoot, "structure-employees-island.tsx"), "utf8");
   assert.match(structureEmployeesIslandSource, /export function mountStructureEmployeesReactIsland/);
@@ -1084,6 +1093,7 @@ try {
   const eligibleBoardsProductionHost = makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "read-only-evaluation" });
   assert.deepEqual(eligibleBoardsProductionHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleBoardsProductionHost.renderTarget(), /data-react-boards-island/);
+  assert.deepEqual(makeBoardsProductionHost({ featureFlagEnabled: true, activePane: "boards", accessMode: "write-evaluation" }).prepareRender(), { activateReact: true, reason: "eligible" }, "Boards must accept only its explicit create/edit evaluation mode in addition to read-only evaluation");
 
   const structureProductionHostModule = await import(`${pathToFileURL(join(repositoryRoot, "src/modules/production_structure_matrix/react_island_host.js")).href}?qa=${Date.now()}`);
   const makeStructureProductionHost = (activation) => structureProductionHostModule.createStructureEmployeesReactIslandHost({
@@ -1299,7 +1309,11 @@ try {
   assert.match(productionAppSource, /MES_REACT_BOARDS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-boards"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-boards-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-boards-write"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-boards-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /authorizeSystemDomainAction\("nomenclature", "edit", \{ resourceId: "boards" \}\)/);
+  assert.match(productionAppSource, /await ensureNomenclatureRenderModule\(\)/, "Boards write must await its lazy result-Nomenclature owner before mutation");
+  assert.match(productionAppSource, /saveBomCommand\(\{/);
   assert.match(productionAppSource, /const activeReactHost = useBoardsHost \? boardsReactIslandHost : nomenclatureReactIslandHost/);
   assert.match(productionAppSource, /boardsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EMPLOYEES === true/);
@@ -1539,9 +1553,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses"], "five registry scenarios must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards"], "six registry scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 17, "all 17 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 16, "all 16 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

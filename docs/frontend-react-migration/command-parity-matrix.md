@@ -19,10 +19,10 @@ Production Control is accepted on its current `25 x 11` Pilot projection,
 including the deviation-note interaction and same-data legacy rollback.
 
 Nomenclature and Component Types have locally complete create/edit/delete
-command parity. Operations, Nomenclature Types and user-managed Statuses have
-locally complete create/edit parity while reference-sensitive or lifecycle
-deletes remain explicit legacy-only slices. Structure
-Migration Diagnostics and Weekly Production Control are intentionally
+command parity. Operations, Nomenclature Types, user-managed Statuses and board
+metadata have locally complete create/edit parity while reference-sensitive,
+lifecycle, import, BOM-row and delete commands remain explicit legacy-only
+slices. Structure Migration Diagnostics and Weekly Production Control are intentionally
 read-only product modules and own no write commands. The remaining scenarios
 retain their explicit next vertical scopes.
 
@@ -34,7 +34,7 @@ retain their explicit next vertical scopes.
 | 4 | Weekly Production Control | Not applicable: product module is read-only; Pilot read accepted | Low | Keep default-off until an explicit default-on decision |
 | 5 | Nomenclature Types | Local complete: create/edit; delete remains legacy | Medium | Separately gated Pilot read-only evaluation, then write evaluation with a disposable type and reference audit |
 | 6 | Statuses | Local complete: user-managed create/edit; system rows and delete protected | Medium | Separately gated Pilot read-only evaluation, then write evaluation with one disposable user-authority status |
-| 7 | Boards/BOM | Pending | High | Board create/edit before import, row editing and delete |
+| 7 | Boards/BOM | Local complete: board metadata create/edit; import, BOM rows and delete remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write with a disposable board |
 | 8 | Structure registries | Pending | High/Critical | One registry and one command at a time, preserving PostgreSQL references |
 | 9 | Timesheet | Pending | High | One attendance-day save/remove scenario |
 | 10 | Roles and Access | Pending | Critical | Role metadata before grants, assignments and scopes |
@@ -77,6 +77,14 @@ forges the marker. Disposable production-shell QA proves create/edit,
 persistence, unchanged system contracts, legacy read-back and unchanged
 Planning rows. Pilot remains default-off and has no Statuses write runtime
 flag.
+
+Boards/BOM now has local metadata create/edit parity through the existing lazy
+Products command owner. Production-shell QA preserves hidden fields,
+`projectId`, imported rows and Specifications references, synchronizes both
+existing and new result Nomenclature, reads the edit through legacy and leaves
+Planning unchanged. The owner audit also repaired the missing
+`upsertBomResultToNomenclature` dependency in the legacy save path. Excel
+import, BOM-row edits, counters and delete remain separate legacy slices.
 
 Weekly Production Control's earlier “week selection” command scope was removed
 after source audit: no such legacy command exists, and the module explicitly

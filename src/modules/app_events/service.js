@@ -244,6 +244,7 @@ export function createAppEventsServiceModule(dependencies = {}) {
     unitsPerHour = 0,
     updateModuleUrlParam,
     updatePlanningSupplyFulfillment,
+    upsertBomResultToNomenclature,
     value = "",
     values = [],
     withDirectoryEntityRemovalAllowed,
@@ -1557,6 +1558,7 @@ function getRoutesEventsDependencies() {
     syncPlanningRouteQuantity,
     toDateInput,
     unitsPerHour,
+    upsertBomResultToNomenclature,
     withDirectoryEntityRemovalAllowed,
     withPlanningEntityRemovalAllowed,
     getUi: () => ui,
@@ -1634,6 +1636,7 @@ function bindNomenclatureEvents(...args) { return bindRoutesEventsMethod("bindNo
 function saveNomenclatureCommand(...args) { return callRoutesEventsAsync("saveNomenclatureCommand", ...args); }
 function deleteNomenclatureCommand(...args) { return callRoutesEventsAsync("deleteNomenclatureCommand", ...args); }
 function bindBomListsEvents(...args) { return bindRoutesEventsMethod("bindBomListsEvents", ...args); }
+function saveBomCommand(...args) { return callRoutesEventsAsync("saveBomCommand", ...args); }
 function getRouteStepAddTargetTaskId(...args) { return callRoutesEvents("getRouteStepAddTargetTaskId", ...args); }
 function addRouteModuleStep(...args) { return callRoutesEvents("addRouteModuleStep", ...args); }
 function moveRouteStep(...args) { return callRoutesEvents("moveRouteStep", ...args); }
@@ -1978,6 +1981,7 @@ function updateDependencyClip(shell) {
     saveNomenclatureCommand,
     deleteNomenclatureCommand,
     bindBomListsEvents,
+    saveBomCommand,
     bindPlanningEvents,
     bindShiftCalendarEvents,
     applyOperationMapChangesToRoutes,

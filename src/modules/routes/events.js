@@ -131,6 +131,7 @@ export function createRoutesEventsModule(dependencies = {}) {
     toDateInput,
     unit = null,
     unitsPerHour,
+    upsertBomResultToNomenclature,
     withDirectoryEntityRemovalAllowed,
     withPlanningEntityRemovalAllowed,
   } = dependencies;
@@ -899,6 +900,7 @@ function deleteRouteStepConfirmed(stepId) {
       syncSpecificationDerivedFields,
       toDateInput,
       unit,
+      upsertBomResultToNomenclature,
       withDirectoryEntityRemovalAllowed,
       withPlanningEntityRemovalAllowed,
       getUi: () => ui,
@@ -972,6 +974,10 @@ function deleteRouteStepConfirmed(stepId) {
     bindProductsEvents("bindBomListsEvents", ...args);
   }
 
+  function saveBomCommand(...args) {
+    return callProductsEvents("saveBomCommand", ...args);
+  }
+
 
   return {
     bindRoutesEvents,
@@ -989,6 +995,7 @@ function deleteRouteStepConfirmed(stepId) {
     saveNomenclatureCommand,
     deleteNomenclatureCommand,
     bindBomListsEvents,
+    saveBomCommand,
     getRouteStepAddTargetTaskId,
     addRouteModuleStep,
     moveRouteStep,

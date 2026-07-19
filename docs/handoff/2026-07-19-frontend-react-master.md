@@ -134,15 +134,15 @@ timeouts. Local timings are QA evidence only, not Pilot acceptance.
 The legacy source audit also found that `Печатные платы` in the Nomenclature
 sidebar opens the separate Boards/BOM pane and counts `bomLists`; it is not an
 item filter. The React item-list scenario still requests `unsupported-scope`
-and returns to legacy for that action. An independent Boards/BOM read-only
-vertical scenario now covers board selection, identity, nine-column BOM
-inspection, component totals and the empty-board state without prematurely
-taking over production navigation.
+and returns to that separate pane. The independent Boards/BOM scenario now
+covers board selection, identity, nine-column BOM inspection, component totals,
+empty-board state and local metadata create/edit without taking over Excel
+import, BOM rows or delete.
 
-The same audit confirmed that the legacy module owns create/edit/delete
-commands. The read-only React slice is therefore eligible only for an explicit
-evaluation access mode. Editor access returns `write-parity-incomplete` before
-mount, so no working user loses commands while write parity is unfinished.
+The existing Products module still owns every Board command. React now
+dispatches only typed create/edit metadata saves through that owner. Excel
+import, BOM row edits and delete remain legacy, so no working user loses those
+commands while their parity is unfinished.
 
 The QA now executes the actual legacy Nomenclature renderer and compares it
 with the React adapter on the same fixture. The seven read headers, four row
@@ -152,8 +152,10 @@ activation policy, not hidden behind a broad parity claim.
 
 Boards QA also executes the actual legacy Boards page and BOM row normalizer on
 the shared fixture. Nine read headers, normalized row values and order, plus
-sidebar component totals match. The legacy action column, editable inputs,
-create/import/delete commands, and editor mode remain explicit non-parity.
+sidebar component totals match. Its disposable write pass proves create/edit,
+hidden metadata and imported-row preservation, Nomenclature result sync,
+Specifications reference stability and legacy read-back. Import, BOM cells and
+delete remain explicit non-parity.
 
 Structure Employees QA targets the canonical `productionStructureMatrix`
 System Domains module rather than the older hierarchy visualization. It joins
@@ -180,12 +182,14 @@ Module wrappers retain only their payload policy, bundle entry and scenario-
 specific eligibility rules. This prevents the second module from becoming a
 copied runtime fork while preserving independent feature flags and rollback.
 
-Boards/BOM also uses that host contract with its own two runtime flags and
-per-session request. Production-shell parity proves the same nine headers and
-four normalized BOM rows, a 16-component/four-group summary, empty-board state,
-disabled import, unchanged disposable state and return to the two-row legacy
-Nomenclature pane. Its artifact is `203,869 B` raw / `64,223 B` gzip /
-`60,893 B` Brotli. It has not been released or activated on Pilot.
+Boards/BOM also uses that host contract with its own read-only runtime flags and
+local-only RBAC-gated metadata write evaluation. Production-shell parity proves
+the same nine headers and four normalized BOM rows, a 16-component/four-group
+summary, create/edit, hidden/BOM preservation, result-Nomenclature sync,
+Specifications stability and legacy read-back. The owner audit repaired a
+missing `upsertBomResultToNomenclature` dependency and stopped edit from
+clearing `projectId`. Its artifact is `206,793 B` raw / `65,055 B` gzip /
+`56,012 B` Brotli. It has not been released or activated on Pilot.
 
 Roles/Access now uses the same host with two independent runtime flags,
 PostgreSQL read readiness, and a per-session request. Production-shell QA
@@ -435,7 +439,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types and user-managed Statuses have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses and Board metadata have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;

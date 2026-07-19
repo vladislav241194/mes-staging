@@ -77,6 +77,8 @@ export interface BoardItem {
   activeComponentTypes: number;
 }
 
+export interface BoardsModel { boards: BoardItem[]; canCreateEdit: boolean }
+
 function text(value: unknown): string {
   return String(value ?? "").trim();
 }
@@ -192,4 +194,10 @@ export function adaptBoards(payload: unknown): BoardItem[] {
       activeComponentTypes: Object.values(componentCounts).filter((count) => count > 0).length,
     }];
   });
+}
+
+export function adaptBoardsModel(payload: unknown): BoardsModel {
+  const root = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  const capabilities = root.capabilities && typeof root.capabilities === "object" ? root.capabilities as Record<string, unknown> : {};
+  return { boards: adaptBoards(payload), canCreateEdit: capabilities.createEdit === true };
 }

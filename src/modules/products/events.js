@@ -74,6 +74,7 @@ export function createProductsEventsModule(dependencies = {}) {
     syncSpecificationDerivedFields,
     toDateInput,
     unit,
+    upsertBomResultToNomenclature,
     withDirectoryEntityRemovalAllowed,
     withPlanningEntityRemovalAllowed,
   } = dependencies;
@@ -1040,23 +1041,21 @@ function saveSpecificationModuleForm(form) {
   render();
 }
 
-function saveBomModuleForm(form) {
-  const data = new FormData(form);
-  const isNew = data.get("isNew") === "yes";
-  const id = isNew ? makeId("bom") : String(data.get("bomId") || makeId("bom"));
+function saveBomCommand(command = {}) {
+  const isNew = command.isNew === true;
+  const id = isNew ? makeId("bom") : String(command.bomId || "").trim();
   const previousBom = getBomList(id);
-  const name = String(data.get("name") || "").trim();
-  const boardCode = String(data.get("boardCode") || "").trim();
-  const resultItem = String(data.get("resultItem") || "").trim() || `Печатная плата ${boardCode || name}`;
-  if (!name) {
-    alert("Заполните название платы.");
-    return;
-  }
+  if (!isNew && !previousBom) return { ok: false, code: "not-found", message: "Плата не найдена." };
+  const name = String(command.name || "").trim();
+  const boardCode = String(command.boardCode || "").trim();
+  const resultItem = String(command.resultItem || "").trim() || `Печатная плата ${boardCode || name}`;
+  if (!name) return { ok: false, code: "name-required", message: "Заполните название платы." };
 
-  const row = {
+  const row = normalizeDirectoryRow("bomLists", {
+    ...(previousBom || {}),
     id,
     name,
-    projectId: "",
+    projectId: String(previousBom?.projectId || ""),
     boardCode,
     resultItem,
     status: String(previousBom?.status || "Черновик").trim(),
@@ -1066,25 +1065,51 @@ function saveBomModuleForm(form) {
     sourceFileName: previousBom?.sourceFileName || "",
     sourceSheetName: previousBom?.sourceSheetName || "",
     updatedAt: new Date().toISOString(),
-  };
+  });
   for (const field of BOM_COMPONENT_FIELDS) {
-    row[field.key] = data.has(field.key)
-      ? Math.max(0, Number(data.get(field.key) || 0))
+    const componentCounts = command.componentCounts && typeof command.componentCounts === "object" ? command.componentCounts : {};
+    row[field.key] = Object.prototype.hasOwnProperty.call(componentCounts, field.key)
+      ? Math.max(0, Number(componentCounts[field.key] || 0))
       : Math.max(0, Number(previousBom?.[field.key] || 0));
   }
 
-  directoryState.bomLists = isNew
-    ? [...(directoryState.bomLists || []), row]
-    : (directoryState.bomLists || []).map((item) => item.id === id ? { ...item, ...row } : item);
-
-  upsertBomResultToNomenclature(row, row.updatedAt);
-  replaceDirectoryState(normalizeDirectoryState(directoryState, { mergeFallback: false }));
+  const previousBomLists = directoryState.bomLists || [];
+  const previousNomenclature = directoryState.nomenclature || [];
+  try {
+    directoryState.bomLists = isNew
+      ? [...previousBomLists, row]
+      : previousBomLists.map((item) => item.id === id ? { ...item, ...row } : item);
+    upsertBomResultToNomenclature(row, row.updatedAt);
+    replaceDirectoryState(normalizeDirectoryState(directoryState, { mergeFallback: false }));
+  } catch (error) {
+    directoryState.bomLists = previousBomLists;
+    directoryState.nomenclature = previousNomenclature;
+    throw error;
+  }
   ui.activeBomId = id;
   ui.activeProjectId = "";
   persistDirectoryState();
   persistUiState();
   notifySaveSuccess(isNew ? "Плата создана" : "Плата сохранена");
   render();
+  return { ok: true, id, isNew, row };
+}
+
+function saveBomModuleForm(form) {
+  const data = new FormData(form);
+  const componentCounts = Object.fromEntries(BOM_COMPONENT_FIELDS
+    .filter((field) => data.has(field.key))
+    .map((field) => [field.key, data.get(field.key)]));
+  const result = saveBomCommand({
+    isNew: data.get("isNew") === "yes",
+    bomId: String(data.get("bomId") || ""),
+    name: data.get("name"),
+    boardCode: data.get("boardCode"),
+    resultItem: data.get("resultItem"),
+    componentCounts,
+  });
+  if (!result.ok) alert(result.message);
+  return result;
 }
 
 function deleteBomList(bomId) {
@@ -1121,6 +1146,7 @@ function deleteBomList(bomId) {
     deleteNomenclatureCommand,
     deleteNomenclatureItem,
     bindBomListsEvents,
+    saveBomCommand,
     saveSpecificationModuleForm,
     saveBomModuleForm,
     deleteBomList,

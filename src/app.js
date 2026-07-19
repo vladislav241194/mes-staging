@@ -2410,12 +2410,13 @@ const nomenclatureReactIslandHost = createNomenclatureReactIslandHost({
 });
 function getBoardsReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   return {
     featureFlagEnabled: params.get("react-boards") === "1",
     readOnlyEvaluation: params.get("react-boards-readonly") === "1",
+    writeEvaluation: params.get("react-boards-write") === "1",
   };
 }
 function isBoardsReactEvaluationRequested() {
@@ -2430,12 +2431,20 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_BOARDS === true || localQa.featureFlagEnabled,
       activePane: ui.activeNomenclaturePane === "boards" ? "boards" : "items",
-      accessMode: (serverEvaluationAllowed && isBoardsReactEvaluationRequested()) || localQa.readOnlyEvaluation
+      accessMode: localQa.writeEvaluation
+        ? "write-evaluation"
+        : (serverEvaluationAllowed && isBoardsReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
         : "editor",
     };
   },
-  getPayload: () => directoryState,
+  getPayload: () => {
+    const localQa = getBoardsReactLocalQaOverrides();
+    return {
+      ...directoryState,
+      capabilities: { createEdit: localQa.writeEvaluation && authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" }) },
+    };
+  },
   getTargetRoot: () => app,
   requestItemsRender: () => {
     ui.activeNomenclaturePane = "items";
@@ -2446,6 +2455,29 @@ const boardsReactIslandHost = createBoardsReactIslandHost({
     if (ui.activeModule === "nomenclature") render({ skipRememberScroll: true });
   },
   onSelectionChange: (boardId) => { ui.activeBomId = String(boardId || ""); },
+  executeCommand: async (command = {}) => {
+    const localQa = getBoardsReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || !authorizeSystemDomainAction("nomenclature", "edit", { resourceId: "boards" })) {
+      return { ok: false, message: "Редактирование плат недоступно для текущей роли." };
+    }
+    if (command.type !== "save") return { ok: false, message: "Импорт, строки BOM и удаление остаются в legacy-контуре." };
+    if (!await ensureNomenclatureRenderModule()) return { ok: false, message: "Владелец платы ещё не загрузился." };
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const result = await saveBomCommand({
+      isNew: input.isNew === true,
+      bomId: String(input.bomId || ""),
+      name: String(input.name || ""),
+      boardCode: String(input.boardCode || ""),
+      resultItem: String(input.resultItem || ""),
+    });
+    return {
+      ok: result?.ok === true,
+      id: String(result?.id || ""),
+      isNew: result?.isNew === true,
+      code: String(result?.code || ""),
+      message: String(result?.message || ""),
+    };
+  },
 });
 function getStructureEmployeesReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -8069,7 +8101,7 @@ function bindGlobalNavigation(...args) { return appEventsService.bindGlobalNavig
 function getModuleMenuButtonFromEventTarget(...args) { return appEventsService.getModuleMenuButtonFromEventTarget(...args); }
 function openModuleFromMenuButton(...args) { return appEventsService.openModuleFromMenuButton(...args); }
 function ensureRoutesEvents(...args) { return appEventsService.ensureRoutesEvents(...args); }
-function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function deleteNomenclatureCommand(...args) { return appEventsService.deleteNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); }
+function bindRoutesEvents(...args) { return appEventsService.bindRoutesEvents(...args); } function bindNomenclatureEvents(...args) { return appEventsService.bindNomenclatureEvents(...args); } function saveNomenclatureCommand(...args) { return appEventsService.saveNomenclatureCommand(...args); } function deleteNomenclatureCommand(...args) { return appEventsService.deleteNomenclatureCommand(...args); } function bindBomListsEvents(...args) { return appEventsService.bindBomListsEvents(...args); } function saveBomCommand(...args) { return appEventsService.saveBomCommand(...args); }
 function bindPlanningEvents(...args) { return appEventsService.bindPlanningEvents(...args); }
 function bindShiftCalendarEvents(...args) { return appEventsService.bindShiftCalendarEvents(...args); }
 function applyOperationMapChangesToRoutes(...args) { return appEventsService.applyOperationMapChangesToRoutes(...args); }
@@ -8301,6 +8333,7 @@ appEventsService = createAppEventsServiceModule({
   syncPlanningRouteQuantity,
   syncPlanningRouteStartDate,
   syncSpecificationDerivedFields,
+  upsertBomResultToNomenclature: (...args) => typeof upsertBomResultToNomenclature === "function" ? upsertBomResultToNomenclature(...args) : null,
   toDate,
   toDateInput,
   updateModuleUrlParam,

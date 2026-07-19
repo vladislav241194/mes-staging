@@ -10,6 +10,7 @@ export function createBoardsReactIslandHost({
   requestItemsRender,
   requestLegacyRender,
   onSelectionChange,
+  executeCommand,
   reportError = (error) => console.error("[MES] Boards React island failed", error),
 } = {}) {
   return createReactIslandHost({
@@ -23,7 +24,7 @@ export function createBoardsReactIslandHost({
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (activation.activePane !== "boards") return "unsupported-scope";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (activation.accessMode !== "read-only-evaluation" && activation.accessMode !== "write-evaluation") return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -41,6 +42,7 @@ export function createBoardsReactIslandHost({
         onReady,
         onRequestItems: () => requestItemsRender?.(),
         onSelectionChange,
+        onCommand: executeCommand ? (command) => executeCommand(command) : undefined,
       })
     ),
   });
