@@ -423,6 +423,15 @@ will be repeated after the Structure Employees commit and before rebasing.
    are pending.**
 8. Only then propose default-on activation or the next command scope.
 
+Live readiness was refreshed after the first write-parity checkpoint. Pilot is
+healthy on `v.1.499.72`, loads `src/app.js?v=db3bbb28f842-v.1.499.72`, keeps all
+three Nomenclature React flags false, renders legacy with zero rows and has a
+clean console. Candidate `311fd5d` is 34 commits and 227 changed paths beyond
+the recorded live source `6985693`; it must be deployed as a new immutable
+all-flags-off release before authenticated React acceptance is possible. The
+exact evidence and rollout order are recorded in
+`docs/frontend-react-migration/pilot-readiness-2026-07-19.md`.
+
 The second integrated scope is prepared independently of the outstanding root
 operation: Structure Employees is committed only as default-off source and QA.
 It must not be staged or activated before the Nomenclature evaluation is
