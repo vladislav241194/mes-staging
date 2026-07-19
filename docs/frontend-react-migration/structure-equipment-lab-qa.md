@@ -25,4 +25,24 @@ references, quantity and archive status.
 
 The independent entry is `208,973 B` raw / `64,291 B` gzip. The production
 artifact is `203,506 B` raw / `63,993 B` gzip / `55,085 B` Brotli. It remains
-false by default and has not been released or activated on Pilot.
+false by default.
+
+## Pilot acceptance
+
+The production host shipped disabled by default in release
+`v.1.499.73-b1b77cf`. On 2026-07-19, one authenticated session evaluated
+Equipment in read-only mode.
+
+- all six PostgreSQL-backed rows matched legacy in order and in all five read
+  fields;
+- first React commit was `32.10 ms`;
+- selection preserved work-center and schedule references and opened the
+  correct passport;
+- registry counts and summary metrics remained aligned;
+- create stayed disabled;
+- requesting Org Units returned to the exact `19`-row legacy registry;
+- deactivation restored the unchanged six-row legacy Equipment view even with
+  the evaluation query retained.
+
+The flags are off, the temporary root directory has been removed, and no Pilot
+data was written. Command migration is outside this accepted slice.

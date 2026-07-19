@@ -268,3 +268,35 @@ Deactivation removed all React flags. Health stayed green, the retained query
 mounted no island, and the same `19` legacy rows remained unchanged. The
 temporary rollout directory was removed and no Pilot data was written. Work
 Centers is currently legacy for every session.
+
+## Structure Equipment read-only Pilot evaluation
+
+The sixth live slice completed the primary System Domains registry checkpoint
+with the PostgreSQL-backed Equipment registry. Rollout controls from commit
+`631ddb6` ran from an isolated root-only directory without modifying the
+immutable release.
+
+- only `MES_REACT_STRUCTURE_EQUIPMENT=1` and
+  `MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION=1` were active;
+- the authenticated session requested
+  `react-structure-equipment-evaluation=1`;
+- the island reached `ready`, revision `1`, in `32.10 ms`;
+- all six React rows matched all six legacy rows in order and in all five read
+  fields: equipment, work center, quantity, schedule and status;
+- selecting `S2 + L2` opened the expected stable ID, work center, quantity,
+  `2/2 · 08:00–20:00` schedule and status passport;
+- registry counts remained `19 / 19 / 49 / 76 / 6 / 0`, and create stayed
+  disabled;
+- requesting `Подразделения` unmounted React and opened the exact `19`-row
+  legacy registry.
+
+Deactivation removed all React flags. Health stayed green, the retained query
+mounted no island, and the same six legacy rows remained unchanged. The
+temporary rollout directory was removed and no Pilot data was written.
+Equipment is currently legacy for every session.
+
+The accepted System Domains read-only family now covers Employees (`76`),
+Positions (`49`), Org Units (`19`), Work Centers (`19`) and Equipment (`6`) on
+the same PostgreSQL-authoritative payload and shared React host/UI contracts.
+Responsibility Policies and Migration Diagnostics remain separate semantic
+slices rather than implied by this checkpoint.
