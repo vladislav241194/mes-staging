@@ -120,7 +120,23 @@ one canonical generated response. This is deliberate: after the PostgreSQL
 cutover the local server correctly fails closed without `DATABASE_URL`, and the
 QA must not restore shared state as working authority.
 
-The island has not been activated or released on Pilot. Authenticated Pilot
-comparison and rollback proof remain downstream of the first Nomenclature live
-evaluation, so the active `v.1.499.72-6985693` release and its false React flags
-are unchanged.
+## Pilot acceptance
+
+The production host shipped disabled by default in release
+`v.1.499.73-b1b77cf`. On 2026-07-19, an authenticated read-only session was
+evaluated behind the two server flags and the explicit session query.
+
+- all `76` PostgreSQL-backed rows matched legacy in order and in the four read
+  fields;
+- the seven registry counts and six summary metrics matched;
+- selection and the assignment passport worked;
+- first React commit was `31.50 ms`;
+- `Новая запись` was disabled;
+- the unsupported `Подразделения` scope returned to the exact `19`-row legacy
+  registry;
+- deactivation restored the unchanged `76`-row legacy Employees view even
+  when the session retained the evaluation query.
+
+The rollout flags are off and the temporary root rollout directory has been
+removed. No Pilot data was written. This accepts the non-empty read-only slice;
+it does not accept create, edit, archive or delete commands.

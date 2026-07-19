@@ -151,3 +151,44 @@ This completes acceptance steps 4-6 for the empty-state Nomenclature read-only
 slice. A non-empty row/detail parity claim and every write command remain
 unaccepted until a disposable test record is available. All sessions currently
 use legacy Nomenclature.
+
+## Structure Employees read-only Pilot evaluation
+
+The second live slice evaluated the non-empty PostgreSQL-backed Employees
+registry. Rollout controls from commit `97fb0ac` were executed from a temporary
+root-only directory so the immutable `v.1.499.73-b1b77cf` release artifact was
+not modified.
+
+Live React evidence:
+
+- the effective service environment contained only
+  `MES_REACT_STRUCTURE_EMPLOYEES=1` and
+  `MES_REACT_STRUCTURE_EMPLOYEES_READ_ONLY_EVALUATION=1`;
+- the service remained active and public `/healthz` stayed `200` with
+  `sharedState=ready`;
+- an existing authenticated session explicitly requested
+  `react-structure-employees-evaluation=1`;
+- the island reached `ready`, revision `1`, with a first-commit measurement of
+  `31.50 ms`;
+- all `76` React rows matched all `76` legacy rows in order and in all four
+  read fields: employee, personnel number, assignment and status;
+- the registry counts matched the same PostgreSQL projection:
+  `19 / 19 / 49 / 76 / 6 / 0`;
+- selecting a second employee updated the selected row and the full assignment
+  passport, while `Новая запись` remained disabled;
+- requesting `Подразделения` unmounted React and opened the exact legacy
+  registry with `19` rows and its command surface.
+
+Rollback evidence:
+
+- deactivation removed every effective `MES_REACT_*` value;
+- an authenticated reload with the same evaluation query mounted no React
+  island and opened legacy;
+- legacy Employees still contained the same `76` rows in the same order and
+  with the same four read values captured before evaluation;
+- the temporary root-only rollout directory was inspected and removed after
+  deactivation.
+
+No create, edit, archive or delete action was invoked. Structure Employees is
+currently legacy for every session. The non-empty read-only Pilot gate is now
+accepted; command migration remains a separate future slice.
