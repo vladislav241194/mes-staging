@@ -109,8 +109,10 @@ schedule references are resolved from the same snapshot and validated by the
 host command owner. Archive and equipment scheduling commands remain legacy.
 
 `mountStructureResponsibilityPoliciesReactIsland(...)` owns the policy read
-table and passport. Employee references and display-name policy stay at the
-typed boundary; responsibility editing and Workshop commands remain legacy.
+table, passport and a local-only create/edit evaluation. Employee labels and
+reference options come from the same System Domains snapshot. The host validates
+the unique master and target IDs, while operational runtime remains the owner of
+assignable-employee resolution. Archive remains legacy.
 
 `mountStructureMigrationDiagnosticsReactIsland(...)` owns only the diagnostic
 composition. The host supplies the existing report and legacy matrix after lazy

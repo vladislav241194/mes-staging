@@ -2746,9 +2746,9 @@ const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHos
   },
 });
 function getStructureResponsibilityPoliciesReactLocalQaOverrides() {
-  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]); if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  const params = new URLSearchParams(window.location.search); if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-structure-responsibility-policies") === "1", readOnlyEvaluation: params.get("react-structure-responsibility-policies-readonly") === "1" };
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]); if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  const params = new URLSearchParams(window.location.search); if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-structure-responsibility-policies") === "1", readOnlyEvaluation: params.get("react-structure-responsibility-policies-readonly") === "1", writeEvaluation: params.get("react-structure-responsibility-policies-write") === "1" };
 }
 function isStructureResponsibilityPoliciesReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search); if (params.get("react-structure-responsibility-policies-evaluation") !== "1") return false;
@@ -2757,10 +2757,35 @@ function isStructureResponsibilityPoliciesReactEvaluationRequested() {
 const structureResponsibilityPoliciesReactIslandHost = createStructureResponsibilityPoliciesReactIslandHost({
   getActivation: () => {
     const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION === true;
-    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: (serverEvaluationAllowed && isStructureResponsibilityPoliciesReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
+    return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureResponsibilityPoliciesReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
   },
-  getPayload: () => systemDomainsState, getTargetRoot: () => app,
+  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("responsibilityPolicies") } }), getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "responsibilityPolicies"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
+  executeCommand: async (command = {}) => {
+    const localQa = getStructureResponsibilityPoliciesReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования зон ответственности недоступна." };
+    if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("responsibilityPolicies")) return { ok: false, message: "PostgreSQL-команда или право редактирования зон ответственности недоступны." };
+    const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    const subjectEmployeeId = String(input.subjectEmployeeId || "").trim();
+    const policyId = String(input.policyId || "").trim() || `responsibility:${subjectEmployeeId}`;
+    const mode = String(input.mode || "department").trim();
+    const targetEmployeeIds = [...new Set((Array.isArray(input.targetEmployeeIds) ? input.targetEmployeeIds : []).map((id) => String(id || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right, "en"));
+    const registries = getSystemDomainsRegistries();
+    const employeeIds = new Set((registries.employees || []).map((employee) => String(employee.id || "")).filter(Boolean));
+    if (!subjectEmployeeId || !employeeIds.has(subjectEmployeeId)) return { ok: false, message: "Выбранный мастер больше не существует." };
+    if (!["department", "workCenter", "manual", "all"].includes(mode)) return { ok: false, message: "Выбран неизвестный режим зоны ответственности." };
+    const missingTargetId = targetEmployeeIds.find((employeeId) => !employeeIds.has(employeeId));
+    if (missingTargetId) return { ok: false, message: "Один из разрешённых сотрудников больше не существует." };
+    if ((registries.responsibilityPolicies || []).some((policy) => policy.id !== policyId && policy.subjectEmployeeId === subjectEmployeeId)) return { ok: false, message: "Для выбранного мастера уже существует зона ответственности." };
+    try {
+      const result = await upsertSystemDomainEntity("responsibilityPolicies", { id: policyId, subjectEmployeeId, mode, targetEmployeeIds, updatedAt: new Date().toISOString() }, { source: "react:structure-responsibility-policies", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      if (result !== true) return { ok: false, message: "Изменение зоны ответственности отклонено проверкой System Domains." };
+      queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+      return { ok: true, id: policyId };
+    } catch (error) {
+      return { ok: false, message: error?.conflict === true ? "Данные зоны ответственности изменились в другом сеансе. Проверьте значения и повторите сохранение." : error?.message || "Сервер не принял изменение зоны ответственности." };
+    }
+  },
 });
 function isStructureMigrationDiagnosticsReactEvaluationRequested() { const params = new URLSearchParams(window.location.search); if (params.get("react-structure-migration-diagnostics-evaluation") !== "1") return false; return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson()); }
 const structureMigrationDiagnosticsReactIslandHost = createStructureMigrationDiagnosticsReactIslandHost({
@@ -7300,7 +7325,7 @@ function initializeModuleRuntime() {
         }
         ensureProductionStructureMatrixModule();
         const structureReactHosts = { employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost };
-        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : isStructureResponsibilityPoliciesReactEvaluationRequested() ? structureReactHosts.responsibilityPolicies : (isStructureEquipmentReactEvaluationRequested() || getStructureEquipmentReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.equipment : isStructureWorkCentersReactEvaluationRequested() ? structureReactHosts.workCenters : (isStructureOrgUnitsReactEvaluationRequested() || getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.orgUnits : (isStructurePositionsReactEvaluationRequested() || getStructurePositionsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.positions : structureReactHosts.employees;
+        const activeReactHost = isStructureMigrationDiagnosticsReactEvaluationRequested() ? structureReactHosts.migrationDiagnostics : (isStructureResponsibilityPoliciesReactEvaluationRequested() || getStructureResponsibilityPoliciesReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.responsibilityPolicies : (isStructureEquipmentReactEvaluationRequested() || getStructureEquipmentReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.equipment : isStructureWorkCentersReactEvaluationRequested() ? structureReactHosts.workCenters : (isStructureOrgUnitsReactEvaluationRequested() || getStructureOrgUnitsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.orgUnits : (isStructurePositionsReactEvaluationRequested() || getStructurePositionsReactLocalQaOverrides().writeEvaluation) ? structureReactHosts.positions : structureReactHosts.employees;
         Object.values(structureReactHosts).forEach((host) => { if (host !== activeReactHost) host.prepareRender(); });
         const reactDecision = activeReactHost.prepareRender();
         if (reactDecision.activateReact) return activeReactHost.renderTarget();

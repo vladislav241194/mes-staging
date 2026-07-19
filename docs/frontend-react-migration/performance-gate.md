@@ -22,7 +22,7 @@ Current minified measurements:
 | Structure Org Units production island | 213,588 B | 65,204 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 209,465 B | 64,375 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 214,824 B | 65,385 B | 225,000 B | 68,000 B |
-| Structure Responsibility Policies production island | 210,157 B | 64,629 B | 225,000 B | 68,000 B |
+| Structure Responsibility Policies production island | 215,212 B | 65,557 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,266 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,948 B | 225,000 B | 68,000 B |
 | Timesheet production island | 204,934 B | 63,584 B | 225,000 B | 68,000 B |
@@ -39,7 +39,7 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 474,542 B | 110,710 B | 475,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 474,438 B | 110,702 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -128,9 +128,12 @@ rejects invalid quantity before mutation and preserves organization,
 work-center and schedule references. This is regression evidence, not Pilot
 acceptance.
 
-The bundled production Structure Responsibility Policies island is `204,254 B`
-raw / `64,244 B` gzip / `55,365 B` Brotli. Its temporary non-empty production-
-shell first commit was `17.2 ms`; this is regression evidence, not Pilot acceptance.
+The bundled production Structure Responsibility Policies island is `215,212 B`
+raw / `65,557 B` gzip. Its temporary non-empty production-shell first commit was
+`32.00 ms`; create/edit QA additionally returns a second policy, rejects a
+duplicate master before mutation and preserves manual targets across a switch
+to `all`. Separate read adapters keep the aggregate lab within its existing
+budget. This is regression evidence, not Pilot acceptance.
 
 The bundled production Structure Migration Diagnostics island is `203,082 B`
 raw / `63,875 B` gzip / `55,020 B` Brotli. Its 152-row production-shell first

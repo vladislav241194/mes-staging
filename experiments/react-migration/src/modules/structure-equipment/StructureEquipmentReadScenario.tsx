@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { ActionButton, DetailPanel, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SelectableRow, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { formatRecordCount } from "../../ui/format";
-import { adaptStructureEquipment } from "./adapter";
+import { adaptStructureEquipmentRead } from "./read-adapter";
 import { buildEquipmentRegistryOptions, resolveVisibleEquipment, STRUCTURE_EQUIPMENT_READ_COLUMNS } from "./view-model";
 
 export function StructureEquipmentReadScenario({ payload, onRequestLegacy }: { payload: unknown; onRequestLegacy?(scope?: string): void }) {
-  const model = useMemo(() => adaptStructureEquipment(payload), [payload]); const registries = useMemo(() => buildEquipmentRegistryOptions(model), [model]); const [selectedId, setSelectedId] = useState(model.equipment[0]?.id || ""); const selected = resolveVisibleEquipment(model.equipment, selectedId);
+  const model = useMemo(() => adaptStructureEquipmentRead(payload), [payload]); const registries = useMemo(() => buildEquipmentRegistryOptions(model), [model]); const [selectedId, setSelectedId] = useState(model.equipment[0]?.id || ""); const selected = resolveVisibleEquipment(model.equipment, selectedId);
   return <ModulePage header={<ModuleHeader eyebrow="Система · System Domains" title="Оборудование" badge={<span className="lab-badge">React preview · только чтение</span>} />} sidebar={<ModuleSidebar label="Реестры структуры и сотрудников" title="Структура и сотрудники">{registries.map((registry) => <SidebarItem active={registry.id === "equipment"} count={registry.count} key={registry.id} label={registry.label} meta={registry.description} onClick={() => registry.action === "equipment" ? undefined : onRequestLegacy?.(registry.id)} />)}</ModuleSidebar>}>
     <section className="workspace-main"><MetricGrid className="structure-metrics" label="Сводка структуры и сотрудников"><MetricCard label="Подразделений" value={model.counts.orgUnits} /><MetricCard label="Рабочих центров" value={model.counts.workCenters} /><MetricCard label="Должностей" value={model.counts.positions} /><MetricCard label="Сотрудников" value={model.counts.employees} /><MetricCard label="Оборудования" value={model.counts.equipment} /><MetricCard label="Зон ответственности" value={model.counts.responsibilityPolicies} /></MetricGrid>
       <Panel heading={<div className="panel-heading"><div><h2>Оборудование</h2><p>{formatRecordCount(model.equipment.length)} · stable ID · принадлежность и график</p></div><ActionButton disabled title="Создание и архивирование остаются в legacy до миграции команд">Новая запись</ActionButton></div>}>

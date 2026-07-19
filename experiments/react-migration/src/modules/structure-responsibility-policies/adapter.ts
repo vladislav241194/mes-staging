@@ -1,7 +1,8 @@
 import { formatStructurePersonName, STRUCTURE_REGISTRY_DEFINITIONS, type StructureRegistryId } from "../structure-employees/adapter";
 interface EntityDto { id?: unknown; displayName?: unknown; name?: unknown; subjectEmployeeId?: unknown; mode?: unknown; targetEmployeeIds?: unknown; updatedAt?: unknown }
-export interface StructureResponsibilityPolicy { id: string; subjectEmployeeLabel: string; modeLabel: string; modeTone: "warning" | "neutral"; targetEmployeesLabel: string; updatedAtLabel: string }
-export interface StructureResponsibilityPoliciesReadModel { policies: StructureResponsibilityPolicy[]; counts: Record<StructureRegistryId, number> }
+export interface StructureResponsibilityPolicy { id: string; subjectEmployeeId: string; subjectEmployeeLabel: string; mode: string; modeLabel: string; modeTone: "warning" | "neutral"; targetEmployeeIds: string[]; targetEmployeesLabel: string; updatedAtLabel: string }
+export interface StructureResponsibilityEmployeeOption { id: string; label: string }
+export interface StructureResponsibilityPoliciesReadModel { policies: StructureResponsibilityPolicy[]; counts: Record<StructureRegistryId, number>; employees: StructureResponsibilityEmployeeOption[]; canCreateEdit: boolean }
 const MODE_LABELS: Record<string, string> = { department: "Подразделение", workCenter: "Рабочий центр", manual: "Ручной список", all: "Все сотрудники" };
 const text = (value: unknown) => String(value ?? "").trim();
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -15,8 +16,8 @@ export function adaptStructureResponsibilityPolicies(payload: unknown): Structur
     const id = text(entry.id); const subjectEmployeeId = text(entry.subjectEmployeeId); if (!id || !subjectEmployeeId) return [];
     const mode = text(entry.mode); const targetIds = Array.isArray(entry.targetEmployeeIds) ? entry.targetEmployeeIds.map(text).filter(Boolean) : [];
     const targetLabels = targetIds.slice(0, 3).map(reference); const tail = targetIds.length > 3 ? ` +${targetIds.length - 3}` : "";
-    return [{ id, subjectEmployeeLabel: reference(subjectEmployeeId), modeLabel: MODE_LABELS[mode] || mode || "Не задан", modeTone: mode === "manual" ? "warning" : "neutral", targetEmployeesLabel: targetLabels.length ? `${targetLabels.join(", ")}${tail}` : "—", updatedAtLabel: text(entry.updatedAt) || "—" }];
+    return [{ id, subjectEmployeeId, subjectEmployeeLabel: reference(subjectEmployeeId), mode, modeLabel: MODE_LABELS[mode] || mode || "Не задан", modeTone: mode === "manual" ? "warning" : "neutral", targetEmployeeIds: targetIds, targetEmployeesLabel: targetLabels.length ? `${targetLabels.join(", ")}${tail}` : "—", updatedAtLabel: text(entry.updatedAt) || "—" }];
   }).sort((left, right) => left.subjectEmployeeLabel.localeCompare(right.subjectEmployeeLabel, "ru") || left.id.localeCompare(right.id, "en"));
   const diagnosticsCount = Math.max(0, Math.trunc(Number(payloadRecord.migrationDiagnosticsCount ?? item.migrationDiagnosticsCount ?? (Array.isArray(payloadRecord.legacyMatrixRows) ? payloadRecord.legacyMatrixRows.length : 0)) || 0));
-  return { policies, counts: Object.fromEntries(STRUCTURE_REGISTRY_DEFINITIONS.map((definition) => [definition.id, definition.id === "migrationDiagnostics" ? diagnosticsCount : rows(registries[definition.id]).length])) as Record<StructureRegistryId, number> };
+  return { policies, counts: Object.fromEntries(STRUCTURE_REGISTRY_DEFINITIONS.map((definition) => [definition.id, definition.id === "migrationDiagnostics" ? diagnosticsCount : rows(registries[definition.id]).length])) as Record<StructureRegistryId, number>, employees: employees.flatMap((employee) => text(employee.id) ? [{ id: text(employee.id), label: label(employee) }] : []).sort((left, right) => left.label.localeCompare(right.label, "ru") || left.id.localeCompare(right.id, "en")), canCreateEdit: record(payloadRecord.capabilities).createEdit === true };
 }

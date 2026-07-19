@@ -21,7 +21,8 @@ including the deviation-note interaction and same-data legacy rollback.
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations, Nomenclature Types, user-managed Statuses and board
 metadata have locally complete create/edit parity. Structure Employees,
-Structure Positions, Structure Org Units and Structure Equipment now have locally complete PostgreSQL-backed create/edit
+Structure Positions, Structure Org Units, Structure Equipment and Structure
+Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner, while reference-sensitive,
 lifecycle, import, BOM-row and delete commands remain explicit legacy-only
 slices. Structure Migration Diagnostics and Weekly Production Control are intentionally
@@ -41,12 +42,13 @@ retain their explicit next vertical scopes.
 | 9 | Structure Positions | Local complete: create/edit with organization, work-center and schedule references; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable position and cleanup |
 | 10 | Structure Org Units | Local complete: create/edit with parent existence and hierarchy-cycle validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable child unit and cleanup |
 | 11 | Structure Equipment | Local complete: create/edit with organization, work-center, quantity and schedule validation; archive remains legacy | High | Separately gated Pilot write evaluation with disposable equipment and cleanup |
-| 12 | Remaining Structure registries | Pending | High/Critical | One registry and one command at a time, preserving PostgreSQL references |
-| 13 | Timesheet | Pending | High | One attendance-day save/remove scenario |
-| 14 | Roles and Access | Pending | Critical | Role metadata before grants, assignments and scopes |
-| 15 | Planning and operational modules | Pending | Critical | Navigation/local actions before scheduling, assignment or fact mutations |
-| 16 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
-| 17 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
+| 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable policy and cleanup |
+| 13 | Remaining Structure registries | Pending | Critical | Work Centers only after Planning/Gantt reference-impact QA |
+| 14 | Timesheet | Pending | High | One attendance-day save/remove scenario |
+| 15 | Roles and Access | Pending | Critical | Role metadata before grants, assignments and scopes |
+| 16 | Planning and operational modules | Pending | Critical | Navigation/local actions before scheduling, assignment or fact mutations |
+| 17 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
+| 18 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 
 The Directories cluster now has Component Types read parity accepted on Pilot
@@ -125,6 +127,16 @@ missing organization, work-center or schedule references before persistence.
 Production-shell QA proves exact reference IDs, conflict-without-mutation plus
 retry, hidden-field preservation, `7`-row legacy read-back and an unchanged
 disposable compatibility snapshot. Archive remains legacy and Pilot write
+acceptance is separate.
+
+Structure Responsibility Policies completes the non-critical Structure command
+set without moving assignability logic into React. The editor writes the master,
+mode and retained manual employee list; `operational_runtime/service.js` remains
+the owner of `department`, `workCenter`, `manual` and `all` resolution. The host
+rejects missing employees and a duplicate master before persistence. QA proves
+manual-target preservation across a switch to `all`, conflict-without-mutation
+plus retry, hidden-field preservation, `2`-row legacy read-back and unchanged
+disposable compatibility state. Archive remains legacy and Pilot write
 acceptance is separate.
 
 Weekly Production Control's earlier “week selection” command scope was removed
