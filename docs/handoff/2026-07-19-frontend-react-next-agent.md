@@ -669,3 +669,32 @@ actions/console, затем немедленно деактивировать и
   immediate single-assignment parity; multiple/effective-window assignments,
   personal/assignment scopes, `readOnly`, assigned-role lifecycle, Pilot write
   acceptance и остальные owner gaps не переоценены.
+
+## Аудит остатка 2026-07-20: доказательная граница 98%
+
+- После checkpoint `eb37993` повторно проверены оставшиеся legacy-only scopes.
+  Без нового backend owner/schema контракта безопасного следующего React write
+  slice не найдено.
+- PostgreSQL System Domains repository для `system_access_roles` не пишет и не
+  читает `readOnly`; `system_role_assignments` не round-trip-ит effective
+  windows; отдельного persistence contract для access responsibility scopes
+  нет. Поэтому `readOnly`, multiple/effective-window assignments и personal/
+  assignment scopes остаются fail-closed.
+- `system_responsibility_policies` сохраняет subject/mode/targets, но не
+  lifecycle. React archive нельзя строить поверх поля, которое исчезнет после
+  PostgreSQL read-back.
+- Specifications 2.0 attachment blob upload/download server-primary и включён
+  на Pilot, но привязка `serverAttachmentId` к operation/route draft всё ещё
+  сначала сохраняется в browser registry/localStorage. Route drafts, structural
+  add/remove/reparent и нормы имеют ту же browser-owned границу. Нельзя выдавать
+  blob storage за завершённый server-owned attachment lifecycle.
+- Planning Workbench quantity и Gantt start-time уже используют revision-checked
+  owners. Оставшиеся даты/трудоёмкость route-level модели продолжают писать
+  через local `persistState()` и не имеют эквивалентного PostgreSQL command.
+- Read-only Pilot audit по-прежнему показывает `v.1.500.03`, `49` React flags,
+  `0` enabled, `0` rollout targets и destructive actions `false`. Ни deploy, ни
+  Pilot write, ни изменение реальных данных не выполнялись.
+- Следующий прирост требует отдельного решения: (a) согласованный backend
+  owner/schema block для одного из перечисленных scopes либо (b) явное
+  разрешение на disposable Pilot write-acceptance с заранее определённым
+  cleanup. До этого общая оценка остаётся `98%` (`+0 п.п.`, осталось `2%`).

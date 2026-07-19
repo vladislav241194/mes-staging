@@ -635,6 +635,18 @@ will be repeated after the Structure Employees commit and before rebasing.
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.
 
+Latest evidence override (2026-07-20): checkpoint `eb37993` closes immediate
+single-assignment Roles parity and raises the global evidence estimate to
+`98%`. The remaining `2%` has no safe React-only command over the current
+owners: Roles lacks persisted `readOnly`, assignment windows and responsibility
+scopes; Responsibility Policies lacks lifecycle persistence; Specifications 2.0
+route/file linkage and Planning route-level dates/labor remain browser-owned.
+The next increment therefore requires either a coordinated backend owner/schema
+block or explicit disposable Pilot write-acceptance with cleanup. Pilot remains
+`v.1.500.03`, all 49 React flags are off, rollout targets are empty and
+destructive actions are disabled. Later historical Pilot snapshots in this
+document remain chronology, not current state.
+
 Live readiness was refreshed after the first write-parity checkpoint. Pilot is
 healthy on `v.1.499.72`, loads `src/app.js?v=db3bbb28f842-v.1.499.72`, keeps all
 three Nomenclature React flags false, renders legacy with zero rows and has a
