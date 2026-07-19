@@ -1474,6 +1474,8 @@ try {
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EQUIPMENT === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-structure-equipment-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /source: "react:structure-equipment:reactivate"/, "Equipment reactivation must use the existing System Domains owner");
+  assert.match(productionAppSource, /authoritativeEquipment\.archivedAt/, "Equipment reactivation must reject a retained archive marker");
   assert.match(productionAppSource, /structureEquipmentReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_RESPONSIBILITY_POLICIES_READ_ONLY_EVALUATION === true/);

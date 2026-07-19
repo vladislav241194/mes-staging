@@ -21,7 +21,7 @@ Current minified measurements:
 | Structure Positions production island | 216,176 B | 65,692 B | 225,000 B | 68,000 B |
 | Structure Org Units production island | 214,972 B | 65,451 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 217,407 B | 65,683 B | 225,000 B | 68,000 B |
-| Structure Equipment production island | 215,820 B | 65,636 B | 225,000 B | 68,000 B |
+| Structure Equipment production island | 216,206 B | 65,655 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 215,221 B | 65,645 B | 225,000 B | 68,000 B |
 | Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,950 B | 225,000 B | 68,000 B |
@@ -146,12 +146,13 @@ reference and explicit Planning/Gantt fields, clears the lifecycle archive marke
 and reads the active row through legacy. A separate read adapter keeps the aggregate lab within budget. This is
 regression evidence, not Pilot acceptance.
 
-The bundled production Structure Equipment island is `208,849 B` raw /
-`65,161 B` gzip / `56,224 B` Brotli. Its production-shell first commit was
-`19.70 ms` across six PostgreSQL-backed rows; create/edit/archive QA additionally
+The bundled production Structure Equipment island is `209,011 B` raw /
+`65,176 B` gzip / `56,294 B` Brotli. Its production-shell first commit was
+`17.40 ms` across six PostgreSQL-backed rows; create/edit/archive/reactivate QA additionally
 returns a seventh row, rejects invalid quantity before mutation, requires an
-explicit archive confirmation and preserves organization, work-center,
-schedule, quantity and hidden fields. This is regression evidence, not Pilot
+explicit lifecycle confirmation, clears the archive marker and preserves
+organization, work-center, schedule, quantity and hidden fields through active
+legacy read-back. This is regression evidence, not Pilot
 acceptance.
 
 The bundled production Structure Responsibility Policies island is `215,212 B`

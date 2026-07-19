@@ -48,8 +48,8 @@ Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner; Positions, Org Units, Work Centers and
-Equipment also have explicit archive, while Employees, Org Units and Work
-Centers have explicit archive and reactivation.
+Employees, Org Units, Work Centers and Equipment have explicit archive and
+reactivation.
 Other reference-sensitive,
 lifecycle, import and other delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
@@ -120,7 +120,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit/archive/reactivate with active-dependency rejection and ID-bound lifecycle confirmation | High | Separately gated Pilot lifecycle evaluation with a disposable unreferenced employee and verified cleanup |
 | 9 | Structure Positions | Local complete: create/edit/archive with organization, work-center and schedule references plus explicit archive confirmation | High | Separately gated Pilot create/edit/archive evaluation with a disposable position; assignment-impact audit remains separate |
 | 10 | Structure Org Units | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy-cycle, active-reference and active-parent guards | High | Separately gated Pilot lifecycle evaluation with a disposable leaf unit and verified cleanup |
-| 11 | Structure Equipment | Local complete: create/edit/archive with organization, work-center, quantity, schedule validation and explicit archive confirmation | High | Separately gated Pilot write evaluation with disposable equipment; scheduling commands remain legacy |
+| 11 | Structure Equipment | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with active organization/work-center/schedule guards | High | Separately gated Pilot lifecycle evaluation with disposable equipment; scheduling commands remain legacy |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive blocked by owner persistence gap | High | Define an owner/schema contract that persists lifecycle before archive or Pilot write evaluation |
 | 13 | Structure Work Centers | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy, active-reference and active-parent guards while preserving Planning/Gantt flags | High | Separately gated Pilot lifecycle evaluation with a disposable leaf work center and verified cleanup |
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
@@ -255,14 +255,15 @@ changing hierarchy/Planning/Gantt flags, returns the twentieth active row
 through legacy and leaves the disposable compatibility snapshot unchanged.
 Pilot write acceptance is a separate controlled checkpoint.
 
-Structure Equipment adds PostgreSQL create/edit for all seven legacy fields and
-explicit two-step archive through the existing archive owner,
+Structure Equipment adds lifecycle-neutral PostgreSQL create/edit for its
+non-lifecycle legacy fields and explicit two-step archive/reactivate through existing owners,
 including the organization reference that is not visible in the five-column
 read table. The command owner rejects a negative or fractional quantity and
 missing organization, work-center or schedule references before persistence.
 Production-shell QA proves exact reference IDs, conflict-without-mutation plus
-retry, archive `isActive=false`/`archivedAt`, hidden/reference/quantity
-preservation, archived `7`-row legacy read-back and an unchanged disposable
+retry, archive `isActive=false`/`archivedAt`, reactivation with active-reference
+guards and a cleared archive marker, hidden/reference/quantity preservation,
+active `7`-row legacy read-back and an unchanged disposable
 compatibility snapshot. Pilot write acceptance is separate.
 
 Timesheet adds bounded React editors for the fact of one selected day and the

@@ -1,6 +1,6 @@
 # Structure Equipment React migration QA
 
-Date: 2026-07-19
+Date: 2026-07-20
 Branch: `codex/frontend-react-migration`
 
 ## Scope
@@ -15,11 +15,14 @@ references, quantity and archive status.
 
 Local-only command scenario:
 
-`reject invalid quantity -> create equipment -> edit with revision conflict -> retry -> explicitly confirm archive -> read archived row through legacy`.
+`reject invalid quantity -> create equipment -> edit with revision conflict -> retry -> explicitly archive/reactivate -> read active row through legacy`.
 
 The form covers all seven legacy fields, including `orgUnitId`, which is not
 visible in the five-column read table. The host remains the command owner and
 requires PostgreSQL primary authority plus `productionStructureMatrix.edit`.
+Ordinary save is lifecycle-neutral. Reactivation is a separate ID-bound command,
+requires active organization/work-center/schedule references, clears
+`archivedAt` and accepts only authoritative active read-back.
 
 ## Evidence
 
@@ -34,16 +37,18 @@ requires PostgreSQL primary authority plus `productionStructureMatrix.edit`.
 - conflict does not mutate the revision and retry advances it exactly once;
 - archive requires a separate confirmation step and persists `isActive=false`
   plus a valid `archivedAt` through the existing owner;
-- hidden server-only, organization, work-center, schedule and quantity fields
-  survive archive and legacy reads back all seven rows with archive status;
+- ordinary edit exposes no lifecycle control; explicit reactivation persists
+  `isActive=true`, clears `archivedAt` and preserves hidden server-only,
+  organization, work-center, schedule and quantity fields;
+- legacy reads back all seven rows with active status;
 - the disposable compatibility snapshot stays byte-for-byte unchanged;
-- latest local first commit was `19.70 ms`.
+- latest local first commit was `17.40 ms`.
 
-The independent artifact is `215,820 B` raw / `65,636 B` gzip and the bundled
-production artifact is `208,849 B` raw / `65,161 B` gzip / `56,224 B` Brotli, below the
+The independent artifact is `216,206 B` raw / `65,655 B` gzip and the bundled
+production artifact is `209,011 B` raw / `65,176 B` gzip / `56,294 B` Brotli, below the
 `225,000 B / 68,000 B` gate. The aggregate lab uses a separate read-only
-scenario and remains below `505,000 B / 122,000 B`. Both read and write remain
-false by default.
+scenario and remains `557,101 B / 126,296 B`, below its development-only gate.
+Both read and write remain false by default.
 
 ## Pilot acceptance
 

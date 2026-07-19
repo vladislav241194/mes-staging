@@ -2994,9 +2994,28 @@ const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHos
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "equipment"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   executeCommand: async (command = {}) => {
     const localQa = getStructureEquipmentReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда оборудования недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда оборудования недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("equipment")) return { ok: false, message: "PostgreSQL-команда или право редактирования оборудования недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "reactivate") {
+      const equipmentId = String(input.equipmentId || "").trim(); const registries = getSystemDomainsRegistries();
+      const equipment = (registries.equipment || []).find((row) => row.id === equipmentId);
+      if (!equipment || equipment.isActive !== false) return { ok: false, message: "Архивное оборудование больше не существует." };
+      const orgUnitId = String(equipment.orgUnitId || "").trim(); const workCenterId = String(equipment.workCenterId || "").trim(); const scheduleTemplateId = String(equipment.scheduleTemplateId || "").trim();
+      if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите подразделение оборудования." };
+      if (workCenterId && !(registries.workCenters || []).some((row) => row.id === workCenterId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите рабочий центр оборудования." };
+      if (scheduleTemplateId && !(registries.scheduleTemplates || []).some((row) => row.id === scheduleTemplateId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите график оборудования." };
+      try {
+        const result = await upsertSystemDomainEntity("equipment", { ...equipment, isActive: true, archivedAt: "" }, { source: "react:structure-equipment:reactivate", operation: "update", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Восстановление оборудования отклонено проверкой System Domains." };
+        const authoritativeEquipment = (getSystemDomainsRegistries().equipment || []).find((row) => row.id === equipmentId);
+        if (!authoritativeEquipment || authoritativeEquipment.isActive === false || authoritativeEquipment.archivedAt) return { ok: false, message: "Владелец оборудования не подтвердил восстановление." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: equipmentId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные оборудования изменились в другом сеансе. Проверьте значения и повторите восстановление." : error?.message || "Сервер не принял восстановление оборудования." };
+      }
+    }
     if (command.type === "archive") {
       const equipmentId = String(input.equipmentId || "").trim();
       const equipment = (getSystemDomainsRegistries().equipment || []).find((row) => row.id === equipmentId);
@@ -3017,13 +3036,15 @@ const structureEquipmentReactIslandHost = createStructureEquipmentReactIslandHos
     const scheduleTemplateId = String(input.scheduleTemplateId || "").trim();
     const quantity = Number(input.quantity);
     const registries = getSystemDomainsRegistries();
+    const currentEquipment = (registries.equipment || []).find((row) => row.id === equipmentId);
+    if (input.isNew !== true && !currentEquipment) return { ok: false, message: "Оборудование больше не существует." };
     if (!name) return { ok: false, message: "Заполните название оборудования." };
     if (!Number.isInteger(quantity) || quantity < 0) return { ok: false, message: "Количество оборудования должно быть целым неотрицательным числом." };
     if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId)) return { ok: false, message: "Выбранное подразделение больше не существует." };
     if (workCenterId && !(registries.workCenters || []).some((row) => row.id === workCenterId)) return { ok: false, message: "Выбранный рабочий центр больше не существует." };
     if (scheduleTemplateId && !(registries.scheduleTemplates || []).some((row) => row.id === scheduleTemplateId)) return { ok: false, message: "Выбранный график больше не существует." };
     try {
-      const result = await upsertSystemDomainEntity("equipment", { id: equipmentId, name, code: String(input.code || "").trim(), orgUnitId, workCenterId, quantity, scheduleTemplateId, isActive: input.isActive !== false }, { source: "react:structure-equipment", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      const result = await upsertSystemDomainEntity("equipment", { id: equipmentId, name, code: String(input.code || "").trim(), orgUnitId, workCenterId, quantity, scheduleTemplateId, isActive: currentEquipment?.isActive !== false }, { source: "react:structure-equipment", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
       if (result !== true) return { ok: false, message: "Изменение оборудования отклонено проверкой System Domains." };
       queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
       return { ok: true, id: equipmentId };

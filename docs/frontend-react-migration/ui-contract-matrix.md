@@ -192,7 +192,9 @@ two-step confirmations and cannot silently rewrite hierarchy or planning flags.
 Equipment reuses the Structure registry contracts while preserving its own
 work-center, quantity and schedule columns. All six stable IDs, five visible
 cells and Russian legacy order match the authenticated PostgreSQL projection;
-no scheduling or editor behavior moved into React.
+the local editor keeps equipment metadata separate from lifecycle. Archive and
+reactivation use equipment-bound two-step confirmations; scheduling commands
+remain outside React.
 
 ## Structure Responsibility Policies read-model evidence
 

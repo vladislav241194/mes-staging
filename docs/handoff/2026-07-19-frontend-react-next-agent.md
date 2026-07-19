@@ -527,3 +527,24 @@ actions/console, затем немедленно деактивировать и
   выполнено, примерно `8%` осталось (`+1 п.п.`). Прирост относится к замкнутому
   локальному Work Centers lifecycle; Pilot write acceptance и прочие
   legacy-only scopes не переоценены.
+
+## Продолжение 2026-07-20: Structure Equipment reactivation checkpoint
+
+- Аудит подтвердил lifecycle bypass в ordinary Equipment editor. Typed save
+  больше не несёт `isActive`; archive/reactivate стали отдельными ID-bound
+  двухшаговыми командами.
+- Reactivation валидирует архивный target и active organization/work-center/
+  schedule refs, затем вызывает existing `upsertSystemDomainEntity("equipment",
+  ...)` owner с `isActive=true`/`archivedAt=""`. Успех принимается только после
+  authoritative active read-back; quantity, refs и hidden fields сохраняются.
+- Production-shell QA доказывает lifecycle-neutral save, invalid quantity
+  rejection, create/edit, conflict/retry, archive/reactivate, exact revision/
+  If-Match/idempotency и active 7-row legacy read-back. Scheduling commands не
+  переносились в React. First commit `17.40 ms`.
+- Performance: independent `216206 / 65655 B`, bundled production
+  `209011 / 65176 / 56294 B`, full lab `557101 / 126296 B`; gates зелёные.
+  Pilot write/deploy/version/flags не менялись, legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `93%`
+  выполнено, примерно `7%` осталось (`+1 п.п.`). Прирост относится к замкнутому
+  локальному Equipment lifecycle; scheduling/Pilot write acceptance и другие
+  legacy-only scopes остаются отдельно.

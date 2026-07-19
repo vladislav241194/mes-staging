@@ -152,11 +152,15 @@ parent references, clears `archivedAt` through the existing upsert owner and
 accepts only authoritative active read-back while retaining Planning/Gantt flags.
 
 `mountStructureEquipmentReactIsland(...)` owns the Equipment read table,
-passport and a local-only create/edit/archive evaluation. Organization,
+passport and a local-only create/edit/archive/reactivate evaluation. Organization,
 work-center and schedule references are resolved from the same snapshot and
 validated by the host command owner. Archive requires an explicit second
 confirmation and delegates to `archiveSystemDomainEntity`; the host rechecks
-that the target is still active. Equipment scheduling commands remain legacy.
+that the target is still active. Ordinary save cannot change lifecycle.
+Reactivation has its own ID-bound confirmation, requires active organization,
+work-center and schedule references, clears `archivedAt` through the existing
+upsert owner and accepts only authoritative active read-back. Equipment
+scheduling commands remain legacy.
 
 `mountStructureResponsibilityPoliciesReactIsland(...)` owns the policy read
 table, passport and a local-only create/edit evaluation. Employee labels and
