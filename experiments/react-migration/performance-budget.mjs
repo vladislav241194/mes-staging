@@ -38,12 +38,13 @@ const structureMigrationDiagnostics = await measureEntry("structure-migration-di
 const weeklyProductionControl = await measureEntry("weekly-production-control-island.tsx", { raw: 225_000, gzip: 68_000 });
 const timesheet = await measureEntry("timesheet-island.tsx", { raw: 225_000, gzip: 68_000 });
 const planningWorkbench = await measureEntry("planning-workbench-island.tsx", { raw: 225_000, gzip: 68_000 });
+const shiftWorkOrders = await measureEntry("shift-work-orders-island.tsx", { raw: 225_000, gzip: 68_000 });
 const roles = await measureEntry("roles-island.tsx", { raw: 225_000, gzip: 68_000 });
 const componentTypes = await measureEntry("component-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const operations = await measureEntry("operations-island.tsx", { raw: 225_000, gzip: 68_000 });
 const nomenclatureTypes = await measureEntry("nomenclature-types-island.tsx", { raw: 225_000, gzip: 68_000 });
 const statuses = await measureEntry("statuses-island.tsx", { raw: 225_000, gzip: 68_000 });
-const lab = await measureEntry("main.tsx", { raw: 375_000, gzip: 100_000 });
+const lab = await measureEntry("main.tsx", { raw: 390_000, gzip: 105_000 });
 const nomenclatureText = new TextDecoder().decode(nomenclature.bytes);
 assert.doesNotMatch(nomenclatureText, /Типы компонентов/, "Nomenclature production island must not bundle the Component Types scenario");
 const boardsText = new TextDecoder().decode(boards.bytes);
@@ -68,6 +69,8 @@ const timesheetText = new TextDecoder().decode(timesheet.bytes);
 assert.doesNotMatch(timesheetText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Timesheet island must not bundle unrelated scenarios");
 const planningWorkbenchText = new TextDecoder().decode(planningWorkbench.bytes);
 assert.doesNotMatch(planningWorkbenchText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Planning Workbench island must not bundle unrelated scenarios");
+const shiftWorkOrdersText = new TextDecoder().decode(shiftWorkOrders.bytes);
+assert.doesNotMatch(shiftWorkOrdersText, /Вся номенклатура|Типы компонентов|Роли и доступ/, "Shift Work Orders island must not bundle unrelated scenarios");
 const rolesText = new TextDecoder().decode(roles.bytes);
 assert.doesNotMatch(rolesText, /Вся номенклатура|Типы компонентов|Подсчет импортированных компонентов/, "Roles production island must not bundle unrelated scenarios");
 const componentTypesText = new TextDecoder().decode(componentTypes.bytes);
@@ -97,6 +100,7 @@ console.log(JSON.stringify({
   weeklyProductionControl: weeklyProductionControl.measurement,
   timesheet: timesheet.measurement,
   planningWorkbench: planningWorkbench.measurement,
+  shiftWorkOrders: shiftWorkOrders.measurement,
   roles: roles.measurement,
   componentTypes: componentTypes.measurement,
   operations: operations.measurement,

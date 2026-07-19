@@ -302,6 +302,14 @@ and clean console. Its bundled artifact is `201,793 B` raw / `63,311 B` gzip /
 `54,483 B` Brotli. It moves no quantity, date, labor, Gantt or cancel command
 and has not been released or activated on Pilot.
 
+Shift Work Orders is the next isolated operational-family proof. Its typed
+adapter consumes the completed journal model and renders two fixture work
+orders, three operations, three assignments, eight columns and the selected
+read detail. Selection, tree collapse, revision update and legacy command
+fallback pass. Assignment, fact, print/photo implementation, Workshop runtime
+and Shift Execution authority remain untouched. The independent lab artifact
+is `210,824 B` raw / `64,526 B` gzip; production integration is still pending.
+
 A dry-run rebase preflight against the earlier `origin/main@511e281` found 40
 frontend paths, 50 main paths, zero overlapping paths and zero merge conflict
 markers. Final handoff `fc71e01` now authorizes the actual rebase; the preflight
@@ -320,7 +328,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 
 ## Integration order
 
-1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet and Planning Workbench read-only proofs.**
+1. Finish the isolated lab and component contract. **Complete for Nomenclature, Component Types, Operations, Nomenclature Types, Statuses, Boards/BOM, all seven Structure sidebar destinations, Roles/Access, Weekly Production Control, Timesheet, Planning Workbench and Shift Work Orders read-only proofs.**
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; and for Planning Workbench using the PostgreSQL list/detail bootstrap. No fixture reaches production.**

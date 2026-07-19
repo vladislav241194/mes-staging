@@ -125,6 +125,13 @@ React. Route/item selection and all quantity, date, Gantt and cancellation
 commands request legacy. A missing bootstrap, API error or missing session
 request retains legacy.
 
+`mountShiftWorkOrdersReactIsland(...)` is currently an isolated operational-
+family proof only. Its typed adapter accepts the completed journal model and
+owns local document-tree collapse and read-detail selection. Print, package,
+photo and Workshop scopes return through `unsupported-scope`; assignment,
+fact entry, Shift Execution repositories and server authority are outside the
+slice. No production feature flag or mount host is claimed yet.
+
 `mountRolesReactIsland(...)` provides the Roles and Access read slice over a
 host-supplied System Domains snapshot and module registry. Its production host
 requires two false-by-default flags, PostgreSQL read readiness, and a per-

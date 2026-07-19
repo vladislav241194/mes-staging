@@ -30,7 +30,7 @@ unresolved.
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read-only scenario |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control + Timesheet + Planning Workbench read-only scenarios |
-| Operational | Status, action, overlay frames | Workshop board, worker fact entry, shift documents | After PostgreSQL final acceptance |
+| Operational | Status, action, panel, table tree, metric grid, overlay frames | Workshop board, worker fact entry, print/photo commands | Shift Work Orders read-only document journal |
 | Protected canvas | Shell-level states only | Gantt geometry and Specifications tree/editor | Late migration with dedicated guardrails |
 | Admin/standalone | Buttons, panels, states | Security perimeter and standalone shell | Separate acceptance path |
 
@@ -202,6 +202,17 @@ The isolated proof preserves three queue entries, five decision metrics and
 four object/operation rows. Production-shell QA adds PostgreSQL bootstrap
 parity for two orders and two visible hierarchy rows. The host is disabled by
 default; all selection and command scopes return to legacy.
+
+## Shift Work Orders isolated evidence
+
+The first operational-family proof consumes the completed legacy
+`getShiftWorkOrderJournalViewModel()` boundary and normalizes only the read
+projection: document packages, operations, assignments, eight table columns,
+selected detail, quantities, transfer and executors. The fixture proves two
+work orders, three operations and three assignments, local selection and tree
+collapse, plus a payload revision. Print, package, photo and Workshop actions
+request legacy; assignment, fact and Shift Execution authority are untouched.
+Production integration remains a separate gate.
 
 ## Roles and Access read-model evidence
 

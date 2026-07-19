@@ -81,7 +81,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
     if (normalizeShiftMasterBoardQuantity(row.defectQuantity || 0) > 0) return true;
     if (Array.isArray(row.executors) && row.executors.length) return true;
     if (row.issuedAt) return true;
-    const issueSummary = getShiftWorkOrderIssueSummary(row);
+    const issueSummary = row.issueSummary || getShiftWorkOrderIssueSummary(row);
     return issueSummary.reportCount > 0 || issueSummary.photoCount > 0;
   }
   
@@ -111,6 +111,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
         };
       });
     const updatedAt = fact.updatedAt || sheetContract.updatedAt || assignment.updatedAt || row.issuedAt || row.startsAt || "";
+    const issueSummary = getShiftWorkOrderIssueSummary(row);
     return {
       id: row.id || sheetContract.rowId || options.id || "",
       sourceRowId: row.id || sheetContract.rowId || options.id || "",
@@ -151,6 +152,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
       shiftDateKey: sheetContract.shiftDateKey || row.dateKey || row.timesheetDateKey || (row.startsAt ? toDateInput(row.startsAt) : ""),
       dateLabel: updatedAt ? formatDateTimeShort(updatedAt) : "дата не задана",
       timeLabel: row.timeLabel || "",
+      issueSummary,
     };
   }
   
@@ -164,6 +166,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
     const factQuantity = normalizeShiftMasterBoardQuantity(transfer.factQuantity || sheetContract.factQuantity || fact.actualQuantity || 0);
     const remainingQuantity = normalizeShiftMasterBoardQuantity(transfer.remainingQuantity || Math.max(0, plannedQuantity - factQuantity));
     const updatedAt = fact.updatedAt || sheetContract.updatedAt || assignment.updatedAt || "";
+    const issueSummary = getShiftWorkOrderIssueSummary({ id, sourceRowId: sheetContract.rowId || assignment.sourceRowId || id });
     return {
       id,
       sourceRowId: sheetContract.rowId || assignment.sourceRowId || id,
@@ -198,6 +201,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
       shiftDateKey: sheetContract.shiftDateKey || assignment.dateKey || assignment.timesheetDateKey || (updatedAt ? toDateInput(updatedAt) : ""),
       dateLabel: updatedAt ? formatDateTimeShort(updatedAt) : "дата не задана",
       timeLabel: "",
+      issueSummary,
     };
   }
   
@@ -360,7 +364,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
         });
       }
       const operationGroup = group.operationMap.get(operationKey);
-      const issueSummary = getShiftWorkOrderIssueSummary(row);
+      const issueSummary = row.issueSummary || getShiftWorkOrderIssueSummary(row);
       operationGroup.rows.push(row);
       operationGroup.plannedQuantity = Math.max(
         operationGroup.plannedQuantity,
@@ -951,7 +955,7 @@ export function createShiftWorkOrdersModule(dependencies = {}) {
     }
     const executorRows = row.executors.length ? row.executors : [];
     const packageRouteId = row.routeId || row.planningOrderId || "";
-    const issueSummary = getShiftWorkOrderIssueSummary(row);
+    const issueSummary = row.issueSummary || getShiftWorkOrderIssueSummary(row);
     return renderUiPanel({
       title: row.documentNumber,
       meta: "",

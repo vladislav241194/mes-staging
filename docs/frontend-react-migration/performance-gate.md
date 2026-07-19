@@ -15,33 +15,34 @@ Current minified measurements:
 
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
-| Nomenclature production island | 205,524 B | 63,734 B | 225,000 B | 68,000 B |
-| Boards/BOM production island | 208,671 B | 64,505 B | 225,000 B | 68,000 B |
-| Structure Employees production island | 210,514 B | 64,795 B | 225,000 B | 68,000 B |
-| Structure Positions production island | 209,381 B | 64,420 B | 225,000 B | 68,000 B |
-| Structure Org Units production island | 208,751 B | 64,263 B | 225,000 B | 68,000 B |
-| Structure Work Centers production island | 209,445 B | 64,378 B | 225,000 B | 68,000 B |
-| Structure Equipment production island | 209,028 B | 64,320 B | 225,000 B | 68,000 B |
-| Structure Responsibility Policies production island | 210,137 B | 64,632 B | 225,000 B | 68,000 B |
-| Structure Migration Diagnostics production island | 208,970 B | 64,267 B | 225,000 B | 68,000 B |
-| Weekly Production Control production island | 204,805 B | 63,386 B | 225,000 B | 68,000 B |
-| Timesheet production island | 204,934 B | 63,585 B | 225,000 B | 68,000 B |
-| Planning Workbench production island | 205,180 B | 63,549 B | 225,000 B | 68,000 B |
-| Roles and Access independent entry | 208,856 B | 64,539 B | 225,000 B | 68,000 B |
-| Component Types independent entry | 204,912 B | 63,569 B | 225,000 B | 68,000 B |
-| Operations independent entry | 203,419 B | 63,204 B | 225,000 B | 68,000 B |
-| Nomenclature Types independent entry | 203,297 B | 63,126 B | 225,000 B | 68,000 B |
-| Statuses independent entry | 204,643 B | 63,488 B | 225,000 B | 68,000 B |
-| Full seventeen-scenario lab | 363,651 B | 90,934 B | 375,000 B | 100,000 B |
+| Nomenclature production island | 205,544 B | 63,733 B | 225,000 B | 68,000 B |
+| Boards/BOM production island | 208,691 B | 64,506 B | 225,000 B | 68,000 B |
+| Structure Employees production island | 210,534 B | 64,790 B | 225,000 B | 68,000 B |
+| Structure Positions production island | 209,401 B | 64,418 B | 225,000 B | 68,000 B |
+| Structure Org Units production island | 208,771 B | 64,265 B | 225,000 B | 68,000 B |
+| Structure Work Centers production island | 209,465 B | 64,375 B | 225,000 B | 68,000 B |
+| Structure Equipment production island | 209,048 B | 64,318 B | 225,000 B | 68,000 B |
+| Structure Responsibility Policies production island | 210,157 B | 64,629 B | 225,000 B | 68,000 B |
+| Structure Migration Diagnostics production island | 208,970 B | 64,266 B | 225,000 B | 68,000 B |
+| Weekly Production Control production island | 204,805 B | 63,393 B | 225,000 B | 68,000 B |
+| Timesheet production island | 204,934 B | 63,584 B | 225,000 B | 68,000 B |
+| Planning Workbench production island | 205,200 B | 63,549 B | 225,000 B | 68,000 B |
+| Shift Work Orders isolated entry | 210,824 B | 64,526 B | 225,000 B | 68,000 B |
+| Roles and Access independent entry | 208,876 B | 64,532 B | 225,000 B | 68,000 B |
+| Component Types independent entry | 204,932 B | 63,572 B | 225,000 B | 68,000 B |
+| Operations independent entry | 203,439 B | 63,200 B | 225,000 B | 68,000 B |
+| Nomenclature Types independent entry | 203,317 B | 63,128 B | 225,000 B | 68,000 B |
+| Statuses independent entry | 204,663 B | 63,488 B | 225,000 B | 68,000 B |
+| Full eighteen-scenario lab | 382,793 B | 94,415 B | 390,000 B | 105,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
-The budget script also inspects the minified Nomenclature, Boards, Structure
-registry and Roles artifacts and rejects unrelated scenario labels. This preserves
-independent vertical slices instead of shipping every lab scenario with an
-individual island. The larger `375,000 B / 100,000 B` limit applies only to the
-seventeen-scenario development lab, never to a production island. Its raw limit
-increased only as isolated scenarios were added; every production entry retains the
-unchanged `225,000 B / 68,000 B` gate.
+The budget script also inspects the minified Nomenclature, Boards, Structure,
+Shift Work Orders and Roles artifacts and rejects unrelated scenario labels.
+This preserves independent vertical slices instead of shipping every lab
+scenario with an individual island. The larger `390,000 B / 105,000 B` limit
+applies only to the eighteen-scenario development lab, never to a production
+island. Its raw limit increased only as isolated scenarios were added; every
+production entry retains the unchanged `225,000 B / 68,000 B` gate.
 
 The command is part of `qa.mjs`, so size regressions fail the normal isolated
 contract gate.
@@ -64,6 +65,7 @@ Browser evidence from one local run:
 | Weekly Production Control | measured by the same callback | browser gate passed | weekly fact total updated, revision 2 |
 | Timesheet | measured by the same callback | browser gate passed | overtime updated, revision 2 |
 | Planning Workbench | measured by the same callback | browser gate passed | Gantt readiness updated, revision 2 |
+| Shift Work Orders | measured by the same callback | browser gate passed | selection/collapse preserved, revision 2 |
 
 The bundled production Roles island is `204,264 B` raw / `64,094 B` gzip /
 `55,289 B` Brotli. Its production-shell first commit measured below `25 ms` on the

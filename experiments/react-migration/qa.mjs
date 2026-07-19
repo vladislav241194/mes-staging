@@ -903,6 +903,18 @@ try {
   assert.deepEqual(planningWorkbenchModel.rows.map((row) => [row.kind, row.title, row.quantity]), [["task", "Контроллер КТ-7", 120], ["step", "Монтаж компонентов", 120], ["step", "Оптический контроль", 120], ["task", "Корпус КТ-7", 120]]);
   assert.equal(planningWorkbenchAdapter.adaptPlanningWorkbench({}).canActivate, false, "invalid Planning Workbench payload must fail closed");
 
+  const shiftWorkOrdersOutput = join(temporaryRoot, "shift-work-orders.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/shift-work-orders/adapter.ts")], outfile: shiftWorkOrdersOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const shiftWorkOrdersAdapter = await import(`${pathToFileURL(shiftWorkOrdersOutput).href}?qa=${Date.now()}`);
+  const shiftWorkOrdersFixtureOutput = join(temporaryRoot, "shift-work-orders-fixture.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/shift-work-orders/fixture.ts")], outfile: shiftWorkOrdersFixtureOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const { shiftWorkOrdersFixture } = await import(`${pathToFileURL(shiftWorkOrdersFixtureOutput).href}?qa=${Date.now()}`);
+  const shiftWorkOrdersModel = shiftWorkOrdersAdapter.adaptShiftWorkOrders(shiftWorkOrdersFixture);
+  assert.equal(shiftWorkOrdersModel.canActivate, true, "Shift Work Orders needs documents, operations, assignments and a selected detail");
+  assert.deepEqual([shiftWorkOrdersModel.documents.length, shiftWorkOrdersModel.operationCount, shiftWorkOrdersModel.rows.length], [2, 3, 3]);
+  assert.deepEqual(shiftWorkOrdersModel.rows.map((row) => [row.documentNumber, row.status.id, row.issueReportCount]), [["СЗН-1042-01", "issued", 1], ["СЗН-1042-02", "assigned", 0], ["СЗН-1041-01", "closed", 0]]);
+  assert.equal(shiftWorkOrdersAdapter.adaptShiftWorkOrders({}).canActivate, false, "invalid Shift Work Orders payload must fail closed");
+
   const sources = await collectSources(sourceRoot);
   const forbiddenPatterns = [
     ["legacy app import", /src\/app\.js/],
@@ -1418,6 +1430,7 @@ try {
   assert.match(performanceBudget, /"weeklyProductionControl"/);
   assert.match(performanceBudget, /"timesheet"/);
   assert.match(performanceBudget, /"planningWorkbench"/);
+  assert.match(performanceBudget, /"shiftWorkOrders"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });

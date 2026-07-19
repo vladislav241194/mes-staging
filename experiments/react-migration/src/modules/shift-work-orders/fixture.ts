@@ -1,0 +1,23 @@
+const row = (id: string, documentNumber: string, operationName: string, workCenterLabel: string, values: { planned: number; assigned: number; fact: number; defect?: number; status: string; tone: string; executor: string; updated: string; reports?: number; photos?: number }) => ({
+  id, sourceRowId: id, documentNumber, orderLabel: id.startsWith("a") ? "ЗН-1042 · Контроллер КТ-7" : "ЗН-1041 · Модуль питания", routePartLabel: "Основной маршрут",
+  operationName, workCenterLabel, resourceLabel: `${workCenterLabel} · линия 1`, masterName: "Смирнов Алексей Петрович",
+  executors: [{ employeeId: `employee-${id}`, employeeName: values.executor, quantity: values.assigned, note: "" }],
+  plannedQuantity: values.planned, assignedQuantity: values.assigned, factQuantity: values.fact, defectQuantity: values.defect || 0,
+  remainingQuantity: Math.max(0, values.planned - values.fact), unit: "шт.", status: { id: values.status, label: values.status === "closed" ? "факт внесен" : values.status === "issued" ? "в работе" : "распределено", tone: values.tone },
+  stageLabel: values.status === "closed" ? "СЗН с фактом" : values.status === "issued" ? "СЗН в работе" : "сменное задание",
+  updatedAt: values.updated, dateLabel: values.updated, shiftDateKey: "2026-07-19", issueSummary: { reportCount: values.reports || 0, photoCount: values.photos || 0 },
+  transfer: { fromOperationName: operationName, fromWorkCenterLabel: workCenterLabel, toOperationName: operationName === "Монтаж" ? "Контроль" : "Упаковка", toWorkCenterLabel: operationName === "Монтаж" ? "ОТК" : "Склад" },
+});
+const rows = [
+  row("a-1", "СЗН-1042-01", "Монтаж", "Ручной монтаж", { planned: 120, assigned: 80, fact: 60, defect: 2, status: "issued", tone: "primary", executor: "Иванов Иван Иванович", updated: "19.07.2026, 12:30", reports: 1, photos: 1 }),
+  row("a-2", "СЗН-1042-02", "Контроль", "ОТК", { planned: 120, assigned: 40, fact: 0, status: "assigned", tone: "active", executor: "Петрова Анна Сергеевна", updated: "19.07.2026, 11:10" }),
+  row("b-1", "СЗН-1041-01", "Комплектация", "Склад", { planned: 80, assigned: 80, fact: 80, status: "closed", tone: "ok", executor: "Сидоров Павел Олегович", updated: "19.07.2026, 10:00" }),
+];
+const operation = (id: string, operationName: string, workCenterLabel: string, operationRows: typeof rows) => ({ id, operationName, workCenterLabel, routePartLabel: "Основной маршрут", plannedQuantity: Math.max(...operationRows.map((item) => item.plannedQuantity)), assignedQuantity: operationRows.reduce((sum, item) => sum + item.assignedQuantity, 0), factQuantity: operationRows.reduce((sum, item) => sum + item.factQuantity, 0), remainingQuantity: Math.max(0, Math.max(...operationRows.map((item) => item.plannedQuantity)) - operationRows.reduce((sum, item) => sum + item.factQuantity, 0)), unit: "шт.", latestLabel: operationRows[0].dateLabel, rows: operationRows });
+const documents = [
+  { id: "wo-1042", label: "ЗН-1042 · Контроллер КТ-7", meta: "Основной маршрут", plannedQuantity: 240, assignedQuantity: 120, factQuantity: 60, remainingQuantity: 180, unit: "шт.", latestLabel: rows[0].dateLabel, rows: rows.slice(0, 2), operationGroups: [operation("op-mount", "Монтаж", "Ручной монтаж", [rows[0]]), operation("op-control", "Контроль", "ОТК", [rows[1]])] },
+  { id: "wo-1041", label: "ЗН-1041 · Модуль питания", meta: "Основной маршрут", plannedQuantity: 80, assignedQuantity: 80, factQuantity: 80, remainingQuantity: 0, unit: "шт.", latestLabel: rows[2].dateLabel, rows: [rows[2]], operationGroups: [operation("op-kit", "Комплектация", "Склад", [rows[2]])] },
+];
+export const shiftWorkOrdersFixture = { model: { rows, documentTree: documents, selectedRow: rows[0], sourceWindow: { label: "19.07.2026 · дневная смена" } } };
+const updatedRows = rows.map((item) => item.id === "a-1" ? { ...item, factQuantity: 80, remainingQuantity: 40, status: { id: "closed", label: "факт внесен", tone: "ok" }, stageLabel: "СЗН с фактом" } : item);
+export const shiftWorkOrdersUpdateFixture = { model: { ...shiftWorkOrdersFixture.model, rows: updatedRows, selectedRow: updatedRows[0], documentTree: documents.map((document) => document.id === "wo-1042" ? { ...document, factQuantity: 80, remainingQuantity: 160, rows: updatedRows.slice(0, 2), operationGroups: document.operationGroups.map((entry) => entry.id === "op-mount" ? { ...entry, factQuantity: 80, remainingQuantity: 40, rows: [updatedRows[0]] } : entry) } : document) } };

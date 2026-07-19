@@ -40,6 +40,7 @@ Available routes:
 - `/?scenario=weekly-production-control` — read-only weekly plan/fact control;
 - `/?scenario=timesheet` — read-only personnel calendar and attendance matrix;
 - `/?scenario=planning-workbench` — read-only work-order queue, readiness and structure;
+- `/?scenario=shift-work-orders` — read-only shift-work-order document tree and detail;
 - `/?scenario=roles` — Roles and access grants;
 - `/?scenario=operations` — Operations directory;
 - `/?scenario=nomenclature-types` — Nomenclature Types directory;

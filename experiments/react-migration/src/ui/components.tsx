@@ -60,8 +60,12 @@ export function MetricCard({ label, meta, value }: { label: ReactNode; meta?: Re
   return <article className="metric-card" data-ui-component="MetricCard"><span>{label}</span><strong>{value}</strong>{meta ? <small>{meta}</small> : null}</article>;
 }
 
-export function ActionButton({ children, disabled = false, title, variant = "primary" }: { children: ReactNode; disabled?: boolean; title?: string; variant?: "primary" | "secondary" | "danger" }) {
-  return <button className={`action action--${variant}`} data-ui-component="ActionButton" disabled={disabled} title={title} type="button">{children}</button>;
+export function ActionButton({ children, disabled = false, onClick, title, variant = "primary" }: { children: ReactNode; disabled?: boolean; onClick?(): void; title?: string; variant?: "primary" | "secondary" | "danger" }) {
+  return <button className={`action action--${variant}`} data-ui-component="ActionButton" disabled={disabled} onClick={onClick} title={title} type="button">{children}</button>;
+}
+
+export function OperationalPage({ children, className = "", label }: { children: ReactNode; className?: string; label: string }) {
+  return <main aria-label={label} className={["module-page", className].filter(Boolean).join(" ")} data-ui-component="OperationalPage">{children}</main>;
 }
 
 export function SelectableRow({ children, onSelect, selected }: { children: ReactNode; onSelect(): void; selected: boolean }) {
