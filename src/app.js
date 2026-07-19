@@ -3589,7 +3589,7 @@ const rolesReactIslandHost = createRolesReactIslandHost({
       && systemDomainsServerCommandState.enabled === true
       && systemDomainsServerCommandState.surfaces.includes("access-control")
       && authorizeSystemDomainAction("roles", "configure");
-    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady } };
+    return { item: systemDomainsState, moduleDefinitions: getModuleDefinitions(), capabilities: { metadataEdit: commandReady, grantsEdit: commandReady, defaultScopeEdit: commandReady } };
   },
   getTargetRoot: () => app,
   requestLegacyRender: () => {
@@ -3597,13 +3597,25 @@ const rolesReactIslandHost = createRolesReactIslandHost({
   },
   executeCommand: async (command = {}) => {
     const localQa = getRolesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save-metadata", "set-grant"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
+    if (!localQa.writeEvaluation || !["save-metadata", "set-grant", "set-default-scope"].includes(command.type)) return { ok: false, message: "Изменение роли недоступно." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("access-control")) return { ok: false, message: "PostgreSQL-команда ролей недоступна." };
     if (!authorizeSystemDomainAction("roles", "configure")) return { ok: false, message: "Нет права на настройку ролей." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
     const roleId = String(input.roleId || "").trim(); const label = String(input.label || "").trim(); const description = String(input.description || "").trim(); const defaultModuleId = String(input.defaultModuleId || "").trim();
     const role = (getSystemDomainsRegistries().accessRoles || []).find((item) => item.id === roleId);
     if (!role) return { ok: false, message: "Роль больше не существует." };
+    if (command.type === "set-default-scope") {
+      const scope = String(input.scope || "").trim();
+      if (!ACCESS_ROLE_SCOPES.some((item) => item.id === scope)) return { ok: false, message: "Область роли не поддерживается." };
+      try {
+        const updated = await setResponsibilityScope({ scopeId: `role-default-scope:${roleId}`, patch: { type: scope } });
+        if (updated !== true) return { ok: false, message: "Изменение области роли отклонено проверкой access-control." };
+        queueMicrotask(() => { if (ui.activeModule === "roles") render({ skipRememberScroll: true }); });
+        return { ok: true, id: `role-default-scope:${roleId}` };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Роли изменились в другом сеансе. Проверьте данные и повторите сохранение." : error?.message || "Сервер не принял изменение области роли." };
+      }
+    }
     if (command.type === "set-grant") {
       const moduleId = String(input.moduleId || "").trim(); const action = String(input.action || "").trim(); const allowed = input.allowed === true;
       if (!moduleId || moduleId === "authPrototype" || !getModuleDefinitions().some((moduleItem) => moduleItem.id === moduleId)) return { ok: false, message: "Модуль grant больше не существует." };

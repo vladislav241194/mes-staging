@@ -387,8 +387,10 @@ try {
   const rolesModel = rolesAdapter.adaptRoles(rolesFixture);
   assert.equal(rolesModel.canEditMetadata, false, "Roles metadata capability must fail closed");
   assert.equal(rolesModel.canEditGrants, false, "Roles grants capability must fail closed");
+  assert.equal(rolesModel.canEditDefaultScope, false, "Roles default-scope capability must fail closed");
   assert.equal(rolesAdapter.adaptRoles({ ...rolesFixture, capabilities: { metadataEdit: true } }).canEditMetadata, true, "Roles metadata capability must be explicit");
   assert.equal(rolesAdapter.adaptRoles({ ...rolesFixture, capabilities: { grantsEdit: true } }).canEditGrants, true, "Roles grants capability must be explicit");
+  assert.equal(rolesAdapter.adaptRoles({ ...rolesFixture, capabilities: { defaultScopeEdit: true } }).canEditDefaultScope, true, "Roles default-scope capability must be explicit");
   assert.deepEqual(rolesModel.roles.map((role) => [role.id, role.allowedModuleCount, role.assignedEmployees.length]), [
     ["admin", 4, 1],
     ["master", 2, 1],

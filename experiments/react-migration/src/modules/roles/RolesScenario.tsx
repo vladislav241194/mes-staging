@@ -12,10 +12,11 @@ interface RoleMetadataDraft {
 
 export type RolesReactCommand = { type: "save-metadata"; payload: RoleMetadataDraft };
 export type RoleGrantCommand = { type: "set-grant"; payload: { roleId: string; moduleId: string; action: typeof ROLE_ACTIONS[number]["id"]; allowed: boolean } };
+export type RoleDefaultScopeCommand = { type: "set-default-scope"; payload: { roleId: string; scope: "factory" | "department" | "workCenter" | "self" } };
 
 export function RolesScenario({ payload, onCommand }: {
   payload: unknown;
-  onCommand?(command: RolesReactCommand | RoleGrantCommand): Promise<{ ok?: boolean; message?: string } | void>;
+  onCommand?(command: RolesReactCommand | RoleGrantCommand | RoleDefaultScopeCommand): Promise<{ ok?: boolean; message?: string } | void>;
 }) {
   const model = useMemo(() => adaptRoles(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.roles[0]?.id || "");
@@ -23,6 +24,7 @@ export function RolesScenario({ payload, onCommand }: {
   const [commandError, setCommandError] = useState("");
   const [saving, setSaving] = useState(false);
   const [grantSavingKey, setGrantSavingKey] = useState("");
+  const [scopeSaving, setScopeSaving] = useState(false);
   const selected = resolveVisibleRole(model.roles, selectedId);
   const visibleDefaultModules = selected ? model.modules.filter((moduleItem) => roleAllows(selected, moduleItem.id, "view")) : [];
   const openMetadataEditor = () => {
@@ -51,6 +53,13 @@ export function RolesScenario({ payload, onCommand }: {
     try { const result = await onCommand({ type: "set-grant", payload: { roleId: selected.id, moduleId, action, allowed } }); if (result && result.ok === false) setCommandError(result.message || "Изменение grant отклонено."); }
     catch (error) { setCommandError(error instanceof Error ? error.message : "Изменение grant отклонено."); }
     finally { setGrantSavingKey(""); }
+  };
+  const setDefaultScope = async (scope: RoleDefaultScopeCommand["payload"]["scope"]) => {
+    if (!selected || !onCommand || scopeSaving) return;
+    setScopeSaving(true); setCommandError("");
+    try { const result = await onCommand({ type: "set-default-scope", payload: { roleId: selected.id, scope } }); if (result && result.ok === false) setCommandError(result.message || "Изменение области роли отклонено."); }
+    catch (error) { setCommandError(error instanceof Error ? error.message : "Изменение области роли отклонено."); }
+    finally { setScopeSaving(false); }
   };
   const header = <ModuleHeader eyebrow="Система · System Domains" title="Роли и доступ" badge={<span className="lab-badge">{model.canEditMetadata ? "React · metadata evaluation" : "React migration lab"}</span>} />;
   const sidebar = (
@@ -85,7 +94,7 @@ export function RolesScenario({ payload, onCommand }: {
               <label><span>Стартовый модуль</span><select name="defaultModuleId" onChange={(event) => setDraftField("defaultModuleId", event.currentTarget.value)} value={draft.defaultModuleId}><option value="">Не выбран</option>{visibleDefaultModules.map((moduleItem) => <option key={moduleItem.id} value={moduleItem.id}>{moduleItem.label}</option>)}</select></label>
               {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
               <div className="react-nomenclature-editor-actions"><button className="action action--primary" disabled={saving} type="submit">{saving ? "Сохранение…" : "Сохранить паспорт"}</button></div>
-            </form> : <div className="ui-inline-statuses"><StatusToken label={selected.label} tone="success" /><StatusToken label={selected.defaultModuleLabel} tone="neutral" /><StatusToken label={getRoleScopeLabel(selected.scope)} tone="neutral" /></div>}
+            </form> : <div className="ui-inline-statuses"><StatusToken label={selected.label} tone="success" /><StatusToken label={selected.defaultModuleLabel} tone="neutral" /><label title="Default scope роли; персональные и assignment scopes остаются в legacy"><span className="sr-only">Область роли</span><select data-react-role-default-scope={selected.id} disabled={!model.canEditDefaultScope || scopeSaving} onChange={(event) => void setDefaultScope(event.currentTarget.value as RoleDefaultScopeCommand["payload"]["scope"])} value={selected.scope}><option value="factory">Вся фабрика</option><option value="department">Свой отдел</option><option value="workCenter">Свои участки</option><option value="self">Только свои записи</option></select></label></div>}
           </Panel>
           <Panel heading={<div className="panel-heading"><div><h2>Матрица grants</h2><p>Шесть исполняемых действий · должность не является ролью</p></div><StatusToken label={model.canEditGrants ? "PostgreSQL grant evaluation" : "только чтение"} tone={model.canEditGrants ? "success" : "neutral"} /></div>}>
             {commandError && !draft ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
