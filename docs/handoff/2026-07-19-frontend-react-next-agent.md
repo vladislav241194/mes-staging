@@ -284,3 +284,26 @@ actions/console, затем немедленно деактивировать и
 - Contour Admin read acceptance по-прежнему нельзя заявить: root-controlled
   drop-in не активирован, а обход root boundary запрещён. Переданные доступы не
   сохранены в репозитории или документации.
+
+## Продолжение: канонический MES LINE logo и Pilot release
+
+- Переданный `mes_logo_high_quality.svg` сохранён как канонический source asset
+  `assets/brand/mes_logo_high_quality.svg`; его видимое содержимое byte-for-byte
+  совпадает с runtime `favicon.svg` после нормализации завершающего перевода
+  строки. Contour favicon теперь явно строится из канонического source asset.
+- `scripts/brand-logo-qa.mjs` fail-closed проверяет runtime alias, sidebar,
+  public/admin login, startup error, служебный icon registry и все три contour
+  favicon. Старый текстовый `<text>MES</text>` contour mark запрещён тестом.
+- Версия поднята до `v.1.500.02`; кодовый checkpoint `05bd646` опубликован в
+  `origin/codex/frontend-react-migration`. Локально прошли syntax, build,
+  `qa:brand-logo`, `qa:icons`, dist/runtime probe и `git diff --check`.
+- Штатный staged release `v.1.500.02-05bd646` собран из fresh-upstream Git
+  provenance, проверен manifest-ом и активирован с автоматическим health/
+  rollback guard. Предыдущий pointer
+  `/srv/mes/pilot/releases/v.1.500.01-16e0e86/app` сохранён как rollback target.
+- Live после активации: health `ok`, shared state `ready`, service `active`,
+  `/srv/mes/pilot/app` указывает на `v.1.500.02-05bd646`; public login ссылается
+  на `/favicon.svg`, live favicon содержит канонический `512 x 512` vector и не
+  содержит старый text mark. Все `49/49` опубликованных React flags остаются
+  `false`, поэтому legacy rollback/default path сохранён; Pilot writes и Ops не
+  выполнялись.
