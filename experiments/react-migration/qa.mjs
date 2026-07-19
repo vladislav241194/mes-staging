@@ -612,6 +612,26 @@ try {
   assert.equal(operationsViewModel.filterOperations(operations, "Отмывка")[0]?.id, "op-a");
   assert.equal(operationsViewModel.resolveVisibleOperation(operations, "missing")?.id, "op-b");
 
+  const nomenclatureTypesAdapterOutput = join(temporaryRoot, "nomenclature-types-adapter.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/nomenclature-types/adapter.ts")], outfile: nomenclatureTypesAdapterOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const { adaptNomenclatureTypes } = await import(`${pathToFileURL(nomenclatureTypesAdapterOutput).href}?qa=${Date.now()}`);
+  const nomenclatureTypes = adaptNomenclatureTypes({ nomenclatureTypes: [
+    { id: "type-rea", name: "РЭА компоненты", code: "REA", description: "Электронные компоненты", status: "Активен" },
+    { id: "", name: "invalid" },
+    { id: "type-old", name: "Архив", status: "Отключен" },
+  ] });
+  assert.deepEqual(nomenclatureTypes.map((item) => [item.id, item.code, item.description, item.statusTone]), [
+    ["type-rea", "REA", "Электронные компоненты", "success"],
+    ["type-old", "—", "—", "neutral"],
+  ]);
+  assert.deepEqual(adaptNomenclatureTypes({ nomenclatureTypes: {} }), [], "invalid nomenclature-types payload must fail closed");
+  const nomenclatureTypesViewModelOutput = join(temporaryRoot, "nomenclature-types-view-model.mjs");
+  await build({ entryPoints: [join(sourceRoot, "modules/nomenclature-types/view-model.ts")], outfile: nomenclatureTypesViewModelOutput, bundle: true, platform: "node", format: "esm", target: "node20" });
+  const nomenclatureTypesViewModel = await import(`${pathToFileURL(nomenclatureTypesViewModelOutput).href}?qa=${Date.now()}`);
+  assert.deepEqual(nomenclatureTypesViewModel.buildNomenclatureTypeFilters(nomenclatureTypes).map((entry) => [entry.label, entry.count]), [["Все типы", 2], ["Активен", 1], ["Отключен", 1]]);
+  assert.equal(nomenclatureTypesViewModel.filterNomenclatureTypes(nomenclatureTypes, "Отключен")[0]?.id, "type-old");
+  assert.equal(nomenclatureTypesViewModel.resolveVisibleNomenclatureType(nomenclatureTypes, "missing")?.id, "type-rea");
+
   const selectionOutput = join(temporaryRoot, "selection.mjs");
   await build({
     entryPoints: [join(sourceRoot, "ui/selection.ts")],
@@ -979,6 +999,30 @@ try {
   assert.deepEqual(eligibleDirectoryOperationsHost.prepareRender(), { activateReact: true, reason: "eligible" });
   assert.match(eligibleDirectoryOperationsHost.renderTarget(), /data-react-directory-operations-island/);
 
+  const makeDirectoryNomenclatureTypesHost = (activation) => directoryComponentTypesHostModule.createDirectoryNomenclatureTypesReactIslandHost({
+    getActivation: () => activation,
+    getPayload: () => ({}),
+    getTargetRoot: () => null,
+  });
+  assert.deepEqual(
+    makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: false, activeSection: "nomenclatureTypes", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "disabled" },
+    "Directory Nomenclature Types island must stay disabled by default",
+  );
+  assert.deepEqual(
+    makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: true, activeSection: "operations", accessMode: "read-only-evaluation" }).prepareRender(),
+    { activateReact: false, reason: "unsupported-scope" },
+    "Nomenclature Types React must not take over other directory sections",
+  );
+  assert.deepEqual(
+    makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: true, activeSection: "nomenclatureTypes", accessMode: "editor" }).prepareRender(),
+    { activateReact: false, reason: "write-parity-incomplete" },
+    "Nomenclature Types editors must retain legacy commands",
+  );
+  const eligibleDirectoryNomenclatureTypesHost = makeDirectoryNomenclatureTypesHost({ featureFlagEnabled: true, activeSection: "nomenclatureTypes", accessMode: "read-only-evaluation" });
+  assert.deepEqual(eligibleDirectoryNomenclatureTypesHost.prepareRender(), { activateReact: true, reason: "eligible" });
+  assert.match(eligibleDirectoryNomenclatureTypesHost.renderTarget(), /data-react-directory-nomenclature-types-island/);
+
   const productionAppSource = await readFile(join(repositoryRoot, "src/app.js"), "utf8");
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE === true/);
   assert.match(productionAppSource, /MES_REACT_NOMENCLATURE_READ_ONLY_EVALUATION === true/);
@@ -1020,9 +1064,11 @@ try {
   assert.match(productionAppSource, /params\.get\("react-directory-component-types"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-component-types-readonly"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-directory-component-types-evaluation"\) !== "1"/);
-  assert.match(productionAppSource, /const activeReactHost = useOperationsHost \? directoryOperationsReactIslandHost : directoryComponentTypesReactIslandHost/);
-  assert.match(productionAppSource, /inactiveReactHost\.prepareRender\(\)/);
-  assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);
+  assert.match(productionAppSource, /componentTypes: directoryComponentTypesReactIslandHost/);
+  assert.match(productionAppSource, /operations: directoryOperationsReactIslandHost/);
+  assert.match(productionAppSource, /nomenclatureTypes: directoryNomenclatureTypesReactIslandHost/);
+  assert.match(productionAppSource, /host !== activeReactHost\) host\.prepareRender\(\)/);
+  assert.match(productionAppSource, /activeReactHost\?\.prepareRender\(\)/);
   assert.match(productionAppSource, /directoryComponentTypesReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_OPERATIONS === true/);
   assert.match(productionAppSource, /MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION === true/);
@@ -1031,6 +1077,12 @@ try {
   assert.match(productionAppSource, /params\.get\("react-directory-operations-evaluation"\) !== "1"/);
   assert.match(productionAppSource, /directoryOperationsReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /workCenterLabel: appEventsService\.formatDirectoryCell/);
+  assert.match(productionAppSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES === true/);
+  assert.match(productionAppSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION === true/);
+  assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types-readonly"\) === "1"/);
+  assert.match(productionAppSource, /params\.get\("react-directory-nomenclature-types-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /directoryNomenclatureTypesReactIslandHost\.mount\(\)/);
   const productionHostSource = await readFile(join(repositoryRoot, "src/modules/react_island_host.js"), "utf8");
   assert.match(productionHostSource, /dataset\.reactIslandCommitMs/);
   assert.match(productionHostSource, /performance\?\.now/);
@@ -1045,8 +1097,10 @@ try {
   assert.match(rolesProductionHostSource, /createReactIslandHost/);
   const directoryComponentTypesHostSource = await readFile(join(repositoryRoot, "src/modules/directories/react_island_host.js"), "utf8");
   assert.match(directoryComponentTypesHostSource, /createReactIslandHost/);
-  assert.match(directoryComponentTypesHostSource, /onRequestLegacy\("nomenclatureTypes"\)/);
+  assert.match(directoryComponentTypesHostSource, /onRequestLegacy\("legacy-directory"\)/);
+  assert.match(productionAppSource, /directoryReactLegacyOverride = true/);
   assert.match(directoryComponentTypesHostSource, /createDirectoryOperationsReactIslandHost/);
+  assert.match(directoryComponentTypesHostSource, /createDirectoryNomenclatureTypesReactIslandHost/);
 
   const productionBuildSource = await readFile(join(repositoryRoot, "scripts/build.mjs"), "utf8");
   assert.match(productionBuildSource, /bundleReactMigrationIsland/);
@@ -1056,6 +1110,7 @@ try {
   assert.match(productionBuildSource, /react-islands", "roles\.js/);
   assert.match(productionBuildSource, /react-islands", "component-types\.js/);
   assert.match(productionBuildSource, /react-islands", "operations\.js/);
+  assert.match(productionBuildSource, /react-islands", "nomenclature-types\.js/);
   assert.match(productionBuildSource, /bundleReactMigrationIsland[\s\S]*?jsx: "automatic"/);
   assert.match(productionBuildSource, /nomenclatureReactIslandVersion = await fileHash/);
   assert.match(productionBuildSource, /replaceAll\(nomenclatureReactIslandVersionMarker, nomenclatureReactIslandVersion\)/);
@@ -1064,6 +1119,7 @@ try {
   assert.match(productionBuildSource, /replaceAll\(rolesReactIslandVersionMarker, rolesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryComponentTypesReactIslandVersionMarker, directoryComponentTypesReactIslandVersion\)/);
   assert.match(productionBuildSource, /replaceAll\(directoryOperationsReactIslandVersionMarker, directoryOperationsReactIslandVersion\)/);
+  assert.match(productionBuildSource, /replaceAll\(directoryNomenclatureTypesReactIslandVersionMarker, directoryNomenclatureTypesReactIslandVersion\)/);
 
   const runtimeConfigSource = await readFile(join(repositoryRoot, "scripts/shared-state-storage.mjs"), "utf8");
   assert.match(runtimeConfigSource, /MES_REACT_NOMENCLATURE:.*=== "1"/);
@@ -1078,6 +1134,8 @@ try {
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_OPERATIONS:.*=== "1"/);
   assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES:.*=== "1"/);
+  assert.match(runtimeConfigSource, /MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION:.*=== "1"/);
 
   const { stdout: changedPathsOutput } = await execFileAsync("git", ["diff", "--name-only", acceptedPostgresBaseline], { cwd: repositoryRoot });
   const frozenBackendDiff = changedPathsOutput.split("\n").filter(isFrozenBackendPath);
@@ -1089,6 +1147,7 @@ try {
   assert.match(performanceBudget, /"structureEmployees"/);
   assert.match(performanceBudget, /"componentTypes"/);
   assert.match(performanceBudget, /"operations"/);
+  assert.match(performanceBudget, /"nomenclatureTypes"/);
 
   await execFileAsync(process.execPath, [join(labRoot, "build.mjs")], { cwd: repositoryRoot });
   await execFileAsync(process.execPath, [join(repositoryRoot, "scripts/build.mjs")], { cwd: repositoryRoot });
@@ -1104,6 +1163,8 @@ try {
   assert.match(productionComponentTypesBundle, /mountComponentTypesReactIsland/);
   const productionOperationsBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/operations.js"), "utf8");
   assert.match(productionOperationsBundle, /mountOperationsReactIsland/);
+  const productionNomenclatureTypesBundle = await readFile(join(repositoryRoot, "dist/src/react-islands/nomenclature-types.js"), "utf8");
+  assert.match(productionNomenclatureTypesBundle, /mountNomenclatureTypesReactIsland/);
   const productionAppBundle = await readFile(join(repositoryRoot, "dist/src/app.js"), "utf8");
   assert.doesNotMatch(productionAppBundle, /__MES_NOMENCLATURE_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_BOARDS_REACT_BUNDLE_VERSION__/);
@@ -1111,6 +1172,7 @@ try {
   assert.doesNotMatch(productionAppBundle, /__MES_ROLES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__/);
   assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__/);
+  assert.doesNotMatch(productionAppBundle, /__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUNDLE_VERSION__/);
   console.log(`React migration QA passed: ${sources.length} typed sources, production disabled-by-default island, adapter boundary, UI markers, frozen backend guard, build.`);
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

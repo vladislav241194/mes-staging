@@ -159,3 +159,12 @@ but keeps its own three-column contract and work-center filter. The production
 runtime resolves organization semantics before the typed adapter. Browser QA
 compares the exact legacy and React cells/order and proves that switching back
 to the full legacy directories list cannot loop into another React island.
+
+## Directories Nomenclature Types production evidence
+
+Nomenclature Types reuses the same registry primitives while retaining its
+four-column legacy contract and status filter. The adapter reads the runtime
+projection only after legacy normalization, so the existing synchronization
+from Nomenclature items is preserved rather than duplicated. Production-shell
+QA matched five normalized rows, every visible cell and source order, and
+proved loop-free return to the current full legacy section.

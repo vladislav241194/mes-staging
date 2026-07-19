@@ -33,6 +33,7 @@ Available routes:
 - `/?scenario=structure-employees` — Structure and Employees;
 - `/?scenario=roles` — Roles and access grants;
 - `/?scenario=operations` — Operations directory;
+- `/?scenario=nomenclature-types` — Nomenclature Types directory;
 - append `&lifecycle_qa=1` (or `?lifecycle_qa=1` for Nomenclature) to expose
   the host-owned mount/update/error/unmount test controls.
 - append `react=0` to prove the disabled-by-default path: React is not mounted

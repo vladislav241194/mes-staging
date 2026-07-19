@@ -21,14 +21,15 @@ Current minified measurements:
 | Roles and Access independent entry | 208,801 B | 64,511 B | 225,000 B | 68,000 B |
 | Component Types independent entry | 204,857 B | 63,539 B | 225,000 B | 68,000 B |
 | Operations independent entry | 203,364 B | 63,173 B | 225,000 B | 68,000 B |
-| Full six-scenario lab | 270,072 B | 76,284 B | 280,000 B | 85,000 B |
+| Nomenclature Types independent entry | 203,242 B | 63,096 B | 225,000 B | 68,000 B |
+| Full seven-scenario lab | 276,375 B | 76,915 B | 280,000 B | 85,000 B |
 | Shared lab CSS | 6,017 B | 1,751 B | 6,500 B | 2,100 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure
 Employees and Roles artifacts and rejects unrelated scenario labels. This preserves
 independent vertical slices instead of shipping every lab scenario with an
 individual island. The larger `280,000 B / 85,000 B` limit applies only to the
-five-scenario development lab, never to a production island.
+seven-scenario development lab, never to a production island.
 
 The command is part of `qa.mjs`, so size regressions fail the normal isolated
 contract gate.
@@ -60,6 +61,10 @@ gzip / `54,455 B` Brotli. Its production-shell first commit measured below
 The bundled production Operations island is `200,213 B` raw / `62,802 B`
 gzip / `54,111 B` Brotli. Its production-shell first commit measured below
 `25 ms` locally; this is regression evidence, not Pilot acceptance.
+
+The bundled production Nomenclature Types island is `200,131 B` raw /
+`62,738 B` gzip / `53,938 B` Brotli. Its production-shell first commit was
+`18.6 ms` locally; this is regression evidence, not Pilot acceptance.
 
 All measured paths produced revision `1` then `2`.
 

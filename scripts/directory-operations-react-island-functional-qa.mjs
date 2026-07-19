@@ -148,7 +148,7 @@ async function main() {
     });
     assert(filtered.chosen && filtered.rows > 1 && filtered.selected === 1, "work-center filter must preserve its rows and one selection");
     await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="SidebarItem"]')].find((item) => item.textContent?.includes("Все справочники"))?.click());
-    await waitForCondition(client, () => Boolean(!document.querySelector("[data-react-directory-operations-island]") && document.querySelector('[data-directory-id="nomenclatureTypes"].is-active')), { message: "Operations legacy return did not restore full directory navigation" });
+    await waitForCondition(client, () => Boolean(!document.querySelector("[data-react-directory-operations-island]") && document.querySelector('[data-directory-id="operations"].is-active')), { message: "Operations legacy return did not restore the current full directory navigation" });
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
     assert(await readFile(sharedStateFile, "utf8") === originalSnapshot, "read-only Operations scenario must not modify state");
     console.log("Directory Operations React production-shell functional QA: OK");

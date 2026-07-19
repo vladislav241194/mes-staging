@@ -54,6 +54,12 @@ separate bundle, scope, flags, and typed adapter. The host supplies operations
 in existing runtime order with user-facing work-center labels already resolved
 by production MES logic. React does not own work-center aliasing or routing.
 
+`mountNomenclatureTypesReactIsland(...)` owns only the normalized
+`nomenclatureTypes` read slice. Existing legacy logic remains authoritative for
+automatic type synchronization. The shared directory host uses one explicit
+legacy override so returning from any migrated directory cannot cycle into a
+different React section.
+
 `mountBoardsReactIsland(...)` provides an independently bundled boundary for
 the read-only Boards/BOM scenario. Its production host requires a separate
 false-by-default feature permission, read-only permission, session request and

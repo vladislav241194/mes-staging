@@ -76,7 +76,7 @@ import { createNomenclatureReactIslandHost } from "./modules/nomenclature/react_
 import { createBoardsReactIslandHost } from "./modules/nomenclature/boards_react_island_host.js";
 import { createStructureEmployeesReactIslandHost } from "./modules/production_structure_matrix/react_island_host.js";
 import { createRolesReactIslandHost } from "./modules/access_roles/react_island_host.js";
-import { createDirectoryComponentTypesReactIslandHost, createDirectoryOperationsReactIslandHost } from "./modules/directories/react_island_host.js";
+import { createDirectoryComponentTypesReactIslandHost, createDirectoryNomenclatureTypesReactIslandHost, createDirectoryOperationsReactIslandHost } from "./modules/directories/react_island_host.js";
 import { createLazyGanttRuntimeModule } from "./modules/gantt_runtime/lazy_facade.js";
 import { createPlanningRoutesServiceModule } from "./modules/planning_routes/service.js";
 import { createPlanningCoreServiceModule } from "./modules/planning_core/service.js";
@@ -2448,12 +2448,13 @@ function isDirectoryComponentTypesReactEvaluationRequested() {
   if (params.get("react-directory-component-types-evaluation") !== "1") return false;
   return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
 }
+let directoryReactLegacyOverride = false;
 const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReactIslandHost({
   getActivation: () => {
     const localQa = getDirectoryComponentTypesReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES_READ_ONLY_EVALUATION === true;
     return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES === true || localQa.featureFlagEnabled,
+      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_COMPONENT_TYPES === true || localQa.featureFlagEnabled),
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
       accessMode: (serverEvaluationAllowed && isDirectoryComponentTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
@@ -2463,7 +2464,7 @@ const directoryComponentTypesReactIslandHost = createDirectoryComponentTypesReac
   getPayload: () => directoryState,
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, sectionId) => {
-    ui.activeDirectory = normalizeDirectorySectionId(sectionId || "operations");
+    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
   },
 });
@@ -2487,7 +2488,7 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
     const localQa = getDirectoryOperationsReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION === true;
     return {
-      featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_OPERATIONS === true || localQa.featureFlagEnabled,
+      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_OPERATIONS === true || localQa.featureFlagEnabled),
       activeSection: normalizeDirectorySectionId(ui.activeDirectory),
       accessMode: (serverEvaluationAllowed && isDirectoryOperationsReactEvaluationRequested()) || localQa.readOnlyEvaluation
         ? "read-only-evaluation"
@@ -2502,7 +2503,41 @@ const directoryOperationsReactIslandHost = createDirectoryOperationsReactIslandH
   }),
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, sectionId) => {
-    ui.activeDirectory = normalizeDirectorySectionId(sectionId || "nomenclatureTypes");
+    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
+    if (ui.activeModule === "directories") render({ skipRememberScroll: true });
+  },
+});
+function getDirectoryNomenclatureTypesReactLocalQaOverrides() {
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  return {
+    featureFlagEnabled: params.get("react-directory-nomenclature-types") === "1",
+    readOnlyEvaluation: params.get("react-directory-nomenclature-types-readonly") === "1",
+  };
+}
+function isDirectoryNomenclatureTypesReactEvaluationRequested() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("react-directory-nomenclature-types-evaluation") !== "1") return false;
+  return params.get("qa-auth-bypass") === "1" || Boolean(getAuthenticatedAccessPerson());
+}
+const directoryNomenclatureTypesReactIslandHost = createDirectoryNomenclatureTypesReactIslandHost({
+  getActivation: () => {
+    const localQa = getDirectoryNomenclatureTypesReactLocalQaOverrides();
+    const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_NOMENCLATURE_TYPES_READ_ONLY_EVALUATION === true;
+    return {
+      featureFlagEnabled: !directoryReactLegacyOverride && (MES_RUNTIME_CONFIG.MES_REACT_DIRECTORY_NOMENCLATURE_TYPES === true || localQa.featureFlagEnabled),
+      activeSection: normalizeDirectorySectionId(ui.activeDirectory),
+      accessMode: (serverEvaluationAllowed && isDirectoryNomenclatureTypesReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor",
+    };
+  },
+  getPayload: () => directoryState,
+  getTargetRoot: () => app,
+  requestLegacyRender: (_reason, sectionId) => {
+    if (sectionId === "legacy-directory") directoryReactLegacyOverride = true;
     if (ui.activeModule === "directories") render({ skipRememberScroll: true });
   },
 });
@@ -6174,21 +6209,27 @@ function initializeModuleRuntime() {
             content: renderUiEmptyState({ title: "Не удалось загрузить модуль", description: "Обновите страницу. Если ошибка повторится, передайте время появления в поддержку." }),
           });
         }
-        const useOperationsHost = normalizeDirectorySectionId(ui.activeDirectory) === "operations";
-        const activeReactHost = useOperationsHost ? directoryOperationsReactIslandHost : directoryComponentTypesReactIslandHost;
-        const inactiveReactHost = useOperationsHost ? directoryComponentTypesReactIslandHost : directoryOperationsReactIslandHost;
-        inactiveReactHost.prepareRender();
-        const reactDecision = activeReactHost.prepareRender();
-        if (reactDecision.activateReact) return activeReactHost.renderTarget();
+        const directoryReactHosts = {
+          componentTypes: directoryComponentTypesReactIslandHost,
+          operations: directoryOperationsReactIslandHost,
+          nomenclatureTypes: directoryNomenclatureTypesReactIslandHost,
+        };
+        const activeReactHost = directoryReactHosts[normalizeDirectorySectionId(ui.activeDirectory)];
+        Object.values(directoryReactHosts).forEach((host) => {
+          if (host !== activeReactHost) host.prepareRender();
+        });
+        const reactDecision = activeReactHost?.prepareRender();
+        if (reactDecision?.activateReact) return activeReactHost.renderTarget();
         return renderDirectoryPage();
       },
       bind: () => {
-        if (directoryComponentTypesReactIslandHost.isReactEligible() || directoryOperationsReactIslandHost.isReactEligible()) return;
+        if (directoryComponentTypesReactIslandHost.isReactEligible() || directoryOperationsReactIslandHost.isReactEligible() || directoryNomenclatureTypesReactIslandHost.isReactEligible()) return;
         bindDirectoryEvents();
       },
       afterRender: () => {
         void directoryComponentTypesReactIslandHost.mount();
         void directoryOperationsReactIslandHost.mount();
+        void directoryNomenclatureTypesReactIslandHost.mount();
       },
     },
     specifications2: {

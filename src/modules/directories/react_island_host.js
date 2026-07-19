@@ -2,6 +2,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 
 const COMPONENT_TYPES_VERSION = "__MES_DIRECTORY_COMPONENT_TYPES_REACT_BUNDLE_VERSION__";
 const OPERATIONS_VERSION = "__MES_DIRECTORY_OPERATIONS_REACT_BUNDLE_VERSION__";
+const NOMENCLATURE_TYPES_VERSION = "__MES_DIRECTORY_NOMENCLATURE_TYPES_REACT_BUNDLE_VERSION__";
 
 function createDirectoryReadIslandHost({
   bundleName,
@@ -41,7 +42,7 @@ function createDirectoryReadIslandHost({
       loadedIsland[mountExport](target, payload, {
         onError,
         onReady,
-        onRequestLegacy: () => onRequestLegacy("nomenclatureTypes"),
+        onRequestLegacy: () => onRequestLegacy("legacy-directory"),
       })
     ),
   });
@@ -70,5 +71,18 @@ export function createDirectoryOperationsReactIslandHost(options = {}) {
     reportError: options.reportError || ((error) => console.error("[MES] Directory Operations React island failed", error)),
     scope: "operations",
     targetAttribute: "data-react-directory-operations-island",
+  });
+}
+
+export function createDirectoryNomenclatureTypesReactIslandHost(options = {}) {
+  return createDirectoryReadIslandHost({
+    ...options,
+    bundleName: "nomenclature-types",
+    bundleVersion: NOMENCLATURE_TYPES_VERSION,
+    className: "mes-react-directory-nomenclature-types-island",
+    mountExport: "mountNomenclatureTypesReactIsland",
+    reportError: options.reportError || ((error) => console.error("[MES] Directory Nomenclature Types React island failed", error)),
+    scope: "nomenclatureTypes",
+    targetAttribute: "data-react-directory-nomenclature-types-island",
   });
 }
