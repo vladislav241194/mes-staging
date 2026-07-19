@@ -2914,9 +2914,27 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "workCenters"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   executeCommand: async (command = {}) => {
     const localQa = getStructureWorkCentersReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда рабочего центра недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) return { ok: false, message: "Команда рабочего центра недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("workCenters")) return { ok: false, message: "PostgreSQL-команда или право редактирования рабочих центров недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "reactivate") {
+      const workCenterId = String(input.workCenterId || "").trim(); const registries = getSystemDomainsRegistries();
+      const workCenter = (registries.workCenters || []).find((row) => row.id === workCenterId);
+      if (!workCenter || workCenter.isActive !== false) return { ok: false, message: "Архивный рабочий центр больше не существует." };
+      const orgUnitId = String(workCenter.orgUnitId || "").trim(); const parentWorkCenterId = String(workCenter.parentWorkCenterId || "").trim();
+      if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите подразделение рабочего центра." };
+      if (parentWorkCenterId && !(registries.workCenters || []).some((row) => row.id === parentWorkCenterId && row.isActive !== false)) return { ok: false, message: "Сначала восстановите родительский рабочий центр." };
+      try {
+        const result = await upsertSystemDomainEntity("workCenters", { ...workCenter, isActive: true, archivedAt: "" }, { source: "react:structure-work-centers:reactivate", operation: "update", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Восстановление рабочего центра отклонено проверкой System Domains." };
+        const authoritativeWorkCenter = (getSystemDomainsRegistries().workCenters || []).find((row) => row.id === workCenterId);
+        if (!authoritativeWorkCenter || authoritativeWorkCenter.isActive === false || authoritativeWorkCenter.archivedAt) return { ok: false, message: "Владелец рабочих центров не подтвердил восстановление." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: workCenterId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные рабочего центра изменились в другом сеансе. Проверьте значения и повторите восстановление." : error?.message || "Сервер не принял восстановление рабочего центра." };
+      }
+    }
     if (command.type === "archive") {
       const workCenterId = String(input.workCenterId || "").trim(); const registries = getSystemDomainsRegistries();
       const workCenter = (registries.workCenters || []).find((row) => row.id === workCenterId);
@@ -2940,6 +2958,8 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
     const orgUnitId = String(input.orgUnitId || "").trim();
     const parentWorkCenterId = String(input.parentWorkCenterId || "").trim();
     const registries = getSystemDomainsRegistries(); const workCenters = registries.workCenters || [];
+    const currentWorkCenter = workCenters.find((row) => row.id === workCenterId);
+    if (input.isNew !== true && !currentWorkCenter) return { ok: false, message: "Рабочий центр больше не существует." };
     if (!name) return { ok: false, message: "Заполните название рабочего центра." };
     if (orgUnitId && !(registries.orgUnits || []).some((row) => row.id === orgUnitId)) return { ok: false, message: "Выбранное подразделение больше не существует." };
     if (parentWorkCenterId && !workCenters.some((row) => row.id === parentWorkCenterId)) return { ok: false, message: "Выбранный родительский рабочий центр больше не существует." };
@@ -2947,7 +2967,7 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
     const parents = new Map(workCenters.map((row) => [String(row.id || ""), String(row.parentWorkCenterId || "")])); let ancestorId = parentWorkCenterId; const visited = new Set();
     while (ancestorId && !visited.has(ancestorId)) { if (ancestorId === workCenterId) return { ok: false, message: "Выбранный родитель создаёт цикл в иерархии рабочих центров." }; visited.add(ancestorId); ancestorId = parents.get(ancestorId) || ""; }
     try {
-      const result = await upsertSystemDomainEntity("workCenters", { id: workCenterId, name, code: String(input.code || "").trim(), orgUnitId, parentWorkCenterId, participatesInPlanning: input.participatesInPlanning !== false, showInGantt: input.showInGantt !== false, isActive: input.isActive !== false }, { source: "react:structure-work-centers", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
+      const result = await upsertSystemDomainEntity("workCenters", { id: workCenterId, name, code: String(input.code || "").trim(), orgUnitId, parentWorkCenterId, participatesInPlanning: input.participatesInPlanning !== false, showInGantt: input.showInGantt !== false, isActive: currentWorkCenter?.isActive !== false }, { source: "react:structure-work-centers", operation: input.isNew === true ? "create" : "update", serverCommand: true, surface: "production-structure" });
       if (result !== true) return { ok: false, message: "Изменение рабочего центра отклонено проверкой System Domains." };
       queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
       return { ok: true, id: workCenterId };

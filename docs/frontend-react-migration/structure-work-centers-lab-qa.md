@@ -1,18 +1,21 @@
 # Structure Work Centers React migration QA
 
-Date: 2026-07-19
+Date: 2026-07-20
 Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Read and local-only create/edit/archive vertical scenario:
+Read and local-only create/edit/archive/reactivate vertical scenario:
 
 `open Structure and Employees -> Work Centers -> select a center -> inspect its passport`.
 
 The typed adapter consumes the authenticated PostgreSQL System Domains snapshot,
 preserves all stable IDs and resolves organization and parent-center references.
 The write-gated editor delegates to the existing revision-checked System Domains
-owner; Pilot remains read-only and default-off.
+owner. Ordinary save is lifecycle-neutral. Archive/reactivation are separate
+ID-bound commands; reactivation requires active organization/parent references,
+clears `archivedAt` and preserves Planning/Gantt flags. Pilot remains read-only
+and default-off.
 
 ## Evidence
 
@@ -33,13 +36,16 @@ owner; Pilot remains read-only and default-off.
 - ID-bound confirmation cannot move to another selected row; the created leaf
   is archived with `isActive=false` and a valid `archivedAt` while its cleared
   parent, hidden marker, organization and Planning/Gantt flags are preserved;
-- legacy reads back the twentieth row as archived;
-- Planning/Gantt impact QA proves opt-out, restore, archive and new-center
+- ordinary edit exposes no lifecycle control; explicit reactivation clears the
+  archive marker while preserving hierarchy, hidden fields and Planning/Gantt flags;
+- legacy reads back the twentieth row as active;
+- Planning/Gantt impact QA proves opt-out, restore, archive, reactivation and new-center
   catalog behavior, plus stable employee/Shift IDs across rename;
-- latest local first commit was `27.30 ms`.
+- latest local first commit was `20.10 ms`.
 
-The independent production entry is `216,718 B` raw / `65,617 B` gzip. Separate
-read adapters keep the full lab at `556,607 B` raw / `126,132 B` gzip.
+The independent production entry is `217,407 B` raw / `65,683 B` gzip; bundled
+production is `209,584 B` raw / `65,205 B` gzip / `56,301 B` Brotli. Separate
+read adapters keep the full lab at `557,101 B` raw / `126,296 B` gzip.
 It remains false by default.
 
 ## Pilot acceptance

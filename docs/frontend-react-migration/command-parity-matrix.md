@@ -48,8 +48,8 @@ Structure Employees,
 Structure Positions, Structure Org Units, Structure Work Centers, Structure
 Equipment and Structure Responsibility Policies now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner; Positions, Org Units, Work Centers and
-Equipment also have explicit archive, while Employees and Org Units have
-explicit archive and reactivation.
+Equipment also have explicit archive, while Employees, Org Units and Work
+Centers have explicit archive and reactivation.
 Other reference-sensitive,
 lifecycle, import and other delete commands remain explicit legacy-only
 slices. Timesheet now has locally complete single-day attendance and permanent
@@ -122,7 +122,7 @@ endpoint and performs no backup, sync, promote or rollback operation.
 | 10 | Structure Org Units | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy-cycle, active-reference and active-parent guards | High | Separately gated Pilot lifecycle evaluation with a disposable leaf unit and verified cleanup |
 | 11 | Structure Equipment | Local complete: create/edit/archive with organization, work-center, quantity, schedule validation and explicit archive confirmation | High | Separately gated Pilot write evaluation with disposable equipment; scheduling commands remain legacy |
 | 12 | Structure Responsibility Policies | Local complete: create/edit with mode, unique master and allowed-employee validation; archive blocked by owner persistence gap | High | Define an owner/schema contract that persists lifecycle before archive or Pilot write evaluation |
-| 13 | Structure Work Centers | Local complete: create/edit/archive with organization, parent hierarchy, active-reference rejection and Planning/Gantt flags | High | Separately gated Pilot create/edit/archive evaluation with a disposable leaf work center; reactivation remains owner-gap |
+| 13 | Structure Work Centers | Local complete: lifecycle-neutral create/edit plus explicit archive/reactivate with hierarchy, active-reference and active-parent guards while preserving Planning/Gantt flags | High | Separately gated Pilot lifecycle evaluation with a disposable leaf work center and verified cleanup |
 | 14 | Timesheet | Local complete: one-day attendance plus permanent schedule save/remove | High | Separately gated Pilot write evaluation on disposable attendance and schedule coordinates |
 | 15 | Roles and Access | Local complete: role label, description, default module, six-action grant toggles and role default scope; assignments, personal/assignment scopes and lifecycle remain legacy | Critical | Separately gated Pilot metadata/grant/default-scope write evaluation |
 | 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
@@ -239,19 +239,20 @@ cleared archive marker without changing its parent. The twentieth active row
 returns through legacy and the disposable compatibility snapshot remains unchanged. Pilot write
 acceptance is a separate controlled checkpoint.
 
-Structure Work Centers adds hierarchy-safe PostgreSQL create/edit/archive for name,
-code, organization, parent, Planning participation, Gantt visibility and active
-state. The impact audit repaired two runtime projection defects: an explicitly
+Structure Work Centers adds hierarchy-safe PostgreSQL create/edit/archive/reactivate for name,
+code, organization, parent, Planning participation and Gantt visibility; ordinary
+save is lifecycle-neutral. The impact audit repaired two runtime projection defects: an explicitly
 cleared parent could return from the legacy fallback, and explicit false
 Planning/Gantt flags could be re-enabled through legacy `isPlanningUnit`.
-Executable owner QA now proves opt-out, restore, archive and new-center behavior
+Executable owner QA now proves opt-out, restore, archive, reactivation and new-center behavior
 in the shared Planning/Gantt catalog while stable employee/Shift references
 survive rename. Production-shell QA rejects an indirect hierarchy cycle before
 PUT and rejects archive of a baseline center referenced by an active child,
 position, equipment or employment assignment. It preserves hidden/reference
-fields, exercises conflict-without-mutation plus retry and ID-bound archive
-confirmation, returns the twentieth archived row through legacy and leaves the
-disposable compatibility snapshot unchanged. Reactivation remains an owner gap;
+fields, exercises conflict-without-mutation plus retry and ID-bound lifecycle
+confirmations, restores `isActive=true` with cleared `archivedAt` without
+changing hierarchy/Planning/Gantt flags, returns the twentieth active row
+through legacy and leaves the disposable compatibility snapshot unchanged.
 Pilot write acceptance is a separate controlled checkpoint.
 
 Structure Equipment adds PostgreSQL create/edit for all seven legacy fields and

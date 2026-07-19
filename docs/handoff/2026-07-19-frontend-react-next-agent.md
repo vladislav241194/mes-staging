@@ -505,3 +505,25 @@ actions/console, затем немедленно деактивировать и
   выполнено, примерно `9%` осталось (`+1 п.п.`). Прирост относится к полностью
   замкнутому локальному Org Units lifecycle; Pilot write acceptance и другие
   legacy-only scopes остаются вне этой оценки.
+
+## Продолжение 2026-07-20: Structure Work Centers reactivation checkpoint
+
+- Закрыт Work Centers lifecycle gap: typed save больше не несёт `isActive`, а
+  UI не позволяет менять lifecycle через обычный editor. Archive/reactivate —
+  отдельные ID-bound двухшаговые команды.
+- Reactivation валидирует архивный target, активные organization/parent refs и
+  делегирует existing `upsertSystemDomainEntity("workCenters", ...)` owner с
+  `isActive=true`/`archivedAt=""`. Authoritative read-back обязателен; hidden,
+  hierarchy и explicit Planning/Gantt flags сохраняются.
+- Production-shell QA доказывает lifecycle-neutral save, hierarchy/dependency
+  rejection, conflict/retry, archive/reactivate, exact revision/If-Match/
+  idempotency и active 20-row legacy read-back. Отдельный impact QA доказывает
+  возврат reactivated opted-in центра в Planning/Gantt без переписывания
+  employee/Shift stable IDs. First commit `20.10 ms`.
+- Performance: independent `217407 / 65683 B`, bundled production
+  `209584 / 65205 / 56301 B`, full lab `557101 / 126296 B`; gates зелёные.
+  Pilot write/deploy/version/flags не менялись, legacy rollback сохранён.
+- После блока доказательная оценка глобальной миграции: примерно `92%`
+  выполнено, примерно `8%` осталось (`+1 п.п.`). Прирост относится к замкнутому
+  локальному Work Centers lifecycle; Pilot write acceptance и прочие
+  legacy-only scopes не переоценены.

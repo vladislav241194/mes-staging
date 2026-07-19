@@ -41,9 +41,17 @@ assert.equal(planning.isPlanningWorkCenter(restored), true, "Planning must inclu
 assert.ok(planning.getPlanningWorkCenters().some((row) => row.id === restored.id), "Gantt all-row catalog must include an explicitly restored center");
 
 edited.isActive = false;
+edited.archivedAt = "2026-07-20T00:00:00.000Z";
 planningState = { workCenters: projectSystemDomainWorkCenters(editedDomains, legacyWorkCenters) };
 const archived = planningState.workCenters.find((row) => row.domainId === edited.id);
 assert.equal(planning.isPlanningWorkCenter(archived), false, "Archived center must leave Planning/Gantt catalogs");
+
+edited.isActive = true;
+edited.archivedAt = "";
+planningState = { workCenters: projectSystemDomainWorkCenters(editedDomains, legacyWorkCenters) };
+const reactivated = planningState.workCenters.find((row) => row.domainId === edited.id);
+assert.equal(planning.isPlanningWorkCenter(reactivated), true, "Reactivated opted-in center must return to Planning");
+assert.ok(planning.getPlanningWorkCenters().some((row) => row.id === reactivated.id), "Reactivated opted-in center must return to Gantt catalog");
 
 const newCenterId = "WC-REACT-IMPACT-QA";
 editedDomains.registries.workCenters.push({ id: newCenterId, code: "QA-WC", name: "Рабочий центр QA", orgUnitId: editedDomains.registries.orgUnits[0].id, parentWorkCenterId: "", participatesInPlanning: true, showInGantt: true, isActive: true });
@@ -63,5 +71,5 @@ assert.deepEqual(afterEmployee.workCenterIds, beforeEmployee.workCenterIds, "ren
 
 console.log("Work Center Planning/Gantt impact QA: OK");
 console.log("- explicit parent clear and Planning/Gantt opt-out: pass");
-console.log("- restore, archive and new-center catalog behavior: pass");
+console.log("- restore, archive, reactivation and new-center catalog behavior: pass");
 console.log("- stable employee/Shift work-center reference across rename: pass");

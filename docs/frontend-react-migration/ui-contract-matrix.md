@@ -183,7 +183,9 @@ confirmations, and restoration cannot silently change the parent hierarchy.
 Work Centers reuses the same registry, metric, table, selection, detail and
 status contracts. Its adapter preserves 19 stable IDs and resolves organization
 and parent hierarchy from one PostgreSQL projection. Five cells and order match
-legacy literally; planning, Gantt and editor commands remain outside React.
+legacy literally. The local editor keeps Planning/Gantt flags explicit but
+removes lifecycle from ordinary save; archive/reactivate use center-bound
+two-step confirmations and cannot silently rewrite hierarchy or planning flags.
 
 ## Structure Equipment read-model evidence
 

@@ -1468,6 +1468,8 @@ try {
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_WORK_CENTERS === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION === true/);
   assert.match(productionAppSource, /params\.get\("react-structure-work-centers-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /source: "react:structure-work-centers:reactivate"/, "Work Centers reactivation must use the existing System Domains owner");
+  assert.match(productionAppSource, /authoritativeWorkCenter\.archivedAt/, "Work Centers reactivation must reject a retained archive marker");
   assert.match(productionAppSource, /structureWorkCentersReactIslandHost\.mount\(\)/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EQUIPMENT === true/);
   assert.match(productionAppSource, /MES_REACT_STRUCTURE_EQUIPMENT_READ_ONLY_EVALUATION === true/);

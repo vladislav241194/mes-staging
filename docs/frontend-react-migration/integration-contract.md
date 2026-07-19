@@ -139,15 +139,17 @@ requires an active parent, clears `archivedAt` through the owner and accepts onl
 an authoritative active read-back.
 
 `mountStructureWorkCentersReactIsland(...)` owns the Work Centers read table,
-passport and a local-only create/edit/archive evaluation. Organization and parent-center
+passport and a local-only create/edit/archive/reactivate evaluation. Organization and parent-center
 references are resolved at the typed boundary. The host validates reference
 existence and hierarchy cycles before delegating the revision-checked command;
 Planning participation and Gantt visibility remain explicit canonical fields.
 Archive requires ID-bound second-step confirmation and delegates to the existing
 `archiveSystemDomainEntity` owner. The host rechecks the active target and rejects
 work centers referenced by active child centers, positions, equipment or
-employment assignments before PUT. Reactivation and unsupported lifecycle
-commands remain legacy.
+employment assignments before PUT. Ordinary save cannot change lifecycle.
+Reactivation has its own ID-bound confirmation, requires active organization and
+parent references, clears `archivedAt` through the existing upsert owner and
+accepts only authoritative active read-back while retaining Planning/Gantt flags.
 
 `mountStructureEquipmentReactIsland(...)` owns the Equipment read table,
 passport and a local-only create/edit/archive evaluation. Organization,
