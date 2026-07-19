@@ -1,13 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActionButton, EmptyState, MetricCard, MetricGrid, ModuleHeader, ModulePage, ModuleSidebar, Panel, SidebarItem, StatusToken, TableWrap } from "../../ui/components";
 import { adaptPlanningWorkbench } from "./adapter";
 
 export type PlanningWorkbenchReactNavigation = { type: "select-route" | "select-item"; id: string };
+export type PlanningWorkbenchReactCommand = { type: "change-quantity"; routeId: string; quantity: string };
 
-export function PlanningWorkbenchScenario({ payload, onNavigate }: { payload: unknown; onNavigate?(navigation: PlanningWorkbenchReactNavigation): Promise<{ ok?: boolean; message?: string } | void> }) {
+export function PlanningWorkbenchScenario({ payload, onCommand, onNavigate }: { payload: unknown; onCommand?(command: PlanningWorkbenchReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onNavigate?(navigation: PlanningWorkbenchReactNavigation): Promise<{ ok?: boolean; message?: string } | void> }) {
   const model = useMemo(() => adaptPlanningWorkbench(payload), [payload]);
   const [navigationError, setNavigationError] = useState("");
   const [navigating, setNavigating] = useState(false);
+  const [quantityDraft, setQuantityDraft] = useState(String(model.quantity || 1));
+  const [commandError, setCommandError] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setQuantityDraft(String(model.quantity || 1));
+    setCommandError("");
+  }, [model.activeRouteId, model.quantity]);
   const navigate = async (navigation: PlanningWorkbenchReactNavigation) => {
     if (!onNavigate || navigating) return;
     setNavigating(true); setNavigationError("");
@@ -15,12 +23,21 @@ export function PlanningWorkbenchScenario({ payload, onNavigate }: { payload: un
     catch (error) { setNavigationError(error instanceof Error ? error.message : "Не удалось изменить выбор."); }
     finally { setNavigating(false); }
   };
+  const saveQuantity = async () => {
+    if (!onCommand || saving) return;
+    setSaving(true); setCommandError("");
+    try { const result = await onCommand({ type: "change-quantity", routeId: model.activeRouteId, quantity: quantityDraft }); if (result && result.ok === false) setCommandError(result.message || "Тираж не сохранён."); }
+    catch (error) { setCommandError(error instanceof Error ? error.message : "Тираж не сохранён."); }
+    finally { setSaving(false); }
+  };
   const header = <ModuleHeader eyebrow="Планирование" title="Заказ-наряды" badge={<StatusToken label={model.projectionSource === "server" ? "PostgreSQL read" : "snapshot fallback"} tone={model.projectionSource === "server" ? "success" : "warning"} />} />;
   const sidebar = <ModuleSidebar label="Список заказ-нарядов" title="Заказ-наряды">{model.queue.map((item) => <SidebarItem active={item.active} count={item.operationCount} key={item.id} label={item.title} meta={<>{item.meta} · {item.statusLabel}</>} onClick={() => void navigate({ type: "select-route", id: item.id })} />)}</ModuleSidebar>;
   return <ModulePage header={header} sidebar={sidebar}><section className="workspace-main planning-order-workspace" data-planning-workbench-react>
     {model.canActivate ? <>
-      <Panel heading={<div className="panel-heading"><div><StatusToken label={model.decision.title} tone={model.decision.tone} /><h2>{model.headerDescription}</h2><p>{model.decision.subtitle}</p></div><div><ActionButton disabled title="Изменение тиража остаётся в legacy">Сохранить тираж</ActionButton>{" "}<ActionButton disabled title="Передача в Гант остаётся в legacy">Передать в планирование</ActionButton></div></div>}>
+      <Panel heading={<div className="panel-heading"><div><StatusToken label={model.decision.title} tone={model.decision.tone} /><h2>{model.headerDescription}</h2><p>{model.decision.subtitle}</p></div><ActionButton disabled title="Передача в Гант остаётся в legacy">Передать в планирование</ActionButton></div>}>
         <MetricGrid label="Готовность заказ-наряда">{model.metrics.map((metric) => <MetricCard key={metric.id} label={metric.label} value={metric.value} meta={metric.meta} />)}</MetricGrid>
+        <form className="planning-order-decision-quantity" data-react-planning-quantity-form onSubmit={(event) => { event.preventDefault(); void saveQuantity(); }}><label><span>Тираж, шт.</span><input disabled={!model.canEditQuantity || saving} min="1" name="quantity" onChange={(event) => setQuantityDraft(event.currentTarget.value)} required step="1" type="number" value={quantityDraft} /></label><button className="action action--primary" disabled={!model.canEditQuantity || saving} type="submit">{saving ? "Сохранение…" : "Сохранить тираж"}</button></form>
+        {commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}
       </Panel>
       <Panel heading={<div><h2>Дерево заказ-наряда</h2><p>{model.quantity.toLocaleString("ru-RU")} шт. · только чтение</p></div>}>
         {navigationError ? <p className="react-nomenclature-command-error" role="alert">{navigationError}</p> : null}

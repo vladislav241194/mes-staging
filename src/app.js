@@ -2918,10 +2918,10 @@ const timesheetReactIslandHost = createTimesheetReactIslandHost({
 });
 function getPlanningWorkbenchReactLocalQaOverrides() {
   const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
-  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false };
+  if (!localHosts.has(window.location.hostname)) return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
   const params = new URLSearchParams(window.location.search);
-  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false };
-  return { featureFlagEnabled: params.get("react-planning-workbench") === "1", readOnlyEvaluation: params.get("react-planning-workbench-readonly") === "1" };
+  if (params.get("qa-auth-bypass") !== "1") return { featureFlagEnabled: false, readOnlyEvaluation: false, writeEvaluation: false };
+  return { featureFlagEnabled: params.get("react-planning-workbench") === "1", readOnlyEvaluation: params.get("react-planning-workbench-readonly") === "1", writeEvaluation: params.get("react-planning-workbench-write") === "1" };
 }
 function isPlanningWorkbenchReactEvaluationRequested() {
   const params = new URLSearchParams(window.location.search);
@@ -2936,10 +2936,10 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     return {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_PLANNING_WORKBENCH === true || localQa.featureFlagEnabled,
       serverReadReady: readStatus.bootstrapAvailable === true && !readStatus.bootstrapLoading && !readStatus.bootstrapError && Boolean(getDomainWorkOrderDetail(ui.activeRouteId)),
-      accessMode: (serverEvaluationAllowed && isPlanningWorkbenchReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isPlanningWorkbenchReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
     };
   },
-  getPayload: () => ({ model: getPlanningWorkbenchModel() }),
+  getPayload: () => { const model = getPlanningWorkbenchModel(); const localQa = getPlanningWorkbenchReactLocalQaOverrides(); return { model, capabilities: { quantityEdit: localQa.writeEvaluation && model.projectionSource === "server" && authorizeSystemDomainAction("planning", "edit") } }; },
   getTargetRoot: () => app,
   requestLegacyRender: (_reason, scope = "") => {
     const [action, ...parts] = String(scope || "").split(":");
@@ -2968,6 +2968,21 @@ const planningWorkbenchReactIslandHost = createPlanningWorkbenchReactIslandHost(
     }
     if (ui.activeModule === "planning") render({ skipRememberScroll: true });
     return { ok: true, id };
+  },
+  executeCommand: async (command = {}) => {
+    const localQa = getPlanningWorkbenchReactLocalQaOverrides();
+    if (!localQa.writeEvaluation || command.type !== "change-quantity") return { ok: false, message: "Изменение тиража недоступно." };
+    if (!authorizeSystemDomainAction("planning", "edit")) return { ok: false, message: "Нет права изменять заказ-наряд." };
+    const model = getPlanningWorkbenchModel(); const routeId = String(command.routeId || "").trim(); const quantity = Number(command.quantity);
+    if (!routeId || routeId !== model.activeRouteId || !model.queue.some((route) => route.id === routeId)) return { ok: false, message: "Заказ-наряд больше не является активным." };
+    if (!Number.isInteger(quantity) || quantity <= 0) return { ok: false, message: "Укажите целое количество изделий больше нуля." };
+    if (model.projectionSource !== "server") return { ok: false, message: "PostgreSQL-проекция заказ-наряда недоступна." };
+    const updated = await changePlanningRouteQuantity(routeId, quantity, { updateSlots: true, requireServerCommand: true, renderOnConflict: false, message: "Тираж заказ-наряда и незавершённые операции пересчитаны" });
+    if (updated !== true) return { ok: false, message: "Тираж не сохранён. Данные могли измениться в другом сеансе — проверьте значения и повторите." };
+    const bootstrapReady = await hydratePlanningWorkbenchBootstrap({ force: true, renderOnChange: false });
+    if (!bootstrapReady || !getDomainWorkOrderDetail(routeId)) return { ok: false, message: "Тираж сохранён, но обновлённый заказ-наряд пока не загружен. Обновите экран." };
+    queueMicrotask(() => { if (ui.activeModule === "planning") render({ skipRememberScroll: true }); });
+    return { ok: true, id: routeId, quantity };
   },
 });
 function getShiftWorkOrdersReactLocalQaOverrides() {
@@ -5726,12 +5741,12 @@ async function mirrorShiftMasterBoardCarryoverRemovalToServer(row, carryover, { 
   }
 }
 async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
-  if (!await ensurePlanningDomainApiModule()) return syncPlanningRouteQuantity(routeId, quantity, options);
+  if (!await ensurePlanningDomainApiModule()) return options.requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   const route = (planningState?.routes || []).find((item) => item.id === routeId);
   const projected = workOrdersReadModel.getItems().find((item) => String(item.id) === String(routeId));
   const expectedRevision = Number(projected?.concurrencyRevision ?? route?.domainConcurrencyRevision);
-  if (!route || !Number.isInteger(expectedRevision)) {
-    return syncPlanningRouteQuantity(routeId, quantity, options);
+  if ((!route && options.requireServerCommand !== true) || !Number.isInteger(expectedRevision)) {
+    return options.requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   }
   const result = await workOrdersReadModel.changeQuantity(routeId, quantity, expectedRevision);
   if (result.ok) {
@@ -5743,6 +5758,10 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
       hydratePlanningRuntimeProjection({ force: true }),
     ]);
     if (serverProjectionApplied) return true;
+    if (options.requireServerCommand === true) {
+      invalidateWeeklyPlanningPeriod();
+      return true;
+    }
     const fallbackApplied = syncPlanningRouteQuantity(routeId, quantity, {
       ...options,
       domainConcurrencyRevision: result.item.concurrencyRevision,
@@ -5758,7 +5777,7 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
     return fallbackApplied;
   }
   if (result.kind === "unavailable") {
-    return syncPlanningRouteQuantity(routeId, quantity, options);
+    return options.requireServerCommand ? false : syncPlanningRouteQuantity(routeId, quantity, options);
   }
   if (result.kind === "conflict") {
     await Promise.all([
@@ -5766,7 +5785,7 @@ async function changePlanningRouteQuantity(routeId, quantity, options = {}) {
       workOrdersReadModel.refreshDetail(routeId, { force: true }),
     ]);
     notifySaveSuccess("Количество уже изменено в другом сеансе. Экран обновлён.");
-    render();
+    if (options.renderOnConflict !== false) render();
   }
   return false;
 }

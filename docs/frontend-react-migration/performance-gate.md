@@ -15,7 +15,7 @@ Current minified measurements:
 
 | Artifact | Raw | Gzip | Budget raw | Budget gzip |
 | --- | ---: | ---: | ---: | ---: |
-| Nomenclature production island | 210,915 B | 64,817 B | 225,000 B | 68,000 B |
+| Nomenclature production island | 213,750 B | 65,271 B | 225,000 B | 68,000 B |
 | Boards/BOM production island | 212,565 B | 65,324 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 216,825 B | 65,878 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 215,168 B | 65,465 B | 225,000 B | 68,000 B |
@@ -26,7 +26,7 @@ Current minified measurements:
 | Structure Migration Diagnostics production island | 208,970 B | 64,266 B | 225,000 B | 68,000 B |
 | Weekly Production Control production island | 206,572 B | 63,948 B | 225,000 B | 68,000 B |
 | Timesheet production island | 210,506 B | 64,915 B | 225,000 B | 68,000 B |
-| Planning Workbench production island | 205,814 B | 63,743 B | 225,000 B | 68,000 B |
+| Planning Workbench production island | 206,952 B | 64,065 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 213,306 B | 65,184 B | 225,000 B | 68,000 B |
 | Shift Master Board production island | 206,494 B | 63,796 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 206,267 B | 63,641 B | 225,000 B | 68,000 B |
@@ -39,7 +39,7 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 473,977 B | 110,612 B | 475,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 474,038 B | 110,658 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -77,7 +77,7 @@ then proved one create plus one edit through the existing command owner.
 | Roles and Access | measured by the same callback | browser gate passed | selected role passport updated, revision 2 |
 | Weekly Production Control | measured by the same callback | browser gate passed | weekly fact total updated, revision 2 |
 | Timesheet | measured by the same callback | browser gate passed | overtime updated, revision 2 |
-| Planning Workbench | measured by the same callback | browser gate passed | Gantt readiness updated, revision 2 |
+| Planning Workbench | measured by the same callback | browser gate passed | quantity conflict/retry, authoritative slot refresh and legacy read-back |
 | Shift Work Orders | measured by the same callback | browser gate passed | selection/collapse preserved, revision 2 |
 | Shift Master Board | measured by the same callback | browser gate passed | card selection preserved, revision 2 |
 | Employee Desktop | measured by the same callback | browser gate passed | task selection preserved, revision 2 |
@@ -154,11 +154,13 @@ single-day save/reset QA additionally proves validation, conflict retry and
 legacy read-back. A separate read scenario keeps the aggregate lab inside its
 existing budget. This is regression evidence, not Pilot acceptance.
 
-The bundled production Planning Workbench island is `202,251 B` raw /
-`63,500 B` gzip / `54,623 B` Brotli. Its two-order PostgreSQL-bootstrap
-production-shell first commit remains below `100 ms`; route and row selection
-additionally stay inside React and read back through legacy. This is regression
-evidence, not Pilot acceptance.
+The Planning Workbench production entry is `206,952 B` raw / `64,065 B` gzip;
+the bundled production artifact is `203,294 B` raw / `63,828 B` gzip /
+`54,880 B` Brotli. Its two-order PostgreSQL-bootstrap production-shell
+first commit remains below `200 ms`; route/row selection stays inside React,
+and the localhost-only quantity slice proves validation, conflict without
+mutation, retry, authoritative slot refresh, legacy read-back and an unchanged
+compatibility snapshot. This is regression evidence, not Pilot acceptance.
 
 The bundled production Shift Work Orders island is `208,178 B` raw /
 `64,883 B` gzip / `55,856 B` Brotli. Its one-assignment PostgreSQL-backed

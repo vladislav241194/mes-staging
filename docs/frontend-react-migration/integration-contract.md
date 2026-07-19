@@ -137,17 +137,21 @@ System Domains owner. Period, view and permanent schedule interactions request
 legacy; PostgreSQL hydration stays outside React. A fallback response, API error
 or missing session request retains legacy.
 
-`mountPlanningWorkbenchReactIsland(...)` owns the read-only queue, readiness,
-visible structure and host-validated route/item selection behind two false-by-default server permissions, a
+`mountPlanningWorkbenchReactIsland(...)` owns the queue, readiness, visible
+structure, host-validated route/item selection and one localhost-only quantity
+write evaluation behind two false-by-default server permissions, a
 completed PostgreSQL work-order bootstrap and an explicit session request. Its
 adapter consumes the completed legacy
 `getPlanningWorkbenchModel()` result: PostgreSQL list/detail projection,
 snapshot fallback, readiness, labor and tree calculations remain outside
 React. Selection updates only `activeRouteId`/`planningWorkItem`, refreshes the
 existing PostgreSQL bootstrap when the route changes and is readable by legacy.
-All quantity, date, labor, Gantt and cancellation commands remain legacy. A
-missing bootstrap, invalid target, API error or missing session request retains
-the previous selection or legacy.
+The quantity callback accepts only the active route and a positive integer,
+requires PostgreSQL projection plus `planning:edit`, delegates to the existing
+revision-checked owner, forbids compatibility-state fallback and refreshes the
+authoritative detail/slot projection after success. Date, labor, Gantt and
+cancellation commands remain legacy. A missing bootstrap, invalid target, API
+error or missing session request retains the previous selection or legacy.
 
 `mountShiftWorkOrdersReactIsland(...)` owns the read-only document journal
 behind two false-by-default server permissions, PostgreSQL System Domains and

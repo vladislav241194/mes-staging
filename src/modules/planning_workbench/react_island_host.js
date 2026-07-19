@@ -3,7 +3,7 @@ import { createReactIslandHost } from "../react_island_host.js";
 const PLANNING_WORKBENCH_REACT_TARGET = "[data-react-planning-workbench-island]";
 const PLANNING_WORKBENCH_REACT_BUNDLE_VERSION = "__MES_PLANNING_WORKBENCH_REACT_BUNDLE_VERSION__";
 
-export function createPlanningWorkbenchReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, navigate, reportError = (error) => console.error("[MES] Planning Workbench React island failed", error) } = {}) {
+export function createPlanningWorkbenchReactIslandHost({ getActivation, getPayload, getTargetRoot, requestLegacyRender, executeCommand, navigate, reportError = (error) => console.error("[MES] Planning Workbench React island failed", error) } = {}) {
   return createReactIslandHost({
     getActivation, getPayload, getTargetRoot, requestLegacyRender, reportError,
     targetSelector: PLANNING_WORKBENCH_REACT_TARGET,
@@ -11,7 +11,7 @@ export function createPlanningWorkbenchReactIslandHost({ getActivation, getPaylo
     getIneligibilityReason: (activation) => {
       if (!activation.featureFlagEnabled) return "disabled";
       if (!activation.serverReadReady) return "server-read-pending";
-      if (activation.accessMode !== "read-only-evaluation") return "write-parity-incomplete";
+      if (!["read-only-evaluation", "write-evaluation"].includes(activation.accessMode)) return "write-parity-incomplete";
       return "";
     },
     loadIsland: async () => {
@@ -21,6 +21,6 @@ export function createPlanningWorkbenchReactIslandHost({ getActivation, getPaylo
       islandUrl.searchParams.set("v", bundleVersion);
       return import(islandUrl.href);
     },
-    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountPlanningWorkbenchReactIsland(target, payload, { onError, onReady, onNavigate: navigate ? (navigation) => navigate(navigation) : undefined }),
+    mountIsland: ({ loadedIsland, target, payload, onError, onReady }) => loadedIsland.mountPlanningWorkbenchReactIsland(target, payload, { onError, onReady, onCommand: executeCommand ? (command) => executeCommand(command) : undefined, onNavigate: navigate ? (navigation) => navigate(navigation) : undefined }),
   });
 }

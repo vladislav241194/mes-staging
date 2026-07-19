@@ -928,6 +928,8 @@ try {
   const { planningWorkbenchFixture } = await import(`${pathToFileURL(planningWorkbenchFixtureOutput).href}?qa=${Date.now()}`);
   const planningWorkbenchModel = planningWorkbenchAdapter.adaptPlanningWorkbench(planningWorkbenchFixture);
   assert.equal(planningWorkbenchModel.canActivate, true, "Planning Workbench needs queue, five readiness metrics and structure rows");
+  assert.equal(planningWorkbenchModel.canEditQuantity, false, "Planning quantity capability must fail closed");
+  assert.equal(planningWorkbenchAdapter.adaptPlanningWorkbench({ ...planningWorkbenchFixture, capabilities: { quantityEdit: true } }).canEditQuantity, true, "Planning quantity capability must be explicit");
   assert.deepEqual([planningWorkbenchModel.queue.length, planningWorkbenchModel.metrics.length, planningWorkbenchModel.rows.length], [3, 5, 4]);
   assert.deepEqual(planningWorkbenchModel.rows.map((row) => [row.kind, row.title, row.quantity]), [["task", "Контроллер КТ-7", 120], ["step", "Монтаж компонентов", 120], ["step", "Оптический контроль", 120], ["task", "Корпус КТ-7", 120]]);
   assert.equal(planningWorkbenchAdapter.adaptPlanningWorkbench({}).canActivate, false, "invalid Planning Workbench payload must fail closed");
@@ -1439,8 +1441,11 @@ try {
   assert.match(weeklyProductionControlHostSource, /__MES_WEEKLY_PRODUCTION_CONTROL_REACT_BUNDLE_VERSION__/);
   const planningWorkbenchHostSource = await readFile(join(repositoryRoot, "src/modules/planning_workbench/react_island_host.js"), "utf8");
   assert.match(planningWorkbenchHostSource, /onNavigate: navigate/);
+  assert.match(planningWorkbenchHostSource, /onCommand: executeCommand/);
   assert.match(productionAppSource, /type === "select-item"/);
   assert.match(productionAppSource, /hydratePlanningWorkbenchBootstrap\(\{ force: true, renderOnChange: false \}\)/);
+  assert.match(productionAppSource, /params\.get\("react-planning-workbench-write"\) === "1"/);
+  assert.match(productionAppSource, /requireServerCommand: true/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
@@ -1570,9 +1575,9 @@ try {
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.readParity === "local-production-shell"), "all registered scenarios must retain local production-shell read evidence");
   assert(commandParityMatrix.scenarios.every((scenario) => scenario.legacyRollback === true), "every scenario must retain a declared legacy rollback");
   assert(commandParityMatrix.scenarios.every((scenario) => ["local-complete", "pending", "not-applicable"].includes(scenario.commandParity)), "command-parity status must use the closed vocabulary");
-  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet"], "fourteen scenarios must retain locally complete command parity");
+  assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "local-complete").map((scenario) => scenario.id), ["nomenclature", "componentTypes", "operations", "nomenclatureTypes", "statuses", "boards", "structureEmployees", "structurePositions", "structureOrgUnits", "structureWorkCenters", "structureEquipment", "structureResponsibilityPolicies", "roles", "timesheet", "planningWorkbench"], "fifteen scenarios must retain locally complete command parity");
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
-  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 8, "all 8 remaining command scenarios must stay explicit");
+  assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 7, "all 7 remaining command scenarios must stay explicit");
   assert(commandParityMatrix.scenarios.every((scenario) => typeof scenario.nextVerticalScope === "string" && scenario.nextVerticalScope.trim()), "every scenario must identify its next acceptance scope");
 
   const { stdout: performanceBudget } = await execFileAsync(process.execPath, [join(labRoot, "performance-budget.mjs")], { cwd: repositoryRoot });

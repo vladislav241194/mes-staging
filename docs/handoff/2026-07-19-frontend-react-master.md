@@ -347,11 +347,14 @@ now exposes a completed read-model for PostgreSQL list/detail projection,
 snapshot fallback, readiness, labor and visible structure. Lab QA proves three
 queue entries, five readiness metrics, four hierarchy rows and payload update.
 Production-shell QA proves two-order PostgreSQL bootstrap parity, React-owned
-route and tree-row selection, legacy read-back, five readiness metrics, two
-hierarchy rows, unchanged state and clean console. Its bundled artifact is
-`202,251 B` raw / `63,500 B` gzip / `54,623 B` Brotli. It moves no quantity,
-date, labor, Gantt or cancel command and has not been released or activated on
-Pilot.
+route and tree-row selection, five readiness metrics and two hierarchy rows.
+The localhost-only quantity slice rejects invalid input before PATCH, exposes a
+revision conflict without mutation, retries `80 -> 96`, refreshes the
+authoritative slot/end time and reads the same value through legacy while the
+compatibility snapshot remains unchanged. Its independent entry is `206,952 B`
+raw / `64,065 B` gzip; the bundled artifact is `203,294 B` raw / `63,828 B`
+gzip / `54,880 B` Brotli. Date, labor, Gantt and cancel remain legacy; this slice
+has not been released or activated on Pilot.
 
 Shift Work Orders is the eighteenth production-integrated scenario and the
 first operational-family proof. Its typed
@@ -495,8 +498,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    passport metadata is locally complete through the `access-control` owner;
    grants, assignments, scopes, read-only, active and Pilot write acceptance
    remain separate. Planning route and tree-row selection now stay inside
-   React and reuse the PostgreSQL bootstrap; quantity, dates, labor, Gantt
-   transfer and cancellation remain separate. Weekly
+   React and reuse the PostgreSQL bootstrap; quantity editing is locally
+   complete through the PostgreSQL-backed owner with conflict/retry and legacy
+   read-back; dates, labor, Gantt transfer, cancellation and Pilot write
+   acceptance remain separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

@@ -36,5 +36,5 @@ set used by the Workshop.
 
 The production artifact is `215,212 B` raw / `65,557 B` gzip, below the
 `225,000 B / 68,000 B` gate. Separate read adapters keep the aggregate lab at
-`473,977 B / 110,612 B`, below its unchanged budget. Read and write remain false
+`474,038 B / 110,658 B`, below its unchanged budget. Read and write remain false
 by default; the command slice has not been released or activated on Pilot.

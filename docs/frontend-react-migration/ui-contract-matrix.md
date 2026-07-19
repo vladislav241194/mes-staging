@@ -29,7 +29,7 @@ unresolved.
 | --- | --- | --- | --- |
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read plus metadata create/edit |
-| Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control + Timesheet + Planning Workbench read-only scenarios |
+| Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error, bounded typed form | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control read-only + Timesheet day fact + Planning Workbench quantity |
 | Operational | Status, action, panel, table tree, metric grid, overlay frames | Workshop board, worker fact entry, print/photo commands | Shift Work Orders read-only document journal |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
 | Admin/standalone | Contour controls and pre-PIN organizational picker | PIN/session authority and standalone shell | Separate security acceptance path |
@@ -209,8 +209,11 @@ The legacy module now exposes one completed read-model for PostgreSQL
 list/detail projection, snapshot fallback, readiness and visible structure.
 The isolated proof preserves three queue entries, five decision metrics and
 four object/operation rows. Production-shell QA adds PostgreSQL bootstrap
-parity for two orders and two visible hierarchy rows. The host is disabled by
-default; all selection and command scopes return to legacy.
+parity for two orders and two visible hierarchy rows. Route/item selection and
+the separately gated quantity form stay inside React; the host delegates
+quantity to the revision-checked Planning owner, refreshes the authoritative
+slot and proves legacy read-back. The host is disabled by default; dates,
+labor, Gantt and cancellation stay in legacy.
 
 ## Shift Work Orders production evidence
 

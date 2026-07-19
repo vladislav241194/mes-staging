@@ -10,7 +10,9 @@ export interface PlanningMetric { id: string; label: string; value: string; meta
 export interface PlanningStructureRow { id: string; kind: "task" | "step"; level: number; title: string; meta: string; labor: string; laborMeta: string; context: string; contextMeta: string; quantity: number; unit: string; statusLabel: string; statusTone: "success" | "warning" | "neutral"; selected: boolean }
 
 export function adaptPlanningWorkbench(payload: unknown) {
-  const source = record(record(payload).model || payload);
+  const root = record(payload);
+  const source = record(root.model || payload);
+  const capabilities = record(root.capabilities);
   const overview = record(source.overview);
   const decision = record(overview.decision);
   const queue = list(source.queue).map((value): PlanningQueueItem | null => {
@@ -37,5 +39,6 @@ export function adaptPlanningWorkbench(payload: unknown) {
     quantity: number(overview.planningQuantity || source.activeQuantity),
     decision: { title: text(decision.title, "Заказ-наряд не выбран"), subtitle: text(decision.subtitle), tone: tone(decision.tone), isReady: decision.isReady === true },
     canActivate: Boolean(activeRouteId && queue.length && metrics.length === 5 && rows.length),
+    canEditQuantity: capabilities.quantityEdit === true,
   };
 }

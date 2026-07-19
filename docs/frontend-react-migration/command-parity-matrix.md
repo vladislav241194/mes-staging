@@ -29,7 +29,9 @@ slices. Timesheet now has locally complete single-day attendance save/remove;
 permanent schedule assignment remains legacy. Roles and Access now has locally
 complete passport metadata editing through the `access-control` owner; grants,
 assignments, scopes, read-only and active remain legacy. Structure Migration Diagnostics and Weekly Production Control are intentionally
-read-only product modules and own no write commands. The remaining scenarios
+read-only product modules and own no write commands. Planning Workbench now has
+locally complete route/item navigation and quantity editing through its current
+PostgreSQL-backed owner; dates, labor, Gantt transfer and cancel remain legacy. The remaining scenarios
 retain their explicit next vertical scopes.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
@@ -49,9 +51,10 @@ retain their explicit next vertical scopes.
 | 13 | Structure Work Centers | Local complete: create/edit with organization, parent hierarchy and Planning/Gantt flags; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable work center and cleanup |
 | 14 | Timesheet | Local complete: one-day attendance save/remove; permanent schedules remain legacy | High | Separately gated Pilot write evaluation on a disposable attendance day |
 | 15 | Roles and Access | Local complete: role label, description and default module; grants, assignments and scopes remain legacy | Critical | Separately gated Pilot metadata write evaluation |
-| 16 | Planning and operational modules | Pending; Planning route/detail selection is locally React-owned | Critical | Planning quantity edit before dates, labor, Gantt transfer, assignment or fact mutations |
-| 17 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
-| 18 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
+| 16 | Planning Workbench | Local complete: route/detail navigation and quantity edit; dates, labor, Gantt transfer and cancel remain legacy | Critical | Separately gated Pilot quantity write evaluation |
+| 17 | Shift operational modules | Pending | Critical | Print/attachment and local selection before assignment or fact mutations |
+| 18 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
+| 19 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 
 The Directories cluster now has Component Types read parity accepted on Pilot
