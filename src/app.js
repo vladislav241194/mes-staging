@@ -2769,13 +2769,31 @@ const structureWorkCentersReactIslandHost = createStructureWorkCentersReactIslan
     const localQa = getStructureWorkCentersReactLocalQaOverrides(); const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS_READ_ONLY_EVALUATION === true;
     return { featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_STRUCTURE_WORK_CENTERS === true || localQa.featureFlagEnabled, serverReadReady: systemDomainsServerReadState.status === "server" && Boolean(systemDomainsState), accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isStructureWorkCentersReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor" };
   },
-  getPayload: () => ({ ...systemDomainsState, capabilities: { createEdit: getStructureWorkCentersReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("workCenters") } }), getTargetRoot: () => app,
+  getPayload: () => { const commandReady = getStructureWorkCentersReactLocalQaOverrides().writeEvaluation && systemDomainsServerCommandState.status === "ready" && systemDomainsServerCommandState.enabled === true && systemDomainsServerCommandState.surfaces.includes("production-structure") && canEditSystemDomainRegistry("workCenters"); return { ...systemDomainsState, capabilities: { createEdit: commandReady, archive: commandReady } }; }, getTargetRoot: () => app,
   requestLegacyRender: (_reason, registryId) => { setProductionStructureMatrixActiveRegistry(registryId || "workCenters"); if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); },
   executeCommand: async (command = {}) => {
     const localQa = getStructureWorkCentersReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || command.type !== "save") return { ok: false, message: "Команда редактирования рабочего центра недоступна." };
+    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) return { ok: false, message: "Команда рабочего центра недоступна." };
     if (systemDomainsServerReadState.status !== "server" || systemDomainsServerCommandState.status !== "ready" || systemDomainsServerCommandState.enabled !== true || !systemDomainsServerCommandState.surfaces.includes("production-structure") || !canEditSystemDomainRegistry("workCenters")) return { ok: false, message: "PostgreSQL-команда или право редактирования рабочих центров недоступны." };
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "archive") {
+      const workCenterId = String(input.workCenterId || "").trim(); const registries = getSystemDomainsRegistries();
+      const workCenter = (registries.workCenters || []).find((row) => row.id === workCenterId);
+      if (!workCenter || workCenter.isActive === false) return { ok: false, message: "Активный рабочий центр больше не существует." };
+      const hasActiveReference = (registries.workCenters || []).some((row) => row.parentWorkCenterId === workCenterId && row.isActive !== false)
+        || (registries.positions || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false)
+        || (registries.equipment || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false)
+        || (registries.employmentAssignments || []).some((row) => row.workCenterId === workCenterId && row.isActive !== false && !row.validTo);
+      if (hasActiveReference) return { ok: false, message: "Нельзя архивировать рабочий центр с действующими дочерними или производственными ссылками." };
+      try {
+        const result = await archiveSystemDomainEntity("workCenters", workCenterId, { source: "react:structure-work-centers:archive", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Архивирование рабочего центра отклонено проверкой System Domains." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: workCenterId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные рабочего центра изменились в другом сеансе. Проверьте значения и повторите архивирование." : error?.message || "Сервер не принял архивирование рабочего центра." };
+      }
+    }
     const workCenterId = String(input.workCenterId || "").trim() || makeId("work-center");
     const name = String(input.name || "").trim().replace(/\s+/g, " ");
     const orgUnitId = String(input.orgUnitId || "").trim();

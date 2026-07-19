@@ -543,6 +543,8 @@ try {
   const workCentersAdapter = await import(`${pathToFileURL(workCentersAdapterOutput).href}?qa=${Date.now()}`);
   assert.deepEqual(workCentersAdapter.adaptStructureWorkCenters({ registries: { workCenters: {} } }).workCenters, []);
   const workCentersModel = workCentersAdapter.adaptStructureWorkCenters(structureEmployeesFixture);
+  assert.equal(workCentersModel.canArchive, false, "Work Centers archive capability must fail closed");
+  assert.equal(workCentersAdapter.adaptStructureWorkCenters({ ...structureEmployeesFixture, capabilities: { archive: true } }).canArchive, true, "Work Centers archive capability must be explicit");
   assert.deepEqual(workCentersModel.workCenters.map((entry) => [entry.id, entry.orgUnitLabel, entry.parentWorkCenterLabel, entry.planningLabel, entry.statusLabel]), [["D-COATING", "Отдел нанесения влагозащитных покрытий", "—", "активно", "активно"], ["D-MANUAL", "Отдел ручного монтажа", "—", "активно", "активно"]]);
   assert.equal(workCentersAdapter.adaptStructureWorkCenters({ registries: canonicalMigration.domains.registries }).workCenters.length, 19, "no canonical work center may be dropped");
 
