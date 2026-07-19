@@ -9,6 +9,7 @@ const [app, host, render, scenario, adapter] = await Promise.all([
 ]);
 const failures = []; const expect = (condition, message) => { if (!condition) failures.push(message); };
 expect(app.includes('systemDomainsServerReadState.status === "server"'), "Authorization picker must require PostgreSQL System Domains");
+expect(app.includes('accessMode === "read-only-evaluation"') && app.includes("Boolean(systemDomainsState)") && app.includes("hasObservedSystemDomainsPrimaryAuthority()"), "pre-PIN read evaluation must require the allowlisted projection and PostgreSQL-primary tombstone");
 expect(app.includes('params.get("react-auth-picker-write") === "1"'), "Authorization PIN evaluation must be localhost-gated");
 expect(host.includes('pickerReady) return "pin-step-owned-by-legacy"'), "host must fail closed when legacy owns PIN");
 expect(host.includes('activation.accessMode !== "write-evaluation"') && host.includes("executeCommand"), "host must admit only the explicit PIN command evaluation");

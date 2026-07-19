@@ -3315,14 +3315,26 @@ const authPickerReactIslandHost = createAuthPickerReactIslandHost({
   getActivation: () => {
     const localQa = getAuthPickerReactLocalQaOverrides();
     const serverEvaluationAllowed = MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER_READ_ONLY_EVALUATION === true;
+    const accessMode = localQa.writeEvaluation
+      ? "write-evaluation"
+      : (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation
+        ? "read-only-evaluation"
+        : "editor";
+    // The authenticated System Domains API must stay closed before PIN.  The
+    // legacy picker already consumes the allowlisted bootstrap projection at
+    // this boundary, so a read-only evaluation may use the same payload only
+    // after this tab has observed the PostgreSQL-primary tombstone.
+    const preAuthPrimaryProjectionReady = accessMode === "read-only-evaluation"
+      && Boolean(systemDomainsState)
+      && hasObservedSystemDomainsPrimaryAuthority();
     const activation = {
       featureFlagEnabled: MES_RUNTIME_CONFIG.MES_REACT_AUTH_PICKER === true || localQa.featureFlagEnabled,
       moduleReady: authModulesReady,
       systemDomainsReady: systemDomainsServerReadState.status === "server"
-        || (localQa.readOnlyEvaluation && hasObservedSystemDomainsPrimaryAuthority()),
+        || preAuthPrimaryProjectionReady,
       authGateReady: !isAuthGateUnlocked() || localQa.readOnlyEvaluation,
       pickerReady: !ui.authPrototypePersonId && !authPrototypePinDraft && (localQa.writeEvaluation || !ui.authPrototypeResult),
-      accessMode: localQa.writeEvaluation ? "write-evaluation" : (serverEvaluationAllowed && isAuthPickerReactEvaluationRequested()) || localQa.readOnlyEvaluation ? "read-only-evaluation" : "editor",
+      accessMode,
     };
     if (localQa.featureFlagEnabled) window.__MES_AUTH_PICKER_ACTIVATION__ = activation;
     return activation;
