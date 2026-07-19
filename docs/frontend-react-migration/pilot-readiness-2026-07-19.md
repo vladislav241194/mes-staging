@@ -330,3 +330,33 @@ contour creates, edits, verifies through legacy and removes one disposable row,
 restoring the original fixture and preserving Planning routes, steps and slots.
 No Pilot write flag has been introduced; live write acceptance remains a
 separate checkpoint for a `directories:edit` role.
+
+## Directory Operations read-only Pilot evaluation
+
+The eighth live slice continued the Directories cluster on release
+`v.1.499.73-b1b77cf`. Rollout controls from commit `264e127` ran from an
+isolated root-only directory and enabled only
+`MES_REACT_DIRECTORY_OPERATIONS=1` plus
+`MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION=1`.
+
+- the authenticated session retained
+  `react-directory-operations-evaluation=1` through the normal authorization
+  module and opened Directories without a page reload;
+- the island reached `ready`, revision `1`, in `25.20 ms`;
+- all `22/22` React rows matched all `22/22` legacy rows in order and in the
+  operation, resolved work-center and status fields;
+- the `Склад` filter exposed seven operations, and `Приход от поставщика`
+  opened code `WH-010`, stable ID `D1_OP1`, work center `Склад` and
+  `300 ед./ч`;
+- add remained disabled, there was no page overflow, and the browser console
+  contained no warnings or errors;
+- `Все справочники` unmounted React and restored the exact 22-row legacy
+  Operations section plus the four-directory navigation.
+
+Deactivation removed every React flag. Health stayed `ok`; a newly
+authenticated session retaining the evaluation query mounted no island and
+showed the same 22 legacy rows. The exact temporary rollout directory was
+removed and no Pilot data was written. Operations is currently legacy for every
+session. Its write checkpoint remains pending because edits cascade into route
+steps and unfinished Gantt slots, while delete also clears Specifications
+references.

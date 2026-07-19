@@ -38,5 +38,30 @@ artifact is `200,213 B` raw / `62,802 B` gzip / `54,111 B` Brotli.
 
 The production host requires two false-by-default server flags and a per-
 session evaluation request. Without the request, editor access and all other
-directory sections retain legacy. No release or Pilot activation exists yet;
-authenticated Pilot acceptance and rollback proof remain pending.
+directory sections retain legacy.
+
+## Pilot acceptance
+
+Release `v.1.499.73-b1b77cf` was evaluated without changing the immutable
+release. Controls from commit `264e127` enabled only
+`MES_REACT_DIRECTORY_OPERATIONS=1` and
+`MES_REACT_DIRECTORY_OPERATIONS_READ_ONLY_EVALUATION=1` from an isolated
+root-only directory.
+
+The authenticated `Алексеев Егор` session rendered revision `1` in `25.20 ms`.
+All `22/22` React rows matched all `22/22` legacy rows in order and in the three
+visible fields: operation, resolved work center and status. `Склад` contained
+the expected seven operations; selecting `Приход от поставщика` opened stable
+ID `D1_OP1`, code `WH-010`, work center `Склад` and `300 ед./ч`. Add remained
+disabled, page overflow was absent and the browser console was clean.
+
+`Все справочники` unmounted React and restored the exact legacy Operations
+section. Deactivation removed all React flags; a newly authenticated session
+with the evaluation query retained rendered the same 22-row legacy table and
+no island. Health remained `ok`, the temporary root directory was removed and
+no Pilot data was written.
+
+The command owner audit confirms that create/edit propagates into linked route
+steps and unfinished Gantt slots, while delete also clears operation references
+from Specifications. Therefore the next write slice must prove reference impact
+on disposable local data; Pilot write and delete remain disabled.

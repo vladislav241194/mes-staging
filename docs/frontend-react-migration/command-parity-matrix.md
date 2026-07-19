@@ -13,6 +13,8 @@ read-only acceptance now covers Nomenclature empty-state plus five non-empty
 System Domains registries: Employees `76/76`, Positions `49/49`, Org Units
 `19/19`, Work Centers `19/19` and Equipment `6/6`. Every evaluation was
 session-scoped, measured, returned to legacy and left all rollout flags off.
+The Directories cluster additionally has Component Types `8/8` and Operations
+`22/22` accepted with literal visible-cell and row-order parity.
 
 Nomenclature and Component Types have locally complete command parity;
 Structure Migration Diagnostics is intentionally read-only and owns no
@@ -40,6 +42,10 @@ and local command parity through the existing RBAC-protected directory owner.
 Its isolated QA creates, edits, reads through legacy and removes one disposable
 row, restoring the original dataset and leaving Planning routes, steps and
 slots unchanged. Pilot write acceptance remains a separate gate because the
-current authenticated QA role is read-only. Operations is the next directory
-read/command-owner audit; its work-center reference impact must be proved before
-any write evaluation.
+current authenticated QA role is read-only. Operations read parity is also
+accepted on Pilot: all `22/22` rows and three visible fields matched legacy,
+the `Склад` filter returned seven rows, and rollback restored the same
+authenticated legacy screen. Its command owner is audited, but create/edit
+cannot be marked complete until linked route-step and unfinished-slot impact is
+proved; delete additionally touches Specifications and therefore stays
+separate.

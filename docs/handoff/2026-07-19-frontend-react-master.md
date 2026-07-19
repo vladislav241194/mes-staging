@@ -210,7 +210,11 @@ work-center label before the typed adapter. Production-shell QA proves literal
 parity for three rows, the three visible cells and order, plus work-center
 filtering, selection/detail, loop-free legacy return, unchanged state and clean
 console. Its artifact is `200,213 B` raw / `62,802 B` gzip / `54,111 B`
-Brotli. It has not been released or activated on Pilot.
+Brotli. Pilot read acceptance now proves `22/22` row parity, seven warehouse
+operations, stable passport `D1_OP1`, a `25.20 ms` first commit and clean
+rollback with all flags off. Command migration remains pending because edits
+propagate into linked route steps and unfinished Gantt slots, while delete also
+clears Specifications references.
 
 Directories Nomenclature Types is now the seventh production-integrated
 read-only island. It consumes the existing normalized runtime rows and does not
