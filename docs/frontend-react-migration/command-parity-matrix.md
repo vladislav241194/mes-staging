@@ -8,11 +8,15 @@ QA fails when a production-integrated scenario is missing, duplicated, loses
 its rollback declaration, or is marked complete without an explicit status.
 
 All 24 scenarios have local production-shell read evidence and keep legacy
-rollback. The all-flags-off Pilot baseline is accepted; React-island acceptance
-is still pending. Nomenclature is the
-only scenario with locally complete command parity; Structure Migration
-Diagnostics is intentionally read-only and owns no commands. The remaining 22
-scenarios have an explicit next vertical scope.
+rollback. The all-flags-off Pilot baseline is accepted. Authenticated Pilot
+read-only acceptance now covers Nomenclature empty-state plus five non-empty
+System Domains registries: Employees `76/76`, Positions `49/49`, Org Units
+`19/19`, Work Centers `19/19` and Equipment `6/6`. Every evaluation was
+session-scoped, measured, returned to legacy and left all rollout flags off.
+
+Nomenclature is the only scenario with locally complete command parity;
+Structure Migration Diagnostics is intentionally read-only and owns no
+commands. The remaining scenarios retain their explicit next vertical scopes.
 
 | Priority | Scenario | Command status | Risk | Next vertical scope |
 | ---: | --- | --- | --- | --- |
@@ -31,7 +35,8 @@ scenarios have an explicit next vertical scope.
 | 13 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 
-The next implementation after Pilot acceptance is Component Types CRUD. It is
+The next Pilot cluster is Directories, beginning with Component Types read-only
+parity on its existing non-empty rows. Its later disposable CRUD slice remains
 the lowest-risk reuse test for the shared registry/editor contracts and does
 not require changing Planning, Shift Execution, authorization or PostgreSQL
 authority rules.
