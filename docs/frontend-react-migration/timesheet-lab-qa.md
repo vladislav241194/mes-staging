@@ -35,8 +35,8 @@ npm run qa:timesheet-react-lab
 This proves the read-model and dense-calendar component boundary plus the
 bounded one-day attendance command. It is
 wired to the MES shell only behind two false-by-default permissions, PostgreSQL
-read readiness and a session-scoped request. It is not activated on Pilot and
-does not move permanent schedule commands out of legacy.
+read readiness and a session-scoped request. It does not move permanent
+schedule commands out of legacy.
 
 Production-shell QA uses the canonical 76-employee System Domains projection.
 It proves exact parity across 96 table rows and 35 columns, default legacy,
@@ -48,7 +48,7 @@ artifact is `210,506 B` raw / `64,915 B` gzip; the latest first commit was
 validation before PUT, sick-day save, exact legacy read-back, revision conflict
 without mutation, reset retry, unrelated hidden-field preservation and an
 unchanged `0600` compatibility snapshot. This is local regression evidence,
-not Pilot acceptance.
+not authorization for Pilot writes.
 
 The legacy `qa:timesheet` browser suite now exercises the same PostgreSQL-
 primary API contract instead of expecting obsolete localStorage authority. It
@@ -60,3 +60,20 @@ Production command:
 ```sh
 npm run qa:timesheet-react-island
 ```
+
+## Pilot acceptance
+
+Authenticated read-only acceptance completed on immutable release
+`v.1.499.93-d062eb1`. React matched the live PostgreSQL projection exactly:
+76 employees, 35 columns and 96 table rows. The first accepted commit was
+`315.5 ms`; commands remained disabled. Desktop QA proved four KPI columns,
+18 px production panels, one content column and table-local scrolling.
+Effective `443 x 959` compact QA proved two KPI columns, the same 76 employees,
+no document overflow and table-local horizontal scrolling.
+
+The first live `.92` evaluation exposed that the Timesheet host was absent from
+the shared production UI selector. The `.93` fix and automated production /
+compact contract now reject that unstyled state. Requesting `Неделя` restored
+the exact 76-employee, 12-column legacy view; after server deactivation the
+retained evaluation query also remained in legacy. All Timesheet rollout flags
+are off, health is green, and no Pilot attendance or schedule data was written.

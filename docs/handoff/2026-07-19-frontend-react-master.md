@@ -349,10 +349,16 @@ saves a sick day, reads it through legacy, exercises conflict-without-mutation,
 retries reset and preserves an unrelated hidden event field. The React host
 reuses the legacy event builder and the existing revision-checked `timesheet`
 owner. Its bundled artifact is `210,506 B` raw / `64,915 B` gzip. Permanent
-schedule commands and Pilot writes remain separate. The legacy Timesheet
-browser suite was also moved from obsolete localStorage assertions to a mocked
-PostgreSQL-primary API and proves its existing fact and `2/2` schedule editors
-still advance two server revisions.
+schedule commands and Pilot writes remain separate. Authenticated read-only
+Pilot acceptance completed on `v.1.499.93-d062eb1`: 76/76 employees, 35
+columns, 96 rows, a `315.5 ms` first commit, four desktop/two compact KPI
+columns, production panels and table-local scrolling. Live `.92` QA found the
+missing shared UI selector; the corrected production and compact contracts are
+now automated. Session and retained-query fallback restored the exact legacy
+Timesheet; flags are off and no attendance or schedule data was mutated. The
+legacy Timesheet browser suite was also moved from obsolete localStorage
+assertions to a mocked PostgreSQL-primary API and proves its existing fact and
+`2/2` schedule editors still advance two server revisions.
 
 Planning Workbench is the seventeenth production-integrated scenario. The legacy renderer
 now exposes a completed read-model for PostgreSQL list/detail projection,
