@@ -20,7 +20,8 @@ const [brandSource, faviconSource, appSource, runtimeSource, publicAuthSource, a
 
 assert.equal(normalizeSvg(faviconSource), normalizeSvg(brandSource), "Public favicon alias must match the canonical MES LINE brand source");
 assert.match(appSource, /startup-error-logo[^]*?<img src="\.\/favicon\.svg"/, "Startup error must render the brand logo");
-assert.match(runtimeSource, /module-menu-brand-logo" src="\.\/favicon\.svg"/, "Runtime sidebar must render the brand logo");
+assert.match(runtimeSource, /module-menu-brand-logo" src="\.\/assets\/brand\/mes_logo_high_quality\.svg"/, "Runtime sidebar must render the transparent canonical source directly");
+assert.match(runtimeSource, /<strong>Pilot<\/strong>\s*<span>\$\{escapeHtml\(APP_VERSION\)\}<\/span>/, "Runtime sidebar must show the Pilot contour and current version");
 assert.match(publicAuthSource, /brand-mark"><img src="\/favicon\.svg"/, "Public login must render the brand logo");
 assert.match(adminAuthSource, /brand-mark"><img src="\/favicon\.svg"/, "Admin login must render the brand logo");
 assert.match(registryGeneratorSource, /brandLogoSvg[^]*?href="\.\/favicon\.svg"/, "Service icon registry must retain the brand logo alias");

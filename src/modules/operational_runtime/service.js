@@ -2143,9 +2143,9 @@ function renderModuleMenu() {
   return `
     <nav class="module-menu" data-layout="sidebar" aria-label="Основное меню">
       <div class="module-menu-brand">
-        <img class="module-menu-brand-logo" src="./favicon.svg" alt="" aria-hidden="true" />
-        <strong>MES Pilot</strong>
-        <span>Пилотный контур для проверки изменений</span>
+        <img class="module-menu-brand-logo" src="./assets/brand/mes_logo_high_quality.svg" alt="" aria-hidden="true" />
+        <strong>Pilot</strong>
+        <span>${escapeHtml(APP_VERSION)}</span>
       </div>
       <details class="mobile-module-switcher" data-ui-component="Dropdown">
         <summary>

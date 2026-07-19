@@ -456,7 +456,7 @@ html[data-visual-theme="base-glass"] main.app-shell[data-layout="app-shell"] > .
 /* The workshop navigation is the shell reference for every module.
    Keep this scoped to the sidebar so module workspaces remain untouched. */
 html[data-visual-theme="base-glass"] #app > main.app-shell[data-layout="app-shell"] > .module-menu .module-menu-brand{
-  padding: 6px !important;
+  padding: 0 !important;
   min-height: 40px !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -1484,7 +1484,7 @@ html[data-visual-theme="base-glass"] main.app-shell[data-layout-page="shiftMaste
 html[data-visual-theme="base-glass"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lanes{
   gap: 10px !important;
   align-items: stretch !important;
-  padding: 6px !important;
+  padding: 0 !important;
 }
 
 html[data-visual-theme="base-glass"] main.app-shell[data-layout-page="shiftMasterBoard"] .shift-master-board-lane{
@@ -5162,7 +5162,7 @@ html[data-visual-theme="base-glass"] #app > main.app-shell[data-layout="app-shel
 
 /* Workshop sidebar identity: typography only, without a separate tile. */
 html[data-visual-theme="base-glass"] #app > main.app-shell[data-layout="app-shell"][data-layout-page="shiftMasterBoard"] > .module-menu .module-menu-brand{
-  padding: 6px !important;
+  padding: 0 !important;
   min-height: 40px !important;
   border: 0 !important;
   border-radius: 0 !important;
