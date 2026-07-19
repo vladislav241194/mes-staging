@@ -90,9 +90,9 @@ try {
     if (message.method === "Fetch.requestPaused") {
       const requestUrl = new URL(message.params.request.url);
       const method = String(message.params.request.method || "GET").toUpperCase();
-      if (requestUrl.pathname === "/api/v1/system-domains/capabilities" && qaConfig.registryId === "positions") { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...(primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {}) } }); }
+      if (requestUrl.pathname === "/api/v1/system-domains/capabilities" && ["positions", "orgUnits"].includes(qaConfig.registryId)) { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, capabilities: { serverCommandsEnabled: true, serverCommandSurfaces: ["production-structure", "timesheet", "access-control"], ...(primaryAuthorityReady ? { consistency: { details: { authority: { mode: "postgres-primary" } } } } : {}) } }); }
       else if (requestUrl.pathname === "/api/v1/system-domains" && method === "GET") { interceptedReads += 1; void fulfill(message.params.requestId, { ok: true, revision: apiRevision, item: apiDomains }); }
-      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT" && qaConfig.registryId === "positions") {
+      else if (requestUrl.pathname === "/api/v1/system-domains" && method === "PUT" && ["positions", "orgUnits"].includes(qaConfig.registryId)) {
         putAttempts += 1; const requestHeaders = message.params.request.headers || {}; const header = (name) => Object.entries(requestHeaders).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || ""; const body = JSON.parse(message.params.request.postData || "{}");
         commandRequests.push({ expectedRevision: Number(body.expectedRevision || 0), ifMatch: String(header("If-Match")), idempotencyKey: String(header("Idempotency-Key")), surface: String(body.surface || "") });
         if (forceConflictOnce) { forceConflictOnce = false; void fulfill(message.params.requestId, { ok: false, conflict: true, revision: apiRevision, error: "System Domains revision conflict" }, { statusCode: 409 }); }
@@ -111,7 +111,7 @@ try {
   await selectRegistry(client, qaConfig.registryId); await waitForCondition(client, (config) => document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : `[data-system-domain-table="${config.registryId}"] [data-system-domain-row]`).length === config.rowCount, { arg: qaConfig, message: `legacy ${qaConfig.label} missing` });
   const legacyRows = await evaluate(client, (config) => [...document.querySelectorAll(config.isDiagnostics ? "[data-migration-source-row]" : `[data-system-domain-table="${config.registryId}"] [data-system-domain-row]`)].map((row) => { const cells = [...row.querySelectorAll("td")]; return (config.isDiagnostics ? cells : cells.slice(0, -1)).map((cell) => cell.textContent.replace(/\s+/g, " ").trim()).join(" "); }), qaConfig);
   const legacyMetrics = await evaluate(client, () => Object.fromEntries([...document.querySelectorAll('.production-structure-kpis article')].map((card) => [card.querySelector("span")?.textContent?.trim() || "", Number(card.querySelector("strong")?.textContent || 0)])));
-  if (qaConfig.registryId === "positions") await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
+  if (["positions", "orgUnits"].includes(qaConfig.registryId)) await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
 
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1` });
   await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 19, { message: "enabled default canonical payload missing" });
@@ -174,6 +174,55 @@ try {
     await waitForCondition(client, () => /Должностей\s*50/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "legacy shell did not hydrate revised Positions", timeoutMs: 15_000 });
     await selectRegistry(client, "positions");
     await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]').length === 50 && [...document.querySelectorAll('[data-system-domain-table="positions"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Инженер PostgreSQL QA обновлён")), { message: "legacy Positions did not read back the React write" });
+  } else if (qaConfig.registryId === "orgUnits") {
+    primaryAuthorityReady = true;
+    await evaluate(client, (key) => sessionStorage.setItem(key, "1"), SYSTEM_DOMAINS_PRIMARY_TOMBSTONE_KEY);
+    const writeUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-org-units=1&react-structure-org-units-write=1&qa-reload=org-units-write`;
+    await client.send("Page.navigate", { url: writeUrl });
+    await waitForCondition(client, () => location.search.includes("qa-reload=org-units-write") && document.readyState === "complete", { message: "Org Units write page navigation did not complete" });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-structure-org-units-island]')) || /Подразделений\s*19/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "Org Units write shell did not hydrate revision 1" });
+    await waitForCondition(client, () => { if (document.querySelector('[data-react-structure-org-units-island]') || document.querySelector('[data-system-domain-table="orgUnits"]')) return true; document.querySelector('[data-system-domain-registry="orgUnits"]')?.click(); return false; }, { message: "Org Units registry did not become active after hydration", timeoutMs: 10_000 });
+    await waitForCondition(client, () => Boolean(document.querySelector('[data-react-structure-org-units-island][data-react-island-state="ready"]')) && [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Новая запись" && !button.disabled), { message: "Org Units PostgreSQL write evaluation did not become ready", timeoutMs: 15_000 });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Новая запись")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="name"]')), { message: "new org unit editor did not open" });
+    const parentOrgUnitId = migration.domains.registries.orgUnits[0].id;
+    await evaluate(client, (parentId) => { const setControl = (selector, value) => { const control = document.querySelector(selector); if (!control) throw new Error(`missing ${selector}`); const prototype = control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value); control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true })); }; setControl('input[name="name"]', "Участок PostgreSQL QA"); setControl('input[name="code"]', "QA-ORG-01"); setControl('select[name="kind"]', "section"); setControl('select[name="parentOrgUnitId"]', parentId); document.querySelector('form.react-nomenclature-editor')?.requestSubmit(); }, parentOrgUnitId);
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]').length === 20, { message: "created org unit did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 2 && successfulWrites === 1, "org unit create must advance one PostgreSQL revision");
+    const created = apiDomains.registries.orgUnits.find((orgUnit) => orgUnit.code === "QA-ORG-01");
+    assert(created?.id && created.kind === "section" && created.parentOrgUnitId === parentOrgUnitId, "created org unit hierarchy was not preserved");
+    created.serverOnlyMarker = "org-unit-hidden-field";
+
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), parentOrgUnitId);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Редактировать подразделение")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor select[name="parentOrgUnitId"]')), { message: "parent org unit edit form did not open" });
+    await evaluate(client, (childId) => { const select = document.querySelector('select[name="parentOrgUnitId"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, childId); select.dispatchEvent(new Event("change", { bubbles: true })); document.querySelector('form.react-nomenclature-editor')?.requestSubmit(); }, created.id);
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("цикл"), { message: "org unit hierarchy cycle was not rejected" });
+    assert(apiRevision === 2 && successfulWrites === 1 && putAttempts === 1, "cycle rejection must occur before PostgreSQL mutation");
+
+    const editUrl = `${enabledOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&react-structure-org-units=1&react-structure-org-units-write=1&qa-reload=org-units-revision-2`;
+    await client.send("Page.navigate", { url: editUrl });
+    await waitForCondition(client, () => location.search.includes("org-units-revision-2") && document.readyState === "complete", { message: "Org Units revision 2 navigation did not complete" });
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]').length === 20, { message: "Org Units revision 2 did not hydrate", timeoutMs: 15_000 });
+    await evaluate(client, (id) => [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(id))?.click(), created.id);
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Редактировать подразделение")?.click());
+    await waitForCondition(client, () => Boolean(document.querySelector('form.react-nomenclature-editor input[name="name"]')), { message: "org unit edit form did not open" });
+    await evaluate(client, () => { const setInput = (selector, value) => { const input = document.querySelector(selector); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); }; setInput('input[name="name"]', "Участок PostgreSQL QA обновлён"); setInput('input[name="code"]', "QA-ORG-02"); });
+    forceConflictOnce = true;
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelector('[role="alert"]')?.textContent?.includes("изменились в другом сеансе"), { message: "org unit revision conflict was not visible" });
+    assert(apiRevision === 2 && successfulWrites === 1 && putAttempts === 2, "conflicted org unit edit must not mutate System Domains");
+    await evaluate(client, () => document.querySelector('form.react-nomenclature-editor')?.requestSubmit());
+    await waitForCondition(client, () => document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]').length === 20 && [...document.querySelectorAll('[data-react-structure-org-units-island] [data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("Участок PostgreSQL QA обновлён")), { message: "org unit edit retry did not return", timeoutMs: 15_000 });
+    assert(apiRevision === 3 && successfulWrites === 2 && putAttempts === 3, "org unit edit retry must advance exactly one revision");
+    const edited = apiDomains.registries.orgUnits.find((orgUnit) => orgUnit.id === created.id);
+    assert(edited?.name === "Участок PostgreSQL QA обновлён" && edited?.serverOnlyMarker === "org-unit-hidden-field", "org unit edit lost visible or hidden fields");
+    assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "org unit commands must carry surface, If-Match and idempotency key");
+
+    await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1&qa-reload=org-units-legacy-readback` });
+    await waitForCondition(client, () => /Подразделений\s*20/.test(document.querySelector(".production-structure-content")?.textContent || ""), { message: "legacy shell did not hydrate revised Org Units", timeoutMs: 15_000 });
+    await selectRegistry(client, "orgUnits");
+    await waitForCondition(client, () => document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]').length === 20 && [...document.querySelectorAll('[data-system-domain-table="orgUnits"] [data-system-domain-row]')].some((row) => row.textContent?.includes("Участок PostgreSQL QA обновлён")), { message: "legacy Org Units did not read back the React write" });
   }
   assert(interceptedReads >= 3, "functional QA must exercise PostgreSQL read-model hydration on all navigations");
   assert(consoleProblems.length === 0, `browser console problems:\n${consoleProblems.join("\n")}`); assert(await readFile(sharedStateFile, "utf8") === original, "read-only Positions scenario changed state");
@@ -181,5 +230,6 @@ try {
   console.log(`- same PostgreSQL payload: ${qaConfig.rowCount} legacy rows = ${qaConfig.rowCount} React rows; first commit ${initial.commitMs.toFixed(2)} ms`);
   console.log(`- ${qaConfig.cellCount} cells/order, ${qaConfig.isDiagnostics ? "four issue groups" : "selection/detail"}, seven registries, six metrics, legacy fallback and unchanged state: pass`);
   if (qaConfig.registryId === "positions") console.log("- PostgreSQL create/edit, conflict retry, references, hidden fields, 50-row legacy read-back and unchanged snapshot: pass");
+  if (qaConfig.registryId === "orgUnits") console.log("- PostgreSQL create/edit, hierarchy-cycle rejection, conflict retry, hidden fields, 20-row legacy read-back and unchanged snapshot: pass");
 } catch (error) { if (chrome) { const browserState = await evaluate(chrome.client, () => ({ url: location.href, headings: [...document.querySelectorAll("h1,h2")].map((node) => node.textContent?.trim()).slice(0, 8), target: Boolean(document.querySelector('[data-react-structure-positions-island]')), targetState: document.querySelector('[data-react-structure-positions-island]')?.getAttribute("data-react-island-state"), registryButtons: [...document.querySelectorAll('[data-system-domain-registry]')].map((button) => ({ id: button.getAttribute("data-system-domain-registry"), text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), connected: button.isConnected, disabled: button.disabled, pointerEvents: getComputedStyle(button).pointerEvents })), buttons: [...document.querySelectorAll("button")].filter((button) => button.offsetParent !== null).map((button) => ({ text: button.textContent?.replace(/\s+/g, " ").trim().slice(0, 80), disabled: button.disabled })).slice(-20), visibleText: document.querySelector("main")?.textContent?.replace(/\s+/g, " ").trim().slice(-1000) })).catch(() => null); if (browserState) console.error(`BROWSER_STATE ${JSON.stringify(browserState)}`); } if (enabledOutput.trim()) console.error(enabledOutput.trim()); if (legacyOutput.trim()) console.error(legacyOutput.trim()); throw error; }
 finally { if (chrome) await cleanupChrome(chrome); await Promise.all([stop(enabledPreview), stop(legacyPreview)]); await rm(temporaryRoot, { recursive: true, force: true }); }

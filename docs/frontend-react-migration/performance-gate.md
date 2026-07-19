@@ -19,7 +19,7 @@ Current minified measurements:
 | Boards/BOM production island | 212,565 B | 65,324 B | 225,000 B | 68,000 B |
 | Structure Employees production island | 216,825 B | 65,878 B | 225,000 B | 68,000 B |
 | Structure Positions production island | 215,168 B | 65,465 B | 225,000 B | 68,000 B |
-| Structure Org Units production island | 208,771 B | 64,265 B | 225,000 B | 68,000 B |
+| Structure Org Units production island | 213,588 B | 65,204 B | 225,000 B | 68,000 B |
 | Structure Work Centers production island | 209,465 B | 64,375 B | 225,000 B | 68,000 B |
 | Structure Equipment production island | 209,048 B | 64,318 B | 225,000 B | 68,000 B |
 | Structure Responsibility Policies production island | 210,157 B | 64,629 B | 225,000 B | 68,000 B |
@@ -39,7 +39,7 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 474,000 B | 110,581 B | 475,000 B | 118,000 B |
+| Full twenty-four-scenario lab | 474,126 B | 110,624 B | 475,000 B | 118,000 B |
 | Shared lab CSS | 19,093 B | 3,854 B | 19,500 B | 4,000 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
@@ -110,10 +110,11 @@ The bundled production Structure Positions island is `203,728 B` raw /
 below `20 ms` across 49 PostgreSQL-backed rows; this is regression evidence, not
 Pilot acceptance.
 
-The bundled production Structure Org Units island is `203,298 B` raw /
-`63,823 B` gzip / `55,093 B` Brotli. Its production-shell first commit was
-`17.3 ms` across 19 PostgreSQL-backed rows; this is regression evidence, not
-Pilot acceptance.
+The bundled production Structure Org Units island is `213,588 B` raw /
+`65,204 B` gzip. Its production-shell first commit was `17.70 ms` across 19
+PostgreSQL-backed rows; create/edit QA additionally returns a twentieth row,
+rejects an indirect hierarchy cycle before mutation and preserves legacy
+read-back. This is regression evidence, not Pilot acceptance.
 
 The bundled production Structure Work Centers island is `203,739 B` raw /
 `64,039 B` gzip / `55,095 B` Brotli. Its production-shell first commit was

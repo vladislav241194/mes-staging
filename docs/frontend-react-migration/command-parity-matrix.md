@@ -20,8 +20,8 @@ including the deviation-note interaction and same-data legacy rollback.
 
 Nomenclature and Component Types have locally complete create/edit/delete
 command parity. Operations, Nomenclature Types, user-managed Statuses and board
-metadata have locally complete create/edit parity. Structure Employees and
-Structure Positions now have locally complete PostgreSQL-backed create/edit
+metadata have locally complete create/edit parity. Structure Employees,
+Structure Positions and Structure Org Units now have locally complete PostgreSQL-backed create/edit
 parity through the System Domains owner, while reference-sensitive,
 lifecycle, import, BOM-row and delete commands remain explicit legacy-only
 slices. Structure Migration Diagnostics and Weekly Production Control are intentionally
@@ -39,12 +39,13 @@ retain their explicit next vertical scopes.
 | 7 | Boards/BOM | Local complete: board metadata create/edit; import, BOM rows and delete remain legacy | Medium | Separately gated Pilot read-only evaluation, then metadata write with a disposable board |
 | 8 | Structure Employees | Local complete: employee + primary assignment create/edit; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable employee and cleanup |
 | 9 | Structure Positions | Local complete: create/edit with organization, work-center and schedule references; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable position and cleanup |
-| 10 | Remaining Structure registries | Pending | High/Critical | One registry and one command at a time, preserving PostgreSQL references |
-| 11 | Timesheet | Pending | High | One attendance-day save/remove scenario |
-| 12 | Roles and Access | Pending | Critical | Role metadata before grants, assignments and scopes |
-| 13 | Planning and operational modules | Pending | Critical | Navigation/local actions before scheduling, assignment or fact mutations |
-| 14 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
-| 15 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
+| 10 | Structure Org Units | Local complete: create/edit with parent existence and hierarchy-cycle validation; archive remains legacy | High | Separately gated Pilot write evaluation with a disposable child unit and cleanup |
+| 11 | Remaining Structure registries | Pending | High/Critical | One registry and one command at a time, preserving PostgreSQL references |
+| 12 | Timesheet | Pending | High | One attendance-day save/remove scenario |
+| 13 | Roles and Access | Pending | Critical | Role metadata before grants, assignments and scopes |
+| 14 | Planning and operational modules | Pending | Critical | Navigation/local actions before scheduling, assignment or fact mutations |
+| 15 | Specifications 2.0, Gantt, Authorization | Pending | Critical | Dedicated protected editor/security slices |
+| 16 | Contour Admin | Protected legacy | Critical | Separate Ops approval required before any command migration |
 | — | Structure Migration Diagnostics | Not applicable | Low | Pilot read-only acceptance only |
 
 The Directories cluster now has Component Types read parity accepted on Pilot
@@ -106,6 +107,15 @@ conflict-without-mutation plus retry, hidden-field preservation, `50`-row
 legacy read-back and unchanged disposable compatibility state. The audit also
 fixed Structure active-host routing so a write-gated registry cannot disable
 legacy event binding while another host is selected.
+
+Structure Org Units adds hierarchy-safe PostgreSQL create/edit. Its local-only
+editor saves name, code, type, parent and active state through the same
+revision-checked System Domains owner. Production-shell QA proves parent
+existence, rejects an indirect parent cycle before any PUT, preserves hidden
+fields, exercises conflict-without-mutation plus retry, returns the twentieth
+row through legacy and leaves the disposable compatibility snapshot unchanged.
+Archive remains legacy and Pilot write acceptance is a separate controlled
+checkpoint.
 
 Weekly Production Control's earlier “week selection” command scope was removed
 after source audit: no such legacy command exists, and the module explicitly

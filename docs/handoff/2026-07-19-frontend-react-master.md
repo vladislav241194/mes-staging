@@ -255,12 +255,16 @@ state and clean console. Employees regression remains 76/76. Its artifact is
 `203,728 B` raw / `63,958 B` gzip / `55,098 B` Brotli. It has not been released
 or activated on Pilot.
 
-Structure Org Units is now the tenth production-integrated read-only island.
+Structure Org Units is now the tenth production-integrated island and has a
+local-only PostgreSQL create/edit evaluation gate.
 Production-shell QA proves 19/19 PostgreSQL rows, all five cells and order,
 parent hierarchy, selection/passport, seven registry links, six metrics, exact
 Work Centers fallback, unchanged state and clean console. Positions regression
-remains 49/49. Its artifact is `203,298 B` raw / `63,823 B` gzip / `55,093 B`
-Brotli. It has not been released or activated on Pilot.
+remains 49/49. Command QA creates a twentieth child unit, rejects an indirect
+hierarchy cycle before PUT, exercises revision conflict and retry, preserves
+hidden fields and reads the edit through legacy without changing the disposable
+compatibility snapshot. Its current artifact is `213,588 B` raw / `65,204 B`
+gzip. It has not been released or activated on Pilot.
 
 Structure Work Centers is now the eleventh production-integrated read-only
 island. Production-shell QA proves 19/19 PostgreSQL rows, five cells and order,
@@ -439,7 +443,7 @@ will be repeated after the Structure Employees commit and before rebasing.
 2. PostgreSQL root rollout and final authenticated audit. **Complete at `fc71e01`.**
 3. Rebase this branch onto the accepted PostgreSQL/main commit. **Complete at `fc71e01`; zero conflicts.**
 4. Replace fixtures with read-only runtime payload adapters. **Complete locally for Nomenclature, Directories Component Types, Operations, Nomenclature Types and Statuses using current runtime projections; for Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Roles/Access and Timesheet using PostgreSQL-hydrated System Domains; for Planning Workbench using the PostgreSQL list/detail bootstrap; for Shift Work Orders and Shift Master Board using the complete PostgreSQL Shift Execution projection; for Specifications 2.0 using the fingerprint-matched published revision read model; and for Gantt using runtime-owned PostgreSQL-backed geometry. No fixture reaches production.**
-5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata and PostgreSQL-backed Structure Employees/Positions create/edit have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
+5. Mount React islands behind disabled-by-default feature flags. **Complete for Nomenclature, Structure Employees, Structure Positions, Structure Org Units, Structure Work Centers, Structure Equipment, Structure Responsibility Policies, Structure Migration Diagnostics, Boards/BOM, Roles/Access, Directories Component Types, Operations, Nomenclature Types, Statuses, Weekly Production Control, Timesheet, Planning Workbench, Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin, Specifications 2.0, Gantt and Authorization picker; read slices require two explicit runtime flags plus a session request, Nomenclature has an independent server write permission, Component Types, Operations, Nomenclature Types, user-managed Statuses, Board metadata and PostgreSQL-backed Structure Employees/Positions/Org Units create/edit have local RBAC-gated write evaluations, and every unsupported/write/security scope falls back to legacy.**
 6. Run legacy parity, functional, visual, performance, and pilot checks. **Local parity, non-empty production-shell functional QA, visual checkpoint and bundle budgets pass; authenticated Pilot acceptance remains pending.**
 7. Migrate commands one vertical scope at a time. **Nomenclature and Component
    Types create/edit/delete are locally complete default-off write evaluations;
@@ -450,7 +454,10 @@ will be repeated after the Structure Employees commit and before rebasing.
    the revision-checked PostgreSQL System Domains owner; archive remains legacy
    and Pilot write acceptance is separate. Structure Positions create/edit is
    locally complete with organization, work-center and schedule-reference proof;
-   archive and Pilot write acceptance remain separate. Weekly
+   archive and Pilot write acceptance remain separate. Structure Org Units
+   create/edit is locally complete with parent-existence and indirect-cycle
+   rejection before mutation; archive and Pilot write acceptance remain
+   separate. Weekly
    Production Control is read-only by product contract and has no command
    scope; all remaining module commands are pending.**
 8. Only then propose default-on activation or the next command scope.

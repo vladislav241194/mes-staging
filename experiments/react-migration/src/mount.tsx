@@ -7,7 +7,7 @@ import { NomenclatureTypesScenario } from "./modules/nomenclature-types/Nomencla
 import { StatusesScenario } from "./modules/statuses/StatusesScenario";
 import { StructureEmployeesReadScenario } from "./modules/structure-employees/StructureEmployeesReadScenario";
 import { StructurePositionsReadScenario } from "./modules/structure-positions/StructurePositionsReadScenario";
-import { StructureOrgUnitsScenario } from "./modules/structure-org-units/StructureOrgUnitsScenario";
+import { StructureOrgUnitsReadScenario } from "./modules/structure-org-units/StructureOrgUnitsReadScenario";
 import { StructureWorkCentersScenario } from "./modules/structure-work-centers/StructureWorkCentersScenario";
 import { StructureEquipmentScenario } from "./modules/structure-equipment/StructureEquipmentScenario";
 import { StructureResponsibilityPoliciesScenario } from "./modules/structure-responsibility-policies/StructureResponsibilityPoliciesScenario";
@@ -33,7 +33,7 @@ function ReactMigrationScenario({ onRequestLegacy, payload, scenario }: { onRequ
   if (scenario === "boards") return <BoardsScenario payload={payload} />;
   if (scenario === "structureEmployees") return <StructureEmployeesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structurePositions") return <StructurePositionsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "structureOrgUnits") return <StructureOrgUnitsScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "structureOrgUnits") return <StructureOrgUnitsReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureWorkCenters") return <StructureWorkCentersScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureEquipment") return <StructureEquipmentScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "structureResponsibilityPolicies") return <StructureResponsibilityPoliciesScenario payload={payload} onRequestLegacy={onRequestLegacy} />;

@@ -5,13 +5,21 @@ Branch: `codex/frontend-react-migration`
 
 ## Scope
 
-Read-only vertical scenario:
+Read vertical scenario:
 
 `open Structure and Employees -> Org Units -> select a unit -> inspect its passport`.
 
 The adapter consumes the authenticated PostgreSQL System Domains snapshot and
 preserves stable IDs, Russian sort order, department/section category, parent
 hierarchy, code and archive status.
+
+Local-only command scenario:
+
+`create child unit -> reject hierarchy cycle -> edit with revision conflict -> retry -> read through legacy`.
+
+The command owner remains in `src/app.js`, requires the PostgreSQL primary
+System Domains surface and `productionStructureMatrix.edit`, and keeps archive
+in legacy.
 
 ## Evidence
 
@@ -22,10 +30,17 @@ hierarchy, code and archive status.
 - production-shell QA covers selection/passport, seven registry links, six
   metrics, exact Work Centers legacy fallback, unchanged state and clean console;
 - Positions regression still matches 49/49 after three-host routing;
-- latest local Org Units first commit was `17.3 ms`.
+- local write QA creates a twentieth child row and preserves its exact parent;
+- an indirect cycle is rejected before any PUT reaches the command API;
+- conflict does not mutate the revision, retry advances it exactly once;
+- hidden server-only fields survive edit and the result reads back as 20 rows
+  through legacy;
+- the disposable compatibility snapshot remains byte-for-byte unchanged;
+- latest local Org Units first commit was `17.70 ms`.
 
-The independent entry is `208,696 B` raw / `64,239 B` gzip. The production
-artifact is `203,298 B` raw / `63,823 B` gzip / `55,093 B` Brotli. It remains
+The production artifact is `213,588 B` raw / `65,204 B` gzip, below the
+`225,000 B / 68,000 B` gate. The aggregate lab uses the separate read-only
+scenario and remains below `475,000 B / 118,000 B`. Both read and write remain
 false by default.
 
 ## Pilot acceptance
@@ -45,4 +60,5 @@ Units in read-only mode.
   the evaluation query retained.
 
 The flags are off, the temporary root directory has been removed, and no Pilot
-data was written. Command migration is outside this accepted slice.
+data was written. The new command slice is local evidence only; Pilot write
+acceptance remains a separate controlled checkpoint.

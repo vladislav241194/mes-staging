@@ -88,13 +88,16 @@ all registry navigation, authorization and command ownership; choosing any
 registry other than Employees requests unchanged legacy rendering.
 
 `mountStructurePositionsReactIsland(...)` uses the same authenticated System
-Domains snapshot in a separate bundle and feature policy. It owns only the
-Positions read table and passport. Create/save/archive commands and every
-other Structure registry remain in the legacy renderer.
+Domains snapshot in a separate bundle and feature policy. It owns the Positions
+read table/passport and a local-only create/edit evaluation delegated to the
+host System Domains command owner. Archive and every unsupported Structure
+command remain in the legacy renderer.
 
-`mountStructureOrgUnitsReactIsland(...)` owns only the Org Units read table and
-passport over the same snapshot. Parent resolution stays inside the typed
-adapter; create/save/archive and all other registries remain legacy.
+`mountStructureOrgUnitsReactIsland(...)` owns the Org Units read table/passport
+and a local-only create/edit evaluation over the same snapshot. Parent labels
+stay inside the typed adapter; parent existence and hierarchy cycles are checked
+by the host before delegation to the revision-checked System Domains owner.
+Archive and all unsupported commands remain legacy.
 
 `mountStructureWorkCentersReactIsland(...)` owns the Work Centers read table
 and passport. Organization and parent-center references are resolved at the
