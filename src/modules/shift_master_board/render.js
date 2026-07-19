@@ -3109,7 +3109,7 @@ function moveShiftMasterBoardCardToLane(slotId = "", laneId = "") {
   return result;
 }
 
-function saveShiftMasterBoardAssignment(slotId = "", patch = {}) {
+function saveShiftMasterBoardAssignment(slotId = "", patch = {}, { notifyOwner = true } = {}) {
   if (!slotId) return null;
   const row = getShiftMasterBoardRowById(slotId);
   const previous = normalizePlainRecord(ui.shiftMasterBoardAssignments)[slotId] || {};
@@ -3170,7 +3170,7 @@ function saveShiftMasterBoardAssignment(slotId = "", patch = {}) {
   };
   ui.shiftMasterBoardSelectedSlotId = slotId;
   persistUiState();
-  void onShiftMasterBoardAssignmentSaved(row, next);
+  if (notifyOwner) void onShiftMasterBoardAssignmentSaved(row, next);
   return next;
 }
 

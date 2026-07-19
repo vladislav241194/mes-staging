@@ -30,7 +30,7 @@ unresolved.
 | Registry/sidebar | Page, header, sidebar, filters, panel, table, metric grid, action, selectable row, detail panel, status | Entity-specific columns and detail fields | Nomenclature + Component Types + Structure Employees + Roles read-only scenarios |
 | Registry/process composition | Page, header, sidebar list, panel, table overflow, action boundary, detail panel, status, typed metadata editor | BOM component summary, nine-column import table, board selection semantics | Boards/BOM read plus metadata create/edit |
 | Dense planning | Header, sidebar, toolbar, metrics, panel, table overflow, status, loading/error, bounded typed form | Dense grids, hierarchy, calendar and planning calculations | Weekly Production Control read-only + Timesheet day fact + Planning Workbench quantity |
-| Operational | Status, action, panel, table tree, metric grid, read-only attachment overlay, lazy print-preview shell, owner-backed board focus | Workshop assignment and worker fact entry | Shift Work Orders document journal plus Shift Master Board focus/read navigation |
+| Operational | Status, action, panel, table tree, metric grid, `ModalOverlay`, bounded quantity form, read-only attachment overlay, lazy print-preview shell, owner-backed board focus | Workshop fact/carryover/transfer and specialized worker fact entry | Shift Work Orders document journal plus Shift Master Board focus/assignment |
 | Protected canvas | Published tree inspection and Gantt schedule/passport selection | Gantt dependencies/drag/resize and Specifications editors/commands | Runtime-owned geometry and immutable revisions first; editors migrate last with dedicated guardrails |
 | Admin/standalone | Contour controls, organizational picker and local-only PIN form | Session authority and standalone shell | Separate security acceptance path |
 
@@ -242,12 +242,16 @@ Workshop-specific three-lane card board. The fixture proves three lanes, four
 cards, seven summary/detail metrics, local card selection and an owner-backed
 focus update from four to three cards. React sends only `all`, `mine`, `open` or
 `attention`; the host owner rebuilds the filtered model and KPI totals. The
-toolbar remains available when a focused projection is empty. Master/date,
-assignment, fact, carryover, transfer and print scopes return to legacy.
+toolbar remains available when a focused projection is empty. The shared
+`ModalOverlay` now composes the executor quantity editor. React validates the
+visible total; the host independently rechecks RBAC, matrix membership,
+Timesheet availability and quantity bounds before the Shift Execution owner
+writes PostgreSQL and refreshes the canonical projection. Master/date, fact,
+carryover, transfer and print scopes return to legacy.
 Production-shell QA proves identical three-lane/one-card density from the same
 PostgreSQL-backed runtime projection, default legacy, explicit read-only
-activation, focus recovery `all -> empty open -> all`, assignment fallback,
-zero Shift Execution commands and unchanged state.
+activation, focus recovery `all -> empty open -> all`, read-only assignment
+fallback, one write-evaluation assignment/read-back and unchanged fixture state.
 
 ## Employee Desktop production evidence
 

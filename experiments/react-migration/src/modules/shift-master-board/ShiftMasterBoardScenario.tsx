@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionButton, MetricCard, MetricGrid, OperationalPage, Panel, StatusToken, SystemState } from "../../ui/components";
+import { ModalOverlay } from "../../ui/ModalOverlay";
 import { adaptShiftMasterBoardPayload } from "./adapter";
 
 const quantity = (value: number, unit = "шт.") => `${value.toLocaleString("ru-RU")} ${unit}`;
 const focusOptions = [{ id: "all", label: "Все" }, { id: "mine", label: "Мои" }, { id: "open", label: "Незакрытые" }, { id: "attention", label: "Требуют внимания" }] as const;
 
-export function ShiftMasterBoardScenario({ payload, onSelectFocus, onRequestLegacy }: { payload: unknown; onSelectFocus?(focus: "all" | "mine" | "open" | "attention"): void; onRequestLegacy?(scope?: string): void }) {
+export interface ShiftMasterBoardAssignmentCommand { type: "save-assignment"; rowId: string; executors: { employeeId: string; quantity: number }[] }
+export interface ShiftMasterBoardCommandResult { ok?: boolean; message?: string }
+
+export function ShiftMasterBoardScenario({ payload, onCommand, onSelectFocus, onRequestLegacy }: { payload: unknown; onCommand?(command: ShiftMasterBoardAssignmentCommand): Promise<ShiftMasterBoardCommandResult | void>; onSelectFocus?(focus: "all" | "mine" | "open" | "attention"): void; onRequestLegacy?(scope?: string): void }) {
   const model = useMemo(() => adaptShiftMasterBoardPayload(payload), [payload]);
   const [selectedId, setSelectedId] = useState(model.selectedRow?.id || "");
+  const [assignmentOpen, setAssignmentOpen] = useState(false); const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({}); const [assignmentError, setAssignmentError] = useState(""); const [assignmentSaving, setAssignmentSaving] = useState(false); const closeAssignment = useCallback(() => { setAssignmentOpen(false); setAssignmentError(""); }, []);
   useEffect(() => { if (!model.rows.some((row) => row.id === selectedId)) setSelectedId(model.selectedRow?.id || model.rows[0]?.id || ""); }, [model, selectedId]);
   const toolbar = <header className="shift-master-board-react-toolbar" data-shift-master-board-toolbar>
       <button className="shift-master-board-react-date" onClick={() => onRequestLegacy?.("date")} type="button"><span>Смена</span><strong>{model.windowLabel}</strong></button>
@@ -17,6 +22,10 @@ export function ShiftMasterBoardScenario({ payload, onSelectFocus, onRequestLega
     </header>;
   if (!model.rows.length) return <OperationalPage className="shift-master-board-react" label="Мастерская">{toolbar}<SystemState title="В этом фокусе задач нет" text="Выберите другой фокус или смену, чтобы вернуть карточки на доску." tone="neutral" /></OperationalPage>;
   const selected = model.rows.find((row) => row.id === selectedId) || model.selectedRow || model.rows[0];
+  const assignmentValues = selected.assignableEmployees.map((employee) => { const value = String(assignmentDraft[employee.id] ?? employee.quantity); return { employee, value, quantity: /^\d{1,7}$/.test(value || "0") ? Number(value || 0) : null }; });
+  const assignmentTotal = assignmentValues.reduce((sum, item) => sum + (item.quantity || 0), 0); const assignmentInvalid = assignmentValues.some((item) => item.quantity === null) || assignmentTotal <= 0 || assignmentTotal > selected.plannedQuantity;
+  const openAssignment = () => { if (!model.canAssign || !onCommand) { onRequestLegacy?.(`assign:${selected.id}`); return; } setAssignmentDraft(Object.fromEntries(selected.assignableEmployees.map((employee) => [employee.id, String(employee.quantity)]))); setAssignmentError(""); setAssignmentOpen(true); };
+  const saveAssignment = async () => { if (assignmentInvalid || assignmentSaving) return; setAssignmentSaving(true); setAssignmentError(""); try { const result = await onCommand?.({ type: "save-assignment", rowId: selected.id, executors: assignmentValues.filter((item) => Number(item.quantity) > 0).map((item) => ({ employeeId: item.employee.id, quantity: Number(item.quantity) })) }); if (result?.ok === false) { setAssignmentError(result.message || "Распределение не сохранено."); return; } closeAssignment(); } catch (error) { setAssignmentError(error instanceof Error ? error.message : "Распределение не сохранено."); } finally { setAssignmentSaving(false); } };
   return <OperationalPage className="shift-master-board-react" label="Мастерская">
     {toolbar}
     <section className="shift-master-board-react-grid">
@@ -25,12 +34,15 @@ export function ShiftMasterBoardScenario({ payload, onSelectFocus, onRequestLega
           <div className="shift-master-board-react-title"><span>Изделие</span><strong>{selected.orderLabel}</strong><small>{selected.routePartLabel} · {selected.operationName}</small></div>
           <MetricGrid label="Покрытие сменной задачи"><MetricCard label="План" value={quantity(selected.plannedQuantity, selected.unit)} meta={selected.workCenterLabel} /><MetricCard label="Распределено" value={quantity(selected.assignedQuantity, selected.unit)} meta={selected.masterName} /><MetricCard label="Факт" value={quantity(selected.factQuantity, selected.unit)} meta={selected.factUpdatedAt} /><MetricCard label="Остаток" value={quantity(selected.remainingQuantity, selected.unit)} meta={selected.riskLabel || "без риска"} /></MetricGrid>
           <section className="shift-master-board-react-executors"><header><strong>Исполнители</strong><span>{selected.executors.length}</span></header>{selected.executors.length ? selected.executors.map((executor) => <div key={executor.id}><span>{executor.name}</span><strong>{quantity(executor.quantity, selected.unit)}</strong></div>) : <p>Исполнитель ещё не назначен.</p>}</section>
-          <div className="shift-master-board-react-actions"><ActionButton onClick={() => onRequestLegacy?.(`assign:${selected.id}`)}>Распределить</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`fact:${selected.id}`)} variant="secondary">Внести факт</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`print:${selected.id}`)} variant="secondary">Печать СЗН</ActionButton></div>
+          <div className="shift-master-board-react-actions"><ActionButton onClick={openAssignment}>Распределить</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`fact:${selected.id}`)} variant="secondary">Внести факт</ActionButton><ActionButton onClick={() => onRequestLegacy?.(`print:${selected.id}`)} variant="secondary">Печать СЗН</ActionButton></div>
         </div>
       </Panel>
       <Panel heading={<div className="panel-heading"><div><p>{model.windowLabel}</p><h2>Доска сменных задач</h2></div><span>{model.rows.length} карточки</span></div>}>
         <div className="shift-master-board-react-lanes" data-shift-master-board-lanes>{model.lanes.map((lane) => <section className={`shift-master-board-react-lane is-${lane.tone}`} data-shift-master-board-lane={lane.id} key={lane.id}><header><strong>{lane.label}</strong><span>{lane.rows.length}</span><small>{lane.caption}</small></header><div>{lane.rows.length ? lane.rows.map((row) => <button aria-pressed={row.id === selected.id} className={row.id === selected.id ? "is-active" : ""} data-shift-master-board-card={row.id} key={row.id} onClick={() => setSelectedId(row.id)} type="button"><strong>{row.operationName}</strong><small>{row.workCenterLabel} · {row.timeLabel}</small><span>{quantity(row.assignedQuantity, row.unit)} / {quantity(row.plannedQuantity, row.unit)}</span><StatusToken label={row.signal.label} tone={row.signal.tone} /></button>) : <p>нет карточек</p>}</div></section>)}</div>
       </Panel>
     </section>
+    {assignmentOpen ? <ModalOverlay className="shift-master-board-react-assignment-modal" eyebrow="Доска мастера" footer={<><span className={assignmentInvalid || assignmentError ? "is-error" : ""}>{assignmentError || (assignmentTotal <= 0 ? "Назначьте количество хотя бы одному исполнителю." : assignmentTotal > selected.plannedQuantity ? `Назначено больше плана на ${quantity(assignmentTotal - selected.plannedQuantity, selected.unit)}` : `Назначено ${quantity(assignmentTotal, selected.unit)} из ${quantity(selected.plannedQuantity, selected.unit)}`)}</span><ActionButton disabled={assignmentInvalid || assignmentSaving} onClick={() => void saveAssignment()}>{assignmentSaving ? "Сохранение…" : "Сохранить"}</ActionButton></>} label="Распределение исполнителей" onClose={closeAssignment} title={selected.operationName}>
+      <div className="shift-master-board-react-assignment" data-shift-master-board-assignment={selected.id}>{assignmentValues.length ? assignmentValues.map(({ employee, value }) => <label className={employee.available ? "" : "is-unavailable"} key={employee.id}><span><strong>{employee.name}</strong><small>{employee.availabilityLabel}</small></span><input aria-label={`Количество для ${employee.name}`} disabled={!employee.available} inputMode="numeric" maxLength={7} onChange={(event) => { const nextValue = event.currentTarget.value.replace(/\D/g, "").slice(0, 7); setAssignmentDraft((draft) => ({ ...draft, [employee.id]: nextValue })); }} value={value} /></label>) : <SystemState title="Нет доступных исполнителей" text="Матрица доступа или Табель не дают назначить сотрудника на эту смену." tone="neutral" />}</div>
+    </ModalOverlay> : null}
   </OperationalPage>;
 }

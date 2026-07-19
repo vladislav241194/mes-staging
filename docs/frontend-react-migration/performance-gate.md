@@ -29,7 +29,7 @@ Current minified measurements:
 | Planning Workbench production island | 206,952 B | 64,065 B | 225,000 B | 68,000 B |
 | Shift Work Orders production island | 220,036 B | 66,703 B | 225,000 B | 68,000 B |
 | Shift Work Orders lazy print entry | 19,025 B | 3,659 B | 225,000 B | 68,000 B |
-| Shift Master Board production island | 207,434 B | 64,044 B | 225,000 B | 68,000 B |
+| Shift Master Board production island | 213,608 B | 65,640 B | 225,000 B | 68,000 B |
 | Employee Desktop production island | 224,501 B | 67,206 B | 225,000 B | 68,000 B |
 | Authorization picker production island | 206,680 B | 64,127 B | 225,000 B | 68,000 B |
 | Contour Admin production island | 207,695 B | 63,985 B | 225,000 B | 68,000 B |
@@ -40,8 +40,8 @@ Current minified measurements:
 | Operations independent entry | 207,600 B | 64,105 B | 225,000 B | 68,000 B |
 | Nomenclature Types independent entry | 207,259 B | 63,928 B | 225,000 B | 68,000 B |
 | Statuses independent entry | 210,171 B | 64,488 B | 225,000 B | 68,000 B |
-| Full twenty-four-scenario lab | 530,153 B | 121,544 B | 531,000 B | 125,000 B |
-| Shared lab CSS | 27,677 B | 5,096 B | 27,900 B | 5,150 B |
+| Full twenty-four-scenario lab | 536,188 B | 122,764 B | 537,000 B | 126,000 B |
+| Shared lab CSS | 28,699 B | 5,207 B | 28,900 B | 5,250 B |
 
 The budget script also inspects the minified Nomenclature, Boards, Structure,
 Shift Work Orders, Shift Master Board, Employee Desktop, Contour Admin,
@@ -50,7 +50,7 @@ The same isolation check now covers the Gantt artifact.
 The Shift Work Orders base-entry check additionally rejects the print-sheet
 marker, while the dedicated lazy entry must contain it. This preserves
 independent vertical slices instead of shipping every lab scenario with an
-individual island. The larger `531,000 B / 125,000 B` limit
+individual island. The larger `537,000 B / 126,000 B` limit
 applies only to the twenty-four-scenario development lab, never to a production
 island. Its raw limit increases only for an accepted isolated scenario or
 bounded vertical capability; every production entry retains the unchanged
@@ -83,7 +83,7 @@ then proved one create plus one edit through the existing command owner.
 | Timesheet | measured by the same callback | browser gate passed | overtime updated, revision 2 |
 | Planning Workbench | measured by the same callback | browser gate passed | quantity conflict/retry, authoritative slot refresh and legacy read-back |
 | Shift Work Orders | measured by the same callback | browser gate passed | attachment and lazy SZN/package overlays, host print callback, selection/collapse and revision 2 |
-| Shift Master Board | measured by the same callback | browser gate passed | owner-backed focus 4 -> 3 cards, empty-focus recovery and revision 3 |
+| Shift Master Board | 26.50 ms in production shell | browser gate passed | owner-backed focus, empty-focus recovery, assignment revision 4 and one PostgreSQL write/read-back |
 | Employee Desktop | measured by the same callback | browser gate passed | task/fact/photo Report read-back, deviation guard, revision 5 |
 | Contour Admin | measured by the same callback | browser gate passed | contour selection preserved, revision 2 |
 | Specifications 2.0 | measured by the same callback | browser gate passed | tree collapse and revision 7 -> 8 preserved |
@@ -174,11 +174,12 @@ previews and delegates two print calls to the host; the isolated lab
 additionally proves an in-React attachment overlay with Escape close. This is
 regression evidence, not Pilot acceptance.
 
-The bundled production Shift Master Board island is `203,459 B` raw /
-`63,786 B` gzip / `54,849 B` Brotli. Its one-card PostgreSQL-backed production-
-shell first commit was `34.20 ms`; owner-backed focus additionally proves
-`all -> empty open -> all` without a Shift Execution write. This is regression
-evidence, not Pilot acceptance.
+The bundled production Shift Master Board island is `208,190 B` raw /
+`65,231 B` gzip / `56,256 B` Brotli. Its one-card PostgreSQL-backed production-
+shell first commit was `26.50 ms`; owner-backed focus proves
+`all -> empty open -> all`, read-only assignment returns to legacy and the
+write evaluation performs exactly one assignment command with canonical
+read-back. This is regression evidence, not Pilot acceptance.
 
 The bundled production Employee Desktop island is `214,902 B` raw /
 `66,681 B` gzip / `57,535 B` Brotli. Its one-task PostgreSQL-backed production-

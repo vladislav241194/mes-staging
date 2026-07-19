@@ -30,10 +30,10 @@ existing module owner.
 - no viewport overflow and a clean browser console;
 - independent entry `207,695 B` raw / `63,985 B` gzip under the unchanged
   `225,000 B / 68,000 B` production-entry budget;
-- full aggregate lab `530,153 B / 121,544 B` under its development-only
-  `531,000 B / 125,000 B` budget;
-- shared lab CSS `27,677 B / 5,096 B` under its development-only
-  `27,900 B / 5,150 B` budget.
+- full aggregate lab `536,188 B / 122,764 B` under its development-only
+  `537,000 B / 126,000 B` budget;
+- shared lab CSS `28,699 B / 5,207 B` under its development-only
+  `28,900 B / 5,250 B` budget.
 
 ## Production integration
 

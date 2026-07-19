@@ -168,7 +168,7 @@ quantities nor writes runtime state. Workshop returns through
 server authority stay outside React. Missing PostgreSQL coverage, an open
 legacy overlay, editor access or a missing session request retains legacy.
 
-`mountShiftMasterBoardReactIsland(...)` owns the read-only Workshop board
+`mountShiftMasterBoardReactIsland(...)` owns the Workshop board
 behind two false-by-default server permissions, PostgreSQL System Domains and
 complete Shift Execution read readiness, plus an explicit session request.
 Its adapter consumes the completed legacy board model and owns local task-card
@@ -176,9 +176,14 @@ selection across the three existing lanes. React also owns the four focus
 controls, but sends only the focus ID to the host; the existing owner normalizes
 it and rebuilds rows, lanes, selected row and KPI totals before the island is
 remounted. An empty focused projection retains the toolbar and can return to
-`all`. Date/master changes plus assignment, fact, carryover, transfer and print
-scopes return through `unsupported-scope`. Missing coverage, an open legacy
-overlay, editor access or a missing session request retains legacy.
+`all`. A localhost-only write evaluation sends a typed `save-assignment`
+command. The host rechecks role permission, employee access-matrix membership,
+Timesheet availability, uniqueness and quantity bounds, delegates to the
+existing Shift Execution PostgreSQL owner and refreshes the canonical projection
+before React reports success. Read-only assignment, date/master changes, fact,
+carryover, transfer and print return through `unsupported-scope`. Missing
+coverage, an open legacy overlay, editor access or a missing session request
+retains legacy.
 
 `mountEmployeeDesktopReactIsland(...)` owns the executor task view
 behind two false-by-default server permissions, PostgreSQL System Domains and

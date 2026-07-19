@@ -16,7 +16,7 @@ import { WeeklyProductionControlScenario } from "./modules/weekly-production-con
 import { TimesheetReadScenario } from "./modules/timesheet/TimesheetReadScenario";
 import { PlanningWorkbenchReadScenario } from "./modules/planning-workbench/PlanningWorkbenchReadScenario";
 import { ShiftWorkOrdersScenario } from "./modules/shift-work-orders/ShiftWorkOrdersScenario";
-import { ShiftMasterBoardScenario } from "./modules/shift-master-board/ShiftMasterBoardScenario";
+import { ShiftMasterBoardScenario, type ShiftMasterBoardAssignmentCommand } from "./modules/shift-master-board/ShiftMasterBoardScenario";
 import { EmployeeDesktopScenario, type EmployeeDesktopReactCommand } from "./modules/employee-desktop/EmployeeDesktopScenario";
 import { ContourAdminScenario } from "./modules/contour-admin/ContourAdminScenario";
 import { Specifications2Scenario } from "./modules/specifications2/Specifications2Scenario";
@@ -29,11 +29,12 @@ export interface ReactMigrationScenarioOptions extends ReactMigrationIslandOptio
   onLoadShiftWorkOrderPrintRenderer?(): Promise<typeof import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews")>;
   onPrintDocument?(title: string): void;
   onSelectShiftMasterBoardFocus?(focus: "all" | "mine" | "open" | "attention"): void;
+  onShiftMasterBoardCommand?(command: ShiftMasterBoardAssignmentCommand): Promise<{ ok?: boolean; message?: string } | void>;
   onEmployeeDesktopCommand?(command: EmployeeDesktopReactCommand): Promise<{ ok?: boolean; message?: string } | void>;
   onRequestLegacy?(scope?: string): void;
 }
 
-function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftWorkOrderPrintRenderer, onPrintDocument, onSelectShiftMasterBoardFocus, onEmployeeDesktopCommand, onRequestLegacy, payload, scenario }: { onLoadShiftWorkOrderPrintPackage?(rowId: string): Promise<unknown>; onLoadShiftWorkOrderPrintRenderer?(): Promise<typeof import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews")>; onPrintDocument?(title: string): void; onSelectShiftMasterBoardFocus?(focus: "all" | "mine" | "open" | "attention"): void; onEmployeeDesktopCommand?(command: EmployeeDesktopReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
+function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftWorkOrderPrintRenderer, onPrintDocument, onSelectShiftMasterBoardFocus, onShiftMasterBoardCommand, onEmployeeDesktopCommand, onRequestLegacy, payload, scenario }: { onLoadShiftWorkOrderPrintPackage?(rowId: string): Promise<unknown>; onLoadShiftWorkOrderPrintRenderer?(): Promise<typeof import("./modules/shift-work-orders/ShiftWorkOrderPrintPreviews")>; onPrintDocument?(title: string): void; onSelectShiftMasterBoardFocus?(focus: "all" | "mine" | "open" | "attention"): void; onShiftMasterBoardCommand?(command: ShiftMasterBoardAssignmentCommand): Promise<{ ok?: boolean; message?: string } | void>; onEmployeeDesktopCommand?(command: EmployeeDesktopReactCommand): Promise<{ ok?: boolean; message?: string } | void>; onRequestLegacy?(scope?: string): void; payload: unknown; scenario: ReactMigrationScenarioId }) {
   if (scenario === "componentTypes") return <ComponentTypesScenario payload={payload} />;
   if (scenario === "boards") return <BoardsScenario payload={payload} />;
   if (scenario === "structureEmployees") return <StructureEmployeesReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -47,7 +48,7 @@ function ReactMigrationScenario({ onLoadShiftWorkOrderPrintPackage, onLoadShiftW
   if (scenario === "timesheet") return <TimesheetReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "planningWorkbench") return <PlanningWorkbenchReadScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "shiftWorkOrders") return <ShiftWorkOrdersScenario onLoadPrintPackage={onLoadShiftWorkOrderPrintPackage} onLoadPrintRenderer={onLoadShiftWorkOrderPrintRenderer} onPrintDocument={onPrintDocument} payload={payload} onRequestLegacy={onRequestLegacy} />;
-  if (scenario === "shiftMasterBoard") return <ShiftMasterBoardScenario payload={payload} onSelectFocus={onSelectShiftMasterBoardFocus} onRequestLegacy={onRequestLegacy} />;
+  if (scenario === "shiftMasterBoard") return <ShiftMasterBoardScenario payload={payload} onCommand={onShiftMasterBoardCommand} onSelectFocus={onSelectShiftMasterBoardFocus} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "employeeDesktop") return <EmployeeDesktopScenario payload={payload} onCommand={onEmployeeDesktopCommand} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "contourAdmin") return <ContourAdminScenario payload={payload} onRequestLegacy={onRequestLegacy} />;
   if (scenario === "specifications2") return <Specifications2Scenario payload={payload} onRequestLegacy={onRequestLegacy} />;
@@ -64,10 +65,10 @@ export function mountReactMigrationIsland(
   initialPayload: unknown,
   options: ReactMigrationScenarioOptions = {},
 ): ReturnType<typeof mountReactIsland> {
-  const { onLoadShiftWorkOrderPrintPackage, onLoadShiftWorkOrderPrintRenderer, onPrintDocument, onSelectShiftMasterBoardFocus, onEmployeeDesktopCommand, onRequestLegacy, ...runtimeOptions } = options;
+  const { onLoadShiftWorkOrderPrintPackage, onLoadShiftWorkOrderPrintRenderer, onPrintDocument, onSelectShiftMasterBoardFocus, onShiftMasterBoardCommand, onEmployeeDesktopCommand, onRequestLegacy, ...runtimeOptions } = options;
   return mountReactIsland(
     target,
-    (payload) => <ReactMigrationScenario onLoadShiftWorkOrderPrintPackage={onLoadShiftWorkOrderPrintPackage} onLoadShiftWorkOrderPrintRenderer={onLoadShiftWorkOrderPrintRenderer} onPrintDocument={onPrintDocument} onSelectShiftMasterBoardFocus={onSelectShiftMasterBoardFocus} onEmployeeDesktopCommand={onEmployeeDesktopCommand} onRequestLegacy={onRequestLegacy} payload={payload} scenario={scenario} />,
+    (payload) => <ReactMigrationScenario onLoadShiftWorkOrderPrintPackage={onLoadShiftWorkOrderPrintPackage} onLoadShiftWorkOrderPrintRenderer={onLoadShiftWorkOrderPrintRenderer} onPrintDocument={onPrintDocument} onSelectShiftMasterBoardFocus={onSelectShiftMasterBoardFocus} onShiftMasterBoardCommand={onShiftMasterBoardCommand} onEmployeeDesktopCommand={onEmployeeDesktopCommand} onRequestLegacy={onRequestLegacy} payload={payload} scenario={scenario} />,
     initialPayload,
     runtimeOptions,
   );

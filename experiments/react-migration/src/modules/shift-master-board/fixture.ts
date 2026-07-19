@@ -1,8 +1,12 @@
+const employees = [
+  { id: "employee-assigned", name: "Иванов Иван Иванович", availability: { isAvailable: true, label: "дневная смена · 12 ч" } },
+  { id: "employee-reserve", name: "Петрова Анна Сергеевна", availability: { isAvailable: true, label: "дневная смена · 12 ч" } },
+];
 const makeRow = (id: string, laneId: string, operationName: string, values: { planned: number; assigned: number; fact: number; signal: string; tone: string; executor?: string }) => ({
   id, sourceRowId: id, documentNumber: `СЗН-20260719-D5-${id.toUpperCase()}`, operationName, orderLabel: "ЗН-1042 · Контроллер КТ-7", routePartLabel: "Основной маршрут", taskLabel: "Контроллер КТ-7", workCenterLabel: "Отдел ручного монтажа", timeLabel: "08:00–20:00", unit: "шт.", boardLaneId: laneId,
   plannedQuantity: values.planned, boardAssignedQuantity: values.assigned, boardGoodQuantity: values.fact, boardSignal: { label: values.signal, tone: values.tone },
   boardAssignment: { masterName: "Смирнов Алексей Петрович", executors: values.executor ? [{ employeeId: `employee-${id}`, employeeName: values.executor, quantity: values.assigned }] : [], riskReason: laneId === "attention" ? "неполное распределение" : "" },
-  boardFact: values.fact ? { updatedAt: "19.07.2026, 14:20" } : null,
+  boardFact: values.fact ? { updatedAt: "19.07.2026, 14:20" } : null, employees,
 });
 const rows = [
   makeRow("intake", "intake", "Комплектация", { planned: 120, assigned: 0, fact: 0, signal: "нужно распределить", tone: "neutral" }),
@@ -13,7 +17,7 @@ const rows = [
 const lane = (id: string, label: string, caption: string, laneRows: typeof rows) => ({ id, label, caption, tone: id === "fact" ? "ok" : id === "attention" ? "warning" : "neutral", rows: laneRows });
 const lanes = [lane("intake", "План", "ожидает распределения мастером", [rows[0]]), lane("assigned", "В работе", "есть ресурс, исполнители или лист", [rows[1], rows[2]]), lane("fact", "Закрытие смены", "смена вернула результат", [rows[3]])];
 const model = { window: { label: "19.07.2026 · дневная смена" }, rows, lanes, selectedRow: rows[1], focus: "all", activeProfile: { name: "Смирнов Алексей Петрович", department: "Отдел ручного монтажа" }, plannedQuantity: 380, assignedQuantity: 220, factQuantity: 110, openQuantity: 270 };
-export const shiftMasterBoardFixture = { model };
+export const shiftMasterBoardFixture = { model, capabilities: { assignmentSave: true } };
 export function createShiftMasterBoardFocusFixture(focus: "all" | "mine" | "open" | "attention") {
   const focusedRows = focus === "open"
     ? rows.filter((row) => row.boardLaneId !== "fact")
@@ -23,7 +27,11 @@ export function createShiftMasterBoardFocusFixture(focus: "all" | "mine" | "open
   const plannedQuantity = focusedRows.reduce((sum, row) => sum + row.plannedQuantity, 0);
   const assignedQuantity = focusedRows.reduce((sum, row) => sum + row.boardAssignedQuantity, 0);
   const factQuantity = focusedRows.reduce((sum, row) => sum + row.boardGoodQuantity, 0);
-  return { model: { ...model, focus, rows: focusedRows, lanes: lanes.map((item) => ({ ...item, rows: item.rows.filter((row) => focusedRows.includes(row)) })), selectedRow: focusedRows.find((row) => row.id === model.selectedRow.id) || focusedRows[0] || null, plannedQuantity, assignedQuantity, factQuantity, openQuantity: Math.max(0, plannedQuantity - factQuantity) } };
+  return { model: { ...model, focus, rows: focusedRows, lanes: lanes.map((item) => ({ ...item, rows: item.rows.filter((row) => focusedRows.includes(row)) })), selectedRow: focusedRows.find((row) => row.id === model.selectedRow.id) || focusedRows[0] || null, plannedQuantity, assignedQuantity, factQuantity, openQuantity: Math.max(0, plannedQuantity - factQuantity) }, capabilities: { assignmentSave: true } };
 }
 const updatedRows = rows.map((row) => row.id === "assigned" ? { ...row, boardAssignedQuantity: 120, boardSignal: { label: "распределено", tone: "active" }, boardAssignment: { ...row.boardAssignment, executors: [{ employeeId: "employee-assigned", employeeName: "Иванов Иван Иванович", quantity: 120 }] } } : row);
-export const shiftMasterBoardUpdateFixture = { model: { ...model, rows: updatedRows, lanes: lanes.map((item) => ({ ...item, rows: item.rows.map((row) => updatedRows.find((entry) => entry.id === row.id) || row) })), selectedRow: updatedRows[1], assignedQuantity: 260 } };
+export const shiftMasterBoardUpdateFixture = { model: { ...model, rows: updatedRows, lanes: lanes.map((item) => ({ ...item, rows: item.rows.map((row) => updatedRows.find((entry) => entry.id === row.id) || row) })), selectedRow: updatedRows[1], assignedQuantity: 260 }, capabilities: { assignmentSave: true } };
+export function createShiftMasterBoardAssignmentFixture(rowId: string, executors: { employeeId: string; quantity: number }[]) {
+  const nextRows = rows.map((row) => row.id === rowId ? { ...row, boardAssignedQuantity: executors.reduce((sum, executor) => sum + executor.quantity, 0), boardSignal: { label: "распределено", tone: "active" }, boardAssignment: { ...row.boardAssignment, executors: executors.map((executor) => ({ ...executor, employeeName: employees.find((employee) => employee.id === executor.employeeId)?.name || "Исполнитель" })) } } : row);
+  return { model: { ...model, rows: nextRows, lanes: lanes.map((laneItem) => ({ ...laneItem, rows: laneItem.rows.map((row) => nextRows.find((entry) => entry.id === row.id) || row) })), selectedRow: nextRows.find((row) => row.id === rowId) || nextRows[0], assignedQuantity: nextRows.reduce((sum, row) => sum + row.boardAssignedQuantity, 0) }, capabilities: { assignmentSave: true } };
+}

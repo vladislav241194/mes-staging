@@ -966,9 +966,13 @@ try {
   const shiftMasterBoardOpenModel = shiftMasterBoardAdapter.adaptShiftMasterBoardPayload(createShiftMasterBoardFocusFixture("open"));
   assert.deepEqual([shiftMasterBoardModel.focus, shiftMasterBoardModel.rows.length, shiftMasterBoardOpenModel.focus, shiftMasterBoardOpenModel.rows.length], ["all", 4, "open", 3], "Shift Master Board focus payload must stay owner-shaped");
   assert.deepEqual([shiftMasterBoardOpenModel.plannedQuantity, shiftMasterBoardOpenModel.assignedQuantity, shiftMasterBoardOpenModel.factQuantity], [320, 160, 50], "Shift Master Board focused KPIs must cross the adapter unchanged");
+  assert.equal(shiftMasterBoardModel.canAssign, true, "Shift Master Board assignment capability must fail closed unless the host enables it");
+  assert.deepEqual(shiftMasterBoardModel.selectedRow.assignableEmployees.map((employee) => [employee.id, employee.quantity]), [["employee-assigned", 80], ["employee-reserve", 0]], "Shift Master Board assignment rows must preserve current executor quantities");
   const shiftMasterBoardScenarioSource = await readFile(join(sourceRoot, "modules/shift-master-board/ShiftMasterBoardScenario.tsx"), "utf8");
   assert.match(shiftMasterBoardScenarioSource, /data-shift-master-board-focus/);
   assert.match(shiftMasterBoardScenarioSource, /onSelectFocus\?\.\(option\.id\)/);
+  assert.match(shiftMasterBoardScenarioSource, /type: "save-assignment"/);
+  assert.match(shiftMasterBoardScenarioSource, /data-shift-master-board-assignment/);
   assert.doesNotMatch(shiftMasterBoardScenarioSource, /onRequestLegacy\?\.\("focus/);
 
   const sources = await collectSources(sourceRoot);
@@ -1479,8 +1483,11 @@ try {
   assert.match(productionAppSource, /printDocument: \(title = ""\)/);
   const shiftMasterBoardHostSource = await readFile(join(repositoryRoot, "src/modules/shift_master_board/react_island_host.js"), "utf8");
   assert.match(shiftMasterBoardHostSource, /onSelectFocus: selectFocus/);
+  assert.match(shiftMasterBoardHostSource, /onCommand: executeCommand/);
   assert.match(productionAppSource, /selectFocus: \(focus = ""\)/);
   assert.match(productionAppSource, /ui\.shiftMasterBoardFocus = nextFocus/);
+  assert.match(productionAppSource, /params\.get\("react-shift-master-board-write"\) === "1"/);
+  assert.match(productionAppSource, /mirrorShiftMasterBoardAssignmentToServer\(row, saved\)/);
   const boardsProductionHostSource = await readFile(join(repositoryRoot, "src/modules/nomenclature/boards_react_island_host.js"), "utf8");
   assert.match(boardsProductionHostSource, /createReactIslandHost/);
   const rolesProductionHostSource = await readFile(join(repositoryRoot, "src/modules/access_roles/react_island_host.js"), "utf8");
@@ -1615,7 +1622,7 @@ try {
   assert.deepEqual(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "not-applicable").map((scenario) => scenario.id), ["structureMigrationDiagnostics", "weeklyProductionControl"], "diagnostics and the read-only Weekly Control product module must have no command scope");
   assert.equal(commandParityMatrix.scenarios.filter((scenario) => scenario.commandParity === "pending").length, 0, "no registered command scenario may remain implicit or pending");
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftWorkOrders")?.nextVerticalScope || "", /Pilot read-only acceptance.*print\/package previews/);
-  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /Pilot read-only focus acceptance/);
+  assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "shiftMasterBoard")?.nextVerticalScope || "", /Pilot assignment acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "employeeDesktop")?.nextVerticalScope || "", /Pilot acceptance of the complete worker task flow/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "specifications2")?.nextVerticalScope || "", /Pilot draft-row edit acceptance/);
   assert.match(commandParityMatrix.scenarios.find((scenario) => scenario.id === "gantt")?.nextVerticalScope || "", /Pilot dependency-inspection acceptance/);
