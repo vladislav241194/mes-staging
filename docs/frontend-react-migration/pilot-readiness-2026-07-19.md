@@ -74,3 +74,19 @@ after explicit deployment authorization.
 The exact all-flags-off candidate is locked at `b1b77cf` with release ID
 `v.1.499.73-b1b77cf`. Later Nomenclature delete-parity commits are the next
 development checkpoint and must not be substituted into that release ID.
+
+## Refreshed authenticated baseline
+
+The authenticated browser baseline was rechecked on 2026-07-19 without using
+or persisting supplied credentials and without changing Pilot state:
+
+- `/healthz` still returned `status=ok`, version `v.1.499.72`, and
+  `sharedState=ready`;
+- the browser loaded `./src/app.js?v=db3bbb28f842-v.1.499.72`;
+- Nomenclature showed the legacy `Новая позиция` action and zero React mount
+  targets;
+- the browser console contained no warnings or errors;
+- the HTTP response identified Caddy as the active reverse proxy.
+
+This refresh proves only the unchanged live baseline. Deployment of
+`v.1.499.73-b1b77cf` still requires explicit authorization.
