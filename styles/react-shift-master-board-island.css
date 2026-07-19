@@ -1,0 +1,93 @@
+.mes-react-shift-master-board-island {
+  color: #18314d;
+  font-family: Onest, Inter, system-ui, sans-serif;
+}
+
+.mes-react-shift-master-board-island *,
+.mes-react-shift-master-board-island *::before,
+.mes-react-shift-master-board-island *::after { box-sizing: border-box; }
+.mes-react-shift-master-board-island button,
+.mes-react-shift-master-board-island input,
+.mes-react-shift-master-board-island select,
+.mes-react-shift-master-board-island textarea { font: inherit; }
+.mes-react-shift-master-board-island :is(h1, h2, p) { margin-top: 0; }
+
+.mes-react-shift-master-board-island .module-page { min-height: 680px; padding: 22px; }
+.mes-react-shift-master-board-island .panel { overflow: hidden; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+.mes-react-shift-master-board-island .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
+.mes-react-shift-master-board-island .panel-heading :is(h2, p) { margin: 0; }
+.mes-react-shift-master-board-island .panel-heading p { color: #718296; font-size: 12px; }
+.mes-react-shift-master-board-island .action { padding: 9px 13px; border: 0; border-radius: 10px; color: #fff; background: #2f6fe4; cursor: pointer; }
+.mes-react-shift-master-board-island .action--secondary { color: #18314d; background: #e8eef5; }
+.mes-react-shift-master-board-island .action--danger { background: #b83a3a; }
+.mes-react-shift-master-board-island .action:disabled { opacity: .45; cursor: default; }
+.mes-react-shift-master-board-island .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(104px, 1fr)); gap: 8px; }
+.mes-react-shift-master-board-island .metric-card { display: grid; gap: 3px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
+.mes-react-shift-master-board-island .metric-card :is(span, small) { color: #718296; font-size: 9px; }
+.mes-react-shift-master-board-island .metric-card strong { font-size: 17px; }
+.mes-react-shift-master-board-island .status { padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 650; }
+.mes-react-shift-master-board-island .status--success { color: #167451; background: #dff6eb; }
+.mes-react-shift-master-board-island .status--warning { color: #8b6412; background: #fff0c9; }
+.mes-react-shift-master-board-island .status--neutral { color: #52667a; background: #e9eef4; }
+.mes-react-shift-master-board-island .system-state { display: grid; min-height: 320px; justify-items: center; align-content: center; gap: 8px; margin: 22px; padding: 32px; border: 1px solid #d8e1eb; border-radius: 14px; color: #52667a; background: #f8fafc; text-align: center; }
+.mes-react-shift-master-board-island .system-state :is(strong, p) { margin: 0; }
+
+.mes-react-shift-master-board-island .shift-master-board-react { display: grid; gap: 14px; }
+.mes-react-shift-master-board-island .shift-master-board-react-toolbar { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(390px, 1.4fr) minmax(200px, .7fr); align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+.mes-react-shift-master-board-island :is(.shift-master-board-react-date, .shift-master-board-react-master) { display: grid; gap: 3px; padding: 10px; border: 0; border-radius: 10px; color: #18314d; background: #f0f5fb; text-align: left; cursor: pointer; }
+.mes-react-shift-master-board-island .shift-master-board-react-toolbar :is(span, small) { color: #718296; font-size: 10px; }
+.mes-react-shift-master-board-island .shift-master-board-react-kpis { grid-template-columns: repeat(3, minmax(90px, 1fr)); }
+.mes-react-shift-master-board-island .shift-master-board-react-focus { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.mes-react-shift-master-board-island .shift-master-board-react-focus button { padding: 7px 11px; border: 1px solid #dce5ef; border-radius: 999px; color: #53677d; background: #f8fafc; cursor: pointer; }
+.mes-react-shift-master-board-island .shift-master-board-react-focus button.is-active { border-color: #2f6fe4; color: #1f5dcc; background: #edf4ff; }
+.mes-react-shift-master-board-island .shift-master-board-react-grid { display: grid; grid-template-columns: minmax(360px, .85fr) minmax(560px, 1.4fr); align-items: start; gap: 14px; }
+.mes-react-shift-master-board-island .shift-master-board-react-detail { display: grid; gap: 14px; padding: 16px; }
+.mes-react-shift-master-board-island .shift-master-board-react-title { display: grid; gap: 3px; }
+.mes-react-shift-master-board-island .shift-master-board-react-title :is(span, small) { color: #718296; font-size: 10px; }
+.mes-react-shift-master-board-island .shift-master-board-react-detail .metric-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+.mes-react-shift-master-board-island .shift-master-board-react-executors { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3ebf3; border-radius: 12px; }
+.mes-react-shift-master-board-island :is(.shift-master-board-react-executors header, .shift-master-board-react-executors div, .shift-master-board-react-actions) { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mes-react-shift-master-board-island .shift-master-board-react-executors p { margin: 0; color: #718296; font-size: 11px; }
+.mes-react-shift-master-board-island .shift-master-board-react-carryover { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #f1c56c; border-radius: 12px; background: #fff8e7; }
+.mes-react-shift-master-board-island .shift-master-board-react-carryover > div { display: grid; gap: 3px; }
+.mes-react-shift-master-board-island .shift-master-board-react-carryover :is(span, small) { color: #806329; font-size: 10px; }
+.mes-react-shift-master-board-island .shift-master-board-react-carryover.is-received { border-color: #b9cde2; background: #f2f7fc; }
+.mes-react-shift-master-board-island .shift-master-board-react-assignment { display: grid; gap: 8px; }
+.mes-react-shift-master-board-island .shift-master-board-react-assignment > label { display: grid; grid-template-columns: minmax(0,1fr) 110px; align-items: center; gap: 12px; padding: 11px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
+.mes-react-shift-master-board-island .shift-master-board-react-assignment > label > span { display: grid; gap: 3px; }
+.mes-react-shift-master-board-island .shift-master-board-react-assignment small { color: #718296; font-size: 10px; }
+.mes-react-shift-master-board-island :is(.shift-master-board-react-assignment input, .shift-master-board-react-fact input, .shift-master-board-react-fact textarea) { width: 100%; padding: 9px 10px; border: 1px solid #cdd9e6; border-radius: 8px; color: #18314d; background: #fff; }
+.mes-react-shift-master-board-island .shift-master-board-react-assignment input { text-align: right; }
+.mes-react-shift-master-board-island :is(.shift-master-board-react-assignment input, .shift-master-board-react-fact input, .shift-master-board-react-fact textarea):focus { border-color: #2f6fe4; outline: 2px solid rgba(47,111,228,.14); }
+.mes-react-shift-master-board-island .shift-master-board-react-assignment label.is-unavailable { opacity: .62; }
+.mes-react-shift-master-board-island :is(.shift-master-board-react-assignment-modal, .shift-master-board-react-fact-modal) > footer > span { color: #52667a; font-size: 11px; }
+.mes-react-shift-master-board-island :is(.shift-master-board-react-assignment-modal, .shift-master-board-react-fact-modal) > footer > span.is-error { color: #b83a3a; }
+.mes-react-shift-master-board-island .shift-master-board-react-fact { display: grid; gap: 12px; }
+.mes-react-shift-master-board-island .shift-master-board-react-fact-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.mes-react-shift-master-board-island .shift-master-board-react-fact label { display: grid; gap: 5px; color: #52667a; font-size: 11px; }
+.mes-react-shift-master-board-island .shift-master-board-react-fact textarea { resize: vertical; }
+.mes-react-shift-master-board-island .shift-master-board-react-lanes { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 8px; padding: 12px; overflow-x: auto; }
+.mes-react-shift-master-board-island .shift-master-board-react-lane { min-width: 150px; overflow: hidden; border: 1px solid #e3ebf3; border-radius: 12px; background: #f8fafc; }
+.mes-react-shift-master-board-island .shift-master-board-react-lane > header { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 10px; border-bottom: 1px solid #e3ebf3; }
+.mes-react-shift-master-board-island .shift-master-board-react-lane > header small { grid-column: 1 / -1; color: #718296; font-size: 9px; }
+.mes-react-shift-master-board-island .shift-master-board-react-lane > div { display: grid; gap: 7px; padding: 8px; }
+.mes-react-shift-master-board-island .shift-master-board-react-lane button { display: grid; gap: 7px; padding: 10px; border: 1px solid #dce5ef; border-radius: 10px; color: #18314d; background: #fff; text-align: left; cursor: pointer; }
+.mes-react-shift-master-board-island .shift-master-board-react-lane button.is-active { border-color: #2f6fe4; box-shadow: 0 0 0 2px rgba(47,111,228,.12); }
+.mes-react-shift-master-board-island .shift-master-board-react-lane button small { color: #718296; font-size: 9px; }
+.mes-react-shift-master-board-island .shift-master-board-react-lane button > span:not(.status) { font-size: 10px; }
+
+.mes-react-shift-master-board-island .react-modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(16,35,60,.54); backdrop-filter: blur(5px); }
+.mes-react-shift-master-board-island .react-modal { display: grid; grid-template-rows: auto minmax(0,1fr) auto; width: min(760px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid rgba(71,112,154,.22); border-radius: 18px; outline: none; background: #fff; box-shadow: 0 24px 70px rgba(10,31,54,.28); }
+.mes-react-shift-master-board-island .react-modal > :is(header, footer) { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; }
+.mes-react-shift-master-board-island .react-modal > header { border-bottom: 1px solid #e3ebf3; }
+.mes-react-shift-master-board-island .react-modal > footer { border-top: 1px solid #e3ebf3; }
+.mes-react-shift-master-board-island .react-modal > header div { display: grid; gap: 3px; }
+.mes-react-shift-master-board-island .react-modal > header :is(h2, span) { margin: 0; }
+.mes-react-shift-master-board-island .react-modal > header span { color: #718296; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.mes-react-shift-master-board-island .react-modal-body { min-height: 0; padding: 16px; overflow: auto; }
+
+@media (max-width: 1280px) {
+  .mes-react-shift-master-board-island .shift-master-board-react-toolbar { grid-template-columns: minmax(180px, .8fr) minmax(320px, 1.2fr); }
+  .mes-react-shift-master-board-island .shift-master-board-react-master { grid-column: 1 / -1; }
+  .mes-react-shift-master-board-island .shift-master-board-react-grid { grid-template-columns: minmax(320px, .8fr) minmax(470px, 1.2fr); }
+}
