@@ -155,6 +155,12 @@ mounts the read-only island. Shared `MetricGrid`/`MetricCard` primitives now
 serve both canonical structure metrics and the Boards component summary without
 turning either process composition into a universal table variant.
 
+The local command surface keeps lifecycle separate from ordinary save. Archive
+and reactivation each use a selected-employee-bound two-step confirmation.
+Reactivation restores the employee identity and clears `archivedAt` through the
+owner but leaves the archive-closed primary assignment closed, so the UI cannot
+silently create a new employment state.
+
 ## Structure Positions read-model evidence
 
 Positions reuses the canonical Structure sidebar, metric, table, row, detail

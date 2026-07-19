@@ -1443,6 +1443,10 @@ try {
   assert.match(productionAppSource, /params\.get\("react-structure-employees"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-structure-employees-readonly"\) === "1"/);
   assert.match(productionAppSource, /params\.get\("react-structure-employees-evaluation"\) !== "1"/);
+  assert.match(productionAppSource, /command\.type === "reactivate"/, "Structure Employees reactivation must retain a distinct lifecycle branch");
+  assert.match(productionAppSource, /source: "react:structure-employees:reactivate"/, "Structure Employees reactivation must use the existing System Domains owner");
+  assert.match(productionAppSource, /authoritativeEmployee\.isActive === false/, "Structure Employees reactivation must read the owner result back");
+  assert.match(productionAppSource, /authoritativeEmployee\.archivedAt/, "Structure Employees reactivation must reject a retained archive marker");
   assert.match(productionAppSource, /systemDomainsServerReadState\.status === "server"/);
   assert.match(productionAppSource, /const structureReactHosts = \{ employees: structureEmployeesReactIslandHost, positions: structurePositionsReactIslandHost, orgUnits: structureOrgUnitsReactIslandHost, workCenters: structureWorkCentersReactIslandHost, equipment: structureEquipmentReactIslandHost, responsibilityPolicies: structureResponsibilityPoliciesReactIslandHost, migrationDiagnostics: structureMigrationDiagnosticsReactIslandHost \}/);
   assert.match(productionAppSource, /activeReactHost\.prepareRender\(\)/);

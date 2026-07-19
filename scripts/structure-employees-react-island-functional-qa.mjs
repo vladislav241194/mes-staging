@@ -404,6 +404,20 @@ async function main() {
     assert(/^\d{4}-\d{2}-\d{2}$/.test(archivedPrimaryAssignment?.validTo || ""), "employee archive owner did not close the active primary assignment");
     assert(archivedEmployee?.serverOnlyMarker === "employee-hidden-field" && archivedPrimaryAssignment?.serverOnlyMarker === "assignment-hidden-field", "employee archive lost hidden employee or primary-assignment fields");
     assert(retainedSecondaryAssignment?.validTo === "2026-07-18" && retainedSecondaryAssignment?.serverOnlyMarker === "secondary-assignment-hidden-field", "employee archive changed an ended secondary assignment");
+
+    await evaluate(client, (employeeId) => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].find((row) => row.textContent?.includes(employeeId))?.click(), createdEmployee.id);
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Восстановить"), { message: "archived employee reactivation action did not become available" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Восстановить")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].some((button) => button.textContent?.trim() === "Подтвердить восстановление"), { message: "employee reactivation confirmation was not explicit" });
+    await evaluate(client, () => [...document.querySelectorAll('[data-ui-component="ActionButton"]')].find((button) => button.textContent?.trim() === "Подтвердить восстановление")?.click());
+    await waitForCondition(client, () => [...document.querySelectorAll('[data-ui-component="SelectableRow"]')].some((row) => row.textContent?.includes("QA-9002") && row.textContent?.includes("активно")), { message: "reactivated employee did not return through PostgreSQL read model", timeoutMs: 15_000 });
+    assert(apiRevision === 5 && successfulWrites === 4 && putAttempts === 5, "employee reactivation must advance exactly one PostgreSQL revision");
+    const reactivatedEmployee = apiDomains.registries.employees.find((employee) => employee.id === createdEmployee.id);
+    const reactivatedPrimaryAssignment = apiDomains.registries.employmentAssignments.find((assignment) => assignment.employeeId === createdEmployee.id && assignment.isPrimary !== false);
+    const reactivatedSecondaryAssignment = apiDomains.registries.employmentAssignments.find((assignment) => assignment.id === endedSecondaryAssignment.id);
+    assert(reactivatedEmployee?.isActive === true && reactivatedEmployee.archivedAt === "" && reactivatedEmployee.serverOnlyMarker === "employee-hidden-field", "employee reactivation did not clear the archive marker or preserve hidden fields");
+    assert(reactivatedPrimaryAssignment?.validTo === archivedPrimaryAssignment.validTo && reactivatedPrimaryAssignment?.serverOnlyMarker === "assignment-hidden-field", "employee reactivation silently reopened or changed the closed primary assignment");
+    assert(reactivatedSecondaryAssignment?.validTo === "2026-07-18" && reactivatedSecondaryAssignment?.serverOnlyMarker === "secondary-assignment-hidden-field", "employee reactivation changed an ended secondary assignment");
     assert(commandRequests.every((request) => request.surface === "production-structure" && request.ifMatch === `"${request.expectedRevision}"` && request.idempotencyKey), "every employee command must carry the production surface, If-Match and idempotency key");
 
     await client.send("Page.navigate", { url: `${legacyOrigin}/?module=productionStructureMatrix&qa-auth-bypass=1` });
@@ -411,8 +425,8 @@ async function main() {
     await selectLegacyRegistry(client, "employees");
     await waitForCondition(client, () => (
       document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]').length === 77
-      && [...document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]')].some((row) => row.textContent?.includes("QA-9002") && row.textContent?.includes("архив"))
-    ), { message: "legacy Employees did not read back the React PostgreSQL archive", timeoutMs: 15_000 });
+      && [...document.querySelectorAll('[data-system-domain-table="employees"] [data-system-domain-row]')].some((row) => row.textContent?.includes("QA-9002") && row.textContent?.includes("активно"))
+    ), { message: "legacy Employees did not read back the React PostgreSQL reactivation", timeoutMs: 15_000 });
     assert(consoleProblems.length === 0, `browser console must stay clean:\n${consoleProblems.join("\n")}`);
 
     const finalSnapshot = await readFile(sharedStateFile, "utf8");
@@ -422,9 +436,9 @@ async function main() {
     console.log("- server-enabled default without session request: legacy");
     console.log("- selection, detail, seven registries and six metrics: pass");
     console.log(`- first React commit: ${initial.commitMs.toFixed(2)} ms (< 2000 ms local gate)`);
-    console.log("- read-only gate keeps writes disabled; local PostgreSQL write gate creates, edits and archives an employee + primary assignment: pass");
-    console.log("- dependency rejection, ID-bound confirmation, primary-assignment closure, ended-secondary preservation, conflict retry, If-Match and hidden fields: pass");
-    console.log("- archived 77-row legacy read-back and unchanged disposable shared-state snapshot: pass");
+    console.log("- read-only gate keeps writes disabled; local PostgreSQL write gate creates, edits, archives and reactivates an employee: pass");
+    console.log("- dependency rejection, ID-bound confirmations, primary-assignment closure preservation, ended-secondary preservation, conflict retry, If-Match and hidden fields: pass");
+    console.log("- reactivated 77-row legacy read-back and unchanged disposable shared-state snapshot: pass");
     console.log("- requested Org Units legacy fallback with 19 rows: pass");
   } catch (error) {
     if (chrome) {

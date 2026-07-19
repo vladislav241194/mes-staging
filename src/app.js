@@ -2646,7 +2646,7 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
   },
   executeCommand: async (command = {}) => {
     const localQa = getStructureEmployeesReactLocalQaOverrides();
-    if (!localQa.writeEvaluation || !["save", "archive"].includes(command.type)) {
+    if (!localQa.writeEvaluation || !["save", "archive", "reactivate"].includes(command.type)) {
       return { ok: false, message: "Команда редактирования сотрудников недоступна." };
     }
     if (systemDomainsServerReadState.status !== "server"
@@ -2657,6 +2657,21 @@ const structureEmployeesReactIslandHost = createStructureEmployeesReactIslandHos
       return { ok: false, message: "PostgreSQL-команда или право редактирования сотрудников недоступны." };
     }
     const input = command.payload && typeof command.payload === "object" ? command.payload : {};
+    if (command.type === "reactivate") {
+      const employeeId = String(input.employeeId || "").trim();
+      const employee = (getSystemDomainsRegistries().employees || []).find((row) => row.id === employeeId);
+      if (!employee || employee.isActive !== false) return { ok: false, message: "Архивный сотрудник больше не существует." };
+      try {
+        const result = await upsertSystemDomainEntity("employees", { ...employee, isActive: true, archivedAt: "" }, { source: "react:structure-employees:reactivate", operation: "update", serverCommand: true, surface: "production-structure" });
+        if (result !== true) return { ok: false, message: "Восстановление сотрудника отклонено проверкой System Domains." };
+        const authoritativeEmployee = (getSystemDomainsRegistries().employees || []).find((row) => row.id === employeeId);
+        if (!authoritativeEmployee || authoritativeEmployee.isActive === false || authoritativeEmployee.archivedAt) return { ok: false, message: "Владелец сотрудников не подтвердил восстановление." };
+        queueMicrotask(() => { if (ui.activeModule === "productionStructureMatrix") render({ skipRememberScroll: true }); });
+        return { ok: true, id: employeeId };
+      } catch (error) {
+        return { ok: false, message: error?.conflict === true ? "Данные сотрудника изменились в другом сеансе. Проверьте значения и повторите восстановление." : error?.message || "Сервер не принял восстановление сотрудника." };
+      }
+    }
     if (command.type === "archive") {
       const employeeId = String(input.employeeId || "").trim();
       const registries = getSystemDomainsRegistries();

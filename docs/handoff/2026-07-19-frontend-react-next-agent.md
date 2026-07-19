@@ -459,3 +459,28 @@ actions/console, затем немедленно деактивировать и
   доказательная оценка глобальной миграции: примерно `89%` выполнено, примерно
   `11%` осталось (`+1 п.п.`); остаток относится к другим модулям и внешним
   Pilot gates, а не к локальному Boards command parity.
+
+## Продолжение 2026-07-20: Structure Employees reactivation checkpoint
+
+- Закрыт последний известный локальный lifecycle gap Employees. React получил
+  отдельную typed `reactivate` команду с ID-bound двухшаговым подтверждением;
+  обычный save по-прежнему не может менять `isActive`.
+- Host повторно проверяет local write gate, RBAC и существование архивного
+  сотрудника, затем делегирует существующему
+  `upsertSystemDomainEntity("employees", ...)` owner и принимает успех только
+  после authoritative read-back с `isActive=true` и очищенным `archivedAt`.
+  PostgreSQL/API/business
+  authority в React не переносились.
+- Восстановление возвращает только employee identity: primary assignment,
+  закрытый archive-командой, не открывается самовольно. Hidden employee fields,
+  уже завершённый secondary assignment и compatibility snapshot сохраняются.
+- Production-shell QA доказывает create/edit/archive/reactivate, exact revision
+  и write counts, dependency rejection, conflict retry, If-Match, ID-bound
+  confirmations и reactivated `77`-row legacy read-back. First commit
+  `22.10 ms`; Structure Employees artifact `219262 / 66162 B`, full lab
+  `557101 / 126296 B`; performance gates зелёные.
+- Pilot write/deploy/version/flags не менялись; legacy остаётся default-off
+  rollback. После блока доказательная оценка глобальной миграции: примерно
+  `90%` выполнено, примерно `10%` осталось (`+1 п.п.`). Прирост относится к
+  локально завершённому employee lifecycle; внешняя Pilot write acceptance и
+  другие legacy-only модули не переоценены.

@@ -17,7 +17,7 @@ export interface StructureEmployeeDraft {
   isActive: boolean;
 }
 
-export type StructureEmployeesReactCommand = { type: "save"; payload: StructureEmployeeDraft } | { type: "archive"; payload: { employeeId: string } };
+export type StructureEmployeesReactCommand = { type: "save"; payload: StructureEmployeeDraft } | { type: "archive"; payload: { employeeId: string } } | { type: "reactivate"; payload: { employeeId: string } };
 
 const draftValue = (value: string) => value === "—" ? "" : value;
 const createEmployeeDraft = (employee?: StructureEmployee): StructureEmployeeDraft => ({
@@ -45,6 +45,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
   const [commandError, setCommandError] = useState("");
   const [saving, setSaving] = useState(false);
   const [archiveArmedId, setArchiveArmedId] = useState("");
+  const [reactivateArmedId, setReactivateArmedId] = useState("");
   const selected = resolveVisibleStructureEmployee(model.employees, selectedId);
   const setDraftField = <K extends keyof StructureEmployeeDraft>(field: K, value: StructureEmployeeDraft[K]) => setDraft((current) => current ? { ...current, [field]: value } : current);
   const saveDraft = async () => {
@@ -72,8 +73,19 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
       setCommandError(error instanceof Error ? error.message : "Не удалось архивировать сотрудника.");
     } finally { setSaving(false); }
   };
+  const reactivateSelected = async () => {
+    if (!selected || !onCommand || reactivateArmedId !== selected.id) return;
+    setSaving(true); setCommandError("");
+    try {
+      const result = await onCommand({ type: "reactivate", payload: { employeeId: selected.id } });
+      if (result && result.ok === false) setCommandError(result.message || "Не удалось восстановить сотрудника.");
+      else setReactivateArmedId("");
+    } catch (error) {
+      setCommandError(error instanceof Error ? error.message : "Не удалось восстановить сотрудника.");
+    } finally { setSaving(false); }
+  };
 
-  const header = <ModuleHeader eyebrow="Система · System Domains" title="Сотрудники" badge={<span className="lab-badge">{model.canCreateEdit ? "React · PostgreSQL create/edit/archive evaluation" : "React preview · только чтение"}</span>} />;
+  const header = <ModuleHeader eyebrow="Система · System Domains" title="Сотрудники" badge={<span className="lab-badge">{model.canCreateEdit ? "React · PostgreSQL lifecycle evaluation" : "React preview · только чтение"}</span>} />;
   const sidebar = (
     <ModuleSidebar label="Реестры структуры и сотрудников" title="Структура и сотрудники">
       {registries.map((registry) => (
@@ -140,7 +152,7 @@ export function StructureEmployeesScenario({ payload, onCommand, onRequestLegacy
           { label: "Статус", value: <StatusToken label={selected.statusLabel} tone={selected.statusTone} /> },
         ] : []}
         title={selected?.displayName}
-      />{selected && model.canCreateEdit ? <div className="react-nomenclature-detail-actions"><ActionButton onClick={() => { setArchiveArmedId(""); setDraft(createEmployeeDraft(selected)); }} variant="secondary">Редактировать сотрудника</ActionButton>{selected.isActive && model.canArchive ? <ActionButton disabled={saving} onClick={() => archiveArmedId === selected.id ? void archiveSelected() : setArchiveArmedId(selected.id)} variant="secondary">{archiveArmedId === selected.id ? "Подтвердить архивирование" : "Архивировать"}</ActionButton> : null}{archiveArmedId === selected.id ? <ActionButton onClick={() => setArchiveArmedId("")} variant="secondary">Отмена</ActionButton> : null}</div> : null}{commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}</>}
+      />{selected && model.canCreateEdit ? <div className="react-nomenclature-detail-actions"><ActionButton onClick={() => { setArchiveArmedId(""); setReactivateArmedId(""); setDraft(createEmployeeDraft(selected)); }} variant="secondary">Редактировать сотрудника</ActionButton>{selected.isActive && model.canArchive ? <ActionButton disabled={saving} onClick={() => archiveArmedId === selected.id ? void archiveSelected() : setArchiveArmedId(selected.id)} variant="secondary">{archiveArmedId === selected.id ? "Подтвердить архивирование" : "Архивировать"}</ActionButton> : null}{!selected.isActive && model.canArchive ? <ActionButton disabled={saving} onClick={() => reactivateArmedId === selected.id ? void reactivateSelected() : setReactivateArmedId(selected.id)} variant="secondary">{reactivateArmedId === selected.id ? "Подтвердить восстановление" : "Восстановить"}</ActionButton> : null}{archiveArmedId === selected.id ? <ActionButton onClick={() => setArchiveArmedId("")} variant="secondary">Отмена</ActionButton> : null}{reactivateArmedId === selected.id ? <ActionButton onClick={() => setReactivateArmedId("")} variant="secondary">Отмена</ActionButton> : null}</div> : null}{commandError ? <p className="react-nomenclature-command-error" role="alert">{commandError}</p> : null}</>}
     </ModulePage>
   );
 }
