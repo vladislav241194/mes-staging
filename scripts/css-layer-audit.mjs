@@ -34,6 +34,7 @@ const expectedLayerImports = [
   "./styles/react-nomenclature-island.css",
   "./styles/react-shift-master-board-island.css",
   "./styles/react-shift-work-orders-island.css",
+  "./styles/react-employee-desktop-island.css",
 ];
 const budgets = {
   duplicateSelectorGroups: 470,

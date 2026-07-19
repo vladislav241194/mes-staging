@@ -1,0 +1,102 @@
+.mes-react-employee-desktop-island {
+  color: #18314d;
+  font-family: Onest, Inter, system-ui, sans-serif;
+}
+
+.mes-react-employee-desktop-island *,
+.mes-react-employee-desktop-island *::before,
+.mes-react-employee-desktop-island *::after { box-sizing: border-box; }
+.mes-react-employee-desktop-island button,
+.mes-react-employee-desktop-island input,
+.mes-react-employee-desktop-island select,
+.mes-react-employee-desktop-island textarea { font: inherit; }
+.mes-react-employee-desktop-island :is(h1, h2, p) { margin-top: 0; }
+.mes-react-employee-desktop-island .module-page { min-height: 680px; padding: 22px; }
+.mes-react-employee-desktop-island .panel { overflow: hidden; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+.mes-react-employee-desktop-island .employee-desktop-react-grid > .panel { border-radius: 18px; }
+.mes-react-employee-desktop-island .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
+.mes-react-employee-desktop-island .panel-heading :is(h2, p) { margin: 0; }
+.mes-react-employee-desktop-island .panel-heading p { color: #718296; font-size: 12px; }
+.mes-react-employee-desktop-island .action { padding: 9px 13px; border: 0; border-radius: 10px; color: #fff; background: #2f6fe4; cursor: pointer; }
+.mes-react-employee-desktop-island .action--secondary { color: #18314d; background: #e8eef5; }
+.mes-react-employee-desktop-island .action--danger { background: #b83a3a; }
+.mes-react-employee-desktop-island .action:disabled { opacity: .45; cursor: default; }
+.mes-react-employee-desktop-island .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(104px, 1fr)); gap: 8px; }
+.mes-react-employee-desktop-island .metric-card { display: grid; gap: 3px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
+.mes-react-employee-desktop-island .metric-card :is(span, small) { color: #718296; font-size: 9px; }
+.mes-react-employee-desktop-island .metric-card strong { font-size: 17px; }
+.mes-react-employee-desktop-island .status { padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 650; }
+.mes-react-employee-desktop-island .status--success { color: #167451; background: #dff6eb; }
+.mes-react-employee-desktop-island .status--warning { color: #8b6412; background: #fff0c9; }
+.mes-react-employee-desktop-island .status--neutral { color: #52667a; background: #e9eef4; }
+.mes-react-employee-desktop-island .system-state { display: grid; min-height: 320px; justify-items: center; align-content: center; gap: 8px; margin: 22px; padding: 32px; border: 1px solid #d8e1eb; border-radius: 14px; color: #52667a; background: #f8fafc; text-align: center; }
+.mes-react-employee-desktop-island .system-state :is(strong, p) { margin: 0; }
+
+.employee-desktop-react { display: grid; gap: 14px; }
+.employee-desktop-react-grid { display: grid; grid-template-columns: minmax(430px, .9fr) minmax(560px, 1.2fr); align-items: start; gap: 14px; }
+.employee-desktop-react-detail { display: grid; gap: 14px; padding: 16px; }
+.employee-desktop-react-summary, .employee-desktop-react-route { display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap: 8px; }
+.employee-desktop-react-summary article, .employee-desktop-react-route article { display: grid; gap: 4px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
+.employee-desktop-react-summary span, .employee-desktop-react-route span { color: #718296; font-size: 9px; text-transform: uppercase; }
+.employee-desktop-react-summary strong, .employee-desktop-react-route strong { font-size: 12px; }
+.employee-desktop-react-route article.is-current { border-color: #2f6fe4; background: #eef4ff; }
+.employee-desktop-react-detail .metric-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+.employee-desktop-react-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.employee-desktop-react-fact { display: grid; gap: 12px; padding: 14px; border: 1px solid #d9e5f2; border-radius: 12px; background: #f8fafc; }
+.employee-desktop-react-fact > header, .employee-desktop-react-fact > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.employee-desktop-react-fact > header div { display: grid; gap: 2px; }
+.employee-desktop-react-fact > header span, .employee-desktop-react-fact label > span, .employee-desktop-react-fact small { color: #718296; font-size: 10px; }
+.employee-desktop-react-fact-fields { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 10px; }
+.employee-desktop-react-fact label { display: grid; gap: 5px; }
+.employee-desktop-react-fact input, .employee-desktop-react-fact textarea { width: 100%; border: 1px solid #cdd9e6; border-radius: 9px; color: #18314d; background: #fff; }
+.employee-desktop-react-fact input { min-height: 44px; padding: 8px 11px; font-size: 20px; font-weight: 700; }
+.employee-desktop-react-fact textarea { resize: vertical; padding: 9px 11px; font: inherit; }
+.employee-desktop-react-fact input:focus, .employee-desktop-react-fact textarea:focus { border-color: #2f6fe4; outline: 2px solid rgba(47,111,228,.14); }
+.employee-desktop-react-fact input:disabled, .employee-desktop-react-fact textarea:disabled { color: #718296; background: #edf1f5; }
+.employee-desktop-react-fact-comment small { line-height: 1.35; }
+.employee-desktop-react-fact > footer small { max-width: 310px; line-height: 1.35; text-align: right; }
+.employee-desktop-react-report { display: grid; gap: 12px; padding: 14px; border: 1px solid #f0d6a1; border-radius: 12px; background: #fffaf0; }
+.employee-desktop-react-report > header, .employee-desktop-react-report > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.employee-desktop-react-report > header div, .employee-desktop-react-report label, .employee-desktop-react-report-preview > div { display: grid; gap: 4px; }
+.employee-desktop-react-report span, .employee-desktop-react-report small { color: #718296; font-size: 10px; }
+.employee-desktop-react-report-preview { display: grid; place-items: center; gap: 7px; min-height: 130px; padding: 12px; border: 1px dashed #cfdae6; border-radius: 10px; background: #fff; text-align: center; overflow: hidden; }
+.employee-desktop-react-report-preview.has-photo { border-style: solid; }
+.employee-desktop-react-report-preview img { display: block; max-width: 100%; max-height: 240px; border-radius: 8px; object-fit: contain; }
+.employee-desktop-react-report-pickers { display: flex; flex-wrap: wrap; gap: 7px; }
+.employee-desktop-react-report textarea { width: 100%; resize: vertical; padding: 10px 11px; border: 1px solid #cdd9e6; border-radius: 9px; color: #18314d; background: #fff; font: inherit; }
+.employee-desktop-react-report textarea:focus { border-color: #2f6fe4; outline: 2px solid rgba(47,111,228,.14); }
+.employee-desktop-react-report > footer small { max-width: 310px; line-height: 1.35; text-align: right; }
+.employee-desktop-react-context-rows { display: grid; grid-template-columns: repeat(2,minmax(180px,1fr)); gap: 9px; }
+.employee-desktop-react-context-rows article, .employee-desktop-react-context-route article { display: grid; gap: 4px; padding: 12px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
+.employee-desktop-react-context-rows span, .employee-desktop-react-context-route span, .employee-desktop-react-context-route small, .employee-desktop-react-context-pdf small { color: #718296; font-size: 10px; }
+.employee-desktop-react-context-rows p { grid-column: 1/-1; margin: 0; padding: 12px; border-radius: 10px; color: #52667a; background: #edf3fa; font-size: 11px; }
+.employee-desktop-react-context-route { display: grid; grid-template-columns: repeat(3,minmax(150px,1fr)); gap: 9px; }
+.employee-desktop-react-context-route article.is-current { border-color: #2f6fe4; background: #eef4ff; }
+.employee-desktop-react-context-pdf { display: grid; gap: 12px; }
+.employee-desktop-react-context-pdf > header { display: grid; gap: 3px; padding: 11px; border-radius: 10px; background: #edf3fa; }
+.employee-desktop-react-context-pdf > section { display: grid; gap: 10px; min-height: 360px; padding: 42px; border: 1px solid #dce5ef; color: #18314d; background: #fff; box-shadow: 0 10px 28px rgba(22,50,82,.09); }
+.employee-desktop-react-context-pdf > section > strong { font-size: 22px; }
+.employee-desktop-react-context-pdf > section > span { color: #52667a; font-size: 12px; }
+.employee-desktop-react-context-pdf p { margin: 8px 0 0; font-size: 12px; }
+.employee-desktop-react-viewer { padding: 8px 10px; border: 0; border-radius: 9px; color: #18314d; background: #edf3fa; cursor: pointer; }
+.employee-desktop-react-kpis { padding: 12px; border-bottom: 1px solid #e3ebf3; background: #f8fafc; }
+.employee-desktop-react-tasks { display: grid; gap: 8px; padding: 12px; }
+.employee-desktop-react-tasks > button { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 11px; border: 1px solid #e3ebf3; border-radius: 11px; color: #18314d; background: #fff; text-align: left; cursor: pointer; }
+.employee-desktop-react-tasks > button.is-current { border-color: #2f6fe4; box-shadow: 0 0 0 2px rgba(47,111,228,.12); }
+.employee-desktop-react-tasks > button > span { display: grid; min-width: 0; gap: 3px; }
+.employee-desktop-react-tasks small, .employee-desktop-react-tasks em { overflow: hidden; color: #718296; font-size: 9px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.employee-desktop-react-tasks b { font-size: 11px; white-space: nowrap; }
+
+.mes-react-employee-desktop-island .react-modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(16,35,60,.54); backdrop-filter: blur(5px); }
+.mes-react-employee-desktop-island .react-modal { display: grid; grid-template-rows: auto minmax(0,1fr) auto; width: min(760px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid rgba(71,112,154,.22); border-radius: 18px; outline: none; background: #fff; box-shadow: 0 24px 70px rgba(10,31,54,.28); }
+.mes-react-employee-desktop-island .react-modal > :is(header, footer) { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; }
+.mes-react-employee-desktop-island .react-modal > header { border-bottom: 1px solid #e3ebf3; }
+.mes-react-employee-desktop-island .react-modal > footer { border-top: 1px solid #e3ebf3; }
+.mes-react-employee-desktop-island .react-modal > header div { display: grid; gap: 3px; }
+.mes-react-employee-desktop-island .react-modal > header :is(h2, span) { margin: 0; }
+.mes-react-employee-desktop-island .react-modal > header span { color: #718296; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.mes-react-employee-desktop-island .react-modal-body { min-height: 0; padding: 16px; overflow: auto; }
+
+@media (max-width: 1180px) {
+  .employee-desktop-react-grid { grid-template-columns: 1fr; }
+}
