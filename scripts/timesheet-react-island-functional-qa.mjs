@@ -94,12 +94,17 @@ try {
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=timesheet&qa-auth-bypass=1&react-timesheet-evaluation=1` });
   await waitForCondition(client, () => Boolean(document.querySelector('[data-react-timesheet-island][data-react-island-state="ready"]')) && document.querySelectorAll(".timesheet-employee-row").length === 76, { message: "Timesheet React island not ready", timeoutMs: 8_000 });
   const react = await evaluate(client, normalizedTable);
-  const state = await evaluate(client, () => { const target = document.querySelector("[data-react-timesheet-island]"); const tableWrap = document.querySelector('[data-ui-component="TableWrap"]'); return { revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableOwnsOverflow: Boolean(tableWrap && tableWrap.scrollWidth > tableWrap.clientWidth), tableOverflowMode: tableWrap ? getComputedStyle(tableWrap).overflowX : "" }; });
+  const state = await evaluate(client, () => { const target = document.querySelector("[data-react-timesheet-island]"); const tableWrap = document.querySelector('[data-ui-component="TableWrap"]'); const panel = target.querySelector('[data-ui-component="Panel"]'); const metrics = target.querySelector('[data-ui-component="MetricGrid"]'); const workspace = target.querySelector(".workspace"); return { revision: target?.dataset.reactIslandRevision, commitMs: Number(target?.dataset.reactIslandCommitMs), pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableOwnsOverflow: Boolean(tableWrap && tableWrap.scrollWidth > tableWrap.clientWidth), tableOverflowMode: tableWrap ? getComputedStyle(tableWrap).overflowX : "", panelRadius: Number.parseFloat(getComputedStyle(panel).borderRadius), metricDisplay: getComputedStyle(metrics).display, metricColumns: getComputedStyle(metrics).gridTemplateColumns.split(" ").length, workspaceColumns: getComputedStyle(workspace).gridTemplateColumns.split(" ").length }; });
   assert(JSON.stringify(react.headers) === JSON.stringify(legacy.headers), `Timesheet header parity failed\nlegacy=${JSON.stringify(legacy.headers)}\nreact=${JSON.stringify(react.headers)}`);
   const firstRowMismatch = react.rows.findIndex((row, index) => JSON.stringify(row) !== JSON.stringify(legacy.rows[index]));
   assert(firstRowMismatch === -1 && react.rows.length === legacy.rows.length, `Timesheet row parity failed at ${firstRowMismatch}: legacy=${JSON.stringify(legacy.rows[firstRowMismatch])} react=${JSON.stringify(react.rows[firstRowMismatch])}`);
   assert(state.revision === "1" && Number.isFinite(state.commitMs) && state.commitMs < 2000, "Timesheet React commit telemetry failed");
   assert(!state.pageOverflow && (state.tableOwnsOverflow || ["auto", "scroll"].includes(state.tableOverflowMode)), "Timesheet matrix must own horizontal overflow");
+  assert(state.panelRadius >= 16 && state.metricDisplay === "grid" && state.metricColumns === 4 && state.workspaceColumns === 1, `Timesheet production UI contract failed: ${JSON.stringify(state)}`);
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 487, height: 844, deviceScaleFactor: 1, mobile: false });
+  const compact = await evaluate(client, () => { const target = document.querySelector("[data-react-timesheet-island]"); const tableWrap = target.querySelector('[data-ui-component="TableWrap"]'); const metrics = target.querySelector('[data-ui-component="MetricGrid"]'); return { metricColumns: getComputedStyle(metrics).gridTemplateColumns.split(" ").length, pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth, tableScroll: tableWrap.scrollWidth > tableWrap.clientWidth }; });
+  assert(compact.metricColumns === 2 && !compact.pageOverflow && compact.tableScroll, `Timesheet compact UI contract failed: ${JSON.stringify(compact)}`);
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 932, deviceScaleFactor: 1, mobile: false });
   await evaluate(client, () => [...document.querySelectorAll(".timesheet-controls button")].find((button) => button.textContent?.trim() === "Неделя")?.click());
   await waitForCondition(client, () => !document.querySelector("[data-react-timesheet-island]") && document.querySelectorAll(".timesheet-table thead th").length === 12, { message: "Timesheet view action did not return to the seven-day legacy view", timeoutMs: 10_000 });
   await client.send("Page.navigate", { url: `${enabledOrigin}/?module=timesheet&qa-auth-bypass=1&react-timesheet-evaluation=1` });
@@ -143,7 +148,7 @@ try {
   assert(await readFile(sharedStateFile, "utf8") === original, "Timesheet read-only QA changed state");
   console.log("Timesheet React production-shell functional QA: OK");
   console.log(`- exact parity: 76 employees, ${react.headers.length} columns, ${react.rows.length} table rows; first commit ${state.commitMs.toFixed(2)} ms`);
-  console.log("- PostgreSQL read, default legacy, editor fallback, table-owned overflow, unchanged state and clean console: pass");
+  console.log("- PostgreSQL read, production/compact UI, default legacy, editor fallback, table-owned overflow, unchanged state and clean console: pass");
   console.log("- one-day save/reset, validation, conflict retry, unrelated hidden field and legacy read-back: pass");
 } catch (error) {
   if (chrome) {

@@ -1,79 +1,79 @@
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) {
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) {
   min-width: 0;
   color: #18314d;
   font-family: Onest, Inter, system-ui, sans-serif;
 }
 
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) * { box-sizing: border-box; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) button { font: inherit; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .module-page { min-height: 680px; padding: 22px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .module-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .module-header p,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .panel-heading p,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .detail > p { margin: 0 0 4px; color: #718296; font-size: 12px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) h1,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) h2 { margin: 0; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) h1 { font-size: 25px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) h2 { font-size: 16px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .lab-badge,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .status { border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 650; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .lab-badge { color: #285aa8; background: #dce9ff; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .module-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .module-sidebar,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .panel,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .detail { border: 1px solid rgba(71,112,154,.16); background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .module-sidebar { min-height: 620px; border-radius: 18px; padding: 16px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .module-sidebar > strong { display: block; margin: 4px 8px 12px; color: #718296; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter { display: flex; width: 100%; justify-content: space-between; gap: 12px; margin: 3px 0; padding: 10px 11px; border: 0; border-radius: 10px; color: #41586e; background: transparent; text-align: left; cursor: pointer; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter:hover { background: #f0f5fb; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter.is-active { color: #164fa4; background: #e5efff; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter b { font-size: 11px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter-copy { display: grid; min-width: 0; gap: 2px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter-copy > span,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .filter-copy small { color: #7a8b9d; font-size: 9px; font-weight: 450; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 14px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .workspace-main { display: grid; min-width: 0; gap: 14px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .panel,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .detail { overflow: hidden; border-radius: 18px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .action { padding: 9px 13px; border: 0; border-radius: 10px; color: #fff; background: #2f6fe4; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .action:disabled { opacity: .45; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .table-wrap { overflow: auto; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) table { width: 100%; border-collapse: collapse; font-size: 12px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) th,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) td { padding: 11px 13px; border-bottom: 1px solid #edf1f5; text-align: left; white-space: nowrap; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) th { color: #718296; background: #f8fafc; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) tbody tr { cursor: pointer; outline: none; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) tbody tr:hover,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) tbody tr:focus { background: #f4f8fd; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) tbody tr.is-selected { background: #e8f1ff; box-shadow: inset 3px 0 #2f6fe4; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .status--success { color: #167451; background: #dff6eb; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .status--warning { color: #8b6412; background: #fff0c9; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .status--neutral { color: #52667a; background: #e9eef4; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .empty-state { display: grid; justify-items: center; gap: 6px; padding: 48px 20px; color: #52667a; text-align: center; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .empty-state strong { color: #18314d; font-size: 14px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .empty-state p { margin: 0; color: #718296; font-size: 12px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .system-state { display: grid; min-height: 320px; justify-items: center; align-content: center; gap: 8px; margin: 22px; padding: 32px; border: 1px solid #efc7c7; border-radius: 14px; color: #8a3434; background: #fff6f6; text-align: center; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .system-state strong { color: #18314d; font-size: 16px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .system-state p { max-width: 430px; margin: 0; font-size: 12px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .detail { padding: 18px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .detail h2 { margin-bottom: 18px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) dl { display: grid; gap: 12px; margin: 0; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) dl div { padding-bottom: 10px; border-bottom: 1px solid #edf1f5; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) dt { color: #718296; font-size: 10px; text-transform: uppercase; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(104px, 1fr)); gap: 8px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .metric-card { display: grid; gap: 3px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .metric-card span,
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .metric-card small { color: #718296; font-size: 9px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .metric-card strong { font-size: 17px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .structure-metrics { padding: 12px; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .primary-copy { display: grid; gap: 2px; }
-:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .primary-copy small { color: #718296; font-size: 9px; font-weight: 450; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) * { box-sizing: border-box; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) button { font: inherit; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .module-page { min-height: 680px; padding: 22px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .module-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .module-header p,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .panel-heading p,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .detail > p { margin: 0 0 4px; color: #718296; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) h1,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) h2 { margin: 0; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) h1 { font-size: 25px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) h2 { font-size: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .lab-badge,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .status { border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 650; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .lab-badge { color: #285aa8; background: #dce9ff; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .module-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .module-sidebar,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .panel,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .detail { border: 1px solid rgba(71,112,154,.16); background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .module-sidebar { min-height: 620px; border-radius: 18px; padding: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .module-sidebar > strong { display: block; margin: 4px 8px 12px; color: #718296; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter { display: flex; width: 100%; justify-content: space-between; gap: 12px; margin: 3px 0; padding: 10px 11px; border: 0; border-radius: 10px; color: #41586e; background: transparent; text-align: left; cursor: pointer; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter:hover { background: #f0f5fb; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter.is-active { color: #164fa4; background: #e5efff; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter b { font-size: 11px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter-copy { display: grid; min-width: 0; gap: 2px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter-copy > span,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .filter-copy small { color: #7a8b9d; font-size: 9px; font-weight: 450; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .workspace-main { display: grid; min-width: 0; gap: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .panel,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .detail { overflow: hidden; border-radius: 18px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .action { padding: 9px 13px; border: 0; border-radius: 10px; color: #fff; background: #2f6fe4; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .action:disabled { opacity: .45; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .table-wrap { overflow: auto; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) table { width: 100%; border-collapse: collapse; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) th,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) td { padding: 11px 13px; border-bottom: 1px solid #edf1f5; text-align: left; white-space: nowrap; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) th { color: #718296; background: #f8fafc; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) tbody tr { cursor: pointer; outline: none; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) tbody tr:hover,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) tbody tr:focus { background: #f4f8fd; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) tbody tr.is-selected { background: #e8f1ff; box-shadow: inset 3px 0 #2f6fe4; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .status--success { color: #167451; background: #dff6eb; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .status--warning { color: #8b6412; background: #fff0c9; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .status--neutral { color: #52667a; background: #e9eef4; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .empty-state { display: grid; justify-items: center; gap: 6px; padding: 48px 20px; color: #52667a; text-align: center; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .empty-state strong { color: #18314d; font-size: 14px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .empty-state p { margin: 0; color: #718296; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .system-state { display: grid; min-height: 320px; justify-items: center; align-content: center; gap: 8px; margin: 22px; padding: 32px; border: 1px solid #efc7c7; border-radius: 14px; color: #8a3434; background: #fff6f6; text-align: center; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .system-state strong { color: #18314d; font-size: 16px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .system-state p { max-width: 430px; margin: 0; font-size: 12px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .detail { padding: 18px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .detail h2 { margin-bottom: 18px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) dl { display: grid; gap: 12px; margin: 0; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) dl div { padding-bottom: 10px; border-bottom: 1px solid #edf1f5; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) dt { color: #718296; font-size: 10px; text-transform: uppercase; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) dd { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(104px, 1fr)); gap: 8px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .metric-card { display: grid; gap: 3px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #fff; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .metric-card span,
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .metric-card small { color: #718296; font-size: 9px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .metric-card strong { font-size: 17px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .structure-metrics { padding: 12px; border: 1px solid rgba(71,112,154,.16); border-radius: 18px; background: rgba(255,255,255,.92); box-shadow: 0 12px 34px rgba(22,50,82,.08); }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .primary-copy { display: grid; gap: 2px; }
+:is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .primary-copy small { color: #718296; font-size: 9px; font-weight: 450; }
 
 @media (max-width: 1180px) {
-  :is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island) .workspace { grid-template-columns: minmax(0, 1fr); }
+  :is(.mes-react-nomenclature-island, .mes-react-structure-employees-island, .mes-react-contour-admin-island, .mes-react-roles-island, .mes-react-timesheet-island) .workspace { grid-template-columns: minmax(0, 1fr); }
 }
 
 .mes-react-contour-admin-island .contour-admin-react { display: grid; gap: 14px; }
@@ -244,6 +244,14 @@
 [data-react-directory-nomenclature-types-island].mes-react-nomenclature-island .module-layout .panel { border-radius:18px !important; }
 [data-react-directory-statuses-island].mes-react-nomenclature-island .module-layout .panel { border-radius:18px !important; }
 [data-react-roles-island].mes-react-roles-island .module-layout :is(.panel, .detail) { border-radius:18px !important; }
+[data-react-timesheet-island].mes-react-timesheet-island .workspace { height: 100%; grid-template-columns: minmax(0, 1fr); }
+[data-react-timesheet-island].mes-react-timesheet-island .workspace-main { height: 100%; grid-template-rows: auto minmax(0, 1fr); }
+html body #app main.app-shell [data-react-timesheet-island].mes-react-timesheet-island .panel { min-height: 0; border-radius:18px !important; }
+[data-react-timesheet-island].mes-react-timesheet-island .panel:last-child { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+[data-react-timesheet-island].mes-react-timesheet-island .panel > :first-child:not(.panel-heading) { padding: 16px 18px; border-bottom: 1px solid #e3ebf3; }
+[data-react-timesheet-island].mes-react-timesheet-island .panel > .timesheet-controls { padding: 12px 18px; }
+[data-react-timesheet-island].mes-react-timesheet-island .panel > .metric-grid { grid-template-columns: repeat(4, minmax(104px, 1fr)); padding: 0 18px 18px; }
+[data-react-timesheet-island].mes-react-timesheet-island .table-wrap { height: 100%; min-height: 0; }
 
 @media (max-width: 760px) {
   [data-react-directory-statuses-island].mes-react-nomenclature-island .module-page { min-height: 0; padding: 14px; }
@@ -263,6 +271,11 @@
   [data-react-roles-island].mes-react-roles-island .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   [data-react-roles-island].mes-react-roles-island .panel-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 14px; }
   [data-react-roles-island].mes-react-roles-island .detail { padding: 14px; }
+  [data-react-timesheet-island].mes-react-timesheet-island .module-page { min-height: 0; padding: 14px; }
+  [data-react-timesheet-island].mes-react-timesheet-island .panel-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 14px; }
+  [data-react-timesheet-island].mes-react-timesheet-island .panel > :first-child:not(.panel-heading) { padding: 14px; }
+  [data-react-timesheet-island].mes-react-timesheet-island .panel > .timesheet-controls { padding: 10px 14px; }
+  [data-react-timesheet-island].mes-react-timesheet-island .panel > .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 14px 14px; }
 }
 
 @media (max-width: 1180px) {
