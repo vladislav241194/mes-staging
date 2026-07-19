@@ -45,6 +45,10 @@
 .mes-react-shift-master-board-island .shift-master-board-react-title { display: grid; gap: 3px; }
 .mes-react-shift-master-board-island .shift-master-board-react-title :is(span, small) { color: #718296; font-size: 10px; }
 .mes-react-shift-master-board-island .shift-master-board-react-detail .metric-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+.mes-react-shift-master-board-island .shift-master-board-react-transfer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mes-react-shift-master-board-island .shift-master-board-react-transfer article { display: grid; min-width: 0; gap: 4px; padding: 10px; border: 1px solid #e3ebf3; border-radius: 10px; background: #f8fafc; }
+.mes-react-shift-master-board-island .shift-master-board-react-transfer :is(span, small) { min-width: 0; color: #718296; font-size: 9px; overflow-wrap: anywhere; }
+.mes-react-shift-master-board-island .shift-master-board-react-transfer strong { min-width: 0; color: #18314d; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
 .mes-react-shift-master-board-island .shift-master-board-react-executors { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3ebf3; border-radius: 12px; }
 .mes-react-shift-master-board-island :is(.shift-master-board-react-executors header, .shift-master-board-react-executors div, .shift-master-board-react-actions) { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mes-react-shift-master-board-island .shift-master-board-react-executors p { margin: 0; color: #718296; font-size: 11px; }
